@@ -1,8 +1,9 @@
 'use client';
 
 /**
- * Voucher Form component
+ * Voucher 2 Form component
  * Excel-style single-row grid with entries table below
+ * Reuses the same schema/behavior as VoucherForm
  */
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
@@ -38,12 +39,6 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import {
-  ContextMenu,
-  ContextMenuContent,
-  ContextMenuItem,
-  ContextMenuTrigger,
-} from '@/components/ui/context-menu';
 
 type VoucherEntry = VoucherFormData & { id: string };
 
@@ -148,7 +143,7 @@ function InputWithTooltip({
   );
 }
 
-export function VoucherForm() {
+export function Voucher2Form() {
   const [formData, setFormData] = useState<FormState>(defaultFormState);
   const [validationErrors, setValidationErrors] = useState<ValidationErrors>({});
 
@@ -498,9 +493,9 @@ export function VoucherForm() {
     setValidationErrors({});
   };
 
-  const colHead = 'px-2 py-1.5 text-xs font-semibold text-foreground/80 bg-muted/30';
-  const colCell = 'p-1.5 align-top';
-  const control = 'h-9 text-sm shadow-sm';
+  const colHead = 'px-2 py-1 text-[11px] font-semibold text-muted-foreground';
+  const colCell = 'p-1 align-top';
+  const control = 'h-8 text-xs';
   const tableClass = 'min-w-max';
   const excelWrap = cn(
     'rounded-md border bg-background',
@@ -514,7 +509,7 @@ export function VoucherForm() {
           {pendingEditId ? (
             <div className="text-sm font-medium text-primary">Editing entry</div>
           ) : (
-            <div className="text-sm font-medium text-foreground/80">Voucher</div>
+            <div className="text-sm font-medium text-muted-foreground">Voucher 2</div>
           )}
           {validationSummaryMessage && (
             <div className="text-destructive text-sm">{validationSummaryMessage}</div>
@@ -578,18 +573,10 @@ export function VoucherForm() {
               <TableHead className={cn(colHead, 'w-[160px]')}>LOC</TableHead>
               <TableHead className={cn(colHead, 'w-[160px]')}>Employee</TableHead>
               <TableHead className={cn(colHead, 'w-[160px]')}>Assignment</TableHead>
-              {showTdsSection && (
-                <>
-                  <TableHead className={cn(colHead, 'w-[160px]')}>TDS Type</TableHead>
-                  <TableHead className={cn(colHead, 'w-[130px]')}>TDS Amount</TableHead>
-                </>
-              )}
-              {showTcsSection && (
-                <>
-                  <TableHead className={cn(colHead, 'w-[160px]')}>TCS Type</TableHead>
-                  <TableHead className={cn(colHead, 'w-[130px]')}>TCS Amount</TableHead>
-                </>
-              )}
+              <TableHead className={cn(colHead, 'w-[160px]')}>TDS Type</TableHead>
+              <TableHead className={cn(colHead, 'w-[130px]')}>TDS Amount</TableHead>
+              <TableHead className={cn(colHead, 'w-[160px]')}>TCS Type</TableHead>
+              <TableHead className={cn(colHead, 'w-[130px]')}>TCS Amount</TableHead>
             </TableRow>
           </TableHeader>
 
@@ -633,10 +620,10 @@ export function VoucherForm() {
                   <Select
                     value={formData.voucherType || undefined}
                     onValueChange={(v) => updateField('voucherType', v as VoucherFormData['voucherType'])}
-                    key={formData.voucherType || 'reset-voucher'}
+                    key={formData.voucherType || 'reset-voucher2-voucher'}
                   >
                     <SelectTrigger
-                      className={cn(control, getFieldErrorClass('voucherType'), 'w-full')}
+                      className={cn(control, getFieldErrorClass('voucherType'))}
                       data-field-error={hasError('voucherType')}
                     >
                       <SelectValue placeholder={getPlaceholder('voucherType', '')} />
@@ -655,10 +642,10 @@ export function VoucherForm() {
                   <Select
                     value={formData.documentType || undefined}
                     onValueChange={(v) => updateField('documentType', v as VoucherFormData['documentType'])}
-                    key={formData.documentType || 'reset-document'}
+                    key={formData.documentType || 'reset-voucher2-document'}
                   >
                     <SelectTrigger
-                      className={cn(control, getFieldErrorClass('documentType'), 'w-full')}
+                      className={cn(control, getFieldErrorClass('documentType'))}
                       data-field-error={hasError('documentType')}
                     >
                       <SelectValue placeholder={getPlaceholder('documentType', '')} />
@@ -678,10 +665,10 @@ export function VoucherForm() {
                   <Select
                     value={formData.accountType || undefined}
                     onValueChange={handleAccountTypeChange}
-                    key={formData.accountType || 'reset-accountType'}
+                    key={formData.accountType || 'reset-voucher2-accountType'}
                   >
                     <SelectTrigger
-                      className={cn(control, getFieldErrorClass('accountType'), 'w-full')}
+                      className={cn(control, getFieldErrorClass('accountType'))}
                       data-field-error={hasError('accountType')}
                     >
                       <SelectValue placeholder={getPlaceholder('accountType', '')} />
@@ -763,10 +750,10 @@ export function VoucherForm() {
                     onValueChange={(v) =>
                       updateField('balanceAccountType', v as VoucherFormData['balanceAccountType'])
                     }
-                    key={formData.balanceAccountType || 'reset-balanceType'}
+                    key={formData.balanceAccountType || 'reset-voucher2-balanceType'}
                   >
                     <SelectTrigger
-                      className={cn(control, getFieldErrorClass('balanceAccountType'), 'w-full')}
+                      className={cn(control, getFieldErrorClass('balanceAccountType'))}
                       data-field-error={hasError('balanceAccountType')}
                     >
                       <SelectValue placeholder={getPlaceholder('balanceAccountType', '')} />
@@ -885,100 +872,95 @@ export function VoucherForm() {
                 </InputWithTooltip>
               </TableCell>
 
-              {showTdsSection && (
-                <>
-                  <TableCell className={colCell}>
-                    <InputWithTooltip
-                      hasError={hasError('tdsSection.tdsType')}
-                      errorClass={getFieldErrorClass('tdsSection.tdsType')}
-                      fullErrorMessage={getFullErrorMessage('tdsSection.tdsType')}
-                      placeholder={getPlaceholder('tdsSection.tdsType', '')}
-                    >
-                      <Input
-                        value={formData.tdsSection?.tdsType || ''}
-                        onChange={(e) =>
-                          updateField('tdsSection', {
-                            ...formData.tdsSection,
-                            tdsType: e.target.value,
-                            tdsAmount: formData.tdsSection?.tdsAmount || '',
-                          })
-                        }
-                        className={control}
-                      />
-                    </InputWithTooltip>
-                  </TableCell>
+              <TableCell className={colCell}>
+                <InputWithTooltip
+                  hasError={hasError('tdsSection.tdsType')}
+                  errorClass={getFieldErrorClass('tdsSection.tdsType')}
+                  fullErrorMessage={getFullErrorMessage('tdsSection.tdsType')}
+                  placeholder={getPlaceholder('tdsSection.tdsType', '')}
+                >
+                  <Input
+                    value={formData.tdsSection?.tdsType || ''}
+                    onChange={(e) =>
+                      updateField('tdsSection', {
+                        ...formData.tdsSection,
+                        tdsType: e.target.value,
+                        tdsAmount: formData.tdsSection?.tdsAmount || '',
+                      })
+                    }
+                    className={cn(control, !showTdsSection && 'opacity-60')}
+                    disabled={!showTdsSection}
+                  />
+                </InputWithTooltip>
+              </TableCell>
 
-                  <TableCell className={colCell}>
-                    <InputWithTooltip
-                      hasError={hasError('tdsSection.tdsAmount')}
-                      errorClass={getFieldErrorClass('tdsSection.tdsAmount')}
-                      fullErrorMessage={getFullErrorMessage('tdsSection.tdsAmount')}
-                      placeholder={getPlaceholder('tdsSection.tdsAmount', '')}
-                    >
-                      <Input
-                        value={formData.tdsSection?.tdsAmount || ''}
-                        onChange={(e) =>
-                          updateField('tdsSection', {
-                            ...formData.tdsSection,
-                            tdsType: formData.tdsSection?.tdsType || '',
-                            tdsAmount: e.target.value,
-                          })
-                        }
-                        className={control}
-                        inputMode="decimal"
-                      />
-                    </InputWithTooltip>
-                  </TableCell>
-                </>
-              )}
+              <TableCell className={colCell}>
+                <InputWithTooltip
+                  hasError={hasError('tdsSection.tdsAmount')}
+                  errorClass={getFieldErrorClass('tdsSection.tdsAmount')}
+                  fullErrorMessage={getFullErrorMessage('tdsSection.tdsAmount')}
+                  placeholder={getPlaceholder('tdsSection.tdsAmount', '')}
+                >
+                  <Input
+                    value={formData.tdsSection?.tdsAmount || ''}
+                    onChange={(e) =>
+                      updateField('tdsSection', {
+                        ...formData.tdsSection,
+                        tdsType: formData.tdsSection?.tdsType || '',
+                        tdsAmount: e.target.value,
+                      })
+                    }
+                    className={cn(control, !showTdsSection && 'opacity-60')}
+                    disabled={!showTdsSection}
+                    inputMode="decimal"
+                  />
+                </InputWithTooltip>
+              </TableCell>
 
-              {showTcsSection && (
-                <>
-                  <TableCell className={colCell}>
-                    <InputWithTooltip
-                      hasError={hasError('tcsSection.tcsType')}
-                      errorClass={getFieldErrorClass('tcsSection.tcsType')}
-                      fullErrorMessage={getFullErrorMessage('tcsSection.tcsType')}
-                      placeholder={getPlaceholder('tcsSection.tcsType', '')}
-                    >
-                      <Input
-                        value={formData.tcsSection?.tcsType || ''}
-                        onChange={(e) =>
-                          updateField('tcsSection', {
-                            ...formData.tcsSection,
-                            tcsType: e.target.value,
-                            tcsAmount: formData.tcsSection?.tcsAmount || '',
-                          })
-                        }
-                        className={control}
-                      />
-                    </InputWithTooltip>
-                  </TableCell>
+              <TableCell className={colCell}>
+                <InputWithTooltip
+                  hasError={hasError('tcsSection.tcsType')}
+                  errorClass={getFieldErrorClass('tcsSection.tcsType')}
+                  fullErrorMessage={getFullErrorMessage('tcsSection.tcsType')}
+                  placeholder={getPlaceholder('tcsSection.tcsType', '')}
+                >
+                  <Input
+                    value={formData.tcsSection?.tcsType || ''}
+                    onChange={(e) =>
+                      updateField('tcsSection', {
+                        ...formData.tcsSection,
+                        tcsType: e.target.value,
+                        tcsAmount: formData.tcsSection?.tcsAmount || '',
+                      })
+                    }
+                    className={cn(control, !showTcsSection && 'opacity-60')}
+                    disabled={!showTcsSection}
+                  />
+                </InputWithTooltip>
+              </TableCell>
 
-                  <TableCell className={colCell}>
-                    <InputWithTooltip
-                      hasError={hasError('tcsSection.tcsAmount')}
-                      errorClass={getFieldErrorClass('tcsSection.tcsAmount')}
-                      fullErrorMessage={getFullErrorMessage('tcsSection.tcsAmount')}
-                      placeholder={getPlaceholder('tcsSection.tcsAmount', '')}
-                    >
-                      <Input
-                        value={formData.tcsSection?.tcsAmount || ''}
-                        onChange={(e) =>
-                          updateField('tcsSection', {
-                            ...formData.tcsSection,
-                            tcsType: formData.tcsSection?.tcsType || '',
-                            tcsAmount: e.target.value,
-                          })
-                        }
-                        className={control}
-                        inputMode="decimal"
-                      />
-                    </InputWithTooltip>
-                  </TableCell>
-                </>
-              )}
-
+              <TableCell className={colCell}>
+                <InputWithTooltip
+                  hasError={hasError('tcsSection.tcsAmount')}
+                  errorClass={getFieldErrorClass('tcsSection.tcsAmount')}
+                  fullErrorMessage={getFullErrorMessage('tcsSection.tcsAmount')}
+                  placeholder={getPlaceholder('tcsSection.tcsAmount', '')}
+                >
+                  <Input
+                    value={formData.tcsSection?.tcsAmount || ''}
+                    onChange={(e) =>
+                      updateField('tcsSection', {
+                        ...formData.tcsSection,
+                        tcsType: formData.tcsSection?.tcsType || '',
+                        tcsAmount: e.target.value,
+                      })
+                    }
+                    className={cn(control, !showTcsSection && 'opacity-60')}
+                    disabled={!showTcsSection}
+                    inputMode="decimal"
+                  />
+                </InputWithTooltip>
+              </TableCell>
             </TableRow>
           </TableBody>
         </Table>
@@ -986,17 +968,11 @@ export function VoucherForm() {
 
       <div className="flex flex-col gap-2 min-h-0">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between min-w-0">
-          <div className="text-sm text-foreground/70">
-            {entries.length === 0 ? 'No entries' : `${entries.length} ${entries.length === 1 ? 'entry' : 'entries'} added`}
+          <div className="text-sm text-muted-foreground">
+            {entries.length} {entries.length === 1 ? 'entry' : 'entries'} added
           </div>
           <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-            <Button
-              type="button"
-              size="sm"
-              onClick={handleSubmitAll}
-              disabled={entries.length === 0 || pendingEditId !== null}
-              title={pendingEditId ? 'Cannot submit while editing an entry' : 'Submit all entries'}
-            >
+            <Button type="button" size="sm" onClick={handleSubmitAll} disabled={entries.length === 0}>
               Submit
             </Button>
             <Button
@@ -1014,9 +990,9 @@ export function VoucherForm() {
         </div>
 
         {entries.length === 0 ? (
-          <div className="rounded-md border bg-muted/20 p-6 text-center text-foreground/70">
+          <div className="rounded-md border bg-muted/20 p-6 text-center text-muted-foreground">
             <div>No entries yet.</div>
-            <div className="text-sm mt-1">Fill the row and click "Add".</div>
+            <div className="text-sm mt-1">Fill the row and click “Add”.</div>
           </div>
         ) : (
           <div className="rounded-md border bg-background">
@@ -1049,10 +1025,8 @@ export function VoucherForm() {
               </TableHeader>
               <TableBody>
                 {entries.map((entry) => (
-                  <ContextMenu key={entry.id}>
-                    <ContextMenuTrigger asChild>
-                      <TableRow className={cn(pendingEditId === entry.id && 'bg-primary/5')}>
-                        <TableCell className="p-2 text-xs">{entry.postingDate}</TableCell>
+                  <TableRow key={entry.id} className={cn(pendingEditId === entry.id && 'bg-primary/5')}>
+                    <TableCell className="p-2 text-xs">{entry.postingDate}</TableCell>
                     <TableCell className="p-2 text-xs">{entry.documentDate}</TableCell>
                     <TableCell className="p-2 text-xs font-medium">{entry.voucherType}</TableCell>
                     <TableCell className="p-2 text-xs">{entry.documentType}</TableCell>
@@ -1069,32 +1043,14 @@ export function VoucherForm() {
                     <TableCell className="p-2 text-xs">{entry.loc}</TableCell>
                     <TableCell className="p-2 text-xs">{entry.employee}</TableCell>
                     <TableCell className="p-2 text-xs">{entry.assignment}</TableCell>
-                    {entry.accountType === 'Vendor' ? (
-                      <>
-                        <TableCell className="p-2 text-xs">{entry.tdsSection?.tdsType ?? ''}</TableCell>
-                        <TableCell className="p-2 text-xs text-right tabular-nums">
-                          {entry.tdsSection ? entry.tdsSection.tdsAmount.toFixed(2) : ''}
-                        </TableCell>
-                        <TableCell className="p-2 text-xs"></TableCell>
-                        <TableCell className="p-2 text-xs"></TableCell>
-                      </>
-                    ) : entry.accountType === 'Customer' ? (
-                      <>
-                        <TableCell className="p-2 text-xs"></TableCell>
-                        <TableCell className="p-2 text-xs"></TableCell>
-                        <TableCell className="p-2 text-xs">{entry.tcsSection?.tcsType ?? ''}</TableCell>
-                        <TableCell className="p-2 text-xs text-right tabular-nums">
-                          {entry.tcsSection ? entry.tcsSection.tcsAmount.toFixed(2) : ''}
-                        </TableCell>
-                      </>
-                    ) : (
-                      <>
-                        <TableCell className="p-2 text-xs"></TableCell>
-                        <TableCell className="p-2 text-xs"></TableCell>
-                        <TableCell className="p-2 text-xs"></TableCell>
-                        <TableCell className="p-2 text-xs"></TableCell>
-                      </>
-                    )}
+                    <TableCell className="p-2 text-xs">{entry.tdsSection?.tdsType ?? ''}</TableCell>
+                    <TableCell className="p-2 text-xs tabular-nums">
+                      {entry.tdsSection ? entry.tdsSection.tdsAmount.toFixed(2) : ''}
+                    </TableCell>
+                    <TableCell className="p-2 text-xs">{entry.tcsSection?.tcsType ?? ''}</TableCell>
+                    <TableCell className="p-2 text-xs tabular-nums">
+                      {entry.tcsSection ? entry.tcsSection.tcsAmount.toFixed(2) : ''}
+                    </TableCell>
                     <TableCell className="p-2">
                       <div className="flex items-center gap-1">
                         <Button
@@ -1121,26 +1077,7 @@ export function VoucherForm() {
                         </Button>
                       </div>
                     </TableCell>
-                      </TableRow>
-                    </ContextMenuTrigger>
-                    <ContextMenuContent>
-                      <ContextMenuItem
-                        onClick={() => handleEditClick(entry.id)}
-                        disabled={pendingEditId !== null && pendingEditId !== entry.id}
-                      >
-                        <Pencil className="mr-2 h-4 w-4" />
-                        Edit
-                      </ContextMenuItem>
-                      <ContextMenuItem
-                        onClick={() => handleDeleteEntry(entry.id)}
-                        variant="destructive"
-                        disabled={pendingEditId === entry.id}
-                      >
-                        <Trash2 className="mr-2 h-4 w-4" />
-                        Delete
-                      </ContextMenuItem>
-                    </ContextMenuContent>
-                  </ContextMenu>
+                  </TableRow>
                 ))}
               </TableBody>
             </Table>
@@ -1248,3 +1185,5 @@ export function VoucherForm() {
     </div>
   );
 }
+
+

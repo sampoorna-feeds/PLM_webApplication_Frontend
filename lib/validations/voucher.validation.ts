@@ -5,17 +5,11 @@
 import { z } from 'zod';
 
 export const voucherSchema = z.object({
-  voucherType: z.enum(['General Journal', 'Cash Payment', 'Cash Receipt'], {
-    required_error: 'Required',
-  }),
-  documentType: z.enum(['Payment', 'Invoice', 'Credit Memo', 'Refund'], {
-    required_error: 'Required',
-  }),
+  voucherType: z.enum(['General Journal', 'Cash Payment', 'Cash Receipt']),
+  documentType: z.enum(['Payment', 'Invoice', 'Credit Memo', 'Refund']),
   postingDate: z.string().min(1, 'Required'),
   documentDate: z.string().min(1, 'Required'),
-  accountType: z.enum(['G/L Account', 'Customer', 'Vendor'], {
-    required_error: 'Required',
-  }),
+  accountType: z.enum(['G/L Account', 'Customer', 'Vendor']),
   accountNo: z.string().min(1, 'Required'),
   externalDocumentNo: z.string().min(1, 'Required'),
   // TDS Section - required when Account Type is Vendor
@@ -31,9 +25,7 @@ export const voucherSchema = z.object({
   }).optional(),
   description: z.string().min(1, 'Required'),
   amount: z.number().min(0.01, 'Required'),
-  balanceAccountType: z.enum(['G/L Account', 'Customer', 'Vendor'], {
-    required_error: 'Required',
-  }),
+  balanceAccountType: z.enum(['G/L Account', 'Customer', 'Vendor']),
   balanceAccountNo: z.string().min(1, 'Required'),
   lineNarration: z.string().min(1, 'Required'),
   lob: z.string().min(1, 'Required'),

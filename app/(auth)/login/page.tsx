@@ -5,6 +5,9 @@
 
 'use client';
 
+// Force dynamic rendering to avoid static generation issues with contexts
+export const dynamic = 'force-dynamic';
+
 import { PublicGuard } from '@/components/layout/public-guard';
 import { LoginForm } from '@/components/forms/login-form';
 import { ThemeToggle } from '@/components/theme/theme-toggle';

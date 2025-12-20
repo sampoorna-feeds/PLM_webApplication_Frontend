@@ -44,6 +44,8 @@ import {
   ContextMenuItem,
   ContextMenuTrigger,
 } from '@/components/ui/context-menu';
+import { AccountSelect } from './account-select';
+import { DimensionSelect } from './dimension-select';
 
 type VoucherEntry = VoucherFormData & { id: string };
 
@@ -65,8 +67,8 @@ type FormState = {
   lob: string;
   branch: string;
   loc: string;
-  employee: string;
-  assignment: string;
+  employee: string | undefined;
+  assignment: string | undefined;
 };
 
 type ValidationErrors = Record<string, string[]>;
@@ -167,8 +169,9 @@ export function VoucherForm() {
 
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
-  const showTdsSection = accountType === 'Vendor';
-  const showTcsSection = accountType === 'Customer';
+  // TDS/TCS fields always shown, but only mandatory based on account type
+  const isTdsRequired = accountType === 'Vendor';
+  const isTcsRequired = accountType === 'Customer';
 
   const postingDateRef = useRef<HTMLInputElement | null>(null);
 
@@ -282,7 +285,16 @@ export function VoucherForm() {
   }, []);
 
   const updateField = <K extends keyof FormState>(field: K, value: FormState[K]) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
+    setFormData((prev) => {
+      const updated = { ...prev, [field]: value };
+      
+      // Auto-fill document date when posting date changes
+      if (field === 'postingDate' && value && !prev.documentDate) {
+        updated.documentDate = value as string;
+      }
+      
+      return updated;
+    });
     if (validationErrors[field as string]) {
       setValidationErrors((prev) => {
         const next = { ...prev };
@@ -341,7 +353,7 @@ export function VoucherForm() {
       documentDate: entry.documentDate,
       accountType: entry.accountType,
       accountNo: entry.accountNo,
-      externalDocumentNo: entry.externalDocumentNo,
+      externalDocumentNo: entry.externalDocumentNo || '',
       tdsSection: entry.tdsSection
         ? { tdsType: entry.tdsSection.tdsType, tdsAmount: entry.tdsSection.tdsAmount.toString() }
         : undefined,
@@ -352,7 +364,7 @@ export function VoucherForm() {
       amount: entry.amount.toString(),
       balanceAccountType: entry.balanceAccountType,
       balanceAccountNo: entry.balanceAccountNo,
-      lineNarration: entry.lineNarration,
+      lineNarration: entry.lineNarration || '',
       lob: entry.lob,
       branch: entry.branch,
       loc: entry.loc,
@@ -561,35 +573,65 @@ export function VoucherForm() {
         <Table className={tableClass}>
           <TableHeader>
             <TableRow>
-              <TableHead className={cn(colHead, 'w-[140px]')}>Posting Date</TableHead>
-              <TableHead className={cn(colHead, 'w-[140px]')}>Document Date</TableHead>
-              <TableHead className={cn(colHead, 'w-[160px]')}>Voucher Type</TableHead>
-              <TableHead className={cn(colHead, 'w-[160px]')}>Document Type</TableHead>
-              <TableHead className={cn(colHead, 'w-[150px]')}>Account Type</TableHead>
-              <TableHead className={cn(colHead, 'w-[160px]')}>Account No.</TableHead>
-              <TableHead className={cn(colHead, 'w-[180px]')}>External Doc No.</TableHead>
+              <TableHead className={cn(colHead, 'w-[140px]')}>
+                Posting Date <span className="text-destructive">*</span>
+              </TableHead>
+              <TableHead className={cn(colHead, 'w-[140px]')}>
+                Document Date <span className="text-destructive">*</span>
+              </TableHead>
+              <TableHead className={cn(colHead, 'w-[160px]')}>
+                Voucher Type <span className="text-destructive">*</span>
+              </TableHead>
+              <TableHead className={cn(colHead, 'w-[160px]')}>
+                Document Type <span className="text-destructive">*</span>
+              </TableHead>
+              <TableHead className={cn(colHead, 'w-[150px]')}>
+                Account Type <span className="text-destructive">*</span>
+              </TableHead>
+              <TableHead className={cn(colHead, 'w-[160px]')}>
+                Account No. <span className="text-destructive">*</span>
+              </TableHead>
+              <TableHead className={cn(colHead, 'w-[180px]')}>
+                External Doc No.
+                {formData.voucherType === 'General Journal' &&
+                  (formData.documentType === 'Invoice' || formData.documentType === 'Credit Memo') && (
+                    <span className="text-destructive ml-1">*</span>
+                  )}
+              </TableHead>
               <TableHead className={cn(colHead, 'w-[180px]')}>Description</TableHead>
-              <TableHead className={cn(colHead, 'w-[130px] text-right')}>Amount</TableHead>
-              <TableHead className={cn(colHead, 'w-[150px]')}>Bal. Acc Type</TableHead>
-              <TableHead className={cn(colHead, 'w-[160px]')}>Bal. Acc No.</TableHead>
+              <TableHead className={cn(colHead, 'w-[130px] text-right')}>
+                Amount <span className="text-destructive">*</span>
+              </TableHead>
+              <TableHead className={cn(colHead, 'w-[150px]')}>
+                Bal. Acc Type <span className="text-destructive">*</span>
+              </TableHead>
+              <TableHead className={cn(colHead, 'w-[160px]')}>
+                Bal. Acc No. <span className="text-destructive">*</span>
+              </TableHead>
               <TableHead className={cn(colHead, 'w-[200px]')}>Line Narration</TableHead>
-              <TableHead className={cn(colHead, 'w-[160px]')}>LOB</TableHead>
-              <TableHead className={cn(colHead, 'w-[160px]')}>Branch</TableHead>
-              <TableHead className={cn(colHead, 'w-[160px]')}>LOC</TableHead>
+              <TableHead className={cn(colHead, 'w-[160px]')}>
+                LOB <span className="text-destructive">*</span>
+              </TableHead>
+              <TableHead className={cn(colHead, 'w-[160px]')}>
+                Branch <span className="text-destructive">*</span>
+              </TableHead>
+              <TableHead className={cn(colHead, 'w-[160px]')}>
+                LOC <span className="text-destructive">*</span>
+              </TableHead>
               <TableHead className={cn(colHead, 'w-[160px]')}>Employee</TableHead>
               <TableHead className={cn(colHead, 'w-[160px]')}>Assignment</TableHead>
-              {showTdsSection && (
-                <>
-                  <TableHead className={cn(colHead, 'w-[160px]')}>TDS Type</TableHead>
-                  <TableHead className={cn(colHead, 'w-[130px]')}>TDS Amount</TableHead>
-                </>
-              )}
-              {showTcsSection && (
-                <>
-                  <TableHead className={cn(colHead, 'w-[160px]')}>TCS Type</TableHead>
-                  <TableHead className={cn(colHead, 'w-[130px]')}>TCS Amount</TableHead>
-                </>
-              )}
+              <TableHead className={cn(colHead, 'w-[160px]')}>
+                TDS Type {isTdsRequired && <span className="text-destructive">*</span>}
+              </TableHead>
+              <TableHead className={cn(colHead, 'w-[130px]')}>
+                TDS Amount {isTdsRequired && <span className="text-destructive">*</span>}
+              </TableHead>
+              <TableHead className={cn(colHead, 'w-[160px]')}>
+                TCS Type {isTcsRequired && <span className="text-destructive">*</span>}
+              </TableHead>
+              <TableHead className={cn(colHead, 'w-[130px]')}>
+                TCS Amount {isTcsRequired && <span className="text-destructive">*</span>}
+              </TableHead>
             </TableRow>
           </TableHeader>
 
@@ -668,6 +710,7 @@ export function VoucherForm() {
                       <SelectItem value="Invoice">Invoice</SelectItem>
                       <SelectItem value="Credit Memo">Credit Memo</SelectItem>
                       <SelectItem value="Refund">Refund</SelectItem>
+                      <SelectItem value="NA">NA</SelectItem>
                     </SelectContent>
                   </Select>
                 </CellWithTooltip>
@@ -696,18 +739,23 @@ export function VoucherForm() {
               </TableCell>
 
               <TableCell className={colCell}>
-                <InputWithTooltip
-                  hasError={hasError('accountNo')}
-                  errorClass={getFieldErrorClass('accountNo')}
-                  fullErrorMessage={getFullErrorMessage('accountNo')}
-                  placeholder={getPlaceholder('accountNo', '')}
-                >
-                  <Input
+                <CellWithTooltip errorMessage={getFullErrorMessage('accountNo')}>
+                  <AccountSelect
+                    accountType={formData.accountType}
                     value={formData.accountNo}
-                    onChange={(e) => updateField('accountNo', e.target.value)}
+                    onChange={(value) => {
+                      updateField('accountNo', value);
+                      // Clear Bal. Acc No. if it matches the new Account No.
+                      if (formData.balanceAccountNo === value) {
+                        updateField('balanceAccountNo', '');
+                      }
+                    }}
+                    placeholder={getPlaceholder('accountNo', '')}
                     className={control}
+                    hasError={hasError('accountNo')}
+                    errorClass={getFieldErrorClass('accountNo')}
                   />
-                </InputWithTooltip>
+                </CellWithTooltip>
               </TableCell>
 
               <TableCell className={colCell}>
@@ -781,18 +829,18 @@ export function VoucherForm() {
               </TableCell>
 
               <TableCell className={colCell}>
-                <InputWithTooltip
-                  hasError={hasError('balanceAccountNo')}
-                  errorClass={getFieldErrorClass('balanceAccountNo')}
-                  fullErrorMessage={getFullErrorMessage('balanceAccountNo')}
-                  placeholder={getPlaceholder('balanceAccountNo', '')}
-                >
-                  <Input
+                <CellWithTooltip errorMessage={getFullErrorMessage('balanceAccountNo')}>
+                  <AccountSelect
+                    accountType={formData.balanceAccountType}
                     value={formData.balanceAccountNo}
-                    onChange={(e) => updateField('balanceAccountNo', e.target.value)}
+                    onChange={(value) => updateField('balanceAccountNo', value)}
+                    placeholder={getPlaceholder('balanceAccountNo', '')}
                     className={control}
+                    hasError={hasError('balanceAccountNo')}
+                    errorClass={getFieldErrorClass('balanceAccountNo')}
+                    excludeValue={formData.accountNo} // Exclude Account No. from Bal. Acc No. list
                   />
-                </InputWithTooltip>
+                </CellWithTooltip>
               </TableCell>
 
               <TableCell className={colCell}>
@@ -811,48 +859,45 @@ export function VoucherForm() {
               </TableCell>
 
               <TableCell className={colCell}>
-                <InputWithTooltip
-                  hasError={hasError('lob')}
-                  errorClass={getFieldErrorClass('lob')}
-                  fullErrorMessage={getFullErrorMessage('lob')}
-                  placeholder={getPlaceholder('lob', '')}
-                >
-                  <Input
+                <CellWithTooltip errorMessage={getFullErrorMessage('lob')}>
+                  <DimensionSelect
+                    dimensionType="LOB"
                     value={formData.lob}
-                    onChange={(e) => updateField('lob', e.target.value)}
+                    onChange={(value) => updateField('lob', value)}
+                    placeholder={getPlaceholder('lob', '')}
                     className={control}
+                    hasError={hasError('lob')}
+                    errorClass={getFieldErrorClass('lob')}
                   />
-                </InputWithTooltip>
+                </CellWithTooltip>
               </TableCell>
 
               <TableCell className={colCell}>
-                <InputWithTooltip
-                  hasError={hasError('branch')}
-                  errorClass={getFieldErrorClass('branch')}
-                  fullErrorMessage={getFullErrorMessage('branch')}
-                  placeholder={getPlaceholder('branch', '')}
-                >
-                  <Input
+                <CellWithTooltip errorMessage={getFullErrorMessage('branch')}>
+                  <DimensionSelect
+                    dimensionType="BRANCH"
                     value={formData.branch}
-                    onChange={(e) => updateField('branch', e.target.value)}
+                    onChange={(value) => updateField('branch', value)}
+                    placeholder={getPlaceholder('branch', '')}
                     className={control}
+                    hasError={hasError('branch')}
+                    errorClass={getFieldErrorClass('branch')}
                   />
-                </InputWithTooltip>
+                </CellWithTooltip>
               </TableCell>
 
               <TableCell className={colCell}>
-                <InputWithTooltip
-                  hasError={hasError('loc')}
-                  errorClass={getFieldErrorClass('loc')}
-                  fullErrorMessage={getFullErrorMessage('loc')}
-                  placeholder={getPlaceholder('loc', '')}
-                >
-                  <Input
+                <CellWithTooltip errorMessage={getFullErrorMessage('loc')}>
+                  <DimensionSelect
+                    dimensionType="LOC"
                     value={formData.loc}
-                    onChange={(e) => updateField('loc', e.target.value)}
+                    onChange={(value) => updateField('loc', value)}
+                    placeholder={getPlaceholder('loc', '')}
                     className={control}
+                    hasError={hasError('loc')}
+                    errorClass={getFieldErrorClass('loc')}
                   />
-                </InputWithTooltip>
+                </CellWithTooltip>
               </TableCell>
 
               <TableCell className={colCell}>
@@ -885,99 +930,95 @@ export function VoucherForm() {
                 </InputWithTooltip>
               </TableCell>
 
-              {showTdsSection && (
-                <>
-                  <TableCell className={colCell}>
-                    <InputWithTooltip
-                      hasError={hasError('tdsSection.tdsType')}
-                      errorClass={getFieldErrorClass('tdsSection.tdsType')}
-                      fullErrorMessage={getFullErrorMessage('tdsSection.tdsType')}
-                      placeholder={getPlaceholder('tdsSection.tdsType', '')}
-                    >
-                      <Input
-                        value={formData.tdsSection?.tdsType || ''}
-                        onChange={(e) =>
-                          updateField('tdsSection', {
-                            ...formData.tdsSection,
-                            tdsType: e.target.value,
-                            tdsAmount: formData.tdsSection?.tdsAmount || '',
-                          })
-                        }
-                        className={control}
-                      />
-                    </InputWithTooltip>
-                  </TableCell>
+              <TableCell className={colCell}>
+                <InputWithTooltip
+                  hasError={isTdsRequired && hasError('tdsSection.tdsType')}
+                  errorClass={isTdsRequired ? getFieldErrorClass('tdsSection.tdsType') : ''}
+                  fullErrorMessage={isTdsRequired ? getFullErrorMessage('tdsSection.tdsType') : undefined}
+                  placeholder={getPlaceholder('tdsSection.tdsType', '')}
+                >
+                  <Input
+                    value={formData.tdsSection?.tdsType || ''}
+                    onChange={(e) =>
+                      updateField('tdsSection', {
+                        ...formData.tdsSection,
+                        tdsType: e.target.value,
+                        tdsAmount: formData.tdsSection?.tdsAmount || '',
+                      })
+                    }
+                    className={control}
+                    disabled={!isTdsRequired && accountType !== undefined}
+                  />
+                </InputWithTooltip>
+              </TableCell>
 
-                  <TableCell className={colCell}>
-                    <InputWithTooltip
-                      hasError={hasError('tdsSection.tdsAmount')}
-                      errorClass={getFieldErrorClass('tdsSection.tdsAmount')}
-                      fullErrorMessage={getFullErrorMessage('tdsSection.tdsAmount')}
-                      placeholder={getPlaceholder('tdsSection.tdsAmount', '')}
-                    >
-                      <Input
-                        value={formData.tdsSection?.tdsAmount || ''}
-                        onChange={(e) =>
-                          updateField('tdsSection', {
-                            ...formData.tdsSection,
-                            tdsType: formData.tdsSection?.tdsType || '',
-                            tdsAmount: e.target.value,
-                          })
-                        }
-                        className={control}
-                        inputMode="decimal"
-                      />
-                    </InputWithTooltip>
-                  </TableCell>
-                </>
-              )}
+              <TableCell className={colCell}>
+                <InputWithTooltip
+                  hasError={isTdsRequired && hasError('tdsSection.tdsAmount')}
+                  errorClass={isTdsRequired ? getFieldErrorClass('tdsSection.tdsAmount') : ''}
+                  fullErrorMessage={isTdsRequired ? getFullErrorMessage('tdsSection.tdsAmount') : undefined}
+                  placeholder={getPlaceholder('tdsSection.tdsAmount', '')}
+                >
+                  <Input
+                    value={formData.tdsSection?.tdsAmount || ''}
+                    onChange={(e) =>
+                      updateField('tdsSection', {
+                        ...formData.tdsSection,
+                        tdsType: formData.tdsSection?.tdsType || '',
+                        tdsAmount: e.target.value,
+                      })
+                    }
+                    className={control}
+                    inputMode="decimal"
+                    disabled={!isTdsRequired && accountType !== undefined}
+                  />
+                </InputWithTooltip>
+              </TableCell>
 
-              {showTcsSection && (
-                <>
-                  <TableCell className={colCell}>
-                    <InputWithTooltip
-                      hasError={hasError('tcsSection.tcsType')}
-                      errorClass={getFieldErrorClass('tcsSection.tcsType')}
-                      fullErrorMessage={getFullErrorMessage('tcsSection.tcsType')}
-                      placeholder={getPlaceholder('tcsSection.tcsType', '')}
-                    >
-                      <Input
-                        value={formData.tcsSection?.tcsType || ''}
-                        onChange={(e) =>
-                          updateField('tcsSection', {
-                            ...formData.tcsSection,
-                            tcsType: e.target.value,
-                            tcsAmount: formData.tcsSection?.tcsAmount || '',
-                          })
-                        }
-                        className={control}
-                      />
-                    </InputWithTooltip>
-                  </TableCell>
+              <TableCell className={colCell}>
+                <InputWithTooltip
+                  hasError={isTcsRequired && hasError('tcsSection.tcsType')}
+                  errorClass={isTcsRequired ? getFieldErrorClass('tcsSection.tcsType') : ''}
+                  fullErrorMessage={isTcsRequired ? getFullErrorMessage('tcsSection.tcsType') : undefined}
+                  placeholder={getPlaceholder('tcsSection.tcsType', '')}
+                >
+                  <Input
+                    value={formData.tcsSection?.tcsType || ''}
+                    onChange={(e) =>
+                      updateField('tcsSection', {
+                        ...formData.tcsSection,
+                        tcsType: e.target.value,
+                        tcsAmount: formData.tcsSection?.tcsAmount || '',
+                      })
+                    }
+                    className={control}
+                    disabled={!isTcsRequired && accountType !== undefined}
+                  />
+                </InputWithTooltip>
+              </TableCell>
 
-                  <TableCell className={colCell}>
-                    <InputWithTooltip
-                      hasError={hasError('tcsSection.tcsAmount')}
-                      errorClass={getFieldErrorClass('tcsSection.tcsAmount')}
-                      fullErrorMessage={getFullErrorMessage('tcsSection.tcsAmount')}
-                      placeholder={getPlaceholder('tcsSection.tcsAmount', '')}
-                    >
-                      <Input
-                        value={formData.tcsSection?.tcsAmount || ''}
-                        onChange={(e) =>
-                          updateField('tcsSection', {
-                            ...formData.tcsSection,
-                            tcsType: formData.tcsSection?.tcsType || '',
-                            tcsAmount: e.target.value,
-                          })
-                        }
-                        className={control}
-                        inputMode="decimal"
-                      />
-                    </InputWithTooltip>
-                  </TableCell>
-                </>
-              )}
+              <TableCell className={colCell}>
+                <InputWithTooltip
+                  hasError={isTcsRequired && hasError('tcsSection.tcsAmount')}
+                  errorClass={isTcsRequired ? getFieldErrorClass('tcsSection.tcsAmount') : ''}
+                  fullErrorMessage={isTcsRequired ? getFullErrorMessage('tcsSection.tcsAmount') : undefined}
+                  placeholder={getPlaceholder('tcsSection.tcsAmount', '')}
+                >
+                  <Input
+                    value={formData.tcsSection?.tcsAmount || ''}
+                    onChange={(e) =>
+                      updateField('tcsSection', {
+                        ...formData.tcsSection,
+                        tcsType: formData.tcsSection?.tcsType || '',
+                        tcsAmount: e.target.value,
+                      })
+                    }
+                    className={control}
+                    inputMode="decimal"
+                    disabled={!isTcsRequired && accountType !== undefined}
+                  />
+                </InputWithTooltip>
+              </TableCell>
 
             </TableRow>
           </TableBody>
@@ -1069,32 +1110,22 @@ export function VoucherForm() {
                     <TableCell className="p-2 text-xs">{entry.loc}</TableCell>
                     <TableCell className="p-2 text-xs">{entry.employee}</TableCell>
                     <TableCell className="p-2 text-xs">{entry.assignment}</TableCell>
-                    {entry.accountType === 'Vendor' ? (
-                      <>
-                        <TableCell className="p-2 text-xs">{entry.tdsSection?.tdsType ?? ''}</TableCell>
-                        <TableCell className="p-2 text-xs text-right tabular-nums">
-                          {entry.tdsSection ? entry.tdsSection.tdsAmount.toFixed(2) : ''}
-                        </TableCell>
-                        <TableCell className="p-2 text-xs"></TableCell>
-                        <TableCell className="p-2 text-xs"></TableCell>
-                      </>
-                    ) : entry.accountType === 'Customer' ? (
-                      <>
-                        <TableCell className="p-2 text-xs"></TableCell>
-                        <TableCell className="p-2 text-xs"></TableCell>
-                        <TableCell className="p-2 text-xs">{entry.tcsSection?.tcsType ?? ''}</TableCell>
-                        <TableCell className="p-2 text-xs text-right tabular-nums">
-                          {entry.tcsSection ? entry.tcsSection.tcsAmount.toFixed(2) : ''}
-                        </TableCell>
-                      </>
-                    ) : (
-                      <>
-                        <TableCell className="p-2 text-xs"></TableCell>
-                        <TableCell className="p-2 text-xs"></TableCell>
-                        <TableCell className="p-2 text-xs"></TableCell>
-                        <TableCell className="p-2 text-xs"></TableCell>
-                      </>
-                    )}
+                    <TableCell className="p-2 text-xs">
+                      {entry.accountType === 'Vendor' ? entry.tdsSection?.tdsType ?? '' : ''}
+                    </TableCell>
+                    <TableCell className="p-2 text-xs text-right tabular-nums">
+                      {entry.accountType === 'Vendor' && entry.tdsSection
+                        ? entry.tdsSection.tdsAmount.toFixed(2)
+                        : ''}
+                    </TableCell>
+                    <TableCell className="p-2 text-xs">
+                      {entry.accountType === 'Customer' ? entry.tcsSection?.tcsType ?? '' : ''}
+                    </TableCell>
+                    <TableCell className="p-2 text-xs text-right tabular-nums">
+                      {entry.accountType === 'Customer' && entry.tcsSection
+                        ? entry.tcsSection.tcsAmount.toFixed(2)
+                        : ''}
+                    </TableCell>
                     <TableCell className="p-2">
                       <div className="flex items-center gap-1">
                         <Button

@@ -336,7 +336,7 @@ export function Voucher2Form() {
       documentDate: entry.documentDate,
       accountType: entry.accountType,
       accountNo: entry.accountNo,
-      externalDocumentNo: entry.externalDocumentNo,
+      externalDocumentNo: entry.externalDocumentNo || '',
       tdsSection: entry.tdsSection
         ? { tdsType: entry.tdsSection.tdsType, tdsAmount: entry.tdsSection.tdsAmount.toString() }
         : undefined,
@@ -347,12 +347,12 @@ export function Voucher2Form() {
       amount: entry.amount.toString(),
       balanceAccountType: entry.balanceAccountType,
       balanceAccountNo: entry.balanceAccountNo,
-      lineNarration: entry.lineNarration,
+      lineNarration: entry.lineNarration || '',
       lob: entry.lob,
       branch: entry.branch,
       loc: entry.loc,
-      employee: entry.employee,
-      assignment: entry.assignment,
+      employee: entry.employee || '',
+      assignment: entry.assignment || '',
     });
 
     setAccountType(entry.accountType as VoucherFormData['accountType']);

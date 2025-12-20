@@ -5,6 +5,9 @@
 [build.environment]
   NODE_ENV = "production"
   NODE_VERSION = "20"
+  # Configure secrets scanning
+  # NEXT_PUBLIC_* variables are intentionally embedded in client-side code
+  SECRETS_SCAN_OMIT_KEYS = "NEXT_PUBLIC_API_PASSWORD,NEXT_PUBLIC_API_USERNAME"
 
 [[plugins]]
   package = "@netlify/plugin-nextjs"

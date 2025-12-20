@@ -213,7 +213,12 @@ export function AccountSelect({
       }
 
       if (result.length > 0) {
-        setItems((prev) => [...prev, ...result]);
+        setItems((prev) => {
+          // Filter out duplicates by No
+          const existingNos = new Set(prev.map(item => item.No));
+          const newItems = result.filter(item => !existingNos.has(item.No));
+          return [...prev, ...newItems];
+        });
         setSkip((prev) => prev + result.length);
         setHasMore(result.length >= PAGE_SIZE);
       } else {
@@ -347,6 +352,19 @@ export function AccountSelect({
   // Find selected item name
   const selectedItem = items.find((item) => item.No === value);
   const displayValue = selectedItem ? `${selectedItem.No} - ${selectedItem.Name}` : value || '';
+  
+  // Calculate max width needed for dropdown based on items
+  const calculateDropdownWidth = () => {
+    if (items.length === 0) return '280px';
+    const codeLengths = items.map(item => item.No?.length || 0);
+    const nameLengths = items.map(item => item.Name?.length || 0);
+    const maxCodeLength = codeLengths.length > 0 ? Math.max(...codeLengths) : 0;
+    const maxNameLength = nameLengths.length > 0 ? Math.max(...nameLengths) : 0;
+    // Estimate: code (8ch) + padding + name (max 40ch) + check icon + padding
+    // Use min-width to ensure readability, max-width to prevent overflow
+    const estimatedWidth = Math.max(280, Math.min(500, (maxCodeLength + maxNameLength) * 8 + 80));
+    return `${estimatedWidth}px`;
+  };
 
   return (
     <Popover open={isOpen} onOpenChange={handleOpenChange}>
@@ -367,7 +385,11 @@ export function AccountSelect({
           <ChevronDownIcon className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+      <PopoverContent 
+        className="p-0 min-w-[280px] max-w-[500px] w-auto" 
+        align="start"
+        style={{ width: calculateDropdownWidth() }}
+      >
         <div className="p-2 border-b">
           <Input
             placeholder="Search by No or Name..."
@@ -383,7 +405,7 @@ export function AccountSelect({
         </div>
         <div
           ref={listRef}
-          className="max-h-[300px] overflow-y-auto"
+          className="max-h-[300px] overflow-y-auto overflow-x-hidden"
           onScroll={(e) => {
             const target = e.currentTarget;
             if (
@@ -413,8 +435,8 @@ export function AccountSelect({
                   <div
                     key={item.No}
                     className={cn(
-                      'relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground',
-                      value === item.No && 'bg-accent text-accent-foreground'
+                      'relative flex cursor-default select-none items-start rounded-sm px-2 py-2 text-sm outline-none hover:bg-muted/50',
+                      value === item.No && 'bg-muted'
                     )}
                     onClick={() => {
                       onChange(item.No);
@@ -423,11 +445,18 @@ export function AccountSelect({
                   >
                     <CheckIcon
                       className={cn(
-                        'mr-2 h-4 w-4',
+                        'mr-2 h-4 w-4 mt-0.5 shrink-0',
                         value === item.No ? 'opacity-100' : 'opacity-0'
                       )}
                     />
-                    {item.No} - {item.Name}
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium text-foreground">
+                        {item.No}
+                      </div>
+                      <div className="text-muted-foreground text-xs mt-0.5 break-words">
+                        {item.Name}
+                      </div>
+                    </div>
                   </div>
                 ))}
               {isLoading && items.length > 0 && (

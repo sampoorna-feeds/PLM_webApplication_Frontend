@@ -250,7 +250,12 @@ export function DimensionSelect({
       }
 
       if (result.length > 0) {
-        setItems((prev) => [...prev, ...result]);
+        setItems((prev) => {
+          // Filter out duplicates by Code
+          const existingCodes = new Set(prev.map(item => item.Code));
+          const newItems = result.filter(item => !existingCodes.has(item.Code));
+          return [...prev, ...newItems];
+        });
         setSkip((prev) => prev + result.length);
         setHasMore(result.length >= PAGE_SIZE);
       } else {
@@ -314,6 +319,19 @@ export function DimensionSelect({
       ? `${selectedItem.Code} - ${selectedItem.Name}`
       : selectedItem.Code
     : value || '';
+  
+  // Calculate max width needed for dropdown based on items
+  const calculateDropdownWidth = () => {
+    if (items.length === 0) return '280px';
+    const codeLengths = items.map(item => item.Code?.length || 0);
+    const nameLengths = items.map(item => item.Name?.length || 0);
+    const maxCodeLength = codeLengths.length > 0 ? Math.max(...codeLengths) : 0;
+    const maxNameLength = nameLengths.length > 0 ? Math.max(...nameLengths) : 0;
+    // Estimate: code (8ch) + padding + name (max 40ch) + check icon + padding
+    // Use min-width to ensure readability, max-width to prevent overflow
+    const estimatedWidth = Math.max(280, Math.min(500, (maxCodeLength + maxNameLength) * 8 + 80));
+    return `${estimatedWidth}px`;
+  };
 
   return (
     <Popover open={isOpen} onOpenChange={handleOpenChange}>
@@ -334,7 +352,11 @@ export function DimensionSelect({
           <ChevronDownIcon className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+      <PopoverContent 
+        className="p-0 min-w-[280px] max-w-[500px] w-auto" 
+        align="start"
+        style={{ width: calculateDropdownWidth() }}
+      >
         {supportsSearch && (
           <div className="p-2 border-b">
             <Input
@@ -352,7 +374,7 @@ export function DimensionSelect({
         )}
         <div
           ref={listRef}
-          className="max-h-[300px] overflow-y-auto"
+          className="max-h-[300px] overflow-y-auto overflow-x-hidden"
           onScroll={(e) => {
             if (!supportsSearch) return;
             const target = e.currentTarget;
@@ -381,8 +403,8 @@ export function DimensionSelect({
                 <div
                   key={item.Code}
                   className={cn(
-                    'relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground',
-                    value === item.Code && 'bg-accent text-accent-foreground'
+                    'relative flex cursor-default select-none items-start rounded-sm px-2 py-2 text-sm outline-none hover:bg-muted/50',
+                    value === item.Code && 'bg-muted'
                   )}
                   onClick={() => {
                     onChange(item.Code);
@@ -391,11 +413,20 @@ export function DimensionSelect({
                 >
                   <CheckIcon
                     className={cn(
-                      'mr-2 h-4 w-4',
+                      'mr-2 h-4 w-4 mt-0.5 shrink-0',
                       value === item.Code ? 'opacity-100' : 'opacity-0'
                     )}
                   />
-                  {item.Name ? `${item.Code} - ${item.Name}` : item.Code}
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium text-foreground">
+                      {item.Code}
+                    </div>
+                    {item.Name && (
+                      <div className="text-muted-foreground text-xs mt-0.5 break-words">
+                        {item.Name}
+                      </div>
+                    )}
+                  </div>
                 </div>
               ))}
               {isLoading && items.length > 0 && (

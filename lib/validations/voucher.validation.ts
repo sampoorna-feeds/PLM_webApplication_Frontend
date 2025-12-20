@@ -6,7 +6,9 @@ import { z } from 'zod';
 
 export const voucherSchema = z.object({
   voucherType: z.enum(['General Journal', 'Cash Payment', 'Cash Receipt']),
+
   documentType: z.enum(['Payment', 'Invoice', 'Credit Memo', 'Refund', 'NA']).nullable(),
+
   postingDate: z.string().min(1, 'Required'),
   documentDate: z.string().min(1, 'Required'),
   accountType: z.enum(['G/L Account', 'Customer', 'Vendor']),

@@ -38,6 +38,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { FieldTitle } from '@/components/ui/field';
 import {
   ContextMenu,
   ContextMenuContent,
@@ -46,8 +47,19 @@ import {
 } from '@/components/ui/context-menu';
 import { AccountSelect } from './account-select';
 import { DimensionSelect } from './dimension-select';
+import {
+  getTDSSection,
+  getTCSSection,
+  createVoucher,
+  uploadAttachment,
+  type TDSSection,
+  type TCSSection,
+  type CreateVoucherPayload,
+} from '@/lib/api/services/voucher.service';
+import { getCustomerByNo } from '@/lib/api/services/customer.service';
+import { useAuthStore } from '@/lib/stores/auth-store';
 
-type VoucherEntry = VoucherFormData & { id: string };
+type VoucherEntry = VoucherFormData & { id: string; attachments?: File[] };
 
 type FormState = {
   voucherType: VoucherFormData['voucherType'] | undefined;
@@ -56,13 +68,15 @@ type FormState = {
   documentDate: string;
   accountType: VoucherFormData['accountType'] | undefined;
   accountNo: string;
+  accountTdsSection: { tdsType: string; tdsAmount: string } | undefined;
+  accountTcsSection: { tcsType: string; tcsAmount: string } | undefined;
   externalDocumentNo: string;
-  tdsSection: { tdsType: string; tdsAmount: string } | undefined;
-  tcsSection: { tcsType: string; tcsAmount: string } | undefined;
-  description: string;
+  description: string | undefined;
   amount: string;
   balanceAccountType: VoucherFormData['balanceAccountType'] | undefined;
   balanceAccountNo: string;
+  balanceTdsSection: { tdsType: string; tdsAmount: string } | undefined;
+  balanceTcsSection: { tcsType: string; tcsAmount: string } | undefined;
   lineNarration: string;
   lob: string;
   branch: string;
@@ -80,13 +94,15 @@ const defaultFormState: FormState = {
   documentDate: '',
   accountType: undefined,
   accountNo: '',
+  accountTdsSection: undefined,
+  accountTcsSection: undefined,
   externalDocumentNo: '',
-  tdsSection: undefined,
-  tcsSection: undefined,
   description: '',
   amount: '',
   balanceAccountType: undefined,
   balanceAccountNo: '',
+  balanceTdsSection: undefined,
+  balanceTcsSection: undefined,
   lineNarration: '',
   lob: '',
   branch: '',
@@ -153,6 +169,7 @@ function InputWithTooltip({
 export function VoucherForm() {
   const [formData, setFormData] = useState<FormState>(defaultFormState);
   const [validationErrors, setValidationErrors] = useState<ValidationErrors>({});
+  const { user } = useAuthStore();
 
   const [accountType, setAccountType] = useState<VoucherFormData['accountType'] | undefined>(
     undefined
@@ -168,12 +185,32 @@ export function VoucherForm() {
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [attachments, setAttachments] = useState<File[]>([]);
+  const [accountTdsSections, setAccountTdsSections] = useState<TDSSection[]>([]);
+  const [accountTcsSections, setAccountTcsSections] = useState<TCSSection[]>([]);
+  const [balanceTdsSections, setBalanceTdsSections] = useState<TDSSection[]>([]);
+  const [balanceTcsSections, setBalanceTcsSections] = useState<TCSSection[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // TDS/TCS fields always shown, but only mandatory based on account type
-  const isTdsRequired = accountType === 'Vendor';
-  const isTcsRequired = accountType === 'Customer';
+  // TDS/TCS visibility for Account Type
+  const showAccountTds = accountType === 'Vendor';
+  const showAccountTcs = accountType === 'Customer';
+  
+  // TDS/TCS visibility for Balance Account Type
+  const showBalanceTds = formData.balanceAccountType === 'Vendor';
+  const showBalanceTcs = formData.balanceAccountType === 'Customer';
+
+  // Progressive field enablement logic
+  const datesFilled = formData.postingDate && formData.documentDate;
+  const voucherTypeEnabled = datesFilled;
+  const accountTypeEnabled = voucherTypeEnabled && formData.voucherType && formData.documentType;
+  const accountNoEnabled = accountTypeEnabled && formData.accountType;
+  const basicFieldsEnabled = accountNoEnabled && formData.accountNo;
+  const balanceAccountEnabled = basicFieldsEnabled && formData.amount;
+  const restFieldsEnabled = balanceAccountEnabled && formData.balanceAccountType && formData.balanceAccountNo;
 
   const postingDateRef = useRef<HTMLInputElement | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const formStateToVoucherData = (state: FormState): Partial<VoucherFormData> => {
     const data: Partial<VoucherFormData> = {
@@ -200,21 +237,41 @@ export function VoucherForm() {
       if (!isNaN(parsedAmount)) data.amount = parsedAmount;
     }
 
-    if (state.tdsSection) {
-      const tdsAmount = parseFloat(state.tdsSection.tdsAmount);
+    if (state.accountTdsSection && state.accountTdsSection.tdsType && state.accountTdsSection.tdsType !== 'NA') {
+      const tdsAmount = parseFloat(state.accountTdsSection.tdsAmount);
       if (!isNaN(tdsAmount)) {
-        data.tdsSection = {
-          tdsType: state.tdsSection.tdsType,
+        data.accountTdsSection = {
+          tdsType: state.accountTdsSection.tdsType,
           tdsAmount,
         };
       }
     }
 
-    if (state.tcsSection) {
-      const tcsAmount = parseFloat(state.tcsSection.tcsAmount);
+    if (state.accountTcsSection && state.accountTcsSection.tcsType && state.accountTcsSection.tcsType !== 'NA') {
+      const tcsAmount = parseFloat(state.accountTcsSection.tcsAmount);
       if (!isNaN(tcsAmount)) {
-        data.tcsSection = {
-          tcsType: state.tcsSection.tcsType,
+        data.accountTcsSection = {
+          tcsType: state.accountTcsSection.tcsType,
+          tcsAmount,
+        };
+      }
+    }
+
+    if (state.balanceTdsSection && state.balanceTdsSection.tdsType && state.balanceTdsSection.tdsType !== 'NA') {
+      const tdsAmount = parseFloat(state.balanceTdsSection.tdsAmount);
+      if (!isNaN(tdsAmount)) {
+        data.balanceTdsSection = {
+          tdsType: state.balanceTdsSection.tdsType,
+          tdsAmount,
+        };
+      }
+    }
+
+    if (state.balanceTcsSection && state.balanceTcsSection.tcsType && state.balanceTcsSection.tcsType !== 'NA') {
+      const tcsAmount = parseFloat(state.balanceTcsSection.tcsAmount);
+      if (!isNaN(tcsAmount)) {
+        data.balanceTcsSection = {
+          tcsType: state.balanceTcsSection.tcsType,
           tcsAmount,
         };
       }
@@ -223,11 +280,12 @@ export function VoucherForm() {
     return data;
   };
 
-  const validateForm = (): { isValid: boolean; errors: ValidationErrors } => {
-    const data = formStateToVoucherData(formData);
+  // Validate all fields - used on Add button click
+  const validateAllFields = (formDataToValidate: FormState): ValidationErrors => {
+    const data = formStateToVoucherData(formDataToValidate);
     const result = voucherSchema.safeParse(data);
 
-    if (result.success) return { isValid: true, errors: {} };
+    if (result.success) return {};
 
     const errors: ValidationErrors = {};
     result.error.issues.forEach((issue) => {
@@ -236,21 +294,174 @@ export function VoucherForm() {
       errors[path].push(issue.message);
     });
 
-    return { isValid: false, errors };
+    return errors;
+  };
+
+  // Validate conditional fields only - used for real-time validation
+  const validateConditionalFields = (formDataToValidate: FormState): ValidationErrors => {
+    const errors: ValidationErrors = {};
+    
+    // Validate External Document No. if conditions are met
+    const shouldRequireExternalDoc = 
+      formDataToValidate.voucherType === 'General Journal' && 
+      (formDataToValidate.documentType === 'Invoice' || formDataToValidate.documentType === 'Credit Memo');
+    
+    if (shouldRequireExternalDoc) {
+      if (!formDataToValidate.externalDocumentNo || formDataToValidate.externalDocumentNo.trim() === '') {
+        errors.externalDocumentNo = ['External Document No. is required when Voucher Type is General Journal and Document Type is Invoice or Credit Memo'];
+      }
+    }
+    
+    return errors;
   };
 
   const getValidationSummaryMessage = (): string => {
     const errorCount = Object.keys(validationErrors).length;
     if (errorCount === 0) return '';
 
-    if (validationErrors.tdsSection?.length) return validationErrors.tdsSection[0] ?? 'Fill all fields';
-    if (validationErrors.tcsSection?.length) return validationErrors.tcsSection[0] ?? 'Fill all fields';
+    // Prioritize specific error messages
+    if (validationErrors.externalDocumentNo?.length) {
+      return validationErrors.externalDocumentNo[0];
+    }
+    if (validationErrors.accountTdsSection?.length) {
+      return validationErrors.accountTdsSection[0] ?? 'Fill all fields';
+    }
+    if (validationErrors.accountTcsSection?.length) {
+      return validationErrors.accountTcsSection[0] ?? 'Fill all fields';
+    }
+    if (validationErrors.balanceTdsSection?.length) {
+      return validationErrors.balanceTdsSection[0] ?? 'Fill all fields';
+    }
+    if (validationErrors.balanceTcsSection?.length) {
+      return validationErrors.balanceTcsSection[0] ?? 'Fill all fields';
+    }
 
-    if (errorCount > 1) return 'Fill all fields';
-
+    // If multiple errors, show the first specific error message
     const firstErrorKey = Object.keys(validationErrors)[0];
-    return validationErrors[firstErrorKey]?.[0] || 'Fill all fields';
+    if (validationErrors[firstErrorKey]?.[0]) {
+      return validationErrors[firstErrorKey][0];
+    }
+
+    return 'Fill all fields';
   };
+
+  // Fetch Account TDS sections when Account Type is Vendor AND Account No is selected
+  // Check Assessee_Code if Balance Account Type is Customer
+  useEffect(() => {
+    const fetchAccountTDSSections = async () => {
+      if (accountType === 'Vendor' && formData.accountNo) {
+        // If Balance Account Type is Customer, check Assessee_Code
+        if (formData.balanceAccountType === 'Customer' && formData.balanceAccountNo) {
+          try {
+            const customer = await getCustomerByNo(formData.balanceAccountNo);
+            if (customer?.Assessee_Code && customer.Assessee_Code.trim() !== '') {
+              const sections = await getTDSSection(formData.accountNo);
+              setAccountTdsSections(sections);
+            } else {
+              setAccountTdsSections([]);
+            }
+          } catch (error) {
+            console.error('Error fetching Account TDS sections:', error);
+            setAccountTdsSections([]);
+          }
+        } else {
+          // No Balance Account Customer, fetch directly
+          try {
+            const sections = await getTDSSection(formData.accountNo);
+            setAccountTdsSections(sections);
+          } catch (error) {
+            console.error('Error fetching Account TDS sections:', error);
+            setAccountTdsSections([]);
+          }
+        }
+      } else {
+        setAccountTdsSections([]);
+      }
+    };
+    fetchAccountTDSSections();
+  }, [accountType, formData.accountNo, formData.balanceAccountType, formData.balanceAccountNo]);
+
+  // Fetch Account TCS sections when Account Type is Customer AND Account No is selected AND Assessee_Code is not blank
+  useEffect(() => {
+    const fetchAccountTCSSections = async () => {
+      if (accountType === 'Customer' && formData.accountNo) {
+        try {
+          const customer = await getCustomerByNo(formData.accountNo);
+          if (customer?.Assessee_Code && customer.Assessee_Code.trim() !== '') {
+            const sections = await getTCSSection(formData.accountNo);
+            setAccountTcsSections(sections);
+          } else {
+            setAccountTcsSections([]);
+          }
+        } catch (error) {
+          console.error('Error fetching Account TCS sections:', error);
+          setAccountTcsSections([]);
+        }
+      } else {
+        setAccountTcsSections([]);
+      }
+    };
+    fetchAccountTCSSections();
+  }, [accountType, formData.accountNo]);
+
+  // Fetch Balance Account TDS sections when Balance Account Type is Vendor AND Balance Account No is selected
+  // Check Assessee_Code if Account Type is Customer
+  useEffect(() => {
+    const fetchBalanceTDSSections = async () => {
+      if (formData.balanceAccountType === 'Vendor' && formData.balanceAccountNo) {
+        // If Account Type is Customer, check Assessee_Code
+        if (accountType === 'Customer' && formData.accountNo) {
+          try {
+            const customer = await getCustomerByNo(formData.accountNo);
+            if (customer?.Assessee_Code && customer.Assessee_Code.trim() !== '') {
+              const sections = await getTDSSection(formData.balanceAccountNo);
+              setBalanceTdsSections(sections);
+            } else {
+              setBalanceTdsSections([]);
+            }
+          } catch (error) {
+            console.error('Error fetching Balance Account TDS sections:', error);
+            setBalanceTdsSections([]);
+          }
+        } else {
+          // No Account Customer, fetch directly
+          try {
+            const sections = await getTDSSection(formData.balanceAccountNo);
+            setBalanceTdsSections(sections);
+          } catch (error) {
+            console.error('Error fetching Balance Account TDS sections:', error);
+            setBalanceTdsSections([]);
+          }
+        }
+      } else {
+        setBalanceTdsSections([]);
+      }
+    };
+    fetchBalanceTDSSections();
+  }, [accountType, formData.accountNo, formData.balanceAccountType, formData.balanceAccountNo]);
+
+  // Fetch Balance Account TCS sections when Balance Account Type is Customer AND Balance Account No is selected AND Assessee_Code is not blank
+  useEffect(() => {
+    const fetchBalanceTCSSections = async () => {
+      if (formData.balanceAccountType === 'Customer' && formData.balanceAccountNo) {
+        try {
+          const customer = await getCustomerByNo(formData.balanceAccountNo);
+          if (customer?.Assessee_Code && customer.Assessee_Code.trim() !== '') {
+            const sections = await getTCSSection(formData.balanceAccountNo);
+            setBalanceTcsSections(sections);
+          } else {
+            setBalanceTcsSections([]);
+          }
+        } catch (error) {
+          console.error('Error fetching Balance Account TCS sections:', error);
+          setBalanceTcsSections([]);
+        }
+      } else {
+        setBalanceTcsSections([]);
+      }
+    };
+    fetchBalanceTCSSections();
+  }, [formData.balanceAccountType, formData.balanceAccountNo]);
 
   useEffect(() => {
     const hasValues = Object.values(formData).some((val) => {
@@ -282,6 +493,11 @@ export function VoucherForm() {
     setHasUnsavedChanges(false);
     setPendingEditId(null);
     setValidationErrors({});
+    setAttachments([]);
+    setAccountTdsSections([]);
+    setAccountTcsSections([]);
+    setBalanceTdsSections([]);
+    setBalanceTcsSections([]);
   }, []);
 
   const updateField = <K extends keyof FormState>(field: K, value: FormState[K]) => {
@@ -295,6 +511,8 @@ export function VoucherForm() {
       
       return updated;
     });
+    
+    // Clear error for the field being updated
     if (validationErrors[field as string]) {
       setValidationErrors((prev) => {
         const next = { ...prev };
@@ -304,20 +522,49 @@ export function VoucherForm() {
     }
   };
 
+  // Real-time validation for conditional fields only
+  // This runs when dependency values change (voucherType, documentType, externalDocumentNo)
+  useEffect(() => {
+    const conditionalErrors = validateConditionalFields(formData);
+    
+    // Update only conditional field errors
+    setValidationErrors((prev) => {
+      const next = { ...prev };
+      
+      // Update External Document No. error if validation fails
+      if (conditionalErrors.externalDocumentNo) {
+        next.externalDocumentNo = conditionalErrors.externalDocumentNo;
+      } else {
+        // Clear error if validation passes or condition is no longer met
+        // Check if condition is still met - if not, clear the error
+        const shouldRequireExternalDoc = 
+          formData.voucherType === 'General Journal' && 
+          (formData.documentType === 'Invoice' || formData.documentType === 'Credit Memo');
+        
+        if (!shouldRequireExternalDoc || (formData.externalDocumentNo && formData.externalDocumentNo.trim() !== '')) {
+          delete next.externalDocumentNo;
+        }
+      }
+      
+      return next;
+    });
+  }, [formData.voucherType, formData.documentType, formData.externalDocumentNo]);
+
   const handleAccountTypeChange = (value: string) => {
     const newAccountType = value as VoucherFormData['accountType'];
     setAccountType(newAccountType);
     updateField('accountType', newAccountType);
 
+    // Clear Account TDS/TCS when account type changes
     if (value === 'Vendor') {
-      updateField('tdsSection', { tdsType: '', tdsAmount: '' });
-      updateField('tcsSection', undefined);
+      updateField('accountTdsSection', undefined);
+      updateField('accountTcsSection', undefined);
     } else if (value === 'Customer') {
-      updateField('tcsSection', { tcsType: '', tcsAmount: '' });
-      updateField('tdsSection', undefined);
+      updateField('accountTcsSection', undefined);
+      updateField('accountTdsSection', undefined);
     } else {
-      updateField('tdsSection', undefined);
-      updateField('tcsSection', undefined);
+      updateField('accountTdsSection', undefined);
+      updateField('accountTcsSection', undefined);
     }
   };
 
@@ -329,17 +576,24 @@ export function VoucherForm() {
   };
 
   const handleAddEntry = () => {
-    const validation = validateForm();
-    setValidationErrors(validation.errors);
-    if (!validation.isValid) {
+    // Validate all fields on Add button click
+    const errors = validateAllFields(formData);
+    setValidationErrors(errors);
+    
+    if (Object.keys(errors).length > 0) {
       scrollToFirstError();
       return;
     }
 
     const data = formStateToVoucherData(formData) as VoucherFormData;
-    const newEntry: VoucherEntry = { ...data, id: Date.now().toString() };
+    const newEntry: VoucherEntry = { 
+      ...data, 
+      id: Date.now().toString(),
+      attachments: attachments.length > 0 ? [...attachments] : undefined
+    };
     setEntries((prev) => [...prev, newEntry]);
     resetForm();
+    setAttachments([]);
   };
 
   const loadEntryForEdit = (entryId: string) => {
@@ -353,17 +607,23 @@ export function VoucherForm() {
       documentDate: entry.documentDate,
       accountType: entry.accountType,
       accountNo: entry.accountNo,
+      accountTdsSection: entry.accountTdsSection
+        ? { tdsType: entry.accountTdsSection.tdsType, tdsAmount: entry.accountTdsSection.tdsAmount.toString() }
+        : undefined,
+      accountTcsSection: entry.accountTcsSection
+        ? { tcsType: entry.accountTcsSection.tcsType, tcsAmount: entry.accountTcsSection.tcsAmount.toString() }
+        : undefined,
       externalDocumentNo: entry.externalDocumentNo || '',
-      tdsSection: entry.tdsSection
-        ? { tdsType: entry.tdsSection.tdsType, tdsAmount: entry.tdsSection.tdsAmount.toString() }
-        : undefined,
-      tcsSection: entry.tcsSection
-        ? { tcsType: entry.tcsSection.tcsType, tcsAmount: entry.tcsSection.tcsAmount.toString() }
-        : undefined,
-      description: entry.description,
+      description: entry.description || undefined,
       amount: entry.amount.toString(),
       balanceAccountType: entry.balanceAccountType,
       balanceAccountNo: entry.balanceAccountNo,
+      balanceTdsSection: entry.balanceTdsSection
+        ? { tdsType: entry.balanceTdsSection.tdsType, tdsAmount: entry.balanceTdsSection.tdsAmount.toString() }
+        : undefined,
+      balanceTcsSection: entry.balanceTcsSection
+        ? { tcsType: entry.balanceTcsSection.tcsType, tcsAmount: entry.balanceTcsSection.tcsAmount.toString() }
+        : undefined,
       lineNarration: entry.lineNarration || '',
       lob: entry.lob,
       branch: entry.branch,
@@ -376,6 +636,7 @@ export function VoucherForm() {
     setPendingEditId(entryId);
     setHasUnsavedChanges(true);
     setValidationErrors({});
+    setAttachments(entry.attachments || []);
 
     setTimeout(() => {
       const formCard = document.querySelector('[data-form-card]');
@@ -421,9 +682,11 @@ export function VoucherForm() {
   const handleUpdateEntry = () => {
     if (!pendingEditId) return;
 
-    const validation = validateForm();
-    setValidationErrors(validation.errors);
-    if (!validation.isValid) {
+    // Validate all fields on Update button click
+    const errors = validateAllFields(formData);
+    setValidationErrors(errors);
+    
+    if (Object.keys(errors).length > 0) {
       scrollToFirstError();
       return;
     }
@@ -460,13 +723,149 @@ export function VoucherForm() {
     setShowDeleteAllWarning(false);
   };
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    setAttachments((prev) => [...prev, ...files]);
+  };
+
+  const removeAttachment = (index: number) => {
+    setAttachments((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const convertFileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = reader.result as string;
+        // Remove data URL prefix (e.g., "data:image/png;base64,")
+        const base64 = result.split(',')[1] || result;
+        resolve(base64);
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const mapVoucherTypeToTemplate = (voucherType: string): string => {
+    switch (voucherType) {
+      case 'General Journal':
+        return 'GENERAL';
+      case 'Cash Payment':
+        return 'CASH PAYM';
+      case 'Cash Receipt':
+        return 'CASH RECE';
+      default:
+        return 'GENERAL';
+    }
+  };
+
+  const buildVoucherPayload = (entry: VoucherEntry): CreateVoucherPayload => {
+    const payload: CreateVoucherPayload = {
+      Journal_Template_Name: mapVoucherTypeToTemplate(entry.voucherType),
+      Journal_Batch_Name: 'DEFAULT',
+      Posting_Date: entry.postingDate,
+      Document_Type: entry.documentType || 'Payment',
+      Account_Type: entry.accountType,
+      Amount: entry.amount,
+      Bal_Account_Type: entry.balanceAccountType,
+      Bal_Account_No: entry.balanceAccountNo,
+      Document_Date: entry.documentDate,
+      Party_Type: '0',
+      Party_Code: '',
+      User_ID: user?.username || '',
+      Shortcut_Dimension_1_Code: entry.lob,
+      Shortcut_Dimension_2_Code: entry.branch,
+      ShortcutDimCode3: entry.loc,
+      ShortcutDimCode4: entry.employee || '',
+      ShortcutDimCode5: entry.assignment || '',
+    };
+
+    // Add optional fields only if they have values
+    if (entry.description) {
+      payload.Description = entry.description;
+    }
+    if (entry.externalDocumentNo) {
+      payload.External_Document_No = entry.externalDocumentNo;
+    }
+    if (entry.lineNarration) {
+      payload.Line_Narration1 = entry.lineNarration;
+    }
+    if (entry.loc) {
+      payload.Shortcut_Dimension_3_Code = entry.loc;
+    }
+
+    // Set Party_Type and Party_Code if ANY TDS/TCS is present (and not NA)
+    // Priority: Account Type TDS/TCS first, then Balance Account Type
+    // Party_Type equals account type when TDS/TCS is not blank
+    if (entry.accountTdsSection && entry.accountTdsSection.tdsType && entry.accountTdsSection.tdsType !== 'NA') {
+      payload.Party_Type = entry.accountType;
+      payload.Party_Code = entry.accountNo;
+      payload.TDS_Section_Code = entry.accountTdsSection.tdsType;
+    } else if (entry.accountTcsSection && entry.accountTcsSection.tcsType && entry.accountTcsSection.tcsType !== 'NA') {
+      payload.Party_Type = entry.accountType;
+      payload.Party_Code = entry.accountNo;
+    } else if (entry.balanceTdsSection && entry.balanceTdsSection.tdsType && entry.balanceTdsSection.tdsType !== 'NA') {
+      payload.Party_Type = entry.balanceAccountType;
+      payload.Party_Code = entry.balanceAccountNo;
+      payload.TDS_Section_Code = entry.balanceTdsSection.tdsType;
+    } else if (entry.balanceTcsSection && entry.balanceTcsSection.tcsType && entry.balanceTcsSection.tcsType !== 'NA') {
+      payload.Party_Type = entry.balanceAccountType;
+      payload.Party_Code = entry.balanceAccountNo;
+    }
+
+    return payload;
+  };
+
   const handleSubmitAll = async () => {
     if (entries.length === 0) return;
-    // TODO: API integration later
-    // eslint-disable-next-line no-console
-    console.log('Submitting all entries:', entries);
-    setEntries([]);
-    resetForm();
+    
+    setIsSubmitting(true);
+    const errors: string[] = [];
+
+    try {
+      for (const entry of entries) {
+        try {
+          // Create voucher
+          const payload = buildVoucherPayload(entry);
+          const response = await createVoucher(payload);
+          const documentNo = response.Document_No;
+
+          // Upload attachments if any
+          if (entry.attachments && entry.attachments.length > 0) {
+            for (const file of entry.attachments) {
+              try {
+                const base64 = await convertFileToBase64(file);
+                await uploadAttachment({
+                  recNo: documentNo,
+                  fileName: file.name,
+                  fileEncodedTextDialog: base64,
+                });
+              } catch (error) {
+                console.error(`Error uploading attachment ${file.name}:`, error);
+                errors.push(`Failed to upload ${file.name} for entry ${entry.id}`);
+              }
+            }
+          }
+        } catch (error) {
+          console.error(`Error creating voucher for entry ${entry.id}:`, error);
+          errors.push(`Failed to create voucher for entry ${entry.id}`);
+        }
+      }
+
+      if (errors.length > 0) {
+        alert(`Some entries failed to submit:\n${errors.join('\n')}`);
+      } else {
+        // Success - clear entries and reset form
+        setEntries([]);
+        resetForm();
+        alert('All entries submitted successfully!');
+      }
+    } catch (error) {
+      console.error('Error submitting entries:', error);
+      alert('An error occurred while submitting entries. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const getPlaceholder = (fieldName: string, defaultPlaceholder: string): string => {
@@ -574,63 +973,108 @@ export function VoucherForm() {
           <TableHeader>
             <TableRow>
               <TableHead className={cn(colHead, 'w-[140px]')}>
-                Posting Date <span className="text-destructive">*</span>
+                <FieldTitle required>Posting Date</FieldTitle>
               </TableHead>
               <TableHead className={cn(colHead, 'w-[140px]')}>
-                Document Date <span className="text-destructive">*</span>
+                <FieldTitle required>Document Date</FieldTitle>
               </TableHead>
               <TableHead className={cn(colHead, 'w-[160px]')}>
-                Voucher Type <span className="text-destructive">*</span>
+                <FieldTitle required>Voucher Type</FieldTitle>
               </TableHead>
               <TableHead className={cn(colHead, 'w-[160px]')}>
-                Document Type <span className="text-destructive">*</span>
+                <FieldTitle required>Document Type</FieldTitle>
               </TableHead>
               <TableHead className={cn(colHead, 'w-[150px]')}>
-                Account Type <span className="text-destructive">*</span>
+                <FieldTitle required>Account Type</FieldTitle>
               </TableHead>
               <TableHead className={cn(colHead, 'w-[160px]')}>
-                Account No. <span className="text-destructive">*</span>
+                <FieldTitle required>Account No.</FieldTitle>
+              </TableHead>
+              {/* TDS Type header - shown when Account Type is Vendor */}
+              {showAccountTds && (
+                <TableHead className={cn(colHead, 'w-[160px]')}>
+                  <FieldTitle>TDS Type</FieldTitle>
+                </TableHead>
+              )}
+              {/* TDS Amount header - shown when Account Type is Vendor */}
+              {showAccountTds && (
+                <TableHead className={cn(colHead, 'w-[130px]')}>
+                  <FieldTitle>TDS Amount</FieldTitle>
+                </TableHead>
+              )}
+              {/* TCS Type header - shown when Account Type is Customer */}
+              {showAccountTcs && (
+                <TableHead className={cn(colHead, 'w-[160px]')}>
+                  <FieldTitle>TCS Type</FieldTitle>
+                </TableHead>
+              )}
+              {/* TCS Amount header - shown when Account Type is Customer */}
+              {showAccountTcs && (
+                <TableHead className={cn(colHead, 'w-[130px]')}>
+                  <FieldTitle>TCS Amount</FieldTitle>
+                </TableHead>
+              )}
+              <TableHead className={cn(colHead, 'w-[180px]')}>
+                <FieldTitle required={formData.voucherType === 'General Journal' && (formData.documentType === 'Invoice' || formData.documentType === 'Credit Memo')}>
+                  External Doc No.
+                </FieldTitle>
               </TableHead>
               <TableHead className={cn(colHead, 'w-[180px]')}>
-                External Doc No.
-                {formData.voucherType === 'General Journal' &&
-                  (formData.documentType === 'Invoice' || formData.documentType === 'Credit Memo') && (
-                    <span className="text-destructive ml-1">*</span>
-                  )}
+                <FieldTitle>Description</FieldTitle>
               </TableHead>
-              <TableHead className={cn(colHead, 'w-[180px]')}>Description</TableHead>
               <TableHead className={cn(colHead, 'w-[130px] text-right')}>
-                Amount <span className="text-destructive">*</span>
+                <FieldTitle required>Amount</FieldTitle>
               </TableHead>
               <TableHead className={cn(colHead, 'w-[150px]')}>
-                Bal. Acc Type <span className="text-destructive">*</span>
+                <FieldTitle required>Bal. Acc Type</FieldTitle>
               </TableHead>
               <TableHead className={cn(colHead, 'w-[160px]')}>
-                Bal. Acc No. <span className="text-destructive">*</span>
+                <FieldTitle required>Bal. Acc No.</FieldTitle>
               </TableHead>
-              <TableHead className={cn(colHead, 'w-[200px]')}>Line Narration</TableHead>
+              {/* TDS Type header - shown when Balance Account Type is Vendor */}
+              {showBalanceTds && (
+                <TableHead className={cn(colHead, 'w-[160px]')}>
+                  <FieldTitle>TDS Type</FieldTitle>
+                </TableHead>
+              )}
+              {/* TDS Amount header - shown when Balance Account Type is Vendor */}
+              {showBalanceTds && (
+                <TableHead className={cn(colHead, 'w-[130px]')}>
+                  <FieldTitle>TDS Amount</FieldTitle>
+                </TableHead>
+              )}
+              {/* TCS Type header - shown when Balance Account Type is Customer */}
+              {showBalanceTcs && (
+                <TableHead className={cn(colHead, 'w-[160px]')}>
+                  <FieldTitle>TCS Type</FieldTitle>
+                </TableHead>
+              )}
+              {/* TCS Amount header - shown when Balance Account Type is Customer */}
+              {showBalanceTcs && (
+                <TableHead className={cn(colHead, 'w-[130px]')}>
+                  <FieldTitle>TCS Amount</FieldTitle>
+                </TableHead>
+              )}
+              <TableHead className={cn(colHead, 'w-[200px]')}>
+                <FieldTitle>Line Narration</FieldTitle>
+              </TableHead>
               <TableHead className={cn(colHead, 'w-[160px]')}>
-                LOB <span className="text-destructive">*</span>
+                <FieldTitle required>LOB</FieldTitle>
               </TableHead>
               <TableHead className={cn(colHead, 'w-[160px]')}>
-                Branch <span className="text-destructive">*</span>
+                <FieldTitle required>Branch</FieldTitle>
               </TableHead>
               <TableHead className={cn(colHead, 'w-[160px]')}>
-                LOC <span className="text-destructive">*</span>
-              </TableHead>
-              <TableHead className={cn(colHead, 'w-[160px]')}>Employee</TableHead>
-              <TableHead className={cn(colHead, 'w-[160px]')}>Assignment</TableHead>
-              <TableHead className={cn(colHead, 'w-[160px]')}>
-                TDS Type {isTdsRequired && <span className="text-destructive">*</span>}
-              </TableHead>
-              <TableHead className={cn(colHead, 'w-[130px]')}>
-                TDS Amount {isTdsRequired && <span className="text-destructive">*</span>}
+                <FieldTitle required>LOC</FieldTitle>
               </TableHead>
               <TableHead className={cn(colHead, 'w-[160px]')}>
-                TCS Type {isTcsRequired && <span className="text-destructive">*</span>}
+                <FieldTitle>Employee</FieldTitle>
               </TableHead>
-              <TableHead className={cn(colHead, 'w-[130px]')}>
-                TCS Amount {isTcsRequired && <span className="text-destructive">*</span>}
+              <TableHead className={cn(colHead, 'w-[160px]')}>
+                <FieldTitle>Assignment</FieldTitle>
+              </TableHead>
+              <TableHead className={cn(colHead, 'w-[200px]')}>
+                <FieldTitle>Upload Files</FieldTitle>
               </TableHead>
             </TableRow>
           </TableHeader>
@@ -676,9 +1120,10 @@ export function VoucherForm() {
                     value={formData.voucherType || undefined}
                     onValueChange={(v) => updateField('voucherType', v as VoucherFormData['voucherType'])}
                     key={formData.voucherType || 'reset-voucher'}
+                    disabled={!voucherTypeEnabled}
                   >
                     <SelectTrigger
-                      className={cn(control, getFieldErrorClass('voucherType'), 'w-full')}
+                      className={cn(control, getFieldErrorClass('voucherType'), 'w-full', !voucherTypeEnabled && 'cursor-not-allowed')}
                       data-field-error={hasError('voucherType')}
                     >
                       <SelectValue placeholder={getPlaceholder('voucherType', '')} />
@@ -698,19 +1143,20 @@ export function VoucherForm() {
                     value={formData.documentType || undefined}
                     onValueChange={(v) => updateField('documentType', v as VoucherFormData['documentType'])}
                     key={formData.documentType || 'reset-document'}
+                    disabled={!voucherTypeEnabled}
                   >
                     <SelectTrigger
-                      className={cn(control, getFieldErrorClass('documentType'), 'w-full')}
+                      className={cn(control, getFieldErrorClass('documentType'), 'w-full', !voucherTypeEnabled && 'cursor-not-allowed')}
                       data-field-error={hasError('documentType')}
                     >
                       <SelectValue placeholder={getPlaceholder('documentType', '')} />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="NA">NA</SelectItem>
                       <SelectItem value="Payment">Payment</SelectItem>
                       <SelectItem value="Invoice">Invoice</SelectItem>
                       <SelectItem value="Credit Memo">Credit Memo</SelectItem>
                       <SelectItem value="Refund">Refund</SelectItem>
-                      <SelectItem value="NA">NA</SelectItem>
                     </SelectContent>
                   </Select>
                 </CellWithTooltip>
@@ -722,17 +1168,24 @@ export function VoucherForm() {
                     value={formData.accountType || undefined}
                     onValueChange={handleAccountTypeChange}
                     key={formData.accountType || 'reset-accountType'}
+                    disabled={!accountTypeEnabled}
                   >
                     <SelectTrigger
-                      className={cn(control, getFieldErrorClass('accountType'), 'w-full')}
+                      className={cn(control, getFieldErrorClass('accountType'), 'w-full', !accountTypeEnabled && 'cursor-not-allowed')}
                       data-field-error={hasError('accountType')}
                     >
                       <SelectValue placeholder={getPlaceholder('accountType', '')} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="G/L Account">G/L Account</SelectItem>
-                      <SelectItem value="Customer">Customer</SelectItem>
-                      <SelectItem value="Vendor">Vendor</SelectItem>
+                      <SelectItem value="G/L Account" disabled={formData.balanceAccountType === 'G/L Account'}>
+                        G/L Account
+                      </SelectItem>
+                      <SelectItem value="Customer" disabled={formData.balanceAccountType === 'Customer'}>
+                        Customer
+                      </SelectItem>
+                      <SelectItem value="Vendor" disabled={formData.balanceAccountType === 'Vendor'}>
+                        Vendor
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                 </CellWithTooltip>
@@ -751,12 +1204,149 @@ export function VoucherForm() {
                       }
                     }}
                     placeholder={getPlaceholder('accountNo', '')}
-                    className={control}
+                    className={cn(control, !accountNoEnabled && 'cursor-not-allowed')}
                     hasError={hasError('accountNo')}
                     errorClass={getFieldErrorClass('accountNo')}
+                    disabled={!accountNoEnabled}
                   />
                 </CellWithTooltip>
               </TableCell>
+
+              {/* Account TDS Type - shown when Account Type is Vendor */}
+              {showAccountTds && (
+                <TableCell className={colCell}>
+                  <CellWithTooltip errorMessage={getFullErrorMessage('accountTdsSection.tdsType')}>
+                    <Select
+                      value={formData.accountTdsSection?.tdsType || ''}
+                      onValueChange={(value) => {
+                        if (value === 'NA') {
+                          updateField('accountTdsSection', undefined);
+                        } else {
+                          updateField('accountTdsSection', {
+                            ...formData.accountTdsSection,
+                            tdsType: value,
+                            tdsAmount: formData.accountTdsSection?.tdsAmount || '',
+                          });
+                        }
+                      }}
+                      disabled={!accountNoEnabled || !formData.accountNo}
+                    >
+                      <SelectTrigger
+                        className={cn(control, getFieldErrorClass('accountTdsSection.tdsType'), 'w-full', (!accountNoEnabled || !formData.accountNo) && 'cursor-not-allowed')}
+                        data-field-error={hasError('accountTdsSection.tdsType')}
+                      >
+                        <SelectValue placeholder={getPlaceholder('accountTdsSection.tdsType', 'Select TDS Type')} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="NA">NA</SelectItem>
+                        {accountTdsSections.length === 0 ? (
+                          <div className="px-2 py-1.5 text-sm text-muted-foreground">No TDS sections available</div>
+                        ) : (
+                          accountTdsSections.map((section) => (
+                            <SelectItem key={section.TDS_Section} value={section.TDS_Section}>
+                              {section.TDS_Section}
+                            </SelectItem>
+                          ))
+                        )}
+                      </SelectContent>
+                    </Select>
+                  </CellWithTooltip>
+                </TableCell>
+              )}
+
+              {/* Account TDS Amount - shown when Account Type is Vendor */}
+              {showAccountTds && (
+                <TableCell className={colCell}>
+                  <InputWithTooltip
+                    hasError={hasError('accountTdsSection.tdsAmount')}
+                    errorClass={getFieldErrorClass('accountTdsSection.tdsAmount')}
+                    fullErrorMessage={getFullErrorMessage('accountTdsSection.tdsAmount')}
+                    placeholder={getPlaceholder('accountTdsSection.tdsAmount', '')}
+                  >
+                    <Input
+                      value={formData.accountTdsSection?.tdsAmount || ''}
+                      onChange={(e) =>
+                        updateField('accountTdsSection', {
+                          ...formData.accountTdsSection,
+                          tdsType: formData.accountTdsSection?.tdsType || '',
+                          tdsAmount: e.target.value,
+                        })
+                      }
+                      className={cn(control, (!accountNoEnabled || !formData.accountNo || !formData.accountTdsSection?.tdsType || formData.accountTdsSection.tdsType === 'NA') && 'cursor-not-allowed')}
+                      inputMode="decimal"
+                      disabled={!accountNoEnabled || !formData.accountNo || !formData.accountTdsSection?.tdsType || formData.accountTdsSection.tdsType === 'NA'}
+                    />
+                  </InputWithTooltip>
+                </TableCell>
+              )}
+
+              {/* Account TCS Type - shown when Account Type is Customer */}
+              {showAccountTcs && (
+                <TableCell className={colCell}>
+                  <CellWithTooltip errorMessage={getFullErrorMessage('accountTcsSection.tcsType')}>
+                    <Select
+                      value={formData.accountTcsSection?.tcsType || ''}
+                      onValueChange={(value) => {
+                        if (value === 'NA') {
+                          updateField('accountTcsSection', undefined);
+                        } else {
+                          updateField('accountTcsSection', {
+                            ...formData.accountTcsSection,
+                            tcsType: value,
+                            tcsAmount: formData.accountTcsSection?.tcsAmount || '',
+                          });
+                        }
+                      }}
+                      disabled={!accountNoEnabled || !formData.accountNo}
+                    >
+                      <SelectTrigger
+                        className={cn(control, getFieldErrorClass('accountTcsSection.tcsType'), 'w-full', (!accountNoEnabled || !formData.accountNo) && 'cursor-not-allowed')}
+                        data-field-error={hasError('accountTcsSection.tcsType')}
+                      >
+                        <SelectValue placeholder={getPlaceholder('accountTcsSection.tcsType', 'Select TCS Type')} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="NA">NA</SelectItem>
+                        {accountTcsSections.length === 0 ? (
+                          <div className="px-2 py-1.5 text-sm text-muted-foreground">No TCS sections available</div>
+                        ) : (
+                          accountTcsSections.map((section) => (
+                            <SelectItem key={section.TCS_Nature_of_Collection} value={section.TCS_Nature_of_Collection}>
+                              {section.TCS_Nature_of_Collection}
+                            </SelectItem>
+                          ))
+                        )}
+                      </SelectContent>
+                    </Select>
+                  </CellWithTooltip>
+                </TableCell>
+              )}
+
+              {/* Account TCS Amount - shown when Account Type is Customer */}
+              {showAccountTcs && (
+                <TableCell className={colCell}>
+                  <InputWithTooltip
+                    hasError={hasError('accountTcsSection.tcsAmount')}
+                    errorClass={getFieldErrorClass('accountTcsSection.tcsAmount')}
+                    fullErrorMessage={getFullErrorMessage('accountTcsSection.tcsAmount')}
+                    placeholder={getPlaceholder('accountTcsSection.tcsAmount', '')}
+                  >
+                    <Input
+                      value={formData.accountTcsSection?.tcsAmount || ''}
+                      onChange={(e) =>
+                        updateField('accountTcsSection', {
+                          ...formData.accountTcsSection,
+                          tcsType: formData.accountTcsSection?.tcsType || '',
+                          tcsAmount: e.target.value,
+                        })
+                      }
+                      className={cn(control, (!accountNoEnabled || !formData.accountNo || !formData.accountTcsSection?.tcsType || formData.accountTcsSection.tcsType === 'NA') && 'cursor-not-allowed')}
+                      inputMode="decimal"
+                      disabled={!accountNoEnabled || !formData.accountNo || !formData.accountTcsSection?.tcsType || formData.accountTcsSection.tcsType === 'NA'}
+                    />
+                  </InputWithTooltip>
+                </TableCell>
+              )}
 
               <TableCell className={colCell}>
                 <InputWithTooltip
@@ -768,7 +1358,8 @@ export function VoucherForm() {
                   <Input
                     value={formData.externalDocumentNo}
                     onChange={(e) => updateField('externalDocumentNo', e.target.value)}
-                    className={control}
+                    className={cn(control, !basicFieldsEnabled && 'cursor-not-allowed')}
+                    disabled={!basicFieldsEnabled}
                   />
                 </InputWithTooltip>
               </TableCell>
@@ -783,7 +1374,8 @@ export function VoucherForm() {
                   <Input
                     value={formData.description}
                     onChange={(e) => updateField('description', e.target.value)}
-                    className={control}
+                    className={cn(control, !basicFieldsEnabled && 'cursor-not-allowed')}
+                    disabled={!basicFieldsEnabled}
                   />
                 </InputWithTooltip>
               </TableCell>
@@ -798,8 +1390,9 @@ export function VoucherForm() {
                   <Input
                     value={formData.amount}
                     onChange={(e) => updateField('amount', e.target.value)}
-                    className={cn(control, 'text-right tabular-nums')}
+                    className={cn(control, 'text-right tabular-nums', !basicFieldsEnabled && 'cursor-not-allowed')}
                     inputMode="decimal"
+                    disabled={!basicFieldsEnabled}
                   />
                 </InputWithTooltip>
               </TableCell>
@@ -812,17 +1405,24 @@ export function VoucherForm() {
                       updateField('balanceAccountType', v as VoucherFormData['balanceAccountType'])
                     }
                     key={formData.balanceAccountType || 'reset-balanceType'}
+                    disabled={!balanceAccountEnabled}
                   >
                     <SelectTrigger
-                      className={cn(control, getFieldErrorClass('balanceAccountType'), 'w-full')}
+                      className={cn(control, getFieldErrorClass('balanceAccountType'), 'w-full', !balanceAccountEnabled && 'cursor-not-allowed')}
                       data-field-error={hasError('balanceAccountType')}
                     >
                       <SelectValue placeholder={getPlaceholder('balanceAccountType', '')} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="G/L Account">G/L Account</SelectItem>
-                      <SelectItem value="Customer">Customer</SelectItem>
-                      <SelectItem value="Vendor">Vendor</SelectItem>
+                      <SelectItem value="G/L Account" disabled={formData.accountType === 'G/L Account'}>
+                        G/L Account
+                      </SelectItem>
+                      <SelectItem value="Customer" disabled={formData.accountType === 'Customer'}>
+                        Customer
+                      </SelectItem>
+                      <SelectItem value="Vendor" disabled={formData.accountType === 'Vendor'}>
+                        Vendor
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                 </CellWithTooltip>
@@ -835,13 +1435,150 @@ export function VoucherForm() {
                     value={formData.balanceAccountNo}
                     onChange={(value) => updateField('balanceAccountNo', value)}
                     placeholder={getPlaceholder('balanceAccountNo', '')}
-                    className={control}
+                    className={cn(control, !balanceAccountEnabled && 'cursor-not-allowed')}
                     hasError={hasError('balanceAccountNo')}
                     errorClass={getFieldErrorClass('balanceAccountNo')}
                     excludeValue={formData.accountNo} // Exclude Account No. from Bal. Acc No. list
+                    disabled={!balanceAccountEnabled}
                   />
                 </CellWithTooltip>
               </TableCell>
+
+              {/* Balance Account TDS Type - shown when Balance Account Type is Vendor */}
+              {showBalanceTds && (
+                <TableCell className={colCell}>
+                  <CellWithTooltip errorMessage={getFullErrorMessage('balanceTdsSection.tdsType')}>
+                    <Select
+                      value={formData.balanceTdsSection?.tdsType || ''}
+                      onValueChange={(value) => {
+                        if (value === 'NA') {
+                          updateField('balanceTdsSection', undefined);
+                        } else {
+                          updateField('balanceTdsSection', {
+                            ...formData.balanceTdsSection,
+                            tdsType: value,
+                            tdsAmount: formData.balanceTdsSection?.tdsAmount || '',
+                          });
+                        }
+                      }}
+                      disabled={!balanceAccountEnabled || !formData.balanceAccountNo}
+                    >
+                      <SelectTrigger
+                        className={cn(control, getFieldErrorClass('balanceTdsSection.tdsType'), 'w-full', (!balanceAccountEnabled || !formData.balanceAccountNo) && 'cursor-not-allowed')}
+                        data-field-error={hasError('balanceTdsSection.tdsType')}
+                      >
+                        <SelectValue placeholder={getPlaceholder('balanceTdsSection.tdsType', 'Select TDS Type')} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="NA">NA</SelectItem>
+                        {balanceTdsSections.length === 0 ? (
+                          <div className="px-2 py-1.5 text-sm text-muted-foreground">No TDS sections available</div>
+                        ) : (
+                          balanceTdsSections.map((section) => (
+                            <SelectItem key={section.TDS_Section} value={section.TDS_Section}>
+                              {section.TDS_Section}
+                            </SelectItem>
+                          ))
+                        )}
+                      </SelectContent>
+                    </Select>
+                  </CellWithTooltip>
+                </TableCell>
+              )}
+
+              {/* Balance Account TDS Amount - shown when Balance Account Type is Vendor */}
+              {showBalanceTds && (
+                <TableCell className={colCell}>
+                  <InputWithTooltip
+                    hasError={hasError('balanceTdsSection.tdsAmount')}
+                    errorClass={getFieldErrorClass('balanceTdsSection.tdsAmount')}
+                    fullErrorMessage={getFullErrorMessage('balanceTdsSection.tdsAmount')}
+                    placeholder={getPlaceholder('balanceTdsSection.tdsAmount', '')}
+                  >
+                    <Input
+                      value={formData.balanceTdsSection?.tdsAmount || ''}
+                      onChange={(e) =>
+                        updateField('balanceTdsSection', {
+                          ...formData.balanceTdsSection,
+                          tdsType: formData.balanceTdsSection?.tdsType || '',
+                          tdsAmount: e.target.value,
+                        })
+                      }
+                      className={cn(control, (!balanceAccountEnabled || !formData.balanceAccountNo || !formData.balanceTdsSection?.tdsType || formData.balanceTdsSection.tdsType === 'NA') && 'cursor-not-allowed')}
+                      inputMode="decimal"
+                      disabled={!balanceAccountEnabled || !formData.balanceAccountNo || !formData.balanceTdsSection?.tdsType || formData.balanceTdsSection.tdsType === 'NA'}
+                    />
+                  </InputWithTooltip>
+                </TableCell>
+              )}
+
+              {/* Balance Account TCS Type - shown when Balance Account Type is Customer */}
+              {showBalanceTcs && (
+                <TableCell className={colCell}>
+                  <CellWithTooltip errorMessage={getFullErrorMessage('balanceTcsSection.tcsType')}>
+                    <Select
+                      value={formData.balanceTcsSection?.tcsType || ''}
+                      onValueChange={(value) => {
+                        if (value === 'NA') {
+                          updateField('balanceTcsSection', undefined);
+                        } else {
+                          updateField('balanceTcsSection', {
+                            ...formData.balanceTcsSection,
+                            tcsType: value,
+                            tcsAmount: formData.balanceTcsSection?.tcsAmount || '',
+                          });
+                        }
+                      }}
+                      disabled={!balanceAccountEnabled || !formData.balanceAccountNo}
+                    >
+                      <SelectTrigger
+                        className={cn(control, getFieldErrorClass('balanceTcsSection.tcsType'), 'w-full', (!balanceAccountEnabled || !formData.balanceAccountNo) && 'cursor-not-allowed')}
+                        data-field-error={hasError('balanceTcsSection.tcsType')}
+                      >
+                        <SelectValue placeholder={getPlaceholder('balanceTcsSection.tcsType', 'Select TCS Type')} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="NA">NA</SelectItem>
+                        {balanceTcsSections.length === 0 ? (
+                          <div className="px-2 py-1.5 text-sm text-muted-foreground">No TCS sections available</div>
+                        ) : (
+                          balanceTcsSections.map((section) => (
+                            <SelectItem key={section.TCS_Nature_of_Collection} value={section.TCS_Nature_of_Collection}>
+                              {section.TCS_Nature_of_Collection}
+                            </SelectItem>
+                          ))
+                        )}
+                      </SelectContent>
+                    </Select>
+                  </CellWithTooltip>
+                </TableCell>
+              )}
+
+              {/* Balance Account TCS Amount - shown when Balance Account Type is Customer */}
+              {showBalanceTcs && (
+                <TableCell className={colCell}>
+                  <InputWithTooltip
+                    hasError={hasError('balanceTcsSection.tcsAmount')}
+                    errorClass={getFieldErrorClass('balanceTcsSection.tcsAmount')}
+                    fullErrorMessage={getFullErrorMessage('balanceTcsSection.tcsAmount')}
+                    placeholder={getPlaceholder('balanceTcsSection.tcsAmount', '')}
+                  >
+                    <Input
+                      value={formData.balanceTcsSection?.tcsAmount || ''}
+                      onChange={(e) =>
+                        updateField('balanceTcsSection', {
+                          ...formData.balanceTcsSection,
+                          tcsType: formData.balanceTcsSection?.tcsType || '',
+                          tcsAmount: e.target.value,
+                        })
+                      }
+                      className={cn(control, (!balanceAccountEnabled || !formData.balanceAccountNo || !formData.balanceTcsSection?.tcsType || formData.balanceTcsSection.tcsType === 'NA') && 'cursor-not-allowed')}
+                      inputMode="decimal"
+                      disabled={!balanceAccountEnabled || !formData.balanceAccountNo || !formData.balanceTcsSection?.tcsType || formData.balanceTcsSection.tcsType === 'NA'}
+                    />
+                  </InputWithTooltip>
+                </TableCell>
+              )}
 
               <TableCell className={colCell}>
                 <InputWithTooltip
@@ -853,7 +1590,8 @@ export function VoucherForm() {
                   <Input
                     value={formData.lineNarration}
                     onChange={(e) => updateField('lineNarration', e.target.value)}
-                    className={control}
+                    className={cn(control, !restFieldsEnabled && 'cursor-not-allowed')}
+                    disabled={!restFieldsEnabled}
                   />
                 </InputWithTooltip>
               </TableCell>
@@ -865,9 +1603,10 @@ export function VoucherForm() {
                     value={formData.lob}
                     onChange={(value) => updateField('lob', value)}
                     placeholder={getPlaceholder('lob', '')}
-                    className={control}
+                    className={cn(control, !restFieldsEnabled && 'cursor-not-allowed')}
                     hasError={hasError('lob')}
                     errorClass={getFieldErrorClass('lob')}
+                    disabled={!restFieldsEnabled}
                   />
                 </CellWithTooltip>
               </TableCell>
@@ -879,9 +1618,10 @@ export function VoucherForm() {
                     value={formData.branch}
                     onChange={(value) => updateField('branch', value)}
                     placeholder={getPlaceholder('branch', '')}
-                    className={control}
+                    className={cn(control, !restFieldsEnabled && 'cursor-not-allowed')}
                     hasError={hasError('branch')}
                     errorClass={getFieldErrorClass('branch')}
+                    disabled={!restFieldsEnabled}
                   />
                 </CellWithTooltip>
               </TableCell>
@@ -893,9 +1633,10 @@ export function VoucherForm() {
                     value={formData.loc}
                     onChange={(value) => updateField('loc', value)}
                     placeholder={getPlaceholder('loc', '')}
-                    className={control}
+                    className={cn(control, !restFieldsEnabled && 'cursor-not-allowed')}
                     hasError={hasError('loc')}
                     errorClass={getFieldErrorClass('loc')}
+                    disabled={!restFieldsEnabled}
                   />
                 </CellWithTooltip>
               </TableCell>
@@ -910,7 +1651,8 @@ export function VoucherForm() {
                   <Input
                     value={formData.employee}
                     onChange={(e) => updateField('employee', e.target.value)}
-                    className={control}
+                    className={cn(control, !restFieldsEnabled && 'cursor-not-allowed')}
+                    disabled={!restFieldsEnabled}
                   />
                 </InputWithTooltip>
               </TableCell>
@@ -925,99 +1667,55 @@ export function VoucherForm() {
                   <Input
                     value={formData.assignment}
                     onChange={(e) => updateField('assignment', e.target.value)}
-                    className={control}
+                    className={cn(control, !restFieldsEnabled && 'cursor-not-allowed')}
+                    disabled={!restFieldsEnabled}
                   />
                 </InputWithTooltip>
               </TableCell>
 
               <TableCell className={colCell}>
-                <InputWithTooltip
-                  hasError={isTdsRequired && hasError('tdsSection.tdsType')}
-                  errorClass={isTdsRequired ? getFieldErrorClass('tdsSection.tdsType') : ''}
-                  fullErrorMessage={isTdsRequired ? getFullErrorMessage('tdsSection.tdsType') : undefined}
-                  placeholder={getPlaceholder('tdsSection.tdsType', '')}
-                >
-                  <Input
-                    value={formData.tdsSection?.tdsType || ''}
-                    onChange={(e) =>
-                      updateField('tdsSection', {
-                        ...formData.tdsSection,
-                        tdsType: e.target.value,
-                        tdsAmount: formData.tdsSection?.tdsAmount || '',
-                      })
-                    }
-                    className={control}
-                    disabled={!isTdsRequired && accountType !== undefined}
-                  />
-                </InputWithTooltip>
-              </TableCell>
-
-              <TableCell className={colCell}>
-                <InputWithTooltip
-                  hasError={isTdsRequired && hasError('tdsSection.tdsAmount')}
-                  errorClass={isTdsRequired ? getFieldErrorClass('tdsSection.tdsAmount') : ''}
-                  fullErrorMessage={isTdsRequired ? getFullErrorMessage('tdsSection.tdsAmount') : undefined}
-                  placeholder={getPlaceholder('tdsSection.tdsAmount', '')}
-                >
-                  <Input
-                    value={formData.tdsSection?.tdsAmount || ''}
-                    onChange={(e) =>
-                      updateField('tdsSection', {
-                        ...formData.tdsSection,
-                        tdsType: formData.tdsSection?.tdsType || '',
-                        tdsAmount: e.target.value,
-                      })
-                    }
-                    className={control}
-                    inputMode="decimal"
-                    disabled={!isTdsRequired && accountType !== undefined}
-                  />
-                </InputWithTooltip>
-              </TableCell>
-
-              <TableCell className={colCell}>
-                <InputWithTooltip
-                  hasError={isTcsRequired && hasError('tcsSection.tcsType')}
-                  errorClass={isTcsRequired ? getFieldErrorClass('tcsSection.tcsType') : ''}
-                  fullErrorMessage={isTcsRequired ? getFullErrorMessage('tcsSection.tcsType') : undefined}
-                  placeholder={getPlaceholder('tcsSection.tcsType', '')}
-                >
-                  <Input
-                    value={formData.tcsSection?.tcsType || ''}
-                    onChange={(e) =>
-                      updateField('tcsSection', {
-                        ...formData.tcsSection,
-                        tcsType: e.target.value,
-                        tcsAmount: formData.tcsSection?.tcsAmount || '',
-                      })
-                    }
-                    className={control}
-                    disabled={!isTcsRequired && accountType !== undefined}
-                  />
-                </InputWithTooltip>
-              </TableCell>
-
-              <TableCell className={colCell}>
-                <InputWithTooltip
-                  hasError={isTcsRequired && hasError('tcsSection.tcsAmount')}
-                  errorClass={isTcsRequired ? getFieldErrorClass('tcsSection.tcsAmount') : ''}
-                  fullErrorMessage={isTcsRequired ? getFullErrorMessage('tcsSection.tcsAmount') : undefined}
-                  placeholder={getPlaceholder('tcsSection.tcsAmount', '')}
-                >
-                  <Input
-                    value={formData.tcsSection?.tcsAmount || ''}
-                    onChange={(e) =>
-                      updateField('tcsSection', {
-                        ...formData.tcsSection,
-                        tcsType: formData.tcsSection?.tcsType || '',
-                        tcsAmount: e.target.value,
-                      })
-                    }
-                    className={control}
-                    inputMode="decimal"
-                    disabled={!isTcsRequired && accountType !== undefined}
-                  />
-                </InputWithTooltip>
+                <div className="space-y-1">
+                  <div className="relative">
+                    <Input
+                      ref={fileInputRef}
+                      type="file"
+                      multiple
+                      onChange={handleFileChange}
+                      className="hidden"
+                      disabled={isSubmitting}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className={cn("w-full text-xs", !restFieldsEnabled && 'cursor-not-allowed')}
+                      disabled={isSubmitting || !restFieldsEnabled}
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      Upload Files
+                    </Button>
+                  </div>
+                  {attachments.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {attachments.map((file, index) => (
+                        <div
+                          key={index}
+                          className="flex items-center gap-1 text-xs bg-muted px-2 py-1 rounded"
+                        >
+                          <span className="truncate max-w-[120px]">{file.name}</span>
+                          <button
+                            type="button"
+                            onClick={() => removeAttachment(index)}
+                            className="text-destructive hover:text-destructive/80"
+                            disabled={isSubmitting}
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </TableCell>
 
             </TableRow>
@@ -1035,10 +1733,10 @@ export function VoucherForm() {
               type="button"
               size="sm"
               onClick={handleSubmitAll}
-              disabled={entries.length === 0 || pendingEditId !== null}
-              title={pendingEditId ? 'Cannot submit while editing an entry' : 'Submit all entries'}
+              disabled={entries.length === 0 || pendingEditId !== null || isSubmitting}
+              title={pendingEditId ? 'Cannot submit while editing an entry' : isSubmitting ? 'Submitting entries...' : 'Submit all entries to ERP'}
             >
-              Submit
+              {isSubmitting ? 'Submitting...' : 'Submit to ERP'}
             </Button>
             <Button
               type="button"
@@ -1081,10 +1779,7 @@ export function VoucherForm() {
                   <TableHead className={cn(colHead, 'w-[140px]')}>LOC</TableHead>
                   <TableHead className={cn(colHead, 'w-[140px]')}>Employee</TableHead>
                   <TableHead className={cn(colHead, 'w-[140px]')}>Assignment</TableHead>
-                  <TableHead className={cn(colHead, 'w-[140px]')}>TDS Type</TableHead>
-                  <TableHead className={cn(colHead, 'w-[120px]')}>TDS Amt</TableHead>
-                  <TableHead className={cn(colHead, 'w-[140px]')}>TCS Type</TableHead>
-                  <TableHead className={cn(colHead, 'w-[120px]')}>TCS Amt</TableHead>
+                  <TableHead className={cn(colHead, 'w-[200px]')}>Upload Files</TableHead>
                   <TableHead className={cn(colHead, 'w-[110px]')}>Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -1111,20 +1806,45 @@ export function VoucherForm() {
                     <TableCell className="p-2 text-xs">{entry.employee}</TableCell>
                     <TableCell className="p-2 text-xs">{entry.assignment}</TableCell>
                     <TableCell className="p-2 text-xs">
-                      {entry.accountType === 'Vendor' ? entry.tdsSection?.tdsType ?? '' : ''}
+                      {entry.accountTdsSection?.tdsType && entry.accountTdsSection.tdsType !== 'NA'
+                        ? entry.accountTdsSection.tdsType
+                        : entry.balanceTdsSection?.tdsType && entry.balanceTdsSection.tdsType !== 'NA'
+                        ? entry.balanceTdsSection.tdsType
+                        : ''}
                     </TableCell>
                     <TableCell className="p-2 text-xs text-right tabular-nums">
-                      {entry.accountType === 'Vendor' && entry.tdsSection
-                        ? entry.tdsSection.tdsAmount.toFixed(2)
+                      {entry.accountTdsSection?.tdsAmount
+                        ? entry.accountTdsSection.tdsAmount.toFixed(2)
+                        : entry.balanceTdsSection?.tdsAmount
+                        ? entry.balanceTdsSection.tdsAmount.toFixed(2)
                         : ''}
                     </TableCell>
                     <TableCell className="p-2 text-xs">
-                      {entry.accountType === 'Customer' ? entry.tcsSection?.tcsType ?? '' : ''}
+                      {entry.accountTcsSection?.tcsType && entry.accountTcsSection.tcsType !== 'NA'
+                        ? entry.accountTcsSection.tcsType
+                        : entry.balanceTcsSection?.tcsType && entry.balanceTcsSection.tcsType !== 'NA'
+                        ? entry.balanceTcsSection.tcsType
+                        : ''}
                     </TableCell>
                     <TableCell className="p-2 text-xs text-right tabular-nums">
-                      {entry.accountType === 'Customer' && entry.tcsSection
-                        ? entry.tcsSection.tcsAmount.toFixed(2)
+                      {entry.accountTcsSection?.tcsAmount
+                        ? entry.accountTcsSection.tcsAmount.toFixed(2)
+                        : entry.balanceTcsSection?.tcsAmount
+                        ? entry.balanceTcsSection.tcsAmount.toFixed(2)
                         : ''}
+                    </TableCell>
+                    <TableCell className="p-2 text-xs">
+                      {entry.attachments && entry.attachments.length > 0 ? (
+                        <div className="flex flex-wrap gap-1">
+                          {entry.attachments.map((file, index) => (
+                            <span key={index} className="bg-muted px-1.5 py-0.5 rounded text-xs truncate max-w-[150px]" title={file.name}>
+                              {file.name}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-muted-foreground">-</span>
+                      )}
                     </TableCell>
                     <TableCell className="p-2">
                       <div className="flex items-center gap-1">

@@ -50,9 +50,11 @@ type FormState = {
   accountType: VoucherFormData['accountType'] | undefined;
   accountNo: string;
   externalDocumentNo: string;
-  tdsSection: { tdsType: string; tdsAmount: string } | undefined;
-  tcsSection: { tcsType: string; tcsAmount: string } | undefined;
-  description: string;
+  accountTdsSection: { tdsType: string; tdsAmount: string } | undefined;
+  accountTcsSection: { tcsType: string; tcsAmount: string } | undefined;
+  balanceTdsSection: { tdsType: string; tdsAmount: string } | undefined;
+  balanceTcsSection: { tcsType: string; tcsAmount: string } | undefined;
+  description: string | undefined;
   amount: string;
   balanceAccountType: VoucherFormData['balanceAccountType'] | undefined;
   balanceAccountNo: string;
@@ -74,8 +76,10 @@ const defaultFormState: FormState = {
   accountType: undefined,
   accountNo: '',
   externalDocumentNo: '',
-  tdsSection: undefined,
-  tcsSection: undefined,
+  accountTdsSection: undefined,
+  accountTcsSection: undefined,
+  balanceTdsSection: undefined,
+  balanceTcsSection: undefined,
   description: '',
   amount: '',
   balanceAccountType: undefined,
@@ -192,21 +196,41 @@ export function Voucher2Form() {
       if (!isNaN(parsedAmount)) data.amount = parsedAmount;
     }
 
-    if (state.tdsSection) {
-      const tdsAmount = parseFloat(state.tdsSection.tdsAmount);
+    if (state.accountTdsSection && state.accountTdsSection.tdsType && state.accountTdsSection.tdsType !== 'NA') {
+      const tdsAmount = parseFloat(state.accountTdsSection.tdsAmount);
       if (!isNaN(tdsAmount)) {
-        data.tdsSection = {
-          tdsType: state.tdsSection.tdsType,
+        data.accountTdsSection = {
+          tdsType: state.accountTdsSection.tdsType,
           tdsAmount,
         };
       }
     }
 
-    if (state.tcsSection) {
-      const tcsAmount = parseFloat(state.tcsSection.tcsAmount);
+    if (state.accountTcsSection && state.accountTcsSection.tcsType && state.accountTcsSection.tcsType !== 'NA') {
+      const tcsAmount = parseFloat(state.accountTcsSection.tcsAmount);
       if (!isNaN(tcsAmount)) {
-        data.tcsSection = {
-          tcsType: state.tcsSection.tcsType,
+        data.accountTcsSection = {
+          tcsType: state.accountTcsSection.tcsType,
+          tcsAmount,
+        };
+      }
+    }
+
+    if (state.balanceTdsSection && state.balanceTdsSection.tdsType && state.balanceTdsSection.tdsType !== 'NA') {
+      const tdsAmount = parseFloat(state.balanceTdsSection.tdsAmount);
+      if (!isNaN(tdsAmount)) {
+        data.balanceTdsSection = {
+          tdsType: state.balanceTdsSection.tdsType,
+          tdsAmount,
+        };
+      }
+    }
+
+    if (state.balanceTcsSection && state.balanceTcsSection.tcsType && state.balanceTcsSection.tcsType !== 'NA') {
+      const tcsAmount = parseFloat(state.balanceTcsSection.tcsAmount);
+      if (!isNaN(tcsAmount)) {
+        data.balanceTcsSection = {
+          tcsType: state.balanceTcsSection.tcsType,
           tcsAmount,
         };
       }
@@ -293,14 +317,14 @@ export function Voucher2Form() {
     updateField('accountType', newAccountType);
 
     if (value === 'Vendor') {
-      updateField('tdsSection', { tdsType: '', tdsAmount: '' });
-      updateField('tcsSection', undefined);
+      updateField('accountTdsSection', undefined);
+      updateField('accountTcsSection', undefined);
     } else if (value === 'Customer') {
-      updateField('tcsSection', { tcsType: '', tcsAmount: '' });
-      updateField('tdsSection', undefined);
+      updateField('accountTcsSection', undefined);
+      updateField('accountTdsSection', undefined);
     } else {
-      updateField('tdsSection', undefined);
-      updateField('tcsSection', undefined);
+      updateField('accountTdsSection', undefined);
+      updateField('accountTcsSection', undefined);
     }
   };
 
@@ -337,13 +361,19 @@ export function Voucher2Form() {
       accountType: entry.accountType,
       accountNo: entry.accountNo,
       externalDocumentNo: entry.externalDocumentNo || '',
-      tdsSection: entry.tdsSection
-        ? { tdsType: entry.tdsSection.tdsType, tdsAmount: entry.tdsSection.tdsAmount.toString() }
+      accountTdsSection: entry.accountTdsSection
+        ? { tdsType: entry.accountTdsSection.tdsType, tdsAmount: entry.accountTdsSection.tdsAmount.toString() }
         : undefined,
-      tcsSection: entry.tcsSection
-        ? { tcsType: entry.tcsSection.tcsType, tcsAmount: entry.tcsSection.tcsAmount.toString() }
+      accountTcsSection: entry.accountTcsSection
+        ? { tcsType: entry.accountTcsSection.tcsType, tcsAmount: entry.accountTcsSection.tcsAmount.toString() }
         : undefined,
-      description: entry.description,
+      balanceTdsSection: entry.balanceTdsSection
+        ? { tdsType: entry.balanceTdsSection.tdsType, tdsAmount: entry.balanceTdsSection.tdsAmount.toString() }
+        : undefined,
+      balanceTcsSection: entry.balanceTcsSection
+        ? { tcsType: entry.balanceTcsSection.tcsType, tcsAmount: entry.balanceTcsSection.tcsAmount.toString() }
+        : undefined,
+      description: entry.description || undefined,
       amount: entry.amount.toString(),
       balanceAccountType: entry.balanceAccountType,
       balanceAccountNo: entry.balanceAccountNo,
@@ -872,95 +902,11 @@ export function Voucher2Form() {
                 </InputWithTooltip>
               </TableCell>
 
-              <TableCell className={colCell}>
-                <InputWithTooltip
-                  hasError={hasError('tdsSection.tdsType')}
-                  errorClass={getFieldErrorClass('tdsSection.tdsType')}
-                  fullErrorMessage={getFullErrorMessage('tdsSection.tdsType')}
-                  placeholder={getPlaceholder('tdsSection.tdsType', '')}
-                >
-                  <Input
-                    value={formData.tdsSection?.tdsType || ''}
-                    onChange={(e) =>
-                      updateField('tdsSection', {
-                        ...formData.tdsSection,
-                        tdsType: e.target.value,
-                        tdsAmount: formData.tdsSection?.tdsAmount || '',
-                      })
-                    }
-                    className={cn(control, !showTdsSection && 'opacity-60')}
-                    disabled={!showTdsSection}
-                  />
-                </InputWithTooltip>
-              </TableCell>
-
-              <TableCell className={colCell}>
-                <InputWithTooltip
-                  hasError={hasError('tdsSection.tdsAmount')}
-                  errorClass={getFieldErrorClass('tdsSection.tdsAmount')}
-                  fullErrorMessage={getFullErrorMessage('tdsSection.tdsAmount')}
-                  placeholder={getPlaceholder('tdsSection.tdsAmount', '')}
-                >
-                  <Input
-                    value={formData.tdsSection?.tdsAmount || ''}
-                    onChange={(e) =>
-                      updateField('tdsSection', {
-                        ...formData.tdsSection,
-                        tdsType: formData.tdsSection?.tdsType || '',
-                        tdsAmount: e.target.value,
-                      })
-                    }
-                    className={cn(control, !showTdsSection && 'opacity-60')}
-                    disabled={!showTdsSection}
-                    inputMode="decimal"
-                  />
-                </InputWithTooltip>
-              </TableCell>
-
-              <TableCell className={colCell}>
-                <InputWithTooltip
-                  hasError={hasError('tcsSection.tcsType')}
-                  errorClass={getFieldErrorClass('tcsSection.tcsType')}
-                  fullErrorMessage={getFullErrorMessage('tcsSection.tcsType')}
-                  placeholder={getPlaceholder('tcsSection.tcsType', '')}
-                >
-                  <Input
-                    value={formData.tcsSection?.tcsType || ''}
-                    onChange={(e) =>
-                      updateField('tcsSection', {
-                        ...formData.tcsSection,
-                        tcsType: e.target.value,
-                        tcsAmount: formData.tcsSection?.tcsAmount || '',
-                      })
-                    }
-                    className={cn(control, !showTcsSection && 'opacity-60')}
-                    disabled={!showTcsSection}
-                  />
-                </InputWithTooltip>
-              </TableCell>
-
-              <TableCell className={colCell}>
-                <InputWithTooltip
-                  hasError={hasError('tcsSection.tcsAmount')}
-                  errorClass={getFieldErrorClass('tcsSection.tcsAmount')}
-                  fullErrorMessage={getFullErrorMessage('tcsSection.tcsAmount')}
-                  placeholder={getPlaceholder('tcsSection.tcsAmount', '')}
-                >
-                  <Input
-                    value={formData.tcsSection?.tcsAmount || ''}
-                    onChange={(e) =>
-                      updateField('tcsSection', {
-                        ...formData.tcsSection,
-                        tcsType: formData.tcsSection?.tcsType || '',
-                        tcsAmount: e.target.value,
-                      })
-                    }
-                    className={cn(control, !showTcsSection && 'opacity-60')}
-                    disabled={!showTcsSection}
-                    inputMode="decimal"
-                  />
-                </InputWithTooltip>
-              </TableCell>
+              {/* TDS/TCS fields removed - this form is a duplicate, use voucher-form.tsx for the updated implementation */}
+              <TableCell className={colCell}></TableCell>
+              <TableCell className={colCell}></TableCell>
+              <TableCell className={colCell}></TableCell>
+              <TableCell className={colCell}></TableCell>
             </TableRow>
           </TableBody>
         </Table>
@@ -1043,13 +989,33 @@ export function Voucher2Form() {
                     <TableCell className="p-2 text-xs">{entry.loc}</TableCell>
                     <TableCell className="p-2 text-xs">{entry.employee}</TableCell>
                     <TableCell className="p-2 text-xs">{entry.assignment}</TableCell>
-                    <TableCell className="p-2 text-xs">{entry.tdsSection?.tdsType ?? ''}</TableCell>
-                    <TableCell className="p-2 text-xs tabular-nums">
-                      {entry.tdsSection ? entry.tdsSection.tdsAmount.toFixed(2) : ''}
+                    <TableCell className="p-2 text-xs">
+                      {entry.accountTdsSection?.tdsType && entry.accountTdsSection.tdsType !== 'NA'
+                        ? entry.accountTdsSection.tdsType
+                        : entry.balanceTdsSection?.tdsType && entry.balanceTdsSection.tdsType !== 'NA'
+                        ? entry.balanceTdsSection.tdsType
+                        : ''}
                     </TableCell>
-                    <TableCell className="p-2 text-xs">{entry.tcsSection?.tcsType ?? ''}</TableCell>
                     <TableCell className="p-2 text-xs tabular-nums">
-                      {entry.tcsSection ? entry.tcsSection.tcsAmount.toFixed(2) : ''}
+                      {entry.accountTdsSection?.tdsAmount
+                        ? entry.accountTdsSection.tdsAmount.toFixed(2)
+                        : entry.balanceTdsSection?.tdsAmount
+                        ? entry.balanceTdsSection.tdsAmount.toFixed(2)
+                        : ''}
+                    </TableCell>
+                    <TableCell className="p-2 text-xs">
+                      {entry.accountTcsSection?.tcsType && entry.accountTcsSection.tcsType !== 'NA'
+                        ? entry.accountTcsSection.tcsType
+                        : entry.balanceTcsSection?.tcsType && entry.balanceTcsSection.tcsType !== 'NA'
+                        ? entry.balanceTcsSection.tcsType
+                        : ''}
+                    </TableCell>
+                    <TableCell className="p-2 text-xs tabular-nums">
+                      {entry.accountTcsSection?.tcsAmount
+                        ? entry.accountTcsSection.tcsAmount.toFixed(2)
+                        : entry.balanceTcsSection?.tcsAmount
+                        ? entry.balanceTcsSection.tcsAmount.toFixed(2)
+                        : ''}
                     </TableCell>
                     <TableCell className="p-2">
                       <div className="flex items-center gap-1">

@@ -10,6 +10,7 @@ import type { ODataResponse } from '../types';
 export interface Customer {
   No: string;
   Name: string;
+  Assessee_Code?: string;
 }
 
 const COMPANY = process.env.NEXT_PUBLIC_API_COMPANY || 'Sampoorna Feeds Pvt. Ltd';
@@ -46,7 +47,7 @@ function getSearchFilter(query: string, baseFilter: string): string {
  */
 export async function getCustomers(): Promise<Customer[]> {
   const query = buildODataQuery({
-    $select: 'No,Name',
+    $select: 'No,Name,Assessee_Code',
     $filter: getBaseFilter(),
     $orderby: 'No',
     $top: 20,
@@ -78,7 +79,7 @@ export async function searchCustomers(query: string): Promise<Customer[]> {
   const searchFilter = getSearchFilter(query, baseFilter);
 
   const odataQuery = buildODataQuery({
-    $select: 'No,Name',
+    $select: 'No,Name,Assessee_Code',
     $filter: searchFilter,
     $orderby: 'No',
     $top: 30,
@@ -110,7 +111,7 @@ export async function getCustomersPage(
   }
 
   const query = buildODataQuery({
-    $select: 'No,Name',
+    $select: 'No,Name,Assessee_Code',
     $filter: filter,
     $orderby: 'No',
     $top: 30,
@@ -120,6 +121,24 @@ export async function getCustomersPage(
   const endpoint = `/CustomerCard?company='${encodeURIComponent(COMPANY)}'&${query}`;
   const response = await apiGet<ODataResponse<Customer>>(endpoint);
   return response.value;
+}
+
+/**
+ * Get a single customer by customer number
+ * @param customerNo - Customer number
+ */
+export async function getCustomerByNo(customerNo: string): Promise<Customer | null> {
+  if (!customerNo) return null;
+  
+  const query = buildODataQuery({
+    $select: 'No,Name,Assessee_Code',
+    $filter: `No eq '${customerNo.replace(/'/g, "''")}'`,
+  });
+
+  const endpoint = `/CustomerCard?company='${encodeURIComponent(COMPANY)}'&${query}`;
+  const response = await apiGet<ODataResponse<Customer>>(endpoint);
+  
+  return response.value.length > 0 ? response.value[0] : null;
 }
 
 /**

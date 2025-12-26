@@ -235,8 +235,11 @@ export function AccountSelect({
   // Handle dropdown open
   const handleOpenChange = (open: boolean) => {
     setIsOpen(open);
-    if (open && items.length === 0) {
-      loadInitialItems();
+    if (open) {
+      // Always load items when opening, even if we have some, to ensure value is in list
+      if (items.length === 0 || (value && !items.find(item => item.No === value))) {
+        loadInitialItems();
+      }
     }
     if (!open) {
       setSearchQuery('');
@@ -329,11 +332,9 @@ export function AccountSelect({
 
     loadItems();
     
-    // Clear value when account type changes (old value might not be valid for new type)
-    if (value) {
-      onChange('');
-    }
-  }, [accountType, value, onChange]);
+    // Don't clear value when account type changes if we're just loading items
+    // The value will be validated when items are loaded
+  }, [accountType]);
 
   // Cleanup on unmount
   useEffect(() => {

@@ -73,7 +73,19 @@ export async function apiRequest<T>(
       throw error;
     }
 
-    return await response.json();
+    // Handle 204 No Content response (success but no body)
+    if (response.status === 204) {
+      return null as T;
+    }
+
+    // Check if response has content to parse
+    const contentType = response.headers.get('content-type');
+    if (contentType && contentType.includes('application/json')) {
+      return await response.json();
+    }
+
+    // If no JSON content, return null
+    return null as T;
   } catch (error) {
     if (error instanceof Error) {
       throw {

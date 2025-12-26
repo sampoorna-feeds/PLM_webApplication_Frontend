@@ -31,6 +31,7 @@ export interface CreateVoucherPayload {
   Posting_Date: string;
   Document_Type: string;
   Account_Type: string;
+  Account_No: string;
   Description?: string;
   Amount: number;
   Bal_Account_Type: string;
@@ -43,6 +44,7 @@ export interface CreateVoucherPayload {
   Party_Type: string;
   Party_Code: string;
   TDS_Section_Code?: string;
+  TCS_Nature_of_Collection?: string;
   Shortcut_Dimension_1_Code?: string;
   Shortcut_Dimension_2_Code?: string;
   ShortcutDimCode3?: string;
@@ -68,6 +70,34 @@ export interface UploadAttachmentPayload {
 }
 
 /**
+ * Get voucher endpoint based on voucher type
+ * @param voucherType - Voucher type (General Journal, Cash Receipt, Cash Payment)
+ * @returns Endpoint path for the voucher type
+ */
+function getVoucherEndpoint(voucherType: string): string {
+  switch (voucherType) {
+    case 'General Journal':
+      return '/GJ';
+    case 'Cash Receipt':
+      return '/CR';
+    case 'Cash Payment':
+      return '/CP';
+    default:
+      return '/GJ'; // Default to GJ for now (all use same endpoint)
+  }
+}
+
+/**
+ * Get upload endpoint based on voucher type
+ * @param voucherType - Voucher type (General Journal, Cash Receipt, Cash Payment)
+ * @returns Endpoint path for the upload type
+ */
+function getUploadEndpoint(voucherType: string): string {
+  // For now, all use the same endpoint (easy to change later)
+  return '/API_InitiateUploadFileGJ';
+}
+
+/**
  * Get TDS Section for a vendor
  * @param vendorNo - Vendor number
  */
@@ -90,9 +120,14 @@ export async function getTCSSection(customerNo: string): Promise<TCSSection[]> {
 /**
  * Create a voucher entry
  * @param payload - Voucher creation payload
+ * @param voucherType - Voucher type (General Journal, Cash Receipt, Cash Payment)
  */
-export async function createVoucher(payload: CreateVoucherPayload): Promise<CreateVoucherResponse> {
-  const endpoint = `/GJ?company='${encodeURIComponent(COMPANY)}'`;
+export async function createVoucher(
+  payload: CreateVoucherPayload,
+  voucherType: string
+): Promise<CreateVoucherResponse> {
+  const endpointPath = getVoucherEndpoint(voucherType);
+  const endpoint = `${endpointPath}?company='${encodeURIComponent(COMPANY)}'`;
   const response = await apiPost<CreateVoucherResponse>(endpoint, payload);
   return response;
 }
@@ -100,10 +135,22 @@ export async function createVoucher(payload: CreateVoucherPayload): Promise<Crea
 /**
  * Upload an attachment
  * @param payload - Attachment upload payload
+ * @param voucherType - Voucher type (General Journal, Cash Receipt, Cash Payment)
  */
-export async function uploadAttachment(payload: UploadAttachmentPayload): Promise<unknown> {
-  const endpoint = `/API_InitiateUploadFileGJ?company='${encodeURIComponent(COMPANY)}'`;
-  const response = await apiPost<unknown>(endpoint, payload);
-  return response;
+export async function uploadAttachment(
+  payload: UploadAttachmentPayload,
+  voucherType: string
+): Promise<{ success: boolean; message?: string }> {
+  const endpointPath = getUploadEndpoint(voucherType);
+  const endpoint = `${endpointPath}?company='${encodeURIComponent(COMPANY)}'`;
+  
+  try {
+    await apiPost<unknown>(endpoint, payload);
+    // If response is successful (including 204), return success
+    return { success: true, message: 'File uploaded' };
+  } catch (error) {
+    // Re-throw the error to be handled by caller
+    throw error;
+  }
 }
 

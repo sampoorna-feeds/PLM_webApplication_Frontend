@@ -7,7 +7,7 @@
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { z } from 'zod';
-import { Pencil, Plus, Trash2 } from 'lucide-react';
+import { Pencil, Plus, Trash2, Upload } from 'lucide-react';
 
 import { voucherSchema, type VoucherFormData } from '@/lib/validations/voucher.validation';
 import { cn } from '@/lib/utils';
@@ -68,15 +68,15 @@ type FormState = {
   documentDate: string;
   accountType: VoucherFormData['accountType'] | undefined;
   accountNo: string;
-  accountTdsSection: { tdsType: string; tdsAmount: string } | undefined;
-  accountTcsSection: { tcsType: string; tcsAmount: string } | undefined;
+  accountTdsSection: { tdsType: string } | undefined;
+  accountTcsSection: { tcsType: string } | undefined;
   externalDocumentNo: string;
   description: string | undefined;
   amount: string;
   balanceAccountType: VoucherFormData['balanceAccountType'] | undefined;
   balanceAccountNo: string;
-  balanceTdsSection: { tdsType: string; tdsAmount: string } | undefined;
-  balanceTcsSection: { tcsType: string; tcsAmount: string } | undefined;
+  balanceTdsSection: { tdsType: string } | undefined;
+  balanceTcsSection: { tcsType: string } | undefined;
   lineNarration: string;
   lob: string;
   branch: string;
@@ -201,13 +201,15 @@ export function VoucherForm() {
   const showBalanceTcs = formData.balanceAccountType === 'Customer';
 
   // Progressive field enablement logic
+  // When editing (pendingEditId !== null), enable all fields
+  const isEditing = pendingEditId !== null;
   const datesFilled = formData.postingDate && formData.documentDate;
-  const voucherTypeEnabled = datesFilled;
-  const accountTypeEnabled = voucherTypeEnabled && formData.voucherType && formData.documentType;
-  const accountNoEnabled = accountTypeEnabled && formData.accountType;
-  const basicFieldsEnabled = accountNoEnabled && formData.accountNo;
-  const balanceAccountEnabled = basicFieldsEnabled && formData.amount;
-  const restFieldsEnabled = balanceAccountEnabled && formData.balanceAccountType && formData.balanceAccountNo;
+  const voucherTypeEnabled = isEditing || datesFilled;
+  const accountTypeEnabled = isEditing || (voucherTypeEnabled && formData.voucherType && formData.documentType);
+  const accountNoEnabled = isEditing || (accountTypeEnabled && formData.accountType);
+  const basicFieldsEnabled = isEditing || (accountNoEnabled && formData.accountNo);
+  const balanceAccountEnabled = isEditing || (basicFieldsEnabled && formData.amount);
+  const restFieldsEnabled = isEditing || (balanceAccountEnabled && formData.balanceAccountType && formData.balanceAccountNo);
 
   const postingDateRef = useRef<HTMLInputElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -238,43 +240,27 @@ export function VoucherForm() {
     }
 
     if (state.accountTdsSection && state.accountTdsSection.tdsType && state.accountTdsSection.tdsType !== 'NA') {
-      const tdsAmount = parseFloat(state.accountTdsSection.tdsAmount);
-      if (!isNaN(tdsAmount)) {
-        data.accountTdsSection = {
-          tdsType: state.accountTdsSection.tdsType,
-          tdsAmount,
-        };
-      }
+      data.accountTdsSection = {
+        tdsType: state.accountTdsSection.tdsType,
+      };
     }
 
     if (state.accountTcsSection && state.accountTcsSection.tcsType && state.accountTcsSection.tcsType !== 'NA') {
-      const tcsAmount = parseFloat(state.accountTcsSection.tcsAmount);
-      if (!isNaN(tcsAmount)) {
-        data.accountTcsSection = {
-          tcsType: state.accountTcsSection.tcsType,
-          tcsAmount,
-        };
-      }
+      data.accountTcsSection = {
+        tcsType: state.accountTcsSection.tcsType,
+      };
     }
 
     if (state.balanceTdsSection && state.balanceTdsSection.tdsType && state.balanceTdsSection.tdsType !== 'NA') {
-      const tdsAmount = parseFloat(state.balanceTdsSection.tdsAmount);
-      if (!isNaN(tdsAmount)) {
-        data.balanceTdsSection = {
-          tdsType: state.balanceTdsSection.tdsType,
-          tdsAmount,
-        };
-      }
+      data.balanceTdsSection = {
+        tdsType: state.balanceTdsSection.tdsType,
+      };
     }
 
     if (state.balanceTcsSection && state.balanceTcsSection.tcsType && state.balanceTcsSection.tcsType !== 'NA') {
-      const tcsAmount = parseFloat(state.balanceTcsSection.tcsAmount);
-      if (!isNaN(tcsAmount)) {
-        data.balanceTcsSection = {
-          tcsType: state.balanceTcsSection.tcsType,
-          tcsAmount,
-        };
-      }
+      data.balanceTcsSection = {
+        tcsType: state.balanceTcsSection.tcsType,
+      };
     }
 
     return data;
@@ -524,6 +510,16 @@ export function VoucherForm() {
 
   // Real-time validation for conditional fields only
   // This runs when dependency values change (voucherType, documentType, externalDocumentNo)
+  // Auto-set Balance Account Type to "G/L Account" when Account Type is Customer or Vendor
+  useEffect(() => {
+    if (formData.accountType === 'Customer' || formData.accountType === 'Vendor') {
+      if (formData.balanceAccountType !== 'G/L Account') {
+        updateField('balanceAccountType', 'G/L Account');
+        updateField('balanceAccountNo', ''); // Clear Balance Account No. when auto-setting
+      }
+    }
+  }, [formData.accountType]);
+
   useEffect(() => {
     const conditionalErrors = validateConditionalFields(formData);
     
@@ -566,6 +562,16 @@ export function VoucherForm() {
       updateField('accountTdsSection', undefined);
       updateField('accountTcsSection', undefined);
     }
+
+    // Auto-set Balance Account Type to "G/L Account" when Account Type is Customer or Vendor
+    if (value === 'Customer' || value === 'Vendor') {
+      updateField('balanceAccountType', 'G/L Account');
+      updateField('balanceAccountNo', ''); // Clear Balance Account No. when Account Type changes
+    } else if (value === 'G/L Account') {
+      // Clear Balance Account Type when Account Type is set to G/L Account
+      updateField('balanceAccountType', undefined);
+      updateField('balanceAccountNo', '');
+    }
   };
 
   const scrollToFirstError = () => {
@@ -600,39 +606,45 @@ export function VoucherForm() {
     const entry = entries.find((e) => e.id === entryId);
     if (!entry) return;
 
-    setFormData({
-      voucherType: entry.voucherType,
-      documentType: entry.documentType,
-      postingDate: entry.postingDate,
-      documentDate: entry.documentDate,
-      accountType: entry.accountType,
-      accountNo: entry.accountNo,
-      accountTdsSection: entry.accountTdsSection
-        ? { tdsType: entry.accountTdsSection.tdsType, tdsAmount: entry.accountTdsSection.tdsAmount.toString() }
-        : undefined,
-      accountTcsSection: entry.accountTcsSection
-        ? { tcsType: entry.accountTcsSection.tcsType, tcsAmount: entry.accountTcsSection.tcsAmount.toString() }
-        : undefined,
-      externalDocumentNo: entry.externalDocumentNo || '',
-      description: entry.description || undefined,
-      amount: entry.amount.toString(),
-      balanceAccountType: entry.balanceAccountType,
-      balanceAccountNo: entry.balanceAccountNo,
-      balanceTdsSection: entry.balanceTdsSection
-        ? { tdsType: entry.balanceTdsSection.tdsType, tdsAmount: entry.balanceTdsSection.tdsAmount.toString() }
-        : undefined,
-      balanceTcsSection: entry.balanceTcsSection
-        ? { tcsType: entry.balanceTcsSection.tcsType, tcsAmount: entry.balanceTcsSection.tcsAmount.toString() }
-        : undefined,
-      lineNarration: entry.lineNarration || '',
-      lob: entry.lob,
-      branch: entry.branch,
-      loc: entry.loc,
-      employee: entry.employee,
-      assignment: entry.assignment,
-    });
-
+    // Set accountType FIRST before setting form data so AccountSelect can display values properly
+    // Use setTimeout to ensure accountType is set before form data
     setAccountType(entry.accountType as VoucherFormData['accountType']);
+
+    // Use setTimeout to ensure AccountSelect components have time to initialize with accountType
+    setTimeout(() => {
+      setFormData({
+        voucherType: entry.voucherType,
+        documentType: entry.documentType,
+        postingDate: entry.postingDate,
+        documentDate: entry.documentDate,
+        accountType: entry.accountType,
+        accountNo: entry.accountNo,
+        accountTdsSection: entry.accountTdsSection
+          ? { tdsType: entry.accountTdsSection.tdsType }
+          : undefined,
+        accountTcsSection: entry.accountTcsSection
+          ? { tcsType: entry.accountTcsSection.tcsType }
+          : undefined,
+        externalDocumentNo: entry.externalDocumentNo || '',
+        description: entry.description || undefined,
+        amount: entry.amount.toString(),
+        balanceAccountType: entry.balanceAccountType,
+        balanceAccountNo: entry.balanceAccountNo,
+        balanceTdsSection: entry.balanceTdsSection
+          ? { tdsType: entry.balanceTdsSection.tdsType }
+          : undefined,
+        balanceTcsSection: entry.balanceTcsSection
+          ? { tcsType: entry.balanceTcsSection.tcsType }
+          : undefined,
+        lineNarration: entry.lineNarration || '',
+        lob: entry.lob,
+        branch: entry.branch,
+        loc: entry.loc,
+        employee: entry.employee,
+        assignment: entry.assignment,
+      });
+    }, 0);
+
     setPendingEditId(entryId);
     setHasUnsavedChanges(true);
     setValidationErrors({});
@@ -692,7 +704,8 @@ export function VoucherForm() {
     }
 
     const data = formStateToVoucherData(formData) as VoucherFormData;
-    setEntries((prev) => prev.map((e) => (e.id === pendingEditId ? { ...data, id: pendingEditId } : e)));
+    // Preserve attachments when updating entry
+    setEntries((prev) => prev.map((e) => (e.id === pendingEditId ? { ...data, id: pendingEditId, attachments: attachments } : e)));
     resetForm();
   };
 
@@ -766,9 +779,10 @@ export function VoucherForm() {
       Posting_Date: entry.postingDate,
       Document_Type: entry.documentType || 'Payment',
       Account_Type: entry.accountType,
+      Account_No: entry.accountNo,
       Amount: entry.amount,
       Bal_Account_Type: entry.balanceAccountType,
-      Bal_Account_No: entry.balanceAccountNo,
+      Bal_Account_No: entry.balanceAccountNo || '',
       Document_Date: entry.documentDate,
       Party_Type: '0',
       Party_Code: '',
@@ -780,23 +794,22 @@ export function VoucherForm() {
       ShortcutDimCode5: entry.assignment || '',
     };
 
-    // Add optional fields only if they have values
-    if (entry.description) {
+    // Add optional fields only if they have values (not empty strings)
+    if (entry.description && entry.description.trim() !== '') {
       payload.Description = entry.description;
     }
-    if (entry.externalDocumentNo) {
+    if (entry.externalDocumentNo && entry.externalDocumentNo.trim() !== '') {
       payload.External_Document_No = entry.externalDocumentNo;
     }
-    if (entry.lineNarration) {
+    if (entry.lineNarration && entry.lineNarration.trim() !== '') {
       payload.Line_Narration1 = entry.lineNarration;
     }
-    if (entry.loc) {
+    if (entry.loc && entry.loc.trim() !== '') {
       payload.Shortcut_Dimension_3_Code = entry.loc;
     }
 
-    // Set Party_Type and Party_Code if ANY TDS/TCS is present (and not NA)
-    // Priority: Account Type TDS/TCS first, then Balance Account Type
-    // Party_Type equals account type when TDS/TCS is not blank
+    // Set Party_Type and Party_Code ONLY if Account-related TDS/TCS is present (and not NA)
+    // Party_Type equals account type when Account TDS/TCS is not blank
     if (entry.accountTdsSection && entry.accountTdsSection.tdsType && entry.accountTdsSection.tdsType !== 'NA') {
       payload.Party_Type = entry.accountType;
       payload.Party_Code = entry.accountNo;
@@ -804,13 +817,7 @@ export function VoucherForm() {
     } else if (entry.accountTcsSection && entry.accountTcsSection.tcsType && entry.accountTcsSection.tcsType !== 'NA') {
       payload.Party_Type = entry.accountType;
       payload.Party_Code = entry.accountNo;
-    } else if (entry.balanceTdsSection && entry.balanceTdsSection.tdsType && entry.balanceTdsSection.tdsType !== 'NA') {
-      payload.Party_Type = entry.balanceAccountType;
-      payload.Party_Code = entry.balanceAccountNo;
-      payload.TDS_Section_Code = entry.balanceTdsSection.tdsType;
-    } else if (entry.balanceTcsSection && entry.balanceTcsSection.tcsType && entry.balanceTcsSection.tcsType !== 'NA') {
-      payload.Party_Type = entry.balanceAccountType;
-      payload.Party_Code = entry.balanceAccountNo;
+      payload.TCS_Nature_of_Collection = entry.accountTcsSection.tcsType;
     }
 
     return payload;
@@ -827,7 +834,7 @@ export function VoucherForm() {
         try {
           // Create voucher
           const payload = buildVoucherPayload(entry);
-          const response = await createVoucher(payload);
+          const response = await createVoucher(payload, entry.voucherType);
           const documentNo = response.Document_No;
 
           // Upload attachments if any
@@ -835,11 +842,16 @@ export function VoucherForm() {
             for (const file of entry.attachments) {
               try {
                 const base64 = await convertFileToBase64(file);
-                await uploadAttachment({
-                  recNo: documentNo,
-                  fileName: file.name,
-                  fileEncodedTextDialog: base64,
-                });
+                const result = await uploadAttachment(
+                  {
+                    recNo: documentNo,
+                    fileName: file.name,
+                    fileEncodedTextDialog: base64,
+                  },
+                  entry.voucherType
+                );
+                // Result will have success: true and message: 'File uploaded' for 204 responses
+                console.log(`${file.name}: ${result.message || 'Uploaded successfully'}`);
               } catch (error) {
                 console.error(`Error uploading attachment ${file.name}:`, error);
                 errors.push(`Failed to upload ${file.name} for entry ${entry.id}`);
@@ -996,22 +1008,10 @@ export function VoucherForm() {
                   <FieldTitle>TDS Type</FieldTitle>
                 </TableHead>
               )}
-              {/* TDS Amount header - shown when Account Type is Vendor */}
-              {showAccountTds && (
-                <TableHead className={cn(colHead, 'w-[130px]')}>
-                  <FieldTitle>TDS Amount</FieldTitle>
-                </TableHead>
-              )}
               {/* TCS Type header - shown when Account Type is Customer */}
               {showAccountTcs && (
                 <TableHead className={cn(colHead, 'w-[160px]')}>
                   <FieldTitle>TCS Type</FieldTitle>
-                </TableHead>
-              )}
-              {/* TCS Amount header - shown when Account Type is Customer */}
-              {showAccountTcs && (
-                <TableHead className={cn(colHead, 'w-[130px]')}>
-                  <FieldTitle>TCS Amount</FieldTitle>
                 </TableHead>
               )}
               <TableHead className={cn(colHead, 'w-[180px]')}>
@@ -1037,22 +1037,10 @@ export function VoucherForm() {
                   <FieldTitle>TDS Type</FieldTitle>
                 </TableHead>
               )}
-              {/* TDS Amount header - shown when Balance Account Type is Vendor */}
-              {showBalanceTds && (
-                <TableHead className={cn(colHead, 'w-[130px]')}>
-                  <FieldTitle>TDS Amount</FieldTitle>
-                </TableHead>
-              )}
               {/* TCS Type header - shown when Balance Account Type is Customer */}
               {showBalanceTcs && (
                 <TableHead className={cn(colHead, 'w-[160px]')}>
                   <FieldTitle>TCS Type</FieldTitle>
-                </TableHead>
-              )}
-              {/* TCS Amount header - shown when Balance Account Type is Customer */}
-              {showBalanceTcs && (
-                <TableHead className={cn(colHead, 'w-[130px]')}>
-                  <FieldTitle>TCS Amount</FieldTitle>
                 </TableHead>
               )}
               <TableHead className={cn(colHead, 'w-[200px]')}>
@@ -1177,15 +1165,9 @@ export function VoucherForm() {
                       <SelectValue placeholder={getPlaceholder('accountType', '')} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="G/L Account" disabled={formData.balanceAccountType === 'G/L Account'}>
-                        G/L Account
-                      </SelectItem>
-                      <SelectItem value="Customer" disabled={formData.balanceAccountType === 'Customer'}>
-                        Customer
-                      </SelectItem>
-                      <SelectItem value="Vendor" disabled={formData.balanceAccountType === 'Vendor'}>
-                        Vendor
-                      </SelectItem>
+                      <SelectItem value="G/L Account">G/L Account</SelectItem>
+                      <SelectItem value="Customer">Customer</SelectItem>
+                      <SelectItem value="Vendor">Vendor</SelectItem>
                     </SelectContent>
                   </Select>
                 </CellWithTooltip>
@@ -1223,9 +1205,7 @@ export function VoucherForm() {
                           updateField('accountTdsSection', undefined);
                         } else {
                           updateField('accountTdsSection', {
-                            ...formData.accountTdsSection,
                             tdsType: value,
-                            tdsAmount: formData.accountTdsSection?.tdsAmount || '',
                           });
                         }
                       }}
@@ -1254,32 +1234,6 @@ export function VoucherForm() {
                 </TableCell>
               )}
 
-              {/* Account TDS Amount - shown when Account Type is Vendor */}
-              {showAccountTds && (
-                <TableCell className={colCell}>
-                  <InputWithTooltip
-                    hasError={hasError('accountTdsSection.tdsAmount')}
-                    errorClass={getFieldErrorClass('accountTdsSection.tdsAmount')}
-                    fullErrorMessage={getFullErrorMessage('accountTdsSection.tdsAmount')}
-                    placeholder={getPlaceholder('accountTdsSection.tdsAmount', '')}
-                  >
-                    <Input
-                      value={formData.accountTdsSection?.tdsAmount || ''}
-                      onChange={(e) =>
-                        updateField('accountTdsSection', {
-                          ...formData.accountTdsSection,
-                          tdsType: formData.accountTdsSection?.tdsType || '',
-                          tdsAmount: e.target.value,
-                        })
-                      }
-                      className={cn(control, (!accountNoEnabled || !formData.accountNo || !formData.accountTdsSection?.tdsType || formData.accountTdsSection.tdsType === 'NA') && 'cursor-not-allowed')}
-                      inputMode="decimal"
-                      disabled={!accountNoEnabled || !formData.accountNo || !formData.accountTdsSection?.tdsType || formData.accountTdsSection.tdsType === 'NA'}
-                    />
-                  </InputWithTooltip>
-                </TableCell>
-              )}
-
               {/* Account TCS Type - shown when Account Type is Customer */}
               {showAccountTcs && (
                 <TableCell className={colCell}>
@@ -1291,9 +1245,7 @@ export function VoucherForm() {
                           updateField('accountTcsSection', undefined);
                         } else {
                           updateField('accountTcsSection', {
-                            ...formData.accountTcsSection,
                             tcsType: value,
-                            tcsAmount: formData.accountTcsSection?.tcsAmount || '',
                           });
                         }
                       }}
@@ -1319,32 +1271,6 @@ export function VoucherForm() {
                       </SelectContent>
                     </Select>
                   </CellWithTooltip>
-                </TableCell>
-              )}
-
-              {/* Account TCS Amount - shown when Account Type is Customer */}
-              {showAccountTcs && (
-                <TableCell className={colCell}>
-                  <InputWithTooltip
-                    hasError={hasError('accountTcsSection.tcsAmount')}
-                    errorClass={getFieldErrorClass('accountTcsSection.tcsAmount')}
-                    fullErrorMessage={getFullErrorMessage('accountTcsSection.tcsAmount')}
-                    placeholder={getPlaceholder('accountTcsSection.tcsAmount', '')}
-                  >
-                    <Input
-                      value={formData.accountTcsSection?.tcsAmount || ''}
-                      onChange={(e) =>
-                        updateField('accountTcsSection', {
-                          ...formData.accountTcsSection,
-                          tcsType: formData.accountTcsSection?.tcsType || '',
-                          tcsAmount: e.target.value,
-                        })
-                      }
-                      className={cn(control, (!accountNoEnabled || !formData.accountNo || !formData.accountTcsSection?.tcsType || formData.accountTcsSection.tcsType === 'NA') && 'cursor-not-allowed')}
-                      inputMode="decimal"
-                      disabled={!accountNoEnabled || !formData.accountNo || !formData.accountTcsSection?.tcsType || formData.accountTcsSection.tcsType === 'NA'}
-                    />
-                  </InputWithTooltip>
                 </TableCell>
               )}
 
@@ -1405,24 +1331,32 @@ export function VoucherForm() {
                       updateField('balanceAccountType', v as VoucherFormData['balanceAccountType'])
                     }
                     key={formData.balanceAccountType || 'reset-balanceType'}
-                    disabled={!balanceAccountEnabled}
+                    disabled={!balanceAccountEnabled || formData.accountType === 'Customer' || formData.accountType === 'Vendor'}
                   >
                     <SelectTrigger
-                      className={cn(control, getFieldErrorClass('balanceAccountType'), 'w-full', !balanceAccountEnabled && 'cursor-not-allowed')}
+                      className={cn(control, getFieldErrorClass('balanceAccountType'), 'w-full', (!balanceAccountEnabled || formData.accountType === 'Customer' || formData.accountType === 'Vendor') && 'cursor-not-allowed')}
                       data-field-error={hasError('balanceAccountType')}
                     >
                       <SelectValue placeholder={getPlaceholder('balanceAccountType', '')} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="G/L Account" disabled={formData.accountType === 'G/L Account'}>
-                        G/L Account
-                      </SelectItem>
-                      <SelectItem value="Customer" disabled={formData.accountType === 'Customer'}>
-                        Customer
-                      </SelectItem>
-                      <SelectItem value="Vendor" disabled={formData.accountType === 'Vendor'}>
-                        Vendor
-                      </SelectItem>
+                      {formData.accountType === 'G/L Account' ? (
+                        // When Account Type is G/L Account, show all 3 options
+                        <>
+                          <SelectItem value="G/L Account" disabled={true}>
+                            G/L Account
+                          </SelectItem>
+                          <SelectItem value="Customer" disabled={false}>
+                            Customer
+                          </SelectItem>
+                          <SelectItem value="Vendor" disabled={false}>
+                            Vendor
+                          </SelectItem>
+                        </>
+                      ) : (
+                        // When Account Type is Customer or Vendor, only show G/L Account
+                        <SelectItem value="G/L Account">G/L Account</SelectItem>
+                      )}
                     </SelectContent>
                   </Select>
                 </CellWithTooltip>
@@ -1455,9 +1389,7 @@ export function VoucherForm() {
                           updateField('balanceTdsSection', undefined);
                         } else {
                           updateField('balanceTdsSection', {
-                            ...formData.balanceTdsSection,
                             tdsType: value,
-                            tdsAmount: formData.balanceTdsSection?.tdsAmount || '',
                           });
                         }
                       }}
@@ -1486,32 +1418,6 @@ export function VoucherForm() {
                 </TableCell>
               )}
 
-              {/* Balance Account TDS Amount - shown when Balance Account Type is Vendor */}
-              {showBalanceTds && (
-                <TableCell className={colCell}>
-                  <InputWithTooltip
-                    hasError={hasError('balanceTdsSection.tdsAmount')}
-                    errorClass={getFieldErrorClass('balanceTdsSection.tdsAmount')}
-                    fullErrorMessage={getFullErrorMessage('balanceTdsSection.tdsAmount')}
-                    placeholder={getPlaceholder('balanceTdsSection.tdsAmount', '')}
-                  >
-                    <Input
-                      value={formData.balanceTdsSection?.tdsAmount || ''}
-                      onChange={(e) =>
-                        updateField('balanceTdsSection', {
-                          ...formData.balanceTdsSection,
-                          tdsType: formData.balanceTdsSection?.tdsType || '',
-                          tdsAmount: e.target.value,
-                        })
-                      }
-                      className={cn(control, (!balanceAccountEnabled || !formData.balanceAccountNo || !formData.balanceTdsSection?.tdsType || formData.balanceTdsSection.tdsType === 'NA') && 'cursor-not-allowed')}
-                      inputMode="decimal"
-                      disabled={!balanceAccountEnabled || !formData.balanceAccountNo || !formData.balanceTdsSection?.tdsType || formData.balanceTdsSection.tdsType === 'NA'}
-                    />
-                  </InputWithTooltip>
-                </TableCell>
-              )}
-
               {/* Balance Account TCS Type - shown when Balance Account Type is Customer */}
               {showBalanceTcs && (
                 <TableCell className={colCell}>
@@ -1523,9 +1429,7 @@ export function VoucherForm() {
                           updateField('balanceTcsSection', undefined);
                         } else {
                           updateField('balanceTcsSection', {
-                            ...formData.balanceTcsSection,
                             tcsType: value,
-                            tcsAmount: formData.balanceTcsSection?.tcsAmount || '',
                           });
                         }
                       }}
@@ -1551,32 +1455,6 @@ export function VoucherForm() {
                       </SelectContent>
                     </Select>
                   </CellWithTooltip>
-                </TableCell>
-              )}
-
-              {/* Balance Account TCS Amount - shown when Balance Account Type is Customer */}
-              {showBalanceTcs && (
-                <TableCell className={colCell}>
-                  <InputWithTooltip
-                    hasError={hasError('balanceTcsSection.tcsAmount')}
-                    errorClass={getFieldErrorClass('balanceTcsSection.tcsAmount')}
-                    fullErrorMessage={getFullErrorMessage('balanceTcsSection.tcsAmount')}
-                    placeholder={getPlaceholder('balanceTcsSection.tcsAmount', '')}
-                  >
-                    <Input
-                      value={formData.balanceTcsSection?.tcsAmount || ''}
-                      onChange={(e) =>
-                        updateField('balanceTcsSection', {
-                          ...formData.balanceTcsSection,
-                          tcsType: formData.balanceTcsSection?.tcsType || '',
-                          tcsAmount: e.target.value,
-                        })
-                      }
-                      className={cn(control, (!balanceAccountEnabled || !formData.balanceAccountNo || !formData.balanceTcsSection?.tcsType || formData.balanceTcsSection.tcsType === 'NA') && 'cursor-not-allowed')}
-                      inputMode="decimal"
-                      disabled={!balanceAccountEnabled || !formData.balanceAccountNo || !formData.balanceTcsSection?.tcsType || formData.balanceTcsSection.tcsType === 'NA'}
-                    />
-                  </InputWithTooltip>
                 </TableCell>
               )}
 
@@ -1686,12 +1564,13 @@ export function VoucherForm() {
                     />
                     <Button
                       type="button"
-                      variant="outline"
+                      variant="default"
                       size="sm"
-                      className={cn("w-full text-xs", !restFieldsEnabled && 'cursor-not-allowed')}
+                      className={cn("w-full", !restFieldsEnabled && 'cursor-not-allowed')}
                       disabled={isSubmitting || !restFieldsEnabled}
                       onClick={() => fileInputRef.current?.click()}
                     >
+                      <Upload className="mr-2 h-4 w-4" />
                       Upload Files
                     </Button>
                   </div>
@@ -1812,25 +1691,11 @@ export function VoucherForm() {
                         ? entry.balanceTdsSection.tdsType
                         : ''}
                     </TableCell>
-                    <TableCell className="p-2 text-xs text-right tabular-nums">
-                      {entry.accountTdsSection?.tdsAmount
-                        ? entry.accountTdsSection.tdsAmount.toFixed(2)
-                        : entry.balanceTdsSection?.tdsAmount
-                        ? entry.balanceTdsSection.tdsAmount.toFixed(2)
-                        : ''}
-                    </TableCell>
                     <TableCell className="p-2 text-xs">
                       {entry.accountTcsSection?.tcsType && entry.accountTcsSection.tcsType !== 'NA'
                         ? entry.accountTcsSection.tcsType
                         : entry.balanceTcsSection?.tcsType && entry.balanceTcsSection.tcsType !== 'NA'
                         ? entry.balanceTcsSection.tcsType
-                        : ''}
-                    </TableCell>
-                    <TableCell className="p-2 text-xs text-right tabular-nums">
-                      {entry.accountTcsSection?.tcsAmount
-                        ? entry.accountTcsSection.tcsAmount.toFixed(2)
-                        : entry.balanceTcsSection?.tcsAmount
-                        ? entry.balanceTcsSection.tcsAmount.toFixed(2)
                         : ''}
                     </TableCell>
                     <TableCell className="p-2 text-xs">

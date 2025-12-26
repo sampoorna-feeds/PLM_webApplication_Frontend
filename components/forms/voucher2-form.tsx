@@ -50,10 +50,10 @@ type FormState = {
   accountType: VoucherFormData['accountType'] | undefined;
   accountNo: string;
   externalDocumentNo: string;
-  accountTdsSection: { tdsType: string; tdsAmount: string } | undefined;
-  accountTcsSection: { tcsType: string; tcsAmount: string } | undefined;
-  balanceTdsSection: { tdsType: string; tdsAmount: string } | undefined;
-  balanceTcsSection: { tcsType: string; tcsAmount: string } | undefined;
+  accountTdsSection: { tdsType: string } | undefined;
+  accountTcsSection: { tcsType: string } | undefined;
+  balanceTdsSection: { tdsType: string } | undefined;
+  balanceTcsSection: { tcsType: string } | undefined;
   description: string | undefined;
   amount: string;
   balanceAccountType: VoucherFormData['balanceAccountType'] | undefined;
@@ -197,43 +197,27 @@ export function Voucher2Form() {
     }
 
     if (state.accountTdsSection && state.accountTdsSection.tdsType && state.accountTdsSection.tdsType !== 'NA') {
-      const tdsAmount = parseFloat(state.accountTdsSection.tdsAmount);
-      if (!isNaN(tdsAmount)) {
-        data.accountTdsSection = {
-          tdsType: state.accountTdsSection.tdsType,
-          tdsAmount,
-        };
-      }
+      data.accountTdsSection = {
+        tdsType: state.accountTdsSection.tdsType,
+      };
     }
 
     if (state.accountTcsSection && state.accountTcsSection.tcsType && state.accountTcsSection.tcsType !== 'NA') {
-      const tcsAmount = parseFloat(state.accountTcsSection.tcsAmount);
-      if (!isNaN(tcsAmount)) {
-        data.accountTcsSection = {
-          tcsType: state.accountTcsSection.tcsType,
-          tcsAmount,
-        };
-      }
+      data.accountTcsSection = {
+        tcsType: state.accountTcsSection.tcsType,
+      };
     }
 
     if (state.balanceTdsSection && state.balanceTdsSection.tdsType && state.balanceTdsSection.tdsType !== 'NA') {
-      const tdsAmount = parseFloat(state.balanceTdsSection.tdsAmount);
-      if (!isNaN(tdsAmount)) {
-        data.balanceTdsSection = {
-          tdsType: state.balanceTdsSection.tdsType,
-          tdsAmount,
-        };
-      }
+      data.balanceTdsSection = {
+        tdsType: state.balanceTdsSection.tdsType,
+      };
     }
 
     if (state.balanceTcsSection && state.balanceTcsSection.tcsType && state.balanceTcsSection.tcsType !== 'NA') {
-      const tcsAmount = parseFloat(state.balanceTcsSection.tcsAmount);
-      if (!isNaN(tcsAmount)) {
-        data.balanceTcsSection = {
-          tcsType: state.balanceTcsSection.tcsType,
-          tcsAmount,
-        };
-      }
+      data.balanceTcsSection = {
+        tcsType: state.balanceTcsSection.tcsType,
+      };
     }
 
     return data;
@@ -362,16 +346,16 @@ export function Voucher2Form() {
       accountNo: entry.accountNo,
       externalDocumentNo: entry.externalDocumentNo || '',
       accountTdsSection: entry.accountTdsSection
-        ? { tdsType: entry.accountTdsSection.tdsType, tdsAmount: entry.accountTdsSection.tdsAmount.toString() }
+        ? { tdsType: entry.accountTdsSection.tdsType }
         : undefined,
       accountTcsSection: entry.accountTcsSection
-        ? { tcsType: entry.accountTcsSection.tcsType, tcsAmount: entry.accountTcsSection.tcsAmount.toString() }
+        ? { tcsType: entry.accountTcsSection.tcsType }
         : undefined,
       balanceTdsSection: entry.balanceTdsSection
-        ? { tdsType: entry.balanceTdsSection.tdsType, tdsAmount: entry.balanceTdsSection.tdsAmount.toString() }
+        ? { tdsType: entry.balanceTdsSection.tdsType }
         : undefined,
       balanceTcsSection: entry.balanceTcsSection
-        ? { tcsType: entry.balanceTcsSection.tcsType, tcsAmount: entry.balanceTcsSection.tcsAmount.toString() }
+        ? { tcsType: entry.balanceTcsSection.tcsType }
         : undefined,
       description: entry.description || undefined,
       amount: entry.amount.toString(),
@@ -996,25 +980,11 @@ export function Voucher2Form() {
                         ? entry.balanceTdsSection.tdsType
                         : ''}
                     </TableCell>
-                    <TableCell className="p-2 text-xs tabular-nums">
-                      {entry.accountTdsSection?.tdsAmount
-                        ? entry.accountTdsSection.tdsAmount.toFixed(2)
-                        : entry.balanceTdsSection?.tdsAmount
-                        ? entry.balanceTdsSection.tdsAmount.toFixed(2)
-                        : ''}
-                    </TableCell>
                     <TableCell className="p-2 text-xs">
                       {entry.accountTcsSection?.tcsType && entry.accountTcsSection.tcsType !== 'NA'
                         ? entry.accountTcsSection.tcsType
                         : entry.balanceTcsSection?.tcsType && entry.balanceTcsSection.tcsType !== 'NA'
                         ? entry.balanceTcsSection.tcsType
-                        : ''}
-                    </TableCell>
-                    <TableCell className="p-2 text-xs tabular-nums">
-                      {entry.accountTcsSection?.tcsAmount
-                        ? entry.accountTcsSection.tcsAmount.toFixed(2)
-                        : entry.balanceTcsSection?.tcsAmount
-                        ? entry.balanceTcsSection.tcsAmount.toFixed(2)
                         : ''}
                     </TableCell>
                     <TableCell className="p-2">

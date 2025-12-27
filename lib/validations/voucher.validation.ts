@@ -39,17 +39,16 @@ export const voucherSchema = z.object({
   employee: z.string().optional(),
   assignment: z.string().optional(),
 }).refine((data) => {
-  // External Document No. is required when:
-  // Voucher Type is 'General Journal' AND Document Type is 'Invoice' or 'Credit Memo'
-  if (data.voucherType === 'General Journal' && 
-      (data.documentType === 'Invoice' || data.documentType === 'Credit Memo')) {
+  // External Document No. is required when Voucher Type is 'General Journal'
+  // (since both Invoice and Credit Memo require it)
+  if (data.voucherType === 'General Journal') {
     return data.externalDocumentNo !== undefined && 
            data.externalDocumentNo !== null && 
            data.externalDocumentNo.trim() !== '';
   }
   return true;
 }, {
-  message: 'External Document No. is required when Voucher Type is General Journal and Document Type is Invoice or Credit Memo',
+  message: 'External Document No. is required when Voucher Type is General Journal',
   path: ['externalDocumentNo'],
 }).refine((data) => {
   // Account Type and Balance Account Type cannot be the same

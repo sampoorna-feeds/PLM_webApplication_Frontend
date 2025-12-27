@@ -41,6 +41,7 @@ export interface CreateVoucherPayload {
   User_ID: string;
   Shortcut_Dimension_3_Code?: string;
   Document_Date: string;
+  Document_No: string;
   Party_Type: string;
   Party_Code: string;
   TDS_Section_Code?: string;
@@ -114,6 +115,20 @@ export async function getTDSSection(vendorNo: string): Promise<TDSSection[]> {
 export async function getTCSSection(customerNo: string): Promise<TCSSection[]> {
   const endpoint = `/TCSSection?company='${encodeURIComponent(COMPANY)}'&$select=TCS_Nature_of_Collection&$Filter=Customer_No eq '${encodeURIComponent(customerNo)}'`;
   const response = await apiGet<ODataResponse<TCSSection>>(endpoint);
+  return response.value;
+}
+
+/**
+ * Create document number series for vouchers
+ * @param voucherType - Voucher type (General Journal, Cash Receipt, Cash Payment)
+ * @returns Document number string
+ */
+export async function createNoSeriesForVouchers(voucherType: string): Promise<string> {
+  // Hardcoded series code for now
+  const seriesCode = 'GJTEST';
+  
+  const endpoint = `/API_CreateNoSeriesForVouchers?company='${encodeURIComponent(COMPANY)}'`;
+  const response = await apiPost<{ value: string }>(endpoint, { seriesCode });
   return response.value;
 }
 

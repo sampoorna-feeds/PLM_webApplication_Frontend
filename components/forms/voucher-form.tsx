@@ -52,6 +52,7 @@ import {
   getTCSSection,
   createVoucher,
   uploadAttachment,
+  createNoSeriesForVouchers,
   type TDSSection,
   type TCSSection,
   type CreateVoucherPayload,
@@ -193,12 +194,14 @@ export function VoucherForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // TDS/TCS visibility for Account Type
-  const showAccountTds = accountType === 'Vendor';
-  const showAccountTcs = accountType === 'Customer';
+  // Show only when account type is Vendor/Customer, account number is selected, and sections are available
+  const showAccountTds = accountType === 'Vendor' && formData.accountNo && accountTdsSections.length > 0;
+  const showAccountTcs = accountType === 'Customer' && formData.accountNo && accountTcsSections.length > 0;
   
   // TDS/TCS visibility for Balance Account Type
-  const showBalanceTds = formData.balanceAccountType === 'Vendor';
-  const showBalanceTcs = formData.balanceAccountType === 'Customer';
+  // Show only when balance account type is Vendor/Customer, balance account number is selected, and sections are available
+  const showBalanceTds = formData.balanceAccountType === 'Vendor' && formData.balanceAccountNo && balanceTdsSections.length > 0;
+  const showBalanceTcs = formData.balanceAccountType === 'Customer' && formData.balanceAccountNo && balanceTcsSections.length > 0;
 
   // Progressive field enablement logic
   // When editing (pendingEditId !== null), enable all fields
@@ -287,14 +290,11 @@ export function VoucherForm() {
   const validateConditionalFields = (formDataToValidate: FormState): ValidationErrors => {
     const errors: ValidationErrors = {};
     
-    // Validate External Document No. if conditions are met
-    const shouldRequireExternalDoc = 
-      formDataToValidate.voucherType === 'General Journal' && 
-      (formDataToValidate.documentType === 'Invoice' || formDataToValidate.documentType === 'Credit Memo');
-    
-    if (shouldRequireExternalDoc) {
+    // Validate External Document No. if Voucher Type is General Journal
+    // (since both Invoice and Credit Memo require it)
+    if (formDataToValidate.voucherType === 'General Journal') {
       if (!formDataToValidate.externalDocumentNo || formDataToValidate.externalDocumentNo.trim() === '') {
-        errors.externalDocumentNo = ['External Document No. is required when Voucher Type is General Journal and Document Type is Invoice or Credit Memo'];
+        errors.externalDocumentNo = ['External Document No. is required when Voucher Type is General Journal'];
       }
     }
     
@@ -533,9 +533,7 @@ export function VoucherForm() {
       } else {
         // Clear error if validation passes or condition is no longer met
         // Check if condition is still met - if not, clear the error
-        const shouldRequireExternalDoc = 
-          formData.voucherType === 'General Journal' && 
-          (formData.documentType === 'Invoice' || formData.documentType === 'Credit Memo');
+        const shouldRequireExternalDoc = formData.voucherType === 'General Journal';
         
         if (!shouldRequireExternalDoc || (formData.externalDocumentNo && formData.externalDocumentNo.trim() !== '')) {
           delete next.externalDocumentNo;
@@ -550,6 +548,9 @@ export function VoucherForm() {
     const newAccountType = value as VoucherFormData['accountType'];
     setAccountType(newAccountType);
     updateField('accountType', newAccountType);
+    
+    // Clear Account No. when Account Type changes
+    updateField('accountNo', '');
 
     // Clear Account TDS/TCS when account type changes
     if (value === 'Vendor') {
@@ -772,7 +773,7 @@ export function VoucherForm() {
     }
   };
 
-  const buildVoucherPayload = (entry: VoucherEntry): CreateVoucherPayload => {
+  const buildVoucherPayload = (entry: VoucherEntry, documentNo: string): CreateVoucherPayload => {
     const payload: CreateVoucherPayload = {
       Journal_Template_Name: mapVoucherTypeToTemplate(entry.voucherType),
       Journal_Batch_Name: 'DEFAULT',
@@ -784,6 +785,7 @@ export function VoucherForm() {
       Bal_Account_Type: entry.balanceAccountType,
       Bal_Account_No: entry.balanceAccountNo || '',
       Document_Date: entry.documentDate,
+      Document_No: documentNo,
       Party_Type: '0',
       Party_Code: '',
       User_ID: user?.username || '',
@@ -832,12 +834,14 @@ export function VoucherForm() {
     try {
       for (const entry of entries) {
         try {
-          // Create voucher
-          const payload = buildVoucherPayload(entry);
-          const response = await createVoucher(payload, entry.voucherType);
-          const documentNo = response.Document_No;
+          // Step 1: Create document number first
+          const documentNo = await createNoSeriesForVouchers(entry.voucherType);
+          
+          // Step 2: Create voucher with the document number
+          const payload = buildVoucherPayload(entry, documentNo);
+          await createVoucher(payload, entry.voucherType);
 
-          // Upload attachments if any
+          // Step 3: Upload attachments if any (using the same document number)
           if (entry.attachments && entry.attachments.length > 0) {
             for (const file of entry.attachments) {
               try {
@@ -1015,7 +1019,7 @@ export function VoucherForm() {
                 </TableHead>
               )}
               <TableHead className={cn(colHead, 'w-[180px]')}>
-                <FieldTitle required={formData.voucherType === 'General Journal' && (formData.documentType === 'Invoice' || formData.documentType === 'Credit Memo')}>
+                <FieldTitle required={formData.voucherType === 'General Journal'}>
                   External Doc No.
                 </FieldTitle>
               </TableHead>
@@ -1106,7 +1110,14 @@ export function VoucherForm() {
                 <CellWithTooltip errorMessage={getFullErrorMessage('voucherType')}>
                   <Select
                     value={formData.voucherType || undefined}
-                    onValueChange={(v) => updateField('voucherType', v as VoucherFormData['voucherType'])}
+                    onValueChange={(v) => {
+                      const newVoucherType = v as VoucherFormData['voucherType'];
+                      updateField('voucherType', newVoucherType);
+                      // Clear documentType if it's Payment or Refund and voucher type is General Journal
+                      if (newVoucherType === 'General Journal' && (formData.documentType === 'Payment' || formData.documentType === 'Refund')) {
+                        updateField('documentType', null);
+                      }
+                    }}
                     key={formData.voucherType || 'reset-voucher'}
                     disabled={!voucherTypeEnabled}
                   >
@@ -1141,10 +1152,14 @@ export function VoucherForm() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="NA">NA</SelectItem>
-                      <SelectItem value="Payment">Payment</SelectItem>
+                      {formData.voucherType !== 'General Journal' && (
+                        <>
+                          <SelectItem value="Payment">Payment</SelectItem>
+                          <SelectItem value="Refund">Refund</SelectItem>
+                        </>
+                      )}
                       <SelectItem value="Invoice">Invoice</SelectItem>
                       <SelectItem value="Credit Memo">Credit Memo</SelectItem>
-                      <SelectItem value="Refund">Refund</SelectItem>
                     </SelectContent>
                   </Select>
                 </CellWithTooltip>
@@ -1327,9 +1342,11 @@ export function VoucherForm() {
                 <CellWithTooltip errorMessage={getFullErrorMessage('balanceAccountType')}>
                   <Select
                     value={formData.balanceAccountType || undefined}
-                    onValueChange={(v) =>
-                      updateField('balanceAccountType', v as VoucherFormData['balanceAccountType'])
-                    }
+                    onValueChange={(v) => {
+                      updateField('balanceAccountType', v as VoucherFormData['balanceAccountType']);
+                      // Clear Balance Account No. when Balance Account Type changes
+                      updateField('balanceAccountNo', '');
+                    }}
                     key={formData.balanceAccountType || 'reset-balanceType'}
                     disabled={!balanceAccountEnabled || formData.accountType === 'Customer' || formData.accountType === 'Vendor'}
                   >

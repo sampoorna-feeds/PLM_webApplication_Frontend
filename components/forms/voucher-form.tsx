@@ -53,9 +53,12 @@ import {
   createVoucher,
   uploadAttachment,
   createNoSeriesForVouchers,
+  getVoucherEntries,
+  postVouchers,
   type TDSSection,
   type TCSSection,
   type CreateVoucherPayload,
+  type VoucherEntryResponse,
 } from '@/lib/api/services/voucher.service';
 import { getCustomerByNo } from '@/lib/api/services/customer.service';
 import { useAuthStore } from '@/lib/stores/auth-store';
@@ -192,6 +195,9 @@ export function VoucherForm() {
   const [balanceTdsSections, setBalanceTdsSections] = useState<TDSSection[]>([]);
   const [balanceTcsSections, setBalanceTcsSections] = useState<TCSSection[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [fetchedVouchers, setFetchedVouchers] = useState<VoucherEntryResponse[]>([]);
+  const [isLoadingVouchers, setIsLoadingVouchers] = useState(false);
+  const [isPosting, setIsPosting] = useState(false);
 
   // TDS/TCS visibility for Account Type
   // Show only when account type is Vendor/Customer, account number is selected, and sections are available
@@ -520,6 +526,52 @@ export function VoucherForm() {
     }
   }, [formData.accountType]);
 
+  // Fetch vouchers from API on component mount
+  useEffect(() => {
+    const fetchVouchers = async () => {
+      setIsLoadingVouchers(true);
+      try {
+        // Fetch vouchers from all three types
+        const [gjVouchers, crVouchers, cpVouchers] = await Promise.all([
+          getVoucherEntries('General Journal'),
+          getVoucherEntries('Cash Receipt'),
+          getVoucherEntries('Cash Payment'),
+        ]);
+        
+        // Combine all vouchers
+        setFetchedVouchers([...gjVouchers, ...crVouchers, ...cpVouchers]);
+      } catch (error) {
+        console.error('Error fetching vouchers:', error);
+        setFetchedVouchers([]);
+      } finally {
+        setIsLoadingVouchers(false);
+      }
+    };
+
+    fetchVouchers();
+  }, []);
+
+  // Handle posting vouchers
+  const handlePostVouchers = async () => {
+    setIsPosting(true);
+    try {
+      await postVouchers('temp');
+      alert('Vouchers posted successfully');
+      // Refresh the vouchers list
+      const [gjVouchers, crVouchers, cpVouchers] = await Promise.all([
+        getVoucherEntries('General Journal'),
+        getVoucherEntries('Cash Receipt'),
+        getVoucherEntries('Cash Payment'),
+      ]);
+      setFetchedVouchers([...gjVouchers, ...crVouchers, ...cpVouchers]);
+    } catch (error) {
+      console.error('Error posting vouchers:', error);
+      alert('Failed to post vouchers. Please try again.');
+    } finally {
+      setIsPosting(false);
+    }
+  };
+
   useEffect(() => {
     const conditionalErrors = validateConditionalFields(formData);
     
@@ -788,7 +840,7 @@ export function VoucherForm() {
       Document_No: documentNo,
       Party_Type: '0',
       Party_Code: '',
-      User_ID: user?.username || '',
+      User_ID: 'temp',
       Shortcut_Dimension_1_Code: entry.lob,
       Shortcut_Dimension_2_Code: entry.branch,
       ShortcutDimCode3: entry.loc,
@@ -1774,6 +1826,90 @@ export function VoucherForm() {
                       </ContextMenuItem>
                     </ContextMenuContent>
                   </ContextMenu>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+      </div>
+
+      {/* Fetched Vouchers Table */}
+      <div className="flex flex-col gap-2 mt-4">
+        <div className="flex items-center justify-between">
+          <div className="text-sm font-semibold text-foreground/80">
+            Vouchers from ERP
+          </div>
+          <Button
+            type="button"
+            size="sm"
+            onClick={handlePostVouchers}
+            disabled={isPosting || fetchedVouchers.length === 0}
+            title={fetchedVouchers.length === 0 ? 'No vouchers to post' : 'Post all vouchers'}
+          >
+            {isPosting ? 'Posting...' : 'Post'}
+          </Button>
+        </div>
+        {isLoadingVouchers ? (
+          <div className="rounded-md border bg-muted/20 p-6 text-center text-foreground/70">
+            <div>Loading vouchers...</div>
+          </div>
+        ) : fetchedVouchers.length === 0 ? (
+          <div className="rounded-md border bg-muted/20 p-6 text-center text-foreground/70">
+            <div>No vouchers found.</div>
+          </div>
+        ) : (
+          <div className="rounded-md border bg-background">
+            <Table className={tableClass}>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className={cn(colHead, 'w-[120px]')}>Doc No</TableHead>
+                  <TableHead className={cn(colHead, 'w-[120px]')}>Posting</TableHead>
+                  <TableHead className={cn(colHead, 'w-[120px]')}>Document</TableHead>
+                  <TableHead className={cn(colHead, 'w-[140px]')}>Template</TableHead>
+                  <TableHead className={cn(colHead, 'w-[140px]')}>Doc Type</TableHead>
+                  <TableHead className={cn(colHead, 'w-[130px]')}>Acc Type</TableHead>
+                  <TableHead className={cn(colHead, 'w-[140px]')}>Acc No</TableHead>
+                  <TableHead className={cn(colHead, 'w-[160px]')}>Ext Doc</TableHead>
+                  <TableHead className={cn(colHead, 'w-[180px]')}>Description</TableHead>
+                  <TableHead className={cn(colHead, 'w-[120px] text-right')}>Amount</TableHead>
+                  <TableHead className={cn(colHead, 'w-[130px]')}>Bal Type</TableHead>
+                  <TableHead className={cn(colHead, 'w-[140px]')}>Bal No</TableHead>
+                  <TableHead className={cn(colHead, 'w-[200px]')}>Narration</TableHead>
+                  <TableHead className={cn(colHead, 'w-[140px]')}>LOB</TableHead>
+                  <TableHead className={cn(colHead, 'w-[140px]')}>Branch</TableHead>
+                  <TableHead className={cn(colHead, 'w-[140px]')}>LOC</TableHead>
+                  <TableHead className={cn(colHead, 'w-[140px]')}>Employee</TableHead>
+                  <TableHead className={cn(colHead, 'w-[140px]')}>Assignment</TableHead>
+                  <TableHead className={cn(colHead, 'w-[120px]')}>TDS</TableHead>
+                  <TableHead className={cn(colHead, 'w-[120px]')}>TCS</TableHead>
+                  <TableHead className={cn(colHead, 'w-[160px]')}>User ID</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {fetchedVouchers.map((voucher, index) => (
+                  <TableRow key={`${voucher.Document_No}-${index}`}>
+                    <TableCell className="p-2 text-xs font-medium">{voucher.Document_No}</TableCell>
+                    <TableCell className="p-2 text-xs">{voucher.Posting_Date}</TableCell>
+                    <TableCell className="p-2 text-xs">{voucher.Document_Date}</TableCell>
+                    <TableCell className="p-2 text-xs">{voucher.Journal_Template_Name}</TableCell>
+                    <TableCell className="p-2 text-xs">{voucher.Document_Type}</TableCell>
+                    <TableCell className="p-2 text-xs">{voucher.Account_Type}</TableCell>
+                    <TableCell className="p-2 text-xs">{voucher.Account_No}</TableCell>
+                    <TableCell className="p-2 text-xs">{voucher.External_Document_No || '-'}</TableCell>
+                    <TableCell className="p-2 text-xs">{voucher.Description || '-'}</TableCell>
+                    <TableCell className="p-2 text-xs text-right tabular-nums">{voucher.Amount?.toFixed(2) || '0.00'}</TableCell>
+                    <TableCell className="p-2 text-xs">{voucher.Bal_Account_Type}</TableCell>
+                    <TableCell className="p-2 text-xs">{voucher.Bal_Account_No}</TableCell>
+                    <TableCell className="p-2 text-xs">{voucher.Line_Narration1 || '-'}</TableCell>
+                    <TableCell className="p-2 text-xs">{voucher.Shortcut_Dimension_1_Code || '-'}</TableCell>
+                    <TableCell className="p-2 text-xs">{voucher.Shortcut_Dimension_2_Code || '-'}</TableCell>
+                    <TableCell className="p-2 text-xs">{voucher.ShortcutDimCode3 || '-'}</TableCell>
+                    <TableCell className="p-2 text-xs">{voucher.ShortcutDimCode4 || '-'}</TableCell>
+                    <TableCell className="p-2 text-xs">{voucher.ShortcutDimCode5 || '-'}</TableCell>
+                    <TableCell className="p-2 text-xs">{voucher.TDS_Section_Code || '-'}</TableCell>
+                    <TableCell className="p-2 text-xs">{voucher.TCS_Nature_of_Collection || '-'}</TableCell>
+                    <TableCell className="p-2 text-xs">{voucher.User_ID}</TableCell>
+                  </TableRow>
                 ))}
               </TableBody>
             </Table>

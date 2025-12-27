@@ -119,6 +119,37 @@ export async function getTCSSection(customerNo: string): Promise<TCSSection[]> {
 }
 
 /**
+ * Voucher entry from GET API
+ */
+export interface VoucherEntryResponse {
+  Document_No: string;
+  Journal_Template_Name: string;
+  Journal_Batch_Name: string;
+  Posting_Date: string;
+  Document_Type: string;
+  Account_Type: string;
+  Account_No: string;
+  Description?: string;
+  Amount: number;
+  Bal_Account_Type: string;
+  Bal_Account_No: string;
+  External_Document_No?: string;
+  Line_Narration1?: string;
+  User_ID: string;
+  Document_Date: string;
+  Shortcut_Dimension_1_Code?: string; // LOB
+  Shortcut_Dimension_2_Code?: string; // Branch
+  ShortcutDimCode3?: string; // LOC
+  ShortcutDimCode4?: string; // Employee
+  ShortcutDimCode5?: string; // Assignment
+  TDS_Section_Code?: string;
+  TCS_Nature_of_Collection?: string;
+  Party_Type?: string;
+  Party_Code?: string;
+  [key: string]: unknown;
+}
+
+/**
  * Create document number series for vouchers
  * @param voucherType - Voucher type (General Journal, Cash Receipt, Cash Payment)
  * @returns Document number string
@@ -129,6 +160,38 @@ export async function createNoSeriesForVouchers(voucherType: string): Promise<st
   
   const endpoint = `/API_CreateNoSeriesForVouchers?company='${encodeURIComponent(COMPANY)}'`;
   const response = await apiPost<{ value: string }>(endpoint, { seriesCode });
+  return response.value;
+}
+
+/**
+ * Get voucher entries from API
+ * @param voucherType - Voucher type (General Journal, Cash Receipt, Cash Payment)
+ * @returns Array of voucher entries
+ */
+export async function getVoucherEntries(voucherType: string): Promise<VoucherEntryResponse[]> {
+  const endpointPath = getVoucherEndpoint(voucherType);
+  
+  // Map voucher type to template name for filter
+  let templateName: string;
+  switch (voucherType) {
+    case 'General Journal':
+      templateName = 'GENERAL';
+      break;
+    case 'Cash Receipt':
+      templateName = 'CASH RECE';
+      break;
+    case 'Cash Payment':
+      templateName = 'CASH PAYM';
+      break;
+    default:
+      templateName = 'GENERAL';
+  }
+  
+  // Build filter: Journal_Template_Name eq 'GENERAL' and Journal_Batch_Name eq 'DEFAULT' and User_ID eq 'temp'
+  const filter = `Journal_Template_Name eq '${templateName}' and Journal_Batch_Name eq 'DEFAULT' and User_ID eq 'temp'`;
+  const endpoint = `${endpointPath}?company='${encodeURIComponent(COMPANY)}'&$top=10&$Filter=${encodeURIComponent(filter)}`;
+  
+  const response = await apiGet<ODataResponse<VoucherEntryResponse>>(endpoint);
   return response.value;
 }
 
@@ -167,5 +230,15 @@ export async function uploadAttachment(
     // Re-throw the error to be handled by caller
     throw error;
   }
+}
+
+/**
+ * Post vouchers
+ * @param userID - User ID (default: 'temp')
+ */
+export async function postVouchers(userID: string = 'temp'): Promise<unknown> {
+  const endpoint = `/API_PostVouchers?company='${encodeURIComponent(COMPANY)}'`;
+  const response = await apiPost<unknown>(endpoint, { userID });
+  return response;
 }
 

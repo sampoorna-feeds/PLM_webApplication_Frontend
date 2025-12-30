@@ -63,7 +63,13 @@ import {
 import { getCustomerByNo } from '@/lib/api/services/customer.service';
 import { useAuthStore } from '@/lib/stores/auth-store';
 
-type VoucherEntry = VoucherFormData & { id: string; attachments?: File[] };
+type VoucherEntry = VoucherFormData & { 
+  id: string; 
+  attachments?: File[]; 
+  status?: 'pending' | 'success' | 'failed' | 'partial';
+  errorMessage?: string;
+  failedFiles?: string[];
+};
 
 type FormState = {
   voucherType: VoucherFormData['voucherType'] | undefined;
@@ -139,29 +145,38 @@ function InputWithTooltip({
   fullErrorMessage,
   placeholder,
   children,
+  id,
+  'aria-label': ariaLabel,
+  'aria-describedby': ariaDescribedBy,
 }: {
   hasError: boolean;
   errorClass: string;
   fullErrorMessage?: string;
   placeholder: string;
   children: React.ReactElement<React.ComponentProps<typeof Input>>;
+  id?: string;
+  'aria-label'?: string;
+  'aria-describedby'?: string;
 }) {
   const childProps = children.props as React.ComponentProps<typeof Input>;
-  const base = React.cloneElement(children, {
+  const inputProps = {
     ...childProps,
-    className: cn(childProps.className, 'w-full'),
+    id,
+    'aria-label': ariaLabel,
+    'aria-describedby': ariaDescribedBy,
+    className: cn(childProps.className, 'w-full', hasError && errorClass),
     placeholder,
     'data-field-error': hasError,
-  } as React.ComponentProps<typeof Input>);
+  } as React.ComponentProps<typeof Input>;
 
-  if (!fullErrorMessage) return base;
+  const input = React.cloneElement(children, inputProps);
+
+  if (!fullErrorMessage) return input;
 
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        {React.cloneElement(base, {
-          className: cn((base.props as React.ComponentProps<typeof Input>).className, errorClass),
-        })}
+        {input}
       </TooltipTrigger>
       <TooltipContent>
         <p>{fullErrorMessage}</p>
@@ -526,29 +541,60 @@ export function VoucherForm() {
     }
   }, [formData.accountType]);
 
+  // Fetch vouchers from ERP - reusable function
+  const fetchVouchersFromERP = useCallback(async () => {
+    setIsLoadingVouchers(true);
+    try {
+      // Fetch vouchers from all three types
+      const [gjVouchers, crVouchers, cpVouchers] = await Promise.all([
+        getVoucherEntries('General Journal'),
+        getVoucherEntries('Cash Receipt'),
+        getVoucherEntries('Cash Payment'),
+      ]);
+      
+      // Combine all vouchers
+      setFetchedVouchers([...gjVouchers, ...crVouchers, ...cpVouchers]);
+    } catch (error) {
+      console.error('Error fetching vouchers:', error);
+      setFetchedVouchers([]);
+    } finally {
+      setIsLoadingVouchers(false);
+    }
+  }, []);
+
   // Fetch vouchers from API on component mount
   useEffect(() => {
-    const fetchVouchers = async () => {
-      setIsLoadingVouchers(true);
-      try {
-        // Fetch vouchers from all three types
-        const [gjVouchers, crVouchers, cpVouchers] = await Promise.all([
-          getVoucherEntries('General Journal'),
-          getVoucherEntries('Cash Receipt'),
-          getVoucherEntries('Cash Payment'),
-        ]);
-        
-        // Combine all vouchers
-        setFetchedVouchers([...gjVouchers, ...crVouchers, ...cpVouchers]);
-      } catch (error) {
-        console.error('Error fetching vouchers:', error);
-        setFetchedVouchers([]);
-      } finally {
-        setIsLoadingVouchers(false);
+    fetchVouchersFromERP();
+  }, [fetchVouchersFromERP]);
+
+  // Scroll management for accessibility - scroll focused inputs into view
+  useEffect(() => {
+    const handleFocus = (e: FocusEvent) => {
+      const target = e.target as HTMLElement;
+      // Check if the focused element is an input, select, or textarea
+      if (target.tagName === 'INPUT' || target.tagName === 'SELECT' || target.tagName === 'TEXTAREA') {
+        // Find the scrollable container (the table wrapper)
+        const scrollContainer = target.closest('.overflow-x-auto, .overflow-auto, [style*="overflow"]') as HTMLElement;
+        if (scrollContainer) {
+          // Scroll the focused element into view within its container
+          target.scrollIntoView({ 
+            behavior: 'smooth', 
+            block: 'nearest', 
+            inline: 'center' 
+          });
+        } else {
+          // If no scroll container found, scroll into view normally
+          target.scrollIntoView({ 
+            behavior: 'smooth', 
+            block: 'nearest', 
+            inline: 'center' 
+          });
+        }
       }
     };
-
-    fetchVouchers();
+    
+    document.addEventListener('focusin', handleFocus);
+    return () => document.removeEventListener('focusin', handleFocus);
   }, []);
 
   // Handle posting vouchers
@@ -557,13 +603,8 @@ export function VoucherForm() {
     try {
       await postVouchers('temp');
       alert('Vouchers posted successfully');
-      // Refresh the vouchers list
-      const [gjVouchers, crVouchers, cpVouchers] = await Promise.all([
-        getVoucherEntries('General Journal'),
-        getVoucherEntries('Cash Receipt'),
-        getVoucherEntries('Cash Payment'),
-      ]);
-      setFetchedVouchers([...gjVouchers, ...crVouchers, ...cpVouchers]);
+      // Refresh vouchers from ERP to reflect posted status
+      await fetchVouchersFromERP();
     } catch (error) {
       console.error('Error posting vouchers:', error);
       alert('Failed to post vouchers. Please try again.');
@@ -648,7 +689,8 @@ export function VoucherForm() {
     const newEntry: VoucherEntry = { 
       ...data, 
       id: Date.now().toString(),
-      attachments: attachments.length > 0 ? [...attachments] : undefined
+      attachments: attachments.length > 0 ? [...attachments] : undefined,
+      status: 'pending'
     };
     setEntries((prev) => [...prev, newEntry]);
     resetForm();
@@ -881,52 +923,104 @@ export function VoucherForm() {
     if (entries.length === 0) return;
     
     setIsSubmitting(true);
-    const errors: string[] = [];
+    const allErrors: string[] = [];
+    const successfulEntryIds: string[] = [];
 
     try {
-      for (const entry of entries) {
-        try {
-          // Step 1: Create document number first
-          const documentNo = await createNoSeriesForVouchers(entry.voucherType);
-          
-          // Step 2: Create voucher with the document number
-          const payload = buildVoucherPayload(entry, documentNo);
-          await createVoucher(payload, entry.voucherType);
+      // Process each entry and track status
+      const updatedEntries = await Promise.all(
+        entries.map(async (entry) => {
+          try {
+            // Step 1: Create document number first
+            const documentNo = await createNoSeriesForVouchers(entry.voucherType);
+            
+            // Step 2: Create voucher with the document number
+            const payload = buildVoucherPayload(entry, documentNo);
+            await createVoucher(payload, entry.voucherType);
 
-          // Step 3: Upload attachments if any (using the same document number)
-          if (entry.attachments && entry.attachments.length > 0) {
-            for (const file of entry.attachments) {
-              try {
-                const base64 = await convertFileToBase64(file);
-                const result = await uploadAttachment(
-                  {
-                    recNo: documentNo,
-                    fileName: file.name,
-                    fileEncodedTextDialog: base64,
-                  },
-                  entry.voucherType
-                );
-                // Result will have success: true and message: 'File uploaded' for 204 responses
-                console.log(`${file.name}: ${result.message || 'Uploaded successfully'}`);
-              } catch (error) {
-                console.error(`Error uploading attachment ${file.name}:`, error);
-                errors.push(`Failed to upload ${file.name} for entry ${entry.id}`);
+            // Step 3: Upload attachments if any (using the same document number)
+            const failedFiles: string[] = [];
+            if (entry.attachments && entry.attachments.length > 0) {
+              for (const file of entry.attachments) {
+                try {
+                  const base64 = await convertFileToBase64(file);
+                  const result = await uploadAttachment(
+                    {
+                      recNo: documentNo,
+                      fileName: file.name,
+                      fileEncodedTextDialog: base64,
+                    },
+                    entry.voucherType
+                  );
+                  console.log(`${file.name}: ${result.message || 'Uploaded successfully'}`);
+                } catch (error) {
+                  console.error(`Error uploading attachment ${file.name}:`, error);
+                  failedFiles.push(file.name);
+                  allErrors.push(`Failed to upload ${file.name} for entry ${entry.id}`);
+                }
               }
             }
-          }
-        } catch (error) {
-          console.error(`Error creating voucher for entry ${entry.id}:`, error);
-          errors.push(`Failed to create voucher for entry ${entry.id}`);
-        }
-      }
 
-      if (errors.length > 0) {
-        alert(`Some entries failed to submit:\n${errors.join('\n')}`);
-      } else {
-        // Success - clear entries and reset form
-        setEntries([]);
+            // Entry created successfully
+            if (failedFiles.length > 0) {
+              // Partial success - entry created but some files failed
+              return {
+                ...entry,
+                status: 'partial' as const,
+                failedFiles,
+                errorMessage: `Entry created but ${failedFiles.length} file(s) failed to upload`,
+              };
+            } else {
+              // Complete success
+              successfulEntryIds.push(entry.id);
+              return {
+                ...entry,
+                status: 'success' as const,
+              };
+            }
+          } catch (error) {
+            // Entry creation failed
+            console.error(`Error creating voucher for entry ${entry.id}:`, error);
+            const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+            allErrors.push(`Failed to create voucher for entry ${entry.id}: ${errorMsg}`);
+            return {
+              ...entry,
+              status: 'failed' as const,
+              errorMessage: errorMsg,
+            };
+          }
+        })
+      );
+
+      // Update entries - keep failed and partial, remove successful
+      const remainingEntries = updatedEntries.filter(
+        (entry) => entry.status === 'failed' || entry.status === 'partial'
+      );
+      setEntries(remainingEntries);
+
+      // Refresh vouchers from ERP to show newly created entries
+      await fetchVouchersFromERP();
+
+      // Show summary
+      const successCount = successfulEntryIds.length;
+      const failedCount = remainingEntries.filter((e) => e.status === 'failed').length;
+      const partialCount = remainingEntries.filter((e) => e.status === 'partial').length;
+
+      if (successCount > 0 && failedCount === 0 && partialCount === 0) {
+        // All successful
+        alert(`All ${successCount} entries submitted successfully!`);
         resetForm();
-        alert('All entries submitted successfully!');
+      } else {
+        // Some failures or partials
+        let message = `Submitted ${successCount} entry(ies) successfully.\n`;
+        if (failedCount > 0) {
+          message += `${failedCount} entry(ies) failed to create.\n`;
+        }
+        if (partialCount > 0) {
+          message += `${partialCount} entry(ies) created but had file upload issues.\n`;
+        }
+        message += '\nFailed/partial entries remain in the table for review.';
+        alert(message);
       }
     } catch (error) {
       console.error('Error submitting entries:', error);
@@ -977,10 +1071,71 @@ export function VoucherForm() {
     setValidationErrors({});
   };
 
+  const handleTestScenarios = () => {
+    // Add test entries with different scenarios to demonstrate status handling
+    const testEntries: VoucherEntry[] = [
+      {
+        id: `test-1-${Date.now()}`,
+        voucherType: 'General Journal',
+        documentType: 'Invoice',
+        postingDate: new Date().toISOString().split('T')[0],
+        documentDate: new Date().toISOString().split('T')[0],
+        accountType: 'G/L Account',
+        accountNo: 'ACC001',
+        amount: 1000,
+        balanceAccountType: 'G/L Account',
+        balanceAccountNo: 'ACC002',
+        lineNarration: 'Test entry - will succeed',
+        lob: 'Feed',
+        branch: 'Mumbai',
+        loc: 'LOC001',
+        status: 'pending',
+      },
+      {
+        id: `test-2-${Date.now()}`,
+        voucherType: 'Cash Payment',
+        documentType: 'Payment',
+        postingDate: new Date().toISOString().split('T')[0],
+        documentDate: new Date().toISOString().split('T')[0],
+        accountType: 'G/L Account',
+        accountNo: 'ACC001',
+        amount: 2000,
+        balanceAccountType: 'G/L Account',
+        balanceAccountNo: 'ACC002',
+        lineNarration: 'Test entry - will fail',
+        lob: 'Feed',
+        branch: 'Mumbai',
+        loc: 'LOC001',
+        status: 'failed',
+        errorMessage: 'Simulated failure for testing',
+      },
+      {
+        id: `test-3-${Date.now()}`,
+        voucherType: 'Cash Receipt',
+        documentType: 'Refund',
+        postingDate: new Date().toISOString().split('T')[0],
+        documentDate: new Date().toISOString().split('T')[0],
+        accountType: 'G/L Account',
+        accountNo: 'ACC001',
+        amount: 3000,
+        balanceAccountType: 'G/L Account',
+        balanceAccountNo: 'ACC002',
+        lineNarration: 'Test entry - partial (file failed)',
+        lob: 'Feed',
+        branch: 'Mumbai',
+        loc: 'LOC001',
+        status: 'partial',
+        errorMessage: 'Entry created but file upload failed',
+        failedFiles: ['test-file.pdf', 'another-file.docx'],
+      },
+    ];
+    setEntries([...entries, ...testEntries]);
+  };
+
   const colHead = 'px-2 py-1.5 text-xs font-semibold text-foreground/80 bg-muted/30';
   const colCell = 'p-1.5 align-top';
   const control = 'h-9 text-sm shadow-sm';
-  const tableClass = 'min-w-max';
+  const tableClass = 'min-w-max w-full';
   const excelWrap = cn(
     'rounded-md border bg-background',
     pendingEditId && 'ring-2 ring-primary ring-offset-2'
@@ -1002,9 +1157,14 @@ export function VoucherForm() {
 
         <div className="flex flex-wrap items-center gap-2 sm:justify-end">
           {isDevelopment && (
-            <Button type="button" size="sm" variant="outline" onClick={handleFillForm}>
-              Fill
-            </Button>
+            <>
+              <Button type="button" size="sm" variant="outline" onClick={handleFillForm}>
+                Fill
+              </Button>
+              <Button type="button" size="sm" variant="outline" onClick={handleTestScenarios}>
+                Test
+              </Button>
+            </>
           )}
 
           <Button
@@ -1036,7 +1196,7 @@ export function VoucherForm() {
         </div>
       </div>
 
-      <div data-form-card className={cn(excelWrap, "min-w-0")}>
+      <div data-form-card className={cn(excelWrap, "min-w-0 overflow-x-auto")}>
         <Table className={tableClass}>
           <TableHeader>
             <TableRow>
@@ -1131,6 +1291,9 @@ export function VoucherForm() {
                   errorClass={getFieldErrorClass('postingDate')}
                   fullErrorMessage={getFullErrorMessage('postingDate')}
                   placeholder={getPlaceholder('postingDate', '')}
+                  id="postingDate"
+                  aria-label="Posting Date"
+                  aria-describedby={hasError('postingDate') ? 'postingDate-error' : undefined}
                 >
                   <Input
                     ref={postingDateRef}
@@ -1148,6 +1311,9 @@ export function VoucherForm() {
                   errorClass={getFieldErrorClass('documentDate')}
                   fullErrorMessage={getFullErrorMessage('documentDate')}
                   placeholder={getPlaceholder('documentDate', '')}
+                  id="documentDate"
+                  aria-label="Document Date"
+                  aria-describedby={hasError('documentDate') ? 'documentDate-error' : undefined}
                 >
                   <Input
                     type="date"
@@ -1165,12 +1331,14 @@ export function VoucherForm() {
                     onValueChange={(v) => {
                       const newVoucherType = v as VoucherFormData['voucherType'];
                       updateField('voucherType', newVoucherType);
-                      // Clear documentType if it's Payment or Refund and voucher type is General Journal
+                      // Clear documentType if switching between incompatible types
                       if (newVoucherType === 'General Journal' && (formData.documentType === 'Payment' || formData.documentType === 'Refund')) {
+                        updateField('documentType', null);
+                      } else if ((newVoucherType === 'Cash Payment' || newVoucherType === 'Cash Receipt') && 
+                                 (formData.documentType === 'NA' || formData.documentType === 'Invoice' || formData.documentType === 'Credit Memo')) {
                         updateField('documentType', null);
                       }
                     }}
-                    key={formData.voucherType || 'reset-voucher'}
                     disabled={!voucherTypeEnabled}
                   >
                     <SelectTrigger
@@ -1193,7 +1361,6 @@ export function VoucherForm() {
                   <Select
                     value={formData.documentType || undefined}
                     onValueChange={(v) => updateField('documentType', v as VoucherFormData['documentType'])}
-                    key={formData.documentType || 'reset-document'}
                     disabled={!voucherTypeEnabled}
                   >
                     <SelectTrigger
@@ -1203,15 +1370,18 @@ export function VoucherForm() {
                       <SelectValue placeholder={getPlaceholder('documentType', '')} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="NA">NA</SelectItem>
-                      {formData.voucherType !== 'General Journal' && (
+                      {formData.voucherType === 'General Journal' ? (
+                        <>
+                          <SelectItem value="NA">NA</SelectItem>
+                          <SelectItem value="Invoice">Invoice</SelectItem>
+                          <SelectItem value="Credit Memo">Credit Memo</SelectItem>
+                        </>
+                      ) : (
                         <>
                           <SelectItem value="Payment">Payment</SelectItem>
                           <SelectItem value="Refund">Refund</SelectItem>
                         </>
                       )}
-                      <SelectItem value="Invoice">Invoice</SelectItem>
-                      <SelectItem value="Credit Memo">Credit Memo</SelectItem>
                     </SelectContent>
                   </Select>
                 </CellWithTooltip>
@@ -1222,7 +1392,6 @@ export function VoucherForm() {
                   <Select
                     value={formData.accountType || undefined}
                     onValueChange={handleAccountTypeChange}
-                    key={formData.accountType || 'reset-accountType'}
                     disabled={!accountTypeEnabled}
                   >
                     <SelectTrigger
@@ -1347,6 +1516,9 @@ export function VoucherForm() {
                   errorClass={getFieldErrorClass('externalDocumentNo')}
                   fullErrorMessage={getFullErrorMessage('externalDocumentNo')}
                   placeholder={getPlaceholder('externalDocumentNo', '')}
+                  id="externalDocumentNo"
+                  aria-label="External Document Number"
+                  aria-describedby={hasError('externalDocumentNo') ? 'externalDocumentNo-error' : undefined}
                 >
                   <Input
                     value={formData.externalDocumentNo}
@@ -1363,6 +1535,9 @@ export function VoucherForm() {
                   errorClass={getFieldErrorClass('description')}
                   fullErrorMessage={getFullErrorMessage('description')}
                   placeholder={getPlaceholder('description', '')}
+                  id="description"
+                  aria-label="Description"
+                  aria-describedby={hasError('description') ? 'description-error' : undefined}
                 >
                   <Input
                     value={formData.description}
@@ -1379,6 +1554,9 @@ export function VoucherForm() {
                   errorClass={getFieldErrorClass('amount')}
                   fullErrorMessage={getFullErrorMessage('amount')}
                   placeholder={getPlaceholder('amount', '')}
+                  id="amount"
+                  aria-label="Amount"
+                  aria-describedby={hasError('amount') ? 'amount-error' : undefined}
                 >
                   <Input
                     value={formData.amount}
@@ -1399,7 +1577,6 @@ export function VoucherForm() {
                       // Clear Balance Account No. when Balance Account Type changes
                       updateField('balanceAccountNo', '');
                     }}
-                    key={formData.balanceAccountType || 'reset-balanceType'}
                     disabled={!balanceAccountEnabled || formData.accountType === 'Customer' || formData.accountType === 'Vendor'}
                   >
                     <SelectTrigger
@@ -1533,6 +1710,9 @@ export function VoucherForm() {
                   errorClass={getFieldErrorClass('lineNarration')}
                   fullErrorMessage={getFullErrorMessage('lineNarration')}
                   placeholder={getPlaceholder('lineNarration', '')}
+                  id="lineNarration"
+                  aria-label="Line Narration"
+                  aria-describedby={hasError('lineNarration') ? 'lineNarration-error' : undefined}
                 >
                   <Input
                     value={formData.lineNarration}
@@ -1594,6 +1774,9 @@ export function VoucherForm() {
                   errorClass={getFieldErrorClass('employee')}
                   fullErrorMessage={getFullErrorMessage('employee')}
                   placeholder={getPlaceholder('employee', '')}
+                  id="employee"
+                  aria-label="Employee"
+                  aria-describedby={hasError('employee') ? 'employee-error' : undefined}
                 >
                   <Input
                     value={formData.employee}
@@ -1610,6 +1793,9 @@ export function VoucherForm() {
                   errorClass={getFieldErrorClass('assignment')}
                   fullErrorMessage={getFullErrorMessage('assignment')}
                   placeholder={getPlaceholder('assignment', '')}
+                  id="assignment"
+                  aria-label="Assignment"
+                  aria-describedby={hasError('assignment') ? 'assignment-error' : undefined}
                 >
                   <Input
                     value={formData.assignment}
@@ -1727,7 +1913,10 @@ export function VoucherForm() {
                   <TableHead className={cn(colHead, 'w-[140px]')}>LOC</TableHead>
                   <TableHead className={cn(colHead, 'w-[140px]')}>Employee</TableHead>
                   <TableHead className={cn(colHead, 'w-[140px]')}>Assignment</TableHead>
+                  <TableHead className={cn(colHead, 'w-[140px]')}>TDS</TableHead>
+                  <TableHead className={cn(colHead, 'w-[140px]')}>TCS</TableHead>
                   <TableHead className={cn(colHead, 'w-[200px]')}>Upload Files</TableHead>
+                  <TableHead className={cn(colHead, 'w-[120px]')}>Status</TableHead>
                   <TableHead className={cn(colHead, 'w-[110px]')}>Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -1735,7 +1924,11 @@ export function VoucherForm() {
                 {entries.map((entry) => (
                   <ContextMenu key={entry.id}>
                     <ContextMenuTrigger asChild>
-                      <TableRow className={cn(pendingEditId === entry.id && 'bg-primary/5')}>
+                      <TableRow className={cn(
+                        pendingEditId === entry.id && 'bg-primary/5',
+                        entry.status === 'failed' && 'bg-destructive/10 hover:bg-destructive/15',
+                        entry.status === 'partial' && 'bg-yellow-500/10 hover:bg-yellow-500/15'
+                      )}>
                         <TableCell className="p-2 text-xs">{entry.postingDate}</TableCell>
                     <TableCell className="p-2 text-xs">{entry.documentDate}</TableCell>
                     <TableCell className="p-2 text-xs font-medium">{entry.voucherType}</TableCell>
@@ -1758,27 +1951,69 @@ export function VoucherForm() {
                         ? entry.accountTdsSection.tdsType
                         : entry.balanceTdsSection?.tdsType && entry.balanceTdsSection.tdsType !== 'NA'
                         ? entry.balanceTdsSection.tdsType
-                        : ''}
+                        : '-'}
                     </TableCell>
                     <TableCell className="p-2 text-xs">
                       {entry.accountTcsSection?.tcsType && entry.accountTcsSection.tcsType !== 'NA'
                         ? entry.accountTcsSection.tcsType
                         : entry.balanceTcsSection?.tcsType && entry.balanceTcsSection.tcsType !== 'NA'
                         ? entry.balanceTcsSection.tcsType
-                        : ''}
+                        : '-'}
                     </TableCell>
                     <TableCell className="p-2 text-xs">
                       {entry.attachments && entry.attachments.length > 0 ? (
                         <div className="flex flex-wrap gap-1">
-                          {entry.attachments.map((file, index) => (
-                            <span key={index} className="bg-muted px-1.5 py-0.5 rounded text-xs truncate max-w-[150px]" title={file.name}>
-                              {file.name}
-                            </span>
-                          ))}
+                          {entry.attachments.map((file, index) => {
+                            const isFailed = entry.failedFiles?.includes(file.name);
+                            return (
+                              <span 
+                                key={index} 
+                                className={cn(
+                                  "px-1.5 py-0.5 rounded text-xs truncate max-w-[150px]",
+                                  isFailed ? "bg-destructive/20 text-destructive border border-destructive/30" : "bg-muted"
+                                )} 
+                                title={isFailed ? `${file.name} - Upload failed` : file.name}
+                              >
+                                {file.name}
+                                {isFailed && ' ⚠'}
+                              </span>
+                            );
+                          })}
                         </div>
                       ) : (
                         <span className="text-muted-foreground">-</span>
                       )}
+                    </TableCell>
+                    <TableCell className="p-2">
+                      <div className="flex flex-col gap-1">
+                        {entry.status === 'failed' && (
+                          <span className="text-xs px-2 py-0.5 rounded bg-destructive/20 text-destructive border border-destructive/30" title={entry.errorMessage}>
+                            Failed
+                          </span>
+                        )}
+                        {entry.status === 'partial' && (
+                          <div className="flex flex-col gap-0.5">
+                            <span className="text-xs px-2 py-0.5 rounded bg-yellow-500/20 text-yellow-700 dark:text-yellow-500 border border-yellow-500/30">
+                              Partial
+                            </span>
+                            {entry.failedFiles && entry.failedFiles.length > 0 && (
+                              <span className="text-xs text-muted-foreground" title={entry.errorMessage}>
+                                {entry.failedFiles.length} file(s) failed
+                              </span>
+                            )}
+                          </div>
+                        )}
+                        {entry.status === 'success' && (
+                          <span className="text-xs px-2 py-0.5 rounded bg-green-500/20 text-green-700 dark:text-green-500 border border-green-500/30">
+                            Success
+                          </span>
+                        )}
+                        {(!entry.status || entry.status === 'pending') && (
+                          <span className="text-xs px-2 py-0.5 rounded bg-muted text-muted-foreground">
+                            Pending
+                          </span>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell className="p-2">
                       <div className="flex items-center gap-1">
@@ -1829,6 +2064,27 @@ export function VoucherForm() {
                 ))}
               </TableBody>
             </Table>
+          </div>
+        )}
+
+        {/* Legend */}
+        {entries.length > 0 && (
+          <div className="rounded-md border bg-muted/30 p-3 text-xs">
+            <div className="font-semibold mb-2 text-foreground/80">Status Legend:</div>
+            <div className="flex flex-wrap gap-4">
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 rounded bg-destructive/10 border border-destructive/30"></div>
+                <span>Entry failed to create</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 rounded bg-yellow-500/10 border border-yellow-500/30"></div>
+                <span>Entry created but file(s) failed</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="px-1.5 py-0.5 rounded bg-destructive/20 text-destructive border border-destructive/30 text-xs">File ⚠</span>
+                <span>File upload failed</span>
+              </div>
+            </div>
           </div>
         )}
       </div>

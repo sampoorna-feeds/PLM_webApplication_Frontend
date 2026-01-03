@@ -31,7 +31,7 @@ export default function RootLayout({
   return (
     <html lang="en" className={notoSans.variable} suppressHydrationWarning>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased  overflow-hidden`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased overflow-y-auto`}
       >
         <ThemeProvider
           attribute="class"

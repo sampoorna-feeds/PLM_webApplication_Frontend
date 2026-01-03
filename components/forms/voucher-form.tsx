@@ -7,7 +7,7 @@
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { z } from 'zod';
-import { Pencil, Plus, Trash2, Upload } from 'lucide-react';
+import { Pencil, Plus, Trash2, Upload, Info, ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
 
 import { voucherSchema, type VoucherFormData } from '@/lib/validations/voucher.validation';
 import { cn } from '@/lib/utils';
@@ -47,6 +47,7 @@ import {
 } from '@/components/ui/context-menu';
 import { AccountSelect } from './account-select';
 import { DimensionSelect } from './dimension-select';
+import { CascadingDimensionSelect } from './cascading-dimension-select';
 import {
   getTDSSection,
   getTCSSection,
@@ -55,10 +56,13 @@ import {
   createNoSeriesForVouchers,
   getVoucherEntries,
   postVouchers,
+  getDefaultDimensions,
+  getTaxComponentsInJson,
   type TDSSection,
   type TCSSection,
   type CreateVoucherPayload,
   type VoucherEntryResponse,
+  type DefaultDimension,
 } from '@/lib/api/services/voucher.service';
 import { getCustomerByNo } from '@/lib/api/services/customer.service';
 import { useAuthStore } from '@/lib/stores/auth-store';
@@ -189,6 +193,77 @@ export function VoucherForm() {
   const [formData, setFormData] = useState<FormState>(defaultFormState);
   const [validationErrors, setValidationErrors] = useState<ValidationErrors>({});
   const { user } = useAuthStore();
+  
+  // Refs for drag-to-scroll functionality
+  const formTableRef = useRef<HTMLDivElement>(null);
+  const entriesTableRef = useRef<HTMLDivElement>(null);
+  const vouchersTableRef = useRef<HTMLDivElement>(null);
+  
+  // Simple horizontal scroll hook
+  const useHorizontalScroll = (ref: React.RefObject<HTMLDivElement | null>) => {
+    useEffect(() => {
+      const el = ref.current;
+      if (!el) return;
+
+      let isDown = false;
+      let startX = 0;
+      let scrollLeft = 0;
+
+      const onMouseDown = (e: MouseEvent) => {
+        const target = e.target as HTMLElement;
+        if (target.closest('input, select, button, textarea')) return;
+        isDown = true;
+        el.style.cursor = 'grabbing';
+        startX = e.pageX - el.offsetLeft;
+        scrollLeft = el.scrollLeft;
+        e.preventDefault();
+      };
+
+      const onMouseLeave = () => {
+        isDown = false;
+        el.style.cursor = 'grab';
+      };
+
+      const onMouseUp = () => {
+        isDown = false;
+        el.style.cursor = 'grab';
+      };
+
+      const onMouseMove = (e: MouseEvent) => {
+        if (!isDown) return;
+        e.preventDefault();
+        const x = e.pageX - el.offsetLeft;
+        const walk = (x - startX) * 2;
+        el.scrollLeft = scrollLeft - walk;
+      };
+
+      const onWheel = (e: WheelEvent) => {
+        if (el.scrollWidth > el.clientWidth) {
+          e.preventDefault();
+          el.scrollLeft += e.deltaY;
+        }
+      };
+
+      el.style.cursor = 'grab';
+      el.addEventListener('mousedown', onMouseDown);
+      el.addEventListener('mouseleave', onMouseLeave);
+      document.addEventListener('mouseup', onMouseUp);
+      document.addEventListener('mousemove', onMouseMove);
+      el.addEventListener('wheel', onWheel, { passive: false });
+
+      return () => {
+        el.removeEventListener('mousedown', onMouseDown);
+        el.removeEventListener('mouseleave', onMouseLeave);
+        document.removeEventListener('mouseup', onMouseUp);
+        document.removeEventListener('mousemove', onMouseMove);
+        el.removeEventListener('wheel', onWheel);
+      };
+    }, [ref]);
+  };
+
+  useHorizontalScroll(formTableRef);
+  useHorizontalScroll(entriesTableRef);
+  useHorizontalScroll(vouchersTableRef);
 
   const [accountType, setAccountType] = useState<VoucherFormData['accountType'] | undefined>(
     undefined
@@ -213,6 +288,15 @@ export function VoucherForm() {
   const [fetchedVouchers, setFetchedVouchers] = useState<VoucherEntryResponse[]>([]);
   const [isLoadingVouchers, setIsLoadingVouchers] = useState(false);
   const [isPosting, setIsPosting] = useState(false);
+  
+  // State for tax details expansion
+  const [expandedTaxRow, setExpandedTaxRow] = useState<string | null>(null);
+  const [taxDetails, setTaxDetails] = useState<Record<string, unknown[]>>({});
+  const [loadingTaxDetails, setLoadingTaxDetails] = useState<Record<string, boolean>>({});
+  
+  // State for conditional Employee/Assignment dimensions
+  const [isEmployeeMandatory, setIsEmployeeMandatory] = useState(false);
+  const [isAssignmentMandatory, setIsAssignmentMandatory] = useState(false);
 
   // TDS/TCS visibility for Account Type
   // Show only when account type is Vendor/Customer, account number is selected, and sections are available
@@ -295,14 +379,24 @@ export function VoucherForm() {
     const data = formStateToVoucherData(formDataToValidate);
     const result = voucherSchema.safeParse(data);
 
-    if (result.success) return {};
-
     const errors: ValidationErrors = {};
-    result.error.issues.forEach((issue) => {
-      const path = issue.path.join('.');
-      if (!errors[path]) errors[path] = [];
-      errors[path].push(issue.message);
-    });
+    
+    // Add schema validation errors
+    if (!result.success) {
+      result.error.issues.forEach((issue) => {
+        const path = issue.path.join('.');
+        if (!errors[path]) errors[path] = [];
+        errors[path].push(issue.message);
+      });
+    }
+
+    // Add conditional validation for Employee/Assignment
+    if (isEmployeeMandatory && (!formDataToValidate.employee || formDataToValidate.employee.trim() === '')) {
+      errors.employee = ['Employee is required'];
+    }
+    if (isAssignmentMandatory && (!formDataToValidate.assignment || formDataToValidate.assignment.trim() === '')) {
+      errors.assignment = ['Assignment is required'];
+    }
 
     return errors;
   };
@@ -312,11 +406,18 @@ export function VoucherForm() {
     const errors: ValidationErrors = {};
     
     // Validate External Document No. if Voucher Type is General Journal
-    // (since both Invoice and Credit Memo require it)
     if (formDataToValidate.voucherType === 'General Journal') {
       if (!formDataToValidate.externalDocumentNo || formDataToValidate.externalDocumentNo.trim() === '') {
         errors.externalDocumentNo = ['External Document No. is required when Voucher Type is General Journal'];
       }
+    }
+    
+    // Validate Employee/Assignment if mandatory
+    if (isEmployeeMandatory && (!formDataToValidate.employee || formDataToValidate.employee.trim() === '')) {
+      errors.employee = ['Employee is required'];
+    }
+    if (isAssignmentMandatory && (!formDataToValidate.assignment || formDataToValidate.assignment.trim() === '')) {
+      errors.assignment = ['Assignment is required'];
     }
     
     return errors;
@@ -566,6 +667,58 @@ export function VoucherForm() {
   useEffect(() => {
     fetchVouchersFromERP();
   }, [fetchVouchersFromERP]);
+
+  // Note: Employee and Assignment values are now fetched on-demand by DimensionSelect component
+  // No need to pre-fetch them here
+
+  // Fetch default dimensions when Account No. or Balance Account No. changes
+  // This only determines if Employee/Assignment are mandatory, not whether to fetch values
+  useEffect(() => {
+    const fetchDimensions = async () => {
+      const accountNumbers = [formData.accountNo, formData.balanceAccountNo].filter(Boolean);
+      if (accountNumbers.length === 0) {
+        setIsEmployeeMandatory(false);
+        setIsAssignmentMandatory(false);
+        return;
+      }
+
+      try {
+        // Fetch dimensions for both account numbers
+        const dimensionPromises = accountNumbers.map(no => getDefaultDimensions(no));
+        const dimensionResults = await Promise.all(dimensionPromises);
+        const allDimensions = dimensionResults.flat();
+
+        // Check for Employee and Assignment dimensions
+        // If dimension exists, it's mandatory (no need to check Value_Posting)
+        const employeeDim = allDimensions.find(d => d.Dimension_Code === 'EMPLOYEE');
+        const assignmentDim = allDimensions.find(d => d.Dimension_Code === 'ASSIGNMENT');
+
+        const employeeMandatory = !!employeeDim;
+        const assignmentMandatory = !!assignmentDim;
+
+        setIsEmployeeMandatory(employeeMandatory);
+        setIsAssignmentMandatory(assignmentMandatory);
+
+        // Clear Employee/Assignment if no longer mandatory
+        setFormData(prev => {
+          const updated = { ...prev };
+          if (!employeeMandatory && prev.employee) {
+            updated.employee = undefined;
+          }
+          if (!assignmentMandatory && prev.assignment) {
+            updated.assignment = undefined;
+          }
+          return updated;
+        });
+      } catch (error) {
+        console.error('Error fetching default dimensions:', error);
+        setIsEmployeeMandatory(false);
+        setIsAssignmentMandatory(false);
+      }
+    };
+
+    fetchDimensions();
+  }, [formData.accountNo, formData.balanceAccountNo]);
 
   // Scroll management for accessibility - scroll focused inputs into view
   useEffect(() => {
@@ -1135,14 +1288,14 @@ export function VoucherForm() {
   const colHead = 'px-2 py-1.5 text-xs font-semibold text-foreground/80 bg-muted/30';
   const colCell = 'p-1.5 align-top';
   const control = 'h-9 text-sm shadow-sm';
-  const tableClass = 'min-w-max w-full';
+  const tableClass = 'min-w-max';
   const excelWrap = cn(
     'rounded-md border bg-background',
     pendingEditId && 'ring-2 ring-primary ring-offset-2'
   );
 
   return (
-    <div className="flex w-full min-w-0 flex-1 flex-col p-4 gap-3 min-h-0">
+    <div className="flex w-full min-w-0 flex-col p-4 gap-3">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between min-w-0">
         <div className="min-w-0">
           {pendingEditId ? (
@@ -1196,7 +1349,11 @@ export function VoucherForm() {
         </div>
       </div>
 
-      <div data-form-card className={cn(excelWrap, "min-w-0 overflow-x-auto")}>
+      <div 
+        ref={formTableRef}
+        data-form-card 
+        className={cn(excelWrap, "min-w-0 overflow-x-auto cursor-grab")}
+      >
         <Table className={tableClass}>
           <TableHeader>
             <TableRow>
@@ -1272,10 +1429,10 @@ export function VoucherForm() {
                 <FieldTitle required>LOC</FieldTitle>
               </TableHead>
               <TableHead className={cn(colHead, 'w-[160px]')}>
-                <FieldTitle>Employee</FieldTitle>
+                <FieldTitle required={isEmployeeMandatory}>Employee</FieldTitle>
               </TableHead>
               <TableHead className={cn(colHead, 'w-[160px]')}>
-                <FieldTitle>Assignment</FieldTitle>
+                <FieldTitle required={isAssignmentMandatory}>Assignment</FieldTitle>
               </TableHead>
               <TableHead className={cn(colHead, 'w-[200px]')}>
                 <FieldTitle>Upload Files</FieldTitle>
@@ -1725,11 +1882,16 @@ export function VoucherForm() {
 
               <TableCell className={colCell}>
                 <CellWithTooltip errorMessage={getFullErrorMessage('lob')}>
-                  <DimensionSelect
+                  <CascadingDimensionSelect
                     dimensionType="LOB"
                     value={formData.lob}
-                    onChange={(value) => updateField('lob', value)}
-                    placeholder={getPlaceholder('lob', '')}
+                    onChange={(value) => {
+                      updateField('lob', value);
+                      // Clear Branch and LOC when LOB changes
+                      if (formData.branch) updateField('branch', '');
+                      if (formData.loc) updateField('loc', '');
+                    }}
+                    placeholder={getPlaceholder('lob', 'Select LOB')}
                     className={cn(control, !restFieldsEnabled && 'cursor-not-allowed')}
                     hasError={hasError('lob')}
                     errorClass={getFieldErrorClass('lob')}
@@ -1740,70 +1902,71 @@ export function VoucherForm() {
 
               <TableCell className={colCell}>
                 <CellWithTooltip errorMessage={getFullErrorMessage('branch')}>
-                  <DimensionSelect
+                  <CascadingDimensionSelect
                     dimensionType="BRANCH"
                     value={formData.branch}
-                    onChange={(value) => updateField('branch', value)}
-                    placeholder={getPlaceholder('branch', '')}
+                    onChange={(value) => {
+                      updateField('branch', value);
+                      // Clear LOC when Branch changes
+                      if (formData.loc) updateField('loc', '');
+                    }}
+                    placeholder={getPlaceholder('branch', 'Select Branch')}
                     className={cn(control, !restFieldsEnabled && 'cursor-not-allowed')}
                     hasError={hasError('branch')}
                     errorClass={getFieldErrorClass('branch')}
                     disabled={!restFieldsEnabled}
+                    lobValue={formData.lob}
                   />
                 </CellWithTooltip>
               </TableCell>
 
               <TableCell className={colCell}>
                 <CellWithTooltip errorMessage={getFullErrorMessage('loc')}>
-                  <DimensionSelect
+                  <CascadingDimensionSelect
                     dimensionType="LOC"
                     value={formData.loc}
                     onChange={(value) => updateField('loc', value)}
-                    placeholder={getPlaceholder('loc', '')}
+                    placeholder={getPlaceholder('loc', 'Select LOC')}
                     className={cn(control, !restFieldsEnabled && 'cursor-not-allowed')}
                     hasError={hasError('loc')}
                     errorClass={getFieldErrorClass('loc')}
+                    disabled={!restFieldsEnabled}
+                    lobValue={formData.lob}
+                    branchValue={formData.branch}
+                  />
+                </CellWithTooltip>
+              </TableCell>
+
+              {/* Employee - always shown after LOC, required if mandatory */}
+              <TableCell className={colCell}>
+                <CellWithTooltip errorMessage={getFullErrorMessage('employee')}>
+                  <DimensionSelect
+                    dimensionType="EMPLOYEE"
+                    value={formData.employee || ''}
+                    onChange={(value) => updateField('employee', value)}
+                    placeholder={getPlaceholder('employee', 'Select Employee')}
+                    className={cn(control, !restFieldsEnabled && 'cursor-not-allowed')}
+                    hasError={hasError('employee')}
+                    errorClass={getFieldErrorClass('employee')}
                     disabled={!restFieldsEnabled}
                   />
                 </CellWithTooltip>
               </TableCell>
 
+              {/* Assignment - always shown after LOC, required if mandatory */}
               <TableCell className={colCell}>
-                <InputWithTooltip
-                  hasError={hasError('employee')}
-                  errorClass={getFieldErrorClass('employee')}
-                  fullErrorMessage={getFullErrorMessage('employee')}
-                  placeholder={getPlaceholder('employee', '')}
-                  id="employee"
-                  aria-label="Employee"
-                  aria-describedby={hasError('employee') ? 'employee-error' : undefined}
-                >
-                  <Input
-                    value={formData.employee}
-                    onChange={(e) => updateField('employee', e.target.value)}
+                <CellWithTooltip errorMessage={getFullErrorMessage('assignment')}>
+                  <DimensionSelect
+                    dimensionType="ASSIGNMENT"
+                    value={formData.assignment || ''}
+                    onChange={(value) => updateField('assignment', value)}
+                    placeholder={getPlaceholder('assignment', 'Select Assignment')}
                     className={cn(control, !restFieldsEnabled && 'cursor-not-allowed')}
+                    hasError={hasError('assignment')}
+                    errorClass={getFieldErrorClass('assignment')}
                     disabled={!restFieldsEnabled}
                   />
-                </InputWithTooltip>
-              </TableCell>
-
-              <TableCell className={colCell}>
-                <InputWithTooltip
-                  hasError={hasError('assignment')}
-                  errorClass={getFieldErrorClass('assignment')}
-                  fullErrorMessage={getFullErrorMessage('assignment')}
-                  placeholder={getPlaceholder('assignment', '')}
-                  id="assignment"
-                  aria-label="Assignment"
-                  aria-describedby={hasError('assignment') ? 'assignment-error' : undefined}
-                >
-                  <Input
-                    value={formData.assignment}
-                    onChange={(e) => updateField('assignment', e.target.value)}
-                    className={cn(control, !restFieldsEnabled && 'cursor-not-allowed')}
-                    disabled={!restFieldsEnabled}
-                  />
-                </InputWithTooltip>
+                </CellWithTooltip>
               </TableCell>
 
               <TableCell className={colCell}>
@@ -1892,7 +2055,10 @@ export function VoucherForm() {
             <div className="text-sm mt-1">Fill the row and click "Add".</div>
           </div>
         ) : (
-          <div className="rounded-md border bg-background">
+          <div 
+            ref={entriesTableRef}
+            className="rounded-md border bg-background overflow-x-auto cursor-grab"
+          >
             <Table className={tableClass}>
               <TableHeader>
                 <TableRow>
@@ -2114,58 +2280,182 @@ export function VoucherForm() {
             <div>No vouchers found.</div>
           </div>
         ) : (
-          <div className="rounded-md border bg-background">
+          <div 
+            ref={vouchersTableRef}
+            className="rounded-md border bg-background overflow-x-auto cursor-grab"
+          >
             <Table className={tableClass}>
               <TableHeader>
                 <TableRow>
-                  <TableHead className={cn(colHead, 'w-[120px]')}>Doc No</TableHead>
-                  <TableHead className={cn(colHead, 'w-[120px]')}>Posting</TableHead>
-                  <TableHead className={cn(colHead, 'w-[120px]')}>Document</TableHead>
-                  <TableHead className={cn(colHead, 'w-[140px]')}>Template</TableHead>
-                  <TableHead className={cn(colHead, 'w-[140px]')}>Doc Type</TableHead>
-                  <TableHead className={cn(colHead, 'w-[130px]')}>Acc Type</TableHead>
-                  <TableHead className={cn(colHead, 'w-[140px]')}>Acc No</TableHead>
-                  <TableHead className={cn(colHead, 'w-[160px]')}>Ext Doc</TableHead>
-                  <TableHead className={cn(colHead, 'w-[180px]')}>Description</TableHead>
-                  <TableHead className={cn(colHead, 'w-[120px] text-right')}>Amount</TableHead>
-                  <TableHead className={cn(colHead, 'w-[130px]')}>Bal Type</TableHead>
-                  <TableHead className={cn(colHead, 'w-[140px]')}>Bal No</TableHead>
-                  <TableHead className={cn(colHead, 'w-[200px]')}>Narration</TableHead>
-                  <TableHead className={cn(colHead, 'w-[140px]')}>LOB</TableHead>
-                  <TableHead className={cn(colHead, 'w-[140px]')}>Branch</TableHead>
-                  <TableHead className={cn(colHead, 'w-[140px]')}>LOC</TableHead>
-                  <TableHead className={cn(colHead, 'w-[140px]')}>Employee</TableHead>
-                  <TableHead className={cn(colHead, 'w-[140px]')}>Assignment</TableHead>
-                  <TableHead className={cn(colHead, 'w-[120px]')}>TDS</TableHead>
-                  <TableHead className={cn(colHead, 'w-[120px]')}>TCS</TableHead>
-                  <TableHead className={cn(colHead, 'w-[160px]')}>User ID</TableHead>
+                  <TableHead className={cn('px-1 py-1 text-xs font-semibold text-foreground/80 bg-muted sticky left-0 z-20', 'w-[100px]')} style={{ borderRight: '2px solid hsl(var(--border))' }}>Doc No</TableHead>
+                  <TableHead className={cn('px-1 py-1 text-xs font-semibold text-foreground/80 bg-muted sticky left-[100px] z-20', 'w-[90px]')} style={{ borderRight: '2px solid hsl(var(--border))' }}>Posting</TableHead>
+                  <TableHead className={cn('px-1 py-1 text-xs font-semibold text-foreground/80 bg-muted sticky left-[190px] z-20', 'w-[100px]')} style={{ borderRight: '2px solid hsl(var(--border))' }}>Template</TableHead>
+                  <TableHead className={cn('px-1 py-1 text-xs font-semibold text-foreground/80 bg-muted/30', 'w-[90px]')}>Doc Type</TableHead>
+                  <TableHead className={cn('px-1 py-1 text-xs font-semibold text-foreground/80 bg-muted/30', 'w-[90px]')}>Acc Type</TableHead>
+                  <TableHead className={cn('px-1 py-1 text-xs font-semibold text-foreground/80 bg-muted/30', 'w-[100px]')}>Acc No</TableHead>
+                  <TableHead className={cn('px-1 py-1 text-xs font-semibold text-foreground/80 bg-muted/30', 'w-[110px]')}>Ext Doc</TableHead>
+                  <TableHead className={cn('px-1 py-1 text-xs font-semibold text-foreground/80 bg-muted/30', 'w-[130px]')}>Description</TableHead>
+                  <TableHead className={cn('px-1 py-1 text-xs font-semibold text-foreground/80 bg-muted/30 text-right', 'w-[90px]')}>Amount</TableHead>
+                  <TableHead className={cn('px-1 py-1 text-xs font-semibold text-foreground/80 bg-muted/30', 'w-[90px]')}>Bal Type</TableHead>
+                  <TableHead className={cn('px-1 py-1 text-xs font-semibold text-foreground/80 bg-muted/30', 'w-[100px]')}>Bal No</TableHead>
+                  <TableHead className={cn('px-1 py-1 text-xs font-semibold text-foreground/80 bg-muted/30', 'w-[140px]')}>Narration</TableHead>
+                  <TableHead className={cn('px-1 py-1 text-xs font-semibold text-foreground/80 bg-muted/30', 'w-[80px]')}>LOB</TableHead>
+                  <TableHead className={cn('px-1 py-1 text-xs font-semibold text-foreground/80 bg-muted/30', 'w-[90px]')}>Branch</TableHead>
+                  <TableHead className={cn('px-1 py-1 text-xs font-semibold text-foreground/80 bg-muted/30', 'w-[80px]')}>LOC</TableHead>
+                  <TableHead className={cn('px-1 py-1 text-xs font-semibold text-foreground/80 bg-muted/30', 'w-[90px]')}>Employee</TableHead>
+                  <TableHead className={cn('px-1 py-1 text-xs font-semibold text-foreground/80 bg-muted/30', 'w-[100px]')}>Assignment</TableHead>
+                  <TableHead className={cn('px-1 py-1 text-xs font-semibold text-foreground/80 bg-muted/30', 'w-[80px]')}>TDS</TableHead>
+                  <TableHead className={cn('px-1 py-1 text-xs font-semibold text-foreground/80 bg-muted/30', 'w-[80px]')}>TCS</TableHead>
+                  <TableHead className={cn('px-1 py-1 text-xs font-semibold text-foreground/80 bg-muted/30', 'w-[60px]')}>Tax</TableHead>
+                  <TableHead className={cn('px-1 py-1 text-xs font-semibold text-foreground/80 bg-muted/30', 'w-[100px]')}>User ID</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {fetchedVouchers.map((voucher, index) => (
-                  <TableRow key={`${voucher.Document_No}-${index}`}>
-                    <TableCell className="p-2 text-xs font-medium">{voucher.Document_No}</TableCell>
-                    <TableCell className="p-2 text-xs">{voucher.Posting_Date}</TableCell>
-                    <TableCell className="p-2 text-xs">{voucher.Document_Date}</TableCell>
-                    <TableCell className="p-2 text-xs">{voucher.Journal_Template_Name}</TableCell>
-                    <TableCell className="p-2 text-xs">{voucher.Document_Type}</TableCell>
-                    <TableCell className="p-2 text-xs">{voucher.Account_Type}</TableCell>
-                    <TableCell className="p-2 text-xs">{voucher.Account_No}</TableCell>
-                    <TableCell className="p-2 text-xs">{voucher.External_Document_No || '-'}</TableCell>
-                    <TableCell className="p-2 text-xs">{voucher.Description || '-'}</TableCell>
-                    <TableCell className="p-2 text-xs text-right tabular-nums">{voucher.Amount?.toFixed(2) || '0.00'}</TableCell>
-                    <TableCell className="p-2 text-xs">{voucher.Bal_Account_Type}</TableCell>
-                    <TableCell className="p-2 text-xs">{voucher.Bal_Account_No}</TableCell>
-                    <TableCell className="p-2 text-xs">{voucher.Line_Narration1 || '-'}</TableCell>
-                    <TableCell className="p-2 text-xs">{voucher.Shortcut_Dimension_1_Code || '-'}</TableCell>
-                    <TableCell className="p-2 text-xs">{voucher.Shortcut_Dimension_2_Code || '-'}</TableCell>
-                    <TableCell className="p-2 text-xs">{voucher.ShortcutDimCode3 || '-'}</TableCell>
-                    <TableCell className="p-2 text-xs">{voucher.ShortcutDimCode4 || '-'}</TableCell>
-                    <TableCell className="p-2 text-xs">{voucher.ShortcutDimCode5 || '-'}</TableCell>
-                    <TableCell className="p-2 text-xs">{voucher.TDS_Section_Code || '-'}</TableCell>
-                    <TableCell className="p-2 text-xs">{voucher.TCS_Nature_of_Collection || '-'}</TableCell>
-                    <TableCell className="p-2 text-xs">{voucher.User_ID}</TableCell>
-                  </TableRow>
+                  <React.Fragment key={`${voucher.Document_No}-${index}`}>
+                  <ContextMenu>
+                    <ContextMenuTrigger asChild>
+                      <TableRow className={expandedTaxRow === `${voucher.Document_No}-${index}` ? 'bg-green-100/80 hover:bg-green-100' : ''}>
+                    <TableCell className={cn("px-1 py-0.5 text-xs font-medium sticky left-0 z-20", expandedTaxRow === `${voucher.Document_No}-${index}` ? 'bg-green-100/80' : 'bg-background')} style={{ borderRight: '2px solid hsl(var(--border))' }}>{voucher.Document_No}</TableCell>
+                    <TableCell className={cn("px-1 py-0.5 text-xs sticky left-[100px] z-20", expandedTaxRow === `${voucher.Document_No}-${index}` ? 'bg-green-100/80' : 'bg-background')} style={{ borderRight: '2px solid hsl(var(--border))' }}>{voucher.Posting_Date}</TableCell>
+                    <TableCell className={cn("px-1 py-0.5 text-xs sticky left-[190px] z-20", expandedTaxRow === `${voucher.Document_No}-${index}` ? 'bg-green-100/80' : 'bg-background')} style={{ borderRight: '2px solid hsl(var(--border))' }}>{voucher.Journal_Template_Name}</TableCell>
+                    <TableCell className="px-1 py-0.5 text-xs">{voucher.Document_Type}</TableCell>
+                    <TableCell className="px-1 py-0.5 text-xs">{voucher.Account_Type}</TableCell>
+                    <TableCell className="px-1 py-0.5 text-xs">{voucher.Account_No}</TableCell>
+                    <TableCell className="px-1 py-0.5 text-xs">{voucher.External_Document_No || '-'}</TableCell>
+                    <TableCell className="px-1 py-0.5 text-xs">{voucher.Description || '-'}</TableCell>
+                    <TableCell className="px-1 py-0.5 text-xs text-right tabular-nums">{voucher.Amount?.toFixed(2) || '0.00'}</TableCell>
+                    <TableCell className="px-1 py-0.5 text-xs">{voucher.Bal_Account_Type}</TableCell>
+                    <TableCell className="px-1 py-0.5 text-xs">{voucher.Bal_Account_No}</TableCell>
+                    <TableCell className="px-1 py-0.5 text-xs">{voucher.Line_Narration1 || '-'}</TableCell>
+                    <TableCell className="px-1 py-0.5 text-xs">{voucher.Shortcut_Dimension_1_Code || '-'}</TableCell>
+                    <TableCell className="px-1 py-0.5 text-xs">{voucher.Shortcut_Dimension_2_Code || '-'}</TableCell>
+                    <TableCell className="px-1 py-0.5 text-xs">{voucher.ShortcutDimCode3 || '-'}</TableCell>
+                    <TableCell className="px-1 py-0.5 text-xs">{voucher.ShortcutDimCode4 || '-'}</TableCell>
+                    <TableCell className="px-1 py-0.5 text-xs">{voucher.ShortcutDimCode5 || '-'}</TableCell>
+                    <TableCell className="px-1 py-0.5 text-xs">{voucher.TDS_Section_Code || '-'}</TableCell>
+                    <TableCell className="px-1 py-0.5 text-xs">{voucher.TCS_Nature_of_Collection || '-'}</TableCell>
+                    <TableCell className="px-1 py-0.5 text-xs">
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          const rowKey = `${voucher.Document_No}-${index}`;
+                          if (expandedTaxRow === rowKey) {
+                            setExpandedTaxRow(null);
+                          } else {
+                            setExpandedTaxRow(rowKey);
+                            // Fetch tax details if not already loaded
+                            if (!taxDetails[voucher.Document_No]) {
+                              setLoadingTaxDetails(prev => ({ ...prev, [voucher.Document_No]: true }));
+                              try {
+                                const details = await getTaxComponentsInJson(voucher.Document_No);
+                                setTaxDetails(prev => ({ ...prev, [voucher.Document_No]: details }));
+                              } catch (error) {
+                                console.error('Error fetching tax details:', error);
+                                setTaxDetails(prev => ({ ...prev, [voucher.Document_No]: [] }));
+                              } finally {
+                                setLoadingTaxDetails(prev => ({ ...prev, [voucher.Document_No]: false }));
+                              }
+                            }
+                          }
+                        }}
+                        className="flex items-center justify-center w-full h-full hover:bg-muted/50 rounded p-1 transition-colors"
+                        title="View tax details"
+                      >
+                        <Info className="h-4 w-4 text-muted-foreground hover:text-foreground" />
+                      </button>
+                    </TableCell>
+                    <TableCell className="px-1 py-0.5 text-xs">{voucher.User_ID}</TableCell>
+                      </TableRow>
+                    </ContextMenuTrigger>
+                    <ContextMenuContent>
+                      <ContextMenuItem
+                        onClick={async () => {
+                          const rowKey = `${voucher.Document_No}-${index}`;
+                          if (expandedTaxRow === rowKey) {
+                            setExpandedTaxRow(null);
+                          } else {
+                            setExpandedTaxRow(rowKey);
+                            // Fetch tax details if not already loaded
+                            if (!taxDetails[voucher.Document_No]) {
+                              setLoadingTaxDetails(prev => ({ ...prev, [voucher.Document_No]: true }));
+                              try {
+                                const details = await getTaxComponentsInJson(voucher.Document_No);
+                                setTaxDetails(prev => ({ ...prev, [voucher.Document_No]: details }));
+                              } catch (error) {
+                                console.error('Error fetching tax details:', error);
+                                setTaxDetails(prev => ({ ...prev, [voucher.Document_No]: [] }));
+                              } finally {
+                                setLoadingTaxDetails(prev => ({ ...prev, [voucher.Document_No]: false }));
+                              }
+                            }
+                          }
+                        }}
+                      >
+                        <Info className="mr-2 h-4 w-4" />
+                        Tax Details
+                      </ContextMenuItem>
+                    </ContextMenuContent>
+                  </ContextMenu>
+                  {/* Expanded tax details row */}
+                  {expandedTaxRow === `${voucher.Document_No}-${index}` && (
+                    <TableRow>
+                      <TableCell colSpan={20} className="px-0 py-0 bg-muted/20 relative">
+                        <div className="sticky left-0 w-full max-w-[400px] overflow-x-auto">
+                          <div className="px-4 py-4 min-w-max">
+                            <div className="flex items-center justify-between mb-2">
+                              <div className="text-xs font-semibold text-foreground/80">Tax Details:</div>
+                              <button
+                                type="button"
+                                onClick={() => setExpandedTaxRow(null)}
+                                className="flex items-center gap-1 px-2 py-1 text-xs hover:bg-muted rounded transition-colors"
+                                title="Close tax details"
+                              >
+                                <span>Close</span>
+                                <ChevronUp className="h-3 w-3" />
+                              </button>
+                            </div>
+                            {loadingTaxDetails[voucher.Document_No] ? (
+                              <div className="flex items-center justify-center py-4">
+                                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                                <span className="text-xs text-muted-foreground">Loading tax details...</span>
+                              </div>
+                            ) : taxDetails[voucher.Document_No] && taxDetails[voucher.Document_No].length > 0 ? (
+                              <div className="rounded-md border bg-background overflow-x-auto max-w-[400px]">
+                                <table className="w-full text-xs min-w-max">
+                                  <thead className="bg-muted/50">
+                                    <tr>
+                                      {Object.keys(taxDetails[voucher.Document_No][0] as Record<string, unknown>).map((key) => (
+                                        <th key={key} className="px-2 py-1.5 text-left font-semibold text-foreground/80 border-b whitespace-nowrap">
+                                          {key}
+                                        </th>
+                                      ))}
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {taxDetails[voucher.Document_No].map((detail, idx) => (
+                                      <tr key={idx} className="border-b last:border-b-0">
+                                        {Object.values(detail as Record<string, unknown>).map((value, valIdx) => (
+                                          <td key={valIdx} className="px-2 py-1.5 text-foreground/70 whitespace-nowrap">
+                                            {String(value ?? '-')}
+                                          </td>
+                                        ))}
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            ) : (
+                              <div className="text-center py-4 text-xs text-muted-foreground">
+                                No tax details found
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )}
+                  </React.Fragment>
                 ))}
               </TableBody>
             </Table>

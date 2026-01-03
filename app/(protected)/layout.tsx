@@ -73,7 +73,7 @@ export default function ProtectedLayout({
               <ThemeToggle />
             </div>
           </header>
-          <div className="flex flex-1 flex-col overflow-y-auto">
+          <div className="flex flex-1 flex-col overflow-y-auto min-h-0">
             {children}
           </div>
         </SidebarInset>

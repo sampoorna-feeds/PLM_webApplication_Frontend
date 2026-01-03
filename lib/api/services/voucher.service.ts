@@ -48,6 +48,8 @@ export interface CreateVoucherPayload {
   TCS_Nature_of_Collection?: string;
   Shortcut_Dimension_1_Code?: string;
   Shortcut_Dimension_2_Code?: string;
+  ShortcutDimCode4?: string;
+  ShortcutDimCode5?: string;
   ShortcutDimCode3?: string;
   ShortcutDimCode4?: string;
   ShortcutDimCode5?: string;
@@ -241,4 +243,65 @@ export async function postVouchers(userID: string = 'temp'): Promise<unknown> {
   const response = await apiPost<unknown>(endpoint, { userID });
   return response;
 }
+
+/**
+ * Default Dimension type
+ */
+export interface DefaultDimension {
+  Table_ID: number;
+  No: string;
+  Dimension_Code: string;
+  Dimension_Value_Code: string;
+  Value_Posting: string;
+  AllowedValuesFilter: string;
+}
+
+/**
+ * Get default dimensions for an account number
+ * @param accountNo - Account number or Balance Account number
+ */
+export async function getDefaultDimensions(accountNo: string): Promise<DefaultDimension[]> {
+  if (!accountNo) return [];
+  
+  const tableIds = ['15', '18', '23']; // Hardcoded Table_IDs
+  const filter = `Table_ID in(${tableIds.map(id => `'${id}'`).join(',')}) and No eq '${accountNo}'`;
+  const query = `$filter=${encodeURIComponent(filter)}`;
+  const endpoint = `/DefaultDimensions?company='${encodeURIComponent(COMPANY)}'&${query}`;
+  
+  const response = await apiGet<ODataResponse<DefaultDimension>>(endpoint);
+  return response.value || [];
+}
+
+/**
+ * Get Tax Components in JSON format
+ * @param documentNo - Document number
+ * @param tableID - Table ID (hardcoded to "81")
+ */
+export async function getTaxComponentsInJson(documentNo: string, tableID: string = '81'): Promise<unknown[]> {
+  const endpoint = `/API_GetTaxComponentsInJson?company='${encodeURIComponent(COMPANY)}'`;
+  const payload = {
+    tableID,
+    documentNo,
+  };
+  
+  const response = await apiPost<{ value?: string }>(endpoint, payload);
+  
+  // Response contains base64 encoded JSON
+  if (!response.value) {
+    return [];
+  }
+  
+  try {
+    // Decode base64 to string
+    const decodedString = atob(response.value);
+    // Parse JSON
+    const taxData = JSON.parse(decodedString);
+    // Return as array (assuming it's an array or can be converted to one)
+    return Array.isArray(taxData) ? taxData : [taxData];
+  } catch (error) {
+    console.error('Error decoding tax components:', error);
+    return [];
+  }
+}
+
 

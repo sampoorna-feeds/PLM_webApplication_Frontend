@@ -21,10 +21,14 @@ import {
   getLOBs,
   getLOCs,
   getLOCsPage,
+  getEmployees,
+  getEmployeesPage,
+  getAssignments,
+  getAssignmentsPage,
   type DimensionValue,
 } from '@/lib/api/services/dimension.service';
 
-type DimensionType = 'BRANCH' | 'LOB' | 'LOC';
+type DimensionType = 'BRANCH' | 'LOB' | 'LOC' | 'EMPLOYEE' | 'ASSIGNMENT';
 
 interface DimensionSelectProps {
   dimensionType: DimensionType;
@@ -82,6 +86,12 @@ export function DimensionSelect({
         case 'LOC':
           result = await getLOCs();
           break;
+        case 'EMPLOYEE':
+          result = await getEmployees();
+          break;
+        case 'ASSIGNMENT':
+          result = await getAssignments();
+          break;
         default:
           result = [];
       }
@@ -135,6 +145,12 @@ export function DimensionSelect({
               break;
             case 'LOC':
               result = await getLOCs(query);
+              break;
+            case 'EMPLOYEE':
+              result = await getEmployees(query);
+              break;
+            case 'ASSIGNMENT':
+              result = await getAssignments(query);
               break;
             default:
               result = [];
@@ -209,6 +225,12 @@ export function DimensionSelect({
           case 'LOC':
             result = await getLOCs();
             break;
+          case 'EMPLOYEE':
+            result = await getEmployees();
+            break;
+          case 'ASSIGNMENT':
+            result = await getAssignments();
+            break;
           default:
             result = [];
         }
@@ -244,6 +266,12 @@ export function DimensionSelect({
           break;
         case 'LOC':
           result = await getLOCsPage(skip, searchQuery || undefined);
+          break;
+        case 'EMPLOYEE':
+          result = await getEmployeesPage(skip, searchQuery || undefined);
+          break;
+        case 'ASSIGNMENT':
+          result = await getAssignmentsPage(skip, searchQuery || undefined);
           break;
         default:
           result = [];

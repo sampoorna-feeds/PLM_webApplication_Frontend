@@ -48,8 +48,6 @@ export interface CreateVoucherPayload {
   TCS_Nature_of_Collection?: string;
   Shortcut_Dimension_1_Code?: string;
   Shortcut_Dimension_2_Code?: string;
-  ShortcutDimCode4?: string;
-  ShortcutDimCode5?: string;
   ShortcutDimCode3?: string;
   ShortcutDimCode4?: string;
   ShortcutDimCode5?: string;

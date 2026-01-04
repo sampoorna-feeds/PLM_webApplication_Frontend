@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono, Noto_Sans } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme/theme-provider";
+import { AuthProvider } from "@/lib/contexts/auth-context";
 
 const notoSans = Noto_Sans({variable:'--font-sans'});
 
@@ -39,7 +40,9 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
+          <AuthProvider>
           {children}
+          </AuthProvider>
         </ThemeProvider>
       </body>
     </html>

@@ -168,7 +168,7 @@ export async function createNoSeriesForVouchers(voucherType: string): Promise<st
  * @param voucherType - Voucher type (General Journal, Cash Receipt, Cash Payment)
  * @returns Array of voucher entries
  */
-export async function getVoucherEntries(voucherType: string): Promise<VoucherEntryResponse[]> {
+export async function getVoucherEntries(voucherType: string, userID: string): Promise<VoucherEntryResponse[]> {
   const endpointPath = getVoucherEndpoint(voucherType);
   
   // Map voucher type to template name for filter
@@ -187,8 +187,8 @@ export async function getVoucherEntries(voucherType: string): Promise<VoucherEnt
       templateName = 'GENERAL';
   }
   
-  // Build filter: Journal_Template_Name eq 'GENERAL' and Journal_Batch_Name eq 'DEFAULT' and User_ID eq 'temp'
-  const filter = `Journal_Template_Name eq '${templateName}' and Journal_Batch_Name eq 'DEFAULT' and User_ID eq 'temp'`;
+  // Build filter with actual userID
+  const filter = `Journal_Template_Name eq '${templateName}' and Journal_Batch_Name eq 'DEFAULT' and User_ID eq '${userID}'`;
   const endpoint = `${endpointPath}?company='${encodeURIComponent(COMPANY)}'&$top=10&$Filter=${encodeURIComponent(filter)}`;
   
   const response = await apiGet<ODataResponse<VoucherEntryResponse>>(endpoint);

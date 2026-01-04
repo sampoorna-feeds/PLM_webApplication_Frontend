@@ -8,6 +8,7 @@
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
+import { useAuth } from '@/lib/contexts/auth-context';
 import { useAuthStore } from '@/lib/stores/auth-store';
 import {
   Sidebar as SidebarRoot,
@@ -32,12 +33,26 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { FileText, LifeBuoy, Send, ChevronsUpDown, LogOut } from 'lucide-react';
+import { FileText, LifeBuoy, Send, ChevronsUpDown, LogOut, User, KeyRound } from 'lucide-react';
 
 const formsItems = [
   {
     title: 'Voucher',
     url: '/voucher-form',
+    icon: FileText,
+  },
+];
+
+const settingsItems = [
+  {
+    title: 'Account',
+    url: '/settings/account',
+    icon: User,
+  },
+  {
+    title: 'Reset Password',
+    url: '/settings/reset-password',
+    icon: KeyRound,
   },
 ];
 
@@ -54,23 +69,23 @@ const secondaryItems = [
   },
 ];
 
-// Hardcoded user data for now
-const user = {
-  name: 'John Doe',
-  email: 'john.doe@sampoornafeeds.com',
-  avatar: '/avatar.jpg', // Using avatar.jpg as fallback
-};
-
 export function AppSidebar({ ...props }: React.ComponentProps<typeof SidebarRoot>) {
   const router = useRouter();
   const pathname = usePathname();
-  const logout = useAuthStore((state) => state.logout);
+  const { userID, username, logout: authLogout } = useAuth();
+  const { clearAuth } = useAuthStore();
   const { isMobile } = useSidebar();
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await authLogout();
+    clearAuth();
     router.push('/login');
   };
+
+  // Determine which navigation items to show
+  const isSettingsPage = pathname?.startsWith('/settings') || pathname?.startsWith('/account');
+  const navItems = isSettingsPage ? settingsItems : formsItems;
+  const navLabel = isSettingsPage ? 'Settings' : 'Forms';
 
   return (
     <SidebarRoot variant="inset" {...props}>
@@ -98,23 +113,49 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof SidebarRoot
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        <SidebarGroup>
-          <SidebarGroupLabel>Forms</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {formsItems.map((item) => (
-                <SidebarMenuItem key={item.url}>
-                  <SidebarMenuButton asChild isActive={pathname === item.url}>
-                    <Link href={item.url}>
-                      <FileText />
-                      <span>{item.title}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        {!isSettingsPage && (
+          <SidebarGroup>
+            <SidebarGroupLabel>Forms</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {formsItems.map((item) => (
+                  <SidebarMenuItem key={item.url}>
+                    <SidebarMenuButton asChild isActive={pathname === item.url}>
+                      <Link href={item.url}>
+                        <item.icon />
+                        <span>{item.title}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
+        
+        {isSettingsPage && (
+          <SidebarGroup>
+            <SidebarGroupLabel>Settings</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {settingsItems.map((item) => {
+                  const isActive = pathname === item.url;
+                  
+                  return (
+                    <SidebarMenuItem key={item.url}>
+                      <SidebarMenuButton asChild isActive={isActive}>
+                        <Link href={item.url}>
+                          <item.icon />
+                          <span>{item.title}</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  );
+                })}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
 
         <SidebarGroup className="mt-auto">
           <SidebarGroupContent>
@@ -143,12 +184,13 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof SidebarRoot
                   className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground w-full"
                 >
                   <Avatar className="h-8 w-8 !rounded-md [&>img]:!rounded-md">
-                    <AvatarImage src={user.avatar} alt={user.name} className="!rounded-md" />
-                    <AvatarFallback className="!rounded-md">JD</AvatarFallback>
+                    <AvatarFallback className="!rounded-md">
+                      {username ? username.substring(0, 2).toUpperCase() : 'U'}
+                    </AvatarFallback>
                   </Avatar>
                   <div className="grid flex-1 text-left text-sm leading-tight">
-                    <span className="truncate font-medium">{user.name}</span>
-                    <span className="truncate text-xs">{user.email}</span>
+                    <span className="truncate font-medium">{username || 'User'}</span>
+                    <span className="truncate text-xs text-muted-foreground">{userID || ''}</span>
                   </div>
                   <ChevronsUpDown className="ml-auto size-4" />
                 </SidebarMenuButton>
@@ -162,22 +204,22 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof SidebarRoot
                 <DropdownMenuLabel className="p-0 font-normal">
                   <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
                     <Avatar className="h-8 w-8 !rounded-md [&>img]:!rounded-md">
-                      <AvatarImage src={user.avatar} alt={user.name} className="!rounded-md" />
-                      <AvatarFallback className="!rounded-md">JD</AvatarFallback>
+                      <AvatarFallback className="!rounded-md">
+                        {username ? username.substring(0, 2).toUpperCase() : 'U'}
+                      </AvatarFallback>
                     </Avatar>
                     <div className="grid flex-1 text-left text-sm leading-tight">
-                      <span className="truncate font-medium">{user.name}</span>
-                      <span className="truncate text-xs">{user.email}</span>
+                      <span className="truncate font-medium">{username || 'User'}</span>
+                      <span className="truncate text-xs text-muted-foreground">{userID || ''}</span>
                     </div>
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuGroup>
-                  <DropdownMenuItem>
-                    <span>Account</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem>
-                    <span>Settings</span>
+                  <DropdownMenuItem asChild>
+                    <Link href="/settings/account">
+                      <span>Settings</span>
+                    </Link>
                   </DropdownMenuItem>
                 </DropdownMenuGroup>
                 <DropdownMenuSeparator />

@@ -6,18 +6,29 @@
  */
 
 import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { useAuthStore } from '@/lib/stores/auth-store';
+import { useRouter, usePathname } from 'next/navigation';
+import { useAuth } from '@/lib/contexts/auth-context';
 
 export function AuthGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const pathname = usePathname();
+  const { isAuthenticated, isLoading } = useAuth();
 
   useEffect(() => {
-    if (!isAuthenticated) {
-      router.push('/login');
+    if (!isLoading && !isAuthenticated) {
+      const loginUrl = `/login?redirect=${encodeURIComponent(pathname)}`;
+      router.push(loginUrl);
     }
-  }, [isAuthenticated, router]);
+  }, [isAuthenticated, isLoading, router, pathname]);
+
+  // Show loading state while checking auth
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-sm text-muted-foreground">Loading...</div>
+      </div>
+    );
+  }
 
   if (!isAuthenticated) {
     return null; // Prevent flash of content

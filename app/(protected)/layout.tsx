@@ -7,11 +7,14 @@
 'use client';
 
 import React from 'react';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { AuthGuard } from '@/components/layout/auth-guard';
 import { AppSidebar } from '@/components/layout/sidebar';
 import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar';
 import { ThemeToggle } from '@/components/theme/theme-toggle';
+import { Button } from '@/components/ui/button';
+import { ArrowLeft } from 'lucide-react';
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -27,6 +30,7 @@ export default function ProtectedLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
 
   // Generate breadcrumbs based on pathname
   const getBreadcrumbs = () => {
@@ -36,11 +40,32 @@ export default function ProtectedLayout({
         { label: 'Voucher', href: null },
       ];
     }
+    if (pathname?.startsWith('/settings')) {
+      if (pathname === '/settings/account') {
+        return [
+          { label: 'Settings', href: '/settings' },
+          { label: 'Account', href: null },
+        ];
+      }
+      if (pathname === '/settings/reset-password') {
+        return [
+          { label: 'Settings', href: '/settings' },
+          { label: 'Reset Password', href: null },
+        ];
+      }
+      return [
+        { label: 'Settings', href: null },
+      ];
+    }
     // Add more routes as needed
     return [];
   };
 
   const breadcrumbs = getBreadcrumbs();
+  
+  // Check if we should show "Return to Dashboard" button
+  // Show it on settings pages and other non-main pages
+  const showReturnToDashboard = pathname !== '/voucher-form' && pathname !== '/';
 
   return (
     <AuthGuard>
@@ -69,11 +94,22 @@ export default function ProtectedLayout({
                 </BreadcrumbList>
               </Breadcrumb>
             )}
-            <div className="ml-auto">
+            <div className="ml-auto flex items-center gap-2">
+              {showReturnToDashboard && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => router.push('/voucher-form')}
+                  className="gap-2"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                  <span>Return to Dashboard</span>
+                </Button>
+              )}
               <ThemeToggle />
             </div>
           </header>
-          <div className="flex flex-1 flex-col overflow-y-auto min-h-0">
+          <div className="flex flex-1 flex-col overflow-y-auto min-h-0 w-full">
             {children}
           </div>
         </SidebarInset>

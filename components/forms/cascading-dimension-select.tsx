@@ -53,7 +53,7 @@ export function CascadingDimensionSelect({
   errorClass = '',
   lobValue,
   branchValue,
-  userId = 'SAM02799',
+  userId,
 }: CascadingDimensionSelectProps) {
   const [items, setItems] = useState<DimensionValue[]>([]);
   const [isOpen, setIsOpen] = useState(false);
@@ -66,6 +66,11 @@ export function CascadingDimensionSelect({
 
   // Load items based on dimension type and parent values
   const loadItems = useCallback(async () => {
+    if (!userId) {
+      setItems([]);
+      return;
+    }
+    
     setIsLoading(true);
     try {
       let result: DimensionValue[] = [];
@@ -220,6 +225,8 @@ export function CascadingDimensionSelect({
               ? 'Select LOB first'
               : isFieldDisabled && dimensionType === 'LOC' && (!lobValue || !branchValue)
               ? 'Select Branch first'
+              : !isFieldDisabled && items.length === 0 && !isLoading && userId
+              ? `No ${dimensionType} found. Please contact IT.`
               : displayValue || placeholder}
           </span>
           <ChevronDownIcon className="ml-2 h-4 w-4 shrink-0 opacity-50" />
@@ -256,6 +263,8 @@ export function CascadingDimensionSelect({
                 ? dimensionType === 'BRANCH'
                   ? 'Select LOB first'
                   : 'Select Branch first'
+                : searchQuery.length < MIN_SEARCH_LENGTH && items.length === 0
+                ? `No ${dimensionType} found. Please contact IT.`
                 : searchQuery.length < MIN_SEARCH_LENGTH
                 ? `Type at least ${MIN_SEARCH_LENGTH} characters to search`
                 : 'No items found'}

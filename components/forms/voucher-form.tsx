@@ -65,7 +65,7 @@ import {
   type DefaultDimension,
 } from '@/lib/api/services/voucher.service';
 import { getCustomerByNo } from '@/lib/api/services/customer.service';
-import { useAuthStore } from '@/lib/stores/auth-store';
+import { useAuth } from '@/lib/contexts/auth-context';
 
 type VoucherEntry = VoucherFormData & { 
   id: string; 
@@ -192,7 +192,7 @@ function InputWithTooltip({
 export function VoucherForm() {
   const [formData, setFormData] = useState<FormState>(defaultFormState);
   const [validationErrors, setValidationErrors] = useState<ValidationErrors>({});
-  const { user } = useAuthStore();
+  const { userID } = useAuth();
   
   // Refs for drag-to-scroll functionality
   const formTableRef = useRef<HTMLDivElement>(null);
@@ -356,7 +356,7 @@ export function VoucherForm() {
     if (state.accountTcsSection && state.accountTcsSection.tcsType && state.accountTcsSection.tcsType !== 'NA') {
       data.accountTcsSection = {
         tcsType: state.accountTcsSection.tcsType,
-      };
+        };
     }
 
     if (state.balanceTdsSection && state.balanceTdsSection.tdsType && state.balanceTdsSection.tdsType !== 'NA') {
@@ -368,7 +368,7 @@ export function VoucherForm() {
     if (state.balanceTcsSection && state.balanceTcsSection.tcsType && state.balanceTcsSection.tcsType !== 'NA') {
       data.balanceTcsSection = {
         tcsType: state.balanceTcsSection.tcsType,
-      };
+        };
     }
 
     return data;
@@ -383,11 +383,11 @@ export function VoucherForm() {
     
     // Add schema validation errors
     if (!result.success) {
-      result.error.issues.forEach((issue) => {
-        const path = issue.path.join('.');
-        if (!errors[path]) errors[path] = [];
-        errors[path].push(issue.message);
-      });
+    result.error.issues.forEach((issue) => {
+      const path = issue.path.join('.');
+      if (!errors[path]) errors[path] = [];
+      errors[path].push(issue.message);
+    });
     }
 
     // Add conditional validation for Employee/Assignment
@@ -646,11 +646,17 @@ export function VoucherForm() {
   const fetchVouchersFromERP = useCallback(async () => {
     setIsLoadingVouchers(true);
     try {
-      // Fetch vouchers from all three types
+      if (!userID) {
+        console.warn('User ID not available, cannot fetch vouchers');
+        setFetchedVouchers([]);
+        return;
+      }
+      
+      // Fetch vouchers from all three types with userID filter
       const [gjVouchers, crVouchers, cpVouchers] = await Promise.all([
-        getVoucherEntries('General Journal'),
-        getVoucherEntries('Cash Receipt'),
-        getVoucherEntries('Cash Payment'),
+        getVoucherEntries('General Journal', userID),
+        getVoucherEntries('Cash Receipt', userID),
+        getVoucherEntries('Cash Payment', userID),
       ]);
       
       // Combine all vouchers
@@ -661,7 +667,7 @@ export function VoucherForm() {
     } finally {
       setIsLoadingVouchers(false);
     }
-  }, []);
+  }, [userID]);
 
   // Fetch vouchers from API on component mount
   useEffect(() => {
@@ -754,7 +760,11 @@ export function VoucherForm() {
   const handlePostVouchers = async () => {
     setIsPosting(true);
     try {
-      await postVouchers('temp');
+      if (!userID) {
+        alert('User ID not available. Please login again.');
+        return;
+      }
+      await postVouchers(userID);
       alert('Vouchers posted successfully');
       // Refresh vouchers from ERP to reflect posted status
       await fetchVouchersFromERP();
@@ -794,7 +804,7 @@ export function VoucherForm() {
     const newAccountType = value as VoucherFormData['accountType'];
     setAccountType(newAccountType);
     updateField('accountType', newAccountType);
-    
+
     // Clear Account No. when Account Type changes
     updateField('accountNo', '');
 
@@ -860,37 +870,37 @@ export function VoucherForm() {
 
     // Use setTimeout to ensure AccountSelect components have time to initialize with accountType
     setTimeout(() => {
-      setFormData({
-        voucherType: entry.voucherType,
-        documentType: entry.documentType,
-        postingDate: entry.postingDate,
-        documentDate: entry.documentDate,
-        accountType: entry.accountType,
-        accountNo: entry.accountNo,
+    setFormData({
+      voucherType: entry.voucherType,
+      documentType: entry.documentType,
+      postingDate: entry.postingDate,
+      documentDate: entry.documentDate,
+      accountType: entry.accountType,
+      accountNo: entry.accountNo,
         accountTdsSection: entry.accountTdsSection
           ? { tdsType: entry.accountTdsSection.tdsType }
-          : undefined,
+        : undefined,
         accountTcsSection: entry.accountTcsSection
           ? { tcsType: entry.accountTcsSection.tcsType }
-          : undefined,
+        : undefined,
         externalDocumentNo: entry.externalDocumentNo || '',
         description: entry.description || undefined,
-        amount: entry.amount.toString(),
-        balanceAccountType: entry.balanceAccountType,
-        balanceAccountNo: entry.balanceAccountNo,
+      amount: entry.amount.toString(),
+      balanceAccountType: entry.balanceAccountType,
+      balanceAccountNo: entry.balanceAccountNo,
         balanceTdsSection: entry.balanceTdsSection
           ? { tdsType: entry.balanceTdsSection.tdsType }
           : undefined,
         balanceTcsSection: entry.balanceTcsSection
           ? { tcsType: entry.balanceTcsSection.tcsType }
           : undefined,
-        lineNarration: entry.lineNarration || '',
-        lob: entry.lob,
-        branch: entry.branch,
-        loc: entry.loc,
-        employee: entry.employee,
-        assignment: entry.assignment,
-      });
+      lineNarration: entry.lineNarration || '',
+      lob: entry.lob,
+      branch: entry.branch,
+      loc: entry.loc,
+      employee: entry.employee,
+      assignment: entry.assignment,
+    });
     }, 0);
 
     setPendingEditId(entryId);
@@ -1035,7 +1045,7 @@ export function VoucherForm() {
       Document_No: documentNo,
       Party_Type: '0',
       Party_Code: '',
-      User_ID: 'temp',
+      User_ID: userID || '',
       Shortcut_Dimension_1_Code: entry.lob,
       Shortcut_Dimension_2_Code: entry.branch,
       ShortcutDimCode3: entry.loc,
@@ -1162,7 +1172,7 @@ export function VoucherForm() {
       if (successCount > 0 && failedCount === 0 && partialCount === 0) {
         // All successful
         alert(`All ${successCount} entries submitted successfully!`);
-        resetForm();
+    resetForm();
       } else {
         // Some failures or partials
         let message = `Submitted ${successCount} entry(ies) successfully.\n`;
@@ -1311,9 +1321,9 @@ export function VoucherForm() {
         <div className="flex flex-wrap items-center gap-2 sm:justify-end">
           {isDevelopment && (
             <>
-              <Button type="button" size="sm" variant="outline" onClick={handleFillForm}>
-                Fill
-              </Button>
+            <Button type="button" size="sm" variant="outline" onClick={handleFillForm}>
+              Fill
+            </Button>
               <Button type="button" size="sm" variant="outline" onClick={handleTestScenarios}>
                 Test
               </Button>
@@ -1389,7 +1399,7 @@ export function VoucherForm() {
               )}
               <TableHead className={cn(colHead, 'w-[180px]')}>
                 <FieldTitle required={formData.voucherType === 'General Journal'}>
-                  External Doc No.
+                External Doc No.
                 </FieldTitle>
               </TableHead>
               <TableHead className={cn(colHead, 'w-[180px]')}>
@@ -1406,13 +1416,13 @@ export function VoucherForm() {
               </TableHead>
               {/* TDS Type header - shown when Balance Account Type is Vendor */}
               {showBalanceTds && (
-                <TableHead className={cn(colHead, 'w-[160px]')}>
+              <TableHead className={cn(colHead, 'w-[160px]')}>
                   <FieldTitle>TDS Type</FieldTitle>
-                </TableHead>
+              </TableHead>
               )}
               {/* TCS Type header - shown when Balance Account Type is Customer */}
               {showBalanceTcs && (
-                <TableHead className={cn(colHead, 'w-[160px]')}>
+              <TableHead className={cn(colHead, 'w-[160px]')}>
                   <FieldTitle>TCS Type</FieldTitle>
                 </TableHead>
               )}
@@ -1530,13 +1540,13 @@ export function VoucherForm() {
                       {formData.voucherType === 'General Journal' ? (
                         <>
                           <SelectItem value="NA">NA</SelectItem>
-                          <SelectItem value="Invoice">Invoice</SelectItem>
-                          <SelectItem value="Credit Memo">Credit Memo</SelectItem>
+                      <SelectItem value="Invoice">Invoice</SelectItem>
+                      <SelectItem value="Credit Memo">Credit Memo</SelectItem>
                         </>
                       ) : (
                         <>
                           <SelectItem value="Payment">Payment</SelectItem>
-                          <SelectItem value="Refund">Refund</SelectItem>
+                      <SelectItem value="Refund">Refund</SelectItem>
                         </>
                       )}
                     </SelectContent>
@@ -1758,7 +1768,7 @@ export function VoucherForm() {
                         </>
                       ) : (
                         // When Account Type is Customer or Vendor, only show G/L Account
-                        <SelectItem value="G/L Account">G/L Account</SelectItem>
+                      <SelectItem value="G/L Account">G/L Account</SelectItem>
                       )}
                     </SelectContent>
                   </Select>
@@ -1893,6 +1903,7 @@ export function VoucherForm() {
                     }}
                     placeholder={getPlaceholder('lob', 'Select LOB')}
                     className={cn(control, !restFieldsEnabled && 'cursor-not-allowed')}
+                    userId={userID || undefined}
                     hasError={hasError('lob')}
                     errorClass={getFieldErrorClass('lob')}
                     disabled={!restFieldsEnabled}
@@ -1913,9 +1924,10 @@ export function VoucherForm() {
                     placeholder={getPlaceholder('branch', 'Select Branch')}
                     className={cn(control, !restFieldsEnabled && 'cursor-not-allowed')}
                     hasError={hasError('branch')}
+                    userId={userID || undefined}
+                    lobValue={formData.lob}
                     errorClass={getFieldErrorClass('branch')}
                     disabled={!restFieldsEnabled}
-                    lobValue={formData.lob}
                   />
                 </CellWithTooltip>
               </TableCell>
@@ -1933,6 +1945,7 @@ export function VoucherForm() {
                     disabled={!restFieldsEnabled}
                     lobValue={formData.lob}
                     branchValue={formData.branch}
+                    userId={userID || undefined}
                   />
                 </CellWithTooltip>
               </TableCell>
@@ -1946,8 +1959,8 @@ export function VoucherForm() {
                     onChange={(value) => updateField('employee', value)}
                     placeholder={getPlaceholder('employee', 'Select Employee')}
                     className={cn(control, !restFieldsEnabled && 'cursor-not-allowed')}
-                    hasError={hasError('employee')}
-                    errorClass={getFieldErrorClass('employee')}
+                  hasError={hasError('employee')}
+                  errorClass={getFieldErrorClass('employee')}
                     disabled={!restFieldsEnabled}
                   />
                 </CellWithTooltip>
@@ -1962,8 +1975,8 @@ export function VoucherForm() {
                     onChange={(value) => updateField('assignment', value)}
                     placeholder={getPlaceholder('assignment', 'Select Assignment')}
                     className={cn(control, !restFieldsEnabled && 'cursor-not-allowed')}
-                    hasError={hasError('assignment')}
-                    errorClass={getFieldErrorClass('assignment')}
+                  hasError={hasError('assignment')}
+                  errorClass={getFieldErrorClass('assignment')}
                     disabled={!restFieldsEnabled}
                   />
                 </CellWithTooltip>
@@ -1972,14 +1985,14 @@ export function VoucherForm() {
               <TableCell className={colCell}>
                 <div className="space-y-1">
                   <div className="relative">
-                    <Input
+                  <Input
                       ref={fileInputRef}
                       type="file"
                       multiple
                       onChange={handleFileChange}
                       className="hidden"
                       disabled={isSubmitting}
-                    />
+                  />
                     <Button
                       type="button"
                       variant="default"

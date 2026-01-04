@@ -1,12 +1,26 @@
 /**
  * Base API client for ERP OData V4 API
- * Handles authentication and request configuration
+ * Makes direct calls to DEV API from client
+ * Auth APIs go through Next.js server to PROD API
  */
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || '';
-const API_COMPANY = process.env.NEXT_PUBLIC_API_COMPANY || '';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL_DEV || '';
 const API_USERNAME = process.env.NEXT_PUBLIC_API_USERNAME || '';
 const API_PASSWORD = process.env.NEXT_PUBLIC_API_PASSWORD || '';
+
+/**
+ * Creates Basic Auth header for direct API calls
+ */
+function createAuthHeaders(): HeadersInit {
+  const credentials = `${API_USERNAME}:${API_PASSWORD}`;
+  const encodedCredentials = btoa(credentials);
+  
+  return {
+    'Authorization': `Basic ${encodedCredentials}`,
+    'Content-Type': 'application/json',
+    'Accept': 'application/json',
+  };
+}
 
 export interface ApiConfig {
   baseUrl: string;
@@ -22,45 +36,22 @@ export interface ApiError {
 }
 
 /**
- * Creates authentication headers for Basic Auth
- * Format: username:password encoded in base64
- */
-function createAuthHeaders(config: ApiConfig): HeadersInit {
-  const credentials = `${config.username}:${config.password}`;
-  const encodedCredentials = btoa(credentials);
-  
-  return {
-    'Authorization': `Basic ${encodedCredentials}`,
-    'Content-Type': 'application/json',
-    'Accept': 'application/json',
-  };
-}
-
-/**
- * Base API client configuration
- */
-export const apiConfig: ApiConfig = {
-  baseUrl: API_BASE_URL,
-  company: API_COMPANY,
-  username: API_USERNAME,
-  password: API_PASSWORD,
-};
-
-/**
- * Makes an authenticated API request
+ * Makes a direct API request to DEV API
+ * Uses Basic Auth from environment variables
  */
 export async function apiRequest<T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<T> {
-  const url = `${apiConfig.baseUrl}${endpoint}`;
-  const headers = createAuthHeaders(apiConfig);
+  // Ensure endpoint starts with /
+  const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+  const url = `${API_BASE_URL}${cleanEndpoint}`;
 
   try {
     const response = await fetch(url, {
       ...options,
       headers: {
-        ...headers,
+        ...createAuthHeaders(),
         ...options.headers,
       },
     });

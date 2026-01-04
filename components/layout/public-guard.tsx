@@ -6,18 +6,28 @@
  */
 
 import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { useAuthStore } from '@/lib/stores/auth-store';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { useAuth } from '@/lib/contexts/auth-context';
 
 export function PublicGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const searchParams = useSearchParams();
+  const { isAuthenticated, isLoading } = useAuth();
 
   useEffect(() => {
-    if (isAuthenticated) {
-      router.push('/');
+    if (!isLoading && isAuthenticated) {
+      const redirect = searchParams.get('redirect') || '/voucher-form';
+      router.push(redirect);
     }
-  }, [isAuthenticated, router]);
+  }, [isAuthenticated, isLoading, router, searchParams]);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-sm text-muted-foreground">Loading...</div>
+      </div>
+    );
+  }
 
   return <>{children}</>;
 }

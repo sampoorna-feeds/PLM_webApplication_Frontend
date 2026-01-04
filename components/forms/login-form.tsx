@@ -5,12 +5,13 @@
  * Uses simple React forms with Zod validation
  */
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { useAuthStore } from '@/lib/stores/auth-store';
+import { useState, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { useAuth } from '@/lib/contexts/auth-context';
 import { loginSchema, type LoginFormData } from '@/lib/validations';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Field,
   FieldGroup,
@@ -21,6 +22,7 @@ import { cn } from '@/lib/utils';
 type LoginFormState = {
   username: string;
   password: string;
+  rememberMe: boolean;
 };
 
 type ValidationErrors = {
@@ -33,13 +35,27 @@ export function LoginForm({
   ...props
 }: React.ComponentProps<'form'>) {
   const router = useRouter();
-  const login = useAuthStore((state) => state.login);
-  const [formData, setFormData] = useState<LoginFormState>({
-    username: '',
-    password: '',
+  const searchParams = useSearchParams();
+  const { refreshAuth } = useAuth();
+  // Load remembered username from localStorage on mount
+  const [formData, setFormData] = useState<LoginFormState>(() => {
+    if (typeof window !== 'undefined') {
+      const rememberedUsername = localStorage.getItem('rememberedUsername');
+      return {
+        username: rememberedUsername || '',
+        password: '',
+        rememberMe: !!rememberedUsername, // Auto-check if username was remembered
+      };
+    }
+    return {
+      username: '',
+      password: '',
+      rememberMe: false,
+    };
   });
   const [validationErrors, setValidationErrors] = useState<ValidationErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -52,10 +68,13 @@ export function LoginForm({
       const errors: ValidationErrors = {};
       result.error.issues.forEach((issue) => {
         const field = issue.path[0] as keyof LoginFormState;
-        if (!errors[field]) {
-          errors[field] = [];
+        // Only include fields that are in ValidationErrors (skip rememberMe)
+        if (field === 'username' || field === 'password') {
+          if (!errors[field]) {
+            errors[field] = [];
+          }
+          errors[field]!.push(issue.message);
         }
-        errors[field]!.push(issue.message);
       });
       setValidationErrors(errors);
       return;
@@ -63,23 +82,58 @@ export function LoginForm({
 
     // Clear errors
     setValidationErrors({});
+    setError(null);
     setIsSubmitting(true);
 
-    // Call login with dummy validation (temp/temp)
-    login(formData.username, formData.password);
-    
-    // Wait a tick for Zustand state to update, then redirect
-    await new Promise(resolve => setTimeout(resolve, 0));
-    router.replace('/voucher-form');
+    try {
+      // Call login API
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userID: formData.username,
+          password: formData.password,
+          rememberMe: formData.rememberMe,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setError(data.error || 'Login failed. Please check your credentials.');
+        setIsSubmitting(false);
+        return;
+      }
+
+      // Handle "Remember Me" - store username in localStorage
+      if (formData.rememberMe) {
+        localStorage.setItem('rememberedUsername', formData.username);
+      } else {
+        localStorage.removeItem('rememberedUsername');
+      }
+
+      // Refresh auth context to get userID
+      await refreshAuth();
+      
+      // Redirect to intended page or default
+      const redirect = searchParams.get('redirect') || '/voucher-form';
+      router.replace(redirect);
+    } catch (err) {
+      console.error('Login error:', err);
+      setError('An error occurred. Please try again.');
+      setIsSubmitting(false);
+    }
   };
 
-  const updateField = (field: keyof LoginFormState, value: string) => {
+  const updateField = (field: keyof LoginFormState, value: string | boolean) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
     // Clear error for this field when user starts typing
-    if (validationErrors[field]) {
+    if (validationErrors[field as keyof ValidationErrors]) {
       setValidationErrors((prev) => {
         const newErrors = { ...prev };
-        delete newErrors[field];
+        delete newErrors[field as keyof ValidationErrors];
         return newErrors;
       });
     }
@@ -131,6 +185,28 @@ export function LoginForm({
             </p>
           )}
         </Field>
+
+        <Field>
+          <div className="flex items-center space-x-2">
+            <Checkbox
+              id="rememberMe"
+              checked={formData.rememberMe}
+              onCheckedChange={(checked) => updateField('rememberMe', checked === true)}
+            />
+            <label
+              htmlFor="rememberMe"
+              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+            >
+              Remember me
+            </label>
+          </div>
+        </Field>
+
+        {error && (
+          <div className="rounded-md bg-destructive/10 border border-destructive/20 p-3 text-sm text-destructive">
+            {error}
+          </div>
+        )}
 
         <Field>
           <Button type="submit" className="w-full" disabled={isSubmitting}>

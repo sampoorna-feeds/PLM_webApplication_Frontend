@@ -298,9 +298,9 @@ export interface WebUserSetup {
 
 /**
  * Get WebUserSetup data for a specific user
- * @param userId - User ID (hardcoded for now)
+ * @param userId - User ID (required)
  */
-export async function getWebUserSetup(userId: string = 'SAM02799'): Promise<WebUserSetup[]> {
+export async function getWebUserSetup(userId: string): Promise<WebUserSetup[]> {
   const filter = `User_name eq '${userId}'`;
   const query = `$filter=${encodeURIComponent(filter)}`;
   const endpoint = `/WebUserSetup?company='${encodeURIComponent(COMPANY)}'&${query}`;
@@ -311,9 +311,9 @@ export async function getWebUserSetup(userId: string = 'SAM02799'): Promise<WebU
 
 /**
  * Get unique LOB values from WebUserSetup
- * @param userId - User ID (hardcoded for now)
+ * @param userId - User ID (required)
  */
-export async function getLOBsFromUserSetup(userId: string = 'SAM02799'): Promise<DimensionValue[]> {
+export async function getLOBsFromUserSetup(userId: string): Promise<DimensionValue[]> {
   const setupData = await getWebUserSetup(userId);
   const uniqueLOBs = Array.from(new Set(setupData.map(item => item.LOB).filter(Boolean)));
   return uniqueLOBs.map(lob => ({ Code: lob }));
@@ -322,9 +322,9 @@ export async function getLOBsFromUserSetup(userId: string = 'SAM02799'): Promise
 /**
  * Get unique Branch values from WebUserSetup filtered by LOB
  * @param lob - Selected LOB value
- * @param userId - User ID (hardcoded for now)
+ * @param userId - User ID (required)
  */
-export async function getBranchesFromUserSetup(lob: string, userId: string = 'SAM02799'): Promise<DimensionValue[]> {
+export async function getBranchesFromUserSetup(lob: string, userId: string): Promise<DimensionValue[]> {
   const setupData = await getWebUserSetup(userId);
   const filtered = setupData.filter(item => item.LOB === lob);
   const uniqueBranches = Array.from(new Set(filtered.map(item => item.Branch_Code).filter(Boolean)));
@@ -335,9 +335,9 @@ export async function getBranchesFromUserSetup(lob: string, userId: string = 'SA
  * Get unique LOC values from WebUserSetup filtered by LOB and Branch
  * @param lob - Selected LOB value
  * @param branch - Selected Branch value
- * @param userId - User ID (hardcoded for now)
+ * @param userId - User ID (required)
  */
-export async function getLOCsFromUserSetup(lob: string, branch: string, userId: string = 'SAM02799'): Promise<DimensionValue[]> {
+export async function getLOCsFromUserSetup(lob: string, branch: string, userId: string): Promise<DimensionValue[]> {
   const setupData = await getWebUserSetup(userId);
   const filtered = setupData.filter(item => item.LOB === lob && item.Branch_Code === branch);
   const uniqueLOCs = Array.from(new Set(filtered.map(item => item.LOC_Code).filter(Boolean)));

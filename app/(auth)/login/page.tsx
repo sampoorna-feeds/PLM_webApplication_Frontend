@@ -5,12 +5,16 @@
 
 'use client';
 
+import { useState, Suspense } from 'react';
 import { PublicGuard } from '@/components/layout/public-guard';
 import { LoginForm } from '@/components/forms/login-form';
+import { ForgotPasswordForm } from '@/components/forms/forgot-password-form';
 import { ThemeToggle } from '@/components/theme/theme-toggle';
 import Image from 'next/image';
 
-export default function LoginPage() {
+function LoginContent() {
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+
   return (
     <PublicGuard>
       <div className="grid min-h-svh lg:grid-cols-2">
@@ -32,8 +36,26 @@ export default function LoginPage() {
             <ThemeToggle />
           </div>
           <div className="flex flex-1 items-center justify-center">
-            <div className="w-full max-w-xs">
-              <LoginForm />
+            <div className="w-full max-w-xs space-y-4">
+              {!showForgotPassword ? (
+                <>
+                  <LoginForm />
+                  <div className="text-center">
+                    <button
+                      type="button"
+                      onClick={() => setShowForgotPassword(true)}
+                      className="text-sm text-muted-foreground hover:text-foreground underline"
+                    >
+                      Forgot Password?
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <ForgotPasswordForm
+                  onSuccess={() => setShowForgotPassword(false)}
+                  onCancel={() => setShowForgotPassword(false)}
+                />
+              )}
             </div>
           </div>
         </div>
@@ -48,5 +70,13 @@ export default function LoginPage() {
         </div>
       </div>
     </PublicGuard>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <LoginContent />
+    </Suspense>
   );
 }

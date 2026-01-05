@@ -4,8 +4,8 @@
  * Note: These are called server-side from API routes, not from client
  */
 
-// Use PROD API for authentication-related calls
-const ERP_API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL_PROD || process.env.NEXT_PUBLIC_API_BASE_URL_DEV || '';
+// Use DEV API for authentication-related calls
+const ERP_API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL_DEV || '';
 const COMPANY = process.env.NEXT_PUBLIC_API_COMPANY || 'Sampoorna Feeds Pvt. Ltd';
 const ERP_API_USERNAME = process.env.NEXT_PUBLIC_API_USERNAME || '';
 const ERP_API_PASSWORD = process.env.NEXT_PUBLIC_API_PASSWORD || '';
@@ -74,7 +74,7 @@ export interface ForgotPasswordResponse {
  * Login user
  */
 export async function loginUser(userID: string, password: string): Promise<LoginResponse> {
-  const endpoint = `/API_SalesTeamLoginAppWebuser?Company=${encodeURIComponent(COMPANY)}`;
+  const endpoint = `/API_WebVesionLoginWebuser?Company=${encodeURIComponent(COMPANY)}`;
   const payload: LoginRequest = { userID, password };
   return apiPostDirect<LoginResponse>(endpoint, payload);
 }

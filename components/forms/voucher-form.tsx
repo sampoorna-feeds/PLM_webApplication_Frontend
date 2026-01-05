@@ -7,7 +7,7 @@
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { z } from 'zod';
-import { Pencil, Plus, Trash2, Upload, Info, ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
+import { Pencil, Plus, Trash2, Upload, Info, Loader2, X } from 'lucide-react';
 
 import { voucherSchema, type VoucherFormData } from '@/lib/validations/voucher.validation';
 import { cn } from '@/lib/utils';
@@ -37,6 +37,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { ErrorDialog, type ErrorDetail } from '@/components/ui/error-dialog';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { FieldTitle } from '@/components/ui/field';
 import {
@@ -66,6 +67,7 @@ import {
 } from '@/lib/api/services/voucher.service';
 import { getCustomerByNo } from '@/lib/api/services/customer.service';
 import { useAuth } from '@/lib/contexts/auth-context';
+import type { ApiError } from '@/lib/api/client';
 
 type VoucherEntry = VoucherFormData & { 
   id: string; 
@@ -171,22 +173,11 @@ function InputWithTooltip({
     className: cn(childProps.className, 'w-full', hasError && errorClass),
     placeholder,
     'data-field-error': hasError,
+    title: fullErrorMessage || undefined, // Use native title attribute instead of tooltip
   } as React.ComponentProps<typeof Input>;
 
-  const input = React.cloneElement(children, inputProps);
-
-  if (!fullErrorMessage) return input;
-
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        {input}
-      </TooltipTrigger>
-      <TooltipContent>
-        <p>{fullErrorMessage}</p>
-      </TooltipContent>
-    </Tooltip>
-  );
+  // Return input directly without tooltip wrapper to prevent focus loss
+  return React.cloneElement(children, inputProps);
 }
 
 export function VoucherForm() {
@@ -289,10 +280,24 @@ export function VoucherForm() {
   const [isLoadingVouchers, setIsLoadingVouchers] = useState(false);
   const [isPosting, setIsPosting] = useState(false);
   
-  // State for tax details expansion
-  const [expandedTaxRow, setExpandedTaxRow] = useState<string | null>(null);
+  // Error dialog state
+  const [errorDialogOpen, setErrorDialogOpen] = useState(false);
+  const [errorDialogData, setErrorDialogData] = useState<{
+    title?: string;
+    message?: string;
+    errors: ErrorDetail[];
+    type?: 'submit' | 'post' | 'upload' | 'general';
+  }>({ errors: [] });
+  
+  // State for tax details (used for tooltip)
   const [taxDetails, setTaxDetails] = useState<Record<string, unknown[]>>({});
   const [loadingTaxDetails, setLoadingTaxDetails] = useState<Record<string, boolean>>({});
+  // Track which tooltip is currently open (only one at a time)
+  const [openTooltipId, setOpenTooltipId] = useState<string | null>(null);
+  // Track which document is currently being fetched (for cancellation)
+  // Only one API call should be active at a time
+  const fetchingDocumentRef = useRef<string | null>(null);
+  const activeRequestRef = useRef<Promise<unknown[]> | null>(null);
   
   // State for conditional Employee/Assignment dimensions
   const [isEmployeeMandatory, setIsEmployeeMandatory] = useState(false);
@@ -375,7 +380,7 @@ export function VoucherForm() {
   };
 
   // Validate all fields - used on Add button click
-  const validateAllFields = (formDataToValidate: FormState): ValidationErrors => {
+  const validateAllFields = (formDataToValidate: FormState, attachmentsToValidate: File[] = attachments): ValidationErrors => {
     const data = formStateToVoucherData(formDataToValidate);
     const result = voucherSchema.safeParse(data);
 
@@ -396,6 +401,13 @@ export function VoucherForm() {
     }
     if (isAssignmentMandatory && (!formDataToValidate.assignment || formDataToValidate.assignment.trim() === '')) {
       errors.assignment = ['Assignment is required'];
+    }
+
+    // Validate attachments for Cash Payment
+    if (formDataToValidate.voucherType === 'Cash Payment') {
+      if (!attachmentsToValidate || attachmentsToValidate.length === 0) {
+        errors.attachments = ['Attachment is required when Voucher Type is Cash Payment'];
+      }
     }
 
     return errors;
@@ -761,7 +773,13 @@ export function VoucherForm() {
     setIsPosting(true);
     try {
       if (!userID) {
-        alert('User ID not available. Please login again.');
+        setErrorDialogData({
+          title: 'Post Vouchers Error',
+          message: 'User ID not available. Please login again.',
+          errors: [],
+          type: 'post',
+        });
+        setErrorDialogOpen(true);
         return;
       }
       await postVouchers(userID);
@@ -770,7 +788,14 @@ export function VoucherForm() {
       await fetchVouchersFromERP();
     } catch (error) {
       console.error('Error posting vouchers:', error);
-      alert('Failed to post vouchers. Please try again.');
+      const errorDetail = extractErrorDetails(error);
+      setErrorDialogData({
+        title: 'Post Vouchers Failed',
+        message: 'Failed to post vouchers. Please review the error details below.',
+        errors: [errorDetail],
+        type: 'post',
+      });
+      setErrorDialogOpen(true);
     } finally {
       setIsPosting(false);
     }
@@ -1031,7 +1056,8 @@ export function VoucherForm() {
   };
 
   const buildVoucherPayload = (entry: VoucherEntry, documentNo: string): CreateVoucherPayload => {
-    const payload: CreateVoucherPayload = {
+    // Build base payload with required fields only
+    const payload: Partial<CreateVoucherPayload> = {
       Journal_Template_Name: mapVoucherTypeToTemplate(entry.voucherType),
       Journal_Batch_Name: 'DEFAULT',
       Posting_Date: entry.postingDate,
@@ -1040,20 +1066,19 @@ export function VoucherForm() {
       Account_No: entry.accountNo,
       Amount: entry.amount,
       Bal_Account_Type: entry.balanceAccountType,
-      Bal_Account_No: entry.balanceAccountNo || '',
       Document_Date: entry.documentDate,
       Document_No: documentNo,
-      Party_Type: '0',
-      Party_Code: '',
-      User_ID: userID || '',
-      Shortcut_Dimension_1_Code: entry.lob,
-      Shortcut_Dimension_2_Code: entry.branch,
-      ShortcutDimCode3: entry.loc,
-      ShortcutDimCode4: entry.employee || '',
-      ShortcutDimCode5: entry.assignment || '',
     };
 
-    // Add optional fields only if they have values (not empty strings)
+    // Add User_ID only if it has a value
+    if (userID && userID.trim() !== '') {
+      payload.User_ID = userID;
+    }
+
+    // Add optional fields only if they have non-empty values
+    if (entry.balanceAccountNo && entry.balanceAccountNo.trim() !== '') {
+      payload.Bal_Account_No = entry.balanceAccountNo;
+    }
     if (entry.description && entry.description.trim() !== '') {
       payload.Description = entry.description;
     }
@@ -1063,12 +1088,24 @@ export function VoucherForm() {
     if (entry.lineNarration && entry.lineNarration.trim() !== '') {
       payload.Line_Narration1 = entry.lineNarration;
     }
+    if (entry.lob && entry.lob.trim() !== '') {
+      payload.Shortcut_Dimension_1_Code = entry.lob;
+    }
+    if (entry.branch && entry.branch.trim() !== '') {
+      payload.Shortcut_Dimension_2_Code = entry.branch;
+    }
     if (entry.loc && entry.loc.trim() !== '') {
-      payload.Shortcut_Dimension_3_Code = entry.loc;
+      payload.ShortcutDimCode3 = entry.loc;
+    }
+    if (entry.employee && entry.employee.trim() !== '') {
+      payload.ShortcutDimCode4 = entry.employee;
+    }
+    if (entry.assignment && entry.assignment.trim() !== '') {
+      payload.ShortcutDimCode5 = entry.assignment;
     }
 
     // Set Party_Type and Party_Code ONLY if Account-related TDS/TCS is present (and not NA)
-    // Party_Type equals account type when Account TDS/TCS is not blank
+    // Party_Type = Account_Type and Party_Code = Account_No when TDS/TCS is applicable
     if (entry.accountTdsSection && entry.accountTdsSection.tdsType && entry.accountTdsSection.tdsType !== 'NA') {
       payload.Party_Type = entry.accountType;
       payload.Party_Code = entry.accountNo;
@@ -1079,17 +1116,77 @@ export function VoucherForm() {
       payload.TCS_Nature_of_Collection = entry.accountTcsSection.tcsType;
     }
 
-    return payload;
+    // Remove any undefined or empty string values before returning
+    const cleanPayload = Object.fromEntries(
+      Object.entries(payload).filter(([_, value]) => {
+        // Keep the value if it's not undefined, null, or empty string
+        return value !== undefined && value !== null && value !== '';
+      })
+    ) as unknown as CreateVoucherPayload;
+
+    return cleanPayload;
+  };
+
+  // Helper function to extract error details from API errors
+  const extractErrorDetails = (error: unknown, entryId?: string, entryLabel?: string): ErrorDetail => {
+    if (error && typeof error === 'object' && 'message' in error) {
+      const apiError = error as ApiError;
+      return {
+        entryId,
+        entryLabel,
+        message: apiError.message || 'Unknown error',
+        code: apiError.code,
+        status: apiError.status,
+        details: apiError.details,
+      };
+    }
+    if (error instanceof Error) {
+      return {
+        entryId,
+        entryLabel,
+        message: error.message,
+      };
+    }
+    return {
+      entryId,
+      entryLabel,
+      message: String(error) || 'Unknown error',
+    };
   };
 
   const handleSubmitAll = async () => {
     if (entries.length === 0) return;
     
     setIsSubmitting(true);
-    const allErrors: string[] = [];
+    const errorDetails: ErrorDetail[] = [];
     const successfulEntryIds: string[] = [];
 
     try {
+      // Validate entries before submission - check for required attachments
+      const entriesWithErrors = entries.filter(entry => {
+        if (entry.voucherType === 'Cash Payment' && (!entry.attachments || entry.attachments.length === 0)) {
+          errorDetails.push({
+            entryId: entry.id,
+            entryLabel: `Entry ${entry.id}`,
+            message: 'Attachment is required when Voucher Type is Cash Payment',
+          });
+          return true;
+        }
+        return false;
+      });
+
+      if (entriesWithErrors.length > 0) {
+        setErrorDialogData({
+          title: 'Validation Error',
+          message: 'Some entries have validation errors. Please fix them before submitting.',
+          errors: errorDetails,
+          type: 'submit',
+        });
+        setErrorDialogOpen(true);
+        setIsSubmitting(false);
+        return;
+      }
+
       // Process each entry and track status
       const updatedEntries = await Promise.all(
         entries.map(async (entry) => {
@@ -1119,7 +1216,13 @@ export function VoucherForm() {
                 } catch (error) {
                   console.error(`Error uploading attachment ${file.name}:`, error);
                   failedFiles.push(file.name);
-                  allErrors.push(`Failed to upload ${file.name} for entry ${entry.id}`);
+                  errorDetails.push(
+                    extractErrorDetails(
+                      error,
+                      entry.id,
+                      `Entry ${entry.id} - File: ${file.name}`
+                    )
+                  );
                 }
               }
             }
@@ -1144,12 +1247,16 @@ export function VoucherForm() {
           } catch (error) {
             // Entry creation failed
             console.error(`Error creating voucher for entry ${entry.id}:`, error);
-            const errorMsg = error instanceof Error ? error.message : 'Unknown error';
-            allErrors.push(`Failed to create voucher for entry ${entry.id}: ${errorMsg}`);
+            const errorDetail = extractErrorDetails(
+              error,
+              entry.id,
+              `Entry ${entry.id} - Voucher Creation`
+            );
+            errorDetails.push(errorDetail);
             return {
               ...entry,
               status: 'failed' as const,
-              errorMessage: errorMsg,
+              errorMessage: errorDetail.message,
             };
           }
         })
@@ -1172,22 +1279,36 @@ export function VoucherForm() {
       if (successCount > 0 && failedCount === 0 && partialCount === 0) {
         // All successful
         alert(`All ${successCount} entries submitted successfully!`);
-    resetForm();
+        resetForm();
+      } else if (errorDetails.length > 0) {
+        // Show error dialog with detailed errors
+        setErrorDialogData({
+          title: 'Voucher Submission Errors',
+          message: `Submitted ${successCount} entry(ies) successfully. ${failedCount + partialCount} entry(ies) had errors.`,
+          errors: errorDetails,
+          type: 'submit',
+        });
+        setErrorDialogOpen(true);
       } else {
-        // Some failures or partials
-        let message = `Submitted ${successCount} entry(ies) successfully.\n`;
-        if (failedCount > 0) {
-          message += `${failedCount} entry(ies) failed to create.\n`;
-        }
-        if (partialCount > 0) {
-          message += `${partialCount} entry(ies) created but had file upload issues.\n`;
-        }
-        message += '\nFailed/partial entries remain in the table for review.';
-        alert(message);
+        // Some failures or partials but no detailed errors captured
+        setErrorDialogData({
+          title: 'Voucher Submission Issues',
+          message: `Submitted ${successCount} entry(ies) successfully. ${failedCount} entry(ies) failed to create. ${partialCount} entry(ies) created but had file upload issues.`,
+          errors: [],
+          type: 'submit',
+        });
+        setErrorDialogOpen(true);
       }
     } catch (error) {
       console.error('Error submitting entries:', error);
-      alert('An error occurred while submitting entries. Please try again.');
+      const errorDetail = extractErrorDetails(error);
+      setErrorDialogData({
+        title: 'Submission Error',
+        message: 'An error occurred while submitting entries.',
+        errors: [errorDetail],
+        type: 'submit',
+      });
+      setErrorDialogOpen(true);
     } finally {
       setIsSubmitting(false);
     }
@@ -1445,7 +1566,7 @@ export function VoucherForm() {
                 <FieldTitle required={isAssignmentMandatory}>Assignment</FieldTitle>
               </TableHead>
               <TableHead className={cn(colHead, 'w-[200px]')}>
-                <FieldTitle>Upload Files</FieldTitle>
+                <FieldTitle required={formData.voucherType === 'Cash Payment'}>Upload Files</FieldTitle>
               </TableHead>
             </TableRow>
           </TableHeader>
@@ -2021,9 +2142,9 @@ export function VoucherForm() {
                           >
                             ×
                           </button>
-                        </div>
-                      ))}
-                    </div>
+                          </div>
+                        ))}
+                      </div>
                   )}
                 </div>
               </TableCell>
@@ -2326,12 +2447,10 @@ export function VoucherForm() {
               <TableBody>
                 {fetchedVouchers.map((voucher, index) => (
                   <React.Fragment key={`${voucher.Document_No}-${index}`}>
-                  <ContextMenu>
-                    <ContextMenuTrigger asChild>
-                      <TableRow className={expandedTaxRow === `${voucher.Document_No}-${index}` ? 'bg-green-100/80 hover:bg-green-100' : ''}>
-                    <TableCell className={cn("px-1 py-0.5 text-xs font-medium sticky left-0 z-20", expandedTaxRow === `${voucher.Document_No}-${index}` ? 'bg-green-100/80' : 'bg-background')} style={{ borderRight: '2px solid hsl(var(--border))' }}>{voucher.Document_No}</TableCell>
-                    <TableCell className={cn("px-1 py-0.5 text-xs sticky left-[100px] z-20", expandedTaxRow === `${voucher.Document_No}-${index}` ? 'bg-green-100/80' : 'bg-background')} style={{ borderRight: '2px solid hsl(var(--border))' }}>{voucher.Posting_Date}</TableCell>
-                    <TableCell className={cn("px-1 py-0.5 text-xs sticky left-[190px] z-20", expandedTaxRow === `${voucher.Document_No}-${index}` ? 'bg-green-100/80' : 'bg-background')} style={{ borderRight: '2px solid hsl(var(--border))' }}>{voucher.Journal_Template_Name}</TableCell>
+                      <TableRow>
+                    <TableCell className={cn("px-1 py-0.5 text-xs font-medium sticky left-0 z-20 bg-background")} style={{ borderRight: '2px solid hsl(var(--border))' }}>{voucher.Document_No}</TableCell>
+                    <TableCell className={cn("px-1 py-0.5 text-xs sticky left-[100px] z-20 bg-background")} style={{ borderRight: '2px solid hsl(var(--border))' }}>{voucher.Posting_Date}</TableCell>
+                    <TableCell className={cn("px-1 py-0.5 text-xs sticky left-[190px] z-20 bg-background")} style={{ borderRight: '2px solid hsl(var(--border))' }}>{voucher.Journal_Template_Name}</TableCell>
                     <TableCell className="px-1 py-0.5 text-xs">{voucher.Document_Type}</TableCell>
                     <TableCell className="px-1 py-0.5 text-xs">{voucher.Account_Type}</TableCell>
                     <TableCell className="px-1 py-0.5 text-xs">{voucher.Account_No}</TableCell>
@@ -2349,125 +2468,151 @@ export function VoucherForm() {
                     <TableCell className="px-1 py-0.5 text-xs">{voucher.TDS_Section_Code || '-'}</TableCell>
                     <TableCell className="px-1 py-0.5 text-xs">{voucher.TCS_Nature_of_Collection || '-'}</TableCell>
                     <TableCell className="px-1 py-0.5 text-xs">
-                      <button
-                        type="button"
-                        onClick={async () => {
-                          const rowKey = `${voucher.Document_No}-${index}`;
-                          if (expandedTaxRow === rowKey) {
-                            setExpandedTaxRow(null);
-                          } else {
-                            setExpandedTaxRow(rowKey);
-                            // Fetch tax details if not already loaded
-                            if (!taxDetails[voucher.Document_No]) {
-                              setLoadingTaxDetails(prev => ({ ...prev, [voucher.Document_No]: true }));
-                              try {
-                                const details = await getTaxComponentsInJson(voucher.Document_No);
-                                setTaxDetails(prev => ({ ...prev, [voucher.Document_No]: details }));
-                              } catch (error) {
-                                console.error('Error fetching tax details:', error);
-                                setTaxDetails(prev => ({ ...prev, [voucher.Document_No]: [] }));
-                              } finally {
-                                setLoadingTaxDetails(prev => ({ ...prev, [voucher.Document_No]: false }));
-                              }
+                      <Tooltip
+                        open={openTooltipId === voucher.Document_No}
+                        onOpenChange={(open) => {
+                          if (open) {
+                            const currentDocNo = voucher.Document_No;
+                            
+                            // Close any other open tooltip and cancel its request
+                            if (openTooltipId && openTooltipId !== currentDocNo) {
+                              // Mark previous request as cancelled
+                              fetchingDocumentRef.current = null;
+                              activeRequestRef.current = null;
+                              // Clear loading state for previous tooltip
+                              setLoadingTaxDetails(prev => {
+                                const next = { ...prev };
+                                delete next[openTooltipId];
+                                return next;
+                              });
                             }
+                            
+                            setOpenTooltipId(currentDocNo);
+                            
+                            // Fetch tax details if not already loaded
+                            if (!taxDetails[currentDocNo] && !loadingTaxDetails[currentDocNo]) {
+                              // If there's already an active request, wait for it to complete or be cancelled
+                              // But since we're using refs, we can just cancel it and start new one
+                              if (activeRequestRef.current) {
+                                // Previous request will be ignored via fetchingDocumentRef check
+                                fetchingDocumentRef.current = null;
+                                activeRequestRef.current = null;
+                              }
+                              
+                              // Mark this as the current fetching document
+                              fetchingDocumentRef.current = currentDocNo;
+                              setLoadingTaxDetails(prev => ({ ...prev, [currentDocNo]: true }));
+                              
+                              // Start new request and store the promise
+                              const requestPromise = getTaxComponentsInJson(currentDocNo)
+                                .then((details) => {
+                                  // Only update if this is still the current fetching document
+                                  // This ensures only the latest request updates state
+                                  if (fetchingDocumentRef.current === currentDocNo && activeRequestRef.current === requestPromise) {
+                                    setTaxDetails(prev => ({ ...prev, [currentDocNo]: details }));
+                                    setLoadingTaxDetails(prev => ({ ...prev, [currentDocNo]: false }));
+                                    fetchingDocumentRef.current = null;
+                                    activeRequestRef.current = null;
+                                  }
+                                  return details;
+                                })
+                                .catch((error) => {
+                                  // Only update if this is still the current fetching document
+                                  if (fetchingDocumentRef.current === currentDocNo && activeRequestRef.current === requestPromise) {
+                                    console.error('Error fetching tax details:', error);
+                                    setTaxDetails(prev => ({ ...prev, [currentDocNo]: [] }));
+                                    setLoadingTaxDetails(prev => ({ ...prev, [currentDocNo]: false }));
+                                    fetchingDocumentRef.current = null;
+                                    activeRequestRef.current = null;
+                                  }
+                                  throw error;
+                                });
+                              
+                              // Store the active request promise
+                              activeRequestRef.current = requestPromise;
+                            }
+                          } else {
+                            setOpenTooltipId(null);
+                            // Mark request as cancelled if this was the one being fetched
+                            if (fetchingDocumentRef.current === voucher.Document_No) {
+                              fetchingDocumentRef.current = null;
+                              activeRequestRef.current = null;
+                            }
+                            // Clear loading state
+                            setLoadingTaxDetails(prev => {
+                              const next = { ...prev };
+                              delete next[voucher.Document_No];
+                              return next;
+                            });
                           }
                         }}
-                        className="flex items-center justify-center w-full h-full hover:bg-muted/50 rounded p-1 transition-colors"
-                        title="View tax details"
                       >
-                        <Info className="h-4 w-4 text-muted-foreground hover:text-foreground" />
-                      </button>
+                        <TooltipTrigger asChild>
+                          <button
+                            type="button"
+                            className="flex items-center justify-center w-full h-full hover:bg-muted/50 rounded p-1 transition-colors"
+                          >
+                            <Info className="h-4 w-4 text-muted-foreground hover:text-foreground" />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-5xl relative">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setOpenTooltipId(null);
+                              // Mark request as cancelled if this was the one being fetched
+                              if (fetchingDocumentRef.current === voucher.Document_No) {
+                                fetchingDocumentRef.current = null;
+                                activeRequestRef.current = null;
+                              }
+                              // Clear loading state
+                              setLoadingTaxDetails(prev => {
+                                const next = { ...prev };
+                                delete next[voucher.Document_No];
+                                return next;
+                              });
+                            }}
+                            className="absolute top-1 right-1 p-1 hover:bg-muted rounded-sm transition-colors z-10"
+                            aria-label="Close"
+                          >
+                            <X className="h-3 w-3 text-muted-foreground hover:text-foreground" />
+                          </button>
+                          {loadingTaxDetails[voucher.Document_No] ? (
+                            <div className="flex items-center gap-2 py-3 pr-8">
+                              <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                              <span className="text-sm font-medium">Fetching tax details...</span>
+                            </div>
+                          ) : taxDetails[voucher.Document_No] && taxDetails[voucher.Document_No].length > 0 ? (
+                            <div className="space-y-3 pr-8">
+                              <div className="text-sm font-semibold">Tax Details:</div>
+                              <div className="space-y-2 text-sm max-h-96 overflow-y-auto">
+                                {taxDetails[voucher.Document_No].map((detail, idx) => (
+                                  <div key={idx} className="border-b last:border-b-0 pb-2 last:pb-0">
+                                    {Object.entries(detail as Record<string, unknown>).map(([key, value]) => (
+                                      <div key={key} className="flex gap-3 py-0.5">
+                                        <span className="font-medium min-w-[150px]">{key}:</span>
+                                        <span className="flex-1">{String(value ?? '-')}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          ) : taxDetails[voucher.Document_No]?.length === 0 ? (
+                            <div className="py-2 pr-8">
+                              <span className="text-sm">No tax details found</span>
+                            </div>
+                          ) : (
+                            <div className="py-2 pr-8">
+                              <span className="text-sm">Click to load tax details</span>
+                            </div>
+                          )}
+                        </TooltipContent>
+                      </Tooltip>
                     </TableCell>
                     <TableCell className="px-1 py-0.5 text-xs">{voucher.User_ID}</TableCell>
                       </TableRow>
-                    </ContextMenuTrigger>
-                    <ContextMenuContent>
-                      <ContextMenuItem
-                        onClick={async () => {
-                          const rowKey = `${voucher.Document_No}-${index}`;
-                          if (expandedTaxRow === rowKey) {
-                            setExpandedTaxRow(null);
-                          } else {
-                            setExpandedTaxRow(rowKey);
-                            // Fetch tax details if not already loaded
-                            if (!taxDetails[voucher.Document_No]) {
-                              setLoadingTaxDetails(prev => ({ ...prev, [voucher.Document_No]: true }));
-                              try {
-                                const details = await getTaxComponentsInJson(voucher.Document_No);
-                                setTaxDetails(prev => ({ ...prev, [voucher.Document_No]: details }));
-                              } catch (error) {
-                                console.error('Error fetching tax details:', error);
-                                setTaxDetails(prev => ({ ...prev, [voucher.Document_No]: [] }));
-                              } finally {
-                                setLoadingTaxDetails(prev => ({ ...prev, [voucher.Document_No]: false }));
-                              }
-                            }
-                          }
-                        }}
-                      >
-                        <Info className="mr-2 h-4 w-4" />
-                        Tax Details
-                      </ContextMenuItem>
-                    </ContextMenuContent>
-                  </ContextMenu>
-                  {/* Expanded tax details row */}
-                  {expandedTaxRow === `${voucher.Document_No}-${index}` && (
-                    <TableRow>
-                      <TableCell colSpan={20} className="px-0 py-0 bg-muted/20 relative">
-                        <div className="sticky left-0 w-full max-w-[400px] overflow-x-auto">
-                          <div className="px-4 py-4 min-w-max">
-                            <div className="flex items-center justify-between mb-2">
-                              <div className="text-xs font-semibold text-foreground/80">Tax Details:</div>
-                              <button
-                                type="button"
-                                onClick={() => setExpandedTaxRow(null)}
-                                className="flex items-center gap-1 px-2 py-1 text-xs hover:bg-muted rounded transition-colors"
-                                title="Close tax details"
-                              >
-                                <span>Close</span>
-                                <ChevronUp className="h-3 w-3" />
-                              </button>
-                            </div>
-                            {loadingTaxDetails[voucher.Document_No] ? (
-                              <div className="flex items-center justify-center py-4">
-                                <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                                <span className="text-xs text-muted-foreground">Loading tax details...</span>
-                              </div>
-                            ) : taxDetails[voucher.Document_No] && taxDetails[voucher.Document_No].length > 0 ? (
-                              <div className="rounded-md border bg-background overflow-x-auto max-w-[400px]">
-                                <table className="w-full text-xs min-w-max">
-                                  <thead className="bg-muted/50">
-                                    <tr>
-                                      {Object.keys(taxDetails[voucher.Document_No][0] as Record<string, unknown>).map((key) => (
-                                        <th key={key} className="px-2 py-1.5 text-left font-semibold text-foreground/80 border-b whitespace-nowrap">
-                                          {key}
-                                        </th>
-                                      ))}
-                                    </tr>
-                                  </thead>
-                                  <tbody>
-                                    {taxDetails[voucher.Document_No].map((detail, idx) => (
-                                      <tr key={idx} className="border-b last:border-b-0">
-                                        {Object.values(detail as Record<string, unknown>).map((value, valIdx) => (
-                                          <td key={valIdx} className="px-2 py-1.5 text-foreground/70 whitespace-nowrap">
-                                            {String(value ?? '-')}
-                                          </td>
-                                        ))}
-                                      </tr>
-                                    ))}
-                                  </tbody>
-                                </table>
-                              </div>
-                            ) : (
-                              <div className="text-center py-4 text-xs text-muted-foreground">
-                                No tax details found
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  )}
                   </React.Fragment>
                 ))}
               </TableBody>
@@ -2553,6 +2698,16 @@ export function VoucherForm() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Error Dialog */}
+      <ErrorDialog
+        open={errorDialogOpen}
+        onOpenChange={setErrorDialogOpen}
+        title={errorDialogData.title}
+        message={errorDialogData.message}
+        errors={errorDialogData.errors}
+        type={errorDialogData.type}
+      />
 
       {/* Delete All Warning Dialog */}
       <Dialog open={showDeleteAllWarning} onOpenChange={setShowDeleteAllWarning}>

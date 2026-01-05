@@ -33,6 +33,7 @@ export interface ApiError {
   message: string;
   status?: number;
   code?: string;
+  details?: string;
 }
 
 /**
@@ -57,10 +58,62 @@ export async function apiRequest<T>(
     });
 
     if (!response.ok) {
+      // Try to extract detailed error message from response
+      let errorMessage = `API request failed: ${response.statusText}`;
+      let errorCode: string | undefined;
+      let errorDetails: string | undefined;
+
+      try {
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          const errorData = await response.json();
+          
+          // Handle OData error format
+          if (errorData.error) {
+            errorMessage = errorData.error.message || errorMessage;
+            errorCode = errorData.error.code;
+            errorDetails = JSON.stringify(errorData.error, null, 2);
+          }
+          // Handle custom error format
+          else if (errorData.message) {
+            errorMessage = errorData.message;
+            errorCode = errorData.code;
+            if (errorData.details) {
+              errorDetails = typeof errorData.details === 'string' 
+                ? errorData.details 
+                : JSON.stringify(errorData.details, null, 2);
+            }
+          }
+          // Handle ERP-specific error format
+          else if (errorData.value) {
+            errorMessage = String(errorData.value);
+          }
+          // If response is an object, stringify it for details
+          else if (typeof errorData === 'object') {
+            errorDetails = JSON.stringify(errorData, null, 2);
+          }
+        } else {
+          // Try to get text response
+          const textResponse = await response.text();
+          if (textResponse) {
+            errorMessage = textResponse;
+            errorDetails = textResponse;
+          }
+        }
+      } catch (parseError) {
+        // If we can't parse the error response, use the default message
+        console.error('Error parsing error response:', parseError);
+      }
+
       const error: ApiError = {
-        message: `API request failed: ${response.statusText}`,
+        message: errorMessage,
         status: response.status,
+        code: errorCode,
       };
+      
+      // Attach details to error object for access
+      (error as ApiError & { details?: string }).details = errorDetails;
+      
       throw error;
     }
 

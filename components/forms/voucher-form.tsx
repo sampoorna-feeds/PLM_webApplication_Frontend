@@ -808,8 +808,11 @@ export function VoucherForm() {
     setTimeout(() => {
       setFormData({
         voucherType: getVoucherTypeFromTemplate(voucher.Journal_Template_Name) as 'General Journal' | 'Cash Receipt' | 'Cash Payment' | undefined,
-        // Map empty string Document_Type to 'NA'
-        documentType: (voucher.Document_Type === '' || voucher.Document_Type === null || voucher.Document_Type === undefined) 
+        // Map empty string Document_Type to 'NA' - check for empty string, null, undefined, or whitespace
+        documentType: (voucher.Document_Type === '' || 
+                       voucher.Document_Type === null || 
+                       voucher.Document_Type === undefined || 
+                       (typeof voucher.Document_Type === 'string' && voucher.Document_Type.trim() === ''))
           ? 'NA' 
           : (voucher.Document_Type as 'Payment' | 'Invoice' | 'Credit Memo' | 'Refund' | 'NA' | null | undefined),
         postingDate: voucher.Posting_Date,

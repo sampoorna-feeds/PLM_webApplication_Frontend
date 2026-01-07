@@ -2483,6 +2483,8 @@ export function VoucherForm() {
               <TableBody>
                 {fetchedVouchers.map((voucher, index) => (
                   <React.Fragment key={`${voucher.Document_No}-${index}`}>
+                  <ContextMenu>
+                    <ContextMenuTrigger asChild>
                       <TableRow>
                     <TableCell className={cn("px-1 py-0.5 text-xs font-medium sticky left-0 z-20 bg-background")} style={{ borderRight: '2px solid hsl(var(--border))' }}>{voucher.Document_No}</TableCell>
                     <TableCell className={cn("px-1 py-0.5 text-xs sticky left-[100px] z-20 bg-background")} style={{ borderRight: '2px solid hsl(var(--border))' }}>{voucher.Posting_Date}</TableCell>
@@ -2649,39 +2651,37 @@ export function VoucherForm() {
                     </TableCell>
                     <TableCell className="px-1 py-0.5 text-xs">{voucher.User_ID}</TableCell>
                     <TableCell className="px-1 py-0.5 text-xs">
-                      <ContextMenu>
-                        <ContextMenuTrigger asChild>
-                          <div className="flex items-center gap-1">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => {
-                                setVoucherToDelete(voucher);
-                                setShowDeleteVoucherWarning(true);
-                              }}
-                              className="h-8 w-8"
-                              disabled={isDeletingVoucher}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </ContextMenuTrigger>
-                        <ContextMenuContent>
-                          <ContextMenuItem
-                            onClick={() => {
-                              setVoucherToDelete(voucher);
-                              setShowDeleteVoucherWarning(true);
-                            }}
-                            variant="destructive"
-                            disabled={isDeletingVoucher}
-                          >
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            Delete
-                          </ContextMenuItem>
-                        </ContextMenuContent>
-                      </ContextMenu>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => {
+                            setVoucherToDelete(voucher);
+                            setShowDeleteVoucherWarning(true);
+                          }}
+                          className="h-8 w-8"
+                          disabled={isDeletingVoucher}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </TableCell>
                       </TableRow>
+                    </ContextMenuTrigger>
+                    <ContextMenuContent>
+                      <ContextMenuItem
+                        onClick={() => {
+                          setVoucherToDelete(voucher);
+                          setShowDeleteVoucherWarning(true);
+                        }}
+                        variant="destructive"
+                        disabled={isDeletingVoucher}
+                      >
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Delete
+                      </ContextMenuItem>
+                    </ContextMenuContent>
+                  </ContextMenu>
                   </React.Fragment>
                 ))}
               </TableBody>

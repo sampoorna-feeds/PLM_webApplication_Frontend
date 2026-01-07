@@ -873,29 +873,78 @@ export function VoucherForm() {
       // Build update payload from form data
       const data = formStateToVoucherData(formData) as VoucherFormData;
       
-      // Map form data to API payload format
-      const updatePayload: Partial<VoucherEntryResponse> = {
-        Posting_Date: data.postingDate,
-        Document_Date: data.documentDate,
-        // Send empty string for Document_Type if it's NA, otherwise send the value
-        Document_Type: data.documentType === 'NA' ? '' : (data.documentType || undefined),
-        Account_Type: data.accountType,
-        Account_No: data.accountNo,
-        Description: data.description,
-        Amount: typeof data.amount === 'string' ? parseFloat(data.amount) || 0 : data.amount,
-        Bal_Account_Type: data.balanceAccountType,
-        Bal_Account_No: data.balanceAccountNo,
-        External_Document_No: data.externalDocumentNo || undefined,
-        Line_Narration1: data.lineNarration || undefined,
-        Shortcut_Dimension_1_Code: data.lob || undefined,
-        Shortcut_Dimension_2_Code: data.branch || undefined,
-        ShortcutDimCode3: data.loc || undefined,
-        ShortcutDimCode4: data.employee || undefined,
-        ShortcutDimCode5: data.assignment || undefined,
-        TDS_Section_Code: data.accountTdsSection?.tdsType,
-        TCS_Nature_of_Collection: data.accountTcsSection?.tcsType,
+      // Compare with original voucher to only include changed fields
+      const original = voucherToEdit;
+      const updatePayload: Partial<VoucherEntryResponse> = {};
+      
+      // Helper to check if values are different
+      const hasChanged = (newVal: unknown, oldVal: unknown): boolean => {
+        // Handle empty string vs undefined/null
+        const normalizedNew = newVal === '' || newVal === null ? undefined : newVal;
+        const normalizedOld = oldVal === '' || oldVal === null ? undefined : oldVal;
+        return normalizedNew !== normalizedOld;
       };
-
+      
+      // Only add fields that have changed
+      if (hasChanged(data.postingDate, original.Posting_Date)) {
+        updatePayload.Posting_Date = data.postingDate;
+      }
+      if (hasChanged(data.documentDate, original.Document_Date)) {
+        updatePayload.Document_Date = data.documentDate;
+      }
+      // Handle Document_Type: compare form value (NA -> '') with original ('' -> NA)
+      const formDocType = data.documentType === 'NA' ? '' : (data.documentType || '');
+      const originalDocType = original.Document_Type === '' || original.Document_Type === null || original.Document_Type === undefined ? '' : original.Document_Type;
+      if (formDocType !== originalDocType) {
+        updatePayload.Document_Type = formDocType;
+      }
+      if (hasChanged(data.accountType, original.Account_Type)) {
+        updatePayload.Account_Type = data.accountType;
+      }
+      if (hasChanged(data.accountNo, original.Account_No)) {
+        updatePayload.Account_No = data.accountNo;
+      }
+      if (hasChanged(data.description, original.Description)) {
+        updatePayload.Description = data.description;
+      }
+      const formAmount = typeof data.amount === 'string' ? parseFloat(data.amount) || 0 : data.amount;
+      if (formAmount !== original.Amount) {
+        updatePayload.Amount = formAmount;
+      }
+      if (hasChanged(data.balanceAccountType, original.Bal_Account_Type)) {
+        updatePayload.Bal_Account_Type = data.balanceAccountType;
+      }
+      if (hasChanged(data.balanceAccountNo, original.Bal_Account_No)) {
+        updatePayload.Bal_Account_No = data.balanceAccountNo;
+      }
+      if (hasChanged(data.externalDocumentNo, original.External_Document_No)) {
+        updatePayload.External_Document_No = data.externalDocumentNo || undefined;
+      }
+      if (hasChanged(data.lineNarration, original.Line_Narration1)) {
+        updatePayload.Line_Narration1 = data.lineNarration || undefined;
+      }
+      if (hasChanged(data.lob, original.Shortcut_Dimension_1_Code)) {
+        updatePayload.Shortcut_Dimension_1_Code = data.lob || undefined;
+      }
+      if (hasChanged(data.branch, original.Shortcut_Dimension_2_Code)) {
+        updatePayload.Shortcut_Dimension_2_Code = data.branch || undefined;
+      }
+      if (hasChanged(data.loc, original.ShortcutDimCode3)) {
+        updatePayload.ShortcutDimCode3 = data.loc || undefined;
+      }
+      if (hasChanged(data.employee, original.ShortcutDimCode4)) {
+        updatePayload.ShortcutDimCode4 = data.employee || undefined;
+      }
+      if (hasChanged(data.assignment, original.ShortcutDimCode5)) {
+        updatePayload.ShortcutDimCode5 = data.assignment || undefined;
+      }
+      if (hasChanged(data.accountTdsSection?.tdsType, original.TDS_Section_Code)) {
+        updatePayload.TDS_Section_Code = data.accountTdsSection?.tdsType;
+      }
+      if (hasChanged(data.accountTcsSection?.tcsType, original.TCS_Nature_of_Collection)) {
+        updatePayload.TCS_Nature_of_Collection = data.accountTcsSection?.tcsType;
+      }
+      
       // Remove undefined values, but keep Document_Type even if it's empty string
       Object.keys(updatePayload).forEach(key => {
         const value = updatePayload[key as keyof typeof updatePayload];

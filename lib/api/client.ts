@@ -171,6 +171,10 @@ export async function apiPatch<T>(
   return apiRequest<T>(endpoint, {
     method: 'PATCH',
     body: JSON.stringify(data),
+    headers: {
+      'Content-Type': 'application/json',
+      'If-Match': '*', // Required for OData PATCH requests
+    },
   });
 }
 

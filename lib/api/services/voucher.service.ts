@@ -297,8 +297,12 @@ export async function updateVoucher(
   // Determine voucher type from template name
   const voucherType = getVoucherTypeFromTemplate(journalTemplateName);
   const endpointPath = getVoucherEndpoint(voucherType);
-  // Format: /Company('Sampoorna Feeds Pvt. Ltd')/GJ(Journal_Template_Name='GENERAL',Journal_Batch_Name='DEFAULT',Line_No=10000)
-  const endpoint = `/Company('${encodeURIComponent(COMPANY)}')${endpointPath}(Journal_Template_Name='${encodeURIComponent(journalTemplateName)}',Journal_Batch_Name='${encodeURIComponent(journalBatchName)}',Line_No=${lineNo})`;
+  // Format: /Company('Sampoorna%20Feeds%20Pvt.%20Ltd')/GJ(Journal_Template_Name='GENERAL',Journal_Batch_Name='DEFAULT',Line_No=10000)
+  // Note: Company name needs to be URL encoded in the path
+  const encodedCompany = encodeURIComponent(COMPANY);
+  const encodedTemplate = encodeURIComponent(journalTemplateName);
+  const encodedBatch = encodeURIComponent(journalBatchName);
+  const endpoint = `/Company('${encodedCompany}')${endpointPath}(Journal_Template_Name='${encodedTemplate}',Journal_Batch_Name='${encodedBatch}',Line_No=${lineNo})`;
   
   // Use apiPatch from client
   await apiPatch<void>(endpoint, updateData);

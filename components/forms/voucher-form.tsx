@@ -628,6 +628,8 @@ export function VoucherForm() {
     setAccountType(undefined as VoucherFormData['accountType'] | undefined);
     setHasUnsavedChanges(false);
     setPendingEditId(null);
+    setIsEditingVoucher(false);
+    setVoucherToEdit(null);
     setValidationErrors({});
     setAttachments([]);
     setAccountTdsSections([]);

@@ -104,18 +104,23 @@ export function CascadingDimensionSelect({
     }
   }, [dimensionType, lobValue, branchValue, userId]);
 
-  // Reload items when dependencies change
+  // Clear value if parent dependency is not met (but don't reload items here)
   useEffect(() => {
-    loadItems();
-    
-    // Clear value if parent dependency is not met
     if (dimensionType === 'BRANCH' && !lobValue && value) {
       onChange('');
     }
     if (dimensionType === 'LOC' && (!lobValue || !branchValue) && value) {
       onChange('');
     }
-  }, [dimensionType, lobValue, branchValue, userId, loadItems, value, onChange]);
+  }, [dimensionType, lobValue, branchValue, value, onChange]);
+
+  // Only reload items when parent values change (not on every render)
+  useEffect(() => {
+    // Only load if dropdown is open or items are empty
+    if (isOpen || items.length === 0) {
+      loadItems();
+    }
+  }, [dimensionType, lobValue, branchValue, userId, isOpen]);
 
   // Search with debounce
   const performSearch = useCallback(
@@ -174,12 +179,14 @@ export function CascadingDimensionSelect({
   // Handle dropdown open
   const handleOpenChange = (open: boolean) => {
     setIsOpen(open);
-    if (open && items.length === 0) {
-      loadItems();
-    }
-    if (!open) {
+    if (open) {
+      // Only load if items are empty or parent values changed
+      if (items.length === 0) {
+        loadItems();
+      }
+    } else {
       setSearchQuery('');
-      loadItems(); // Reload to show all items when closed
+      // Don't reload when closing - it's unnecessary
     }
   };
 

@@ -296,17 +296,32 @@ export interface WebUserSetup {
   LOC_Code: string;
 }
 
+// Cache for WebUserSetup data to prevent redundant API calls
+const webUserSetupCache = new Map<string, { data: WebUserSetup[]; timestamp: number }>();
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
 /**
  * Get WebUserSetup data for a specific user
  * @param userId - User ID (required)
  */
 export async function getWebUserSetup(userId: string): Promise<WebUserSetup[]> {
+  // Check cache first
+  const cached = webUserSetupCache.get(userId);
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+    return cached.data;
+  }
+
   const filter = `User_name eq '${userId}'`;
   const query = `$filter=${encodeURIComponent(filter)}`;
   const endpoint = `/WebUserSetup?company='${encodeURIComponent(COMPANY)}'&${query}`;
   
   const response = await apiGet<ODataResponse<WebUserSetup>>(endpoint);
-  return response.value || [];
+  const data = response.value || [];
+  
+  // Cache the result
+  webUserSetupCache.set(userId, { data, timestamp: Date.now() });
+  
+  return data;
 }
 
 /**

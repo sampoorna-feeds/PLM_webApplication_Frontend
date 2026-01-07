@@ -3,7 +3,7 @@
  * Handles voucher creation, TDS/TCS section fetching, and attachment uploads
  */
 
-import { apiGet, apiPost } from '../client';
+import { apiGet, apiPost, apiDelete } from '../client';
 import type { ODataResponse } from '../types';
 
 const COMPANY = process.env.NEXT_PUBLIC_API_COMPANY || 'Sampoorna Feeds Pvt. Ltd';
@@ -89,6 +89,23 @@ function getVoucherEndpoint(voucherType: string): string {
 }
 
 /**
+ * Get voucher type from journal template name
+ * @param journalTemplateName - Journal template name (e.g., 'GENERAL', 'CASH RECE', 'CASH PAYM')
+ * @returns Voucher type string
+ */
+function getVoucherTypeFromTemplate(journalTemplateName: string): string {
+  const template = journalTemplateName.toUpperCase();
+  if (template === 'GENERAL') {
+    return 'General Journal';
+  } else if (template === 'CASH RECE' || template === 'CASH RECEIPT') {
+    return 'Cash Receipt';
+  } else if (template === 'CASH PAYM' || template === 'CASH PAYMENT') {
+    return 'Cash Payment';
+  }
+  return 'General Journal'; // Default
+}
+
+/**
  * Get upload endpoint based on voucher type
  * @param voucherType - Voucher type (General Journal, Cash Receipt, Cash Payment)
  * @returns Endpoint path for the upload type
@@ -125,6 +142,7 @@ export interface VoucherEntryResponse {
   Document_No: string;
   Journal_Template_Name: string;
   Journal_Batch_Name: string;
+  Line_No: number;
   Posting_Date: string;
   Document_Type: string;
   Account_Type: string;
@@ -240,6 +258,27 @@ export async function postVouchers(userID: string = 'temp'): Promise<unknown> {
   const endpoint = `/API_PostVouchers?company='${encodeURIComponent(COMPANY)}'`;
   const response = await apiPost<unknown>(endpoint, { userID });
   return response;
+}
+
+/**
+ * Delete a voucher
+ * @param journalTemplateName - Journal template name (e.g., 'GENERAL', 'CASH RECE', 'CASH PAYM')
+ * @param journalBatchName - Journal batch name (default: 'DEFAULT')
+ * @param lineNo - Line number of the voucher
+ */
+export async function deleteVoucher(
+  journalTemplateName: string,
+  journalBatchName: string,
+  lineNo: number
+): Promise<void> {
+  // Determine voucher type from template name
+  const voucherType = getVoucherTypeFromTemplate(journalTemplateName);
+  const endpointPath = getVoucherEndpoint(voucherType);
+  // Format: /CR(Journal_Template_Name='GENERAL', Journal_Batch_Name='DEFAULT', Line_No=20000)
+  const endpoint = `${endpointPath}(Journal_Template_Name='${encodeURIComponent(journalTemplateName)}', Journal_Batch_Name='${encodeURIComponent(journalBatchName)}', Line_No=${lineNo})?company='${encodeURIComponent(COMPANY)}'`;
+  
+  // Use apiDelete from client
+  await apiDelete<void>(endpoint);
 }
 
 /**

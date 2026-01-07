@@ -57,6 +57,7 @@ import {
   createNoSeriesForVouchers,
   getVoucherEntries,
   postVouchers,
+  deleteVoucher,
   getDefaultDimensions,
   getTaxComponentsInJson,
   type TDSSection,
@@ -279,6 +280,9 @@ export function VoucherForm() {
   const [fetchedVouchers, setFetchedVouchers] = useState<VoucherEntryResponse[]>([]);
   const [isLoadingVouchers, setIsLoadingVouchers] = useState(false);
   const [isPosting, setIsPosting] = useState(false);
+  const [isDeletingVoucher, setIsDeletingVoucher] = useState(false);
+  const [voucherToDelete, setVoucherToDelete] = useState<VoucherEntryResponse | null>(null);
+  const [showDeleteVoucherWarning, setShowDeleteVoucherWarning] = useState(false);
   
   // Error dialog state
   const [errorDialogOpen, setErrorDialogOpen] = useState(false);
@@ -767,6 +771,37 @@ export function VoucherForm() {
     document.addEventListener('focusin', handleFocus);
     return () => document.removeEventListener('focusin', handleFocus);
   }, []);
+
+  // Handle deleting a voucher
+  const handleDeleteVoucher = async (voucher: VoucherEntryResponse) => {
+    setIsDeletingVoucher(true);
+    try {
+      await deleteVoucher(
+        voucher.Journal_Template_Name,
+        voucher.Journal_Batch_Name || 'DEFAULT',
+        voucher.Line_No
+      );
+      
+      // Reload vouchers after successful deletion
+      await fetchVouchersFromERP();
+      
+      // Close dialog
+      setShowDeleteVoucherWarning(false);
+      setVoucherToDelete(null);
+    } catch (error) {
+      console.error('Error deleting voucher:', error);
+      const errorDetail = extractErrorDetails(error);
+      setErrorDialogData({
+        title: 'Delete Voucher Failed',
+        message: 'Failed to delete voucher. Please review the error details below.',
+        errors: [errorDetail],
+        type: 'general',
+      });
+      setErrorDialogOpen(true);
+    } finally {
+      setIsDeletingVoucher(false);
+    }
+  };
 
   // Handle posting vouchers
   const handlePostVouchers = async () => {
@@ -2442,6 +2477,7 @@ export function VoucherForm() {
                   <TableHead className={cn('px-1 py-1 text-xs font-semibold text-foreground/80 bg-muted/30', 'w-[80px]')}>TCS</TableHead>
                   <TableHead className={cn('px-1 py-1 text-xs font-semibold text-foreground/80 bg-muted/30', 'w-[60px]')}>Tax</TableHead>
                   <TableHead className={cn('px-1 py-1 text-xs font-semibold text-foreground/80 bg-muted/30', 'w-[100px]')}>User ID</TableHead>
+                  <TableHead className={cn('px-1 py-1 text-xs font-semibold text-foreground/80 bg-muted/30', 'w-[80px]')}>Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -2612,6 +2648,39 @@ export function VoucherForm() {
                       </Tooltip>
                     </TableCell>
                     <TableCell className="px-1 py-0.5 text-xs">{voucher.User_ID}</TableCell>
+                    <TableCell className="px-1 py-0.5 text-xs">
+                      <ContextMenu>
+                        <ContextMenuTrigger asChild>
+                          <div className="flex items-center gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => {
+                                setVoucherToDelete(voucher);
+                                setShowDeleteVoucherWarning(true);
+                              }}
+                              className="h-8 w-8"
+                              disabled={isDeletingVoucher}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </ContextMenuTrigger>
+                        <ContextMenuContent>
+                          <ContextMenuItem
+                            onClick={() => {
+                              setVoucherToDelete(voucher);
+                              setShowDeleteVoucherWarning(true);
+                            }}
+                            variant="destructive"
+                            disabled={isDeletingVoucher}
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Delete
+                          </ContextMenuItem>
+                        </ContextMenuContent>
+                      </ContextMenu>
+                    </TableCell>
                       </TableRow>
                   </React.Fragment>
                 ))}
@@ -2708,6 +2777,37 @@ export function VoucherForm() {
         errors={errorDialogData.errors}
         type={errorDialogData.type}
       />
+
+      {/* Delete Voucher Warning Dialog */}
+      <Dialog open={showDeleteVoucherWarning} onOpenChange={setShowDeleteVoucherWarning}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Voucher</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete voucher {voucherToDelete?.Document_No}? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setShowDeleteVoucherWarning(false);
+              setVoucherToDelete(null);
+            }}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                if (voucherToDelete) {
+                  handleDeleteVoucher(voucherToDelete);
+                }
+              }}
+              disabled={isDeletingVoucher}
+            >
+              {isDeletingVoucher ? 'Deleting...' : 'Delete'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Delete All Warning Dialog */}
       <Dialog open={showDeleteAllWarning} onOpenChange={setShowDeleteAllWarning}>

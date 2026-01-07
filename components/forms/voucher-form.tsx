@@ -898,8 +898,16 @@ export function VoucherForm() {
         updatePayload.Document_Date = data.documentDate;
       }
       // Handle Document_Type: compare form value (NA -> '') with original ('' -> NA)
+      // Normalize both to empty string for comparison
       const formDocType = data.documentType === 'NA' ? '' : (data.documentType || '');
-      const originalDocType = original.Document_Type === '' || original.Document_Type === null || original.Document_Type === undefined ? '' : original.Document_Type;
+      const originalDocType = (!original.Document_Type || 
+                               original.Document_Type === '' || 
+                               original.Document_Type === null || 
+                               original.Document_Type === undefined ||
+                               (typeof original.Document_Type === 'string' && original.Document_Type.trim() === ''))
+        ? '' 
+        : original.Document_Type;
+      // Only include if they're different
       if (formDocType !== originalDocType) {
         updatePayload.Document_Type = formDocType;
       }

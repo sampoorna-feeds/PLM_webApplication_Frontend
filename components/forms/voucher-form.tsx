@@ -283,6 +283,8 @@ export function VoucherForm() {
   const [isDeletingVoucher, setIsDeletingVoucher] = useState(false);
   const [voucherToDelete, setVoucherToDelete] = useState<VoucherEntryResponse | null>(null);
   const [showDeleteVoucherWarning, setShowDeleteVoucherWarning] = useState(false);
+  // Track which voucher line numbers failed (for highlighting)
+  const [failedVoucherLineNos, setFailedVoucherLineNos] = useState<Set<number>>(new Set());
   
   // Error dialog state
   const [errorDialogOpen, setErrorDialogOpen] = useState(false);
@@ -819,11 +821,29 @@ export function VoucherForm() {
       }
       await postVouchers(userID);
       alert('Vouchers posted successfully');
+      // Clear any previous failed voucher highlights
+      setFailedVoucherLineNos(new Set());
       // Refresh vouchers from ERP to reflect posted status
       await fetchVouchersFromERP();
     } catch (error) {
       console.error('Error posting vouchers:', error);
       const errorDetail = extractErrorDetails(error);
+      
+      // Extract Line_No from error message and highlight the voucher
+      const lineNo = extractLineNoFromError(errorDetail.message);
+      if (lineNo !== null) {
+        setFailedVoucherLineNos(new Set([lineNo]));
+      }
+      
+      // Find the voucher that failed to add to error details
+      let failedVoucher: VoucherEntryResponse | undefined;
+      if (lineNo !== null) {
+        failedVoucher = fetchedVouchers.find(v => v.Line_No === lineNo);
+        if (failedVoucher) {
+          errorDetail.entryLabel = `Voucher ${failedVoucher.Document_No} (Line No. ${lineNo})`;
+        }
+      }
+      
       setErrorDialogData({
         title: 'Post Vouchers Failed',
         message: 'Failed to post vouchers. Please review the error details below.',
@@ -1162,30 +1182,50 @@ export function VoucherForm() {
     return cleanPayload;
   };
 
+  // Helper function to extract Line_No from error message
+  const extractLineNoFromError = (errorMessage: string): number | null => {
+    // Pattern: "Line No.=10000" or "Line No.= 10000" or "Line No.=10000."
+    const match = errorMessage.match(/Line\s+No\.\s*=\s*(\d+)/i);
+    if (match && match[1]) {
+      return parseInt(match[1], 10);
+    }
+    return null;
+  };
+
   // Helper function to extract error details from API errors
   const extractErrorDetails = (error: unknown, entryId?: string, entryLabel?: string): ErrorDetail => {
+    let errorMessage = '';
+    let lineNo: number | null = null;
+
     if (error && typeof error === 'object' && 'message' in error) {
       const apiError = error as ApiError;
+      errorMessage = apiError.message || 'Unknown error';
+      lineNo = extractLineNoFromError(errorMessage);
+      
       return {
         entryId,
         entryLabel,
-        message: apiError.message || 'Unknown error',
+        message: errorMessage,
         code: apiError.code,
         status: apiError.status,
         details: apiError.details,
       };
     }
     if (error instanceof Error) {
+      errorMessage = error.message;
+      lineNo = extractLineNoFromError(errorMessage);
       return {
         entryId,
         entryLabel,
-        message: error.message,
+        message: errorMessage,
       };
     }
+    errorMessage = String(error) || 'Unknown error';
+    lineNo = extractLineNoFromError(errorMessage);
     return {
       entryId,
       entryLabel,
-      message: String(error) || 'Unknown error',
+      message: errorMessage,
     };
   };
 
@@ -2485,8 +2525,8 @@ export function VoucherForm() {
                   <React.Fragment key={`${voucher.Document_No}-${index}`}>
                   <ContextMenu>
                     <ContextMenuTrigger asChild>
-                      <TableRow>
-                    <TableCell className={cn("px-1 py-0.5 text-xs font-medium sticky left-0 z-20 bg-background")} style={{ borderRight: '2px solid hsl(var(--border))' }}>{voucher.Document_No}</TableCell>
+                      <TableRow className={failedVoucherLineNos.has(voucher.Line_No) ? 'bg-destructive/10 hover:bg-destructive/15' : ''}>
+                    <TableCell className={cn("px-1 py-0.5 text-xs font-medium sticky left-0 z-20 bg-background", failedVoucherLineNos.has(voucher.Line_No) && 'bg-destructive/10')} style={{ borderRight: '2px solid hsl(var(--border))' }}>{voucher.Document_No}</TableCell>
                     <TableCell className={cn("px-1 py-0.5 text-xs sticky left-[100px] z-20 bg-background")} style={{ borderRight: '2px solid hsl(var(--border))' }}>{voucher.Posting_Date}</TableCell>
                     <TableCell className={cn("px-1 py-0.5 text-xs sticky left-[190px] z-20 bg-background")} style={{ borderRight: '2px solid hsl(var(--border))' }}>{voucher.Journal_Template_Name}</TableCell>
                     <TableCell className="px-1 py-0.5 text-xs">{voucher.Document_Type}</TableCell>
@@ -2771,7 +2811,13 @@ export function VoucherForm() {
       {/* Error Dialog */}
       <ErrorDialog
         open={errorDialogOpen}
-        onOpenChange={setErrorDialogOpen}
+        onOpenChange={(open) => {
+          setErrorDialogOpen(open);
+          // Clear highlights when dialog is closed
+          if (!open) {
+            setFailedVoucherLineNos(new Set());
+          }
+        }}
         title={errorDialogData.title}
         message={errorDialogData.message}
         errors={errorDialogData.errors}

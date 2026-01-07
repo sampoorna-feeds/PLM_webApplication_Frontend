@@ -874,7 +874,10 @@ export function VoucherForm() {
       const updatePayload: Partial<VoucherEntryResponse> = {
         Posting_Date: data.postingDate,
         Document_Date: data.documentDate,
-        Document_Type: data.documentType || undefined,
+        // Don't send Document_Type if voucher type is General Journal and document type is NA
+        ...(data.voucherType === 'General Journal' && data.documentType === 'NA' 
+          ? {} 
+          : { Document_Type: data.documentType || undefined }),
         Account_Type: data.accountType,
         Account_No: data.accountNo,
         Description: data.description,
@@ -1713,24 +1716,37 @@ export function VoucherForm() {
                 Update Entry
               </Button>
             </>
+          ) : isEditingVoucher ? (
+            <>
+              <Button 
+                type="button" 
+                size="sm" 
+                variant="outline" 
+                onClick={() => {
+                  resetForm();
+                }}
+                disabled={isUpdatingVoucher}
+              >
+                Cancel
+              </Button>
+              <Button 
+                type="button" 
+                size="sm" 
+                onClick={handleAddEntry}
+                disabled={isUpdatingVoucher}
+              >
+                <Pencil className="mr-2 h-4 w-4" />
+                {isUpdatingVoucher ? 'Updating...' : 'Update'}
+              </Button>
+            </>
           ) : (
             <Button 
               type="button" 
               size="sm" 
               onClick={handleAddEntry}
-              disabled={isUpdatingVoucher}
             >
-              {isEditingVoucher ? (
-                <>
-                  <Pencil className="mr-2 h-4 w-4" />
-                  {isUpdatingVoucher ? 'Updating...' : 'Update'}
-                </>
-              ) : (
-                <>
-                  <Plus className="mr-2 h-4 w-4" />
-                  Add
-                </>
-              )}
+              <Plus className="mr-2 h-4 w-4" />
+              Add
             </Button>
           )}
         </div>

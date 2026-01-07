@@ -286,6 +286,10 @@ export function VoucherForm() {
   // Track which voucher line numbers failed (for highlighting)
   const [failedVoucherLineNos, setFailedVoucherLineNos] = useState<Set<number>>(new Set());
   
+  // Success dialog state
+  const [successDialogOpen, setSuccessDialogOpen] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<string>('');
+  
   // Error dialog state
   const [errorDialogOpen, setErrorDialogOpen] = useState(false);
   const [errorDialogData, setErrorDialogData] = useState<{
@@ -1353,7 +1357,8 @@ export function VoucherForm() {
 
       if (successCount > 0 && failedCount === 0 && partialCount === 0) {
         // All successful
-        alert(`All ${successCount} entries submitted successfully!`);
+        setSuccessMessage(`All ${successCount} ${successCount === 1 ? 'entry' : 'entries'} submitted successfully!`);
+        setSuccessDialogOpen(true);
         resetForm();
       } else if (errorDetails.length > 0) {
         // Show error dialog with detailed errors
@@ -2804,6 +2809,36 @@ export function VoucherForm() {
             <Button variant="destructive" onClick={handleConfirmDelete}>
               Delete
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Success Dialog */}
+      <Dialog open={successDialogOpen} onOpenChange={setSuccessDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <div className="flex items-center gap-2">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/20">
+                <svg
+                  className="h-6 w-6 text-green-600 dark:text-green-400"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M5 13l4 4L19 7"
+                  />
+                </svg>
+              </div>
+              <DialogTitle className="text-green-600 dark:text-green-400">Success</DialogTitle>
+            </div>
+            <DialogDescription className="pt-2">{successMessage}</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button onClick={() => setSuccessDialogOpen(false)}>OK</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -806,7 +806,10 @@ export function VoucherForm() {
     setTimeout(() => {
       setFormData({
         voucherType: getVoucherTypeFromTemplate(voucher.Journal_Template_Name) as 'General Journal' | 'Cash Receipt' | 'Cash Payment' | undefined,
-        documentType: voucher.Document_Type as 'Payment' | 'Invoice' | 'Credit Memo' | 'Refund' | 'NA' | null | undefined,
+        // Map empty string Document_Type to 'NA'
+        documentType: (voucher.Document_Type === '' || voucher.Document_Type === null || voucher.Document_Type === undefined) 
+          ? 'NA' 
+          : (voucher.Document_Type as 'Payment' | 'Invoice' | 'Credit Memo' | 'Refund' | 'NA' | null | undefined),
         postingDate: voucher.Posting_Date,
         documentDate: voucher.Document_Date,
         accountType: voucher.Account_Type as 'G/L Account' | 'Customer' | 'Vendor' | undefined,
@@ -907,6 +910,14 @@ export function VoucherForm() {
           }
         }
       });
+      
+      // If no fields changed, show message and return
+      if (Object.keys(updatePayload).length === 0) {
+        setSuccessMessage('No changes detected. Voucher was not updated.');
+        setSuccessDialogOpen(true);
+        setIsUpdatingVoucher(false);
+        return;
+      }
 
       await updateVoucher(
         voucherToEdit.Journal_Template_Name,

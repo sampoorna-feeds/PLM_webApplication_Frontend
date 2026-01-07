@@ -874,10 +874,8 @@ export function VoucherForm() {
       const updatePayload: Partial<VoucherEntryResponse> = {
         Posting_Date: data.postingDate,
         Document_Date: data.documentDate,
-        // Don't send Document_Type if voucher type is General Journal and document type is NA
-        ...(data.voucherType === 'General Journal' && data.documentType === 'NA' 
-          ? {} 
-          : { Document_Type: data.documentType || undefined }),
+        // Send empty string for Document_Type if it's NA, otherwise send the value
+        Document_Type: data.documentType === 'NA' ? '' : (data.documentType || undefined),
         Account_Type: data.accountType,
         Account_No: data.accountNo,
         Description: data.description,
@@ -895,10 +893,18 @@ export function VoucherForm() {
         TCS_Nature_of_Collection: data.accountTcsSection?.tcsType,
       };
 
-      // Remove undefined values
+      // Remove undefined values, but keep Document_Type even if it's empty string
       Object.keys(updatePayload).forEach(key => {
-        if (updatePayload[key as keyof typeof updatePayload] === undefined) {
-          delete updatePayload[key as keyof typeof updatePayload];
+        const value = updatePayload[key as keyof typeof updatePayload];
+        // Keep Document_Type even if it's empty string (for NA case)
+        if (key === 'Document_Type') {
+          if (value === undefined || value === null) {
+            delete updatePayload[key as keyof typeof updatePayload];
+          }
+        } else {
+          if (value === undefined) {
+            delete updatePayload[key as keyof typeof updatePayload];
+          }
         }
       });
 
@@ -1285,7 +1291,8 @@ export function VoucherForm() {
       Journal_Template_Name: mapVoucherTypeToTemplate(entry.voucherType),
       Journal_Batch_Name: 'DEFAULT',
       Posting_Date: entry.postingDate,
-      Document_Type: entry.documentType || 'Payment',
+      // Send empty string for Document_Type if it's NA, otherwise send the value or default to 'Payment'
+      Document_Type: entry.documentType === 'NA' ? '' : (entry.documentType || 'Payment'),
       Account_Type: entry.accountType,
       Account_No: entry.accountNo,
       Amount: entry.amount,
@@ -1341,8 +1348,13 @@ export function VoucherForm() {
     }
 
     // Remove any undefined or empty string values before returning
+    // BUT keep Document_Type even if it's empty string (for NA case)
     const cleanPayload = Object.fromEntries(
-      Object.entries(payload).filter(([_, value]) => {
+      Object.entries(payload).filter(([key, value]) => {
+        // Always keep Document_Type even if empty string
+        if (key === 'Document_Type') {
+          return value !== undefined && value !== null;
+        }
         // Keep the value if it's not undefined, null, or empty string
         return value !== undefined && value !== null && value !== '';
       })

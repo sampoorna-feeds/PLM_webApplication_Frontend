@@ -58,6 +58,7 @@ import {
   getVoucherEntries,
   postVouchers,
   deleteVoucher,
+  updateVoucher,
   getDefaultDimensions,
   getTaxComponentsInJson,
   type TDSSection,
@@ -283,6 +284,11 @@ export function VoucherForm() {
   const [isDeletingVoucher, setIsDeletingVoucher] = useState(false);
   const [voucherToDelete, setVoucherToDelete] = useState<VoucherEntryResponse | null>(null);
   const [showDeleteVoucherWarning, setShowDeleteVoucherWarning] = useState(false);
+  // Edit voucher state
+  const [voucherToEdit, setVoucherToEdit] = useState<VoucherEntryResponse | null>(null);
+  const [isUpdatingVoucher, setIsUpdatingVoucher] = useState(false);
+  const [showUpdateVoucherWarning, setShowUpdateVoucherWarning] = useState(false);
+  const [isEditingVoucher, setIsEditingVoucher] = useState(false);
   // Track which voucher line numbers failed (for highlighting)
   const [failedVoucherLineNos, setFailedVoucherLineNos] = useState<Set<number>>(new Set());
   
@@ -778,6 +784,155 @@ export function VoucherForm() {
     return () => document.removeEventListener('focusin', handleFocus);
   }, []);
 
+  // Helper to get voucher type from template name
+  const getVoucherTypeFromTemplate = (templateName: string): string => {
+    const template = templateName.toUpperCase();
+    if (template === 'GENERAL') {
+      return 'General Journal';
+    } else if (template === 'CASH RECE' || template === 'CASH RECEIPT') {
+      return 'Cash Receipt';
+    } else if (template === 'CASH PAYM' || template === 'CASH PAYMENT') {
+      return 'Cash Payment';
+    }
+    return 'General Journal'; // Default
+  };
+
+  // Load voucher for editing
+  const loadVoucherForEdit = (voucher: VoucherEntryResponse) => {
+    // Set accountType FIRST before setting form data
+    setAccountType(voucher.Account_Type as VoucherFormData['accountType']);
+
+    // Use setTimeout to ensure AccountSelect components have time to initialize
+    setTimeout(() => {
+      setFormData({
+        voucherType: getVoucherTypeFromTemplate(voucher.Journal_Template_Name) as 'General Journal' | 'Cash Receipt' | 'Cash Payment' | undefined,
+        documentType: voucher.Document_Type as 'Payment' | 'Invoice' | 'Credit Memo' | 'Refund' | 'NA' | null | undefined,
+        postingDate: voucher.Posting_Date,
+        documentDate: voucher.Document_Date,
+        accountType: voucher.Account_Type as 'G/L Account' | 'Customer' | 'Vendor' | undefined,
+        accountNo: voucher.Account_No,
+        accountTdsSection: voucher.TDS_Section_Code ? { tdsType: voucher.TDS_Section_Code } : undefined,
+        accountTcsSection: voucher.TCS_Nature_of_Collection ? { tcsType: voucher.TCS_Nature_of_Collection } : undefined,
+        externalDocumentNo: voucher.External_Document_No || '',
+        description: voucher.Description || undefined,
+        amount: voucher.Amount.toString(),
+        balanceAccountType: voucher.Bal_Account_Type as 'G/L Account' | 'Customer' | 'Vendor' | undefined,
+        balanceAccountNo: voucher.Bal_Account_No,
+        balanceTdsSection: undefined, // Not available in response
+        balanceTcsSection: undefined, // Not available in response
+        lineNarration: voucher.Line_Narration1 || '',
+        lob: voucher.Shortcut_Dimension_1_Code || '',
+        branch: voucher.Shortcut_Dimension_2_Code || '',
+        loc: voucher.ShortcutDimCode3 || '',
+        employee: voucher.ShortcutDimCode4 || '',
+        assignment: voucher.ShortcutDimCode5 || '',
+      });
+    }, 0);
+
+    setVoucherToEdit(voucher);
+    setIsEditingVoucher(true);
+    setHasUnsavedChanges(true);
+    setValidationErrors({});
+    setPendingEditId(null); // Not editing entry
+
+    // Scroll to form
+    setTimeout(() => {
+      const formCard = document.querySelector('[data-form-card]');
+      if (formCard) {
+        const contentContainer = document.querySelector('.flex.flex-1.flex-col.overflow-y-auto') as HTMLElement | null;
+        if (contentContainer) {
+          const cardRect = formCard.getBoundingClientRect();
+          const containerRect = contentContainer.getBoundingClientRect();
+          const scrollTop = contentContainer.scrollTop;
+          const relativeTop = cardRect.top - containerRect.top + scrollTop - 20;
+          contentContainer.scrollTo({ top: Math.max(0, relativeTop), behavior: 'smooth' });
+        }
+      }
+    }, 100);
+  };
+
+  // Handle updating a voucher
+  const handleUpdateVoucher = async () => {
+    if (!voucherToEdit) return;
+
+    setIsUpdatingVoucher(true);
+    try {
+      // Validate all fields
+      const errors = validateAllFields(formData);
+      setValidationErrors(errors);
+      
+      if (Object.keys(errors).length > 0) {
+        scrollToFirstError();
+        setIsUpdatingVoucher(false);
+        return;
+      }
+
+      // Build update payload from form data
+      const data = formStateToVoucherData(formData) as VoucherFormData;
+      
+      // Map form data to API payload format
+      const updatePayload: Partial<VoucherEntryResponse> = {
+        Posting_Date: data.postingDate,
+        Document_Date: data.documentDate,
+        Document_Type: data.documentType || undefined,
+        Account_Type: data.accountType,
+        Account_No: data.accountNo,
+        Description: data.description,
+        Amount: typeof data.amount === 'string' ? parseFloat(data.amount) || 0 : data.amount,
+        Bal_Account_Type: data.balanceAccountType,
+        Bal_Account_No: data.balanceAccountNo,
+        External_Document_No: data.externalDocumentNo || undefined,
+        Line_Narration1: data.lineNarration || undefined,
+        Shortcut_Dimension_1_Code: data.lob || undefined,
+        Shortcut_Dimension_2_Code: data.branch || undefined,
+        ShortcutDimCode3: data.loc || undefined,
+        ShortcutDimCode4: data.employee || undefined,
+        ShortcutDimCode5: data.assignment || undefined,
+        TDS_Section_Code: data.accountTdsSection?.tdsType,
+        TCS_Nature_of_Collection: data.accountTcsSection?.tcsType,
+      };
+
+      // Remove undefined values
+      Object.keys(updatePayload).forEach(key => {
+        if (updatePayload[key as keyof typeof updatePayload] === undefined) {
+          delete updatePayload[key as keyof typeof updatePayload];
+        }
+      });
+
+      await updateVoucher(
+        voucherToEdit.Journal_Template_Name,
+        voucherToEdit.Journal_Batch_Name || 'DEFAULT',
+        voucherToEdit.Line_No,
+        updatePayload
+      );
+
+      // Success
+      setSuccessMessage(`Voucher ${voucherToEdit.Document_No} updated successfully!`);
+      setSuccessDialogOpen(true);
+      
+      // Reset form and clear edit state
+      resetForm();
+      setIsEditingVoucher(false);
+      setVoucherToEdit(null);
+      setShowUpdateVoucherWarning(false);
+      
+      // Reload vouchers
+      await fetchVouchersFromERP();
+    } catch (error) {
+      console.error('Error updating voucher:', error);
+      const errorDetail = extractErrorDetails(error);
+      setErrorDialogData({
+        title: 'Update Voucher Failed',
+        message: 'Failed to update voucher. Please review the error details below.',
+        errors: [errorDetail],
+        type: 'general',
+      });
+      setErrorDialogOpen(true);
+    } finally {
+      setIsUpdatingVoucher(false);
+    }
+  };
+
   // Handle deleting a voucher
   const handleDeleteVoucher = async (voucher: VoucherEntryResponse) => {
     setIsDeletingVoucher(true);
@@ -923,6 +1078,12 @@ export function VoucherForm() {
   };
 
   const handleAddEntry = () => {
+    // If editing voucher, show update confirmation
+    if (isEditingVoucher && voucherToEdit) {
+      setShowUpdateVoucherWarning(true);
+      return;
+    }
+
     // Validate all fields on Add button click
     const errors = validateAllFields(formData);
     setValidationErrors(errors);
@@ -991,6 +1152,7 @@ export function VoucherForm() {
     setHasUnsavedChanges(true);
     setValidationErrors({});
     setAttachments(entry.attachments || []);
+    setIsEditingVoucher(false); // Not editing voucher, editing entry
 
     setTimeout(() => {
       const formCard = document.querySelector('[data-form-card]');
@@ -1552,18 +1714,37 @@ export function VoucherForm() {
               </Button>
             </>
           ) : (
-            <Button type="button" size="sm" onClick={handleAddEntry}>
-              <Plus className="mr-2 h-4 w-4" />
-              Add
+            <Button 
+              type="button" 
+              size="sm" 
+              onClick={handleAddEntry}
+              disabled={isUpdatingVoucher}
+            >
+              {isEditingVoucher ? (
+                <>
+                  <Pencil className="mr-2 h-4 w-4" />
+                  {isUpdatingVoucher ? 'Updating...' : 'Update'}
+                </>
+              ) : (
+                <>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add
+                </>
+              )}
             </Button>
           )}
         </div>
       </div>
 
+      {isEditingVoucher && (
+        <div className="mb-2 p-2 bg-yellow-100 dark:bg-yellow-900/20 border border-yellow-500 rounded-md text-sm font-medium text-yellow-800 dark:text-yellow-200">
+          Editing EDP record: {voucherToEdit?.Document_No} (Line No. {voucherToEdit?.Line_No})
+        </div>
+      )}
       <div 
         ref={formTableRef}
         data-form-card 
-        className={cn(excelWrap, "min-w-0 overflow-x-auto cursor-grab")}
+        className={cn(excelWrap, "min-w-0 overflow-x-auto cursor-grab", isEditingVoucher && "ring-2 ring-yellow-500 bg-yellow-50/50 dark:bg-yellow-900/10")}
       >
         <Table className={tableClass}>
           <TableHeader>
@@ -2716,6 +2897,15 @@ export function VoucherForm() {
                     <ContextMenuContent>
                       <ContextMenuItem
                         onClick={() => {
+                          loadVoucherForEdit(voucher);
+                        }}
+                        disabled={isUpdatingVoucher || isEditingVoucher}
+                      >
+                        <Pencil className="mr-2 h-4 w-4" />
+                        Edit
+                      </ContextMenuItem>
+                      <ContextMenuItem
+                        onClick={() => {
                           setVoucherToDelete(voucher);
                           setShowDeleteVoucherWarning(true);
                         }}
@@ -2858,6 +3048,33 @@ export function VoucherForm() {
         errors={errorDialogData.errors}
         type={errorDialogData.type}
       />
+
+      {/* Update Voucher Warning Dialog */}
+      <Dialog open={showUpdateVoucherWarning} onOpenChange={setShowUpdateVoucherWarning}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Update Voucher</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to update voucher {voucherToEdit?.Document_No} (Line No. {voucherToEdit?.Line_No})? This will modify the existing record.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setShowUpdateVoucherWarning(false);
+            }}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                handleUpdateVoucher();
+              }}
+              disabled={isUpdatingVoucher}
+            >
+              {isUpdatingVoucher ? 'Updating...' : 'Update'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Delete Voucher Warning Dialog */}
       <Dialog open={showDeleteVoucherWarning} onOpenChange={setShowDeleteVoucherWarning}>

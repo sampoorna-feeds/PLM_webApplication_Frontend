@@ -3,7 +3,7 @@
  * Handles voucher creation, TDS/TCS section fetching, and attachment uploads
  */
 
-import { apiGet, apiPost, apiDelete } from '../client';
+import { apiGet, apiPost, apiDelete, apiPatch } from '../client';
 import type { ODataResponse } from '../types';
 
 const COMPANY = process.env.NEXT_PUBLIC_API_COMPANY || 'Sampoorna Feeds Pvt. Ltd';
@@ -279,6 +279,29 @@ export async function deleteVoucher(
   
   // Use apiDelete from client
   await apiDelete<void>(endpoint);
+}
+
+/**
+ * Update a voucher
+ * @param journalTemplateName - Journal template name (e.g., 'GENERAL', 'CASH RECE', 'CASH PAYM')
+ * @param journalBatchName - Journal batch name (default: 'DEFAULT')
+ * @param lineNo - Line number of the voucher
+ * @param updateData - Partial voucher data to update
+ */
+export async function updateVoucher(
+  journalTemplateName: string,
+  journalBatchName: string,
+  lineNo: number,
+  updateData: Partial<VoucherEntryResponse>
+): Promise<void> {
+  // Determine voucher type from template name
+  const voucherType = getVoucherTypeFromTemplate(journalTemplateName);
+  const endpointPath = getVoucherEndpoint(voucherType);
+  // Format: /Company('Sampoorna Feeds Pvt. Ltd')/GJ(Journal_Template_Name='GENERAL',Journal_Batch_Name='DEFAULT',Line_No=10000)
+  const endpoint = `/Company('${encodeURIComponent(COMPANY)}')${endpointPath}(Journal_Template_Name='${encodeURIComponent(journalTemplateName)}',Journal_Batch_Name='${encodeURIComponent(journalBatchName)}',Line_No=${lineNo})`;
+  
+  // Use apiPatch from client
+  await apiPatch<void>(endpoint, updateData);
 }
 
 /**

@@ -2998,7 +2998,7 @@ export function VoucherForm() {
                             setShowDeleteVoucherWarning(true);
                           }}
                           className="h-8 w-8"
-                          disabled={isDeletingVoucher}
+                          disabled={isDeletingVoucher || isEditingVoucher}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -3022,7 +3022,7 @@ export function VoucherForm() {
                           setShowDeleteVoucherWarning(true);
                         }}
                         variant="destructive"
-                        disabled={isDeletingVoucher}
+                        disabled={isDeletingVoucher || isEditingVoucher}
                       >
                         <Trash2 className="mr-2 h-4 w-4" />
                         Delete

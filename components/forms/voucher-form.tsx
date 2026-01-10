@@ -2983,6 +2983,17 @@ export function VoucherForm() {
                           variant="ghost"
                           size="icon"
                           onClick={() => {
+                            loadVoucherForEdit(voucher);
+                          }}
+                          className="h-8 w-8"
+                          disabled={isUpdatingVoucher || isEditingVoucher}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => {
                             setVoucherToDelete(voucher);
                             setShowDeleteVoucherWarning(true);
                           }}

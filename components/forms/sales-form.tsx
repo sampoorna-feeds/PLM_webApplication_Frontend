@@ -207,7 +207,7 @@ export function SalesForm() {
       <Sheet open={isFormOpen} onOpenChange={setIsFormOpen}>
         <SheetContent 
           side="right" 
-          className="w-[40vw] sm:max-w-[40vw] p-0 flex flex-col"
+          className="!w-[40vw] !max-w-[40vw] sm:!max-w-[40vw] p-0 flex flex-col"
         >
           <SheetHeader className="px-6 pt-6 pb-4 border-b">
             <SheetTitle className="text-xl">Sales Form</SheetTitle>

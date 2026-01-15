@@ -15,6 +15,8 @@ import {
   FieldLabel,
 } from '@/components/ui/field';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/lib/contexts/auth-context';
+import { resetPassword } from '@/lib/api/services/auth.service';
 
 const resetPasswordSchema = z.object({
   oldPassword: z.string().min(1, 'Current password is required'),
@@ -42,6 +44,7 @@ interface ResetPasswordFormProps {
 }
 
 export function ResetPasswordForm({ className }: ResetPasswordFormProps) {
+  const { userID } = useAuth();
   const [formData, setFormData] = useState<ResetPasswordFormState>({
     oldPassword: '',
     newPassword: '',
@@ -77,22 +80,19 @@ export function ResetPasswordForm({ className }: ResetPasswordFormProps) {
     setError(null);
     setIsSubmitting(true);
 
+    if (!userID) {
+      setError('You must be logged in to reset your password.');
+      setIsSubmitting(false);
+      return;
+    }
+
     try {
-      const response = await fetch('/api/auth/reset-password', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          oldPassword: formData.oldPassword,
-          newPassword: formData.newPassword,
-        }),
-      });
+      // Call ERP reset password API directly
+      const response = await resetPassword(userID, formData.oldPassword, formData.newPassword);
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        setError(data.error || 'Password reset failed. Please try again.');
+      // Check if reset was successful
+      if (response.value !== 'Password has been Sucussfully reset') {
+        setError('Password reset failed. Please check your current password.');
         setIsSubmitting(false);
         return;
       }
@@ -108,7 +108,15 @@ export function ResetPasswordForm({ className }: ResetPasswordFormProps) {
       });
     } catch (err) {
       console.error('Reset password error:', err);
-      setError('An error occurred. Please try again.');
+      if (err instanceof Error) {
+        if (err.message.includes('401') || err.message.includes('Unauthorized') || err.message.includes('Invalid')) {
+          setError('Invalid current password. Please try again.');
+        } else {
+          setError(err.message || 'An error occurred. Please try again.');
+        }
+      } else {
+        setError('An error occurred. Please try again.');
+      }
       setIsSubmitting(false);
     }
   };

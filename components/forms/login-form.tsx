@@ -9,6 +9,8 @@ import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/lib/contexts/auth-context';
 import { loginSchema, type LoginFormData } from '@/lib/validations';
+import { loginUser } from '@/lib/api/services/auth.service';
+import { setAuthCredentials, getRememberedUsername } from '@/lib/auth/storage';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -37,10 +39,10 @@ export function LoginForm({
   const router = useRouter();
   const searchParams = useSearchParams();
   const { refreshAuth } = useAuth();
-  // Load remembered username from localStorage on mount
+  // Load remembered username from storage on mount
   const [formData, setFormData] = useState<LoginFormState>(() => {
     if (typeof window !== 'undefined') {
-      const rememberedUsername = localStorage.getItem('rememberedUsername');
+      const rememberedUsername = getRememberedUsername();
       return {
         username: rememberedUsername || '',
         password: '',
@@ -86,33 +88,18 @@ export function LoginForm({
     setIsSubmitting(true);
 
     try {
-      // Call login API
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          userID: formData.username,
-          password: formData.password,
-          rememberMe: formData.rememberMe,
-        }),
-      });
+      // Call ERP login API directly
+      const response = await loginUser(formData.username, formData.password);
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        setError(data.error || 'Login failed. Please check your credentials.');
+      // Check if login was successful (ERP returns "OK" in value field)
+      if (response.value !== 'OK') {
+        setError('Invalid credentials. Please check your username and password.');
         setIsSubmitting(false);
         return;
       }
 
-      // Handle "Remember Me" - store username in localStorage
-      if (formData.rememberMe) {
-        localStorage.setItem('rememberedUsername', formData.username);
-      } else {
-        localStorage.removeItem('rememberedUsername');
-      }
+      // Store credentials in localStorage/sessionStorage
+      setAuthCredentials(formData.username, formData.password, formData.rememberMe);
 
       // Refresh auth context to get userID
       await refreshAuth();
@@ -122,7 +109,16 @@ export function LoginForm({
       router.replace(redirect);
     } catch (err) {
       console.error('Login error:', err);
-      setError('An error occurred. Please try again.');
+      // Check if it's an authentication error
+      if (err instanceof Error) {
+        if (err.message.includes('401') || err.message.includes('Unauthorized') || err.message.includes('Invalid')) {
+          setError('Invalid credentials. Please check your username and password.');
+        } else {
+          setError(err.message || 'An error occurred. Please try again.');
+        }
+      } else {
+        setError('An error occurred. Please try again.');
+      }
       setIsSubmitting(false);
     }
   };

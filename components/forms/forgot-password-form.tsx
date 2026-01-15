@@ -15,6 +15,7 @@ import {
   FieldLabel,
 } from '@/components/ui/field';
 import { cn } from '@/lib/utils';
+import { forgotPassword } from '@/lib/api/services/auth.service';
 
 const forgotPasswordSchema = z.object({
   userID: z.string().min(1, 'UserID is required'),
@@ -77,21 +78,12 @@ export function ForgotPasswordForm({
     setIsSubmitting(true);
 
     try {
-      const response = await fetch('/api/auth/forgot-password', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          userID: formData.userID,
-          registredModileNo: formData.registredModileNo,
-        }),
-      });
+      // Call ERP forgot password API directly
+      const response = await forgotPassword(formData.userID, formData.registredModileNo);
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        setError(data.error || 'Failed to send password. Please try again.');
+      // Check if request was successful
+      if (response.value !== 'Password has been sent your registered mobile no.') {
+        setError('Failed to send password. Please check your UserID and mobile number.');
         setIsSubmitting(false);
         return;
       }
@@ -104,7 +96,11 @@ export function ForgotPasswordForm({
       }
     } catch (err) {
       console.error('Forgot password error:', err);
-      setError('An error occurred. Please try again.');
+      if (err instanceof Error) {
+        setError(err.message || 'An error occurred. Please try again.');
+      } else {
+        setError('An error occurred. Please try again.');
+      }
       setIsSubmitting(false);
     }
   };

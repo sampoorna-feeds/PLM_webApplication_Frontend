@@ -3,9 +3,11 @@
 /**
  * Authentication Context
  * Provides userID and authentication state throughout the app
+ * For static hosting - checks localStorage/sessionStorage instead of server API
  */
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import { getAuthCredentials, clearAuthCredentials } from '@/lib/auth/storage';
 
 interface AuthContextType {
   userID: string | null;
@@ -25,30 +27,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   /**
-   * Check authentication status by calling /api/auth/me
+   * Check authentication status by checking localStorage/sessionStorage
    */
   const checkAuth = useCallback(async () => {
     try {
-      const response = await fetch('/api/auth/me');
+      const credentials = getAuthCredentials();
       
-      if (response.ok) {
-        const data = await response.json();
-        setUserID(data.userID);
-        setUsername(data.username);
+      if (credentials) {
+        setUserID(credentials.userID);
+        setUsername(credentials.userID); // Use userID as username
         setIsAuthenticated(true);
       } else {
-        // Try to refresh token
-        const refreshResponse = await fetch('/api/auth/refresh', { method: 'POST' });
-        if (refreshResponse.ok) {
-          const refreshData = await refreshResponse.json();
-          setUserID(refreshData.userID);
-          setUsername(refreshData.username);
-          setIsAuthenticated(true);
-        } else {
-          setUserID(null);
-          setUsername(null);
-          setIsAuthenticated(false);
-        }
+        setUserID(null);
+        setUsername(null);
+        setIsAuthenticated(false);
       }
     } catch (error) {
       console.error('Auth check error:', error);
@@ -69,10 +61,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   /**
    * Logout
+   * Clears credentials from storage and resets auth state
    */
   const logout = useCallback(async () => {
     try {
-      await fetch('/api/auth/logout', { method: 'POST' });
+      clearAuthCredentials();
     } catch (error) {
       console.error('Logout error:', error);
     } finally {

@@ -1,7 +1,8 @@
 /**
  * Base API client for ERP OData V4 API
- * Makes direct calls to DEV API from client
- * Auth APIs go through Next.js server to PROD API
+ * Makes direct calls to ERP API from client
+ * Uses system credentials from environment variables for Basic Auth
+ * User credentials are stored for login validation only
  */
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL_DEV || '';
@@ -10,8 +11,10 @@ const API_PASSWORD = process.env.NEXT_PUBLIC_API_PASSWORD || '';
 
 /**
  * Creates Basic Auth header for direct API calls
+ * Uses system credentials from environment variables
  */
 function createAuthHeaders(): HeadersInit {
+  // Use system credentials from environment variables
   const credentials = `${API_USERNAME}:${API_PASSWORD}`;
   const encodedCredentials = btoa(credentials);
   
@@ -37,8 +40,8 @@ export interface ApiError {
 }
 
 /**
- * Makes a direct API request to DEV API
- * Uses Basic Auth from environment variables
+ * Makes a direct API request to ERP API
+ * Uses Basic Auth from environment variables (system credentials)
  */
 export async function apiRequest<T>(
   endpoint: string,

@@ -1,7 +1,7 @@
 /**
  * Next.js Middleware
- * Protects routes at the edge level
- * Checks for valid authentication tokens in cookies
+ * For static hosting - minimal middleware
+ * Route protection is handled client-side by AuthGuard component
  */
 
 import { NextResponse } from 'next/server';
@@ -11,25 +11,16 @@ export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Public routes that don't require authentication
-  const publicRoutes = ['/login', '/api/auth/login', '/api/auth/forgot-password'];
+  const publicRoutes = ['/login'];
   const isPublicRoute = publicRoutes.some(route => pathname.startsWith(route));
 
-  // Allow public routes and API auth routes
-  if (isPublicRoute || pathname.startsWith('/api/auth/')) {
+  // Allow public routes
+  if (isPublicRoute) {
     return NextResponse.next();
   }
 
-  // Check for access token in cookies
-  const accessToken = request.cookies.get('access_token');
-
-  // If no token and trying to access protected route, redirect to login
-  if (!accessToken && pathname.startsWith('/(protected)')) {
-    const loginUrl = new URL('/login', request.url);
-    loginUrl.searchParams.set('redirect', pathname);
-    return NextResponse.redirect(loginUrl);
-  }
-
-  // Allow request to proceed
+  // For static hosting, all route protection is handled client-side
+  // by the AuthGuard component. Middleware just allows requests to proceed.
   return NextResponse.next();
 }
 

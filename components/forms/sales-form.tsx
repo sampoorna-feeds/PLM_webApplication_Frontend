@@ -207,7 +207,7 @@ export function SalesForm() {
       <Sheet open={isFormOpen} onOpenChange={setIsFormOpen}>
         <SheetContent 
           side="right" 
-          className="w-[50vw] sm:max-w-[50vw] p-0 flex flex-col"
+          className="w-[60vw] sm:max-w-[60vw] p-0 flex flex-col"
         >
           <SheetHeader className="px-6 pt-6 pb-4 border-b">
             <SheetTitle className="text-xl">Sales Form</SheetTitle>
@@ -394,11 +394,8 @@ export function SalesForm() {
             </div>
           </div>
 
-          <SheetFooter className="px-6 py-4 border-t gap-2">
-            <Button variant="outline" onClick={() => setIsFormOpen(false)} className="flex-1">
-              Cancel
-            </Button>
-            <Button onClick={handleSubmit} className="flex-1">
+          <SheetFooter className="px-6 py-4 border-t">
+            <Button onClick={handleSubmit} className="w-full">
               Add Sales
             </Button>
           </SheetFooter>

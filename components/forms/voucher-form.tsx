@@ -1609,7 +1609,7 @@ export function VoucherForm() {
         // All successful
         setSuccessMessage(`All ${successCount} ${successCount === 1 ? 'entry' : 'entries'} submitted successfully!`);
         setSuccessDialogOpen(true);
-        resetForm();
+    resetForm();
       } else if (errorDetails.length > 0) {
         // Show error dialog with detailed errors
         setErrorDialogData({
@@ -2504,9 +2504,9 @@ export function VoucherForm() {
                           >
                             ×
                           </button>
-                          </div>
-                        ))}
-                      </div>
+                        </div>
+                      ))}
+                    </div>
                   )}
                 </div>
               </TableCell>
@@ -2884,7 +2884,7 @@ export function VoucherForm() {
                                 .catch((error) => {
                                   // Only update if this is still the current fetching document
                                   if (fetchingDocumentRef.current === currentDocNo && activeRequestRef.current === requestPromise) {
-                                    console.error('Error fetching tax details:', error);
+                                console.error('Error fetching tax details:', error);
                                     setTaxDetails(prev => ({ ...prev, [currentDocNo]: [] }));
                                     setLoadingTaxDetails(prev => ({ ...prev, [currentDocNo]: false }));
                                     fetchingDocumentRef.current = null;
@@ -2909,16 +2909,16 @@ export function VoucherForm() {
                               delete next[voucher.Document_No];
                               return next;
                             });
-                          }
+                              }
                         }}
                       >
                         <TooltipTrigger asChild>
                           <button
                             type="button"
-                            className="flex items-center justify-center w-full h-full hover:bg-muted/50 rounded p-1 transition-colors"
-                          >
-                            <Info className="h-4 w-4 text-muted-foreground hover:text-foreground" />
-                          </button>
+                        className="flex items-center justify-center w-full h-full hover:bg-muted/50 rounded p-1 transition-colors"
+                      >
+                        <Info className="h-4 w-4 text-muted-foreground hover:text-foreground" />
+                      </button>
                         </TooltipTrigger>
                         <TooltipContent className="max-w-5xl relative">
                           <button
@@ -2940,39 +2940,39 @@ export function VoucherForm() {
                             }}
                             className="absolute top-1 right-1 p-1 hover:bg-muted rounded-sm transition-colors z-10"
                             aria-label="Close"
-                          >
+                              >
                             <X className="h-3 w-3 text-muted-foreground hover:text-foreground" />
-                          </button>
-                          {loadingTaxDetails[voucher.Document_No] ? (
+                              </button>
+                            {loadingTaxDetails[voucher.Document_No] ? (
                             <div className="flex items-center gap-2 py-3 pr-8">
                               <Loader2 className="h-5 w-5 animate-spin text-primary" />
                               <span className="text-sm font-medium">Fetching tax details...</span>
-                            </div>
-                          ) : taxDetails[voucher.Document_No] && taxDetails[voucher.Document_No].length > 0 ? (
+                              </div>
+                            ) : taxDetails[voucher.Document_No] && taxDetails[voucher.Document_No].length > 0 ? (
                             <div className="space-y-3 pr-8">
                               <div className="text-sm font-semibold">Tax Details:</div>
                               <div className="space-y-2 text-sm max-h-96 overflow-y-auto">
-                                {taxDetails[voucher.Document_No].map((detail, idx) => (
+                                    {taxDetails[voucher.Document_No].map((detail, idx) => (
                                   <div key={idx} className="border-b last:border-b-0 pb-2 last:pb-0">
                                     {Object.entries(detail as Record<string, unknown>).map(([key, value]) => (
                                       <div key={key} className="flex gap-3 py-0.5">
                                         <span className="font-medium min-w-[150px]">{key}:</span>
                                         <span className="flex-1">{String(value ?? '-')}</span>
                                       </div>
-                                    ))}
+                                        ))}
                                   </div>
-                                ))}
+                                    ))}
                               </div>
                             </div>
                           ) : taxDetails[voucher.Document_No]?.length === 0 ? (
                             <div className="py-2 pr-8">
                               <span className="text-sm">No tax details found</span>
-                            </div>
-                          ) : (
+                              </div>
+                            ) : (
                             <div className="py-2 pr-8">
                               <span className="text-sm">Click to load tax details</span>
-                            </div>
-                          )}
+                              </div>
+                            )}
                         </TooltipContent>
                       </Tooltip>
                     </TableCell>
@@ -3002,9 +3002,9 @@ export function VoucherForm() {
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
-                      </div>
-                    </TableCell>
-                      </TableRow>
+                        </div>
+                      </TableCell>
+                    </TableRow>
                     </ContextMenuTrigger>
                     <ContextMenuContent>
                       <ContextMenuItem

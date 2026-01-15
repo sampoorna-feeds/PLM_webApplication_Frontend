@@ -41,6 +41,11 @@ const formsItems = [
     url: '/voucher-form',
     icon: FileText,
   },
+  {
+    title: 'Sales',
+    url: '/sales-form',
+    icon: FileText,
+  },
 ];
 
 const settingsItems = [

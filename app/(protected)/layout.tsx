@@ -40,6 +40,12 @@ export default function ProtectedLayout({
         { label: 'Voucher', href: null },
       ];
     }
+    if (pathname === '/sales-form') {
+      return [
+        { label: 'Forms', href: '#' },
+        { label: 'Sales', href: null },
+      ];
+    }
     if (pathname?.startsWith('/settings')) {
       if (pathname === '/settings/account') {
         return [
@@ -65,7 +71,7 @@ export default function ProtectedLayout({
   
   // Check if we should show "Return to Dashboard" button
   // Show it on settings pages and other non-main pages
-  const showReturnToDashboard = pathname !== '/voucher-form' && pathname !== '/';
+  const showReturnToDashboard = pathname !== '/voucher-form' && pathname !== '/sales-form' && pathname !== '/';
 
   return (
     <AuthGuard>

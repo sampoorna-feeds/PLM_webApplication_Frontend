@@ -25,20 +25,10 @@ function getBaseFilter(): string {
 }
 
 /**
- * Builds search filter based on query content
- * BC OData doesn't support OR, so we choose filter based on query type:
- * - Numeric query → use contains(No) (search anywhere in No field)
- * - Alphanumeric query → use contains(Name)
+ * Helper to escape single quotes in OData filter values
  */
-function getSearchFilter(query: string, baseFilter: string): string {
-  // Check if query contains only digits
-  const isNumeric = /^\d+$/.test(query.trim());
-  
-  if (isNumeric) {
-    return `(${baseFilter}) and contains(No,'${query}')`;
-  } else {
-    return `(${baseFilter}) and contains(Name,'${query}')`;
-  }
+function escapeODataValue(value: string): string {
+  return value.replace(/'/g, "''");
 }
 
 /**
@@ -59,8 +49,8 @@ export async function getGLAccounts(): Promise<GLAccount[]> {
 
 /**
  * Search G/L accounts with query string
- * Uses startswith for No (fast) and contains for Name
- * Requires 2-3 characters minimum
+ * Makes 2 separate API calls (one for No, one for Name) and combines unique results
+ * Requires 2 characters minimum
  */
 export async function searchGLAccounts(query: string): Promise<GLAccount[]> {
   if (query.length < 2) {
@@ -73,24 +63,55 @@ export async function searchGLAccounts(query: string): Promise<GLAccount[]> {
     return searchCache.get(cacheKey)!;
   }
 
-  // Build search filter - conditional based on query type (BC OData doesn't support OR)
   const baseFilter = getBaseFilter();
-  const searchFilter = getSearchFilter(query, baseFilter);
+  const escapedQuery = escapeODataValue(query);
 
-  const odataQuery = buildODataQuery({
-    $select: 'No,Name',
-    $filter: searchFilter,
-    $orderby: 'No',
-    $top: 30,
+  // Make 2 parallel API calls: one for No, one for Name
+  const [resultsByNo, resultsByName] = await Promise.all([
+    // Search by No field
+    (async () => {
+      const filterByNo = `(${baseFilter}) and contains(No,'${escapedQuery}')`;
+      const odataQuery = buildODataQuery({
+        $select: 'No,Name',
+        $filter: filterByNo,
+        $orderby: 'No',
+        $top: 30,
+      });
+      const endpoint = `/GLAccount?company='${encodeURIComponent(COMPANY)}'&${odataQuery}`;
+      const response = await apiGet<ODataResponse<GLAccount>>(endpoint);
+      return response.value;
+    })(),
+    // Search by Name field
+    (async () => {
+      const filterByName = `(${baseFilter}) and contains(Name,'${escapedQuery}')`;
+      const odataQuery = buildODataQuery({
+        $select: 'No,Name',
+        $filter: filterByName,
+        $orderby: 'No',
+        $top: 30,
+      });
+      const endpoint = `/GLAccount?company='${encodeURIComponent(COMPANY)}'&${odataQuery}`;
+      const response = await apiGet<ODataResponse<GLAccount>>(endpoint);
+      return response.value;
+    })(),
+  ]);
+
+  // Combine results and deduplicate by No field
+  const combined = [...resultsByNo, ...resultsByName];
+  const uniqueMap = new Map<string, GLAccount>();
+  combined.forEach((account) => {
+    if (!uniqueMap.has(account.No)) {
+      uniqueMap.set(account.No, account);
+    }
   });
+  const uniqueResults = Array.from(uniqueMap.values()).sort((a, b) =>
+    a.No.localeCompare(b.No)
+  );
 
-  const endpoint = `/GLAccount?company='${encodeURIComponent(COMPANY)}'&${odataQuery}`;
-  const response = await apiGet<ODataResponse<GLAccount>>(endpoint);
-  
   // Cache results
-  searchCache.set(cacheKey, response.value);
-  
-  return response.value;
+  searchCache.set(cacheKey, uniqueResults);
+
+  return uniqueResults;
 }
 
 /**
@@ -103,23 +124,69 @@ export async function getGLAccountsPage(
   search?: string
 ): Promise<GLAccount[]> {
   const baseFilter = getBaseFilter();
-  let filter = baseFilter;
-  
-  if (search && search.length >= 2) {
-    filter = getSearchFilter(search, baseFilter);
+
+  if (!search || search.length < 2) {
+    // No search - return paginated results
+    const query = buildODataQuery({
+      $select: 'No,Name',
+      $filter: baseFilter,
+      $orderby: 'No',
+      $top: 30,
+      $skip: skip,
+    });
+    const endpoint = `/GLAccount?company='${encodeURIComponent(COMPANY)}'&${query}`;
+    const response = await apiGet<ODataResponse<GLAccount>>(endpoint);
+    return response.value;
   }
 
-  const query = buildODataQuery({
-    $select: 'No,Name',
-    $filter: filter,
-    $orderby: 'No',
-    $top: 30,
-    $skip: skip,
-  });
+  // With search - use dual-call approach
+  const escapedQuery = escapeODataValue(search);
 
-  const endpoint = `/GLAccount?company='${encodeURIComponent(COMPANY)}'&${query}`;
-  const response = await apiGet<ODataResponse<GLAccount>>(endpoint);
-  return response.value;
+  // Make 2 parallel API calls: one for No, one for Name
+  const [resultsByNo, resultsByName] = await Promise.all([
+    // Search by No field
+    (async () => {
+      const filterByNo = `(${baseFilter}) and contains(No,'${escapedQuery}')`;
+      const odataQuery = buildODataQuery({
+        $select: 'No,Name',
+        $filter: filterByNo,
+        $orderby: 'No',
+        $top: 30,
+        $skip: skip,
+      });
+      const endpoint = `/GLAccount?company='${encodeURIComponent(COMPANY)}'&${odataQuery}`;
+      const response = await apiGet<ODataResponse<GLAccount>>(endpoint);
+      return response.value;
+    })(),
+    // Search by Name field
+    (async () => {
+      const filterByName = `(${baseFilter}) and contains(Name,'${escapedQuery}')`;
+      const odataQuery = buildODataQuery({
+        $select: 'No,Name',
+        $filter: filterByName,
+        $orderby: 'No',
+        $top: 30,
+        $skip: skip,
+      });
+      const endpoint = `/GLAccount?company='${encodeURIComponent(COMPANY)}'&${odataQuery}`;
+      const response = await apiGet<ODataResponse<GLAccount>>(endpoint);
+      return response.value;
+    })(),
+  ]);
+
+  // Combine results and deduplicate by No field
+  const combined = [...resultsByNo, ...resultsByName];
+  const uniqueMap = new Map<string, GLAccount>();
+  combined.forEach((account) => {
+    if (!uniqueMap.has(account.No)) {
+      uniqueMap.set(account.No, account);
+    }
+  });
+  const uniqueResults = Array.from(uniqueMap.values()).sort((a, b) =>
+    a.No.localeCompare(b.No)
+  );
+
+  return uniqueResults;
 }
 
 /**

@@ -8,6 +8,7 @@
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { getAuthCredentials, clearAuthCredentials } from '@/lib/auth/storage';
+import { clearAllFormStacks } from '@/lib/form-stack/storage';
 
 interface AuthContextType {
   userID: string | null;
@@ -61,11 +62,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   /**
    * Logout
-   * Clears credentials from storage and resets auth state
+   * Clears credentials from storage, FormStack data, and resets auth state
    */
   const logout = useCallback(async () => {
     try {
       clearAuthCredentials();
+      clearAllFormStacks(); // Clear all FormStack data
     } catch (error) {
       console.error('Logout error:', error);
     } finally {

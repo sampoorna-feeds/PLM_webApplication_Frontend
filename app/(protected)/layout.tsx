@@ -75,7 +75,7 @@ export default function ProtectedLayout({
 
   return (
     <AuthGuard>
-      <SidebarProvider>
+      <SidebarProvider defaultOpen={true}>
         <AppSidebar />
         <SidebarInset>
           <header className="flex h-16 shrink-0 items-center gap-4 border-b px-4">
@@ -115,7 +115,7 @@ export default function ProtectedLayout({
               <ThemeToggle />
             </div>
           </header>
-          <div className="flex flex-1 flex-col overflow-y-auto min-h-0 w-full">
+          <div className="flex flex-1 flex-col min-h-0 w-full overflow-hidden">
             {children}
           </div>
         </SidebarInset>

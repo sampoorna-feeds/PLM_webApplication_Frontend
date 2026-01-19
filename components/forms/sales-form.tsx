@@ -284,20 +284,22 @@ export function SalesForm() {
   return (
     <div className="flex w-full min-w-0 flex-col p-4 gap-4">
       <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as SalesType)}>
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <TabsList>
-            <TabsTrigger value="order">Sales Order</TabsTrigger>
-            <TabsTrigger value="invoice">Sales Invoice</TabsTrigger>
-            <TabsTrigger value="return-order">Sales Return Order</TabsTrigger>
-            <TabsTrigger value="credit-memo">Sales Credit Memo</TabsTrigger>
+        <div className="flex flex-col gap-4">
+          <TabsList className="w-full">
+            <TabsTrigger value="order" className="flex-1">Sales Order</TabsTrigger>
+            <TabsTrigger value="invoice" className="flex-1">Sales Invoice</TabsTrigger>
+            <TabsTrigger value="return-order" className="flex-1">Sales Return Order</TabsTrigger>
+            <TabsTrigger value="credit-memo" className="flex-1">Sales Credit Memo</TabsTrigger>
           </TabsList>
-          <Button
-            onClick={() => setIsFormOpen(true)}
-            size="sm"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            {getButtonLabel(activeTab)}
-          </Button>
+          <div className="flex justify-end">
+            <Button
+              onClick={() => setIsFormOpen(true)}
+              size="sm"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              {getButtonLabel(activeTab)}
+            </Button>
+          </div>
         </div>
 
         {/* Sales Order Tab */}

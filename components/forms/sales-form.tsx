@@ -2,7 +2,7 @@
 
 /**
  * Sales Form component
- * Table view with slide-in form from right
+ * Tabbed view with tables for Sales Order, Sales Invoice, Sales Return Order, and Sales Credit Memo
  */
 
 import React, { useState } from 'react';
@@ -32,70 +32,178 @@ import {
   SheetDescription,
   SheetFooter,
 } from '@/components/ui/sheet';
+import {
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  TabsContent,
+} from '@/components/ui/tabs';
 import { FieldTitle } from '@/components/ui/field';
 
-// Dummy sales data
-const dummySalesData = [
+// Dummy data for Sales Order
+const dummySalesOrderData = [
   {
     id: 1,
+    orderNo: 'SO-001',
     customerNo: 'CUST001',
     customerName: 'ABC Corporation',
-    shipToCode: 'ST001',
-    shippingFrom: 'Warehouse A',
-    salesPersonCode: 'SP001',
-    salesPersonName: 'John Doe',
-    locationCode: 'LOC001',
+    orderDate: '2026-01-15',
     postingDate: '2026-01-15',
     documentDate: '2026-01-15',
-    orderDate: '2026-01-10',
     externalDocumentNo: 'EXT001',
     status: 'Pending',
-    invoiceType: 'Standard',
-    lob: 'FEED',
-    branch: '1001',
-    loc: 'SFPL0021',
+    amount: 50000,
   },
   {
     id: 2,
+    orderNo: 'SO-002',
     customerNo: 'CUST002',
     customerName: 'XYZ Industries',
-    shipToCode: 'ST002',
-    shippingFrom: 'Warehouse B',
-    salesPersonCode: 'SP002',
-    salesPersonName: 'Jane Smith',
-    locationCode: 'LOC002',
+    orderDate: '2026-01-16',
     postingDate: '2026-01-16',
     documentDate: '2026-01-16',
-    orderDate: '2026-01-11',
     externalDocumentNo: 'EXT002',
     status: 'Approved',
-    invoiceType: 'Tax Invoice',
-    lob: 'FEED',
-    branch: '1002',
-    loc: 'SFPL0022',
+    amount: 75000,
   },
   {
     id: 3,
+    orderNo: 'SO-003',
     customerNo: 'CUST003',
     customerName: 'Global Trading Co.',
-    shipToCode: 'ST003',
-    shippingFrom: 'Warehouse A',
-    salesPersonCode: 'SP001',
-    salesPersonName: 'John Doe',
-    locationCode: 'LOC001',
+    orderDate: '2026-01-17',
     postingDate: '2026-01-17',
     documentDate: '2026-01-17',
-    orderDate: '2026-01-12',
     externalDocumentNo: 'EXT003',
     status: 'Completed',
-    invoiceType: 'Standard',
-    lob: 'FEED',
-    branch: '1001',
-    loc: 'SFPL0021',
+    amount: 30000,
   },
 ];
 
+// Dummy data for Sales Invoice
+const dummySalesInvoiceData = [
+  {
+    id: 1,
+    invoiceNo: 'SI-001',
+    customerNo: 'CUST001',
+    customerName: 'ABC Corporation',
+    invoiceDate: '2026-01-15',
+    postingDate: '2026-01-15',
+    documentDate: '2026-01-15',
+    externalDocumentNo: 'EXT001',
+    status: 'Posted',
+    amount: 50000,
+  },
+  {
+    id: 2,
+    invoiceNo: 'SI-002',
+    customerNo: 'CUST002',
+    customerName: 'XYZ Industries',
+    invoiceDate: '2026-01-16',
+    postingDate: '2026-01-16',
+    documentDate: '2026-01-16',
+    externalDocumentNo: 'EXT002',
+    status: 'Posted',
+    amount: 75000,
+  },
+  {
+    id: 3,
+    invoiceNo: 'SI-003',
+    customerNo: 'CUST003',
+    customerName: 'Global Trading Co.',
+    invoiceDate: '2026-01-17',
+    postingDate: '2026-01-17',
+    documentDate: '2026-01-17',
+    externalDocumentNo: 'EXT003',
+    status: 'Pending',
+    amount: 30000,
+  },
+];
+
+// Dummy data for Sales Return Order
+const dummySalesReturnOrderData = [
+  {
+    id: 1,
+    returnOrderNo: 'SRO-001',
+    customerNo: 'CUST001',
+    customerName: 'ABC Corporation',
+    returnDate: '2026-01-15',
+    postingDate: '2026-01-15',
+    documentDate: '2026-01-15',
+    externalDocumentNo: 'EXT001',
+    status: 'Pending',
+    amount: 5000,
+  },
+  {
+    id: 2,
+    returnOrderNo: 'SRO-002',
+    customerNo: 'CUST002',
+    customerName: 'XYZ Industries',
+    returnDate: '2026-01-16',
+    postingDate: '2026-01-16',
+    documentDate: '2026-01-16',
+    externalDocumentNo: 'EXT002',
+    status: 'Approved',
+    amount: 7500,
+  },
+  {
+    id: 3,
+    returnOrderNo: 'SRO-003',
+    customerNo: 'CUST003',
+    customerName: 'Global Trading Co.',
+    returnDate: '2026-01-17',
+    postingDate: '2026-01-17',
+    documentDate: '2026-01-17',
+    externalDocumentNo: 'EXT003',
+    status: 'Completed',
+    amount: 3000,
+  },
+];
+
+// Dummy data for Sales Credit Memo
+const dummySalesCreditMemoData = [
+  {
+    id: 1,
+    creditMemoNo: 'SCM-001',
+    customerNo: 'CUST001',
+    customerName: 'ABC Corporation',
+    creditMemoDate: '2026-01-15',
+    postingDate: '2026-01-15',
+    documentDate: '2026-01-15',
+    externalDocumentNo: 'EXT001',
+    status: 'Posted',
+    amount: 5000,
+  },
+  {
+    id: 2,
+    creditMemoNo: 'SCM-002',
+    customerNo: 'CUST002',
+    customerName: 'XYZ Industries',
+    creditMemoDate: '2026-01-16',
+    postingDate: '2026-01-16',
+    documentDate: '2026-01-16',
+    externalDocumentNo: 'EXT002',
+    status: 'Posted',
+    amount: 7500,
+  },
+  {
+    id: 3,
+    creditMemoNo: 'SCM-003',
+    customerNo: 'CUST003',
+    customerName: 'Global Trading Co.',
+    creditMemoDate: '2026-01-17',
+    postingDate: '2026-01-17',
+    documentDate: '2026-01-17',
+    externalDocumentNo: 'EXT003',
+    status: 'Pending',
+    amount: 3000,
+  },
+];
+
+type SalesType = 'order' | 'invoice' | 'return-order' | 'credit-memo';
+
 export function SalesForm() {
+  const [activeTab, setActiveTab] = useState<SalesType>('order');
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [formData, setFormData] = useState({
     customerNo: '',
@@ -121,7 +229,7 @@ export function SalesForm() {
 
   const handleSubmit = () => {
     // TODO: Implement API call
-    console.log('Form submitted:', formData);
+    console.log('Form submitted:', formData, 'Type:', activeTab);
     setIsFormOpen(false);
     // Reset form
     setFormData({
@@ -143,65 +251,207 @@ export function SalesForm() {
     });
   };
 
+  const getButtonLabel = (type: SalesType) => {
+    switch (type) {
+      case 'order':
+        return 'Create Order';
+      case 'invoice':
+        return 'Create Invoice';
+      case 'return-order':
+        return 'Create Return Order';
+      case 'credit-memo':
+        return 'Create Credit Memo';
+      default:
+        return 'Create';
+    }
+  };
+
+  const getFormTitle = (type: SalesType) => {
+    switch (type) {
+      case 'order':
+        return 'Sales Order Form';
+      case 'invoice':
+        return 'Sales Invoice Form';
+      case 'return-order':
+        return 'Sales Return Order Form';
+      case 'credit-memo':
+        return 'Sales Credit Memo Form';
+      default:
+        return 'Sales Form';
+    }
+  };
+
   return (
     <div className="flex w-full min-w-0 flex-col p-4 gap-4">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="text-2xl font-semibold">Sales Table</h1>
-        <Button onClick={() => setIsFormOpen(true)} size="sm">
-          <Plus className="h-4 w-4 mr-2" />
-          Add Sales
-        </Button>
-      </div>
-
-      {/* Sales Table */}
-      <div className="rounded-lg border bg-card overflow-hidden">
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="px-3 py-3 text-xs font-medium">Customer No.</TableHead>
-                <TableHead className="px-3 py-3 text-xs font-medium">Customer Name</TableHead>
-                <TableHead className="px-3 py-3 text-xs font-medium">Ship to Code</TableHead>
-                <TableHead className="px-3 py-3 text-xs font-medium">Shipping From</TableHead>
-                <TableHead className="px-3 py-3 text-xs font-medium">Sales Person</TableHead>
-                <TableHead className="px-3 py-3 text-xs font-medium">Location Code</TableHead>
-                <TableHead className="px-3 py-3 text-xs font-medium">Posting Date</TableHead>
-                <TableHead className="px-3 py-3 text-xs font-medium">Document Date</TableHead>
-                <TableHead className="px-3 py-3 text-xs font-medium">Order Date</TableHead>
-                <TableHead className="px-3 py-3 text-xs font-medium">External Doc No.</TableHead>
-                <TableHead className="px-3 py-3 text-xs font-medium">Status</TableHead>
-                <TableHead className="px-3 py-3 text-xs font-medium">Invoice Type</TableHead>
-                <TableHead className="px-3 py-3 text-xs font-medium">LOB</TableHead>
-                <TableHead className="px-3 py-3 text-xs font-medium">Branch</TableHead>
-                <TableHead className="px-3 py-3 text-xs font-medium">LOC</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {dummySalesData.map((sale) => (
-                <TableRow key={sale.id} className="hover:bg-muted/50">
-                  <TableCell className="px-3 py-3 text-xs">{sale.customerNo}</TableCell>
-                  <TableCell className="px-3 py-3 text-xs">{sale.customerName}</TableCell>
-                  <TableCell className="px-3 py-3 text-xs">{sale.shipToCode}</TableCell>
-                  <TableCell className="px-3 py-3 text-xs">{sale.shippingFrom}</TableCell>
-                  <TableCell className="px-3 py-3 text-xs">
-                    {sale.salesPersonCode} / {sale.salesPersonName}
-                  </TableCell>
-                  <TableCell className="px-3 py-3 text-xs">{sale.locationCode}</TableCell>
-                  <TableCell className="px-3 py-3 text-xs">{sale.postingDate}</TableCell>
-                  <TableCell className="px-3 py-3 text-xs">{sale.documentDate}</TableCell>
-                  <TableCell className="px-3 py-3 text-xs">{sale.orderDate}</TableCell>
-                  <TableCell className="px-3 py-3 text-xs">{sale.externalDocumentNo}</TableCell>
-                  <TableCell className="px-3 py-3 text-xs">{sale.status}</TableCell>
-                  <TableCell className="px-3 py-3 text-xs">{sale.invoiceType}</TableCell>
-                  <TableCell className="px-3 py-3 text-xs">{sale.lob}</TableCell>
-                  <TableCell className="px-3 py-3 text-xs">{sale.branch}</TableCell>
-                  <TableCell className="px-3 py-3 text-xs">{sale.loc}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as SalesType)}>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <TabsList>
+            <TabsTrigger value="order">Sales Order</TabsTrigger>
+            <TabsTrigger value="invoice">Sales Invoice</TabsTrigger>
+            <TabsTrigger value="return-order">Sales Return Order</TabsTrigger>
+            <TabsTrigger value="credit-memo">Sales Credit Memo</TabsTrigger>
+          </TabsList>
+          <Button
+            onClick={() => setIsFormOpen(true)}
+            size="sm"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            {getButtonLabel(activeTab)}
+          </Button>
         </div>
-      </div>
+
+        {/* Sales Order Tab */}
+        <TabsContent value="order" className="mt-4">
+          <div className="rounded-lg border bg-card overflow-hidden">
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="px-3 py-3 text-xs font-medium">Order No.</TableHead>
+                    <TableHead className="px-3 py-3 text-xs font-medium">Customer No.</TableHead>
+                    <TableHead className="px-3 py-3 text-xs font-medium">Customer Name</TableHead>
+                    <TableHead className="px-3 py-3 text-xs font-medium">Order Date</TableHead>
+                    <TableHead className="px-3 py-3 text-xs font-medium">Posting Date</TableHead>
+                    <TableHead className="px-3 py-3 text-xs font-medium">Document Date</TableHead>
+                    <TableHead className="px-3 py-3 text-xs font-medium">External Doc No.</TableHead>
+                    <TableHead className="px-3 py-3 text-xs font-medium">Status</TableHead>
+                    <TableHead className="px-3 py-3 text-xs font-medium">Amount</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {dummySalesOrderData.map((order) => (
+                    <TableRow key={order.id} className="hover:bg-muted/50">
+                      <TableCell className="px-3 py-3 text-xs">{order.orderNo}</TableCell>
+                      <TableCell className="px-3 py-3 text-xs">{order.customerNo}</TableCell>
+                      <TableCell className="px-3 py-3 text-xs">{order.customerName}</TableCell>
+                      <TableCell className="px-3 py-3 text-xs">{order.orderDate}</TableCell>
+                      <TableCell className="px-3 py-3 text-xs">{order.postingDate}</TableCell>
+                      <TableCell className="px-3 py-3 text-xs">{order.documentDate}</TableCell>
+                      <TableCell className="px-3 py-3 text-xs">{order.externalDocumentNo}</TableCell>
+                      <TableCell className="px-3 py-3 text-xs">{order.status}</TableCell>
+                      <TableCell className="px-3 py-3 text-xs">{order.amount.toLocaleString()}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
+        </TabsContent>
+
+        {/* Sales Invoice Tab */}
+        <TabsContent value="invoice" className="mt-4">
+          <div className="rounded-lg border bg-card overflow-hidden">
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="px-3 py-3 text-xs font-medium">Invoice No.</TableHead>
+                    <TableHead className="px-3 py-3 text-xs font-medium">Customer No.</TableHead>
+                    <TableHead className="px-3 py-3 text-xs font-medium">Customer Name</TableHead>
+                    <TableHead className="px-3 py-3 text-xs font-medium">Invoice Date</TableHead>
+                    <TableHead className="px-3 py-3 text-xs font-medium">Posting Date</TableHead>
+                    <TableHead className="px-3 py-3 text-xs font-medium">Document Date</TableHead>
+                    <TableHead className="px-3 py-3 text-xs font-medium">External Doc No.</TableHead>
+                    <TableHead className="px-3 py-3 text-xs font-medium">Status</TableHead>
+                    <TableHead className="px-3 py-3 text-xs font-medium">Amount</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {dummySalesInvoiceData.map((invoice) => (
+                    <TableRow key={invoice.id} className="hover:bg-muted/50">
+                      <TableCell className="px-3 py-3 text-xs">{invoice.invoiceNo}</TableCell>
+                      <TableCell className="px-3 py-3 text-xs">{invoice.customerNo}</TableCell>
+                      <TableCell className="px-3 py-3 text-xs">{invoice.customerName}</TableCell>
+                      <TableCell className="px-3 py-3 text-xs">{invoice.invoiceDate}</TableCell>
+                      <TableCell className="px-3 py-3 text-xs">{invoice.postingDate}</TableCell>
+                      <TableCell className="px-3 py-3 text-xs">{invoice.documentDate}</TableCell>
+                      <TableCell className="px-3 py-3 text-xs">{invoice.externalDocumentNo}</TableCell>
+                      <TableCell className="px-3 py-3 text-xs">{invoice.status}</TableCell>
+                      <TableCell className="px-3 py-3 text-xs">{invoice.amount.toLocaleString()}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
+        </TabsContent>
+
+        {/* Sales Return Order Tab */}
+        <TabsContent value="return-order" className="mt-4">
+          <div className="rounded-lg border bg-card overflow-hidden">
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="px-3 py-3 text-xs font-medium">Return Order No.</TableHead>
+                    <TableHead className="px-3 py-3 text-xs font-medium">Customer No.</TableHead>
+                    <TableHead className="px-3 py-3 text-xs font-medium">Customer Name</TableHead>
+                    <TableHead className="px-3 py-3 text-xs font-medium">Return Date</TableHead>
+                    <TableHead className="px-3 py-3 text-xs font-medium">Posting Date</TableHead>
+                    <TableHead className="px-3 py-3 text-xs font-medium">Document Date</TableHead>
+                    <TableHead className="px-3 py-3 text-xs font-medium">External Doc No.</TableHead>
+                    <TableHead className="px-3 py-3 text-xs font-medium">Status</TableHead>
+                    <TableHead className="px-3 py-3 text-xs font-medium">Amount</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {dummySalesReturnOrderData.map((returnOrder) => (
+                    <TableRow key={returnOrder.id} className="hover:bg-muted/50">
+                      <TableCell className="px-3 py-3 text-xs">{returnOrder.returnOrderNo}</TableCell>
+                      <TableCell className="px-3 py-3 text-xs">{returnOrder.customerNo}</TableCell>
+                      <TableCell className="px-3 py-3 text-xs">{returnOrder.customerName}</TableCell>
+                      <TableCell className="px-3 py-3 text-xs">{returnOrder.returnDate}</TableCell>
+                      <TableCell className="px-3 py-3 text-xs">{returnOrder.postingDate}</TableCell>
+                      <TableCell className="px-3 py-3 text-xs">{returnOrder.documentDate}</TableCell>
+                      <TableCell className="px-3 py-3 text-xs">{returnOrder.externalDocumentNo}</TableCell>
+                      <TableCell className="px-3 py-3 text-xs">{returnOrder.status}</TableCell>
+                      <TableCell className="px-3 py-3 text-xs">{returnOrder.amount.toLocaleString()}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
+        </TabsContent>
+
+        {/* Sales Credit Memo Tab */}
+        <TabsContent value="credit-memo" className="mt-4">
+          <div className="rounded-lg border bg-card overflow-hidden">
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="px-3 py-3 text-xs font-medium">Credit Memo No.</TableHead>
+                    <TableHead className="px-3 py-3 text-xs font-medium">Customer No.</TableHead>
+                    <TableHead className="px-3 py-3 text-xs font-medium">Customer Name</TableHead>
+                    <TableHead className="px-3 py-3 text-xs font-medium">Credit Memo Date</TableHead>
+                    <TableHead className="px-3 py-3 text-xs font-medium">Posting Date</TableHead>
+                    <TableHead className="px-3 py-3 text-xs font-medium">Document Date</TableHead>
+                    <TableHead className="px-3 py-3 text-xs font-medium">External Doc No.</TableHead>
+                    <TableHead className="px-3 py-3 text-xs font-medium">Status</TableHead>
+                    <TableHead className="px-3 py-3 text-xs font-medium">Amount</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {dummySalesCreditMemoData.map((creditMemo) => (
+                    <TableRow key={creditMemo.id} className="hover:bg-muted/50">
+                      <TableCell className="px-3 py-3 text-xs">{creditMemo.creditMemoNo}</TableCell>
+                      <TableCell className="px-3 py-3 text-xs">{creditMemo.customerNo}</TableCell>
+                      <TableCell className="px-3 py-3 text-xs">{creditMemo.customerName}</TableCell>
+                      <TableCell className="px-3 py-3 text-xs">{creditMemo.creditMemoDate}</TableCell>
+                      <TableCell className="px-3 py-3 text-xs">{creditMemo.postingDate}</TableCell>
+                      <TableCell className="px-3 py-3 text-xs">{creditMemo.documentDate}</TableCell>
+                      <TableCell className="px-3 py-3 text-xs">{creditMemo.externalDocumentNo}</TableCell>
+                      <TableCell className="px-3 py-3 text-xs">{creditMemo.status}</TableCell>
+                      <TableCell className="px-3 py-3 text-xs">{creditMemo.amount.toLocaleString()}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
+        </TabsContent>
+      </Tabs>
 
       {/* Slide-in Form */}
       <Sheet open={isFormOpen} onOpenChange={setIsFormOpen}>
@@ -210,8 +460,8 @@ export function SalesForm() {
           className="!w-[40vw] !max-w-[40vw] sm:!max-w-[40vw] p-0 flex flex-col"
         >
           <SheetHeader className="px-6 pt-6 pb-4 border-b">
-            <SheetTitle className="text-xl">Sales Form</SheetTitle>
-            <SheetDescription>Add a new sales entry</SheetDescription>
+            <SheetTitle className="text-xl">{getFormTitle(activeTab)}</SheetTitle>
+            <SheetDescription>Add a new {activeTab.replace('-', ' ')} entry</SheetDescription>
           </SheetHeader>
 
           <div className="flex-1 overflow-y-auto px-6 py-6">
@@ -396,7 +646,7 @@ export function SalesForm() {
 
           <SheetFooter className="px-6 py-4 border-t">
             <Button onClick={handleSubmit} className="w-full">
-              Add Sales
+              {getButtonLabel(activeTab)}
             </Button>
           </SheetFooter>
         </SheetContent>

@@ -32,6 +32,8 @@ export function MiniAccessPanel({ isOpen: controlledOpen, onOpenChange }: MiniAc
   const [internalOpen, setInternalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showCloseAllDialog, setShowCloseAllDialog] = useState(false);
+  const [tabToClose, setTabToClose] = useState<string | null>(null);
+  const [showCloseTabDialog, setShowCloseTabDialog] = useState(false);
 
   // Use controlled or internal state
   const isOpen = controlledOpen !== undefined ? controlledOpen : internalOpen;
@@ -74,11 +76,38 @@ export function MiniAccessPanel({ isOpen: controlledOpen, onOpenChange }: MiniAc
     }
   };
 
-  const handleCloseTab = (tabId: string) => {
-    closeTab(tabId);
-    if (tabs.length === 1) {
-      setIsOpen(false);
+  const handleCloseTab = (tabId: string, e?: React.MouseEvent) => {
+    if (e) {
+      e.stopPropagation();
     }
+    const tab = tabs.find((t) => t.id === tabId);
+    if (tab && !tab.isSaved) {
+      // Show confirmation for unsaved tabs
+      setTabToClose(tabId);
+      setShowCloseTabDialog(true);
+    } else {
+      // Close saved tabs directly
+      closeTab(tabId);
+      if (tabs.length === 1) {
+        setIsOpen(false);
+      }
+    }
+  };
+
+  const handleConfirmCloseTab = () => {
+    if (tabToClose) {
+      closeTab(tabToClose);
+      if (tabs.length === 1) {
+        setIsOpen(false);
+      }
+      setTabToClose(null);
+    }
+    setShowCloseTabDialog(false);
+  };
+
+  const handleCancelCloseTab = () => {
+    setTabToClose(null);
+    setShowCloseTabDialog(false);
   };
 
   return (
@@ -88,14 +117,14 @@ export function MiniAccessPanel({ isOpen: controlledOpen, onOpenChange }: MiniAc
         <>
           {/* Overlay */}
           <div
-            className="fixed inset-0 bg-black/10 backdrop-blur-xs z-30 animate-in fade-in-0"
+            className="fixed inset-0 bg-black/10 backdrop-blur-xs z-[60] animate-in fade-in-0"
             onClick={() => setIsOpen(false)}
           />
           
           {/* Modal */}
           <div
             className={cn(
-              'fixed z-40 w-96 max-w-[calc(100vw-40vw-16px)] bg-background border shadow-xl rounded-lg',
+              'fixed z-[70] w-96 max-w-[calc(100vw-40vw-16px)] bg-background border shadow-xl rounded-lg',
               'top-20 left-1/2 -translate-x-1/2 max-h-[80vh] flex flex-col animate-in slide-in-from-top-2 duration-200',
               hasTabs ? '' : 'max-w-md'
             )}
@@ -240,6 +269,31 @@ export function MiniAccessPanel({ isOpen: controlledOpen, onOpenChange }: MiniAc
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleCloseAll} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
               Close All
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Close Tab Confirmation Dialog */}
+      <AlertDialog open={showCloseTabDialog} onOpenChange={setShowCloseTabDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Unsaved Changes</AlertDialogTitle>
+            <AlertDialogDescription>
+              {tabToClose
+                ? (() => {
+                    const tab = tabs.find((t) => t.id === tabToClose);
+                    return tab
+                      ? `The form "${tab.title}" has unsaved changes. Are you sure you want to close it? All unsaved data will be lost.`
+                      : 'This form has unsaved changes. Are you sure you want to close it? All unsaved data will be lost.';
+                  })()
+                : 'This form has unsaved changes. Are you sure you want to close it? All unsaved data will be lost.'}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={handleCancelCloseTab}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmCloseTab} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Close Anyway
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

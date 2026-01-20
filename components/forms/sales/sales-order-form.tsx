@@ -59,6 +59,15 @@ export function SalesOrderForm({ tabId, formData: initialFormData, context }: Sa
     }
   }, []);
 
+  // Set Order Date to current date on mount (if not already set)
+  useEffect(() => {
+    if (!formData.orderDate) {
+      const today = new Date();
+      const formattedDate = today.toISOString().split('T')[0]; // YYYY-MM-DD format
+      setFormData((prev) => ({ ...prev, orderDate: formattedDate }));
+    }
+  }, []);
+
   // Register refresh callback
   useEffect(() => {
     registerRefresh(async () => {
@@ -283,6 +292,8 @@ export function SalesOrderForm({ tabId, formData: initialFormData, context }: Sa
                   type="date"
                   value={formData.orderDate}
                   onChange={(e) => handleInputChange('orderDate', e.target.value)}
+                  disabled
+                  className="bg-muted"
                 />
               </div>
               <div className="space-y-2">
@@ -300,7 +311,9 @@ export function SalesOrderForm({ tabId, formData: initialFormData, context }: Sa
           <div className="space-y-4">
             <h3 className="text-sm font-medium text-muted-foreground">Document Information</h3>
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
+              {/* Status field - Hidden for create mode, will be shown in edit mode
+                  TODO: Uncomment and show this field when implementing edit functionality */}
+              {/* <div className="space-y-2">
                 <FieldTitle>Status</FieldTitle>
                 <Select
                   value={formData.status}
@@ -316,7 +329,7 @@ export function SalesOrderForm({ tabId, formData: initialFormData, context }: Sa
                     <SelectItem value="Cancelled">Cancelled</SelectItem>
                   </SelectContent>
                 </Select>
-              </div>
+              </div> */}
               <div className="space-y-2">
                 <FieldTitle>Invoice Type</FieldTitle>
                 <Select
@@ -327,9 +340,12 @@ export function SalesOrderForm({ tabId, formData: initialFormData, context }: Sa
                     <SelectValue placeholder="Select invoice type" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Standard">Standard</SelectItem>
-                    <SelectItem value="Tax Invoice">Tax Invoice</SelectItem>
-                    <SelectItem value="Credit Note">Credit Note</SelectItem>
+                    <SelectItem value="Bill of supply">Bill of supply</SelectItem>
+                    <SelectItem value="Export">Export</SelectItem>
+                    <SelectItem value="Supplementary">Supplementary</SelectItem>
+                    <SelectItem value="Debit Note">Debit Note</SelectItem>
+                    <SelectItem value="Non-GST">Non-GST</SelectItem>
+                    <SelectItem value="Taxable">Taxable</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

@@ -90,10 +90,18 @@ export function FormStackPanel() {
     );
   }
 
-  // Expanded state - full panel
+  // Expanded state - full panel (fixed with blurred background)
   return (
     <>
-      <div className="w-[40vw] max-w-[40vw] bg-background border-l border-border flex flex-col h-full">
+      {/* Backdrop with blur */}
+      <div 
+        className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40"
+        onClick={toggleCollapse}
+        aria-hidden="true"
+      />
+      
+      {/* Fixed panel */}
+      <div className="fixed top-0 right-0 w-[40vw] max-w-[40vw] h-full bg-background border-l border-border flex flex-col z-50 shadow-xl">
         {/* Tabs - Always show at top */}
         {tabs.length > 0 && <FormStackTabs />}
 

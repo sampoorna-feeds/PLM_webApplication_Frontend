@@ -7,7 +7,7 @@
 
 import React, { createContext, useCallback, useEffect, useRef, useState } from 'react';
 import type { FormTab, FormStackContextType, FormStackState } from './types';
-import { saveFormStack, loadFormStack } from './storage';
+import { saveFormStack, loadFormStack, clearFormStack } from './storage';
 
 const FormStackContext = createContext<FormStackContextType | undefined>(undefined);
 
@@ -45,6 +45,9 @@ export function FormStackProvider({ children, formScope }: FormStackProviderProp
         isFloating,
       };
       saveFormStack(formScope, state);
+    } else {
+      // Clear storage when all tabs are closed
+      clearFormStack(formScope);
     }
   }, [tabs, activeTabId, formScope, isCollapsed, isFloating]);
 

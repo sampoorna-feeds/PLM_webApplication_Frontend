@@ -19,6 +19,7 @@ import { FieldTitle } from '@/components/ui/field';
 import { CascadingDimensionSelect } from '@/components/forms/cascading-dimension-select';
 import { CustomerSelect, type SalesCustomer } from './customer-select';
 import { ShipToSelect } from './shipto-select';
+import type { ShipToAddress } from '@/lib/api/services/shipto.service';
 import { useFormStack } from '@/lib/form-stack/use-form-stack';
 import { getAuthCredentials } from '@/lib/auth/storage';
 
@@ -110,7 +111,7 @@ export function SalesOrderForm({ tabId, formData: initialFormData, context }: Sa
     }));
   }, []);
 
-  const handleShipToChange = useCallback((shipToCode: string, shipTo?: { Code: string; Name: string; Location_Code: string }) => {
+  const handleShipToChange = useCallback((shipToCode: string, shipTo?: ShipToAddress) => {
     setFormData((prev) => {
       // Only update if value actually changed to prevent unnecessary re-renders
       if (prev.shipToCode === shipToCode && prev.locationCode === (shipTo?.Location_Code || prev.locationCode)) {

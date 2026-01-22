@@ -4,17 +4,21 @@
  * Includes sidebar navigation
  */
 
-'use client';
+"use client";
 
-import React from 'react';
-import { usePathname, useRouter } from 'next/navigation';
-import Link from 'next/link';
-import { AuthGuard } from '@/components/layout/auth-guard';
-import { AppSidebar } from '@/components/layout/sidebar';
-import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar';
-import { ThemeToggle } from '@/components/theme/theme-toggle';
-import { Button } from '@/components/ui/button';
-import { ArrowLeft } from 'lucide-react';
+import React from "react";
+import { usePathname, useRouter } from "next/navigation";
+import Link from "next/link";
+import { AuthGuard } from "@/components/layout/auth-guard";
+import { AppSidebar } from "@/components/layout/sidebar";
+import {
+  SidebarProvider,
+  SidebarInset,
+  SidebarTrigger,
+} from "@/components/ui/sidebar";
+import { ThemeToggle } from "@/components/theme/theme-toggle";
+import { Button } from "@/components/ui/button";
+import { ArrowLeft } from "lucide-react";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -22,7 +26,7 @@ import {
   BreadcrumbList,
   BreadcrumbPage,
   BreadcrumbSeparator,
-} from '@/components/ui/breadcrumb';
+} from "@/components/ui/breadcrumb";
 
 export default function ProtectedLayout({
   children,
@@ -34,44 +38,52 @@ export default function ProtectedLayout({
 
   // Generate breadcrumbs based on pathname
   const getBreadcrumbs = () => {
-    if (pathname === '/voucher-form') {
+    if (pathname === "/voucher-form") {
       return [
-        { label: 'Forms', href: '#' },
-        { label: 'Voucher', href: null },
+        { label: "Forms", href: "#" },
+        { label: "Voucher", href: null },
       ];
     }
-    if (pathname === '/sales-form') {
+    if (pathname === "/sales-form") {
       return [
-        { label: 'Forms', href: '#' },
-        { label: 'Sales', href: null },
+        { label: "Forms", href: "#" },
+        { label: "Sales", href: null },
       ];
     }
-    if (pathname?.startsWith('/settings')) {
-      if (pathname === '/settings/account') {
-        return [
-          { label: 'Settings', href: '/settings' },
-          { label: 'Account', href: null },
-        ];
-      }
-      if (pathname === '/settings/reset-password') {
-        return [
-          { label: 'Settings', href: '/settings' },
-          { label: 'Reset Password', href: null },
-        ];
-      }
+    if (pathname === "/production-orders") {
       return [
-        { label: 'Settings', href: null },
+        { label: "Forms", href: "#" },
+        { label: "Production Order", href: null },
       ];
+    }
+    if (pathname?.startsWith("/settings")) {
+      if (pathname === "/settings/account") {
+        return [
+          { label: "Settings", href: "/settings" },
+          { label: "Account", href: null },
+        ];
+      }
+      if (pathname === "/settings/reset-password") {
+        return [
+          { label: "Settings", href: "/settings" },
+          { label: "Reset Password", href: null },
+        ];
+      }
+      return [{ label: "Settings", href: null }];
     }
     // Add more routes as needed
     return [];
   };
 
   const breadcrumbs = getBreadcrumbs();
-  
+
   // Check if we should show "Return to Dashboard" button
   // Show it on settings pages and other non-main pages
-  const showReturnToDashboard = pathname !== '/voucher-form' && pathname !== '/sales-form' && pathname !== '/';
+  const showReturnToDashboard =
+    pathname !== "/voucher-form" &&
+    pathname !== "/sales-form" &&
+    pathname !== "/production-orders" &&
+    pathname !== "/";
 
   return (
     <AuthGuard>
@@ -105,7 +117,7 @@ export default function ProtectedLayout({
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => router.push('/voucher-form')}
+                  onClick={() => router.push("/voucher-form")}
                   className="gap-2"
                 >
                   <ArrowLeft className="h-4 w-4" />
@@ -123,4 +135,3 @@ export default function ProtectedLayout({
     </AuthGuard>
   );
 }
-

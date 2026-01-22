@@ -1,15 +1,15 @@
-'use client';
+"use client";
 
 /**
  * Sidebar component - sidebar-08 style
  * Inset sidebar with navigation, forms, support, and user avatar
  */
 
-import { useRouter, usePathname } from 'next/navigation';
-import Link from 'next/link';
-import Image from 'next/image';
-import { useAuth } from '@/lib/contexts/auth-context';
-import { useAuthStore } from '@/lib/stores/auth-store';
+import { useRouter, usePathname } from "next/navigation";
+import Link from "next/link";
+import Image from "next/image";
+import { useAuth } from "@/lib/contexts/auth-context";
+import { useAuthStore } from "@/lib/stores/auth-store";
 import {
   Sidebar as SidebarRoot,
   SidebarContent,
@@ -22,7 +22,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   useSidebar,
-} from '@/components/ui/sidebar';
+} from "@/components/ui/sidebar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -31,50 +31,65 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { FileText, LifeBuoy, Send, ChevronsUpDown, LogOut, User, KeyRound } from 'lucide-react';
+} from "@/components/ui/dropdown-menu";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  FileText,
+  LifeBuoy,
+  Send,
+  ChevronsUpDown,
+  LogOut,
+  User,
+  KeyRound,
+} from "lucide-react";
 
 const formsItems = [
   {
-    title: 'Voucher',
-    url: '/voucher-form',
+    title: "Voucher",
+    url: "/voucher-form",
     icon: FileText,
   },
   {
-    title: 'Sales',
-    url: '/sales-form',
+    title: "Sales",
+    url: "/sales-form",
+    icon: FileText,
+  },
+  {
+    title: "Production Order",
+    url: "/production-orders",
     icon: FileText,
   },
 ];
 
 const settingsItems = [
   {
-    title: 'Account',
-    url: '/settings/account',
+    title: "Account",
+    url: "/settings/account",
     icon: User,
   },
   {
-    title: 'Reset Password',
-    url: '/settings/reset-password',
+    title: "Reset Password",
+    url: "/settings/reset-password",
     icon: KeyRound,
   },
 ];
 
 const secondaryItems = [
   {
-    title: 'Support',
-    url: '#',
+    title: "Support",
+    url: "#",
     icon: LifeBuoy,
   },
   {
-    title: 'Feedback',
-    url: '#',
+    title: "Feedback",
+    url: "#",
     icon: Send,
   },
 ];
 
-export function AppSidebar({ ...props }: React.ComponentProps<typeof SidebarRoot>) {
+export function AppSidebar({
+  ...props
+}: React.ComponentProps<typeof SidebarRoot>) {
   const router = useRouter();
   const pathname = usePathname();
   const { userID, username, logout: authLogout } = useAuth();
@@ -84,13 +99,14 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof SidebarRoot
   const handleLogout = async () => {
     await authLogout();
     clearAuth();
-    router.push('/login');
+    router.push("/login");
   };
 
   // Determine which navigation items to show
-  const isSettingsPage = pathname?.startsWith('/settings') || pathname?.startsWith('/account');
+  const isSettingsPage =
+    pathname?.startsWith("/settings") || pathname?.startsWith("/account");
   const navItems = isSettingsPage ? settingsItems : formsItems;
-  const navLabel = isSettingsPage ? 'Settings' : 'Forms';
+  const navLabel = isSettingsPage ? "Settings" : "Forms";
 
   return (
     <SidebarRoot variant="inset" {...props}>
@@ -110,7 +126,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof SidebarRoot
                 </div>
                 <div className="grid flex-1 text-left text-sm leading-tight">
                   <span className="truncate font-medium">Sampoorna Feeds</span>
-                  <span className="truncate text-xs text-muted-foreground">Feed... as it should be</span>
+                  <span className="truncate text-xs text-muted-foreground">
+                    Feed... as it should be
+                  </span>
                 </div>
               </Link>
             </SidebarMenuButton>
@@ -137,7 +155,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof SidebarRoot
             </SidebarGroupContent>
           </SidebarGroup>
         )}
-        
+
         {isSettingsPage && (
           <SidebarGroup>
             <SidebarGroupLabel>Settings</SidebarGroupLabel>
@@ -145,7 +163,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof SidebarRoot
               <SidebarMenu>
                 {settingsItems.map((item) => {
                   const isActive = pathname === item.url;
-                  
+
                   return (
                     <SidebarMenuItem key={item.url}>
                       <SidebarMenuButton asChild isActive={isActive}>
@@ -188,34 +206,44 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof SidebarRoot
                   size="lg"
                   className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground w-full"
                 >
-                  <Avatar className="h-8 w-8 !rounded-md [&>img]:!rounded-md">
-                    <AvatarFallback className="!rounded-md">
-                      {username ? username.substring(0, 2).toUpperCase() : 'U'}
+                  <Avatar className="h-8 w-8 rounded-md! [&>img]:rounded-md!">
+                    <AvatarFallback className="rounded-md!">
+                      {username ? username.substring(0, 2).toUpperCase() : "U"}
                     </AvatarFallback>
                   </Avatar>
                   <div className="grid flex-1 text-left text-sm leading-tight">
-                    <span className="truncate font-medium">{username || 'User'}</span>
-                    <span className="truncate text-xs text-muted-foreground">{userID || ''}</span>
+                    <span className="truncate font-medium">
+                      {username || "User"}
+                    </span>
+                    <span className="truncate text-xs text-muted-foreground">
+                      {userID || ""}
+                    </span>
                   </div>
                   <ChevronsUpDown className="ml-auto size-4" />
                 </SidebarMenuButton>
               </DropdownMenuTrigger>
               <DropdownMenuContent
                 className="w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-lg"
-                side={isMobile ? 'bottom' : 'right'}
+                side={isMobile ? "bottom" : "right"}
                 align="end"
                 sideOffset={4}
               >
                 <DropdownMenuLabel className="p-0 font-normal">
                   <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
-                    <Avatar className="h-8 w-8 !rounded-md [&>img]:!rounded-md">
-                      <AvatarFallback className="!rounded-md">
-                        {username ? username.substring(0, 2).toUpperCase() : 'U'}
+                    <Avatar className="h-8 w-8 rounded-md! [&>img]:rounded-md!">
+                      <AvatarFallback className="rounded-md!">
+                        {username
+                          ? username.substring(0, 2).toUpperCase()
+                          : "U"}
                       </AvatarFallback>
                     </Avatar>
                     <div className="grid flex-1 text-left text-sm leading-tight">
-                      <span className="truncate font-medium">{username || 'User'}</span>
-                      <span className="truncate text-xs text-muted-foreground">{userID || ''}</span>
+                      <span className="truncate font-medium">
+                        {username || "User"}
+                      </span>
+                      <span className="truncate text-xs text-muted-foreground">
+                        {userID || ""}
+                      </span>
                     </div>
                   </div>
                 </DropdownMenuLabel>

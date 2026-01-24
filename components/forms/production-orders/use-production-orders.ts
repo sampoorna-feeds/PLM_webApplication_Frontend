@@ -12,7 +12,13 @@ import {
   ProductionOrderLine,
   ProductionOrderComponent,
 } from "@/lib/api/services/production-orders.service";
-import type { PageSize, SheetMode, ProductionOrderFormData } from "./types";
+import type {
+  PageSize,
+  SheetMode,
+  ProductionOrderFormData,
+  SourceType,
+  BatchSize,
+} from "./types";
 import { EMPTY_FORM_DATA } from "./types";
 
 const DEFAULT_LOB_CODES = ["CATTLE", "CBF", "FEED"];
@@ -155,24 +161,38 @@ export function useProductionOrderSheet() {
   const getFormData = (): ProductionOrderFormData => {
     if (!selectedOrder) return EMPTY_FORM_DATA;
 
+    // Map Source_Type from API to form format
+    const mapSourceType = (apiType?: string): SourceType => {
+      if (!apiType) return "";
+      // API might return different formats, normalize them
+      const normalized = apiType.toLowerCase();
+      if (normalized === "item" || normalized === "0") return "Item";
+      if (normalized === "family" || normalized === "1") return "Family";
+      if (
+        normalized === "sales header" ||
+        normalized === "salesheader" ||
+        normalized === "2"
+      )
+        return "Sales Header";
+      return "";
+    };
+
     return {
       No: selectedOrder.No,
       Description: selectedOrder.Description || "",
-      Description_2: selectedOrder.Description_2 || "",
-      Source_Type: selectedOrder.Source_Type || "",
-      Source_No: selectedOrder.Source_No || "",
-      Quantity: selectedOrder.Quantity || 0,
-      Location_Code: selectedOrder.Location_Code || "",
-      Due_Date: selectedOrder.Due_Date || "",
-      Starting_Date: selectedOrder.Starting_Date || "",
-      Ending_Date: selectedOrder.Ending_Date || "",
-      Supervisor_Name: selectedOrder.Supervisor_Name || "",
-      Breed_Code: selectedOrder.Breed_Code || "",
-      Hatchery_Name: selectedOrder.Hatchery_Name || "",
       Shortcut_Dimension_1_Code: selectedOrder.Shortcut_Dimension_1_Code || "",
       Shortcut_Dimension_2_Code: selectedOrder.Shortcut_Dimension_2_Code || "",
       Shortcut_Dimension_3_Code: selectedOrder.Shortcut_Dimension_3_Code || "",
-      Assigned_User_ID: selectedOrder.Assigned_User_ID || "",
+      Source_Type: mapSourceType(selectedOrder.Source_Type),
+      Source_No: selectedOrder.Source_No || "",
+      Quantity: selectedOrder.Quantity || 0,
+      Due_Date: selectedOrder.Due_Date || "",
+      Location_Code: selectedOrder.Location_Code || "",
+      Hatching_Date: selectedOrder.Hatching_Date || "",
+      Prod_Bom_No: selectedOrder.Prod_Bom_No || "",
+      BOM_Version_No: selectedOrder.BOM_Version_No || "",
+      isProdBomFromItem: !!selectedOrder.Prod_Bom_No, // If BOM exists, assume from item
+      Batch_Size: (selectedOrder.Batch_Size as BatchSize) || "",
     };
   };
 

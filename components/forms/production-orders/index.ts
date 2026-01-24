@@ -1,4 +1,8 @@
-export { ProductionOrdersForm as default } from "./production-orders-form";
+export {
+  ProductionOrdersForm,
+  ProductionOrdersForm as default,
+} from "./production-orders-form";
+export { ProductionOrderForm } from "./production-order-form";
 export { ProductionOrdersTable } from "./production-orders-table";
 export { ProductionOrderSheet } from "./production-order-sheet";
 export { ProductionOrderFormFields } from "./production-order-form-fields";

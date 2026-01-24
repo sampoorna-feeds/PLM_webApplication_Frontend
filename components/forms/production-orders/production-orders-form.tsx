@@ -1,16 +1,24 @@
 "use client";
 
+/**
+ * Production Orders Form
+ * Main component for viewing and managing production orders
+ * Uses FormStack for managing multiple form tabs
+ */
+
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
-  useProductionOrders,
-  useProductionOrderSheet,
-} from "./use-production-orders";
+  FormStackProvider,
+  FormStackPanel,
+  MiniAccessPanel,
+} from "@/components/form-stack";
+import { useFormStackContext } from "@/lib/form-stack/form-stack-context";
+import { useProductionOrders } from "./use-production-orders";
 import { ProductionOrdersTable } from "./production-orders-table";
-import { ProductionOrderSheet } from "./production-order-sheet";
 import { PaginationControls } from "./pagination-controls";
 
-export function ProductionOrdersForm() {
+function ProductionOrdersContent() {
   const {
     orders,
     isLoading,
@@ -18,56 +26,66 @@ export function ProductionOrdersForm() {
     currentPage,
     onPageSizeChange,
     onPageChange,
-    refetch,
   } = useProductionOrders();
 
-  const {
-    selectedOrder,
-    isOpen,
-    isSaving,
-    mode,
-    formData,
-    setMode,
-    setIsOpen,
-    openOrderDetail,
-    openCreateOrder,
-    handleSave,
-  } = useProductionOrderSheet();
+  const { openTab } = useFormStackContext();
 
   // Determine if there's a next page based on current results
   const hasNextPage = orders.length === pageSize;
 
-  return (
-    <div className="p-4 w-full h-full flex flex-col">
-      <Header onCreateOrder={openCreateOrder} />
+  // Open create form in FormStack
+  const handleCreateOrder = () => {
+    openTab("production-order", {
+      title: "Create Production Order",
+      context: {
+        mode: "create",
+        openedFromParent: true,
+      },
+      autoCloseOnSuccess: true,
+    });
+  };
 
-      <div className="flex-1">
-        <ProductionOrdersTable
-          orders={orders}
-          isLoading={isLoading}
-          onRowClick={openOrderDetail}
+  // Open view form in FormStack when clicking a row
+  const handleRowClick = (orderNo: string) => {
+    openTab("production-order", {
+      title: `Order: ${orderNo}`,
+      context: {
+        mode: "view",
+        orderNo,
+        openedFromParent: true,
+      },
+      autoCloseOnSuccess: false, // View mode shouldn't auto-close
+    });
+  };
+
+  return (
+    <div className="flex w-full h-full min-h-0">
+      {/* Main Content Area */}
+      <div className="flex-1 min-w-0 flex flex-col p-4 gap-4 overflow-y-auto">
+        <Header onCreateOrder={handleCreateOrder} />
+
+        <div className="flex-1">
+          <ProductionOrdersTable
+            orders={orders}
+            isLoading={isLoading}
+            onRowClick={handleRowClick}
+          />
+        </div>
+
+        <PaginationControls
+          pageSize={pageSize}
+          currentPage={currentPage}
+          hasNextPage={hasNextPage}
+          onPageSizeChange={onPageSizeChange}
+          onPageChange={onPageChange}
         />
       </div>
 
-      <PaginationControls
-        pageSize={pageSize}
-        currentPage={currentPage}
-        hasNextPage={hasNextPage}
-        onPageSizeChange={onPageSizeChange}
-        onPageChange={onPageChange}
-      />
+      {/* FormStack Panel */}
+      <FormStackPanel />
 
-      <ProductionOrderSheet
-        order={selectedOrder}
-        open={isOpen}
-        mode={mode}
-        initialFormData={formData}
-        isSaving={isSaving}
-        onOpenChange={setIsOpen}
-        onModeChange={setMode}
-        onSave={handleSave}
-        onRefresh={refetch}
-      />
+      {/* Mini Access Panel */}
+      <MiniAccessPanel />
     </div>
   );
 }
@@ -78,7 +96,7 @@ interface HeaderProps {
 
 function Header({ onCreateOrder }: HeaderProps) {
   return (
-    <div className="mb-4 flex items-center justify-between">
+    <div className="flex items-center justify-between">
       <div>
         <h1 className="text-2xl font-bold">Released Production Orders</h1>
         <p className="text-sm text-muted-foreground">
@@ -90,5 +108,13 @@ function Header({ onCreateOrder }: HeaderProps) {
         Add Order
       </Button>
     </div>
+  );
+}
+
+export function ProductionOrdersForm() {
+  return (
+    <FormStackProvider formScope="production-orders">
+      <ProductionOrdersContent />
+    </FormStackProvider>
   );
 }

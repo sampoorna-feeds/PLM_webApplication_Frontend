@@ -4,6 +4,10 @@ export type PageSize = 10 | 20 | 30 | 40 | 50;
 
 export type SheetMode = "view" | "edit" | "create";
 
+export type SourceType = "Item" | "Family" | "Sales Header" | "";
+
+export type BatchSize = "0.8" | "1.0" | "1.5" | "2.0" | "";
+
 export interface PaginationState {
   pageSize: PageSize;
   currentPage: number;
@@ -37,39 +41,48 @@ export interface PaginationControlsProps {
 export interface ProductionOrderFormData {
   No?: string;
   Description: string;
-  Description_2?: string;
-  Source_Type?: string;
+  // Dimension fields
+  Shortcut_Dimension_1_Code: string; // LOB
+  Shortcut_Dimension_2_Code: string; // Branch Code
+  Shortcut_Dimension_3_Code: string; // LOC Code
+  // Source fields
+  Source_Type: SourceType;
   Source_No: string;
+  // Core fields
   Quantity: number;
+  Due_Date: string;
   Location_Code: string;
-  Due_Date?: string;
-  Starting_Date?: string;
-  Ending_Date?: string;
-  Supervisor_Name?: string;
-  Breed_Code?: string;
-  Hatchery_Name?: string;
-  Shortcut_Dimension_1_Code?: string;
-  Shortcut_Dimension_2_Code?: string;
-  Shortcut_Dimension_3_Code?: string;
-  Assigned_User_ID?: string;
+  Hatching_Date: string;
+  // BOM fields (only for Item source type)
+  Prod_Bom_No: string;
+  BOM_Version_No: string;
+  isProdBomFromItem: boolean; // tracks if BOM came from item (uneditable) or manual
+  // Other fields
+  Batch_Size: BatchSize;
 }
 
 export const EMPTY_FORM_DATA: ProductionOrderFormData = {
   No: "",
   Description: "",
-  Description_2: "",
-  Source_Type: "",
-  Source_No: "",
-  Quantity: 0,
-  Location_Code: "",
-  Due_Date: "",
-  Starting_Date: "",
-  Ending_Date: "",
-  Supervisor_Name: "",
-  Breed_Code: "",
-  Hatchery_Name: "",
   Shortcut_Dimension_1_Code: "",
   Shortcut_Dimension_2_Code: "",
   Shortcut_Dimension_3_Code: "",
-  Assigned_User_ID: "",
+  Source_Type: "",
+  Source_No: "",
+  Quantity: 0,
+  Due_Date: "",
+  Location_Code: "",
+  Hatching_Date: "",
+  Prod_Bom_No: "",
+  BOM_Version_No: "",
+  isProdBomFromItem: false,
+  Batch_Size: "",
 };
+
+export const SOURCE_TYPE_OPTIONS: SourceType[] = [
+  "Item",
+  "Family",
+  "Sales Header",
+];
+
+export const BATCH_SIZE_OPTIONS: BatchSize[] = ["0.8", "1.0", "1.5", "2.0"];

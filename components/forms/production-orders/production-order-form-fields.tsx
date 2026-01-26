@@ -1,9 +1,43 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
+import { Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import type { ProductionOrderFormData, SheetMode } from "./types";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { useAuth } from "@/lib/contexts/auth-context";
+import {
+  getLOBsFromUserSetup,
+  getBranchesFromUserSetup,
+  getLOCsFromUserSetup,
+  type DimensionValue,
+} from "@/lib/api/services/dimension.service";
+import {
+  getItems,
+  getFamilies,
+  getSalesHeaders,
+  getProdOrderBOMs,
+  getProdOrderBOMVersions,
+  getItemByNo,
+  type Item,
+  type Family,
+  type SalesHeader,
+  type ProdOrderBOM,
+  type ProdOrderBOMVersion,
+} from "@/lib/api/services/production-order-data.service";
+import type {
+  ProductionOrderFormData,
+  SheetMode,
+  SourceType,
+  BatchSize,
+} from "./types";
+import { SOURCE_TYPE_OPTIONS, BATCH_SIZE_OPTIONS } from "./types";
 
 interface ProductionOrderFormFieldsProps {
   data: ProductionOrderFormData;
@@ -16,17 +50,286 @@ export function ProductionOrderFormFields({
   mode,
   onChange,
 }: ProductionOrderFormFieldsProps) {
+  const { userID } = useAuth();
   const isReadOnly = mode === "view";
 
-  const handleChange = (
-    field: keyof ProductionOrderFormData,
-    value: string | number,
-  ) => {
-    onChange({ ...data, [field]: value });
+  // Dimension dropdowns state
+  const [lobs, setLobs] = useState<DimensionValue[]>([]);
+  const [branches, setBranches] = useState<DimensionValue[]>([]);
+  const [locs, setLocs] = useState<DimensionValue[]>([]);
+  const [isLoadingDimensions, setIsLoadingDimensions] = useState(false);
+
+  // Source No dropdown state
+  const [sourceOptions, setSourceOptions] = useState<
+    (Item | Family | SalesHeader)[]
+  >([]);
+  const [isLoadingSource, setIsLoadingSource] = useState(false);
+
+  // BOM dropdown state
+  const [bomOptions, setBomOptions] = useState<ProdOrderBOM[]>([]);
+  const [bomVersionOptions, setBomVersionOptions] = useState<
+    ProdOrderBOMVersion[]
+  >([]);
+  const [isLoadingBom, setIsLoadingBom] = useState(false);
+  const [isLoadingBomVersions, setIsLoadingBomVersions] = useState(false);
+
+  // Handle field changes
+  const handleChange = useCallback(
+    (field: keyof ProductionOrderFormData, value: string | number | boolean) => {
+      onChange({ ...data, [field]: value });
+    },
+    [data, onChange],
+  );
+
+  // Load LOBs on mount
+  useEffect(() => {
+    if (!userID || isReadOnly) return;
+
+    const loadLOBs = async () => {
+      setIsLoadingDimensions(true);
+      try {
+        const lobData = await getLOBsFromUserSetup(userID);
+        setLobs(lobData);
+      } catch (error) {
+        console.error("Error loading LOBs:", error);
+      } finally {
+        setIsLoadingDimensions(false);
+      }
+    };
+
+    loadLOBs();
+  }, [userID, isReadOnly]);
+
+  // Load Branches when LOB changes
+  useEffect(() => {
+    if (!userID || !data.Shortcut_Dimension_1_Code || isReadOnly) {
+      setBranches([]);
+      return;
+    }
+
+    const loadBranches = async () => {
+      try {
+        const branchData = await getBranchesFromUserSetup(
+          data.Shortcut_Dimension_1_Code,
+          userID,
+        );
+        setBranches(branchData);
+      } catch (error) {
+        console.error("Error loading branches:", error);
+      }
+    };
+
+    loadBranches();
+  }, [userID, data.Shortcut_Dimension_1_Code, isReadOnly]);
+
+  // Load LOCs when Branch changes
+  useEffect(() => {
+    if (
+      !userID ||
+      !data.Shortcut_Dimension_1_Code ||
+      !data.Shortcut_Dimension_2_Code ||
+      isReadOnly
+    ) {
+      setLocs([]);
+      return;
+    }
+
+    const loadLOCs = async () => {
+      try {
+        const locData = await getLOCsFromUserSetup(
+          data.Shortcut_Dimension_1_Code,
+          data.Shortcut_Dimension_2_Code,
+          userID,
+        );
+        setLocs(locData);
+      } catch (error) {
+        console.error("Error loading LOCs:", error);
+      }
+    };
+
+    loadLOCs();
+  }, [
+    userID,
+    data.Shortcut_Dimension_1_Code,
+    data.Shortcut_Dimension_2_Code,
+    isReadOnly,
+  ]);
+
+  // Prefill Location_Code when LOC changes
+  useEffect(() => {
+    if (data.Shortcut_Dimension_3_Code && !data.Location_Code) {
+      handleChange("Location_Code", data.Shortcut_Dimension_3_Code);
+    }
+  }, [data.Shortcut_Dimension_3_Code, data.Location_Code, handleChange]);
+
+  // Load Source No options when Source Type changes
+  useEffect(() => {
+    if (!data.Source_Type || isReadOnly) {
+      setSourceOptions([]);
+      return;
+    }
+
+    const loadSourceOptions = async () => {
+      setIsLoadingSource(true);
+      try {
+        let options: (Item | Family | SalesHeader)[] = [];
+        switch (data.Source_Type) {
+          case "Item":
+            options = await getItems(undefined, data.Shortcut_Dimension_1_Code);
+            break;
+          case "Family":
+            options = await getFamilies();
+            break;
+          case "Sales Header":
+            options = await getSalesHeaders();
+            break;
+        }
+        setSourceOptions(options);
+      } catch (error) {
+        console.error("Error loading source options:", error);
+        setSourceOptions([]);
+      } finally {
+        setIsLoadingSource(false);
+      }
+    };
+
+    loadSourceOptions();
+  }, [data.Source_Type, data.Shortcut_Dimension_1_Code, isReadOnly]);
+
+  // Handle Source Type change - reset dependent fields
+  const handleSourceTypeChange = (value: SourceType) => {
+    onChange({
+      ...data,
+      Source_Type: value,
+      Source_No: "",
+      Prod_Bom_No: "",
+      BOM_Version_No: "",
+      isProdBomFromItem: false,
+    });
   };
+
+  // Handle Source No change - check for item's Production BOM
+  const handleSourceNoChange = async (value: string) => {
+    onChange({
+      ...data,
+      Source_No: value,
+      Prod_Bom_No: "",
+      BOM_Version_No: "",
+      isProdBomFromItem: false,
+    });
+
+    // If source type is Item, check if the item has a Production BOM
+    if (data.Source_Type === "Item" && value) {
+      try {
+        const item = await getItemByNo(value);
+        if (item?.Production_BOM_No) {
+          // Item has a BOM - use it and make it uneditable
+          onChange({
+            ...data,
+            Source_No: value,
+            Prod_Bom_No: item.Production_BOM_No,
+            BOM_Version_No: "",
+            isProdBomFromItem: true,
+          });
+        } else {
+          // No BOM from item - load BOM dropdown options
+          setIsLoadingBom(true);
+          const boms = await getProdOrderBOMs();
+          setBomOptions(boms);
+          setIsLoadingBom(false);
+        }
+      } catch (error) {
+        console.error("Error checking item BOM:", error);
+      }
+    }
+  };
+
+  // Load BOM Versions when Prod BOM No changes (only for manual selection)
+  useEffect(() => {
+    if (!data.Prod_Bom_No || data.isProdBomFromItem || isReadOnly) {
+      setBomVersionOptions([]);
+      return;
+    }
+
+    const loadBomVersions = async () => {
+      setIsLoadingBomVersions(true);
+      try {
+        const versions = await getProdOrderBOMVersions(data.Prod_Bom_No);
+        setBomVersionOptions(versions);
+      } catch (error) {
+        console.error("Error loading BOM versions:", error);
+        setBomVersionOptions([]);
+      } finally {
+        setIsLoadingBomVersions(false);
+      }
+    };
+
+    loadBomVersions();
+  }, [data.Prod_Bom_No, data.isProdBomFromItem, isReadOnly]);
+
+  // Reset Branch and LOC when LOB changes
+  const handleLOBChange = (value: string) => {
+    onChange({
+      ...data,
+      Shortcut_Dimension_1_Code: value,
+      Shortcut_Dimension_2_Code: "",
+      Shortcut_Dimension_3_Code: "",
+      Location_Code: "",
+    });
+  };
+
+  // Reset LOC when Branch changes
+  const handleBranchChange = (value: string) => {
+    onChange({
+      ...data,
+      Shortcut_Dimension_2_Code: value,
+      Shortcut_Dimension_3_Code: "",
+      Location_Code: "",
+    });
+  };
+
+  // Check if BOM fields should be shown (only for Item source type)
+  const showBomFields = data.Source_Type === "Item";
+  // Check if BOM is editable (manual entry needed)
+  const isBomEditable = showBomFields && !data.isProdBomFromItem && !isReadOnly;
+  // Check if BOM Version should be shown (only when manually filling BOM)
+  const showBomVersion = showBomFields && !data.isProdBomFromItem && data.Prod_Bom_No;
 
   return (
     <div className="space-y-6">
+      {/* Dimension Fields */}
+      <FormSection title="Dimension">
+        <SelectField
+          label="LOB"
+          value={data.Shortcut_Dimension_1_Code}
+          options={lobs.map((l) => ({ value: l.Code, label: l.Code }))}
+          onChange={handleLOBChange}
+          disabled={isReadOnly}
+          isLoading={isLoadingDimensions}
+          required
+        />
+        <SelectField
+          label="Branch Code"
+          value={data.Shortcut_Dimension_2_Code}
+          options={branches.map((b) => ({ value: b.Code, label: b.Code }))}
+          onChange={(v) => handleBranchChange(v)}
+          disabled={isReadOnly || !data.Shortcut_Dimension_1_Code}
+          required
+        />
+        <SelectField
+          label="LOC Code"
+          value={data.Shortcut_Dimension_3_Code}
+          options={locs.map((l) => ({ value: l.Code, label: l.Code }))}
+          onChange={(v) => {
+            handleChange("Shortcut_Dimension_3_Code", v);
+            // Prefill Location Code with LOC value
+            handleChange("Location_Code", v);
+          }}
+          disabled={isReadOnly || !data.Shortcut_Dimension_2_Code}
+          required
+        />
+      </FormSection>
+
       {/* General Information */}
       <FormSection title="General Information">
         <FormField
@@ -43,117 +346,130 @@ export function ProductionOrderFormFields({
           disabled={isReadOnly}
           required
         />
-        <FormField
-          label="Description 2"
-          value={data.Description_2 || ""}
-          onChange={(v) => handleChange("Description_2", v)}
-          disabled={isReadOnly}
-        />
       </FormSection>
 
       {/* Source Details */}
       <FormSection title="Source Details">
-        <FormField
+        <SelectField
           label="Source Type"
-          value={data.Source_Type || ""}
-          onChange={(v) => handleChange("Source_Type", v)}
+          value={data.Source_Type}
+          options={SOURCE_TYPE_OPTIONS.filter(Boolean).map((st) => ({
+            value: st,
+            label: st,
+          }))}
+          onChange={(v) => handleSourceTypeChange(v as SourceType)}
           disabled={isReadOnly}
+          required
         />
-        <FormField
+        <SelectField
           label="Source No"
           value={data.Source_No}
-          onChange={(v) => handleChange("Source_No", v)}
-          disabled={isReadOnly}
+          options={sourceOptions.map((opt) => ({
+            value: opt.No,
+            label:
+              "Description" in opt
+                ? `${opt.No} - ${opt.Description}`
+                : "Sell_to_Customer_Name" in opt
+                  ? `${opt.No} - ${opt.Sell_to_Customer_Name}`
+                  : opt.No,
+          }))}
+          onChange={handleSourceNoChange}
+          disabled={isReadOnly || !data.Source_Type}
+          isLoading={isLoadingSource}
           required
         />
         <FormField
           label="Quantity"
           value={data.Quantity}
-          onChange={(v) => handleChange("Quantity", Number(v))}
+          onChange={(v) => handleChange("Quantity", parseFloat(v) || 0)}
           disabled={isReadOnly}
           type="number"
-          required
-        />
-        <FormField
-          label="Location Code"
-          value={data.Location_Code}
-          onChange={(v) => handleChange("Location_Code", v)}
-          disabled={isReadOnly}
+          step="0.01"
           required
         />
       </FormSection>
 
-      {/* Schedule */}
-      <FormSection title="Schedule">
+      {/* Dates & Location */}
+      <FormSection title="Dates & Location">
         <FormField
           label="Due Date"
-          value={data.Due_Date || ""}
+          value={data.Due_Date}
           onChange={(v) => handleChange("Due_Date", v)}
           disabled={isReadOnly}
           type="date"
+          required
         />
-        <FormField
-          label="Starting Date"
-          value={data.Starting_Date || ""}
-          onChange={(v) => handleChange("Starting_Date", v)}
+        <SelectField
+          label="Location Code"
+          value={data.Location_Code}
+          options={locs.map((l) => ({ value: l.Code, label: l.Code }))}
+          onChange={(v) => handleChange("Location_Code", v)}
           disabled={isReadOnly}
-          type="date"
+          placeholder="Prefilled from LOC"
+          required
         />
         <FormField
-          label="Ending Date"
-          value={data.Ending_Date || ""}
-          onChange={(v) => handleChange("Ending_Date", v)}
+          label="Hatching Date"
+          value={data.Hatching_Date}
+          onChange={(v) => handleChange("Hatching_Date", v)}
           disabled={isReadOnly}
           type="date"
         />
       </FormSection>
 
-      {/* Additional Details */}
-      <FormSection title="Additional Details">
-        <FormField
-          label="Supervisor Name"
-          value={data.Supervisor_Name || ""}
-          onChange={(v) => handleChange("Supervisor_Name", v)}
-          disabled={isReadOnly}
-        />
-        <FormField
-          label="Breed Code"
-          value={data.Breed_Code || ""}
-          onChange={(v) => handleChange("Breed_Code", v)}
-          disabled={isReadOnly}
-        />
-        <FormField
-          label="Hatchery Name"
-          value={data.Hatchery_Name || ""}
-          onChange={(v) => handleChange("Hatchery_Name", v)}
-          disabled={isReadOnly}
-        />
-        <FormField
-          label="Assigned User"
-          value={data.Assigned_User_ID || ""}
-          onChange={(v) => handleChange("Assigned_User_ID", v)}
-          disabled={isReadOnly}
-        />
-      </FormSection>
+      {/* BOM Fields - Only for Item source type */}
+      {showBomFields && (
+        <FormSection title="Production BOM">
+          {data.isProdBomFromItem ? (
+            <FormField
+              label="Prod. BOM No"
+              value={data.Prod_Bom_No}
+              onChange={() => {}}
+              disabled={true}
+              helpText="Auto-filled from selected item"
+            />
+          ) : (
+            <SelectField
+              label="Prod. BOM No"
+              value={data.Prod_Bom_No}
+              options={bomOptions.map((b) => ({
+                value: b.No,
+                label: b.Description ? `${b.No} - ${b.Description}` : b.No,
+              }))}
+              onChange={(v) => handleChange("Prod_Bom_No", v)}
+              disabled={!isBomEditable}
+              isLoading={isLoadingBom}
+              required
+            />
+          )}
+          {showBomVersion && (
+            <SelectField
+              label="BOM Version No"
+              value={data.BOM_Version_No}
+              options={bomVersionOptions.map((v) => ({
+                value: v.Version_Code,
+                label: v.Description
+                  ? `${v.Version_Code} - ${v.Description}`
+                  : v.Version_Code,
+              }))}
+              onChange={(v) => handleChange("BOM_Version_No", v)}
+              disabled={isReadOnly}
+              isLoading={isLoadingBomVersions}
+            />
+          )}
+        </FormSection>
+      )}
 
-      {/* Dimensions */}
-      <FormSection title="Dimensions">
-        <FormField
-          label="LOB"
-          value={data.Shortcut_Dimension_1_Code || ""}
-          onChange={(v) => handleChange("Shortcut_Dimension_1_Code", v)}
-          disabled={isReadOnly}
-        />
-        <FormField
-          label="Branch"
-          value={data.Shortcut_Dimension_2_Code || ""}
-          onChange={(v) => handleChange("Shortcut_Dimension_2_Code", v)}
-          disabled={isReadOnly}
-        />
-        <FormField
-          label="LOC"
-          value={data.Shortcut_Dimension_3_Code || ""}
-          onChange={(v) => handleChange("Shortcut_Dimension_3_Code", v)}
+      {/* Additional Options */}
+      <FormSection title="Additional Options">
+        <SelectField
+          label="Batch Size (In TON)"
+          value={data.Batch_Size}
+          options={BATCH_SIZE_OPTIONS.filter(Boolean).map((bs) => ({
+            value: bs,
+            label: bs,
+          }))}
+          onChange={(v) => handleChange("Batch_Size", v as BatchSize)}
           disabled={isReadOnly}
         />
       </FormSection>
@@ -161,7 +477,9 @@ export function ProductionOrderFormFields({
   );
 }
 
-// Form Section Component
+// ============================================
+// FORM SECTION COMPONENT
+// ============================================
 interface FormSectionProps {
   title: string;
   children: React.ReactNode;
@@ -176,7 +494,9 @@ function FormSection({ title, children }: FormSectionProps) {
   );
 }
 
-// Form Field Component
+// ============================================
+// FORM FIELD COMPONENT (Input)
+// ============================================
 interface FormFieldProps {
   label: string;
   value: string | number;
@@ -185,6 +505,8 @@ interface FormFieldProps {
   required?: boolean;
   type?: "text" | "number" | "date";
   placeholder?: string;
+  step?: string;
+  helpText?: string;
 }
 
 function FormField({
@@ -195,7 +517,62 @@ function FormField({
   required = false,
   type = "text",
   placeholder,
+  step,
+  helpText,
 }: FormFieldProps) {
+  return (
+    <div className="space-y-1.5">
+      <Label className="text-xs font-medium text-muted-foreground">
+        {label}
+        {required && <span className="text-destructive ml-1">*</span>}
+      </Label>
+      {disabled ? (
+        <div>
+          <p className="text-sm py-2 px-3 bg-muted/50 rounded-md min-h-9 flex items-center">
+            {value || "-"}
+          </p>
+          {helpText && (
+            <p className="text-xs text-muted-foreground mt-1">{helpText}</p>
+          )}
+        </div>
+      ) : (
+        <Input
+          type={type}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          step={step}
+          className="h-9 text-sm"
+        />
+      )}
+    </div>
+  );
+}
+
+// ============================================
+// SELECT FIELD COMPONENT
+// ============================================
+interface SelectFieldProps {
+  label: string;
+  value: string;
+  options: { value: string; label: string }[];
+  onChange: (value: string) => void;
+  disabled?: boolean;
+  required?: boolean;
+  isLoading?: boolean;
+  placeholder?: string;
+}
+
+function SelectField({
+  label,
+  value,
+  options,
+  onChange,
+  disabled = false,
+  required = false,
+  isLoading = false,
+  placeholder = "Select...",
+}: SelectFieldProps) {
   return (
     <div className="space-y-1.5">
       <Label className="text-xs font-medium text-muted-foreground">
@@ -207,13 +584,25 @@ function FormField({
           {value || "-"}
         </p>
       ) : (
-        <Input
-          type={type}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder={placeholder}
-          className="h-9 text-sm"
-        />
+        <Select value={value} onValueChange={onChange} disabled={isLoading}>
+          <SelectTrigger className="h-9 text-sm">
+            {isLoading ? (
+              <div className="flex items-center gap-2">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span>Loading...</span>
+              </div>
+            ) : (
+              <SelectValue placeholder={placeholder} />
+            )}
+          </SelectTrigger>
+          <SelectContent>
+            {options.map((opt) => (
+              <SelectItem key={opt.value} value={opt.value}>
+                {opt.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       )}
     </div>
   );

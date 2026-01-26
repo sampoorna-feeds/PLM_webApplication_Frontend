@@ -3,7 +3,7 @@
  * Maps form type identifiers to React components
  */
 
-import type { FormComponent } from './types';
+import type { FormComponent } from "./types";
 
 // Lazy imports to avoid circular dependencies
 let SalesOrderForm: FormComponent | null = null;
@@ -12,52 +12,67 @@ let SalesReturnOrderForm: FormComponent | null = null;
 let SalesCreditMemoForm: FormComponent | null = null;
 let AddPincodeForm: FormComponent | null = null;
 let AddShipToForm: FormComponent | null = null;
+let ProductionOrderForm: FormComponent | null = null;
 
 /**
  * Form registry mapping form types to components
  */
-export const formRegistry: Record<string, () => Promise<{ default: FormComponent }>> = {
-  'sales-order': async () => {
+export const formRegistry: Record<
+  string,
+  () => Promise<{ default: FormComponent }>
+> = {
+  "sales-order": async () => {
     if (!SalesOrderForm) {
-      const module = await import('@/components/forms/sales/sales-order-form');
+      const module = await import("@/components/forms/sales/sales-order-form");
       SalesOrderForm = module.SalesOrderForm;
     }
     return { default: SalesOrderForm! };
   },
-  'sales-invoice': async () => {
+  "sales-invoice": async () => {
     if (!SalesInvoiceForm) {
-      const module = await import('@/components/forms/sales/sales-invoice-form');
+      const module =
+        await import("@/components/forms/sales/sales-invoice-form");
       SalesInvoiceForm = module.SalesInvoiceForm;
     }
     return { default: SalesInvoiceForm! };
   },
-  'sales-return-order': async () => {
+  "sales-return-order": async () => {
     if (!SalesReturnOrderForm) {
-      const module = await import('@/components/forms/sales/sales-return-order-form');
+      const module =
+        await import("@/components/forms/sales/sales-return-order-form");
       SalesReturnOrderForm = module.SalesReturnOrderForm;
     }
     return { default: SalesReturnOrderForm! };
   },
-  'sales-credit-memo': async () => {
+  "sales-credit-memo": async () => {
     if (!SalesCreditMemoForm) {
-      const module = await import('@/components/forms/sales/sales-credit-memo-form');
+      const module =
+        await import("@/components/forms/sales/sales-credit-memo-form");
       SalesCreditMemoForm = module.SalesCreditMemoForm;
     }
     return { default: SalesCreditMemoForm! };
   },
-  'add-pincode': async () => {
+  "add-pincode": async () => {
     if (!AddPincodeForm) {
-      const module = await import('@/components/forms/nested/add-pincode-form');
+      const module = await import("@/components/forms/nested/add-pincode-form");
       AddPincodeForm = module.AddPincodeForm;
     }
     return { default: AddPincodeForm! };
   },
-  'add-shipto': async () => {
+  "add-shipto": async () => {
     if (!AddShipToForm) {
-      const module = await import('@/components/forms/sales/add-shipto-form');
+      const module = await import("@/components/forms/sales/add-shipto-form");
       AddShipToForm = module.AddShipToForm;
     }
     return { default: AddShipToForm! };
+  },
+  "production-order": async () => {
+    if (!ProductionOrderForm) {
+      const module =
+        await import("@/components/forms/production-orders/production-order-form");
+      ProductionOrderForm = module.ProductionOrderForm;
+    }
+    return { default: ProductionOrderForm! };
   },
 };
 
@@ -65,7 +80,7 @@ export const formRegistry: Record<string, () => Promise<{ default: FormComponent
  * Get form component for a form type
  */
 export async function getFormComponent(
-  formType: string
+  formType: string,
 ): Promise<FormComponent | null> {
   const loader = formRegistry[formType];
   if (!loader) {

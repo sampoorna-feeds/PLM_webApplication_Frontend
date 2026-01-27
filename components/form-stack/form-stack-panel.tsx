@@ -100,8 +100,13 @@ export function FormStackPanel() {
         aria-hidden="true"
       />
       
-      {/* Fixed panel */}
-      <div className="fixed top-0 right-0 w-[40vw] max-w-[40vw] h-full bg-background border-l border-border flex flex-col z-50 shadow-xl">
+      {/* Fixed panel - Wider for sales order forms to accommodate line items table */}
+      <div className={cn(
+        "fixed top-0 right-0 h-full bg-background border-l border-border flex flex-col z-50 shadow-xl",
+        currentTab?.formType === 'sales-order' 
+          ? "w-[60vw] max-w-[60vw]" 
+          : "w-[40vw] max-w-[40vw]"
+      )}>
         {/* Tabs - Always show at top */}
         {tabs.length > 0 && <FormStackTabs />}
 

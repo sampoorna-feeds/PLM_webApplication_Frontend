@@ -211,6 +211,14 @@ export function ShipToSelect({
       <PopoverContent
         className="p-0 min-w-[280px] max-w-[500px] w-auto"
         align="start"
+        onOpenAutoFocus={(e) => {
+          // Prevent auto-focus from scrolling
+          e.preventDefault();
+        }}
+        onCloseAutoFocus={(e) => {
+          // Prevent auto-focus from scrolling
+          e.preventDefault();
+        }}
       >
         {/* Header with Add New button */}
         {customerNo && formStackContext && (

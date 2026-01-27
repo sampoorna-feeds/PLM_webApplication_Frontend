@@ -19,7 +19,7 @@ interface FormStackProviderProps {
 export function FormStackProvider({ children, formScope }: FormStackProviderProps) {
   const [tabs, setTabs] = useState<FormTab[]>([]);
   const [activeTabId, setActiveTabId] = useState<string | null>(null);
-  const [isCollapsed, setIsCollapsed] = useState<boolean>(false);
+  const [isCollapsed, setIsCollapsed] = useState<boolean>(true); // Start collapsed by default
   const [isFloating, setIsFloating] = useState<boolean>(false);
   const refreshCallbacksRef = useRef<Map<string, () => void | Promise<void>>>(new Map());
 
@@ -29,7 +29,7 @@ export function FormStackProvider({ children, formScope }: FormStackProviderProp
     if (persisted) {
       setTabs(persisted.tabs);
       setActiveTabId(persisted.activeTabId);
-      setIsCollapsed(persisted.isCollapsed ?? false);
+      setIsCollapsed(persisted.isCollapsed ?? true); // Default to collapsed
       setIsFloating(persisted.isFloating ?? false);
     }
   }, [formScope]);

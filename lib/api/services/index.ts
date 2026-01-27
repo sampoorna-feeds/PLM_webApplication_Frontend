@@ -7,4 +7,8 @@ export * from './vendor.service';
 export * from './customer.service';
 export * from './dimension.service';
 export * from './voucher.service';
+export * from './gl-account.service';
+export * from './item.service';
+export * from './tcs.service';
+export * from './sales-order.service';
 

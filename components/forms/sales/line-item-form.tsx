@@ -61,8 +61,9 @@ interface LineItemFormProps {
 }
 
 function LineItemFormComponent({ lineItem, customerNo, onSubmit, onCancel }: LineItemFormProps) {
+  const initialType = lineItem?.type || 'Item';
   const [formData, setFormData] = useState<Partial<LineItem>>({
-    type: lineItem?.type || 'Item',
+    type: initialType,
     no: lineItem?.no || '',
     description: lineItem?.description || '',
     uom: lineItem?.uom || '',
@@ -80,18 +81,35 @@ function LineItemFormComponent({ lineItem, customerNo, onSubmit, onCancel }: Lin
   });
 
   const [uomOptions, setUomOptions] = useState<ItemUnitOfMeasure[]>([]);
-  const [isDescriptionEditable, setIsDescriptionEditable] = useState(false);
+  const [isDescriptionEditable, setIsDescriptionEditable] = useState(initialType === 'G/L Account');
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
   const [selectedGLAccount, setSelectedGLAccount] = useState<GLAccount | null>(null);
+  const [tcsOptions, setTcsOptions] = useState<TCSGroupCode[]>([]);
 
-  // Calculate derived fields
+  // Load TCS Group Codes when customerNo is available
+  useEffect(() => {
+    if (customerNo) {
+      getTCSGroupCodes(customerNo)
+        .then((codes) => {
+          setTcsOptions(codes);
+        })
+        .catch((error) => {
+          console.error('Error loading TCS Group Codes:', error);
+          setTcsOptions([]);
+        });
+    } else {
+      setTcsOptions([]);
+    }
+  }, [customerNo]);
+
+  // Calculate derived fields - Amount = Unit Price * Quantity - Discount
   const calculateAmounts = useCallback(() => {
     const quantity = formData.quantity || 0;
     const unitPrice = formData.unitPrice || 0;
     const discount = formData.discount || 0;
 
     const totalMRP = unitPrice * quantity;
-    const amount = totalMRP - discount;
+    const amount = (unitPrice * quantity) - discount;
 
     setFormData((prev) => ({
       ...prev,
@@ -111,8 +129,8 @@ function LineItemFormComponent({ lineItem, customerNo, onSubmit, onCancel }: Lin
       getItemUnitOfMeasures(formData.no)
         .then((uoms) => {
           setUomOptions(uoms);
-          // Auto-select first UOM if none selected
-          if (!formData.uom && uoms.length > 0) {
+          // Auto-select first UOM if none selected and we're not editing
+          if (!formData.uom && uoms.length > 0 && !lineItem) {
             setFormData((prev) => ({ ...prev, uom: uoms[0].Code }));
           }
         })
@@ -122,9 +140,11 @@ function LineItemFormComponent({ lineItem, customerNo, onSubmit, onCancel }: Lin
         });
     } else {
       setUomOptions([]);
-      setFormData((prev) => ({ ...prev, uom: '' }));
+      if (formData.type !== 'Item') {
+        setFormData((prev) => ({ ...prev, uom: '' }));
+      }
     }
-  }, [formData.type, formData.no]);
+  }, [formData.type, formData.no, lineItem]);
 
   // Handle type change
   const handleTypeChange = (type: 'G/L Account' | 'Item') => {
@@ -133,7 +153,7 @@ function LineItemFormComponent({ lineItem, customerNo, onSubmit, onCancel }: Lin
       type,
       no: '',
       description: '',
-      uom: '',
+      uom: type === 'Item' ? prev.uom : '', // Clear UOM for GL Account
       exempted: false,
       gstGroupCode: '',
       hsnSacCode: '',
@@ -141,6 +161,10 @@ function LineItemFormComponent({ lineItem, customerNo, onSubmit, onCancel }: Lin
     setSelectedItem(null);
     setSelectedGLAccount(null);
     setIsDescriptionEditable(type === 'G/L Account');
+    // Clear UOM options for GL Account
+    if (type === 'G/L Account') {
+      setUomOptions([]);
+    }
   };
 
   // Handle GL Account selection
@@ -282,10 +306,10 @@ function LineItemFormComponent({ lineItem, customerNo, onSubmit, onCancel }: Lin
         />
       </div>
 
-      {/* UOM (only for Item) */}
-      {formData.type === 'Item' && (
-        <div className="space-y-2">
-          <FieldTitle>UOM</FieldTitle>
+      {/* UOM (only for Item, blank for GL Account) */}
+      <div className="space-y-2">
+        <FieldTitle>UOM</FieldTitle>
+        {formData.type === 'Item' ? (
           <Select
             value={formData.uom || ''}
             onValueChange={(value) => setFormData((prev) => ({ ...prev, uom: value }))}
@@ -301,8 +325,15 @@ function LineItemFormComponent({ lineItem, customerNo, onSubmit, onCancel }: Lin
               ))}
             </SelectContent>
           </Select>
-        </div>
-      )}
+        ) : (
+          <Input
+            value=""
+            disabled
+            className="bg-muted"
+            placeholder="Not applicable for G/L Account"
+          />
+        )}
+      </div>
 
       <div className="grid grid-cols-3 gap-4">
         {/* Quantity */}
@@ -450,15 +481,37 @@ function LineItemFormComponent({ lineItem, customerNo, onSubmit, onCancel }: Lin
       {/* TCS Group Code */}
       <div className="space-y-2">
         <FieldTitle>TCS Group Code</FieldTitle>
-        <Input
-          value={formData.tcsGroupCode || ''}
-          onChange={(e) => setFormData((prev) => ({ ...prev, tcsGroupCode: e.target.value }))}
-          placeholder="Enter TCS Group Code"
-          onFocus={(e) => {
-            e.stopPropagation();
-          }}
-        />
-        {/* TODO: Make this a searchable select once TCS API is confirmed */}
+        {customerNo ? (
+          <Select
+            value={formData.tcsGroupCode || ''}
+            onValueChange={(value) => setFormData((prev) => ({ ...prev, tcsGroupCode: value }))}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Select TCS Group Code" />
+            </SelectTrigger>
+            <SelectContent>
+              {tcsOptions.length > 0 ? (
+                tcsOptions.map((tcs) => (
+                  <SelectItem key={tcs.TCS_Nature_of_Collection} value={tcs.TCS_Nature_of_Collection}>
+                    {tcs.TCS_Nature_of_Collection}
+                  </SelectItem>
+                ))
+              ) : (
+                <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                  No TCS codes available
+                </div>
+              )}
+            </SelectContent>
+          </Select>
+        ) : (
+          <Input
+            value={formData.tcsGroupCode || ''}
+            onChange={(e) => setFormData((prev) => ({ ...prev, tcsGroupCode: e.target.value }))}
+            placeholder="Select customer first"
+            disabled
+            className="bg-muted"
+          />
+        )}
       </div>
 
       {/* Form Actions */}

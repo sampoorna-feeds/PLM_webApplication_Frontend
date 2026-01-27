@@ -91,7 +91,7 @@ export function FormStackProvider({ children, formScope }: FormStackProviderProp
       setTabs((prev) => [...prev, newTab]);
       setActiveTabId(tabId);
       
-      // Auto-expand panel when opening a new tab
+      // Auto-expand panel when opening a new tab (form is being opened)
       if (isCollapsed) {
         setIsCollapsed(false);
       }
@@ -141,6 +141,11 @@ export function FormStackProvider({ children, formScope }: FormStackProviderProp
 
       setActiveTabId(tabId);
 
+      // Auto-expand when switching to a tab (form is opened)
+      if (isCollapsed) {
+        setIsCollapsed(false);
+      }
+
       // If revisiting, trigger refresh callback
       if (wasVisitedBefore) {
         const refreshCallback = refreshCallbacksRef.current.get(tabId);
@@ -153,7 +158,7 @@ export function FormStackProvider({ children, formScope }: FormStackProviderProp
         }
       }
     },
-    [tabs]
+    [tabs, isCollapsed]
   );
 
   const closeAllTabs = useCallback(() => {

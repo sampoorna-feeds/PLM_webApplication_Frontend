@@ -149,40 +149,40 @@ export function SalesOrderForm({ tabId, formData: initialFormData, context }: Sa
   const canGoToStep = (step: Step): boolean => {
     if (step === 1) return true;
     if (step === 2) {
+      // Allow moving to line items step without validation
+      // User can add line items and come back to fill customer if needed
+      return true;
+    }
+    if (step === 3) {
+      // Require customer, at least one line item and essential dates for final submission
       return !!(
         formData.customerNo &&
+        lineItems.length > 0 &&
         formData.postingDate &&
         formData.documentDate &&
         formData.orderDate
       );
     }
-    if (step === 3) {
-      return lineItems.length > 0;
-    }
     return false;
   };
 
   const handleNext = () => {
-    if (currentStep < 3 && canGoToStep((currentStep + 1) as Step)) {
-      setCurrentStep((currentStep + 1) as Step);
-      // Sync to FormStack when changing steps
-      updateFormData({ ...formData, lineItems });
+    const nextStep = (currentStep + 1) as Step;
+    if (currentStep < 3 && canGoToStep(nextStep)) {
+      setCurrentStep(nextStep);
     }
   };
 
   const handlePrevious = () => {
     if (currentStep > 1) {
-      setCurrentStep((currentStep - 1) as Step);
-      // Sync to FormStack when changing steps
-      updateFormData({ ...formData, lineItems });
+      const prevStep = (currentStep - 1) as Step;
+      setCurrentStep(prevStep);
     }
   };
 
   const handleStepClick = (step: Step) => {
     if (canGoToStep(step)) {
       setCurrentStep(step);
-      // Sync to FormStack when changing steps
-      updateFormData({ ...formData, lineItems });
     }
   };
 
@@ -588,7 +588,12 @@ export function SalesOrderForm({ tabId, formData: initialFormData, context }: Sa
           {[1, 2, 3].map((step) => (
             <React.Fragment key={step}>
               <button
-                onClick={() => handleStepClick(step as Step)}
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleStepClick(step as Step);
+                }}
                 disabled={!canGoToStep(step as Step)}
                 className={cn(
                   'flex items-center gap-2 px-4 py-2 rounded-md transition-colors',
@@ -630,7 +635,11 @@ export function SalesOrderForm({ tabId, formData: initialFormData, context }: Sa
           Previous
         </Button>
         {currentStep < 3 ? (
-          <Button onClick={handleNext} disabled={!canGoToStep((currentStep + 1) as Step)}>
+          <Button 
+            type="button"
+            onClick={handleNext} 
+            disabled={!canGoToStep((currentStep + 1) as Step)}
+          >
             Next
             <ChevronRight className="h-4 w-4 ml-2" />
           </Button>

@@ -21,7 +21,7 @@ import {
   getGLAccounts,
   searchGLAccounts,
   getGLAccountsPage,
-  type GLAccount,
+  type GLPostingAccount,
 } from '@/lib/api/services/gl-account.service';
 import {
   getItems,
@@ -83,7 +83,7 @@ function LineItemFormComponent({ lineItem, customerNo, onSubmit, onCancel }: Lin
   const [uomOptions, setUomOptions] = useState<ItemUnitOfMeasure[]>([]);
   const [isDescriptionEditable, setIsDescriptionEditable] = useState(initialType === 'G/L Account');
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
-  const [selectedGLAccount, setSelectedGLAccount] = useState<GLAccount | null>(null);
+  const [selectedGLAccount, setSelectedGLAccount] = useState<GLPostingAccount | null>(null);
   const [tcsOptions, setTcsOptions] = useState<TCSGroupCode[]>([]);
 
   // Load TCS Group Codes when customerNo is available
@@ -168,7 +168,7 @@ function LineItemFormComponent({ lineItem, customerNo, onSubmit, onCancel }: Lin
   };
 
   // Handle GL Account selection
-  const handleGLAccountChange = (value: string, account?: GLAccount) => {
+  const handleGLAccountChange = (value: string, account?: GLPostingAccount) => {
     if (account) {
       setSelectedGLAccount(account);
       setFormData((prev) => ({
@@ -254,7 +254,7 @@ function LineItemFormComponent({ lineItem, customerNo, onSubmit, onCancel }: Lin
         <div className="space-y-2">
           <FieldTitle>No.</FieldTitle>
           {formData.type === 'G/L Account' ? (
-            <SearchableSelect<GLAccount>
+            <SearchableSelect<GLPostingAccount>
               value={formData.no || ''}
               onChange={handleGLAccountChange}
               placeholder="Select GL Account"

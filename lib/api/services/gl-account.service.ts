@@ -7,7 +7,7 @@ import { apiGet } from '../client';
 import { buildODataQuery } from '../endpoints';
 import type { ODataResponse } from '../types';
 
-export interface GLAccount {
+export interface GLPostingAccount {
   No: string;
   Name: string;
 }
@@ -15,7 +15,7 @@ export interface GLAccount {
 const COMPANY = process.env.NEXT_PUBLIC_API_COMPANY || 'Sampoorna Feeds Pvt. Ltd';
 
 // Cache for search results
-const searchCache = new Map<string, GLAccount[]>();
+const searchCache = new Map<string, GLPostingAccount[]>();
 
 /**
  * Helper to escape single quotes in OData filter values
@@ -34,7 +34,7 @@ function getBaseFilter(): string {
 /**
  * Initial load - Get first batch of GL accounts (no search)
  */
-export async function getGLAccounts(top: number = 20): Promise<GLAccount[]> {
+export async function getGLAccounts(top: number = 20): Promise<GLPostingAccount[]> {
   const query = buildODataQuery({
     $select: 'No,Name',
     $filter: getBaseFilter(),
@@ -43,7 +43,7 @@ export async function getGLAccounts(top: number = 20): Promise<GLAccount[]> {
   });
 
   const endpoint = `/GLAccount?company='${encodeURIComponent(COMPANY)}'&${query}`;
-  const response = await apiGet<ODataResponse<GLAccount>>(endpoint);
+  const response = await apiGet<ODataResponse<GLPostingAccount>>(endpoint);
   return response.value;
 }
 
@@ -51,7 +51,7 @@ export async function getGLAccounts(top: number = 20): Promise<GLAccount[]> {
  * Search GL accounts with query string
  * Makes 2 separate API calls (one for No, one for Name) and combines unique results
  */
-export async function searchGLAccounts(query: string): Promise<GLAccount[]> {
+export async function searchGLAccounts(query: string): Promise<GLPostingAccount[]> {
   if (query.length < 2) {
     return [];
   }
@@ -77,7 +77,7 @@ export async function searchGLAccounts(query: string): Promise<GLAccount[]> {
         $top: 30,
       });
       const endpoint = `/GLAccount?company='${encodeURIComponent(COMPANY)}'&${odataQuery}`;
-      const response = await apiGet<ODataResponse<GLAccount>>(endpoint);
+      const response = await apiGet<ODataResponse<GLPostingAccount>>(endpoint);
       return response.value;
     })(),
     // Search by Name field
@@ -90,14 +90,14 @@ export async function searchGLAccounts(query: string): Promise<GLAccount[]> {
         $top: 30,
       });
       const endpoint = `/GLAccount?company='${encodeURIComponent(COMPANY)}'&${odataQuery}`;
-      const response = await apiGet<ODataResponse<GLAccount>>(endpoint);
+      const response = await apiGet<ODataResponse<GLPostingAccount>>(endpoint);
       return response.value;
     })(),
   ]);
 
   // Combine results and deduplicate by No field
   const combined = [...resultsByNo, ...resultsByName];
-  const uniqueMap = new Map<string, GLAccount>();
+  const uniqueMap = new Map<string, GLPostingAccount>();
   combined.forEach((account) => {
     if (!uniqueMap.has(account.No)) {
       uniqueMap.set(account.No, account);
@@ -122,7 +122,7 @@ export async function getGLAccountsPage(
   skip: number,
   search?: string,
   top: number = 30
-): Promise<GLAccount[]> {
+): Promise<GLPostingAccount[]> {
   const baseFilter = getBaseFilter();
 
   if (!search || search.length < 2) {
@@ -135,7 +135,7 @@ export async function getGLAccountsPage(
       $skip: skip,
     });
     const endpoint = `/GLAccount?company='${encodeURIComponent(COMPANY)}'&${query}`;
-    const response = await apiGet<ODataResponse<GLAccount>>(endpoint);
+    const response = await apiGet<ODataResponse<GLPostingAccount>>(endpoint);
     return response.value;
   }
 
@@ -155,7 +155,7 @@ export async function getGLAccountsPage(
         $skip: skip,
       });
       const endpoint = `/GLAccount?company='${encodeURIComponent(COMPANY)}'&${odataQuery}`;
-      const response = await apiGet<ODataResponse<GLAccount>>(endpoint);
+      const response = await apiGet<ODataResponse<GLPostingAccount>>(endpoint);
       return response.value;
     })(),
     // Search by Name field
@@ -169,14 +169,14 @@ export async function getGLAccountsPage(
         $skip: skip,
       });
       const endpoint = `/GLAccount?company='${encodeURIComponent(COMPANY)}'&${odataQuery}`;
-      const response = await apiGet<ODataResponse<GLAccount>>(endpoint);
+      const response = await apiGet<ODataResponse<GLPostingAccount>>(endpoint);
       return response.value;
     })(),
   ]);
 
   // Combine results and deduplicate by No field
   const combined = [...resultsByNo, ...resultsByName];
-  const uniqueMap = new Map<string, GLAccount>();
+  const uniqueMap = new Map<string, GLPostingAccount>();
   combined.forEach((account) => {
     if (!uniqueMap.has(account.No)) {
       uniqueMap.set(account.No, account);
@@ -192,7 +192,7 @@ export async function getGLAccountsPage(
 /**
  * Get a single GL account by number
  */
-export async function getGLAccountByNo(accountNo: string): Promise<GLAccount | null> {
+export async function getGLAccountByNo(accountNo: string): Promise<GLPostingAccount | null> {
   if (!accountNo) return null;
   
   const query = buildODataQuery({
@@ -201,7 +201,7 @@ export async function getGLAccountByNo(accountNo: string): Promise<GLAccount | n
   });
 
   const endpoint = `/GLAccount?company='${encodeURIComponent(COMPANY)}'&${query}`;
-  const response = await apiGet<ODataResponse<GLAccount>>(endpoint);
+  const response = await apiGet<ODataResponse<GLPostingAccount>>(endpoint);
   
   return response.value.length > 0 ? response.value[0] : null;
 }

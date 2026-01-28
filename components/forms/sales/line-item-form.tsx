@@ -2,10 +2,10 @@
 
 /**
  * Line Item Form Component
- * Form for adding/editing a single line item in a sales order
+ * Clean, simple form for adding/editing line items with optimized performance
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -16,40 +16,35 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { FieldTitle } from '@/components/ui/field';
-import { SearchableSelect } from '@/components/forms/shared/searchable-select';
+import { Search, Loader2 } from 'lucide-react';
+import { useFormStackContext } from '@/lib/form-stack/form-stack-context';
 import {
-  getGLAccounts,
-  searchGLAccounts,
-  getGLAccountsPage,
-  type GLPostingAccount,
-} from '@/lib/api/services/gl-account.service';
-import {
-  getItems,
-  searchItems,
-  getItemsPage,
-  searchItemsByField,
   getItemUnitOfMeasures,
   type Item,
   type ItemUnitOfMeasure,
 } from '@/lib/api/services/item.service';
+import {
+  type GLPostingAccount,
+} from '@/lib/api/services/gl-account.service';
 import { getTCSGroupCodes, type TCSGroupCode } from '@/lib/api/services/tcs.service';
+import { useAuth } from '@/lib/contexts/auth-context';
 
 export interface LineItem {
-  id: string; // temporary ID for UI
+  id: string;
   type: 'G/L Account' | 'Item';
   no: string;
   description: string;
-  uom?: string; // only for Item
+  uom?: string;
   quantity: number;
   mrp?: number;
   price?: number;
   unitPrice: number;
-  totalMRP: number; // calculated: Unit Price * Quantity
+  totalMRP: number;
   discount: number;
-  amount: number; // calculated: unitPrice * quantity - discount
-  exempted?: boolean; // from Item API
-  gstGroupCode?: string; // from Item API
-  hsnSacCode?: string; // from Item API
+  amount: number;
+  exempted?: boolean;
+  gstGroupCode?: string;
+  hsnSacCode?: string;
   tcsGroupCode?: string;
 }
 
@@ -61,9 +56,12 @@ interface LineItemFormProps {
 }
 
 function LineItemFormComponent({ lineItem, customerNo, onSubmit, onCancel }: LineItemFormProps) {
-  const initialType = lineItem?.type || 'Item';
-  const [formData, setFormData] = useState<Partial<LineItem>>({
-    type: initialType,
+  const { openTab } = useFormStackContext();
+  const { username } = useAuth();
+  
+  // Single source of truth for form state
+  const [formData, setFormData] = useState<Partial<LineItem>>(() => ({
+    type: lineItem?.type || 'Item',
     no: lineItem?.no || '',
     description: lineItem?.description || '',
     uom: lineItem?.uom || '',
@@ -71,132 +69,143 @@ function LineItemFormComponent({ lineItem, customerNo, onSubmit, onCancel }: Lin
     mrp: lineItem?.mrp || 0,
     price: lineItem?.price || 0,
     unitPrice: lineItem?.unitPrice || 0,
-    totalMRP: lineItem?.totalMRP || 0,
     discount: lineItem?.discount || 0,
-    amount: lineItem?.amount || 0,
     exempted: lineItem?.exempted || false,
     gstGroupCode: lineItem?.gstGroupCode || '',
     hsnSacCode: lineItem?.hsnSacCode || '',
     tcsGroupCode: lineItem?.tcsGroupCode || '',
-  });
+  }));
 
   const [uomOptions, setUomOptions] = useState<ItemUnitOfMeasure[]>([]);
-  const [isDescriptionEditable, setIsDescriptionEditable] = useState(initialType === 'G/L Account');
-  const [selectedItem, setSelectedItem] = useState<Item | null>(null);
-  const [selectedGLAccount, setSelectedGLAccount] = useState<GLPostingAccount | null>(null);
   const [tcsOptions, setTcsOptions] = useState<TCSGroupCode[]>([]);
+  const [isLoadingUOM, setIsLoadingUOM] = useState(false);
 
-  // Load TCS Group Codes when customerNo is available
+  // Load TCS options using logged-in user's username
   useEffect(() => {
-    if (customerNo) {
-      getTCSGroupCodes(customerNo)
-        .then((codes) => {
-          setTcsOptions(codes);
-        })
-        .catch((error) => {
-          console.error('Error loading TCS Group Codes:', error);
-          setTcsOptions([]);
-        });
-    } else {
+    if (!username) {
       setTcsOptions([]);
+      return;
     }
-  }, [customerNo]);
 
-  // Calculate derived fields - Amount = Unit Price * Quantity - Discount
-  const calculateAmounts = useCallback(() => {
-    const quantity = formData.quantity || 0;
-    const unitPrice = formData.unitPrice || 0;
-    const discount = formData.discount || 0;
+    getTCSGroupCodes(username)
+      .then(setTcsOptions)
+      .catch((error) => {
+        console.error('Error loading TCS Group Codes:', error);
+        setTcsOptions([]);
+      });
+  }, [username]);
 
-    const totalMRP = unitPrice * quantity;
-    const amount = (unitPrice * quantity) - discount;
-
-    setFormData((prev) => ({
-      ...prev,
-      totalMRP,
-      amount,
-    }));
-  }, [formData.quantity, formData.unitPrice, formData.discount]);
-
-  // Recalculate when quantity, unitPrice, or discount changes
+  // Load UOM when Item type and No are selected
   useEffect(() => {
-    calculateAmounts();
-  }, [formData.quantity, formData.unitPrice, formData.discount, calculateAmounts]);
-
-  // Load UOM when Item is selected
-  useEffect(() => {
-    if (formData.type === 'Item' && formData.no) {
-      getItemUnitOfMeasures(formData.no)
-        .then((uoms) => {
-          setUomOptions(uoms);
-          // Auto-select first UOM if none selected and we're not editing
-          if (!formData.uom && uoms.length > 0 && !lineItem) {
-            setFormData((prev) => ({ ...prev, uom: uoms[0].Code }));
-          }
-        })
-        .catch((error) => {
-          console.error('Error loading UOM:', error);
-          setUomOptions([]);
-        });
-    } else {
+    if (formData.type !== 'Item' || !formData.no) {
       setUomOptions([]);
       if (formData.type !== 'Item') {
         setFormData((prev) => ({ ...prev, uom: '' }));
       }
+      return;
     }
+
+    setIsLoadingUOM(true);
+    getItemUnitOfMeasures(formData.no)
+      .then((uoms) => {
+        setUomOptions(uoms);
+        // Auto-select first UOM if none selected and not editing
+        if (!formData.uom && uoms.length > 0 && !lineItem) {
+          setFormData((prev) => ({ ...prev, uom: uoms[0].Code }));
+        }
+      })
+      .catch((error) => {
+        console.error('Error loading UOM:', error);
+        setUomOptions([]);
+      })
+      .finally(() => setIsLoadingUOM(false));
   }, [formData.type, formData.no, lineItem]);
 
-  // Handle type change
-  const handleTypeChange = (type: 'G/L Account' | 'Item') => {
+  // Calculate derived values using useMemo (no re-renders needed)
+  const { totalMRP, amount } = useMemo(() => {
+    const quantity = formData.quantity || 0;
+    const unitPrice = formData.unitPrice || 0;
+    const discount = formData.discount || 0;
+
+    return {
+      totalMRP: unitPrice * quantity,
+      amount: unitPrice * quantity - discount,
+    };
+  }, [formData.quantity, formData.unitPrice, formData.discount]);
+
+  // Derived values
+  const isItemType = formData.type === 'Item';
+  const isDescriptionEditable = formData.type === 'G/L Account';
+
+  // Memoized handlers to prevent re-renders
+  const handleTypeChange = useCallback((type: 'G/L Account' | 'Item') => {
     setFormData((prev) => ({
       ...prev,
       type,
       no: '',
       description: '',
-      uom: type === 'Item' ? prev.uom : '', // Clear UOM for GL Account
+      uom: type === 'Item' ? prev.uom : '',
       exempted: false,
       gstGroupCode: '',
       hsnSacCode: '',
     }));
-    setSelectedItem(null);
-    setSelectedGLAccount(null);
-    setIsDescriptionEditable(type === 'G/L Account');
-    // Clear UOM options for GL Account
-    if (type === 'G/L Account') {
-      setUomOptions([]);
-    }
-  };
+  }, []);
 
-  // Handle GL Account selection
-  const handleGLAccountChange = (value: string, account?: GLPostingAccount) => {
-    if (account) {
-      setSelectedGLAccount(account);
-      setFormData((prev) => ({
-        ...prev,
-        no: account.No,
-        description: account.Name, // Description is editable for GL Account
-      }));
-    }
-  };
+  // Handle opening item selector tab
+  const handleOpenItemSelector = useCallback(() => {
+    openTab('item-selector', {
+      title: `Select ${formData.type || 'Item'}`,
+      formData: {
+        type: formData.type || 'Item',
+      },
+      context: {
+        openedFromParent: true,
+        onSelect: (item: Item | GLPostingAccount, type: 'Item' | 'G/L Account') => {
+          if (type === 'Item') {
+            const itemData = item as Item;
+            setFormData((prev) => ({
+              ...prev,
+              no: itemData.No,
+              description: itemData.Description,
+              exempted: itemData.Exempted || false,
+              gstGroupCode: itemData.GST_Group_Code || '',
+              hsnSacCode: itemData.HSN_SAC_Code || '',
+            }));
+          } else {
+            const accountData = item as GLPostingAccount;
+            setFormData((prev) => ({
+              ...prev,
+              no: accountData.No,
+              description: accountData.Name,
+            }));
+          }
+        },
+      },
+      autoCloseOnSuccess: true,
+    });
+  }, [openTab, formData.type]);
 
-  // Handle Item selection
-  const handleItemChange = (value: string, item?: Item) => {
-    if (item) {
-      setSelectedItem(item);
-      setFormData((prev) => ({
-        ...prev,
-        no: item.No,
-        description: item.Description, // Description is read-only for Item
-        exempted: item.Exempted || false,
-        gstGroupCode: item.GST_Group_Code || '',
-        hsnSacCode: item.HSN_SAC_Code || '',
-      }));
-      setIsDescriptionEditable(false);
-    }
-  };
+  const handleFieldChange = useCallback((field: keyof LineItem, value: any) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
+  }, []);
 
-  // Handle form submission
-  const handleSubmit = (e: React.FormEvent) => {
+  // Handle numeric input change - only allow valid numbers
+  const handleNumericChange = useCallback((field: keyof LineItem, value: string) => {
+    // Allow empty string, numbers, and decimal point
+    if (value === '' || /^\d*\.?\d*$/.test(value)) {
+      const numValue = value === '' ? 0 : parseFloat(value) || 0;
+      handleFieldChange(field, numValue);
+    }
+  }, [handleFieldChange]);
+
+  // Format numeric value for display
+  const formatNumericValue = useCallback((value: number | undefined): string => {
+    if (value === undefined || value === null) return '';
+    if (value === 0) return '';
+    return value.toString();
+  }, []);
+
+  const handleSubmit = useCallback((e: React.FormEvent) => {
     e.preventDefault();
 
     if (!formData.no || !formData.description || !formData.quantity || formData.quantity <= 0) {
@@ -213,9 +222,9 @@ function LineItemFormComponent({ lineItem, customerNo, onSubmit, onCancel }: Lin
       mrp: formData.mrp,
       price: formData.price,
       unitPrice: formData.unitPrice || 0,
-      totalMRP: formData.totalMRP || 0,
+      totalMRP,
       discount: formData.discount || 0,
-      amount: formData.amount || 0,
+      amount,
       exempted: formData.exempted,
       gstGroupCode: formData.gstGroupCode,
       hsnSacCode: formData.hsnSacCode,
@@ -223,299 +232,243 @@ function LineItemFormComponent({ lineItem, customerNo, onSubmit, onCancel }: Lin
     };
 
     onSubmit(newLineItem);
-  };
+  }, [formData, totalMRP, amount, lineItem?.id, onSubmit]);
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="grid grid-cols-2 gap-4">
-        {/* Type */}
-        <div className="space-y-2">
-          <FieldTitle>Type</FieldTitle>
-          <Select
-            value={formData.type}
-            onValueChange={(value) => handleTypeChange(value as 'G/L Account' | 'Item')}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Select type" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="G/L Account">G/L Account</SelectItem>
-              <SelectItem value="Item">Item</SelectItem>
-              {/* Disabled options for now */}
-              <SelectItem value="Resource" disabled>Resource</SelectItem>
-              <SelectItem value="Fixed Asset" disabled>Fixed Asset</SelectItem>
-              <SelectItem value="Charge (Item)" disabled>Charge (Item)</SelectItem>
-              <SelectItem value="Allocation Account" disabled>Allocation Account</SelectItem>
-            </SelectContent>
-          </Select>
+    <form onSubmit={handleSubmit} className="space-y-6">
+      {/* Basic Information Section */}
+      <div className="space-y-4">
+        <div className="grid grid-cols-2 gap-4">
+          {/* Type */}
+          <div className="space-y-2">
+            <FieldTitle>Type</FieldTitle>
+            <Select value={formData.type} onValueChange={handleTypeChange}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="G/L Account">G/L Account</SelectItem>
+                <SelectItem value="Item">Item</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* No */}
+          <div className="space-y-2">
+            <FieldTitle>No.</FieldTitle>
+            <div className="flex gap-2">
+              <Input
+                value={formData.no || ''}
+                placeholder={`Select ${formData.type || 'Item'}`}
+                readOnly
+                className="bg-muted cursor-pointer"
+                onClick={handleOpenItemSelector}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleOpenItemSelector}
+                className="shrink-0"
+              >
+                <Search className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
         </div>
 
-        {/* No */}
+        {/* Description */}
         <div className="space-y-2">
-          <FieldTitle>No.</FieldTitle>
-          {formData.type === 'G/L Account' ? (
-            <SearchableSelect<GLPostingAccount>
-              value={formData.no || ''}
-              onChange={handleGLAccountChange}
-              placeholder="Select GL Account"
-              loadInitial={() => getGLAccounts(20)}
-              searchItems={searchGLAccounts}
-              loadMore={(skip, search) => getGLAccountsPage(skip, search)}
-              getDisplayValue={(item) => `${item.No} - ${item.Name}`}
-              getItemValue={(item) => item.No}
-              supportsDualSearch={true}
-              searchByField={async (query, field) => {
-                // Use the searchGLAccounts function which already handles dual search
-                // For field-specific search, we can filter the results
-                const results = await searchGLAccounts(query);
-                if (field === 'No') {
-                  return results.filter((acc) => acc.No.toLowerCase().includes(query.toLowerCase()));
-                } else {
-                  return results.filter((acc) => acc.Name.toLowerCase().includes(query.toLowerCase()));
-                }
-              }}
+          <FieldTitle>Description</FieldTitle>
+          <Input
+            value={formData.description || ''}
+            onChange={(e) => handleFieldChange('description', e.target.value)}
+            disabled={!isDescriptionEditable}
+            placeholder="Description"
+          />
+        </div>
+
+        {/* UOM (only for Item) */}
+        {isItemType && (
+          <div className="space-y-2">
+            <FieldTitle>UOM</FieldTitle>
+            <Select
+              value={formData.uom || ''}
+              onValueChange={(value) => handleFieldChange('uom', value)}
+              disabled={isLoadingUOM || uomOptions.length === 0}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder={isLoadingUOM ? 'Loading...' : 'Select UOM'} />
+              </SelectTrigger>
+              <SelectContent>
+                {uomOptions.map((uom) => (
+                  <SelectItem key={uom.Code} value={uom.Code}>
+                    {uom.Code}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+      </div>
+
+      {/* Pricing Section */}
+      <div className="space-y-4 border-t pt-4">
+        <h3 className="text-sm font-medium text-foreground">Pricing</h3>
+        <div className="grid grid-cols-3 gap-4">
+          <div className="space-y-2">
+            <FieldTitle>Quantity</FieldTitle>
+            <Input
+              type="text"
+              inputMode="decimal"
+              value={formatNumericValue(formData.quantity)}
+              onChange={(e) => handleNumericChange('quantity', e.target.value)}
+              onWheel={(e) => e.currentTarget.blur()}
+              placeholder="0.00"
+              className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
             />
-          ) : (
-            <SearchableSelect<Item>
-              value={formData.no || ''}
-              onChange={handleItemChange}
-              placeholder="Select Item"
-              loadInitial={() => getItems(20)}
-              searchItems={searchItems}
-              loadMore={(skip, search) => getItemsPage(skip, search)}
-              getDisplayValue={(item) => `${item.No} - ${item.Description}`}
-              getItemValue={(item) => item.No}
-              supportsDualSearch={true}
-              searchByField={searchItemsByField}
+          </div>
+          <div className="space-y-2">
+            <FieldTitle>MRP</FieldTitle>
+            <Input
+              type="text"
+              inputMode="decimal"
+              value={formatNumericValue(formData.mrp)}
+              onChange={(e) => handleNumericChange('mrp', e.target.value)}
+              onWheel={(e) => e.currentTarget.blur()}
+              placeholder="0.00"
+              className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
             />
-          )}
+          </div>
+          <div className="space-y-2">
+            <FieldTitle>Price</FieldTitle>
+            <Input
+              type="text"
+              inputMode="decimal"
+              value={formatNumericValue(formData.price)}
+              onChange={(e) => handleNumericChange('price', e.target.value)}
+              onWheel={(e) => e.currentTarget.blur()}
+              placeholder="0.00"
+              className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-3 gap-4">
+          <div className="space-y-2">
+            <FieldTitle>Unit Price</FieldTitle>
+            <Input
+              type="text"
+              inputMode="decimal"
+              value={formatNumericValue(formData.unitPrice)}
+              onChange={(e) => handleNumericChange('unitPrice', e.target.value)}
+              onWheel={(e) => e.currentTarget.blur()}
+              placeholder="0.00"
+              className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+            />
+          </div>
+          <div className="space-y-2">
+            <FieldTitle>Total MRP</FieldTitle>
+            <Input
+              type="text"
+              value={totalMRP > 0 ? totalMRP.toFixed(2) : ''}
+              disabled
+              className="bg-muted"
+              readOnly
+            />
+          </div>
+          <div className="space-y-2">
+            <FieldTitle>Discount</FieldTitle>
+            <Input
+              type="text"
+              inputMode="decimal"
+              value={formatNumericValue(formData.discount)}
+              onChange={(e) => handleNumericChange('discount', e.target.value)}
+              onWheel={(e) => e.currentTarget.blur()}
+              placeholder="0.00"
+              className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+            />
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <FieldTitle>Amount</FieldTitle>
+          <Input
+            type="text"
+            value={amount > 0 ? amount.toFixed(2) : ''}
+            disabled
+            className="bg-muted font-medium"
+            readOnly
+          />
         </div>
       </div>
 
-      {/* Description */}
-      <div className="space-y-2">
-        <FieldTitle>Description</FieldTitle>
-        <Input
-          value={formData.description || ''}
-          onChange={(e) => setFormData((prev) => ({ ...prev, description: e.target.value }))}
-          disabled={!isDescriptionEditable}
-          placeholder="Description"
-          onFocus={(e) => {
-            e.stopPropagation();
-          }}
-        />
-      </div>
+      {/* Item Details Section (only for Item type) */}
+      {isItemType && (
+        <div className="space-y-4 border-t pt-4">
+          <h3 className="text-sm font-medium text-foreground">Item Details</h3>
+          <div className="grid grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <FieldTitle>Exempted</FieldTitle>
+              <Input
+                value={formData.exempted ? 'Yes' : 'No'}
+                disabled
+                className="bg-muted"
+                readOnly
+              />
+            </div>
+            <div className="space-y-2">
+              <FieldTitle>GST Group Code</FieldTitle>
+              <Input
+                value={formData.gstGroupCode || ''}
+                disabled
+                className="bg-muted"
+                readOnly
+              />
+            </div>
+            <div className="space-y-2">
+              <FieldTitle>HSN/SAC Code</FieldTitle>
+              <Input
+                value={formData.hsnSacCode || ''}
+                disabled
+                className="bg-muted"
+                readOnly
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
-      {/* UOM (only for Item, blank for GL Account) */}
-      <div className="space-y-2">
-        <FieldTitle>UOM</FieldTitle>
-        {formData.type === 'Item' ? (
+      {/* TCS Group Code */}
+      <div className="space-y-2 border-t pt-4">
+        <FieldTitle>TCS Group Code</FieldTitle>
+        {tcsOptions.length > 0 ? (
           <Select
-            value={formData.uom || ''}
-            onValueChange={(value) => setFormData((prev) => ({ ...prev, uom: value }))}
+            value={formData.tcsGroupCode || ''}
+            onValueChange={(value) => handleFieldChange('tcsGroupCode', value)}
           >
             <SelectTrigger>
-              <SelectValue placeholder="Select UOM" />
+              <SelectValue placeholder="Select TCS Group Code" />
             </SelectTrigger>
             <SelectContent>
-              {uomOptions.map((uom) => (
-                <SelectItem key={uom.Code} value={uom.Code}>
-                  {uom.Code}
+              {tcsOptions.map((tcs) => (
+                <SelectItem key={tcs.TCS_Nature_of_Collection} value={tcs.TCS_Nature_of_Collection}>
+                  {tcs.TCS_Nature_of_Collection}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
         ) : (
           <Input
-            value=""
+            value="Not available"
             disabled
             className="bg-muted"
-            placeholder="Not applicable for G/L Account"
-          />
-        )}
-      </div>
-
-      <div className="grid grid-cols-3 gap-4">
-        {/* Quantity */}
-        <div className="space-y-2">
-          <FieldTitle>Quantity</FieldTitle>
-          <Input
-            type="number"
-            step="0.01"
-            value={formData.quantity || ''}
-            onChange={(e) =>
-              setFormData((prev) => ({ ...prev, quantity: parseFloat(e.target.value) || 0 }))
-            }
-            placeholder="0.00"
-            onFocus={(e) => {
-              e.stopPropagation();
-            }}
-          />
-        </div>
-
-        {/* MRP */}
-        <div className="space-y-2">
-          <FieldTitle>MRP</FieldTitle>
-          <Input
-            type="number"
-            step="0.01"
-            value={formData.mrp || ''}
-            onChange={(e) =>
-              setFormData((prev) => ({ ...prev, mrp: parseFloat(e.target.value) || 0 }))
-            }
-            placeholder="0.00"
-            onFocus={(e) => {
-              e.stopPropagation();
-            }}
-          />
-        </div>
-
-        {/* Price */}
-        <div className="space-y-2">
-          <FieldTitle>Price</FieldTitle>
-          <Input
-            type="number"
-            step="0.01"
-            value={formData.price || ''}
-            onChange={(e) =>
-              setFormData((prev) => ({ ...prev, price: parseFloat(e.target.value) || 0 }))
-            }
-            placeholder="0.00"
-            onFocus={(e) => {
-              e.stopPropagation();
-            }}
-          />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-3 gap-4">
-        {/* Unit Price */}
-        <div className="space-y-2">
-          <FieldTitle>Unit Price</FieldTitle>
-          <Input
-            type="number"
-            step="0.01"
-            value={formData.unitPrice || ''}
-            onChange={(e) =>
-              setFormData((prev) => ({ ...prev, unitPrice: parseFloat(e.target.value) || 0 }))
-            }
-            placeholder="0.00"
-            onFocus={(e) => {
-              e.stopPropagation();
-            }}
-          />
-        </div>
-
-        {/* Total MRP (calculated) */}
-        <div className="space-y-2">
-          <FieldTitle>Total MRP</FieldTitle>
-          <Input
-            type="number"
-            value={formData.totalMRP || 0}
-            disabled
-            className="bg-muted"
-            placeholder="0.00"
-          />
-        </div>
-
-        {/* Discount */}
-        <div className="space-y-2">
-          <FieldTitle>Discount</FieldTitle>
-          <Input
-            type="number"
-            step="0.01"
-            value={formData.discount || ''}
-            onChange={(e) =>
-              setFormData((prev) => ({ ...prev, discount: parseFloat(e.target.value) || 0 }))
-            }
-            placeholder="0.00"
-            onFocus={(e) => {
-              e.stopPropagation();
-            }}
-          />
-        </div>
-      </div>
-
-      {/* Amount (calculated) */}
-      <div className="space-y-2">
-        <FieldTitle>Amount</FieldTitle>
-        <Input
-          type="number"
-          value={formData.amount || 0}
-          disabled
-          className="bg-muted"
-          placeholder="0.00"
-        />
-      </div>
-
-      {/* Display-only fields for Item */}
-      {formData.type === 'Item' && (
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <FieldTitle>Exempted</FieldTitle>
-            <Input
-              value={formData.exempted ? 'Yes' : 'No'}
-              disabled
-              className="bg-muted"
-            />
-          </div>
-          <div className="space-y-2">
-            <FieldTitle>GST Group Code</FieldTitle>
-            <Input
-              value={formData.gstGroupCode || ''}
-              disabled
-              className="bg-muted"
-            />
-          </div>
-          <div className="space-y-2">
-            <FieldTitle>HSN/SAC Code</FieldTitle>
-            <Input
-              value={formData.hsnSacCode || ''}
-              disabled
-              className="bg-muted"
-            />
-          </div>
-        </div>
-      )}
-
-      {/* TCS Group Code */}
-      <div className="space-y-2">
-        <FieldTitle>TCS Group Code</FieldTitle>
-        {customerNo ? (
-          <Select
-            value={formData.tcsGroupCode || ''}
-            onValueChange={(value) => setFormData((prev) => ({ ...prev, tcsGroupCode: value }))}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Select TCS Group Code" />
-            </SelectTrigger>
-            <SelectContent>
-              {tcsOptions.length > 0 ? (
-                tcsOptions.map((tcs) => (
-                  <SelectItem key={tcs.TCS_Nature_of_Collection} value={tcs.TCS_Nature_of_Collection}>
-                    {tcs.TCS_Nature_of_Collection}
-                  </SelectItem>
-                ))
-              ) : (
-                <div className="px-2 py-1.5 text-sm text-muted-foreground">
-                  No TCS codes available
-                </div>
-              )}
-            </SelectContent>
-          </Select>
-        ) : (
-          <Input
-            value={formData.tcsGroupCode || ''}
-            onChange={(e) => setFormData((prev) => ({ ...prev, tcsGroupCode: e.target.value }))}
-            placeholder="Select customer first"
-            disabled
-            className="bg-muted"
+            readOnly
           />
         )}
       </div>
 
       {/* Form Actions */}
-      <div className="flex justify-end gap-2 pt-4">
+      <div className="flex justify-end gap-3 pt-4 border-t">
         <Button type="button" variant="outline" onClick={onCancel}>
           Cancel
         </Button>
@@ -525,8 +478,8 @@ function LineItemFormComponent({ lineItem, customerNo, onSubmit, onCancel }: Lin
   );
 }
 
+// Memoized export to prevent unnecessary re-renders
 export const LineItemForm = React.memo(LineItemFormComponent, (prev, next) => {
-  // Only re-render if lineItem or customerNo changed
   return (
     prev.lineItem?.id === next.lineItem?.id &&
     prev.customerNo === next.customerNo

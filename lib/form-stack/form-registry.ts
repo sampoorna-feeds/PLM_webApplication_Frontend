@@ -13,6 +13,8 @@ let SalesCreditMemoForm: FormComponent | null = null;
 let AddPincodeForm: FormComponent | null = null;
 let AddShipToForm: FormComponent | null = null;
 let ProductionOrderForm: FormComponent | null = null;
+let ItemSelectorForm: FormComponent | null = null;
+let LineItemTabForm: FormComponent | null = null;
 
 /**
  * Form registry mapping form types to components
@@ -73,6 +75,20 @@ export const formRegistry: Record<
       ProductionOrderForm = module.ProductionOrderForm;
     }
     return { default: ProductionOrderForm! };
+  },
+  "item-selector": async () => {
+    if (!ItemSelectorForm) {
+      const module = await import("@/components/forms/sales/item-selector-form");
+      ItemSelectorForm = module.ItemSelectorForm;
+    }
+    return { default: ItemSelectorForm! };
+  },
+  "line-item": async () => {
+    if (!LineItemTabForm) {
+      const module = await import("@/components/forms/sales/line-item-tab-form");
+      LineItemTabForm = module.LineItemTabForm;
+    }
+    return { default: LineItemTabForm! };
   },
 };
 

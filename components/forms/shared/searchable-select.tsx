@@ -309,7 +309,7 @@ export function SearchableSelect<T extends SearchableItem>({
         </Button>
       </PopoverTrigger>
       <PopoverContent 
-        className="w-[var(--radix-popover-trigger-width)] p-0" 
+        className="w-[var(--radix-popover-trigger-width)] min-w-[400px] p-0 overflow-hidden" 
         align="start"
         onOpenAutoFocus={(e) => {
           // Prevent auto-focus from scrolling
@@ -320,9 +320,9 @@ export function SearchableSelect<T extends SearchableItem>({
           e.preventDefault();
         }}
       >
-        <div className="flex flex-col">
+        <div className="flex flex-col overflow-hidden">
           {/* Search Input */}
-          <div className="p-2 border-b">
+          <div className="p-2 border-b flex-shrink-0">
             <Input
               placeholder="Search..."
               value={searchQuery}
@@ -339,7 +339,8 @@ export function SearchableSelect<T extends SearchableItem>({
           {/* Items List */}
           <div
             ref={listRef}
-            className="max-h-[300px] overflow-y-auto p-1"
+            className="max-h-[300px] overflow-y-auto overflow-x-hidden p-1 flex-1 min-h-0"
+            style={{ WebkitOverflowScrolling: 'touch' }}
           >
             {isLoading && items.length === 0 ? (
               <div className="flex items-center justify-center py-6">
@@ -360,7 +361,7 @@ export function SearchableSelect<T extends SearchableItem>({
                     <div
                       key={itemValue}
                       className={cn(
-                        'relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground',
+                        'relative flex cursor-default select-none items-start rounded-sm px-2 py-2 text-sm outline-none hover:bg-accent hover:text-accent-foreground',
                         isSelected && 'bg-accent text-accent-foreground'
                       )}
                       onClick={(e) => {
@@ -372,9 +373,21 @@ export function SearchableSelect<T extends SearchableItem>({
                         setSearchQuery('');
                       }}
                     >
-                      <span className="flex-1 truncate">{getDisplayValue(item)}</span>
+                      <div className="flex-1 min-w-0">
+                        {/* Two-line format: No on first line, Description/Name on second */}
+                        {item.No && (item.Description || item.Name) ? (
+                          <div className="flex flex-col">
+                            <span className="font-medium text-foreground">{item.No}</span>
+                            <span className="text-xs text-muted-foreground truncate">
+                              {item.Description || item.Name || ''}
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="truncate">{getDisplayValue(item)}</span>
+                        )}
+                      </div>
                       {isSelected && (
-                        <CheckIcon className="ml-2 h-4 w-4 shrink-0" />
+                        <CheckIcon className="ml-2 h-4 w-4 shrink-0 mt-0.5" />
                       )}
                     </div>
                   );

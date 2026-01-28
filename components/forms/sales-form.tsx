@@ -195,7 +195,7 @@ function SalesFormContent() {
   const getButtonLabel = (type: SalesType) => {
     switch (type) {
       case 'order':
-        return 'Next';
+        return 'Place Order';
       case 'invoice':
         return 'Create Invoice';
       case 'return-order':

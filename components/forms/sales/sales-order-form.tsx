@@ -23,15 +23,10 @@ import { CustomerSelect, type SalesCustomer } from './customer-select';
 import { ShipToSelect } from './shipto-select';
 import type { ShipToAddress } from '@/lib/api/services/shipto.service';
 import { useFormStack } from '@/lib/form-stack/use-form-stack';
+import { useFormStackContext } from '@/lib/form-stack/form-stack-context';
 import { getAuthCredentials } from '@/lib/auth/storage';
-import { LineItemForm, type LineItem } from './line-item-form';
+import type { LineItem } from './line-item-form';
 import { LineItemsTable } from './line-items-table';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
 import { Plus, ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
@@ -51,6 +46,7 @@ type Step = 1 | 2 | 3;
 
 export function SalesOrderForm({ tabId, formData: initialFormData, context }: SalesOrderFormProps) {
   const { registerRefresh, handleSuccess, updateFormData } = useFormStack(tabId);
+  const { openTab } = useFormStackContext();
   
   const [formData, setFormData] = useState({
     customerNo: '',
@@ -73,8 +69,6 @@ export function SalesOrderForm({ tabId, formData: initialFormData, context }: Sa
 
   const [userId, setUserId] = useState<string | undefined>(undefined);
   const [lineItems, setLineItems] = useState<LineItem[]>([]);
-  const [editingLineItem, setEditingLineItem] = useState<LineItem | null>(null);
-  const [isLineItemDialogOpen, setIsLineItemDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [currentStep, setCurrentStep] = useState<Step>(1);
 
@@ -111,6 +105,18 @@ export function SalesOrderForm({ tabId, formData: initialFormData, context }: Sa
       setFormData((prev) => ({ ...prev, ...initialFormData }));
     }
   }, [initialFormData]);
+
+  // Sync Location Code with LOC value
+  useEffect(() => {
+    setFormData((prev) => {
+      // If LOC is set, sync locationCode to match
+      // If LOC is cleared, clear locationCode too
+      if (prev.loc !== prev.locationCode) {
+        return { ...prev, locationCode: prev.loc || '' };
+      }
+      return prev;
+    });
+  }, [formData.loc]);
 
   // Simple input change handler
   const handleInputChange = (field: string, value: string) => {
@@ -188,28 +194,42 @@ export function SalesOrderForm({ tabId, formData: initialFormData, context }: Sa
 
   // Line Items management
   const handleAddLineItem = () => {
-    setEditingLineItem(null);
-    setIsLineItemDialogOpen(true);
+    openTab('line-item', {
+      title: 'Add Line Item',
+      formData: {
+        customerNo: formData.customerNo,
+      },
+      context: {
+        openedFromParent: true,
+        onSave: (lineItem: LineItem) => {
+          const updated = [...lineItems, lineItem];
+          setLineItems(updated);
+          updateFormData({ ...formData, lineItems: updated });
+        },
+      },
+      autoCloseOnSuccess: true,
+    });
   };
 
   const handleEditLineItem = (lineItem: LineItem) => {
-    setEditingLineItem(lineItem);
-    setIsLineItemDialogOpen(true);
-  };
-
-  const handleSaveLineItem = (lineItem: LineItem) => {
-    let updated: LineItem[];
-    if (editingLineItem) {
-      updated = lineItems.map((item) => (item.id === editingLineItem.id ? lineItem : item));
-      setLineItems(updated);
-    } else {
-      updated = [...lineItems, lineItem];
-      setLineItems(updated);
-    }
-    setIsLineItemDialogOpen(false);
-    setEditingLineItem(null);
-    // Sync to FormStack after line item operation
-    updateFormData({ ...formData, lineItems: updated });
+    openTab('line-item', {
+      title: 'Edit Line Item',
+      formData: {
+        lineItem,
+        customerNo: formData.customerNo,
+      },
+      context: {
+        openedFromParent: true,
+        onSave: (updatedLineItem: LineItem) => {
+          const updated = lineItems.map((item) => 
+            item.id === lineItem.id ? updatedLineItem : item
+          );
+          setLineItems(updated);
+          updateFormData({ ...formData, lineItems: updated });
+        },
+      },
+      autoCloseOnSuccess: true,
+    });
   };
 
   const handleRemoveLineItem = (lineItemId: string) => {
@@ -391,12 +411,11 @@ export function SalesOrderForm({ tabId, formData: initialFormData, context }: Sa
           <div className="space-y-2">
             <FieldTitle>Location Code</FieldTitle>
             <Input
-              value={formData.locationCode}
-              onChange={(e) => handleInputChange('locationCode', e.target.value)}
-              placeholder="Enter location code"
-              onFocus={(e) => {
-                e.stopPropagation();
-              }}
+              value={formData.locationCode || formData.loc || ''}
+              disabled
+              className="bg-muted"
+              placeholder="Auto-filled from LOC"
+              readOnly
             />
           </div>
         </div>
@@ -650,25 +669,6 @@ export function SalesOrderForm({ tabId, formData: initialFormData, context }: Sa
         )}
       </div>
 
-      {/* Line Item Dialog */}
-      <Dialog open={isLineItemDialogOpen} onOpenChange={setIsLineItemDialogOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>
-              {editingLineItem ? 'Edit Line Item' : 'Add Line Item'}
-            </DialogTitle>
-          </DialogHeader>
-          <LineItemForm
-            lineItem={editingLineItem || undefined}
-            customerNo={formData.customerNo}
-            onSubmit={handleSaveLineItem}
-            onCancel={() => {
-              setIsLineItemDialogOpen(false);
-              setEditingLineItem(null);
-            }}
-          />
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

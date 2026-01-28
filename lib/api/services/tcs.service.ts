@@ -13,17 +13,31 @@ export interface TCSGroupCode {
 const COMPANY = process.env.NEXT_PUBLIC_API_COMPANY || 'Sampoorna Feeds Pvt. Ltd';
 
 /**
- * Get TCS Group Codes (TCS_Nature_of_Collection) for a customer
- * Uses the TCSSection API endpoint
+ * Get TCS Group Codes (TCS_Nature_of_Collection) for the logged-in user
+ * Uses the TCSSection API endpoint with Customer_No filter (logged-in user's username)
+ * 
+ * API: /TCSSection?company='...'&$select=TCS_Nature_of_Collection&$Filter=Customer_No eq '...'
+ * Note: The API uses Customer_No field but we pass the logged-in user's username as the value
+ * 
+ * @param username - Logged-in user's username
+ * @returns Array of TCS Group Codes
  */
-export async function getTCSGroupCodes(customerNo: string): Promise<TCSGroupCode[]> {
-  if (!customerNo) return [];
+export async function getTCSGroupCodes(username: string): Promise<TCSGroupCode[]> {
+  if (!username) return [];
 
   try {
-    const escapedCustomerNo = customerNo.replace(/'/g, "''");
-    const endpoint = `/TCSSection?company='${encodeURIComponent(COMPANY)}'&$select=TCS_Nature_of_Collection&$filter=Customer_No eq '${encodeURIComponent(escapedCustomerNo)}'`;
+    // Escape single quotes in username for OData filter
+    const escapedUsername = username.replace(/'/g, "''");
+    const endpoint = `/TCSSection?company='${encodeURIComponent(COMPANY)}'&$select=TCS_Nature_of_Collection&$Filter=Customer_No eq '${encodeURIComponent(escapedUsername)}'`;
     const response = await apiGet<ODataResponse<TCSGroupCode>>(endpoint);
-    return response.value || [];
+    const items = response.value || [];
+    
+    // Filter out items where TCS_Nature_of_Collection is missing, null, or empty
+    return items.filter(
+      (item) => 
+        item.TCS_Nature_of_Collection && 
+        item.TCS_Nature_of_Collection.trim() !== ''
+    );
   } catch (error) {
     console.error('Error fetching TCS Group Codes:', error);
     return [];

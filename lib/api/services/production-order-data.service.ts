@@ -38,12 +38,18 @@ export interface SalesHeader {
 export interface ProdOrderBOM {
   No: string;
   Description?: string;
+  Status?: string;
+  Location_Code_1?: string;
+  Item_No?: string;
+  Unit_of_Measure_Code?: string;
   [key: string]: unknown;
 }
 
 export interface ProdOrderBOMVersion {
   Production_BOM_No: string;
   Version_Code: string;
+  Starting_Date?: string;
+  Status?: string;
   Description?: string;
   [key: string]: unknown;
 }
@@ -61,41 +67,34 @@ export interface LocationCode {
 /**
  * Get items list with optional search
  * @param search - Optional search query
- * @param lobCode - LOB dimension code for filtering
+ * @param _lobCode - LOB dimension code (not used - ItemCard doesn't support dimension filtering)
  */
 export async function getItems(
   search?: string,
-  lobCode?: string,
+  _lobCode?: string,
 ): Promise<Item[]> {
-  let filter = "";
   const filters: string[] = [];
 
   if (search && search.length >= 2) {
-    filters.push(
-      `(contains(No,'${search}') or contains(Description,'${search}'))`,
-    );
+    filters.push(`contains(Search_Description,'${search}')`);
   }
 
-  if (lobCode) {
-    filters.push(`Global_Dimension_1_Code eq '${lobCode}'`);
-  }
-
-  if (filters.length > 0) {
-    filter = filters.join(" and ");
-  }
+  // Note: ItemCard endpoint doesn't support Global_Dimension_1_Code filtering
+  // Items are not filtered by LOB
 
   const queryParams: Record<string, any> = {
-    $select: "No,Description,Production_BOM_No,Base_Unit_of_Measure",
+    $select:
+      "No,Description,Production_BOM_No,Base_Unit_of_Measure,GST_Group_Code,HSN_SAC_Code,Exempted",
     $orderby: "No",
     $top: 50,
   };
 
-  if (filter) {
-    queryParams.$filter = filter;
+  if (filters.length > 0) {
+    queryParams.$filter = filters.join(" and ");
   }
 
   const query = buildODataQuery(queryParams);
-  const endpoint = `/ItemList?company='${encodeURIComponent(COMPANY)}'&${query}`;
+  const endpoint = `/ItemCard?company='${encodeURIComponent(COMPANY)}'&${query}`;
 
   const response = await apiGet<ODataResponse<Item>>(endpoint);
   return response.value || [];
@@ -105,12 +104,15 @@ export async function getItems(
  * Get a single item by No
  */
 export async function getItemByNo(itemNo: string): Promise<Item | null> {
+  // Note: We don't filter by Blocked here since we're fetching a specific item
+  // that was already selected from the items list
   const filter = `No eq '${itemNo}'`;
   const query = buildODataQuery({
     $filter: filter,
-    $select: "No,Description,Production_BOM_No,Base_Unit_of_Measure",
+    $select:
+      "No,Description,Production_BOM_No,Base_Unit_of_Measure,GST_Group_Code,HSN_SAC_Code,Exempted",
   });
-  const endpoint = `/ItemList?company='${encodeURIComponent(COMPANY)}'&${query}`;
+  const endpoint = `/ItemCard?company='${encodeURIComponent(COMPANY)}'&${query}`;
 
   const response = await apiGet<ODataResponse<Item>>(endpoint);
   return response.value?.[0] || null;
@@ -128,7 +130,7 @@ export async function getFamilies(search?: string): Promise<Family[]> {
   let filter = "";
 
   if (search && search.length >= 2) {
-    filter = `contains(No,'${search}') or contains(Description,'${search}')`;
+    filter = `contains(Search_Description,'${search}')`;
   }
 
   const queryParams: Record<string, any> = {
@@ -157,20 +159,24 @@ export async function getFamilies(search?: string): Promise<Family[]> {
  * @param search - Optional search query
  */
 export async function getSalesHeaders(search?: string): Promise<SalesHeader[]> {
-  let filter = "Document_Type eq 'Order'"; // Only fetch sales orders
+  let filter = "";
 
   if (search && search.length >= 2) {
-    filter += ` and (contains(No,'${search}') or contains(Sell_to_Customer_Name,'${search}'))`;
+    filter = `contains(Search_Description,'${search}')`;
   }
 
-  const query = buildODataQuery({
-    $filter: filter,
+  const queryParams: Record<string, any> = {
     $select: "No,Sell_to_Customer_Name,Document_Type",
     $orderby: "No desc",
     $top: 50,
-  });
+  };
 
-  const endpoint = `/SalesHeader?company='${encodeURIComponent(COMPANY)}'&${query}`;
+  if (filter) {
+    queryParams.$filter = filter;
+  }
+
+  const query = buildODataQuery(queryParams);
+  const endpoint = `/SalesOrder?company='${encodeURIComponent(COMPANY)}'&${query}`;
 
   const response = await apiGet<ODataResponse<SalesHeader>>(endpoint);
   return response.value || [];
@@ -181,32 +187,63 @@ export async function getSalesHeaders(search?: string): Promise<SalesHeader[]> {
 // ============================================
 
 /**
- * Get production BOM list with optional search
- * @param search - Optional search query
+ * Get production BOM list filtered by Item_No and Location_Code_1
+ * Per Postman: $filter=Item_No eq 'FDP002P' and Location_Code_1 eq 'SFPL0021'
+ * @param itemNo - Item No to filter by (required)
+ * @param locationCode - Location Code to filter by (required)
  */
 export async function getProdOrderBOMs(
-  search?: string,
+  itemNo: string,
+  locationCode: string,
 ): Promise<ProdOrderBOM[]> {
-  let filter = "";
-
-  if (search && search.length >= 2) {
-    filter = `contains(No,'${search}') or contains(Description,'${search}')`;
-  }
+  // Both Item_No and Location_Code_1 are required per Postman collection
+  const filter = `Item_No eq '${itemNo}' and Location_Code_1 eq '${locationCode}'`;
 
   const queryParams: Record<string, any> = {
-    $select: "No,Description",
+    $filter: filter,
+    $select:
+      "No,Description,Status,Location_Code_1,Item_No,Unit_of_Measure_Code",
     $orderby: "No",
     $top: 50,
   };
 
-  if (filter) {
-    queryParams.$filter = filter;
-  }
+  const query = buildODataQuery(queryParams);
+  const endpoint = `/ProductionBOMList?company='${encodeURIComponent(COMPANY)}'&${query}`;
+
+  console.log("Fetching BOMs from:", endpoint);
+  const response = await apiGet<ODataResponse<ProdOrderBOM>>(endpoint);
+  console.log("BOM API response - count:", response.value?.length, "BOMs");
+  return response.value || [];
+}
+
+/**
+ * Get production BOM list by Item_No only (alternative source - no location filter)
+ * Use this when location-specific BOMs are not found
+ * @param itemNo - Item No to filter by (required)
+ */
+export async function getProdOrderBOMsByItemOnly(
+  itemNo: string,
+): Promise<ProdOrderBOM[]> {
+  const filter = `Item_No eq '${itemNo}'`;
+
+  const queryParams: Record<string, any> = {
+    $filter: filter,
+    $select:
+      "No,Description,Status,Location_Code_1,Item_No,Unit_of_Measure_Code",
+    $orderby: "No",
+    $top: 50,
+  };
 
   const query = buildODataQuery(queryParams);
-  const endpoint = `/ProdOrderBOM?company='${encodeURIComponent(COMPANY)}'&${query}`;
+  const endpoint = `/ProductionBOMList?company='${encodeURIComponent(COMPANY)}'&${query}`;
 
+  console.log("Fetching BOMs (item-only filter) from:", endpoint);
   const response = await apiGet<ODataResponse<ProdOrderBOM>>(endpoint);
+  console.log(
+    "BOM API response (item-only) - count:",
+    response.value?.length,
+    "BOMs",
+  );
   return response.value || [];
 }
 
@@ -216,23 +253,27 @@ export async function getProdOrderBOMs(
 
 /**
  * Get BOM versions for a specific production BOM
+ * Per Postman: $filter=Production_BOM_No eq 'FDP001' and Status eq 'Certified'
  * @param bomNo - Production BOM No
  */
 export async function getProdOrderBOMVersions(
   bomNo: string,
 ): Promise<ProdOrderBOMVersion[]> {
-  const filter = `Production_BOM_No eq '${bomNo}'`;
+  // Filter by Production_BOM_No AND Status eq 'Certified' per Postman collection
+  const filter = `Production_BOM_No eq '${bomNo}' and Status eq 'Certified'`;
 
   const query = buildODataQuery({
     $filter: filter,
-    $select: "Production_BOM_No,Version_Code,Description",
+    $select: "Production_BOM_No,Version_Code,Starting_Date,Status",
     $orderby: "Version_Code",
     $top: 50,
   });
 
-  const endpoint = `/ProdOrderBOMVersion?company='${encodeURIComponent(COMPANY)}'&${query}`;
+  const endpoint = `/ProdBOMVersionList?company='${encodeURIComponent(COMPANY)}'&${query}`;
 
+  console.log("Fetching BOM versions from:", endpoint);
   const response = await apiGet<ODataResponse<ProdOrderBOMVersion>>(endpoint);
+  console.log("BOM versions response:", response);
   return response.value || [];
 }
 

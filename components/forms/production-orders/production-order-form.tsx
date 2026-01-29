@@ -5,11 +5,11 @@
 
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { Loader2, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { FieldTitle } from "@/components/ui/field";
 import {
   Select,
   SelectContent,
@@ -17,6 +17,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  SearchableSelect,
+  type SearchableSelectOption,
+} from "@/components/ui/searchable-select";
 import { useFormStack } from "@/lib/form-stack/use-form-stack";
 import { getAuthCredentials } from "@/lib/auth/storage";
 import {
@@ -30,6 +34,7 @@ import {
   getFamilies,
   getSalesHeaders,
   getProdOrderBOMs,
+  getProdOrderBOMsByItemOnly,
   getProdOrderBOMVersions,
   getItemByNo,
   type Item,
@@ -42,6 +47,7 @@ import {
   getProductionOrderByNo,
   getProductionOrderLines,
   getProductionOrderComponents,
+  createProductionOrder,
   type ProductionOrderLine,
   type ProductionOrderComponent,
 } from "@/lib/api/services/production-orders.service";
@@ -109,6 +115,7 @@ export function ProductionOrderForm({
     (Item | Family | SalesHeader)[]
   >([]);
   const [isLoadingSource, setIsLoadingSource] = useState(false);
+  const [sourceSearchQuery, setSourceSearchQuery] = useState("");
 
   // BOM dropdown state
   const [bomOptions, setBomOptions] = useState<ProdOrderBOM[]>([]);
@@ -179,10 +186,19 @@ export function ProductionOrderForm({
         setOrderLines(lines);
         setIsLoadingLines(false);
 
-        // Load order components
+        // Load order components for all lines
         setIsLoadingComponents(true);
-        const components = await getProductionOrderComponents(orderNo);
-        setOrderComponents(components);
+        const allComponents: ProductionOrderComponent[] = [];
+        for (const line of lines) {
+          if (line.Line_No) {
+            const lineComponents = await getProductionOrderComponents(
+              orderNo,
+              line.Line_No,
+            );
+            allComponents.push(...lineComponents);
+          }
+        }
+        setOrderComponents(allComponents);
         setIsLoadingComponents(false);
 
         // Mark initial load as complete after data is loaded
@@ -239,8 +255,19 @@ export function ProductionOrderForm({
         // Refresh lines and components
         const lines = await getProductionOrderLines(orderNo);
         setOrderLines(lines);
-        const components = await getProductionOrderComponents(orderNo);
-        setOrderComponents(components);
+
+        // Load components for all lines
+        const allComponents: ProductionOrderComponent[] = [];
+        for (const line of lines) {
+          if (line.Line_No) {
+            const lineComponents = await getProductionOrderComponents(
+              orderNo,
+              line.Line_No,
+            );
+            allComponents.push(...lineComponents);
+          }
+        }
+        setOrderComponents(allComponents);
       }
     });
   }, [registerRefresh, orderNo]);
@@ -333,7 +360,7 @@ export function ProductionOrderForm({
     isViewMode,
   ]);
 
-  // Load Source No options when Source Type changes (for create and edit modes)
+  // Load Source No options when Source Type changes or search query changes (for create and edit modes)
   useEffect(() => {
     if (!formState.Source_Type || isViewMode) {
       if (!isViewMode) setSourceOptions([]);
@@ -347,20 +374,60 @@ export function ProductionOrderForm({
         switch (formState.Source_Type) {
           case "Item":
             options = await getItems(
-              undefined,
+              sourceSearchQuery || undefined,
               formState.Shortcut_Dimension_1_Code,
             );
             break;
           case "Family":
-            options = await getFamilies();
+            options = await getFamilies(sourceSearchQuery || undefined);
             break;
           case "Sales Header":
-            options = await getSalesHeaders();
+            options = await getSalesHeaders(sourceSearchQuery || undefined);
             break;
         }
+
+        // Ensure selected item is always in options if it exists and not already included
+        if (
+          formState.Source_No &&
+          !options.some((opt) => opt.No === formState.Source_No)
+        ) {
+          try {
+            let selectedItem: Item | Family | SalesHeader | null = null;
+            switch (formState.Source_Type) {
+              case "Item":
+                selectedItem = await getItemByNo(formState.Source_No);
+                break;
+              case "Family":
+                // For Family and Sales Header, we create minimal objects
+                selectedItem = {
+                  No: formState.Source_No,
+                  Description: formState.Source_No,
+                } as Family;
+                break;
+              case "Sales Header":
+                selectedItem = {
+                  No: formState.Source_No,
+                  Sell_to_Customer_Name: formState.Source_No,
+                } as SalesHeader;
+                break;
+            }
+
+            if (selectedItem) {
+              options = [selectedItem, ...options];
+            }
+          } catch (error) {
+            console.warn("Could not fetch selected item:", error);
+          }
+        }
+
         setSourceOptions(options);
       } catch (error) {
-        console.error("Error loading source options:", error);
+        console.error("Error loading source options:", {
+          message: error instanceof Error ? error.message : "Unknown error",
+          error,
+          sourceType: formState.Source_Type,
+          searchQuery: sourceSearchQuery,
+        });
         setSourceOptions([]);
       } finally {
         setIsLoadingSource(false);
@@ -368,19 +435,34 @@ export function ProductionOrderForm({
     };
 
     loadSourceOptions();
-  }, [formState.Source_Type, formState.Shortcut_Dimension_1_Code, isViewMode]);
+  }, [
+    formState.Source_Type,
+    formState.Source_No,
+    formState.Shortcut_Dimension_1_Code,
+    sourceSearchQuery,
+    isViewMode,
+  ]);
 
   // Load BOM Versions when Prod BOM No changes
   useEffect(() => {
+    console.log("BOM Version useEffect triggered:", {
+      Prod_Bom_No: formState.Prod_Bom_No,
+      isProdBomFromItem: formState.isProdBomFromItem,
+      isViewMode,
+    });
+
     if (!formState.Prod_Bom_No || formState.isProdBomFromItem || isViewMode) {
+      console.log("Skipping BOM version load - conditions not met");
       setBomVersionOptions([]);
       return;
     }
 
     const loadBomVersions = async () => {
+      console.log("Loading BOM versions for:", formState.Prod_Bom_No);
       setIsLoadingBomVersions(true);
       try {
         const versions = await getProdOrderBOMVersions(formState.Prod_Bom_No);
+        console.log("Loaded BOM versions:", versions);
         setBomVersionOptions(versions);
       } catch (error) {
         console.error("Error loading BOM versions:", error);
@@ -392,6 +474,65 @@ export function ProductionOrderForm({
 
     loadBomVersions();
   }, [formState.Prod_Bom_No, formState.isProdBomFromItem, isViewMode]);
+
+  // Load BOM options when Source_No AND Location_Code are set (only for Item type without BOM from item)
+  useEffect(() => {
+    // Only load BOMs if:
+    // 1. Source Type is Item
+    // 2. Source_No is selected
+    // 3. Location_Code is selected (required for BOM API per Postman)
+    // 4. BOM is not auto-filled from item
+    // 5. Not in view mode
+    if (
+      formState.Source_Type !== "Item" ||
+      !formState.Source_No ||
+      !formState.Location_Code ||
+      formState.isProdBomFromItem ||
+      isViewMode
+    ) {
+      return;
+    }
+
+    const loadBomOptions = async () => {
+      setIsLoadingBom(true);
+      try {
+        // Try primary method: BOMs filtered by Item_No AND Location_Code_1
+        let boms = await getProdOrderBOMs(
+          formState.Source_No,
+          formState.Location_Code,
+        );
+
+        // If no BOMs found with location filter, try item-only filter
+        if (boms.length === 0) {
+          console.log(
+            "No BOMs found with location filter, trying item-only filter...",
+          );
+          boms = await getProdOrderBOMsByItemOnly(formState.Source_No);
+        }
+
+        setBomOptions(boms);
+
+        if (boms.length === 0) {
+          console.warn(
+            `No BOMs found for item ${formState.Source_No} with any filter`,
+          );
+        }
+      } catch (error) {
+        console.error("Error loading BOM options:", error);
+        setBomOptions([]);
+      } finally {
+        setIsLoadingBom(false);
+      }
+    };
+
+    loadBomOptions();
+  }, [
+    formState.Source_Type,
+    formState.Source_No,
+    formState.Location_Code,
+    formState.isProdBomFromItem,
+    isViewMode,
+  ]);
 
   // Handlers
   const handleChange = (field: string, value: string | number | boolean) => {
@@ -434,61 +575,205 @@ export function ProductionOrderForm({
       BOM_Version_No: "",
       isProdBomFromItem: false,
     }));
+    // Keep search query persistent, don't reset it
+    setSourceOptions([]);
   };
 
-  const handleSourceNoChange = async (value: string) => {
-    setFormState((prev) => ({
-      ...prev,
-      Source_No: value,
-      Prod_Bom_No: "",
-      BOM_Version_No: "",
-      isProdBomFromItem: false,
-    }));
+  // Handle source search
+  const handleSourceSearch = useCallback((query: string) => {
+    setSourceSearchQuery(query);
+  }, []);
 
-    // If source type is Item, check if the item has a Production BOM
-    if (formState.Source_Type === "Item" && value) {
-      try {
-        const item = await getItemByNo(value);
-        if (item?.Production_BOM_No) {
-          // Item has a BOM - use it and make it uneditable
-          setFormState((prev) => ({
-            ...prev,
-            Source_No: value,
-            Prod_Bom_No: item.Production_BOM_No || "",
-            BOM_Version_No: "",
-            isProdBomFromItem: true,
-          }));
-        } else {
-          // No BOM from item - load BOM dropdown options
-          setIsLoadingBom(true);
-          const boms = await getProdOrderBOMs();
-          setBomOptions(boms);
-          setIsLoadingBom(false);
+  const handleSourceNoChange = useCallback(
+    async (value: string) => {
+      // Find the selected option from current options
+      let selectedOption = sourceOptions.find((opt) => opt.No === value);
+
+      // If option not found in current list, create a temporary one immediately
+      if (!selectedOption) {
+        // Create temporary option based on source type for immediate display
+        if (formState.Source_Type === "Item") {
+          selectedOption = {
+            No: value,
+            Description: `Loading ${value}...`,
+          } as Item;
+        } else if (formState.Source_Type === "Family") {
+          selectedOption = {
+            No: value,
+            Description: `Loading ${value}...`,
+          } as Family;
+        } else if (formState.Source_Type === "Sales Header") {
+          selectedOption = {
+            No: value,
+            Sell_to_Customer_Name: `Loading ${value}...`,
+          } as SalesHeader;
         }
-      } catch (error) {
-        console.error("Error checking item BOM:", error);
+
+        // Add temporary option to sourceOptions immediately for display
+        if (selectedOption) {
+          setSourceOptions((prevOptions) => [selectedOption!, ...prevOptions]);
+        }
+      } else {
+        // Move existing option to top
+        setSourceOptions((prev) => {
+          const filtered = prev.filter((opt) => opt.No !== value);
+          return [selectedOption!, ...filtered];
+        });
       }
-    }
-  };
+
+      setFormState((prev) => {
+        const newState = {
+          ...prev,
+          Source_No: value,
+          Prod_Bom_No: "",
+          BOM_Version_No: "",
+          isProdBomFromItem: false,
+        };
+        return newState;
+      });
+      setBomOptions([]);
+
+      // Now fetch full details asynchronously and replace the temporary option
+      if (formState.Source_Type === "Item") {
+        try {
+          const item = await getItemByNo(value);
+          if (item) {
+            // Replace temporary option with full item details
+            setSourceOptions((prevOptions) => {
+              const filtered = prevOptions.filter((opt) => opt.No !== value);
+              return [item, ...filtered];
+            });
+            // Check for BOM
+            if (item.Production_BOM_No) {
+              setFormState((p) => ({
+                ...p,
+                Prod_Bom_No: item.Production_BOM_No || "",
+                isProdBomFromItem: true,
+              }));
+            }
+          }
+        } catch (error) {
+          console.error("Error fetching item details:", error);
+        }
+      }
+    },
+    [sourceOptions, formState.Source_Type],
+  );
 
   const handleSubmit = async () => {
+    // Validate required fields
+    if (!formState.Description) {
+      alert("Description is required");
+      return;
+    }
+    if (!formState.Source_Type) {
+      alert("Source Type is required");
+      return;
+    }
+    if (!formState.Source_No) {
+      alert("Source No is required");
+      return;
+    }
+    if (!formState.Quantity || formState.Quantity <= 0) {
+      alert("Quantity must be greater than 0");
+      return;
+    }
+    if (!formState.Due_Date) {
+      alert("Due Date is required");
+      return;
+    }
+    if (!formState.Location_Code) {
+      alert("Location Code is required");
+      return;
+    }
+    if (!formState.Shortcut_Dimension_1_Code) {
+      alert("LOB is required");
+      return;
+    }
+    if (!formState.Shortcut_Dimension_2_Code) {
+      alert("Branch is required");
+      return;
+    }
+    if (!formState.Shortcut_Dimension_3_Code) {
+      alert("LOC is required");
+      return;
+    }
+    // BOM validation - mandatory for all production orders
+    if (!formState.Prod_Bom_No) {
+      alert("Production BOM No is required for all production orders");
+      return;
+    }
+
     setIsSubmitting(true);
     try {
-      // TODO: Implement API call
-      console.log("Submitting Production Order:", formState);
+      if (isCreateMode) {
+        // Create new production order
+        const payload = {
+          Status: "Released" as const,
+          Description: formState.Description,
+          Source_Type: formState.Source_Type as
+            | "Item"
+            | "Family"
+            | "Sales Header",
+          Source_No: formState.Source_No,
+          Quantity: formState.Quantity,
+          Due_Date: formState.Due_Date,
+          Location_Code: formState.Location_Code,
+          Hatching_Date: formState.Hatching_Date || undefined,
+          Shortcut_Dimension_1_Code: formState.Shortcut_Dimension_1_Code,
+          Shortcut_Dimension_2_Code: formState.Shortcut_Dimension_2_Code,
+          Shortcut_Dimension_3_Code: formState.Shortcut_Dimension_3_Code,
+          Prod_Bom_No: formState.Prod_Bom_No || undefined,
+          // Only include BOM_Version_No if Prod_Bom_No was manually selected (not from item)
+          BOM_Version_No:
+            !formState.isProdBomFromItem && formState.BOM_Version_No
+              ? formState.BOM_Version_No
+              : undefined,
+          Batch_Size: formState.Batch_Size || undefined,
+        };
 
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 500));
+        const createdOrder = await createProductionOrder(payload);
+        console.log("Production Order created:", createdOrder);
 
-      // On success, handle auto-close
-      await handleSuccess();
+        // On success, handle auto-close
+        await handleSuccess();
+      } else {
+        // TODO: Implement update API call for edit mode
+        console.log("Updating Production Order:", formState);
+        await new Promise((resolve) => setTimeout(resolve, 500));
+        await handleSuccess();
+      }
     } catch (error) {
       console.error("Error submitting Production Order:", error);
-      // TODO: Show error dialog
+      alert(
+        error instanceof Error
+          ? error.message
+          : "Failed to create production order",
+      );
     } finally {
       setIsSubmitting(false);
     }
   };
+
+  // Convert source options to SearchableSelectOption format
+  const sourceSelectOptions: SearchableSelectOption[] = sourceOptions.map(
+    (opt) => {
+      let label = opt.No;
+      if ("Description" in opt && opt.Description) {
+        label = `${opt.No} - ${opt.Description}`;
+      } else if ("Sell_to_Customer_Name" in opt && opt.Sell_to_Customer_Name) {
+        label = `${opt.No} - ${opt.Sell_to_Customer_Name}`;
+      }
+      return {
+        value: opt.No,
+        label,
+        description:
+          "Description" in opt && typeof opt.Description === "string"
+            ? opt.Description
+            : undefined,
+      };
+    },
+  );
 
   // Check if BOM fields should be shown
   const showBomFields = formState.Source_Type === "Item";
@@ -499,214 +784,501 @@ export function ProductionOrderForm({
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex-1 overflow-y-auto px-6 py-6">
+      <div className="flex-1 overflow-y-auto px-6 py-6 [overflow-anchor:none]">
         <div className="space-y-6">
-          {/* Dimension Fields */}
-          <FormSection title="Dimension">
+          {/* Dimension Information */}
+          <div className="space-y-4">
+            <h3 className="text-sm font-medium text-muted-foreground">
+              Dimension Information
+            </h3>
             <div className="grid grid-cols-3 gap-4">
-              <SelectField
-                label="LOB"
-                value={formState.Shortcut_Dimension_1_Code}
-                options={lobs.map((l) => ({ value: l.Code, label: l.Code }))}
-                onChange={handleLOBChange}
-                disabled={isViewMode}
-                isLoading={isLoadingDimensions}
-                required
-              />
-              <SelectField
-                label="Branch Code"
-                value={formState.Shortcut_Dimension_2_Code}
-                options={branches.map((b) => ({
-                  value: b.Code,
-                  label: b.Code,
-                }))}
-                onChange={handleBranchChange}
-                disabled={isViewMode || !formState.Shortcut_Dimension_1_Code}
-                required
-              />
-              <SelectField
-                label="LOC Code"
-                value={formState.Shortcut_Dimension_3_Code}
-                options={locs.map((l) => ({ value: l.Code, label: l.Code }))}
-                onChange={handleLOCChange}
-                disabled={isViewMode || !formState.Shortcut_Dimension_2_Code}
-                required
-              />
-            </div>
-          </FormSection>
-
-          {/* General Information */}
-          <FormSection title="General Information">
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                label="Order No"
-                value={formState.No}
-                onChange={(v) => handleChange("No", v)}
-                disabled={!isCreateMode}
-                placeholder={isCreateMode ? "Auto-generated" : ""}
-              />
-              <FormField
-                label="Description"
-                value={formState.Description}
-                onChange={(v) => handleChange("Description", v)}
-                disabled={isViewMode}
-                required
-              />
-            </div>
-          </FormSection>
-
-          {/* Source Details */}
-          <FormSection title="Source Details">
-            <div className="grid grid-cols-3 gap-4">
-              <SelectField
-                label="Source Type"
-                value={formState.Source_Type}
-                options={SOURCE_TYPE_OPTIONS.filter(Boolean).map((st) => ({
-                  value: st,
-                  label: st,
-                }))}
-                onChange={(v) => handleSourceTypeChange(v as SourceType)}
-                disabled={isViewMode}
-                required
-              />
-              <SelectField
-                label="Source No"
-                value={formState.Source_No}
-                options={sourceOptions.map((opt) => ({
-                  value: opt.No,
-                  label:
-                    "Description" in opt
-                      ? `${opt.No} - ${opt.Description}`
-                      : "Sell_to_Customer_Name" in opt
-                        ? `${opt.No} - ${opt.Sell_to_Customer_Name}`
-                        : opt.No,
-                }))}
-                onChange={handleSourceNoChange}
-                disabled={isViewMode || !formState.Source_Type}
-                isLoading={isLoadingSource}
-                required
-              />
-              <FormField
-                label="Quantity"
-                value={formState.Quantity}
-                onChange={(v) => handleChange("Quantity", parseFloat(v) || 0)}
-                disabled={isViewMode}
-                type="number"
-                required
-              />
-            </div>
-          </FormSection>
-
-          {/* Dates & Location */}
-          <FormSection title="Dates & Location">
-            <div className="grid grid-cols-3 gap-4">
-              <FormField
-                label="Due Date"
-                value={formState.Due_Date}
-                onChange={(v) => handleChange("Due_Date", v)}
-                disabled={isViewMode}
-                type="date"
-                required
-              />
-              <SelectField
-                label="Location Code"
-                value={formState.Location_Code}
-                options={locs.map((l) => ({ value: l.Code, label: l.Code }))}
-                onChange={(v) => handleChange("Location_Code", v)}
-                disabled={isViewMode}
-                required
-              />
-              <FormField
-                label="Hatching Date"
-                value={formState.Hatching_Date}
-                onChange={(v) => handleChange("Hatching_Date", v)}
-                disabled={isViewMode}
-                type="date"
-              />
-            </div>
-          </FormSection>
-
-          {/* BOM Fields - Only for Item source type */}
-          {showBomFields && (
-            <FormSection title="Production BOM">
-              <div className="grid grid-cols-2 gap-4">
-                {formState.isProdBomFromItem ? (
-                  <FormField
-                    label="Prod. BOM No"
-                    value={formState.Prod_Bom_No}
-                    onChange={() => {}}
-                    disabled={true}
-                    helpText="Auto-filled from selected item"
+              <div className="space-y-2">
+                <FieldTitle required>LOB</FieldTitle>
+                {isViewMode ? (
+                  <Input
+                    value={formState.Shortcut_Dimension_1_Code || "-"}
+                    disabled
+                    className="bg-muted"
                   />
                 ) : (
-                  <SelectField
-                    label="Prod. BOM No"
-                    value={formState.Prod_Bom_No}
-                    options={bomOptions.map((b) => ({
-                      value: b.No,
-                      label: b.Description
-                        ? `${b.No} - ${b.Description}`
-                        : b.No,
-                    }))}
-                    onChange={(v) => handleChange("Prod_Bom_No", v)}
-                    disabled={!isBomEditable}
-                    isLoading={isLoadingBom}
-                    required
-                  />
+                  <Select
+                    value={formState.Shortcut_Dimension_1_Code}
+                    onValueChange={handleLOBChange}
+                    disabled={isLoadingDimensions}
+                  >
+                    <SelectTrigger className="w-full">
+                      {isLoadingDimensions ? (
+                        <div className="flex items-center gap-2">
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          <span>Loading...</span>
+                        </div>
+                      ) : (
+                        <SelectValue placeholder="Select LOB" />
+                      )}
+                    </SelectTrigger>
+                    <SelectContent>
+                      {lobs.map((l) => (
+                        <SelectItem key={l.Code} value={l.Code}>
+                          {l.Code}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 )}
-                {showBomVersion && (
-                  <SelectField
-                    label="BOM Version No"
-                    value={formState.BOM_Version_No}
-                    options={bomVersionOptions.map((v) => ({
-                      value: v.Version_Code,
-                      label: v.Description
-                        ? `${v.Version_Code} - ${v.Description}`
-                        : v.Version_Code,
-                    }))}
-                    onChange={(v) => handleChange("BOM_Version_No", v)}
-                    disabled={isViewMode}
-                    isLoading={isLoadingBomVersions}
+              </div>
+              <div className="space-y-2">
+                <FieldTitle required>Branch</FieldTitle>
+                {isViewMode ? (
+                  <Input
+                    value={formState.Shortcut_Dimension_2_Code || "-"}
+                    disabled
+                    className="bg-muted"
+                  />
+                ) : (
+                  <Select
+                    value={formState.Shortcut_Dimension_2_Code}
+                    onValueChange={handleBranchChange}
+                    disabled={!formState.Shortcut_Dimension_1_Code}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select Branch" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {branches.map((b) => (
+                        <SelectItem key={b.Code} value={b.Code}>
+                          {b.Code}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+              <div className="space-y-2">
+                <FieldTitle required>LOC</FieldTitle>
+                {isViewMode ? (
+                  <Input
+                    value={formState.Shortcut_Dimension_3_Code || "-"}
+                    disabled
+                    className="bg-muted"
+                  />
+                ) : (
+                  <Select
+                    value={formState.Shortcut_Dimension_3_Code}
+                    onValueChange={handleLOCChange}
+                    disabled={!formState.Shortcut_Dimension_2_Code}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select LOC" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {locs.map((l) => (
+                        <SelectItem key={l.Code} value={l.Code}>
+                          {l.Code}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* General Information */}
+          <div className="space-y-4">
+            <h3 className="text-sm font-medium text-muted-foreground">
+              General Information
+            </h3>
+            <div className="grid grid-cols-2 gap-4">
+              {/* Order No - only show in view mode (auto-generated) */}
+              {isViewMode && (
+                <div className="space-y-2">
+                  <FieldTitle>Order No</FieldTitle>
+                  <Input
+                    value={formState.No || "-"}
+                    disabled
+                    className="bg-muted"
+                  />
+                </div>
+              )}
+              <div
+                className={isViewMode ? "space-y-2" : "space-y-2 col-span-2"}
+              >
+                <FieldTitle required>Description</FieldTitle>
+                {isViewMode ? (
+                  <Input
+                    value={formState.Description || "-"}
+                    disabled
+                    className="bg-muted"
+                  />
+                ) : (
+                  <Input
+                    value={formState.Description}
+                    onChange={(e) =>
+                      handleChange("Description", e.target.value)
+                    }
+                    placeholder="Enter description"
                   />
                 )}
               </div>
-            </FormSection>
+            </div>
+          </div>
+
+          {/* Source Details */}
+          <div className="space-y-4">
+            <h3 className="text-sm font-medium text-muted-foreground">
+              Source Details
+            </h3>
+            <div className="grid grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <FieldTitle required>Source Type</FieldTitle>
+                {isViewMode ? (
+                  <Input
+                    value={formState.Source_Type || "-"}
+                    disabled
+                    className="bg-muted"
+                  />
+                ) : (
+                  <Select
+                    value={formState.Source_Type}
+                    onValueChange={(v) =>
+                      handleSourceTypeChange(v as SourceType)
+                    }
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select source type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {SOURCE_TYPE_OPTIONS.filter(Boolean).map((st) => (
+                        <SelectItem key={st} value={st}>
+                          {st}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+              <div className="space-y-2">
+                <FieldTitle required>Source No</FieldTitle>
+                {isViewMode ? (
+                  <Input
+                    value={formState.Source_No || "-"}
+                    disabled
+                    className="bg-muted"
+                  />
+                ) : (
+                  <SearchableSelect
+                    value={formState.Source_No}
+                    onValueChange={handleSourceNoChange}
+                    options={sourceSelectOptions}
+                    placeholder="Select source"
+                    searchPlaceholder={
+                      formState.Source_Type === "Item"
+                        ? "Search by No or Description..."
+                        : formState.Source_Type === "Family"
+                          ? "Search by No or Description..."
+                          : "Search by No or Customer Name..."
+                    }
+                    emptyText={
+                      sourceSearchQuery.length > 0 &&
+                      sourceSearchQuery.length < 2
+                        ? "Type at least 2 characters to search"
+                        : "No results found"
+                    }
+                    disabled={!formState.Source_Type}
+                    isLoading={isLoadingSource}
+                    onSearch={handleSourceSearch}
+                  />
+                )}
+              </div>
+              <div className="space-y-2">
+                <FieldTitle required>Quantity</FieldTitle>
+                {isViewMode ? (
+                  <Input
+                    value={formState.Quantity || "-"}
+                    disabled
+                    className="bg-muted"
+                  />
+                ) : (
+                  <Input
+                    type="number"
+                    value={formState.Quantity}
+                    onChange={(e) =>
+                      handleChange("Quantity", parseFloat(e.target.value) || 0)
+                    }
+                    placeholder="Enter quantity"
+                  />
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Dates & Location */}
+          <div className="space-y-4">
+            <h3 className="text-sm font-medium text-muted-foreground">
+              Dates & Location
+            </h3>
+            <div className="grid grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <FieldTitle required>Due Date</FieldTitle>
+                {isViewMode ? (
+                  <Input
+                    value={formState.Due_Date || "-"}
+                    disabled
+                    className="bg-muted"
+                  />
+                ) : (
+                  <Input
+                    type="date"
+                    value={formState.Due_Date}
+                    onChange={(e) => handleChange("Due_Date", e.target.value)}
+                  />
+                )}
+              </div>
+              <div className="space-y-2">
+                <FieldTitle required>Location Code</FieldTitle>
+                {isViewMode ? (
+                  <Input
+                    value={formState.Location_Code || "-"}
+                    disabled
+                    className="bg-muted"
+                  />
+                ) : (
+                  <Select
+                    disabled
+                    value={formState.Location_Code}
+                    onValueChange={(v) => handleChange("Location_Code", v)}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select location" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {locs.map((l) => (
+                        <SelectItem key={l.Code} value={l.Code}>
+                          {l.Code}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+              <div className="space-y-2">
+                <FieldTitle>Hatching Date</FieldTitle>
+                {isViewMode ? (
+                  <Input
+                    value={formState.Hatching_Date || "-"}
+                    disabled
+                    className="bg-muted"
+                  />
+                ) : (
+                  <Input
+                    type="date"
+                    value={formState.Hatching_Date}
+                    onChange={(e) =>
+                      handleChange("Hatching_Date", e.target.value)
+                    }
+                  />
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* BOM Fields - Only for Item source type */}
+          {showBomFields && (
+            <div className="space-y-4">
+              <h3 className="text-sm font-medium text-muted-foreground">
+                Production BOM
+              </h3>
+              <div className="grid grid-cols-2 gap-4">
+                {formState.isProdBomFromItem ? (
+                  <div className="space-y-2">
+                    <FieldTitle required>Prod. BOM No</FieldTitle>
+                    <Input
+                      value={formState.Prod_Bom_No || "-"}
+                      disabled
+                      className="bg-muted"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Auto-filled from selected item
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <FieldTitle required>Prod. BOM No</FieldTitle>
+                    {isViewMode ? (
+                      <Input
+                        value={formState.Prod_Bom_No || "-"}
+                        disabled
+                        className="bg-muted"
+                      />
+                    ) : !formState.Location_Code ? (
+                      <div>
+                        <Input
+                          value=""
+                          disabled
+                          placeholder="Select Location Code first"
+                          className="bg-muted"
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Location Code is required to load location-specific
+                          BOMs. Item-only BOMs will be loaded as fallback.
+                        </p>
+                      </div>
+                    ) : bomOptions.length === 0 && !isLoadingBom ? (
+                      <div>
+                        <Input
+                          value=""
+                          disabled
+                          placeholder="No BOM No. available"
+                          className="bg-muted"
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">
+                          No BOMs found for this item/location
+                        </p>
+                      </div>
+                    ) : (
+                      <Select
+                        value={formState.Prod_Bom_No}
+                        onValueChange={(v) => handleChange("Prod_Bom_No", v)}
+                        disabled={isLoadingBom}
+                      >
+                        <SelectTrigger className="w-full">
+                          {isLoadingBom ? (
+                            <div className="flex items-center gap-2">
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                              <span>Loading...</span>
+                            </div>
+                          ) : (
+                            <SelectValue placeholder="Select BOM" />
+                          )}
+                        </SelectTrigger>
+                        <SelectContent>
+                          {bomOptions.map((b) => (
+                            <SelectItem key={b.No} value={b.No}>
+                              {b.Description
+                                ? `${b.No} - ${b.Description}`
+                                : b.No}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  </div>
+                )}
+                {showBomVersion && (
+                  <div className="space-y-2">
+                    <FieldTitle>BOM Version No</FieldTitle>
+                    {isViewMode ? (
+                      <Input
+                        value={formState.BOM_Version_No || "-"}
+                        disabled
+                        className="bg-muted"
+                      />
+                    ) : isLoadingBomVersions ? (
+                      <div className="flex items-center gap-2 h-9 px-3 border rounded-md bg-muted">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <span className="text-sm">Loading versions...</span>
+                      </div>
+                    ) : bomVersionOptions.length === 0 ? (
+                      <div>
+                        <Input
+                          value=""
+                          disabled
+                          placeholder="No versions available"
+                          className="bg-muted"
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">
+                          This BOM has no versions defined
+                        </p>
+                      </div>
+                    ) : (
+                      <Select
+                        value={formState.BOM_Version_No}
+                        onValueChange={(v) => handleChange("BOM_Version_No", v)}
+                      >
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Select version" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {bomVersionOptions.map((v) => (
+                            <SelectItem
+                              key={v.Version_Code}
+                              value={v.Version_Code}
+                            >
+                              {v.Description
+                                ? `${v.Version_Code} - ${v.Description}`
+                                : v.Version_Code}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
           )}
 
           {/* Additional Options */}
-          <FormSection title="Additional Options">
+          <div className="space-y-4">
+            <h3 className="text-sm font-medium text-muted-foreground">
+              Additional Options
+            </h3>
             <div className="grid grid-cols-2 gap-4">
-              <SelectField
-                label="Batch Size (In TON)"
-                value={formState.Batch_Size}
-                options={BATCH_SIZE_OPTIONS.filter(Boolean).map((bs) => ({
-                  value: bs,
-                  label: bs,
-                }))}
-                onChange={(v) => handleChange("Batch_Size", v as BatchSize)}
-                disabled={isViewMode}
-              />
+              <div className="space-y-2">
+                <FieldTitle>Batch Size (In TON)</FieldTitle>
+                {isViewMode ? (
+                  <Input
+                    value={formState.Batch_Size || "-"}
+                    disabled
+                    className="bg-muted"
+                  />
+                ) : (
+                  <Select
+                    value={formState.Batch_Size}
+                    onValueChange={(v) =>
+                      handleChange("Batch_Size", v as BatchSize)
+                    }
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select batch size" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {BATCH_SIZE_OPTIONS.filter(Boolean).map((bs) => (
+                        <SelectItem key={bs} value={bs}>
+                          {bs}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
             </div>
-          </FormSection>
+          </div>
 
           {/* Order Lines - Only for view/edit mode */}
           {!isCreateMode && (
-            <FormSection title="Release Production Order Line">
+            <div className="space-y-4">
+              <h3 className="text-sm font-medium text-muted-foreground">
+                Release Production Order Line
+              </h3>
               <ProductionOrderLinesTable
                 lines={orderLines}
                 isLoading={isLoadingLines}
               />
-            </FormSection>
+            </div>
           )}
 
           {/* Order Components - Only for view/edit mode */}
           {!isCreateMode && (
-            <FormSection title="Production Order Component">
+            <div className="space-y-4">
+              <h3 className="text-sm font-medium text-muted-foreground">
+                Production Order Component
+              </h3>
               <ProductionOrderComponentsTable
                 components={orderComponents}
                 isLoading={isLoadingComponents}
               />
-            </FormSection>
+            </div>
           )}
         </div>
       </div>
@@ -735,134 +1307,6 @@ export function ProductionOrderForm({
           </Button>
         )}
       </div>
-    </div>
-  );
-}
-
-// ============================================
-// FORM SECTION COMPONENT
-// ============================================
-interface FormSectionProps {
-  title: string;
-  children: React.ReactNode;
-}
-
-function FormSection({ title, children }: FormSectionProps) {
-  return (
-    <div className="space-y-3">
-      <h3 className="text-sm font-medium text-muted-foreground">{title}</h3>
-      {children}
-    </div>
-  );
-}
-
-// ============================================
-// FORM FIELD COMPONENT (Input)
-// ============================================
-interface FormFieldProps {
-  label: string;
-  value: string | number;
-  onChange: (value: string) => void;
-  disabled?: boolean;
-  required?: boolean;
-  type?: "text" | "number" | "date";
-  placeholder?: string;
-  helpText?: string;
-}
-
-function FormField({
-  label,
-  value,
-  onChange,
-  disabled = false,
-  required = false,
-  type = "text",
-  placeholder,
-  helpText,
-}: FormFieldProps) {
-  return (
-    <div className="space-y-1.5">
-      <Label className="text-xs font-medium">
-        {label}
-        {required && <span className="text-destructive ml-1">*</span>}
-      </Label>
-      {disabled ? (
-        <div>
-          <p className="text-sm py-2 px-3 bg-muted/50 rounded-md min-h-9 flex items-center">
-            {value || "-"}
-          </p>
-          {helpText && (
-            <p className="text-xs text-muted-foreground mt-1">{helpText}</p>
-          )}
-        </div>
-      ) : (
-        <Input
-          type={type}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder={placeholder}
-          className="h-9 text-sm"
-        />
-      )}
-    </div>
-  );
-}
-
-// ============================================
-// SELECT FIELD COMPONENT
-// ============================================
-interface SelectFieldProps {
-  label: string;
-  value: string;
-  options: { value: string; label: string }[];
-  onChange: (value: string) => void;
-  disabled?: boolean;
-  required?: boolean;
-  isLoading?: boolean;
-  placeholder?: string;
-}
-
-function SelectField({
-  label,
-  value,
-  options,
-  onChange,
-  disabled = false,
-  required = false,
-  isLoading = false,
-  placeholder = "Select...",
-}: SelectFieldProps) {
-  return (
-    <div className="space-y-1.5">
-      <Label className="text-xs font-medium">
-        {label}
-        {required && <span className="text-destructive ml-1">*</span>}
-      </Label>
-      {disabled ? (
-        <p className="text-sm py-2 px-3 bg-muted/50 rounded-md min-h-9 flex items-center">
-          {value || "-"}
-        </p>
-      ) : (
-        <Select value={value} onValueChange={onChange} disabled={isLoading}>
-          <SelectTrigger className="h-9 text-sm">
-            {isLoading ? (
-              <div className="flex items-center gap-2">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                <span>Loading...</span>
-              </div>
-            ) : (
-              <SelectValue placeholder={placeholder} />
-            )}
-          </SelectTrigger>
-          <SelectContent>
-            {options.map((opt) => (
-              <SelectItem key={opt.value} value={opt.value}>
-                {opt.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      )}
     </div>
   );
 }

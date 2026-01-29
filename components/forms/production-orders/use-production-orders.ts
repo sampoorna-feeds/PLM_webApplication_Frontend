@@ -248,14 +248,17 @@ export function useProductionOrderLines(orderNo: string | null) {
 }
 
 /**
- * Hook for fetching production order components
+ * Hook for fetching production order components for a specific line
  */
-export function useProductionOrderComponents(orderNo: string | null) {
+export function useProductionOrderComponents(
+  orderNo: string | null,
+  lineNo: number | null,
+) {
   const [components, setComponents] = useState<ProductionOrderComponent[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    if (!orderNo) {
+    if (!orderNo || !lineNo) {
       setComponents([]);
       return;
     }
@@ -263,7 +266,7 @@ export function useProductionOrderComponents(orderNo: string | null) {
     const fetchComponents = async () => {
       setIsLoading(true);
       try {
-        const data = await getProductionOrderComponents(orderNo);
+        const data = await getProductionOrderComponents(orderNo, lineNo);
         setComponents(data);
       } catch (error) {
         console.error("Error fetching order components:", error);
@@ -274,7 +277,7 @@ export function useProductionOrderComponents(orderNo: string | null) {
     };
 
     fetchComponents();
-  }, [orderNo]);
+  }, [orderNo, lineNo]);
 
   return {
     components,

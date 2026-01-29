@@ -57,6 +57,7 @@ export function ProductionOrderSheet({
   const { components, isLoading: isLoadingComponents } =
     useProductionOrderComponents(
       mode !== "create" ? (order?.No ?? null) : null,
+      null,
     );
 
   // Reset form data when order changes or mode changes

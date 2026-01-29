@@ -75,7 +75,10 @@ export function ProductionOrderFormFields({
 
   // Handle field changes
   const handleChange = useCallback(
-    (field: keyof ProductionOrderFormData, value: string | number | boolean) => {
+    (
+      field: keyof ProductionOrderFormData,
+      value: string | number | boolean,
+    ) => {
       onChange({ ...data, [field]: value });
     },
     [data, onChange],
@@ -232,11 +235,13 @@ export function ProductionOrderFormFields({
             isProdBomFromItem: true,
           });
         } else {
-          // No BOM from item - load BOM dropdown options
-          setIsLoadingBom(true);
-          const boms = await getProdOrderBOMs();
-          setBomOptions(boms);
-          setIsLoadingBom(false);
+          // No BOM from item - load BOM dropdown options filtered by item and location
+          if (data.Location_Code) {
+            setIsLoadingBom(true);
+            const boms = await getProdOrderBOMs(value, data.Location_Code);
+            setBomOptions(boms);
+            setIsLoadingBom(false);
+          }
         }
       } catch (error) {
         console.error("Error checking item BOM:", error);
@@ -293,7 +298,8 @@ export function ProductionOrderFormFields({
   // Check if BOM is editable (manual entry needed)
   const isBomEditable = showBomFields && !data.isProdBomFromItem && !isReadOnly;
   // Check if BOM Version should be shown (only when manually filling BOM)
-  const showBomVersion = showBomFields && !data.isProdBomFromItem && data.Prod_Bom_No;
+  const showBomVersion =
+    showBomFields && !data.isProdBomFromItem && data.Prod_Bom_No;
 
   return (
     <div className="space-y-6">
@@ -399,13 +405,12 @@ export function ProductionOrderFormFields({
           type="date"
           required
         />
-        <SelectField
+        <FormField
           label="Location Code"
           value={data.Location_Code}
-          options={locs.map((l) => ({ value: l.Code, label: l.Code }))}
-          onChange={(v) => handleChange("Location_Code", v)}
-          disabled={isReadOnly}
-          placeholder="Prefilled from LOC"
+          onChange={() => {}}
+          disabled
+          helpText="Auto-filled from LOC Code"
           required
         />
         <FormField

@@ -384,6 +384,14 @@ export function DimensionSelect({
         className="p-0 min-w-[280px] max-w-[500px] w-auto" 
         align="start"
         style={{ width: calculateDropdownWidth() }}
+        onOpenAutoFocus={(e) => {
+          // Prevent auto-focus from scrolling
+          e.preventDefault();
+        }}
+        onCloseAutoFocus={(e) => {
+          // Prevent auto-focus from scrolling
+          e.preventDefault();
+        }}
       >
         {supportsSearch && (
           <div className="p-2 border-b">

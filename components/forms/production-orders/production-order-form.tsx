@@ -6,6 +6,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
+import { toast } from "sonner";
 import { Loader2, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -272,19 +273,25 @@ export function ProductionOrderForm({
     });
   }, [registerRefresh, orderNo]);
 
-  // Update tab formData whenever formState changes (only after initial load)
-  const prevFormStateRef = React.useRef(formState);
-  useEffect(() => {
-    // Only update formData after initial load is complete to prevent false 'unsaved changes'
-    if (!isInitialLoadComplete) return;
-
-    if (
-      JSON.stringify(prevFormStateRef.current) !== JSON.stringify(formState)
-    ) {
-      prevFormStateRef.current = formState;
-      updateFormData(formState);
-    }
-  }, [formState, updateFormData, isInitialLoadComplete]);
+  // NOTE: Disabled formData sync to context to prevent focus loss issue.
+  // The sync was causing periodic re-renders (every 300ms) which would steal focus.
+  // Local formState is sufficient for form operation. If tab persistence is needed,
+  // consider syncing only on blur or before close.
+  // 
+  // const prevFormStateRef = React.useRef(formState);
+  // const updateTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+  // 
+  // useEffect(() => {
+  //   if (!isInitialLoadComplete) return;
+  //   if (JSON.stringify(prevFormStateRef.current) !== JSON.stringify(formState)) {
+  //     prevFormStateRef.current = formState;
+  //     if (updateTimeoutRef.current) clearTimeout(updateTimeoutRef.current);
+  //     updateTimeoutRef.current = setTimeout(() => {
+  //       updateFormData(formState);
+  //     }, 300);
+  //   }
+  //   return () => { if (updateTimeoutRef.current) clearTimeout(updateTimeoutRef.current); };
+  // }, [formState, updateFormData, isInitialLoadComplete]);
 
   // Load LOBs on mount (for create and edit modes)
   useEffect(() => {
@@ -535,11 +542,11 @@ export function ProductionOrderForm({
   ]);
 
   // Handlers
-  const handleChange = (field: string, value: string | number | boolean) => {
+  const handleChange = useCallback((field: string, value: string | number | boolean) => {
     setFormState((prev) => ({ ...prev, [field]: value }));
-  };
+  }, []);
 
-  const handleLOBChange = (value: string) => {
+  const handleLOBChange = useCallback((value: string) => {
     setFormState((prev) => ({
       ...prev,
       Shortcut_Dimension_1_Code: value,
@@ -547,26 +554,26 @@ export function ProductionOrderForm({
       Shortcut_Dimension_3_Code: "",
       Location_Code: "",
     }));
-  };
+  }, []);
 
-  const handleBranchChange = (value: string) => {
+  const handleBranchChange = useCallback((value: string) => {
     setFormState((prev) => ({
       ...prev,
       Shortcut_Dimension_2_Code: value,
       Shortcut_Dimension_3_Code: "",
       Location_Code: "",
     }));
-  };
+  }, []);
 
-  const handleLOCChange = (value: string) => {
+  const handleLOCChange = useCallback((value: string) => {
     setFormState((prev) => ({
       ...prev,
       Shortcut_Dimension_3_Code: value,
       Location_Code: value, // Prefill Location Code
     }));
-  };
+  }, []);
 
-  const handleSourceTypeChange = (value: SourceType) => {
+  const handleSourceTypeChange = useCallback((value: SourceType) => {
     setFormState((prev) => ({
       ...prev,
       Source_Type: value,
@@ -577,7 +584,7 @@ export function ProductionOrderForm({
     }));
     // Keep search query persistent, don't reset it
     setSourceOptions([]);
-  };
+  }, []);
 
   // Handle source search
   const handleSourceSearch = useCallback((query: string) => {
@@ -663,44 +670,44 @@ export function ProductionOrderForm({
   const handleSubmit = async () => {
     // Validate required fields
     if (!formState.Description) {
-      alert("Description is required");
+      toast.error("Description is required");
       return;
     }
     if (!formState.Source_Type) {
-      alert("Source Type is required");
+      toast.error("Source Type is required");
       return;
     }
     if (!formState.Source_No) {
-      alert("Source No is required");
+      toast.error("Source No is required");
       return;
     }
     if (!formState.Quantity || formState.Quantity <= 0) {
-      alert("Quantity must be greater than 0");
+      toast.error("Quantity must be greater than 0");
       return;
     }
     if (!formState.Due_Date) {
-      alert("Due Date is required");
+      toast.error("Due Date is required");
       return;
     }
     if (!formState.Location_Code) {
-      alert("Location Code is required");
+      toast.error("Location Code is required");
       return;
     }
     if (!formState.Shortcut_Dimension_1_Code) {
-      alert("LOB is required");
+      toast.error("LOB is required");
       return;
     }
     if (!formState.Shortcut_Dimension_2_Code) {
-      alert("Branch is required");
+      toast.error("Branch is required");
       return;
     }
     if (!formState.Shortcut_Dimension_3_Code) {
-      alert("LOC is required");
+      toast.error("LOC is required");
       return;
     }
     // BOM validation - mandatory for all production orders
     if (!formState.Prod_Bom_No) {
-      alert("Production BOM No is required for all production orders");
+      toast.error("Production BOM No is required for all production orders");
       return;
     }
 
@@ -734,6 +741,8 @@ export function ProductionOrderForm({
 
         const createdOrder = await createProductionOrder(payload);
         console.log("Production Order created:", createdOrder);
+        
+        toast.success(`Production Order ${createdOrder.No} created successfully!`);
 
         // On success, handle auto-close
         await handleSuccess();
@@ -745,7 +754,7 @@ export function ProductionOrderForm({
       }
     } catch (error) {
       console.error("Error submitting Production Order:", error);
-      alert(
+      toast.error(
         error instanceof Error
           ? error.message
           : "Failed to create production order",

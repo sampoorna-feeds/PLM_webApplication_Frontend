@@ -5,7 +5,7 @@
 
 'use client';
 
-import React, { createContext, useCallback, useEffect, useRef, useState } from 'react';
+import React, { createContext, useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import type { FormTab, FormStackContextType, FormStackState } from './types';
 import { saveFormStack, loadFormStack, clearFormStack } from './storage';
 
@@ -184,9 +184,12 @@ export function FormStackProvider({ children, formScope }: FormStackProviderProp
     refreshCallbacksRef.current.delete(tabId);
   }, []);
 
-  const currentTab = tabs.find((tab) => tab.id === activeTabId) || null;
+  const currentTab = useMemo(
+    () => tabs.find((tab) => tab.id === activeTabId) || null,
+    [tabs, activeTabId]
+  );
 
-  const value: FormStackContextType = {
+  const value: FormStackContextType = useMemo(() => ({
     tabs,
     activeTabId,
     currentTab,
@@ -202,7 +205,23 @@ export function FormStackProvider({ children, formScope }: FormStackProviderProp
     updateTab,
     registerRefreshCallback,
     unregisterRefreshCallback,
-  };
+  }), [
+    tabs,
+    activeTabId,
+    currentTab,
+    formScope,
+    isCollapsed,
+    isFloating,
+    toggleCollapse,
+    toggleFloat,
+    openTab,
+    closeTab,
+    switchTab,
+    closeAllTabs,
+    updateTab,
+    registerRefreshCallback,
+    unregisterRefreshCallback,
+  ]);
 
   return <FormStackContext.Provider value={value}>{children}</FormStackContext.Provider>;
 }

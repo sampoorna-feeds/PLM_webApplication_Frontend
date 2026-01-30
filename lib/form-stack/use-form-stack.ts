@@ -3,13 +3,26 @@
  * Custom hook for form components to interact with FormStack
  */
 
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useMemo } from 'react';
 import { useFormStackContext } from './form-stack-context';
 import type { FormTab } from './types';
 
 export function useFormStack(tabId: string) {
   const context = useFormStackContext();
-  const tab = context.tabs.find((t) => t.id === tabId);
+  
+  // Extract stable function references from context
+  const { 
+    tabs, 
+    activeTabId, 
+    currentTab,
+    registerRefreshCallback, 
+    unregisterRefreshCallback,
+    updateTab: contextUpdateTab,
+    closeTab: contextCloseTab,
+  } = context;
+  
+  // Memoize tab lookup to prevent unnecessary re-renders
+  const tab = useMemo(() => tabs.find((t) => t.id === tabId), [tabs, tabId]);
 
   // Register refresh callback when component mounts
   useEffect(() => {
@@ -22,24 +35,24 @@ export function useFormStack(tabId: string) {
       // Default: no-op
     };
 
-    context.registerRefreshCallback(tabId, defaultRefresh);
+    registerRefreshCallback(tabId, defaultRefresh);
 
     return () => {
-      context.unregisterRefreshCallback(tabId);
+      unregisterRefreshCallback(tabId);
     };
-  }, [tabId, context, tab]);
+  }, [tabId, tab, registerRefreshCallback, unregisterRefreshCallback]);
 
   const markAsSaved = useCallback(() => {
     if (tab) {
-      context.updateTab(tabId, { isSaved: true });
+      contextUpdateTab(tabId, { isSaved: true });
     }
-  }, [tab, tabId, context]);
+  }, [tab, tabId, contextUpdateTab]);
 
   const updateFormData = useCallback((formData: Record<string, any>) => {
     if (tab) {
-      context.updateTab(tabId, { formData });
+      contextUpdateTab(tabId, { formData });
     }
-  }, [tab, tabId, context]);
+  }, [tab, tabId, contextUpdateTab]);
 
   const handleSuccess = useCallback(async () => {
     if (!tab) {
@@ -54,21 +67,21 @@ export function useFormStack(tabId: string) {
       tab.autoCloseOnSuccess !== false &&
       tab.context?.openedFromParent === true
     ) {
-      context.closeTab(tabId);
+      contextCloseTab(tabId);
     }
-  }, [tab, tabId, context, markAsSaved]);
+  }, [tab, tabId, contextCloseTab, markAsSaved]);
 
   return {
     tab,
-    currentTab: context.currentTab,
-    isActive: context.activeTabId === tabId,
+    currentTab,
+    isActive: activeTabId === tabId,
     markAsSaved,
     updateFormData,
     handleSuccess,
     registerRefresh: (callback: () => void | Promise<void>) => {
-      context.registerRefreshCallback(tabId, callback);
+      registerRefreshCallback(tabId, callback);
     },
-    closeTab: () => context.closeTab(tabId),
-    updateTab: (updates: Partial<FormTab>) => context.updateTab(tabId, updates),
+    closeTab: () => contextCloseTab(tabId),
+    updateTab: (updates: Partial<FormTab>) => contextUpdateTab(tabId, updates),
   };
 }

@@ -22,14 +22,18 @@ export function FormStackPanel() {
   const [isLoading, setIsLoading] = useState(false);
 
   // Load form component when active tab changes
+  // Use formType as dependency, not the full currentTab object to avoid unnecessary reloads
+  const currentFormType = currentTab?.formType;
+  const currentTabId = currentTab?.id;
+  
   useEffect(() => {
-    if (!currentTab) {
+    if (!currentFormType) {
       setFormComponent(null);
       return;
     }
 
     setIsLoading(true);
-    getFormComponent(currentTab.formType)
+    getFormComponent(currentFormType)
       .then((component) => {
         setFormComponent(() => component);
       })
@@ -40,7 +44,7 @@ export function FormStackPanel() {
       .finally(() => {
         setIsLoading(false);
       });
-  }, [currentTab]);
+  }, [currentFormType, currentTabId]);
 
   // Collapsed state - thin vertical bar
   if (isCollapsed) {

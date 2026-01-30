@@ -3,6 +3,7 @@ import { Geist, Geist_Mono, Noto_Sans } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme/theme-provider";
 import { AuthProvider } from "@/lib/contexts/auth-context";
+import { Toaster } from "sonner";
 
 const notoSans = Noto_Sans({variable:'--font-sans'});
 
@@ -43,6 +44,7 @@ export default function RootLayout({
           <AuthProvider>
           {children}
           </AuthProvider>
+          <Toaster richColors position="top-right" />
         </ThemeProvider>
       </body>
     </html>

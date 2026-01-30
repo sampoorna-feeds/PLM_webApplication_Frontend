@@ -112,6 +112,14 @@ function buildProductionOrderFilter(
 }
 
 /**
+ * Response type for paginated production orders
+ */
+export interface PaginatedProductionOrdersResponse {
+  orders: ProductionOrder[];
+  totalCount: number;
+}
+
+/**
  * Get production orders (Released or Finished)
  */
 export async function getProductionOrders(
@@ -145,6 +153,46 @@ export async function getProductionOrders(
   const endpoint = `/ReleaseprodOrder?company='${encodeURIComponent(COMPANY)}'&${query}`;
   const response = await apiGet<ODataResponse<ProductionOrder>>(endpoint);
   return response.value;
+}
+
+/**
+ * Get production orders with total count for pagination
+ * Returns both the orders array and the total count
+ */
+export async function getProductionOrdersWithCount(
+  params: GetProductionOrdersParams = {},
+  lobCodes: string[] = [],
+): Promise<PaginatedProductionOrdersResponse> {
+  const {
+    $select = "No,Description,Source_No,Quantity,Location_Code",
+    $filter,
+    $orderby,
+    $top = 10,
+    $skip,
+  } = params;
+
+  // Use provided filter or build default for Released status
+  const finalFilter =
+    $filter || buildProductionOrderFilter("Released", lobCodes);
+
+  const queryParams: Record<string, any> = {
+    $select,
+    $filter: finalFilter,
+    $top,
+    $count: true, // Always request count
+  };
+
+  if ($orderby) queryParams.$orderby = $orderby;
+  if ($skip !== undefined) queryParams.$skip = $skip;
+
+  const query = buildODataQuery(queryParams);
+  const endpoint = `/ReleaseprodOrder?company='${encodeURIComponent(COMPANY)}'&${query}`;
+  const response = await apiGet<ODataResponse<ProductionOrder>>(endpoint);
+  
+  return {
+    orders: response.value,
+    totalCount: response['@odata.count'] ?? 0,
+  };
 }
 
 /**
@@ -183,13 +231,16 @@ export async function getProductionOrderLines(
 }
 
 /**
- * Get production order components for a specific production order
+ * Get production order components for a specific production order line
+ * @param prodOrderNo - Production Order No
+ * @param prodOrderLineNo - Production Order Line No (required)
  */
 export async function getProductionOrderComponents(
   prodOrderNo: string,
+  prodOrderLineNo: number,
   top: number = 100,
 ): Promise<ProductionOrderComponent[]> {
-  const filter = `Prod_Order_No eq '${prodOrderNo}'`;
+  const filter = `Prod_Order_No eq '${prodOrderNo}' and Prod_Order_Line_No eq ${prodOrderLineNo}`;
   const select =
     "Item_No,Description,Location_Code,Quantity_per,Expected_Quantity,Remaining_Quantity,Substitution_Available,Prod_Order_No,Prod_Order_Line_No,Line_No";
   const query = buildODataQuery({
@@ -206,15 +257,17 @@ export async function getProductionOrderComponents(
 
 /**
  * Change production order status (e.g., mark as finished)
+ * @param prodOrder - Production Order No
+ * @param newPostingDate - New posting date (YYYY-MM-DD format)
  */
 export async function changeProductionOrderStatus(
-  orderNo: string,
-  newStatus: string,
+  prodOrder: string,
+  newPostingDate: string,
 ): Promise<unknown> {
   const endpoint = `/API_ChangeProdOrderStatus?company='${encodeURIComponent(COMPANY)}'`;
   const payload = {
-    orderNo,
-    status: newStatus,
+    prodOrder,
+    newPostingDate,
   };
 
   return apiPost<unknown>(endpoint, payload);
@@ -222,12 +275,77 @@ export async function changeProductionOrderStatus(
 
 /**
  * Refresh production order data
+ * @param prodOrder - Production Order No
  */
 export async function refreshProductionOrder(
-  orderNo: string,
+  prodOrder: string,
 ): Promise<unknown> {
   const endpoint = `/API_RefressProductionOrder?company='${encodeURIComponent(COMPANY)}'`;
-  const payload = { orderNo };
+  const payload = { prodOrder };
 
   return apiPost<unknown>(endpoint, payload);
+}
+
+// ============================================
+// CREATE PRODUCTION ORDER
+// ============================================
+
+export interface CreateProductionOrderPayload {
+  Status: "Released";
+  Description: string;
+  Source_Type: "Item" | "Family" | "Sales Header";
+  Source_No: string;
+  Quantity: number;
+  Due_Date: string;
+  Location_Code: string;
+  Hatching_Date?: string;
+  Shortcut_Dimension_1_Code: string; // LOB Code
+  Shortcut_Dimension_2_Code: string; // Branch Code
+  Shortcut_Dimension_3_Code: string; // LOC Code
+  Prod_Bom_No?: string;
+  BOM_Version_No?: string;
+  Batch_Size?: string;
+}
+
+/**
+ * Create a new production order
+ * @param data - Production order data
+ * @returns Created production order
+ */
+export async function createProductionOrder(
+  data: CreateProductionOrderPayload,
+): Promise<ProductionOrder> {
+  const endpoint = `/ReleaseprodOrder?company='${encodeURIComponent(COMPANY)}'`;
+
+  // Build the payload, only include BOM_Version_No if Prod_Bom_No is manually set
+  const payload: Record<string, unknown> = {
+    Status: "Released",
+    Description: data.Description,
+    Source_Type: data.Source_Type,
+    Source_No: data.Source_No,
+    Quantity: data.Quantity,
+    Due_Date: data.Due_Date,
+    Location_Code: data.Location_Code,
+    Hatching_Date: data.Hatching_Date || "0001-01-01",
+    Shortcut_Dimension_1_Code: data.Shortcut_Dimension_1_Code,
+    Shortcut_Dimension_2_Code: data.Shortcut_Dimension_2_Code,
+    Shortcut_Dimension_3_Code: data.Shortcut_Dimension_3_Code,
+  };
+
+  // Add Prod_Bom_No if provided
+  if (data.Prod_Bom_No) {
+    payload.Prod_Bom_No = data.Prod_Bom_No;
+  }
+
+  // Add BOM_Version_No only when Prod_Bom_No is manually filled (not from item)
+  if (data.BOM_Version_No && data.Prod_Bom_No) {
+    payload.BOM_Version_No = data.BOM_Version_No;
+  }
+
+  // Add Batch_Size if provided
+  if (data.Batch_Size) {
+    payload.Batch_Size = data.Batch_Size;
+  }
+
+  return apiPost<ProductionOrder>(endpoint, payload);
 }

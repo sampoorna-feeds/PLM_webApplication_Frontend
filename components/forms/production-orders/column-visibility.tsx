@@ -1,0 +1,118 @@
+"use client";
+
+import { useState } from "react";
+import { Settings2, RotateCcw } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Separator } from "@/components/ui/separator";
+import { DEFAULT_COLUMNS, OPTIONAL_COLUMNS, type ColumnConfig } from "./column-config";
+
+interface ColumnVisibilityProps {
+  visibleColumns: string[];
+  onColumnToggle: (columnId: string) => void;
+  onResetColumns: () => void;
+}
+
+export function ColumnVisibility({
+  visibleColumns,
+  onColumnToggle,
+  onResetColumns,
+}: ColumnVisibilityProps) {
+  const [open, setOpen] = useState(false);
+  
+  // Count visible columns
+  const visibleCount = visibleColumns.length;
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button variant="outline" size="sm" className="gap-2">
+          <Settings2 className="h-4 w-4" />
+          Columns ({visibleCount})
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-56 p-0" align="end">
+        <div className="p-3 border-b">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium">Toggle Columns</span>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 px-2 text-xs"
+              onClick={onResetColumns}
+            >
+              <RotateCcw className="h-3 w-3 mr-1" />
+              Reset
+            </Button>
+          </div>
+        </div>
+        
+        <div className="p-2 max-h-80 overflow-y-auto">
+          {/* Default columns */}
+          <div className="mb-2">
+            <span className="text-xs text-muted-foreground px-2">Default Columns</span>
+            {DEFAULT_COLUMNS.map((column) => (
+              <ColumnToggleItem
+                key={column.id}
+                column={column}
+                isChecked={visibleColumns.includes(column.id)}
+                onToggle={() => onColumnToggle(column.id)}
+              />
+            ))}
+          </div>
+
+          <Separator className="my-2" />
+
+          {/* Optional columns */}
+          <div>
+            <span className="text-xs text-muted-foreground px-2">Additional Columns</span>
+            {OPTIONAL_COLUMNS.map((column) => (
+              <ColumnToggleItem
+                key={column.id}
+                column={column}
+                isChecked={visibleColumns.includes(column.id)}
+                onToggle={() => onColumnToggle(column.id)}
+              />
+            ))}
+          </div>
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+interface ColumnToggleItemProps {
+  column: ColumnConfig;
+  isChecked: boolean;
+  isDisabled?: boolean;
+  onToggle: () => void;
+}
+
+function ColumnToggleItem({
+  column,
+  isChecked,
+  isDisabled = false,
+  onToggle,
+}: ColumnToggleItemProps) {
+  return (
+    <div
+      className={`flex items-center gap-2 px-2 py-1.5 rounded-sm hover:bg-accent cursor-pointer ${
+        isDisabled ? "opacity-60 cursor-not-allowed" : ""
+      }`}
+      onClick={() => !isDisabled && onToggle()}
+    >
+      <Checkbox
+        checked={isChecked}
+        disabled={isDisabled}
+        onCheckedChange={() => !isDisabled && onToggle()}
+        className="pointer-events-none"
+      />
+      <span className="text-sm">{column.label}</span>
+    </div>
+  );
+}

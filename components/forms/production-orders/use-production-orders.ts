@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useAuth } from "@/lib/contexts/auth-context";
 import { getLOBsFromUserSetup } from "@/lib/api/services/dimension.service";
 import {
-  getProductionOrders,
+  getProductionOrdersWithCount,
   getProductionOrderByNo,
   getProductionOrderLines,
   getProductionOrderComponents,
@@ -20,6 +20,13 @@ import type {
   BatchSize,
 } from "./types";
 import { EMPTY_FORM_DATA } from "./types";
+import {
+  type SortDirection,
+  loadVisibleColumns,
+  saveVisibleColumns,
+  buildSelectQuery,
+  getDefaultVisibleColumns,
+} from "./column-config";
 
 const DEFAULT_LOB_CODES = ["CATTLE", "CBF", "FEED"];
 
@@ -30,6 +37,26 @@ export function useProductionOrders() {
   const [isLoading, setIsLoading] = useState(true);
   const [pageSize, setPageSize] = useState<PageSize>(10);
   const [currentPage, setCurrentPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+
+  // Sorting state
+  const [sortColumn, setSortColumn] = useState<string | null>("Last_Date_Modified");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
+
+  // Filter state
+  const [searchQuery, setSearchQuery] = useState("");
+  const [dueDateFrom, setDueDateFrom] = useState<string>("");
+  const [dueDateTo, setDueDateTo] = useState<string>("");
+
+  // Column visibility state
+  const [visibleColumns, setVisibleColumns] = useState<string[]>(() => 
+    typeof window !== 'undefined' ? loadVisibleColumns() : getDefaultVisibleColumns()
+  );
+
+  // Calculate total pages
+  const totalPages = useMemo(() => {
+    return Math.max(1, Math.ceil(totalCount / pageSize));
+  }, [totalCount, pageSize]);
 
   // Fetch LOB codes from user setup
   useEffect(() => {
@@ -49,49 +76,164 @@ export function useProductionOrders() {
     fetchLOBCodes();
   }, [userID]);
 
-  // Fetch production orders when LOB codes or pagination changes
+  // Build filter string for OData
+  const buildFilterString = useCallback(() => {
+    const filterParts: string[] = [];
+
+    // Base filter: Status and LOB codes
+    const lobFilter = lobCodes.map((c) => `'${c}'`).join(",");
+    filterParts.push(`Status eq 'Released' and Shortcut_Dimension_1_Code in (${lobFilter})`);
+
+    // Search filter - BC OData doesn't support OR across different fields
+    // So we only search on Search_Description (which is typically a combined search field)
+    if (searchQuery.trim()) {
+      const searchTerm = searchQuery.trim().replace(/'/g, "''"); // Escape single quotes
+      filterParts.push(`contains(Search_Description,'${searchTerm}')`);
+    }
+
+    // Date range filter for Due_Date
+    if (dueDateFrom) {
+      filterParts.push(`Due_Date ge ${dueDateFrom}`);
+    }
+    if (dueDateTo) {
+      filterParts.push(`Due_Date le ${dueDateTo}`);
+    }
+
+    return filterParts.join(" and ");
+  }, [lobCodes, searchQuery, dueDateFrom, dueDateTo]);
+
+  // Build orderby string for OData
+  const buildOrderByString = useCallback(() => {
+    if (!sortColumn || !sortDirection) return undefined;
+    return `${sortColumn} ${sortDirection}`;
+  }, [sortColumn, sortDirection]);
+
+  // Fetch production orders
   const fetchOrders = useCallback(async () => {
     if (lobCodes.length === 0) return;
 
     setIsLoading(true);
     try {
-      const lobFilter = lobCodes.map((c) => `'${c}'`).join(",");
-      const data = await getProductionOrders({
-        $filter: `Status eq 'Released' and Shortcut_Dimension_1_Code in (${lobFilter})`,
+      const result = await getProductionOrdersWithCount({
+        $select: buildSelectQuery(visibleColumns),
+        $filter: buildFilterString(),
+        $orderby: buildOrderByString(),
         $top: pageSize,
         $skip: (currentPage - 1) * pageSize,
       });
-      setOrders(data);
+      
+      setOrders(result.orders);
+      setTotalCount(result.totalCount);
     } catch (error) {
       console.error("Error fetching production orders:", error);
       setOrders([]);
+      setTotalCount(0);
     } finally {
       setIsLoading(false);
     }
-  }, [lobCodes, pageSize, currentPage]);
+  }, [lobCodes, pageSize, currentPage, visibleColumns, buildFilterString, buildOrderByString]);
 
   useEffect(() => {
     fetchOrders();
   }, [fetchOrders]);
 
-  const handlePageSizeChange = (size: PageSize) => {
+  // Handlers
+  const handlePageSizeChange = useCallback((size: PageSize) => {
     setPageSize(size);
     setCurrentPage(1);
-  };
+  }, []);
 
-  const handlePageChange = (page: number) => {
+  const handlePageChange = useCallback((page: number) => {
     setCurrentPage(page);
-  };
+  }, []);
+
+  const handleSort = useCallback((column: string) => {
+    setSortColumn((prevColumn) => {
+      if (prevColumn === column) {
+        // Toggle direction: asc -> desc -> null
+        setSortDirection((prevDir) => {
+          if (prevDir === 'asc') return 'desc';
+          if (prevDir === 'desc') return null;
+          return 'asc';
+        });
+        return column;
+      } else {
+        setSortDirection('asc');
+        return column;
+      }
+    });
+    setCurrentPage(1);
+  }, []);
+
+  const handleSearch = useCallback((query: string) => {
+    setSearchQuery(query);
+    setCurrentPage(1);
+  }, []);
+
+  const handleDateFilter = useCallback((from: string, to: string) => {
+    setDueDateFrom(from);
+    setDueDateTo(to);
+    setCurrentPage(1);
+  }, []);
+
+  const handleColumnToggle = useCallback((columnId: string) => {
+    setVisibleColumns((prev) => {
+      const newColumns = prev.includes(columnId)
+        ? prev.filter((id) => id !== columnId)
+        : [...prev, columnId];
+      saveVisibleColumns(newColumns);
+      return newColumns;
+    });
+  }, []);
+
+  const handleResetColumns = useCallback(() => {
+    const defaults = getDefaultVisibleColumns();
+    setVisibleColumns(defaults);
+    saveVisibleColumns(defaults);
+  }, []);
+
+  const handleClearFilters = useCallback(() => {
+    setSearchQuery("");
+    setDueDateFrom("");
+    setDueDateTo("");
+    setSortColumn(null);
+    setSortDirection(null);
+    setCurrentPage(1);
+  }, []);
 
   return {
+    // Data
     orders,
     isLoading,
+    lobCodes,
+    // Pagination
     pageSize,
     currentPage,
-    lobCodes,
+    totalCount,
+    totalPages,
     onPageSizeChange: handlePageSizeChange,
     onPageChange: handlePageChange,
+    // Sorting
+    sortColumn,
+    sortDirection,
+    onSort: handleSort,
+    // Filtering
+    searchQuery,
+    dueDateFrom,
+    dueDateTo,
+    onSearch: handleSearch,
+    onDateFilter: handleDateFilter,
+    onClearFilters: handleClearFilters,
+    // Column visibility
+    visibleColumns,
+    onColumnToggle: handleColumnToggle,
+    onResetColumns: handleResetColumns,
+    // Refresh
     refetch: fetchOrders,
+    addOrder: useCallback((order: ProductionOrder) => {
+      setOrders((prev) => [order, ...prev]);
+      setTotalCount((prev) => prev + 1);
+    }, []),
   };
 }
 
@@ -248,14 +390,17 @@ export function useProductionOrderLines(orderNo: string | null) {
 }
 
 /**
- * Hook for fetching production order components
+ * Hook for fetching production order components for a specific line
  */
-export function useProductionOrderComponents(orderNo: string | null) {
+export function useProductionOrderComponents(
+  orderNo: string | null,
+  lineNo: number | null,
+) {
   const [components, setComponents] = useState<ProductionOrderComponent[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    if (!orderNo) {
+    if (!orderNo || !lineNo) {
       setComponents([]);
       return;
     }
@@ -263,7 +408,7 @@ export function useProductionOrderComponents(orderNo: string | null) {
     const fetchComponents = async () => {
       setIsLoading(true);
       try {
-        const data = await getProductionOrderComponents(orderNo);
+        const data = await getProductionOrderComponents(orderNo, lineNo);
         setComponents(data);
       } catch (error) {
         console.error("Error fetching order components:", error);
@@ -274,7 +419,7 @@ export function useProductionOrderComponents(orderNo: string | null) {
     };
 
     fetchComponents();
-  }, [orderNo]);
+  }, [orderNo, lineNo]);
 
   return {
     components,

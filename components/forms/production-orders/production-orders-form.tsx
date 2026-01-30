@@ -17,21 +17,41 @@ import { useFormStackContext } from "@/lib/form-stack/form-stack-context";
 import { useProductionOrders } from "./use-production-orders";
 import { ProductionOrdersTable } from "./production-orders-table";
 import { PaginationControls } from "./pagination-controls";
+import { TableFilterBar } from "./table-filter-bar";
 
 function ProductionOrdersContent() {
   const {
     orders,
     isLoading,
+    // Pagination
     pageSize,
     currentPage,
+    totalPages,
+    totalCount,
     onPageSizeChange,
     onPageChange,
+    // Sorting
+    sortColumn,
+    sortDirection,
+    onSort,
+    // Filtering
+    searchQuery,
+    dueDateFrom,
+    dueDateTo,
+    onSearch,
+    onDateFilter,
+    onClearFilters,
+    // Column visibility
+    visibleColumns,
+    onColumnToggle,
+    onResetColumns,
+    addOrder,
   } = useProductionOrders();
 
   const { openTab } = useFormStackContext();
 
-  // Determine if there's a next page based on current results
-  const hasNextPage = orders.length === pageSize;
+  // Determine if there's a next page
+  const hasNextPage = currentPage < totalPages;
 
   // Open create form in FormStack
   const handleCreateOrder = () => {
@@ -40,6 +60,7 @@ function ProductionOrdersContent() {
       context: {
         mode: "create",
         openedFromParent: true,
+        onOrderCreated: addOrder,
       },
       autoCloseOnSuccess: true,
     });
@@ -64,17 +85,37 @@ function ProductionOrdersContent() {
       <div className="flex-1 min-w-0 flex flex-col p-4 gap-4 overflow-y-auto">
         <Header onCreateOrder={handleCreateOrder} />
 
+        {/* Filter Bar */}
+        <TableFilterBar
+          searchQuery={searchQuery}
+          dueDateFrom={dueDateFrom}
+          dueDateTo={dueDateTo}
+          visibleColumns={visibleColumns}
+          onSearch={onSearch}
+          onDateFilter={onDateFilter}
+          onClearFilters={onClearFilters}
+          onColumnToggle={onColumnToggle}
+          onResetColumns={onResetColumns}
+        />
+
         <div className="flex-1">
           <ProductionOrdersTable
             orders={orders}
             isLoading={isLoading}
+            pageSize={pageSize}
+            visibleColumns={visibleColumns}
+            sortColumn={sortColumn}
+            sortDirection={sortDirection}
             onRowClick={handleRowClick}
+            onSort={onSort}
           />
         </div>
 
         <PaginationControls
           pageSize={pageSize}
           currentPage={currentPage}
+          totalPages={totalPages}
+          totalCount={totalCount}
           hasNextPage={hasNextPage}
           onPageSizeChange={onPageSizeChange}
           onPageChange={onPageChange}
@@ -118,3 +159,4 @@ export function ProductionOrdersForm() {
     </FormStackProvider>
   );
 }
+

@@ -112,6 +112,14 @@ function buildProductionOrderFilter(
 }
 
 /**
+ * Response type for paginated production orders
+ */
+export interface PaginatedProductionOrdersResponse {
+  orders: ProductionOrder[];
+  totalCount: number;
+}
+
+/**
  * Get production orders (Released or Finished)
  */
 export async function getProductionOrders(
@@ -145,6 +153,46 @@ export async function getProductionOrders(
   const endpoint = `/ReleaseprodOrder?company='${encodeURIComponent(COMPANY)}'&${query}`;
   const response = await apiGet<ODataResponse<ProductionOrder>>(endpoint);
   return response.value;
+}
+
+/**
+ * Get production orders with total count for pagination
+ * Returns both the orders array and the total count
+ */
+export async function getProductionOrdersWithCount(
+  params: GetProductionOrdersParams = {},
+  lobCodes: string[] = [],
+): Promise<PaginatedProductionOrdersResponse> {
+  const {
+    $select = "No,Description,Source_No,Quantity,Location_Code",
+    $filter,
+    $orderby,
+    $top = 10,
+    $skip,
+  } = params;
+
+  // Use provided filter or build default for Released status
+  const finalFilter =
+    $filter || buildProductionOrderFilter("Released", lobCodes);
+
+  const queryParams: Record<string, any> = {
+    $select,
+    $filter: finalFilter,
+    $top,
+    $count: true, // Always request count
+  };
+
+  if ($orderby) queryParams.$orderby = $orderby;
+  if ($skip !== undefined) queryParams.$skip = $skip;
+
+  const query = buildODataQuery(queryParams);
+  const endpoint = `/ReleaseprodOrder?company='${encodeURIComponent(COMPANY)}'&${query}`;
+  const response = await apiGet<ODataResponse<ProductionOrder>>(endpoint);
+  
+  return {
+    orders: response.value,
+    totalCount: response['@odata.count'] ?? 0,
+  };
 }
 
 /**

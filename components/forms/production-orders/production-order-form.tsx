@@ -117,6 +117,9 @@ export function ProductionOrderForm({
   >([]);
   const [isLoadingSource, setIsLoadingSource] = useState(false);
   const [sourceSearchQuery, setSourceSearchQuery] = useState("");
+  const [sourcePage, setSourcePage] = useState(1);
+  const [hasMoreSource, setHasMoreSource] = useState(false);
+  const [isLoadingMoreSource, setIsLoadingMoreSource] = useState(false);
 
   // BOM dropdown state
   const [bomOptions, setBomOptions] = useState<ProdOrderBOM[]>([]);
@@ -370,31 +373,54 @@ export function ProductionOrderForm({
   // Load Source No options when Source Type changes or search query changes (for create and edit modes)
   useEffect(() => {
     if (!formState.Source_Type || isViewMode) {
-      if (!isViewMode) setSourceOptions([]);
+      if (!isViewMode) {
+        setSourceOptions([]);
+        setHasMoreSource(false);
+      }
       return;
     }
 
     const loadSourceOptions = async () => {
-      setIsLoadingSource(true);
+      const isLoadMore = sourcePage > 1;
+      
+      if (isLoadMore) {
+        setIsLoadingMoreSource(true);
+      } else {
+        setIsLoadingSource(true);
+      }
+
       try {
         let options: (Item | Family | SalesHeader)[] = [];
+        const PAGE_SIZE = 50;
+        
         switch (formState.Source_Type) {
-          case "Item":
+          case "Item": {
+            const skip = (sourcePage - 1) * PAGE_SIZE;
             options = await getItems(
               sourceSearchQuery || undefined,
               formState.Shortcut_Dimension_1_Code,
+              skip,
+              PAGE_SIZE
             );
+            
+            // If fewer items than page size returned, we've reached the end
+            setHasMoreSource(options.length === PAGE_SIZE);
             break;
+          }
           case "Family":
             options = await getFamilies(sourceSearchQuery || undefined);
+            setHasMoreSource(false); // Pagination not implemented for Family yet
             break;
           case "Sales Header":
             options = await getSalesHeaders(sourceSearchQuery || undefined);
+            setHasMoreSource(false); // Pagination not implemented for SalesHeader yet
             break;
         }
 
         // Ensure selected item is always in options if it exists and not already included
+        // Only do this on initial load, not when loading more pages
         if (
+          !isLoadMore &&
           formState.Source_No &&
           !options.some((opt) => opt.No === formState.Source_No)
         ) {
@@ -427,7 +453,11 @@ export function ProductionOrderForm({
           }
         }
 
-        setSourceOptions(options);
+        if (isLoadMore) {
+          setSourceOptions((prev) => [...prev, ...options]);
+        } else {
+          setSourceOptions(options);
+        }
       } catch (error) {
         console.error("Error loading source options:", {
           message: error instanceof Error ? error.message : "Unknown error",
@@ -435,9 +465,12 @@ export function ProductionOrderForm({
           sourceType: formState.Source_Type,
           searchQuery: sourceSearchQuery,
         });
-        setSourceOptions([]);
+        if (!isLoadMore) {
+          setSourceOptions([]);
+        }
       } finally {
         setIsLoadingSource(false);
+        setIsLoadingMoreSource(false);
       }
     };
 
@@ -447,6 +480,7 @@ export function ProductionOrderForm({
     formState.Source_No,
     formState.Shortcut_Dimension_1_Code,
     sourceSearchQuery,
+    sourcePage, // Add sourcePage dependency
     isViewMode,
   ]);
 
@@ -584,12 +618,20 @@ export function ProductionOrderForm({
     }));
     // Keep search query persistent, don't reset it
     setSourceOptions([]);
+    setSourcePage(1); // Reset page
   }, []);
 
   // Handle source search
   const handleSourceSearch = useCallback((query: string) => {
     setSourceSearchQuery(query);
+    setSourcePage(1); // Reset page on search
   }, []);
+
+  // Handle load more sources
+  const handleLoadMoreSource = useCallback(() => {
+    if (!hasMoreSource || isLoadingMoreSource) return;
+    setSourcePage((prev) => prev + 1);
+  }, [hasMoreSource, isLoadingMoreSource]);
 
   const handleSourceNoChange = useCallback(
     async (value: string) => {
@@ -741,6 +783,11 @@ export function ProductionOrderForm({
 
         const createdOrder = await createProductionOrder(payload);
         console.log("Production Order created:", createdOrder);
+
+        // Notify parent to add order to list (optimistic update)
+        if (context?.onOrderCreated && typeof context.onOrderCreated === 'function') {
+          context.onOrderCreated(createdOrder);
+        }
         
         toast.success(`Production Order ${createdOrder.No} created successfully!`);
 
@@ -996,6 +1043,9 @@ export function ProductionOrderForm({
                     disabled={!formState.Source_Type}
                     isLoading={isLoadingSource}
                     onSearch={handleSourceSearch}
+                    onLoadMore={handleLoadMoreSource}
+                    hasMore={hasMoreSource}
+                    isLoadingMore={isLoadingMoreSource}
                   />
                 )}
               </div>

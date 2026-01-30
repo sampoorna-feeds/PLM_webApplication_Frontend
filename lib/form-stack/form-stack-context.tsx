@@ -102,6 +102,9 @@ export function FormStackProvider({ children, formScope }: FormStackProviderProp
   );
 
   const closeTab = useCallback((tabId: string) => {
+    // Unregister refresh callback first
+    refreshCallbacksRef.current.delete(tabId);
+
     setTabs((prev) => {
       const newTabs = prev.filter((tab) => tab.id !== tabId);
       
@@ -116,12 +119,14 @@ export function FormStackProvider({ children, formScope }: FormStackProviderProp
           setActiveTabId(null);
         }
       }
+
+      // Auto-collapse if no tabs remaining
+      if (newTabs.length === 0) {
+        setIsCollapsed(true);
+      }
       
       return newTabs;
     });
-
-    // Unregister refresh callback
-    refreshCallbacksRef.current.delete(tabId);
   }, [activeTabId]);
 
   const switchTab = useCallback(

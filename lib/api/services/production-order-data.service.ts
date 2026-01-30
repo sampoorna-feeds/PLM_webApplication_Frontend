@@ -72,6 +72,8 @@ export interface LocationCode {
 export async function getItems(
   search?: string,
   _lobCode?: string,
+  skip: number = 0,
+  top: number = 50,
 ): Promise<Item[]> {
   const filters: string[] = [];
 
@@ -86,7 +88,8 @@ export async function getItems(
     $select:
       "No,Description,Production_BOM_No,Base_Unit_of_Measure,GST_Group_Code,HSN_SAC_Code,Exempted",
     $orderby: "No",
-    $top: 50,
+    $top: top,
+    $skip: skip,
   };
 
   if (filters.length > 0) {

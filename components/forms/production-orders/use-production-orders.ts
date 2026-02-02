@@ -24,8 +24,9 @@ import {
   type SortDirection,
   loadVisibleColumns,
   saveVisibleColumns,
-  buildSelectQuery,
   getDefaultVisibleColumns,
+  buildSelectQuery,
+  ALL_COLUMNS,
 } from "./column-config";
 
 const DEFAULT_LOB_CODES = ["CATTLE", "CBF", "FEED"];
@@ -47,6 +48,12 @@ export function useProductionOrders() {
   const [searchQuery, setSearchQuery] = useState("");
   const [dueDateFrom, setDueDateFrom] = useState<string>("");
   const [dueDateTo, setDueDateTo] = useState<string>("");
+  
+  // Column filters - stores filter values keyed by column ID
+  // For date columns, stores {value: 'from', valueTo: 'to'}
+  const [columnFilters, setColumnFilters] = useState<Record<string, { value: string; valueTo?: string }>>({
+    Status: { value: 'Released' } // Default to Released
+  });
 
   // Column visibility state
   const [visibleColumns, setVisibleColumns] = useState<string[]>(() => 
@@ -77,21 +84,21 @@ export function useProductionOrders() {
   }, [userID]);
 
   // Build filter string for OData
-  const buildFilterString = useCallback(() => {
+  // searchField parameter allows specifying which field to search (for dual API calls)
+  const buildFilterString = useCallback((searchField?: 'No' | 'Search_Description') => {
     const filterParts: string[] = [];
 
-    // Base filter: Status and LOB codes
+    // Base filter: LOB codes
     const lobFilter = lobCodes.map((c) => `'${c}'`).join(",");
-    filterParts.push(`Status eq 'Released' and Shortcut_Dimension_1_Code in (${lobFilter})`);
+    filterParts.push(`Shortcut_Dimension_1_Code in (${lobFilter})`);
 
-    // Search filter - BC OData doesn't support OR across different fields
-    // So we only search on Search_Description (which is typically a combined search field)
-    if (searchQuery.trim()) {
-      const searchTerm = searchQuery.trim().replace(/'/g, "''"); // Escape single quotes
-      filterParts.push(`contains(Search_Description,'${searchTerm}')`);
+    // Search filter - only add if searchField is specified (for dual API calls)
+    if (searchQuery.trim() && searchField) {
+      const searchTerm = searchQuery.trim().replace(/'/g, "''");
+      filterParts.push(`contains(${searchField},'${searchTerm}')`);
     }
 
-    // Date range filter for Due_Date
+    // Due Date range filter (from filter bar)
     if (dueDateFrom) {
       filterParts.push(`Due_Date ge ${dueDateFrom}`);
     }
@@ -99,8 +106,63 @@ export function useProductionOrders() {
       filterParts.push(`Due_Date le ${dueDateTo}`);
     }
 
+    // Column filters
+    Object.entries(columnFilters).forEach(([columnId, filter]) => {
+      if (!filter.value && !filter.valueTo) return;
+      
+      const column = ALL_COLUMNS.find(c => c.id === columnId);
+      if (!column) return;
+
+      const escapedValue = filter.value.replace(/'/g, "''");
+
+      switch (column.filterType) {
+        case 'text':
+          if (filter.value.trim()) {
+            filterParts.push(`contains(${columnId},'${escapedValue}')`);
+          }
+          break;
+        case 'enum':
+          if (filter.value) {
+            filterParts.push(`${columnId} eq '${escapedValue}'`);
+          }
+          break;
+        case 'boolean':
+          if (filter.value === 'true') {
+            filterParts.push(`${columnId} eq true`);
+          } else if (filter.value === 'false') {
+            filterParts.push(`${columnId} eq false`);
+          }
+          break;
+        case 'date':
+          if (filter.value) {
+            filterParts.push(`${columnId} ge ${filter.value}`);
+          }
+          if (filter.valueTo) {
+            filterParts.push(`${columnId} le ${filter.valueTo}`);
+          }
+          break;
+        case 'number':
+          // Number filters can be: "eq:100", "gt:50", "lt:200", or range with valueTo
+          if (filter.valueTo) {
+            // Range filter
+            if (filter.value) filterParts.push(`${columnId} ge ${filter.value}`);
+            filterParts.push(`${columnId} le ${filter.valueTo}`);
+          } else if (filter.value) {
+            const [operator, numValue] = filter.value.includes(':') 
+              ? filter.value.split(':') 
+              : ['eq', filter.value];
+            switch(operator) {
+              case 'gt': filterParts.push(`${columnId} gt ${numValue}`); break;
+              case 'lt': filterParts.push(`${columnId} lt ${numValue}`); break;
+              default: filterParts.push(`${columnId} eq ${numValue}`);
+            }
+          }
+          break;
+      }
+    });
+
     return filterParts.join(" and ");
-  }, [lobCodes, searchQuery, dueDateFrom, dueDateTo]);
+  }, [lobCodes, searchQuery, dueDateFrom, dueDateTo, columnFilters]);
 
   // Build orderby string for OData
   const buildOrderByString = useCallback(() => {
@@ -109,21 +171,58 @@ export function useProductionOrders() {
   }, [sortColumn, sortDirection]);
 
   // Fetch production orders
+  // When searching, makes 2 parallel API calls (one for No, one for Search_Description)
+  // then merges and deduplicates results
   const fetchOrders = useCallback(async () => {
     if (lobCodes.length === 0) return;
 
     setIsLoading(true);
     try {
-      const result = await getProductionOrdersWithCount({
+      const baseParams = {
         $select: buildSelectQuery(visibleColumns),
-        $filter: buildFilterString(),
         $orderby: buildOrderByString(),
         $top: pageSize,
         $skip: (currentPage - 1) * pageSize,
-      });
-      
-      setOrders(result.orders);
-      setTotalCount(result.totalCount);
+      };
+
+      // If there's a search query, make 2 parallel API calls
+      if (searchQuery.trim()) {
+        const [resultByNo, resultByDesc] = await Promise.all([
+          getProductionOrdersWithCount({
+            ...baseParams,
+            $filter: buildFilterString('No'),
+          }),
+          getProductionOrdersWithCount({
+            ...baseParams,
+            $filter: buildFilterString('Search_Description'),
+          }),
+        ]);
+
+        // Merge results and remove duplicates by No
+        const seen = new Set<string>();
+        const mergedOrders: ProductionOrder[] = [];
+        
+        for (const order of [...resultByNo.orders, ...resultByDesc.orders]) {
+          if (!seen.has(order.No)) {
+            seen.add(order.No);
+            mergedOrders.push(order);
+          }
+        }
+
+        // Limit to pageSize and estimate total count
+        setOrders(mergedOrders.slice(0, pageSize));
+        // Use max of both counts as approximation (actual deduped count is complex to calculate)
+        setTotalCount(Math.max(resultByNo.totalCount, resultByDesc.totalCount));
+      } else {
+        // No search - single API call without search filter
+        const result = await getProductionOrdersWithCount({
+          ...baseParams,
+          $filter: buildFilterString(),
+        });
+        
+        setOrders(result.orders);
+        setTotalCount(result.totalCount);
+      }
     } catch (error) {
       console.error("Error fetching production orders:", error);
       setOrders([]);
@@ -131,7 +230,7 @@ export function useProductionOrders() {
     } finally {
       setIsLoading(false);
     }
-  }, [lobCodes, pageSize, currentPage, visibleColumns, buildFilterString, buildOrderByString]);
+  }, [lobCodes, pageSize, currentPage, visibleColumns, searchQuery, buildFilterString, buildOrderByString]);
 
   useEffect(() => {
     fetchOrders();
@@ -192,12 +291,35 @@ export function useProductionOrders() {
     saveVisibleColumns(defaults);
   }, []);
 
+  const handleShowAllColumns = useCallback(() => {
+    const allColumnIds = ALL_COLUMNS.map(c => c.id);
+    setVisibleColumns(allColumnIds);
+    saveVisibleColumns(allColumnIds);
+  }, []);
+
   const handleClearFilters = useCallback(() => {
     setSearchQuery("");
     setDueDateFrom("");
     setDueDateTo("");
+    setColumnFilters({ Status: { value: 'Released' } }); // Reset to default
     setSortColumn(null);
     setSortDirection(null);
+    setCurrentPage(1);
+  }, []);
+
+  // Generic column filter handler
+  const handleColumnFilter = useCallback((columnId: string, value: string, valueTo?: string) => {
+    setColumnFilters(prev => {
+      if (!value && !valueTo) {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { [columnId]: _, ...rest } = prev;
+        return rest;
+      }
+      return {
+        ...prev,
+        [columnId]: { value, valueTo }
+      };
+    });
     setCurrentPage(1);
   }, []);
 
@@ -217,17 +339,21 @@ export function useProductionOrders() {
     sortColumn,
     sortDirection,
     onSort: handleSort,
-    // Filtering
+    // Filtering - Basic
     searchQuery,
     dueDateFrom,
     dueDateTo,
     onSearch: handleSearch,
     onDateFilter: handleDateFilter,
     onClearFilters: handleClearFilters,
+    // Column filters (generic)
+    columnFilters,
+    onColumnFilter: handleColumnFilter,
     // Column visibility
     visibleColumns,
     onColumnToggle: handleColumnToggle,
     onResetColumns: handleResetColumns,
+    onShowAllColumns: handleShowAllColumns,
     // Refresh
     refetch: fetchOrders,
     addOrder: useCallback((order: ProductionOrder) => {

@@ -7,7 +7,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { toast } from "sonner";
-import { Loader2, Pencil } from "lucide-react";
+import { Loader2, Pencil, List, RefreshCw, Factory } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { FieldTitle } from "@/components/ui/field";
@@ -49,11 +49,19 @@ import {
   getProductionOrderLines,
   getProductionOrderComponents,
   createProductionOrder,
+  refreshProductionOrder,
+  changeProductionOrderStatus,
   type ProductionOrderLine,
   type ProductionOrderComponent,
 } from "@/lib/api/services/production-orders.service";
 import { ProductionOrderLinesTable } from "./production-order-lines-table";
 import { ProductionOrderComponentsTable } from "./production-order-components-table";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 
 type SourceType = "Item" | "Family" | "Sales Header" | "";
 type BatchSize = "0.8" | "1.0" | "1.5" | "2.0" | "";
@@ -136,6 +144,9 @@ export function ProductionOrderForm({
   >([]);
   const [isLoadingLines, setIsLoadingLines] = useState(false);
   const [isLoadingComponents, setIsLoadingComponents] = useState(false);
+  const [isComponentsSheetOpen, setIsComponentsSheetOpen] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isManufacturing, setIsManufacturing] = useState(false);
 
   // Get logged-in user ID
   useEffect(() => {
@@ -709,6 +720,121 @@ export function ProductionOrderForm({
     [sourceOptions, formState.Source_Type],
   );
 
+  // Handle Refresh Production Order
+  const handleRefresh = async () => {
+    if (!formState.No) return;
+    
+    setIsRefreshing(true);
+    try {
+      await refreshProductionOrder(formState.No);
+      toast.success("Production Order refreshed successfully!");
+      
+      // Reload order data
+      const order = await getProductionOrderByNo(formState.No);
+      if (order) {
+        setFormState((prev) => ({
+          ...prev,
+          Description: order.Description || "",
+          Shortcut_Dimension_1_Code: order.Shortcut_Dimension_1_Code || "",
+          Shortcut_Dimension_2_Code: order.Shortcut_Dimension_2_Code || "",
+          Shortcut_Dimension_3_Code: order.Shortcut_Dimension_3_Code || "",
+          Source_Type: mapSourceType(order.Source_Type),
+          Source_No: order.Source_No || "",
+          Quantity: order.Quantity || 0,
+          Due_Date: order.Due_Date || "",
+          Location_Code: order.Location_Code || "",
+          Hatching_Date: order.Hatching_Date || "",
+          Prod_Bom_No: order.Prod_Bom_No || "",
+          BOM_Version_No: order.BOM_Version_No || "",
+        }));
+      }
+
+      // Refresh lines and components
+      const lines = await getProductionOrderLines(formState.No);
+      setOrderLines(lines);
+
+      const allComponents: ProductionOrderComponent[] = [];
+      for (const line of lines) {
+        if (line.Line_No) {
+          const lineComponents = await getProductionOrderComponents(
+            formState.No,
+            line.Line_No,
+          );
+          allComponents.push(...lineComponents);
+        }
+      }
+      setOrderComponents(allComponents);
+    } catch (error) {
+      console.error("Error refreshing production order:", error);
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Failed to refresh production order",
+      );
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  // Handle Manufacture (Change Status to Finished)
+  const handleManufacture = async () => {
+    if (!formState.No) return;
+    
+    // Get today's date in YYYY-MM-DD format
+    const today = new Date().toISOString().split("T")[0];
+    
+    setIsManufacturing(true);
+    try {
+      await changeProductionOrderStatus(formState.No, today);
+      toast.success("Production Order status changed to Finished!");
+      
+      // Reload order data after status change
+      const order = await getProductionOrderByNo(formState.No);
+      if (order) {
+        setFormState((prev) => ({
+          ...prev,
+          Description: order.Description || "",
+          Shortcut_Dimension_1_Code: order.Shortcut_Dimension_1_Code || "",
+          Shortcut_Dimension_2_Code: order.Shortcut_Dimension_2_Code || "",
+          Shortcut_Dimension_3_Code: order.Shortcut_Dimension_3_Code || "",
+          Source_Type: mapSourceType(order.Source_Type),
+          Source_No: order.Source_No || "",
+          Quantity: order.Quantity || 0,
+          Due_Date: order.Due_Date || "",
+          Location_Code: order.Location_Code || "",
+          Hatching_Date: order.Hatching_Date || "",
+          Prod_Bom_No: order.Prod_Bom_No || "",
+          BOM_Version_No: order.BOM_Version_No || "",
+        }));
+      }
+
+      // Refresh lines and components
+      const lines = await getProductionOrderLines(formState.No);
+      setOrderLines(lines);
+
+      const allComponents: ProductionOrderComponent[] = [];
+      for (const line of lines) {
+        if (line.Line_No) {
+          const lineComponents = await getProductionOrderComponents(
+            formState.No,
+            line.Line_No,
+          );
+          allComponents.push(...lineComponents);
+        }
+      }
+      setOrderComponents(allComponents);
+    } catch (error) {
+      console.error("Error changing production order status:", error);
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Failed to change production order status",
+      );
+    } finally {
+      setIsManufacturing(false);
+    }
+  };
+
   const handleSubmit = async () => {
     // Validate required fields
     if (!formState.Description) {
@@ -791,8 +917,16 @@ export function ProductionOrderForm({
         
         toast.success(`Production Order ${createdOrder.No} created successfully!`);
 
-        // On success, handle auto-close
-        await handleSuccess();
+        // Switch to view mode instead of closing
+        setFormState((prev) => ({
+          ...prev,
+          No: createdOrder.No,
+        }));
+        setLocalMode("view");
+        updateTab({
+          title: `View Order: ${createdOrder.No}`,
+          context: { ...context, mode: "view", orderNo: createdOrder.No },
+        });
       } else {
         // TODO: Implement update API call for edit mode
         console.log("Updating Production Order:", formState);
@@ -841,13 +975,45 @@ export function ProductionOrderForm({
   return (
     <div className="flex flex-col h-full">
       <div className="flex-1 overflow-y-auto px-6 py-6 [overflow-anchor:none]">
-        <div className="space-y-6">
-          {/* Dimension Information */}
-          <div className="space-y-4">
-            <h3 className="text-sm font-medium text-muted-foreground">
-              Dimension Information
-            </h3>
-            <div className="grid grid-cols-3 gap-4">
+        {/* Header with action buttons - Only show for created orders */}
+        {!isCreateMode && formState.No && (
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-lg font-semibold">
+              {isViewMode ? "View" : "Edit"} Production Order: {formState.No}
+            </h2>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="default"
+                size="sm"
+                onClick={handleRefresh}
+                disabled={isRefreshing || isManufacturing}
+              >
+                {isRefreshing ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                )}
+                Refresh
+              </Button>
+              <Button
+                variant="default"
+                size="sm"
+                onClick={handleManufacture}
+                disabled={isRefreshing || isManufacturing}
+              >
+                {isManufacturing ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Factory className="h-4 w-4 mr-2" />
+                )}
+                Manufacture
+              </Button>
+            </div>
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+
               <div className="space-y-2">
                 <FieldTitle required>LOB</FieldTitle>
                 {isViewMode ? (
@@ -936,15 +1102,9 @@ export function ProductionOrderForm({
                   </Select>
                 )}
               </div>
-            </div>
-          </div>
 
-          {/* General Information */}
-          <div className="space-y-4">
-            <h3 className="text-sm font-medium text-muted-foreground">
-              General Information
-            </h3>
-            <div className="grid grid-cols-2 gap-4">
+
+
               {/* Order No - only show in view mode (auto-generated) */}
               {isViewMode && (
                 <div className="space-y-2">
@@ -956,9 +1116,7 @@ export function ProductionOrderForm({
                   />
                 </div>
               )}
-              <div
-                className={isViewMode ? "space-y-2" : "space-y-2 col-span-2"}
-              >
+              <div className="space-y-2">
                 <FieldTitle required>Description</FieldTitle>
                 {isViewMode ? (
                   <Input
@@ -970,21 +1128,16 @@ export function ProductionOrderForm({
                   <Input
                     value={formState.Description}
                     onChange={(e) =>
-                      handleChange("Description", e.target.value)
+                      handleChange("Description", e.target.value.slice(0, 100))
                     }
                     placeholder="Enter description"
+                    maxLength={100}
                   />
                 )}
               </div>
-            </div>
-          </div>
 
-          {/* Source Details */}
-          <div className="space-y-4">
-            <h3 className="text-sm font-medium text-muted-foreground">
-              Source Details
-            </h3>
-            <div className="grid grid-cols-3 gap-4">
+
+
               <div className="space-y-2">
                 <FieldTitle required>Source Type</FieldTitle>
                 {isViewMode ? (
@@ -1068,15 +1221,9 @@ export function ProductionOrderForm({
                   />
                 )}
               </div>
-            </div>
-          </div>
 
-          {/* Dates & Location */}
-          <div className="space-y-4">
-            <h3 className="text-sm font-medium text-muted-foreground">
-              Dates & Location
-            </h3>
-            <div className="grid grid-cols-3 gap-4">
+
+
               <div className="space-y-2">
                 <FieldTitle required>Due Date</FieldTitle>
                 {isViewMode ? (
@@ -1138,16 +1285,11 @@ export function ProductionOrderForm({
                   />
                 )}
               </div>
-            </div>
-          </div>
 
-          {/* BOM Fields - Only for Item source type */}
+
+          {/* BOM Fields */}
           {showBomFields && (
-            <div className="space-y-4">
-              <h3 className="text-sm font-medium text-muted-foreground">
-                Production BOM
-              </h3>
-              <div className="grid grid-cols-2 gap-4">
+            <>
                 {formState.isProdBomFromItem ? (
                   <div className="space-y-2">
                     <FieldTitle required>Prod. BOM No</FieldTitle>
@@ -1273,16 +1415,10 @@ export function ProductionOrderForm({
                     )}
                   </div>
                 )}
-              </div>
-            </div>
+            </>
           )}
 
-          {/* Additional Options */}
-          <div className="space-y-4">
-            <h3 className="text-sm font-medium text-muted-foreground">
-              Additional Options
-            </h3>
-            <div className="grid grid-cols-2 gap-4">
+
               <div className="space-y-2">
                 <FieldTitle>Batch Size (In TON)</FieldTitle>
                 {isViewMode ? (
@@ -1311,15 +1447,25 @@ export function ProductionOrderForm({
                   </Select>
                 )}
               </div>
-            </div>
-          </div>
+
 
           {/* Order Lines - Only for view/edit mode */}
           {!isCreateMode && (
-            <div className="space-y-4">
-              <h3 className="text-sm font-medium text-muted-foreground">
-                Release Production Order Line
-              </h3>
+            <div className="space-y-4 col-span-full">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-medium text-muted-foreground">
+                  Release Production Order Line
+                </h3>
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={() => setIsComponentsSheetOpen(true)}
+                  disabled={orderComponents.length === 0 && !isLoadingComponents}
+                >
+                  <List className="h-4 w-4 mr-2" />
+                  View Components ({orderComponents.length})
+                </Button>
+              </div>
               <ProductionOrderLinesTable
                 lines={orderLines}
                 isLoading={isLoadingLines}
@@ -1327,18 +1473,24 @@ export function ProductionOrderForm({
             </div>
           )}
 
-          {/* Order Components - Only for view/edit mode */}
-          {!isCreateMode && (
-            <div className="space-y-4">
-              <h3 className="text-sm font-medium text-muted-foreground">
-                Production Order Component
-              </h3>
-              <ProductionOrderComponentsTable
-                components={orderComponents}
-                isLoading={isLoadingComponents}
-              />
-            </div>
-          )}
+          {/* Components Sheet */}
+          <Sheet open={isComponentsSheetOpen} onOpenChange={setIsComponentsSheetOpen}>
+            <SheetContent 
+              side="right" 
+              className="!w-[40vw] max-w-none overflow-y-auto p-4"
+              style={{ width: '40vw', maxWidth: 'none' }}
+            >
+              <SheetHeader>
+                <SheetTitle>Production Order Components</SheetTitle>
+              </SheetHeader>
+              <div className="mt-6 px-2">
+                <ProductionOrderComponentsTable
+                  components={orderComponents}
+                  isLoading={isLoadingComponents}
+                />
+              </div>
+            </SheetContent>
+          </Sheet>
         </div>
       </div>
 

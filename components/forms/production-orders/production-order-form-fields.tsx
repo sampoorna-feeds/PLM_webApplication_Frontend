@@ -533,7 +533,7 @@ function FormField({
       </Label>
       {disabled ? (
         <div>
-          <p className="text-sm py-2 px-3 bg-muted/50 rounded-md min-h-9 flex items-center">
+          <p className="text-sm py-2 px-3 bg-muted/50 rounded-md h-9 flex items-center truncate">
             {value || "-"}
           </p>
           {helpText && (
@@ -585,7 +585,7 @@ function SelectField({
         {required && <span className="text-destructive ml-1">*</span>}
       </Label>
       {disabled ? (
-        <p className="text-sm py-2 px-3 bg-muted/50 rounded-md min-h-9 flex items-center">
+        <p className="text-sm py-2 px-3 bg-muted/50 rounded-md h-9 flex items-center truncate">
           {value || "-"}
         </p>
       ) : (

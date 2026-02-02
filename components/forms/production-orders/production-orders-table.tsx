@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ALL_COLUMNS, type SortDirection, type ColumnConfig } from "./column-config";
+import { ColumnFilter } from "./column-filter";
 
 interface ProductionOrdersTableProps {
   orders: ProductionOrder[];
@@ -20,8 +21,10 @@ interface ProductionOrdersTableProps {
   sortColumn: string | null;
   sortDirection: SortDirection;
   pageSize: number;
+  columnFilters: Record<string, { value: string; valueTo?: string }>;
   onRowClick: (orderNo: string) => void;
   onSort: (column: string) => void;
+  onColumnFilter: (columnId: string, value: string, valueTo?: string) => void;
 }
 
 export function ProductionOrdersTable({
@@ -31,24 +34,19 @@ export function ProductionOrdersTable({
   sortColumn,
   sortDirection,
   pageSize,
+  columnFilters,
   onRowClick,
   onSort,
+  onColumnFilter,
 }: ProductionOrdersTableProps) {
   // Get visible column configs in order
   const columns = ALL_COLUMNS.filter((col) => visibleColumns.includes(col.id));
-
-  if (isLoading) {
-    return <SkeletonTable columns={columns} rowCount={pageSize} />;
-  }
-
-  if (orders.length === 0) {
-    return <EmptyState />;
-  }
 
   return (
     <div className="rounded-lg border bg-card overflow-hidden">
       <div className="overflow-x-auto">
         <Table>
+          {/* Header is ALWAYS visible with filters */}
           <TableHeader>
             <TableRow className="bg-muted">
               {columns.map((column) => (
@@ -57,13 +55,39 @@ export function ProductionOrdersTable({
                   column={column}
                   isActive={sortColumn === column.id}
                   sortDirection={sortColumn === column.id ? sortDirection : null}
+                  filterValue={columnFilters[column.id]?.value || ""}
+                  filterValueTo={columnFilters[column.id]?.valueTo || ""}
                   onSort={onSort}
+                  onFilter={onColumnFilter}
                 />
               ))}
             </TableRow>
           </TableHeader>
           <TableBody>
-            {orders.map((order) => (
+            {/* Loading state - show skeleton rows */}
+            {isLoading && (
+              <>
+                {Array.from({ length: pageSize }).map((_, rowIndex) => (
+                  <TableRow key={`skeleton-${rowIndex}`}>
+                    {columns.map((column) => (
+                      <TableCell key={column.id} className="px-3 py-3">
+                        <Skeleton className="h-4 w-full" />
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))}
+              </>
+            )}
+            {/* Empty state */}
+            {!isLoading && orders.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={columns.length} className="h-24 text-center text-muted-foreground">
+                  No production orders found
+                </TableCell>
+              </TableRow>
+            )}
+            {/* Data rows */}
+            {!isLoading && orders.length > 0 && orders.map((order) => (
               <ProductionOrderRow
                 key={order.No}
                 order={order}
@@ -82,14 +106,20 @@ interface SortableTableHeadProps {
   column: ColumnConfig;
   isActive: boolean;
   sortDirection: SortDirection;
+  filterValue: string;
+  filterValueTo: string;
   onSort: (column: string) => void;
+  onFilter: (columnId: string, value: string, valueTo?: string) => void;
 }
 
 function SortableTableHead({
   column,
   isActive,
   sortDirection,
+  filterValue,
+  filterValueTo,
   onSort,
+  onFilter,
 }: SortableTableHeadProps) {
   const getSortIcon = () => {
     if (!isActive || !sortDirection) {
@@ -103,14 +133,33 @@ function SortableTableHead({
 
   return (
     <TableHead
-      className={`px-3 py-3 text-xs font-bold cursor-pointer hover:bg-muted/80 select-none ${
+      className={`px-3 py-3 text-xs font-bold select-none ${
         isActive ? "text-primary" : ""
       }`}
-      onClick={() => column.sortable && onSort(column.id)}
     >
-      <div className="flex items-center gap-1">
-        <span>{column.label}</span>
-        {column.sortable && getSortIcon()}
+      <div className="flex items-center gap-1.5">
+        <span
+          className="cursor-pointer hover:text-primary transition-colors"
+          onClick={() => column.sortable && onSort(column.id)}
+        >
+          {column.label}
+        </span>
+        {column.sortable && (
+          <button
+            className="hover:text-primary transition-colors"
+            onClick={() => onSort(column.id)}
+          >
+            {getSortIcon()}
+          </button>
+        )}
+        {column.filterType && (
+          <ColumnFilter
+            column={column}
+            value={filterValue}
+            valueTo={filterValueTo}
+            onChange={(value, valueTo) => onFilter(column.id, value, valueTo)}
+          />
+        )}
       </div>
     </TableHead>
   );

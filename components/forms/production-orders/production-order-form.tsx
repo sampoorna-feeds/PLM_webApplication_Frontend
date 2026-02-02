@@ -1125,14 +1125,19 @@ export function ProductionOrderForm({
                     className="bg-muted"
                   />
                 ) : (
-                  <Input
-                    value={formState.Description}
-                    onChange={(e) =>
-                      handleChange("Description", e.target.value.slice(0, 100))
-                    }
-                    placeholder="Enter description"
-                    maxLength={100}
-                  />
+                  <div className="space-y-1">
+                    <Input
+                      value={formState.Description}
+                      onChange={(e) =>
+                        handleChange("Description", e.target.value.slice(0, 100))
+                      }
+                      placeholder="Enter description"
+                      maxLength={100}
+                    />
+                    <p className="text-xs text-muted-foreground text-right">
+                      {formState.Description?.length || 0}/100 characters
+                    </p>
+                  </div>
                 )}
               </div>
 

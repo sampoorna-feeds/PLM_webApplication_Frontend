@@ -18,6 +18,7 @@ import { useProductionOrders } from "./use-production-orders";
 import { ProductionOrdersTable } from "./production-orders-table";
 import { PaginationControls } from "./pagination-controls";
 import { TableFilterBar } from "./table-filter-bar";
+import { ActiveFilters } from "./active-filters";
 
 function ProductionOrdersContent() {
   const {
@@ -34,17 +35,18 @@ function ProductionOrdersContent() {
     sortColumn,
     sortDirection,
     onSort,
-    // Filtering
+    // Filtering - Basic
     searchQuery,
-    dueDateFrom,
-    dueDateTo,
     onSearch,
-    onDateFilter,
     onClearFilters,
+    // Column filters (generic)
+    columnFilters,
+    onColumnFilter,
     // Column visibility
     visibleColumns,
     onColumnToggle,
     onResetColumns,
+    onShowAllColumns,
     addOrder,
   } = useProductionOrders();
 
@@ -88,14 +90,22 @@ function ProductionOrdersContent() {
         {/* Filter Bar */}
         <TableFilterBar
           searchQuery={searchQuery}
-          dueDateFrom={dueDateFrom}
-          dueDateTo={dueDateTo}
           visibleColumns={visibleColumns}
+          columnFilters={columnFilters}
           onSearch={onSearch}
-          onDateFilter={onDateFilter}
           onClearFilters={onClearFilters}
           onColumnToggle={onColumnToggle}
           onResetColumns={onResetColumns}
+          onShowAllColumns={onShowAllColumns}
+        />
+
+        {/* Active Filters Display */}
+        <ActiveFilters
+          searchQuery={searchQuery}
+          columnFilters={columnFilters}
+          onSearch={onSearch}
+          onColumnFilter={onColumnFilter}
+          onClearFilters={onClearFilters}
         />
 
         <div className="flex-1">
@@ -106,8 +116,10 @@ function ProductionOrdersContent() {
             visibleColumns={visibleColumns}
             sortColumn={sortColumn}
             sortDirection={sortDirection}
+            columnFilters={columnFilters}
             onRowClick={handleRowClick}
             onSort={onSort}
+            onColumnFilter={onColumnFilter}
           />
         </div>
 

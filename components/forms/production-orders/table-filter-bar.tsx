@@ -1,53 +1,42 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Search, X, Calendar } from "lucide-react";
+import { Search, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 import { ColumnVisibility } from "./column-visibility";
 
 interface TableFilterBarProps {
+  // Basic filters
   searchQuery: string;
-  dueDateFrom: string;
-  dueDateTo: string;
+  // Column visibility
   visibleColumns: string[];
+  // Column filters (for badge count)
+  columnFilters: Record<string, { value: string; valueTo?: string }>;
+  // Handlers
   onSearch: (query: string) => void;
-  onDateFilter: (from: string, to: string) => void;
   onClearFilters: () => void;
   onColumnToggle: (columnId: string) => void;
   onResetColumns: () => void;
+  onShowAllColumns: () => void;
 }
 
 export function TableFilterBar({
   searchQuery,
-  dueDateFrom,
-  dueDateTo,
   visibleColumns,
+  columnFilters,
   onSearch,
-  onDateFilter,
   onClearFilters,
   onColumnToggle,
   onResetColumns,
+  onShowAllColumns,
 }: TableFilterBarProps) {
   const [localSearch, setLocalSearch] = useState(searchQuery);
-  const [localDateFrom, setLocalDateFrom] = useState(dueDateFrom);
-  const [localDateTo, setLocalDateTo] = useState(dueDateTo);
 
-  // Sync local state with props
+  // Sync local search with external state
   useEffect(() => {
     setLocalSearch(searchQuery);
   }, [searchQuery]);
-
-  useEffect(() => {
-    setLocalDateFrom(dueDateFrom);
-    setLocalDateTo(dueDateTo);
-  }, [dueDateFrom, dueDateTo]);
 
   // Debounced search
   useEffect(() => {
@@ -60,13 +49,13 @@ export function TableFilterBar({
     return () => clearTimeout(timer);
   }, [localSearch, searchQuery, onSearch]);
 
-  const handleDateChange = useCallback(() => {
-    if (localDateFrom !== dueDateFrom || localDateTo !== dueDateTo) {
-      onDateFilter(localDateFrom, localDateTo);
-    }
-  }, [localDateFrom, localDateTo, dueDateFrom, dueDateTo, onDateFilter]);
+  // Count active column filters (excluding default Status='Released')
+  const activeFilterCount = Object.entries(columnFilters).filter(([key, filter]) => {
+    if (key === 'Status' && filter.value === 'Released') return false;
+    return filter.value || filter.valueTo;
+  }).length;
 
-  const hasActiveFilters = searchQuery || dueDateFrom || dueDateTo;
+  const hasActiveFilters = searchQuery || activeFilterCount > 0;
 
   return (
     <div className="flex flex-wrap items-center gap-3 py-4">
@@ -77,101 +66,38 @@ export function TableFilterBar({
           placeholder="Search by No, Description..."
           value={localSearch}
           onChange={(e) => setLocalSearch(e.target.value)}
-          className="pl-9 pr-9"
+          className="pl-10 pr-10"
         />
         {localSearch && (
           <button
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
             onClick={() => {
               setLocalSearch("");
               onSearch("");
             }}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
           >
             <X className="h-4 w-4" />
           </button>
         )}
       </div>
 
-      {/* Date Range Filter */}
-      <Popover>
-        <PopoverTrigger asChild>
-          <Button
-            variant="outline"
-            size="sm"
-            className={`gap-2 ${(dueDateFrom || dueDateTo) ? "border-primary text-primary" : ""}`}
-          >
-            <Calendar className="h-4 w-4" />
-            Due Date
-            {(dueDateFrom || dueDateTo) && (
-              <span className="ml-1 h-2 w-2 rounded-full bg-primary" />
-            )}
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent className="w-auto p-4" align="start">
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="date-from" className="text-sm">From</Label>
-              <Input
-                id="date-from"
-                type="date"
-                value={localDateFrom}
-                onChange={(e) => setLocalDateFrom(e.target.value)}
-                className="w-full"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="date-to" className="text-sm">To</Label>
-              <Input
-                id="date-to"
-                type="date"
-                value={localDateTo}
-                onChange={(e) => setLocalDateTo(e.target.value)}
-                className="w-full"
-              />
-            </div>
-            <div className="flex gap-2">
-              <Button
-                size="sm"
-                onClick={handleDateChange}
-                className="flex-1"
-              >
-                Apply
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => {
-                  setLocalDateFrom("");
-                  setLocalDateTo("");
-                  onDateFilter("", "");
-                }}
-              >
-                Clear
-              </Button>
-            </div>
-          </div>
-        </PopoverContent>
-      </Popover>
+      <div className="flex-1" />
+
+      {/* Clear Filters */}
+      {hasActiveFilters && (
+        <Button variant="ghost" size="sm" onClick={onClearFilters} className="gap-1">
+          <X className="h-4 w-4" />
+          Clear All
+        </Button>
+      )}
 
       {/* Column Visibility */}
       <ColumnVisibility
         visibleColumns={visibleColumns}
         onColumnToggle={onColumnToggle}
         onResetColumns={onResetColumns}
+        onShowAllColumns={onShowAllColumns}
       />
-
-      {/* Clear All Filters */}
-      {hasActiveFilters && (
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onClearFilters}
-          className="text-muted-foreground hover:text-foreground"
-        >
-          <X className="h-4 w-4 mr-1" />
-          Clear filters
-        </Button>
-      )}
     </div>
   );
 }

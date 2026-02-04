@@ -37,7 +37,7 @@ export function PaginationControls({
   const hasPrevPage = currentPage > 1;
 
   return (
-    <div className="flex items-center justify-between gap-4 py-4">
+    <div className="flex items-center justify-between gap-4 pt-3">
       <div className="flex items-center gap-4">
         <PageSizeSelector value={pageSize} onChange={onPageSizeChange} />
         <span className="text-sm text-muted-foreground">

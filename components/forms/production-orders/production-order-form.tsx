@@ -56,6 +56,9 @@ import {
 } from "@/lib/api/services/production-orders.service";
 import { ProductionOrderLinesTable } from "./production-order-lines-table";
 import { ProductionOrderComponentsTable } from "./production-order-components-table";
+import { ProductionOrderLineDialog } from "./production-order-line-dialog";
+import { ProductionOrderComponentDialog } from "./production-order-component-dialog";
+import { ItemTrackingDialog } from "./item-tracking-dialog";
 import {
   Sheet,
   SheetContent,
@@ -147,6 +150,17 @@ export function ProductionOrderForm({
   const [isComponentsSheetOpen, setIsComponentsSheetOpen] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isManufacturing, setIsManufacturing] = useState(false);
+
+  // Line Dialog State
+  const [selectedLine, setSelectedLine] = useState<ProductionOrderLine | null>(null);
+  const [selectedLineHasTracking, setSelectedLineHasTracking] = useState(false);
+  const [isLineDialogOpen, setIsLineDialogOpen] = useState(false);
+
+  // Component Dialog State
+  const [selectedComponent, setSelectedComponent] = useState<ProductionOrderComponent | null>(null);
+  const [selectedComponentHasTracking, setSelectedComponentHasTracking] = useState(false);
+  const [isComponentDialogOpen, setIsComponentDialogOpen] = useState(false);
+  const [isItemTrackingDialogOpen, setIsItemTrackingDialogOpen] = useState(false);
 
   // Get logged-in user ID
   useEffect(() => {
@@ -835,6 +849,45 @@ export function ProductionOrderForm({
     }
   };
 
+  // Handle Line Row Click
+  const handleLineClick = useCallback((line: ProductionOrderLine, hasTracking: boolean) => {
+    setSelectedLine(line);
+    setSelectedLineHasTracking(hasTracking);
+    setIsLineDialogOpen(true);
+  }, []);
+
+  // Handle Line Dialog Save
+  const handleLineSave = useCallback(() => {
+    // Refresh the order to get updated values
+    handleRefresh();
+  }, [handleRefresh]);
+
+  // Handle Component Row Click
+  const handleComponentClick = useCallback((component: ProductionOrderComponent, hasTracking: boolean) => {
+    setSelectedComponent(component);
+    setSelectedComponentHasTracking(hasTracking);
+    setIsComponentDialogOpen(true);
+  }, []);
+
+  // Handle Component Save
+  const handleComponentSave = useCallback(() => {
+    handleRefresh();
+  }, [handleRefresh]);
+
+  // Handle Assign Tracking Click
+  const handleAssignTracking = useCallback(() => {
+    setIsItemTrackingDialogOpen(true);
+  }, []);
+
+  // Handle Item Tracking Save
+  const handleItemTrackingSave = useCallback(() => {
+    // Ideally we might want to refresh here too, or just close
+    handleRefresh();
+    // Re-open component dialog if needed, but usually we just stay on tracking dialog or close both.
+    // Flow: Component Dialog -> Assign Tracking -> Tracking Dialog -> Save -> Close Tracking -> Component Dialog (closed or keeping open?)
+    // Current impl closes Component Dialog when opening Tracking Dialog.
+  }, [handleRefresh]);
+
   const handleSubmit = async () => {
     // Validate required fields
     if (!formState.Description) {
@@ -1474,6 +1527,7 @@ export function ProductionOrderForm({
               <ProductionOrderLinesTable
                 lines={orderLines}
                 isLoading={isLoadingLines}
+                onRowClick={handleLineClick}
               />
             </div>
           )}
@@ -1492,6 +1546,7 @@ export function ProductionOrderForm({
                 <ProductionOrderComponentsTable
                   components={orderComponents}
                   isLoading={isLoadingComponents}
+                  onRowClick={handleComponentClick}
                 />
               </div>
             </SheetContent>
@@ -1523,6 +1578,32 @@ export function ProductionOrderForm({
           </Button>
         )}
       </div>
+
+      <ProductionOrderLineDialog
+        open={isLineDialogOpen}
+        onOpenChange={setIsLineDialogOpen}
+        line={selectedLine}
+        hasTracking={selectedLineHasTracking}
+        onSave={handleLineSave}
+      />
+
+      <ProductionOrderComponentDialog
+        open={isComponentDialogOpen}
+        onOpenChange={setIsComponentDialogOpen}
+        component={selectedComponent}
+        hasTracking={selectedComponentHasTracking}
+        onSave={handleComponentSave}
+        onAssignTracking={handleAssignTracking}
+      />
+
+      <ItemTrackingDialog
+        open={isItemTrackingDialogOpen}
+        onOpenChange={setIsItemTrackingDialogOpen}
+        component={selectedComponent}
+        prodOrderNo={formState.No}
+        onSave={handleItemTrackingSave}
+      />
     </div>
   );
 }
+

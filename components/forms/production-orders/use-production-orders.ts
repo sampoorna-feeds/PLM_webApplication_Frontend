@@ -118,7 +118,21 @@ export function useProductionOrders() {
       switch (column.filterType) {
         case 'text':
           if (filter.value.trim()) {
-            filterParts.push(`contains(${columnId},'${escapedValue}')`);
+            // Split by comma and trim each value
+            const values = filter.value.split(',').map(v => v.trim()).filter(v => v);
+            
+            if (values.length === 1) {
+              // Single value - simple contains
+              const escaped = values[0].replace(/'/g, "''");
+              filterParts.push(`contains(${columnId},'${escaped}')`);
+            } else if (values.length > 1) {
+              // Multiple values - OR condition
+              const orConditions = values.map(v => {
+                const escaped = v.replace(/'/g, "''");
+                return `contains(${columnId},'${escaped}')`;
+              });
+              filterParts.push(`(${orConditions.join(' or ')})`);
+            }
           }
           break;
         case 'enum':

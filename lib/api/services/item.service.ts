@@ -13,6 +13,7 @@ export interface Item {
   GST_Group_Code?: string;
   HSN_SAC_Code?: string;
   Exempted?: boolean;
+  Item_Tracking_Code?: string;
 }
 
 export interface ItemUnitOfMeasure {
@@ -260,6 +261,28 @@ export async function getItemByNo(itemNo: string): Promise<Item | null> {
   const response = await apiGet<ODataResponse<Item>>(endpoint);
   
   return response.value.length > 0 ? response.value[0] : null;
+}
+
+/**
+ * Get multiple Items by their No values in a single batch call
+ * Returns items with Item_Tracking_Code for highlighting purposes
+ */
+export async function getItemsByNos(itemNos: string[]): Promise<Item[]> {
+  if (itemNos.length === 0) return [];
+  
+  // Build "in" filter: No in ('ITEM1','ITEM2','ITEM3')
+  const escapedNos = itemNos.map(no => `'${escapeODataValue(no)}'`).join(',');
+  const filter = `No in (${escapedNos}) and ${getBaseFilter()}`;
+  
+  const query = buildODataQuery({
+    $select: 'No,Description,Item_Tracking_Code',
+    $filter: filter,
+    $top: itemNos.length,
+  });
+  
+  const endpoint = `/ItemCard?company='${encodeURIComponent(COMPANY)}'&${query}`;
+  const response = await apiGet<ODataResponse<Item>>(endpoint);
+  return response.value;
 }
 
 /**

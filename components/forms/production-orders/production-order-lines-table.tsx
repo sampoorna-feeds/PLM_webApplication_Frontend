@@ -10,16 +10,23 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useItemTracking } from "./use-item-tracking";
+import { cn } from "@/lib/utils";
 
 interface ProductionOrderLinesTableProps {
   lines: ProductionOrderLine[];
   isLoading: boolean;
+  onRowClick?: (line: ProductionOrderLine, hasTracking: boolean) => void;
 }
 
 export function ProductionOrderLinesTable({
   lines,
   isLoading,
+  onRowClick,
 }: ProductionOrderLinesTableProps) {
+  // Fetch item tracking info for all lines
+  const { trackingMap } = useItemTracking(lines);
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-8">
@@ -54,27 +61,40 @@ export function ProductionOrderLinesTable({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {lines.map((line) => (
-            <TableRow key={`${line.Prod_Order_No}-${line.Line_No}`}>
-              <TableCell className="font-medium">
-                {line.Item_No || "-"}
-              </TableCell>
-              <TableCell>{line.Description || "-"}</TableCell>
-              <TableCell>{line.Location_Code || "-"}</TableCell>
-              <TableCell className="text-right">
-                {line.Quantity?.toLocaleString() ?? "-"}
-              </TableCell>
-              <TableCell>{line.Unit_of_Measure_Code || "-"}</TableCell>
-              <TableCell className="text-right">
-                {line.Finished_Quantity?.toLocaleString() ?? "-"}
-              </TableCell>
-              <TableCell className="text-right">
-                {line.Remaining_Quantity?.toLocaleString() ?? "-"}
-              </TableCell>
-            </TableRow>
-          ))}
+          {lines.map((line) => {
+            // Check if this item has a tracking code
+            const hasTracking = trackingMap[line.Item_No] || false;
+            
+            return (
+              <TableRow 
+                key={`${line.Prod_Order_No}-${line.Line_No}`}
+                className={cn(
+                  hasTracking && "text-red-600",
+                  "cursor-pointer hover:bg-muted/50"
+                )}
+                onClick={() => onRowClick?.(line, hasTracking)}
+              >
+                <TableCell className="font-medium">
+                  {line.Item_No || "-"}
+                </TableCell>
+                <TableCell>{line.Description || "-"}</TableCell>
+                <TableCell>{line.Location_Code || "-"}</TableCell>
+                <TableCell className="text-right">
+                  {line.Quantity?.toLocaleString() ?? "-"}
+                </TableCell>
+                <TableCell>{line.Unit_of_Measure_Code || "-"}</TableCell>
+                <TableCell className="text-right">
+                  {line.Finished_Quantity?.toLocaleString() ?? "-"}
+                </TableCell>
+                <TableCell className="text-right">
+                  {line.Remaining_Quantity?.toLocaleString() ?? "-"}
+                </TableCell>
+              </TableRow>
+            );
+          })}
         </TableBody>
       </Table>
     </div>
   );
 }
+

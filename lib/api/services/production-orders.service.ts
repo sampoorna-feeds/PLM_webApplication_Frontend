@@ -3,7 +3,7 @@
  * Handles fetching production orders from ERP OData V4 API
  */
 
-import { apiGet, apiPost } from "../client";
+import { apiGet, apiPost, apiPatch } from "../client";
 import { buildODataQuery } from "../endpoints";
 import type { ODataResponse } from "../types";
 
@@ -348,4 +348,99 @@ export async function createProductionOrder(
   }
 
   return apiPost<ProductionOrder>(endpoint, payload);
+}
+
+// ============================================
+// UPDATE PRODUCTION ORDER LINE
+// ============================================
+
+/**
+ * Update a production order line
+ * Uses entity key format: ReleaseprodOrderLine(Status='Released',Prod_Order_No='...',Line_No=...)
+ * @param prodOrderNo - Production order number
+ * @param lineNo - Line number
+ * @param data - Data to update (Quantity)
+ */
+export async function updateProductionOrderLine(
+  prodOrderNo: string,
+  lineNo: number,
+  data: { Quantity: number }
+): Promise<void> {
+  // Encode the production order number for URL (handles slashes)
+  const encodedProdOrderNo = encodeURIComponent(prodOrderNo);
+  const encodedCompany = encodeURIComponent(COMPANY);
+  
+  const endpoint = `/Company('${encodedCompany}')/ReleaseprodOrderLine(Status='Released',Prod_Order_No='${encodedProdOrderNo}',Line_No=${lineNo})`;
+  
+  await apiPatch<void>(endpoint, data);
+}
+
+// ============================================
+// UPDATE PRODUCTION ORDER COMPONENT
+// ============================================
+
+/**
+ * Update a production order component
+ * Uses entity key format: ReleaseprodOrderComponenet('Released','RPO/...',prodOrderLineNo,lineNo)
+ * @param prodOrderNo - Production order number
+ * @param prodOrderLineNo - Production order line number
+ * @param lineNo - Component line number
+ * @param data - Data to update (Quantity_per)
+ */
+export async function updateProductionOrderComponent(
+  prodOrderNo: string,
+  prodOrderLineNo: number,
+  lineNo: number,
+  data: { Quantity_per: number }
+): Promise<void> {
+  const encodedProdOrderNo = encodeURIComponent(prodOrderNo);
+  const encodedCompany = encodeURIComponent(COMPANY);
+  
+  const endpoint = `/Company('${encodedCompany}')/ReleaseprodOrderComponenet('Released','${encodedProdOrderNo}',${prodOrderLineNo},${lineNo})`;
+  
+  await apiPatch<void>(endpoint, data);
+}
+
+// ============================================
+// ASSIGN ITEM TRACKING
+// ============================================
+
+export interface AssignItemTrackingParams {
+  itemNo: string;
+  locationCode: string;
+  quantity: number;
+  sourceProdOrderLine: number; // Prod_Order_Line_No
+  sourceID: string; // Prod_Order_No
+  sourcerefNo: number; // Component Line_No
+  lotNo: string;
+  expirationDate?: string;
+}
+
+/**
+ * Assign item tracking (lot number) to a production order component
+ * @param params - Item tracking parameters
+ */
+export async function assignItemTracking(
+  params: AssignItemTrackingParams
+): Promise<unknown> {
+  const endpoint = `/API_TrackingAssign?company='${encodeURIComponent(COMPANY)}'`;
+  
+  const payload = {
+    itemNo: params.itemNo,
+    locationCode: params.locationCode,
+    qyantity: params.quantity, // Note: API has typo "qyantity"
+    sourceProdOrderLine: params.sourceProdOrderLine,
+    sourceType: 5407, // Fixed value for production order components
+    sourceSubType: 3, // Fixed value for Released status
+    sourceID: params.sourceID,
+    sourceBatch: "",
+    sourcerefNo: params.sourcerefNo,
+    lotNo: params.lotNo,
+    expirationdate: params.expirationDate || "0001-01-01",
+    manufacuringdate: "0001-01-01",
+    newExpirationdate: "0001-01-01",
+    newManufacuringdate: "0001-01-01",
+  };
+  
+  return apiPost<unknown>(endpoint, payload);
 }

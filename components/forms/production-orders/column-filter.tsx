@@ -77,14 +77,17 @@ export function ColumnFilter({ column, value, valueTo, onChange }: ColumnFilterP
     switch (column.filterType) {
       case 'text':
         return (
-          <div className="space-y-3">
+          <div className="space-y-2">
             <Label className="text-xs font-medium">Filter {column.label}</Label>
             <Input
-              placeholder={`Contains...`}
+              placeholder={`Enter values (comma-separated)...`}
               value={localValue}
               onChange={(e) => setLocalValue(e.target.value)}
               className="h-8 text-sm"
             />
+            <p className="text-xs text-muted-foreground">
+              Separate multiple values with commas
+            </p>
           </div>
         );
 

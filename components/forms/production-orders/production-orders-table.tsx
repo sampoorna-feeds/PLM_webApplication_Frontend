@@ -2,14 +2,6 @@
 
 import { ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 import type { ProductionOrder } from "@/lib/api/services/production-orders.service";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ALL_COLUMNS, type SortDirection, type ColumnConfig } from "./column-config";
 import { ColumnFilter } from "./column-filter";
@@ -21,6 +13,7 @@ interface ProductionOrdersTableProps {
   sortColumn: string | null;
   sortDirection: SortDirection;
   pageSize: number;
+  currentPage: number;
   columnFilters: Record<string, { value: string; valueTo?: string }>;
   onRowClick: (orderNo: string) => void;
   onSort: (column: string) => void;
@@ -34,6 +27,7 @@ export function ProductionOrdersTable({
   sortColumn,
   sortDirection,
   pageSize,
+  currentPage,
   columnFilters,
   onRowClick,
   onSort,
@@ -42,13 +36,20 @@ export function ProductionOrdersTable({
   // Get visible column configs in order
   const columns = ALL_COLUMNS.filter((col) => visibleColumns.includes(col.id));
 
+  // Calculate starting serial number for current page
+  const startingSerialNo = (currentPage - 1) * pageSize;
+
   return (
-    <div className="rounded-lg border bg-card overflow-hidden">
-      <div className="overflow-x-auto">
-        <Table>
-          {/* Header is ALWAYS visible with filters */}
-          <TableHeader>
-            <TableRow className="bg-muted">
+    <div className="flex-1 rounded-lg border bg-card h-full flex flex-col overflow-hidden">
+      <div className="overflow-auto flex-1">
+        <table className="w-full caption-bottom text-sm">
+          {/* Header is ALWAYS visible with filters - sticky */}
+          <thead className="[&_tr]:border-b sticky top-0 z-10 bg-muted">
+            <tr className="border-b transition-colors">
+              {/* Serial Number Column Header */}
+              <th className="text-foreground h-10 px-3 py-3 text-center align-middle font-medium whitespace-nowrap text-xs font-bold w-12">
+                S.No
+              </th>
               {columns.map((column) => (
                 <SortableTableHead
                   key={column.id}
@@ -61,42 +62,46 @@ export function ProductionOrdersTable({
                   onFilter={onColumnFilter}
                 />
               ))}
-            </TableRow>
-          </TableHeader>
-          <TableBody>
+            </tr>
+          </thead>
+          <tbody className="[&_tr:last-child]:border-0">
             {/* Loading state - show skeleton rows */}
             {isLoading && (
               <>
                 {Array.from({ length: pageSize }).map((_, rowIndex) => (
-                  <TableRow key={`skeleton-${rowIndex}`}>
+                  <tr key={`skeleton-${rowIndex}`} className="border-b transition-colors">
+                    <td className="px-3 py-3 p-2 align-middle whitespace-nowrap text-center text-xs text-muted-foreground">
+                      {startingSerialNo + rowIndex + 1}
+                    </td>
                     {columns.map((column) => (
-                      <TableCell key={column.id} className="px-3 py-3">
+                      <td key={column.id} className="px-3 py-3 p-2 align-middle whitespace-nowrap">
                         <Skeleton className="h-4 w-full" />
-                      </TableCell>
+                      </td>
                     ))}
-                  </TableRow>
+                  </tr>
                 ))}
               </>
             )}
             {/* Empty state */}
             {!isLoading && orders.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={columns.length} className="h-24 text-center text-muted-foreground">
+              <tr className="border-b transition-colors">
+                <td colSpan={columns.length + 1} className="h-24 text-center text-muted-foreground p-2 align-middle">
                   No production orders found
-                </TableCell>
-              </TableRow>
+                </td>
+              </tr>
             )}
             {/* Data rows */}
-            {!isLoading && orders.length > 0 && orders.map((order) => (
+            {!isLoading && orders.length > 0 && orders.map((order, index) => (
               <ProductionOrderRow
                 key={order.No}
                 order={order}
                 columns={columns}
+                serialNo={startingSerialNo + index + 1}
                 onClick={() => onRowClick(order.No)}
               />
             ))}
-          </TableBody>
-        </Table>
+          </tbody>
+        </table>
       </div>
     </div>
   );
@@ -132,8 +137,8 @@ function SortableTableHead({
   };
 
   return (
-    <TableHead
-      className={`px-3 py-3 text-xs font-bold select-none ${
+    <th
+      className={`text-foreground h-10 px-2 text-left align-middle font-medium whitespace-nowrap px-3 py-3 text-xs font-bold select-none ${
         isActive ? "text-primary" : ""
       }`}
     >
@@ -161,17 +166,18 @@ function SortableTableHead({
           />
         )}
       </div>
-    </TableHead>
+    </th>
   );
 }
 
 interface ProductionOrderRowProps {
   order: ProductionOrder;
   columns: ColumnConfig[];
+  serialNo: number;
   onClick: () => void;
 }
 
-function ProductionOrderRow({ order, columns, onClick }: ProductionOrderRowProps) {
+function ProductionOrderRow({ order, columns, serialNo, onClick }: ProductionOrderRowProps) {
   // Helper to get cell value
   const getCellValue = (columnId: string): string => {
     const value = (order as unknown as Record<string, unknown>)[columnId];
@@ -201,56 +207,17 @@ function ProductionOrderRow({ order, columns, onClick }: ProductionOrderRowProps
   };
 
   return (
-    <TableRow className="hover:bg-muted/50 cursor-pointer" onClick={onClick}>
+    <tr className="hover:bg-muted/50 cursor-pointer border-b transition-colors" onClick={onClick}>
+      <td className="px-3 py-3 text-xs p-2 align-middle whitespace-nowrap text-center text-muted-foreground">
+        {serialNo}
+      </td>
       {columns.map((column) => (
-        <TableCell key={column.id} className="px-3 py-3 text-xs">
+        <td key={column.id} className="px-3 py-3 text-xs p-2 align-middle whitespace-nowrap">
           {getCellValue(column.id)}
-        </TableCell>
+        </td>
       ))}
-    </TableRow>
+    </tr>
   );
 }
 
-interface SkeletonTableProps {
-  columns: ColumnConfig[];
-  rowCount: number;
-}
 
-function SkeletonTable({ columns, rowCount }: SkeletonTableProps) {
-  return (
-    <div className="rounded-lg border bg-card overflow-hidden">
-      <div className="overflow-x-auto">
-        <Table>
-          <TableHeader>
-            <TableRow className="bg-muted">
-              {columns.map((column) => (
-                <TableHead key={column.id} className="px-3 py-3 text-xs font-bold">
-                  {column.label}
-                </TableHead>
-              ))}
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {Array.from({ length: rowCount }).map((_, rowIndex) => (
-              <TableRow key={rowIndex}>
-                {columns.map((column) => (
-                  <TableCell key={column.id} className="px-3 py-3">
-                    <Skeleton className="h-4 w-full" />
-                  </TableCell>
-                ))}
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
-    </div>
-  );
-}
-
-function EmptyState() {
-  return (
-    <div className="rounded-lg border bg-card p-8 text-center">
-      <p className="text-muted-foreground">No production orders found</p>
-    </div>
-  );
-}

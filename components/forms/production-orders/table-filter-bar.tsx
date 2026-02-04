@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { Search, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -58,7 +58,7 @@ export function TableFilterBar({
   const hasActiveFilters = searchQuery || activeFilterCount > 0;
 
   return (
-    <div className="flex flex-wrap items-center gap-3 py-4">
+    <div className="flex flex-wrap items-center gap-3 pb-3">
       {/* Search Input */}
       <div className="relative flex-1 min-w-[200px] max-w-sm">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />

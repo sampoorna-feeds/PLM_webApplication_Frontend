@@ -10,6 +10,7 @@ interface ActiveFiltersProps {
   onSearch: (query: string) => void;
   onColumnFilter: (columnId: string, value: string, valueTo?: string) => void;
   onClearFilters: () => void;
+  userBranchCodes: string[];
 }
 
 export function ActiveFilters({
@@ -18,6 +19,7 @@ export function ActiveFilters({
   onSearch,
   onColumnFilter,
   onClearFilters,
+  userBranchCodes,
 }: ActiveFiltersProps) {
   // Build list of active filters
   const activeFilters: { key: string; label: string; displayValue: string }[] = [];
@@ -31,9 +33,17 @@ export function ActiveFilters({
   }
 
   Object.entries(columnFilters).forEach(([columnId, filter]) => {
-    // Skip default Status='Released'
-    if (columnId === 'Status' && filter.value === 'Released') return;
+    // Skip default Status='Released' check - now default is ALL
     if (!filter.value && !filter.valueTo) return;
+
+    // Skip Branch filter if it matches ALL user branches (default state)
+    if (columnId === 'Shortcut_Dimension_2_Code') {
+        const selectedBranches = filter.value.split(',').sort().join(',');
+        const allUserBranches = [...userBranchCodes].sort().join(',');
+        
+        // If they match (ignoring order), don't show the filter badge
+        if (selectedBranches === allUserBranches) return;
+    }
 
     const column = ALL_COLUMNS.find(c => c.id === columnId);
     if (!column) return;
@@ -106,7 +116,7 @@ export function ActiveFilters({
       ))}
       {activeFilters.length > 1 && (
         <Button variant="ghost" size="sm" onClick={onClearFilters} className="h-6 px-2 text-xs">
-          Clear All
+          Reset Filters
         </Button>
       )}
     </div>

@@ -43,7 +43,7 @@ export const OPTIONAL_COLUMNS: ColumnConfig[] = [
   { id: 'Starting_Date', label: 'Starting Date', sortable: true, defaultVisible: false, filterType: 'date' },
   { id: 'Ending_Date', label: 'Ending Date', sortable: true, defaultVisible: false, filterType: 'date' },
   { id: 'Shortcut_Dimension_1_Code', label: 'LOB', sortable: true, defaultVisible: false, filterType: 'text' },
-  { id: 'Shortcut_Dimension_2_Code', label: 'Branch', sortable: true, defaultVisible: false, filterType: 'text' },
+  { id: 'Shortcut_Dimension_2_Code', label: 'Branch', sortable: true, defaultVisible: false, filterType: 'enum' },
   { id: 'Shortcut_Dimension_3_Code', label: 'LOC', sortable: true, defaultVisible: false, filterType: 'text' },
 ];
 

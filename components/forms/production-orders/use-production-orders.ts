@@ -1,8 +1,12 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
+import { toast } from "sonner";
 import { useAuth } from "@/lib/contexts/auth-context";
-import { getLOBsFromUserSetup } from "@/lib/api/services/dimension.service";
+import {
+  getLOBsFromUserSetup,
+  getAllBranchesFromUserSetup,
+} from "@/lib/api/services/dimension.service";
 import {
   getProductionOrdersWithCount,
   getProductionOrderByNo,
@@ -28,6 +32,10 @@ import {
   buildSelectQuery,
   ALL_COLUMNS,
 } from "./column-config";
+import {
+  buildFilterString as buildODataFilter,
+  buildOrderByString,
+} from "./utils/filter-builder";
 
 const DEFAULT_LOB_CODES = ["CATTLE", "CBF", "FEED"];
 
@@ -35,29 +43,37 @@ export function useProductionOrders() {
   const { userID } = useAuth();
   const [orders, setOrders] = useState<ProductionOrder[]>([]);
   const [lobCodes, setLobCodes] = useState<string[]>([]);
+  const [userBranchCodes, setUserBranchCodes] = useState<string[]>([]);
+  const [branchOptions, setBranchOptions] = useState<
+    { label: string; value: string }[]
+  >([]);
   const [isLoading, setIsLoading] = useState(true);
   const [pageSize, setPageSize] = useState<PageSize>(10);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
 
   // Sorting state
-  const [sortColumn, setSortColumn] = useState<string | null>("Last_Date_Modified");
+  const [sortColumn, setSortColumn] = useState<string | null>(
+    "Last_Date_Modified",
+  );
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
 
   // Filter state
   const [searchQuery, setSearchQuery] = useState("");
   const [dueDateFrom, setDueDateFrom] = useState<string>("");
   const [dueDateTo, setDueDateTo] = useState<string>("");
-  
+
   // Column filters - stores filter values keyed by column ID
-  // For date columns, stores {value: 'from', valueTo: 'to'}
-  const [columnFilters, setColumnFilters] = useState<Record<string, { value: string; valueTo?: string }>>({
-    Status: { value: 'Released' } // Default to Released
-  });
+  // Note: Status default is ALL (empty), so we initialize as empty object
+  const [columnFilters, setColumnFilters] = useState<
+    Record<string, { value: string; valueTo?: string }>
+  >({});
 
   // Column visibility state
-  const [visibleColumns, setVisibleColumns] = useState<string[]>(() => 
-    typeof window !== 'undefined' ? loadVisibleColumns() : getDefaultVisibleColumns()
+  const [visibleColumns, setVisibleColumns] = useState<string[]>(() =>
+    typeof window !== "undefined"
+      ? loadVisibleColumns()
+      : getDefaultVisibleColumns(),
   );
 
   // Calculate total pages
@@ -65,128 +81,64 @@ export function useProductionOrders() {
     return Math.max(1, Math.ceil(totalCount / pageSize));
   }, [totalCount, pageSize]);
 
-  // Fetch LOB codes from user setup
+  // Fetch LOB codes and Branch codes from user setup
   useEffect(() => {
     if (!userID) return;
 
-    const fetchLOBCodes = async () => {
+    const fetchData = async () => {
       try {
-        const lobs = await getLOBsFromUserSetup(userID);
-        const codes = lobs.map((lob) => lob.Code);
-        setLobCodes(codes.length > 0 ? codes : DEFAULT_LOB_CODES);
+        const [lobs, branches] = await Promise.all([
+          getLOBsFromUserSetup(userID),
+          getAllBranchesFromUserSetup(userID),
+        ]);
+
+        const lCodes = lobs.map((lob) => lob.Code);
+        setLobCodes(lCodes.length > 0 ? lCodes : DEFAULT_LOB_CODES);
+
+        const bCodes = branches.map((b) => b.Code);
+        setUserBranchCodes(bCodes);
+        setBranchOptions(bCodes.map((code) => ({ label: code, value: code })));
+
+        // Select all branches by default - User requirement: "Branch -> ALL Selected"
+        if (bCodes.length > 0) {
+          setColumnFilters((prev) => ({
+            ...prev,
+            Shortcut_Dimension_2_Code: { value: bCodes.join(",") },
+          }));
+        }
       } catch (error) {
-        console.error("Error fetching LOB codes:", error);
+        console.error("Error fetching user setup:", error);
+        toast.error("Failed to load user settings. Using defaults.");
         setLobCodes(DEFAULT_LOB_CODES);
+        setUserBranchCodes([]);
+        setBranchOptions([]);
       }
     };
 
-    fetchLOBCodes();
+    fetchData();
   }, [userID]);
 
-  // Build filter string for OData
-  // searchField parameter allows specifying which field to search (for dual API calls)
-  const buildFilterString = useCallback((searchField?: 'No' | 'Search_Description') => {
-    const filterParts: string[] = [];
-
-    // Base filter: LOB codes
-    const lobFilter = lobCodes.map((c) => `'${c}'`).join(",");
-    filterParts.push(`Shortcut_Dimension_1_Code in (${lobFilter})`);
-
-    // Search filter - only add if searchField is specified (for dual API calls)
-    if (searchQuery.trim() && searchField) {
-      const searchTerm = searchQuery.trim().replace(/'/g, "''");
-      filterParts.push(`contains(${searchField},'${searchTerm}')`);
-    }
-
-    // Due Date range filter (from filter bar)
-    if (dueDateFrom) {
-      filterParts.push(`Due_Date ge ${dueDateFrom}`);
-    }
-    if (dueDateTo) {
-      filterParts.push(`Due_Date le ${dueDateTo}`);
-    }
-
-    // Column filters
-    Object.entries(columnFilters).forEach(([columnId, filter]) => {
-      if (!filter.value && !filter.valueTo) return;
-      
-      const column = ALL_COLUMNS.find(c => c.id === columnId);
-      if (!column) return;
-
-      const escapedValue = filter.value.replace(/'/g, "''");
-
-      switch (column.filterType) {
-        case 'text':
-          if (filter.value.trim()) {
-            // Split by comma and trim each value
-            const values = filter.value.split(',').map(v => v.trim()).filter(v => v);
-            
-            if (values.length === 1) {
-              // Single value - simple contains
-              const escaped = values[0].replace(/'/g, "''");
-              filterParts.push(`contains(${columnId},'${escaped}')`);
-            } else if (values.length > 1) {
-              // Multiple values - OR condition
-              const orConditions = values.map(v => {
-                const escaped = v.replace(/'/g, "''");
-                return `contains(${columnId},'${escaped}')`;
-              });
-              filterParts.push(`(${orConditions.join(' or ')})`);
-            }
-          }
-          break;
-        case 'enum':
-          if (filter.value) {
-            filterParts.push(`${columnId} eq '${escapedValue}'`);
-          }
-          break;
-        case 'boolean':
-          if (filter.value === 'true') {
-            filterParts.push(`${columnId} eq true`);
-          } else if (filter.value === 'false') {
-            filterParts.push(`${columnId} eq false`);
-          }
-          break;
-        case 'date':
-          if (filter.value) {
-            filterParts.push(`${columnId} ge ${filter.value}`);
-          }
-          if (filter.valueTo) {
-            filterParts.push(`${columnId} le ${filter.valueTo}`);
-          }
-          break;
-        case 'number':
-          // Number filters can be: "eq:100", "gt:50", "lt:200", or range with valueTo
-          if (filter.valueTo) {
-            // Range filter
-            if (filter.value) filterParts.push(`${columnId} ge ${filter.value}`);
-            filterParts.push(`${columnId} le ${filter.valueTo}`);
-          } else if (filter.value) {
-            const [operator, numValue] = filter.value.includes(':') 
-              ? filter.value.split(':') 
-              : ['eq', filter.value];
-            switch(operator) {
-              case 'gt': filterParts.push(`${columnId} gt ${numValue}`); break;
-              case 'lt': filterParts.push(`${columnId} lt ${numValue}`); break;
-              default: filterParts.push(`${columnId} eq ${numValue}`);
-            }
-          }
-          break;
-      }
-    });
-
-    return filterParts.join(" and ");
-  }, [lobCodes, searchQuery, dueDateFrom, dueDateTo, columnFilters]);
+  // Build filter string for OData using the utility
+  const buildFilterString = useCallback(
+    (searchField?: "No" | "Search_Description") => {
+      return buildODataFilter({
+        lobCodes,
+        searchQuery: searchQuery.trim(),
+        searchField,
+        dueDateFrom,
+        dueDateTo,
+        columnFilters,
+      });
+    },
+    [lobCodes, searchQuery, dueDateFrom, dueDateTo, columnFilters],
+  );
 
   // Build orderby string for OData
-  const buildOrderByString = useCallback(() => {
-    if (!sortColumn || !sortDirection) return undefined;
-    return `${sortColumn} ${sortDirection}`;
+  const getOrderByString = useCallback(() => {
+    return buildOrderByString(sortColumn, sortDirection);
   }, [sortColumn, sortDirection]);
 
   // Fetch production orders
-  // When searching, makes 2 parallel API calls (one for No, one for Search_Description)
-  // then merges and deduplicates results
   const fetchOrders = useCallback(async () => {
     if (lobCodes.length === 0) return;
 
@@ -194,28 +146,43 @@ export function useProductionOrders() {
     try {
       const baseParams = {
         $select: buildSelectQuery(visibleColumns),
-        $orderby: buildOrderByString(),
+        $orderby: getOrderByString(),
         $top: pageSize,
         $skip: (currentPage - 1) * pageSize,
       };
 
+      // Calculate branch codes to use (User allowed + Filter)
+      const branchFilterValue =
+        columnFilters["Shortcut_Dimension_2_Code"]?.value;
+      const effectiveBranchCodes = branchFilterValue
+        ? branchFilterValue.split(",")
+        : userBranchCodes;
+
       // If there's a search query, make 2 parallel API calls
       if (searchQuery.trim()) {
         const [resultByNo, resultByDesc] = await Promise.all([
-          getProductionOrdersWithCount({
-            ...baseParams,
-            $filter: buildFilterString('No'),
-          }),
-          getProductionOrdersWithCount({
-            ...baseParams,
-            $filter: buildFilterString('Search_Description'),
-          }),
+          getProductionOrdersWithCount(
+            {
+              ...baseParams,
+              $filter: buildFilterString("No"),
+            },
+            lobCodes,
+            effectiveBranchCodes,
+          ),
+          getProductionOrdersWithCount(
+            {
+              ...baseParams,
+              $filter: buildFilterString("Search_Description"),
+            },
+            lobCodes,
+            effectiveBranchCodes,
+          ),
         ]);
 
         // Merge results and remove duplicates by No
         const seen = new Set<string>();
         const mergedOrders: ProductionOrder[] = [];
-        
+
         for (const order of [...resultByNo.orders, ...resultByDesc.orders]) {
           if (!seen.has(order.No)) {
             seen.add(order.No);
@@ -225,26 +192,39 @@ export function useProductionOrders() {
 
         // Limit to pageSize and estimate total count
         setOrders(mergedOrders.slice(0, pageSize));
-        // Use max of both counts as approximation (actual deduped count is complex to calculate)
         setTotalCount(Math.max(resultByNo.totalCount, resultByDesc.totalCount));
       } else {
-        // No search - single API call without search filter
-        const result = await getProductionOrdersWithCount({
-          ...baseParams,
-          $filter: buildFilterString(),
-        });
-        
+        const result = await getProductionOrdersWithCount(
+          {
+            ...baseParams,
+            $filter: buildFilterString(),
+          },
+          lobCodes,
+          effectiveBranchCodes,
+        );
+
         setOrders(result.orders);
         setTotalCount(result.totalCount);
       }
     } catch (error) {
       console.error("Error fetching production orders:", error);
+      toast.error("Failed to load production orders. Please try again.");
       setOrders([]);
       setTotalCount(0);
     } finally {
       setIsLoading(false);
     }
-  }, [lobCodes, pageSize, currentPage, visibleColumns, searchQuery, buildFilterString, buildOrderByString]);
+  }, [
+    lobCodes,
+    userBranchCodes,
+    pageSize,
+    currentPage,
+    visibleColumns,
+    searchQuery,
+    buildFilterString,
+    getOrderByString,
+    columnFilters,
+  ]);
 
   useEffect(() => {
     fetchOrders();
@@ -263,15 +243,14 @@ export function useProductionOrders() {
   const handleSort = useCallback((column: string) => {
     setSortColumn((prevColumn) => {
       if (prevColumn === column) {
-        // Toggle direction: asc -> desc -> null
         setSortDirection((prevDir) => {
-          if (prevDir === 'asc') return 'desc';
-          if (prevDir === 'desc') return null;
-          return 'asc';
+          if (prevDir === "asc") return "desc";
+          if (prevDir === "desc") return null;
+          return "asc";
         });
         return column;
       } else {
-        setSortDirection('asc');
+        setSortDirection("asc");
         return column;
       }
     });
@@ -306,7 +285,7 @@ export function useProductionOrders() {
   }, []);
 
   const handleShowAllColumns = useCallback(() => {
-    const allColumnIds = ALL_COLUMNS.map(c => c.id);
+    const allColumnIds = ALL_COLUMNS.map((c) => c.id);
     setVisibleColumns(allColumnIds);
     saveVisibleColumns(allColumnIds);
   }, []);
@@ -315,33 +294,50 @@ export function useProductionOrders() {
     setSearchQuery("");
     setDueDateFrom("");
     setDueDateTo("");
-    setColumnFilters({ Status: { value: 'Released' } }); // Reset to default
-    setSortColumn(null);
-    setSortDirection(null);
+
+    // Reset to defaults: Status=All (Empty), Branch=All User Branches
+    const defaultFilters: Record<string, { value: string; valueTo?: string }> =
+      {};
+
+    if (userBranchCodes.length > 0) {
+      defaultFilters["Shortcut_Dimension_2_Code"] = {
+        value: userBranchCodes.join(","),
+      };
+    }
+
+    setColumnFilters(defaultFilters);
+    // Reset to default sort: Last Modified Desc
+    setSortColumn("Last_Date_Modified");
+    setSortDirection("desc");
     setCurrentPage(1);
-  }, []);
+  }, [userBranchCodes]);
 
   // Generic column filter handler
-  const handleColumnFilter = useCallback((columnId: string, value: string, valueTo?: string) => {
-    setColumnFilters(prev => {
-      if (!value && !valueTo) {
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const { [columnId]: _, ...rest } = prev;
-        return rest;
-      }
-      return {
-        ...prev,
-        [columnId]: { value, valueTo }
-      };
-    });
-    setCurrentPage(1);
-  }, []);
+  const handleColumnFilter = useCallback(
+    (columnId: string, value: string, valueTo?: string) => {
+      setColumnFilters((prev) => {
+        if (!value && !valueTo) {
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          const { [columnId]: _, ...rest } = prev;
+          return rest;
+        }
+        return {
+          ...prev,
+          [columnId]: { value, valueTo },
+        };
+      });
+      setCurrentPage(1);
+    },
+    [],
+  );
 
   return {
     // Data
     orders,
     isLoading,
     lobCodes,
+    userBranchCodes,
+    branchOptions,
     // Pagination
     pageSize,
     currentPage,

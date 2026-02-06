@@ -102,13 +102,21 @@ export interface GetProductionOrdersParams {
 function buildProductionOrderFilter(
   status: "Released" | "Finished",
   lobCodes: string[],
+  branchCodes: string[] = [],
 ): string {
   const lobFilter =
     lobCodes.length > 0
       ? `(${lobCodes.map((code) => `'${code}'`).join(",")})`
       : "('CATTLE','CBF','FEED')"; // Fallback to default
 
-  return `Status eq '${status}' and Shortcut_Dimension_1_Code in ${lobFilter}`;
+  let filter = `Status eq '${status}' and Shortcut_Dimension_1_Code in ${lobFilter}`;
+
+  if (branchCodes.length > 0) {
+    const branchFilter = `(${branchCodes.map((code) => `'${code}'`).join(",")})`;
+    filter += ` and Shortcut_Dimension_2_Code in ${branchFilter}`;
+  }
+
+  return filter;
 }
 
 /**
@@ -125,6 +133,7 @@ export interface PaginatedProductionOrdersResponse {
 export async function getProductionOrders(
   params: GetProductionOrdersParams = {},
   lobCodes: string[] = [],
+  branchCodes: string[] = [],
 ): Promise<ProductionOrder[]> {
   const {
     $select = "No,Description,Source_No,Quantity,Location_Code",
@@ -137,7 +146,7 @@ export async function getProductionOrders(
 
   // Use provided filter or build default for Released status
   const finalFilter =
-    $filter || buildProductionOrderFilter("Released", lobCodes);
+    $filter || buildProductionOrderFilter("Released", lobCodes, branchCodes);
 
   const queryParams: Record<string, any> = {
     $select,
@@ -162,6 +171,7 @@ export async function getProductionOrders(
 export async function getProductionOrdersWithCount(
   params: GetProductionOrdersParams = {},
   lobCodes: string[] = [],
+  branchCodes: string[] = [],
 ): Promise<PaginatedProductionOrdersResponse> {
   const {
     $select = "No,Description,Source_No,Quantity,Location_Code",
@@ -188,10 +198,10 @@ export async function getProductionOrdersWithCount(
   const query = buildODataQuery(queryParams);
   const endpoint = `/ReleaseprodOrder?company='${encodeURIComponent(COMPANY)}'&${query}`;
   const response = await apiGet<ODataResponse<ProductionOrder>>(endpoint);
-  
+
   return {
     orders: response.value,
-    totalCount: response['@odata.count'] ?? 0,
+    totalCount: response["@odata.count"] ?? 0,
   };
 }
 
@@ -359,19 +369,23 @@ export async function createProductionOrder(
  * Uses entity key format: ReleaseprodOrderLine(Status='Released',Prod_Order_No='...',Line_No=...)
  * @param prodOrderNo - Production order number
  * @param lineNo - Line number
- * @param data - Data to update (Quantity)
+ * @param data - Data to update
  */
 export async function updateProductionOrderLine(
   prodOrderNo: string,
   lineNo: number,
-  data: { Quantity: number }
+  data: {
+    Quantity?: number;
+    Description?: string;
+    Location_Code?: string;
+  },
 ): Promise<void> {
   // Encode the production order number for URL (handles slashes)
   const encodedProdOrderNo = encodeURIComponent(prodOrderNo);
   const encodedCompany = encodeURIComponent(COMPANY);
-  
+
   const endpoint = `/Company('${encodedCompany}')/ReleaseprodOrderLine(Status='Released',Prod_Order_No='${encodedProdOrderNo}',Line_No=${lineNo})`;
-  
+
   await apiPatch<void>(endpoint, data);
 }
 
@@ -385,20 +399,102 @@ export async function updateProductionOrderLine(
  * @param prodOrderNo - Production order number
  * @param prodOrderLineNo - Production order line number
  * @param lineNo - Component line number
- * @param data - Data to update (Quantity_per)
+ * @param data - Data to update
  */
 export async function updateProductionOrderComponent(
   prodOrderNo: string,
   prodOrderLineNo: number,
   lineNo: number,
-  data: { Quantity_per: number }
+  data: {
+    Quantity_per?: number;
+    Description?: string;
+    Location_Code?: string;
+    Item_No?: string;
+  },
 ): Promise<void> {
   const encodedProdOrderNo = encodeURIComponent(prodOrderNo);
   const encodedCompany = encodeURIComponent(COMPANY);
-  
+
   const endpoint = `/Company('${encodedCompany}')/ReleaseprodOrderComponenet('Released','${encodedProdOrderNo}',${prodOrderLineNo},${lineNo})`;
-  
+
   await apiPatch<void>(endpoint, data);
+}
+
+// ============================================
+// GET COMPONENT SUBSTITUTES
+// ============================================
+
+export interface LotAvailability {
+  Location_Code: string;
+  ItemNo: string;
+  LotNo: string;
+  RemainingQty: number;
+  Expiration_Date: string;
+  ReservedQty: number;
+}
+
+/**
+ * Get item availability by lot (used for finding available inventory)
+ * Uses endpoint: ItemAvailabilitybyLot?$filter=ItemNo eq 'X' and Location_Code eq 'Y'
+ */
+export async function getItemAvailability(
+  itemNo: string,
+  locationCode: string,
+): Promise<LotAvailability[]> {
+  const encodedCompany = encodeURIComponent(COMPANY);
+  const filter = `ItemNo eq '${itemNo}' and Location_Code eq '${locationCode}'`;
+  const endpoint = `/Company('${encodedCompany}')/ItemAvailabilitybyLot?$filter=${encodeURIComponent(filter)}`;
+
+  const response = await apiGet<ODataResponse<LotAvailability>>(endpoint);
+  return response?.value || [];
+}
+
+/**
+ * @deprecated Use getItemAvailability instead - this is an alias for backward compatibility
+ */
+export async function getComponentSubstitutes(
+  itemNo: string,
+  locationCode: string,
+): Promise<LotAvailability[]> {
+  return getItemAvailability(itemNo, locationCode);
+}
+
+export interface SubstituteItem {
+  Item_No: string;
+  Description: string;
+  Quantity: number;
+  [key: string]: unknown;
+}
+
+/**
+ * Get component substitutes using API_GetCompSubst endpoint
+ * This endpoint returns substitute items for a specific component
+ * @param prodOrderNo - Production Order No
+ * @param prodOrderLineNo - Production Order Line No
+ * @param componentLineNo - Component Line No
+ */
+export async function getSubstituteItems(
+  prodOrderNo: string,
+  prodOrderLineNo: number,
+  componentLineNo: number,
+): Promise<SubstituteItem[]> {
+  const endpoint = `/API_GetCompSubst?company='${encodeURIComponent(COMPANY)}'`;
+  const payload = {
+    prodorderNo: prodOrderNo,
+    prodOrderLine: prodOrderLineNo,
+    lineno: componentLineNo,
+  };
+
+  try {
+    const response = await apiPost<any>(endpoint, payload);
+    // The response structure may vary - handle different cases
+    if (Array.isArray(response)) return response;
+    if (response?.value && Array.isArray(response.value)) return response.value;
+    return [];
+  } catch (error) {
+    console.error("Error fetching substitute items:", error);
+    return [];
+  }
 }
 
 // ============================================
@@ -411,26 +507,34 @@ export interface AssignItemTrackingParams {
   quantity: number;
   sourceProdOrderLine: number; // Prod_Order_Line_No
   sourceID: string; // Prod_Order_No
-  sourcerefNo: number; // Component Line_No
+  sourcerefNo: number; // Component Line_No (0 for lines)
   lotNo: string;
   expirationDate?: string;
+  /** 'line' for production order lines, 'component' for components. Defaults to 'component' */
+  trackingType?: "line" | "component";
 }
 
 /**
- * Assign item tracking (lot number) to a production order component
+ * Assign item tracking (lot number) to a production order line or component
  * @param params - Item tracking parameters
+ * - For lines: sourceType = 5406, sourcerefNo = 0
+ * - For components: sourceType = 5407, sourcerefNo = component Line_No
  */
 export async function assignItemTracking(
-  params: AssignItemTrackingParams
+  params: AssignItemTrackingParams,
 ): Promise<unknown> {
   const endpoint = `/API_TrackingAssign?company='${encodeURIComponent(COMPANY)}'`;
-  
+
+  // Determine sourceType based on tracking type
+  // 5406 = Production Order Line, 5407 = Production Order Component
+  const sourceType = params.trackingType === "line" ? 5406 : 5407;
+
   const payload = {
     itemNo: params.itemNo,
     locationCode: params.locationCode,
     qyantity: params.quantity, // Note: API has typo "qyantity"
     sourceProdOrderLine: params.sourceProdOrderLine,
-    sourceType: 5407, // Fixed value for production order components
+    sourceType: sourceType,
     sourceSubType: 3, // Fixed value for Released status
     sourceID: params.sourceID,
     sourceBatch: "",
@@ -441,6 +545,114 @@ export async function assignItemTracking(
     newExpirationdate: "0001-01-01",
     newManufacuringdate: "0001-01-01",
   };
-  
+
   return apiPost<unknown>(endpoint, payload);
+}
+
+// ============================================
+// GET ITEM AVAILABILITY BY LOT
+// ============================================
+
+export async function getItemAvailabilityByLot(
+  itemNo: string,
+  locationCode?: string,
+): Promise<LotAvailability[]> {
+  const encodedCompany = encodeURIComponent(COMPANY);
+  let filter = `ItemNo eq '${itemNo}'`;
+
+  if (locationCode) {
+    filter += ` and Location_Code eq '${locationCode}'`;
+  }
+
+  // Update to correct endpoint structure provided by user
+  const endpoint = `/Company('${encodedCompany}')/ItemAvailabilitybyLot?$filter=${encodeURIComponent(filter)}`;
+
+  const response = await apiGet<ODataResponse<LotAvailability>>(endpoint);
+  return response.value || [];
+}
+
+// ============================================
+// PRINT QR CODE
+// ============================================
+
+export interface QRCodeResponse {
+  value: string; // Assuming the base64 is returned in a 'value' property or similar.
+  // If it's a raw string, we might need to adjust.
+}
+
+/**
+ * Get QR Code PDF Base64
+ * @param prodOrderNo - Production Order No
+ */
+export async function printQRCode(prodOrderNo: string): Promise<string> {
+  const endpoint = `/API_QRCodePrint?company='${encodeURIComponent(COMPANY)}'`;
+  const payload = {
+    prodOrderNo,
+  };
+
+  // The response structure from OData actions can vary.
+  // Often it returns the result directly or wrapped in `value`.
+  // We'll cast to any for flexibility first, but ideally we'd know the shape.
+  const response = await apiPost<any>(endpoint, payload);
+
+  // Check if response itself is the string, or inside value
+  if (typeof response === "string") return response;
+  if (response && response.value) return response.value;
+
+  // Fallback: return response if it looks like a string, or empty
+  return (response as string) || "";
+}
+
+// ============================================
+// PRODUCTION JOURNAL
+// ============================================
+
+export interface ProductionJournalEntry {
+  Line_No: number;
+  Entry_Type: string;
+  Item_No_: string;
+  Quantity: number;
+  Output_Quantity: number;
+  [key: string]: unknown;
+}
+
+/**
+ * Create production journal entries for a production order
+ * @param prodOrderNo - Production Order No
+ * @param lineNo - Production Order Line No
+ * @param userId - User ID
+ */
+export async function createProductionJournal(
+  prodOrderNo: string,
+  lineNo: number,
+  userId: string,
+): Promise<unknown> {
+  const endpoint = `/API_CreateProductionJn?company='${encodeURIComponent(COMPANY)}'`;
+  const payload = {
+    prodOrderN: prodOrderNo,
+    actualLineNo: lineNo,
+    userID: userId,
+  };
+
+  return apiPost<unknown>(endpoint, payload);
+}
+
+/**
+ * Get production journal entries for a production order
+ * @param orderNo - Production Order No (e.g., 'RPO/2526/041517')
+ */
+export async function getProductionJournal(
+  orderNo: string,
+): Promise<ProductionJournalEntry[]> {
+  const filter = `Order_No_ eq '${orderNo}' and Journal_Template_Name eq 'PROD.ORDEA'`;
+  const select = "Line_No,Entry_Type,Item_No_,Quantity,Output_Quantity";
+  const query = buildODataQuery({
+    $filter: filter,
+    $select: select,
+  });
+  const endpoint = `/ProductionJn?company='${encodeURIComponent(COMPANY)}'&${query}`;
+
+  const response =
+    await apiGet<ODataResponse<ProductionJournalEntry>>(endpoint);
+  return response.value || [];
 }

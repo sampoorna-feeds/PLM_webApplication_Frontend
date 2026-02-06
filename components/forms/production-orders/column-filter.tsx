@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Filter, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import {
   Popover,
@@ -25,6 +26,7 @@ interface ColumnFilterProps {
   value: string;
   valueTo?: string; // For date range (end date)
   onChange: (value: string, valueTo?: string) => void;
+  options?: { label: string; value: string }[];
 }
 
 // Get options for enum columns
@@ -39,7 +41,7 @@ function getEnumOptions(columnId: string) {
   }
 }
 
-export function ColumnFilter({ column, value, valueTo, onChange }: ColumnFilterProps) {
+export function ColumnFilter({ column, value, valueTo, onChange, options: propOptions }: ColumnFilterProps) {
   const [open, setOpen] = useState(false);
   const [localValue, setLocalValue] = useState(value);
   const [localValueTo, setLocalValueTo] = useState(valueTo || "");
@@ -67,9 +69,17 @@ export function ColumnFilter({ column, value, valueTo, onChange }: ColumnFilterP
   };
 
   const handleClear = () => {
-    setLocalValue("");
-    setLocalValueTo("");
-    onChange("", "");
+    // Prevent clearing Branch filter completely (at least one must be selected)
+    if (column.id === 'Shortcut_Dimension_2_Code' && propOptions) {
+      // Reset to all selected if user tries to clear
+      const allValues = propOptions.map(o => o.value).join(',');
+      setLocalValue(allValues);
+      onChange(allValues, "");
+    } else {
+      setLocalValue("");
+      setLocalValueTo("");
+      onChange("", "");
+    }
     setOpen(false);
   };
 
@@ -92,7 +102,71 @@ export function ColumnFilter({ column, value, valueTo, onChange }: ColumnFilterP
         );
 
       case 'enum':
-        const options = getEnumOptions(column.id);
+        const options = propOptions || getEnumOptions(column.id);
+        
+        // Use Checkbox list if options are explicitly provided (like Branch)
+        if (propOptions) {
+            const selectedValues = localValue ? localValue.split(',') : [];
+            const isBranch = column.id === 'Shortcut_Dimension_2_Code';
+
+            const handleCheckboxChange = (optionValue: string, checked: boolean) => {
+                let newSelected = [...selectedValues];
+                if (checked) {
+                    if (!newSelected.includes(optionValue)) {
+                        newSelected.push(optionValue);
+                    }
+                } else {
+                    newSelected = newSelected.filter(v => v !== optionValue);
+                }
+
+                // Constraint: At least one branch must be selected
+                if (isBranch && newSelected.length === 0) {
+                    return; // Prevent unchecking the last item
+                }
+
+                setLocalValue(newSelected.join(','));
+            };
+
+            return (
+               <div className="space-y-3">
+                 <div className="flex items-center justify-between">
+                   <Label className="text-xs font-medium">Filter {column.label}</Label>
+                   {selectedValues.length < propOptions.length && (
+                     <Button 
+                       variant="ghost" 
+                       size="sm" 
+                       className="h-auto p-0 text-[10px] text-primary"
+                       onClick={() => setLocalValue(propOptions.map(o => o.value).join(','))}
+                     >
+                       Select All
+                     </Button>
+                   )}
+                 </div>
+                 <div className="space-y-2 max-h-48 overflow-y-auto p-1">
+                    {options.map((option) => {
+                        const isChecked = selectedValues.includes(option.value);
+                        return (
+                            <div key={option.value} className="flex items-center space-x-2">
+                                <Checkbox 
+                                    id={`filter-${column.id}-${option.value}`}
+                                    checked={isChecked}
+                                    onCheckedChange={(checked) => handleCheckboxChange(option.value, checked as boolean)}
+                                />
+                                <Label 
+                                    htmlFor={`filter-${column.id}-${option.value}`}
+                                    className="text-xs font-normal cursor-pointer"
+                                >
+                                    {option.label}
+                                </Label>
+                            </div>
+                        );
+                    })}
+                 </div>
+               </div> 
+            );
+        }
+
+        // Fallback for standard enums (Status, Source Type) - Single Select Dropdown
         return (
           <div className="space-y-3">
             <Label className="text-xs font-medium">Filter {column.label}</Label>

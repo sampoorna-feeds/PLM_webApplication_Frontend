@@ -266,13 +266,17 @@ export async function getItemByNo(itemNo: string): Promise<Item | null> {
 /**
  * Get multiple Items by their No values in a single batch call
  * Returns items with Item_Tracking_Code for highlighting purposes
+ * 
+ * Note: Uses multiple 'eq' conditions with 'or' instead of 'in' operator
+ * because Business Central OData API doesn't properly support 'in'
  */
 export async function getItemsByNos(itemNos: string[]): Promise<Item[]> {
   if (itemNos.length === 0) return [];
   
-  // Build "in" filter: No in ('ITEM1','ITEM2','ITEM3')
-  const escapedNos = itemNos.map(no => `'${escapeODataValue(no)}'`).join(',');
-  const filter = `No in (${escapedNos}) and ${getBaseFilter()}`;
+  // Build filter using multiple eq conditions: (No eq 'ITEM1' or No eq 'ITEM2' or ...)
+  // The 'in' operator is not reliably supported by Business Central OData API
+  const filterConditions = itemNos.map(no => `No eq '${escapeODataValue(no)}'`);
+  const filter = `(${filterConditions.join(' or ')})`;
   
   const query = buildODataQuery({
     $select: 'No,Description,Item_Tracking_Code',

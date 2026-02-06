@@ -359,3 +359,23 @@ export async function getLOCsFromUserSetup(lob: string, branch: string, userId: 
   return uniqueLOCs.map(loc => ({ Code: loc }));
 }
 
+/**
+ * Get all unique Branch values from WebUserSetup for a user (across all LOBs)
+ * @param userId - User ID (required)
+ */
+export async function getAllBranchesFromUserSetup(userId: string): Promise<DimensionValue[]> {
+  const setupData = await getWebUserSetup(userId);
+  const uniqueBranches = Array.from(new Set(setupData.map(item => item.Branch_Code).filter(Boolean)));
+  return uniqueBranches.map(branch => ({ Code: branch }));
+}
+
+
+/**
+ * Get all unique LOC values from WebUserSetup for a user (across all LOBs and Branches)
+ * @param userId - User ID (required)
+ */
+export async function getAllLOCsFromUserSetup(userId: string): Promise<DimensionValue[]> {
+  const setupData = await getWebUserSetup(userId);
+  const uniqueLOCs = Array.from(new Set(setupData.map(item => item.LOC_Code).filter(Boolean)));
+  return uniqueLOCs.map(loc => ({ Code: loc }));
+}

@@ -18,6 +18,7 @@ interface ProductionOrdersTableProps {
   onRowClick: (orderNo: string) => void;
   onSort: (column: string) => void;
   onColumnFilter: (columnId: string, value: string, valueTo?: string) => void;
+  branchOptions: { label: string; value: string }[];
 }
 
 export function ProductionOrdersTable({
@@ -32,6 +33,7 @@ export function ProductionOrdersTable({
   onRowClick,
   onSort,
   onColumnFilter,
+  branchOptions = [],
 }: ProductionOrdersTableProps) {
   // Get visible column configs in order
   const columns = ALL_COLUMNS.filter((col) => visibleColumns.includes(col.id));
@@ -60,6 +62,7 @@ export function ProductionOrdersTable({
                   filterValueTo={columnFilters[column.id]?.valueTo || ""}
                   onSort={onSort}
                   onFilter={onColumnFilter}
+                  options={column.id === 'Shortcut_Dimension_2_Code' ? branchOptions : undefined}
                 />
               ))}
             </tr>
@@ -115,6 +118,7 @@ interface SortableTableHeadProps {
   filterValueTo: string;
   onSort: (column: string) => void;
   onFilter: (columnId: string, value: string, valueTo?: string) => void;
+  options?: { label: string; value: string }[];
 }
 
 function SortableTableHead({
@@ -125,6 +129,7 @@ function SortableTableHead({
   filterValueTo,
   onSort,
   onFilter,
+  options,
 }: SortableTableHeadProps) {
   const getSortIcon = () => {
     if (!isActive || !sortDirection) {
@@ -163,6 +168,7 @@ function SortableTableHead({
             value={filterValue}
             valueTo={filterValueTo}
             onChange={(value, valueTo) => onFilter(column.id, value, valueTo)}
+            options={options}
           />
         )}
       </div>

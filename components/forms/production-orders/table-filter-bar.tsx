@@ -49,9 +49,9 @@ export function TableFilterBar({
     return () => clearTimeout(timer);
   }, [localSearch, searchQuery, onSearch]);
 
-  // Count active column filters (excluding default Status='Released')
+  // Count active column filters
   const activeFilterCount = Object.entries(columnFilters).filter(([key, filter]) => {
-    if (key === 'Status' && filter.value === 'Released') return false;
+    // Skip checking for Status=Released vs default
     return filter.value || filter.valueTo;
   }).length;
 
@@ -87,7 +87,7 @@ export function TableFilterBar({
       {hasActiveFilters && (
         <Button variant="ghost" size="sm" onClick={onClearFilters} className="gap-1">
           <X className="h-4 w-4" />
-          Clear All
+          Reset Filters
         </Button>
       )}
 

@@ -51,6 +51,7 @@ export function ProductionOrderLinesTable({
       <Table>
         <TableHeader>
           <TableRow>
+            <TableHead className="w-20">Line No.</TableHead>
             <TableHead className="w-30">Item No.</TableHead>
             <TableHead>Description</TableHead>
             <TableHead className="w-30">Location Code</TableHead>
@@ -63,7 +64,8 @@ export function ProductionOrderLinesTable({
         <TableBody>
           {lines.map((line) => {
             // Check if this item has a tracking code
-            const hasTracking = trackingMap[line.Item_No] || false;
+            const itemKey = line.Item_No ? line.Item_No.trim().toLowerCase() : "";
+            const hasTracking = trackingMap[itemKey] || false;
             
             return (
               <TableRow 
@@ -74,6 +76,9 @@ export function ProductionOrderLinesTable({
                 )}
                 onClick={() => onRowClick?.(line, hasTracking)}
               >
+                <TableCell>
+                  {line.Line_No}
+                </TableCell>
                 <TableCell className="font-medium">
                   {line.Item_No || "-"}
                 </TableCell>

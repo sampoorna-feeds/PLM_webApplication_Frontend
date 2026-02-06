@@ -38,10 +38,13 @@ export function useItemTracking<T extends ItemWithNo>(items: T[]) {
 
         const fetchedItems = await getItemsByNos(uniqueItemNos);
         
-        // Build map: Item_No -> hasTrackingCode
+        // Build map: Item_No -> hasTrackingCode (Normalized)
         const map: Record<string, boolean> = {};
         fetchedItems.forEach(item => {
-          map[item.No] = !!(item.Item_Tracking_Code && item.Item_Tracking_Code.trim());
+          if (item.No) {
+             const key = item.No.trim().toLowerCase();
+             map[key] = !!(item.Item_Tracking_Code && item.Item_Tracking_Code.trim());
+          }
         });
         
         setTrackingMap(map);

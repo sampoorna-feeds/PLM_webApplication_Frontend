@@ -44,11 +44,14 @@ function ProductionOrdersContent() {
     columnFilters,
     onColumnFilter,
     // Column visibility
+    // Column visibility
     visibleColumns,
     onColumnToggle,
     onResetColumns,
     onShowAllColumns,
     addOrder,
+    branchOptions,
+    userBranchCodes,
   } = useProductionOrders();
 
   const { openTab } = useFormStackContext();
@@ -125,6 +128,7 @@ function ProductionOrdersContent() {
             onSearch={onSearch}
             onColumnFilter={onColumnFilter}
             onClearFilters={onClearFilters}
+            userBranchCodes={userBranchCodes}
           />
         </div>
 
@@ -142,6 +146,7 @@ function ProductionOrdersContent() {
             onRowClick={handleRowClick}
             onSort={onSort}
             onColumnFilter={onColumnFilter}
+            branchOptions={branchOptions}
           />
         </div>
 

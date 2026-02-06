@@ -11,4 +11,5 @@ export { getGLAccountByNo, type GLPostingAccount } from './gl-account.service';
 export * from './item.service';
 export * from './tcs.service';
 export * from './sales-order.service';
+export * from './production-orders.service';
 

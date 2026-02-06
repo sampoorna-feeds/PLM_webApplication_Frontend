@@ -51,6 +51,8 @@ export function ProductionOrderComponentsTable({
       <Table>
         <TableHeader>
           <TableRow>
+            <TableHead className="w-20">Comp. Line</TableHead>
+            <TableHead className="w-20">Prod. Line</TableHead>
             <TableHead className="w-30">Item No.</TableHead>
             <TableHead>Description</TableHead>
             <TableHead className="w-30">Location Code</TableHead>
@@ -65,7 +67,8 @@ export function ProductionOrderComponentsTable({
         <TableBody>
           {components.map((component) => {
             // Check if this item has a tracking code
-            const hasTracking = trackingMap[component.Item_No] || false;
+            const itemKey = component.Item_No ? component.Item_No.trim().toLowerCase() : "";
+            const hasTracking = trackingMap[itemKey] || false;
 
             return (
               <TableRow
@@ -76,6 +79,12 @@ export function ProductionOrderComponentsTable({
                 )}
                 onClick={() => onRowClick?.(component, hasTracking)}
               >
+                <TableCell>
+                  {component.Line_No}
+                </TableCell>
+                <TableCell>
+                  {component.Prod_Order_Line_No}
+                </TableCell>
                 <TableCell className="font-medium">
                   {component.Item_No || "-"}
                 </TableCell>

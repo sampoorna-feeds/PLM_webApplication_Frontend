@@ -534,24 +534,15 @@ export function ProductionOrderForm({
 
   // Load BOM Versions when Prod BOM No changes
   useEffect(() => {
-    console.log("BOM Version useEffect triggered:", {
-      Prod_Bom_No: formState.Prod_Bom_No,
-      isProdBomFromItem: formState.isProdBomFromItem,
-      isViewMode,
-    });
-
     if (!formState.Prod_Bom_No || formState.isProdBomFromItem || isViewMode) {
-      console.log("Skipping BOM version load - conditions not met");
       setBomVersionOptions([]);
       return;
     }
 
     const loadBomVersions = async () => {
-      console.log("Loading BOM versions for:", formState.Prod_Bom_No);
       setIsLoadingBomVersions(true);
       try {
         const versions = await getProdOrderBOMVersions(formState.Prod_Bom_No);
-        console.log("Loaded BOM versions:", versions);
         setBomVersionOptions(versions);
       } catch (error) {
         console.error("Error loading BOM versions:", error);
@@ -593,9 +584,6 @@ export function ProductionOrderForm({
 
         // If no BOMs found with location filter, try item-only filter
         if (boms.length === 0) {
-          console.log(
-            "No BOMs found with location filter, trying item-only filter...",
-          );
           boms = await getProdOrderBOMsByItemOnly(formState.Source_No);
         }
 
@@ -1003,12 +991,10 @@ export function ProductionOrderForm({
         };
 
         const createdOrder = await createProductionOrder(payload);
-        console.log("Production Order created:", createdOrder);
 
         // Refresh journal entries in the backend
         try {
           await refreshProductionOrderJournal(createdOrder.No);
-          console.log("Production Order journal entries refreshed");
         } catch (refreshError) {
           console.warn("Failed to refresh journal entries:", refreshError);
           // Don't block the order creation flow if refresh fails
@@ -1038,7 +1024,6 @@ export function ProductionOrderForm({
         });
       } else {
         // TODO: Implement update API call for edit mode
-        console.log("Updating Production Order:", formState);
         await new Promise((resolve) => setTimeout(resolve, 500));
         await handleSuccess();
       }
@@ -1659,12 +1644,12 @@ export function ProductionOrderForm({
           >
             <SheetContent
               side="right"
-              className="w-full overflow-y-auto p-4 md:w-[70vw] lg:w-[60vw]"
+              className="flex w-full flex-col gap-0 overflow-y-auto p-0 sm:max-w-full md:w-[70vw] lg:w-[60vw]"
             >
-              <SheetHeader>
+              <SheetHeader className="bg-background sticky top-0 z-10 border-b px-6 py-4">
                 <SheetTitle>Production Order Components</SheetTitle>
               </SheetHeader>
-              <div className="mt-6 px-2">
+              <div className="flex-1 px-6 py-4">
                 <ProductionOrderComponentsTable
                   components={orderComponents}
                   isLoading={isLoadingComponents}

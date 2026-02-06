@@ -95,7 +95,7 @@ function ProductionOrdersContent() {
       {/* Main Content Area */}
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden p-4">
         {/* Header - fixed at top */}
-        <div className="flex flex-shrink-0 items-center justify-between pb-3">
+        <div className="flex shrink-0 items-center justify-between pb-3">
           <div>
             <h1 className="text-lg font-bold">Released Production Orders</h1>
             <p className="text-muted-foreground text-sm">
@@ -109,7 +109,7 @@ function ProductionOrdersContent() {
         </div>
 
         {/* Filter Bar - fixed at top */}
-        <div className="flex-shrink-0">
+        <div className="shrink-0">
           <TableFilterBar
             searchQuery={searchQuery}
             visibleColumns={visibleColumns}
@@ -123,7 +123,7 @@ function ProductionOrdersContent() {
         </div>
 
         {/* Active Filters Display - conditionally rendered by the component itself */}
-        <div className="flex-shrink-0">
+        <div className="shrink-0">
           <ActiveFilters
             searchQuery={searchQuery}
             columnFilters={columnFilters}
@@ -153,7 +153,7 @@ function ProductionOrdersContent() {
         </div>
 
         {/* Pagination Controls - fixed at bottom */}
-        <div className="flex-shrink-0">
+        <div className="shrink-0">
           <PaginationControls
             pageSize={pageSize}
             currentPage={currentPage}

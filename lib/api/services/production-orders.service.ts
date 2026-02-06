@@ -183,7 +183,7 @@ export async function getProductionOrdersWithCount(
 
   // Use provided filter or build default for Released status
   const finalFilter =
-    $filter || buildProductionOrderFilter("Released", lobCodes);
+    $filter || buildProductionOrderFilter("Released", lobCodes, branchCodes);
 
   const queryParams: Record<string, any> = {
     $select,
@@ -448,32 +448,6 @@ export interface LotAvailability {
   ReservedQty: number;
 }
 
-/**
- * Get item availability by lot (used for finding available inventory)
- * Uses endpoint: ItemAvailabilitybyLot?$filter=ItemNo eq 'X' and Location_Code eq 'Y'
- */
-export async function getItemAvailability(
-  itemNo: string,
-  locationCode: string,
-): Promise<LotAvailability[]> {
-  const encodedCompany = encodeURIComponent(COMPANY);
-  const filter = `ItemNo eq '${itemNo}' and Location_Code eq '${locationCode}'`;
-  const endpoint = `/Company('${encodedCompany}')/ItemAvailabilitybyLot?$filter=${encodeURIComponent(filter)}`;
-
-  const response = await apiGet<ODataResponse<LotAvailability>>(endpoint);
-  return response?.value || [];
-}
-
-/**
- * @deprecated Use getItemAvailability instead - this is an alias for backward compatibility
- */
-export async function getComponentSubstitutes(
-  itemNo: string,
-  locationCode: string,
-): Promise<LotAvailability[]> {
-  return getItemAvailability(itemNo, locationCode);
-}
-
 export interface SubstituteItem {
   Item_No: string;
   Description: string;
@@ -626,10 +600,9 @@ export interface ProductionJournalEntry {
   Line_No: number;
   Entry_Type: string;
   Item_No_: string;
+  Description?: string;
   Quantity: number;
   Output_Quantity: number;
-  Location_Code?: string;
-  Remaining_Quantity?: number;
   [key: string]: unknown;
 }
 
@@ -663,7 +636,7 @@ export async function getProductionJournal(
 ): Promise<ProductionJournalEntry[]> {
   const filter = `Order_No_ eq '${orderNo}' and Journal_Template_Name eq 'PROD.ORDEA'`;
   const select =
-    "Line_No,Entry_Type,Item_No_,Quantity,Output_Quantity,Location_Code,Remaining_Quantity";
+    "Line_No,Entry_Type,Item_No_,Description,Quantity,Output_Quantity";
   const query = buildODataQuery({
     $filter: filter,
     $select: select,

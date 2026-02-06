@@ -10,6 +10,17 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -160,27 +171,54 @@ export function ProductionOrderPostSheet({
             Post Order
           </Button>
         </SheetTrigger>
-        <SheetContent side="right" className="w-full md:w-[70vw] lg:w-[60vw]">
-          <SheetHeader className="flex flex-row items-center justify-between">
+        <SheetContent
+          side="right"
+          className="flex w-full flex-col gap-0 p-0 sm:max-w-full md:w-[70vw] lg:w-[60vw]"
+        >
+          <SheetHeader className="bg-background sticky top-0 z-10 flex flex-row items-center justify-between border-b px-6 py-4">
             <SheetTitle>Production Journal - {prodOrderNo}</SheetTitle>
             {journalEntries.length > 0 && (
-              <Button
-                variant="destructive"
-                size="sm"
-                onClick={handleDeleteJournalLines}
-                disabled={isDeleting || isLoading}
-              >
-                {isDeleting ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <Trash2 className="mr-2 h-4 w-4" />
-                )}
-                Delete All Lines
-              </Button>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    disabled={isDeleting || isLoading}
+                  >
+                    {isDeleting ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Trash2 className="mr-2 h-4 w-4" />
+                    )}
+                    Delete All Lines
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>
+                      Delete All Journal Lines?
+                    </AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This will permanently delete all {journalEntries.length}{" "}
+                      journal entries for production order {prodOrderNo}. This
+                      action cannot be undone.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={handleDeleteJournalLines}
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    >
+                      Delete All
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             )}
           </SheetHeader>
 
-          <div className="mt-6 flex-1 overflow-auto">
+          <div className="flex-1 overflow-auto px-6 py-4">
             {isLoading ? (
               <div className="flex flex-col items-center justify-center gap-2 py-12">
                 <Loader2 className="text-muted-foreground h-8 w-8 animate-spin" />
@@ -199,6 +237,7 @@ export function ProductionOrderPostSheet({
                     <TableRow>
                       <TableHead className="w-32">Entry Type</TableHead>
                       <TableHead>Item No.</TableHead>
+                      <TableHead>Description</TableHead>
                       <TableHead className="w-32 text-right">
                         Quantity
                       </TableHead>
@@ -224,6 +263,7 @@ export function ProductionOrderPostSheet({
                           <TableCell className="font-medium">
                             {entry.Item_No_ || "-"}
                           </TableCell>
+                          <TableCell>{entry.Description || "-"}</TableCell>
                           <TableCell className="text-right">
                             {entry.Quantity?.toLocaleString() ?? "-"}
                           </TableCell>

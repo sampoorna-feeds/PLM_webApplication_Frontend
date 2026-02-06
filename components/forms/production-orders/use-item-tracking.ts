@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { getItemsByNos } from "@/lib/api/services/item.service";
 
 /**
@@ -19,8 +19,17 @@ export function useItemTracking<T extends ItemWithNo>(items: T[]) {
   const [trackingMap, setTrackingMap] = useState<Record<string, boolean>>({});
   const [isLoading, setIsLoading] = useState(false);
 
+  // Stabilize the dependency - only re-fetch when the set of item numbers actually changes
+  const itemNosKey = useMemo(() => {
+    const uniqueNos = [
+      ...new Set(items.map((item) => item.Item_No).filter(Boolean)),
+    ];
+    uniqueNos.sort();
+    return uniqueNos.join(",");
+  }, [items]);
+
   useEffect(() => {
-    if (items.length === 0) {
+    if (!itemNosKey) {
       setTrackingMap({});
       return;
     }
@@ -28,15 +37,7 @@ export function useItemTracking<T extends ItemWithNo>(items: T[]) {
     const fetchItemTracking = async () => {
       setIsLoading(true);
       try {
-        // Get unique Item_No values
-        const uniqueItemNos = [
-          ...new Set(items.map((item) => item.Item_No).filter(Boolean)),
-        ];
-
-        if (uniqueItemNos.length === 0) {
-          setTrackingMap({});
-          return;
-        }
+        const uniqueItemNos = itemNosKey.split(",");
 
         const fetchedItems = await getItemsByNos(uniqueItemNos);
 
@@ -61,7 +62,7 @@ export function useItemTracking<T extends ItemWithNo>(items: T[]) {
     };
 
     fetchItemTracking();
-  }, [items]);
+  }, [itemNosKey]);
 
   return { trackingMap, isLoading };
 }

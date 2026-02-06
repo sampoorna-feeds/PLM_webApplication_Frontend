@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { QrCode, Loader2, Download, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -26,11 +26,25 @@ export function ProductionOrderQRDialog({
   const [isLoading, setIsLoading] = useState(false);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
 
+  // Clean up blob URL on unmount or when URL changes to prevent memory leaks
+  useEffect(() => {
+    return () => {
+      if (pdfUrl) {
+        window.URL.revokeObjectURL(pdfUrl);
+      }
+    };
+  }, [pdfUrl]);
+
   // Fetch PDF when dialog opens
   const handleOpenChange = async (isOpen: boolean) => {
     setOpen(isOpen);
     if (isOpen && !pdfUrl) {
       loadPdf();
+    }
+    if (!isOpen && pdfUrl) {
+      // Revoke the old URL when dialog closes so it can be re-fetched fresh next time
+      window.URL.revokeObjectURL(pdfUrl);
+      setPdfUrl(null);
     }
   };
 

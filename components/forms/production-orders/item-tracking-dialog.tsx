@@ -96,10 +96,14 @@ export function ItemTrackingDialog({
     return src.Item_No || "";
   };
 
-  // Helper to get location code from source
+  // Helper to get location code from source (journal entries don't have location)
   const getLocationCode = (src: TrackingSource): string | undefined => {
     if (!src) return undefined;
-    return src.Location_Code || undefined;
+    if (isJournalEntry(src)) return undefined;
+    return (
+      (src as ProductionOrderLine | ProductionOrderComponent).Location_Code ||
+      undefined
+    );
   };
 
   // Fetch available lots when dialog opens
@@ -136,8 +140,14 @@ export function ItemTrackingDialog({
     const expDate = lot.Expiration_Date?.split("T")[0] || "";
     setExpirationDate(expDate);
     // Auto-suggest remaining quantity or available qty (whichever is smaller)
-    const remainingQty = source?.Remaining_Quantity || lot.RemainingQty || 0;
-    const suggestedQty = Math.min(lot.RemainingQty || 0, remainingQty);
+    // Journal entries use Quantity, lines/components use Remaining_Quantity
+    const sourceRemainingQty = source
+      ? isJournalEntry(source)
+        ? source.Quantity || 0
+        : (source as ProductionOrderLine | ProductionOrderComponent)
+            .Remaining_Quantity || 0
+      : 0;
+    const suggestedQty = Math.min(lot.RemainingQty || 0, sourceRemainingQty);
     setQuantity(suggestedQty.toString());
   };
 
@@ -159,7 +169,11 @@ export function ItemTrackingDialog({
     }
 
     // Validate against remaining quantity
-    const remainingQty = source.Remaining_Quantity || 0;
+    // Journal entries use Quantity, lines/components use Remaining_Quantity
+    const remainingQty = isJournalSource
+      ? (source as ProductionJournalEntry).Quantity || 0
+      : (source as ProductionOrderLine | ProductionOrderComponent)
+          .Remaining_Quantity || 0;
     if (quantityValue > remainingQty && remainingQty > 0) {
       toast.error(
         `Quantity cannot exceed remaining quantity (${remainingQty})`,
@@ -353,7 +367,12 @@ export function ItemTrackingDialog({
                   placeholder="Enter quantity"
                 />
                 <p className="text-muted-foreground mt-1 text-right text-xs">
-                  Remaining: {source.Remaining_Quantity?.toLocaleString() || 0}
+                  Remaining:{" "}
+                  {(isJournalSource
+                    ? (source as ProductionJournalEntry).Quantity
+                    : (source as ProductionOrderLine | ProductionOrderComponent)
+                        .Remaining_Quantity
+                  )?.toLocaleString() || 0}
                 </p>
               </div>
             </div>

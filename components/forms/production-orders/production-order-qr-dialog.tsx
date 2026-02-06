@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { QrCode, Loader2, Download } from "lucide-react";
+import { QrCode, Loader2, Download, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -19,7 +19,9 @@ interface ProductionOrderQRDialogProps {
   prodOrderNo: string;
 }
 
-export function ProductionOrderQRDialog({ prodOrderNo }: ProductionOrderQRDialogProps) {
+export function ProductionOrderQRDialog({
+  prodOrderNo,
+}: ProductionOrderQRDialogProps) {
   const [open, setOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
@@ -72,43 +74,79 @@ export function ProductionOrderQRDialog({ prodOrderNo }: ProductionOrderQRDialog
     document.body.removeChild(link);
   };
 
+  const handlePrint = () => {
+    if (!pdfUrl) return;
+
+    // Create a hidden iframe to print the PDF
+    const printFrame = document.createElement("iframe");
+    printFrame.style.position = "fixed";
+    printFrame.style.right = "0";
+    printFrame.style.bottom = "0";
+    printFrame.style.width = "0";
+    printFrame.style.height = "0";
+    printFrame.style.border = "none";
+    printFrame.src = pdfUrl;
+
+    document.body.appendChild(printFrame);
+
+    printFrame.onload = () => {
+      try {
+        printFrame.contentWindow?.print();
+      } catch (error) {
+        console.error("Error printing:", error);
+        // Fallback: open in new tab for printing
+        window.open(pdfUrl, "_blank");
+      }
+      // Remove iframe after a delay
+      setTimeout(() => {
+        document.body.removeChild(printFrame);
+      }, 1000);
+    };
+  };
+
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         <Button variant="default" size="sm" data-qr-trigger>
-          <QrCode className="h-4 w-4 mr-2" />
+          <QrCode className="mr-2 h-4 w-4" />
           QR Code
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[800px] h-[80vh] flex flex-col">
+      <DialogContent className="flex h-[80vh] flex-col sm:max-w-200">
         <DialogHeader>
           <DialogTitle>QR Code</DialogTitle>
-          <DialogDescription>
-            Production Order {prodOrderNo}
-          </DialogDescription>
+          <DialogDescription>Production Order {prodOrderNo}</DialogDescription>
         </DialogHeader>
-        
-        <div className="flex-1 w-full bg-muted rounded-md overflow-hidden relative">
+
+        <div className="bg-muted relative w-full flex-1 overflow-hidden rounded-md">
           {isLoading ? (
             <div className="absolute inset-0 flex items-center justify-center">
-              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              <Loader2 className="text-muted-foreground h-8 w-8 animate-spin" />
             </div>
           ) : pdfUrl ? (
-            <iframe 
+            <iframe
               src={`${pdfUrl}#toolbar=0&navpanes=0&scrollbar=0`}
-              className="w-full h-full border-none" 
+              className="h-full w-full border-none"
               title="QR Code PDF"
             />
           ) : (
-            <div className="absolute inset-0 flex items-center justify-center text-muted-foreground">
+            <div className="text-muted-foreground absolute inset-0 flex items-center justify-center">
               Failed to load PDF
             </div>
           )}
         </div>
 
-        <DialogFooter>
+        <DialogFooter className="gap-2 sm:gap-0">
+          <Button
+            variant="outline"
+            onClick={handlePrint}
+            disabled={!pdfUrl || isLoading}
+          >
+            <Printer className="mr-2 h-4 w-4" />
+            Print
+          </Button>
           <Button onClick={handleDownload} disabled={!pdfUrl || isLoading}>
-            <Download className="h-4 w-4 mr-2" />
+            <Download className="mr-2 h-4 w-4" />
             Download PDF
           </Button>
         </DialogFooter>

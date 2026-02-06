@@ -16,7 +16,10 @@ import { cn } from "@/lib/utils";
 interface ProductionOrderComponentsTableProps {
   components: ProductionOrderComponent[];
   isLoading: boolean;
-  onRowClick?: (component: ProductionOrderComponent, hasTracking: boolean) => void;
+  onRowClick?: (
+    component: ProductionOrderComponent,
+    hasTracking: boolean,
+  ) => void;
 }
 
 export function ProductionOrderComponentsTable({
@@ -30,8 +33,8 @@ export function ProductionOrderComponentsTable({
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-8">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-        <span className="ml-2 text-sm text-muted-foreground">
+        <Loader2 className="text-muted-foreground h-6 w-6 animate-spin" />
+        <span className="text-muted-foreground ml-2 text-sm">
           Loading components...
         </span>
       </div>
@@ -40,7 +43,7 @@ export function ProductionOrderComponentsTable({
 
   if (components.length === 0) {
     return (
-      <div className="flex items-center justify-center py-8 text-muted-foreground">
+      <div className="text-muted-foreground flex items-center justify-center py-8">
         No components found for this order.
       </div>
     );
@@ -67,7 +70,9 @@ export function ProductionOrderComponentsTable({
         <TableBody>
           {components.map((component) => {
             // Check if this item has a tracking code
-            const itemKey = component.Item_No ? component.Item_No.trim().toLowerCase() : "";
+            const itemKey = component.Item_No
+              ? component.Item_No.trim().toLowerCase()
+              : "";
             const hasTracking = trackingMap[itemKey] || false;
 
             return (
@@ -75,16 +80,12 @@ export function ProductionOrderComponentsTable({
                 key={`${component.Prod_Order_No}-${component.Prod_Order_Line_No}-${component.Line_No}`}
                 className={cn(
                   hasTracking && "text-red-600",
-                  "cursor-pointer hover:bg-muted/50"
+                  "hover:bg-muted/50 cursor-pointer",
                 )}
                 onClick={() => onRowClick?.(component, hasTracking)}
               >
-                <TableCell>
-                  {component.Line_No}
-                </TableCell>
-                <TableCell>
-                  {component.Prod_Order_Line_No}
-                </TableCell>
+                <TableCell>{component.Line_No}</TableCell>
+                <TableCell>{component.Prod_Order_Line_No}</TableCell>
                 <TableCell className="font-medium">
                   {component.Item_No || "-"}
                 </TableCell>
@@ -101,9 +102,9 @@ export function ProductionOrderComponentsTable({
                 </TableCell>
                 <TableCell className="text-center">
                   {component.Substitution_Available ? (
-                    <Check className="h-4 w-4 text-green-600 mx-auto" />
+                    <Check className="mx-auto h-4 w-4 text-green-600" />
                   ) : (
-                    <X className="h-4 w-4 text-muted-foreground mx-auto" />
+                    <X className="text-muted-foreground mx-auto h-4 w-4" />
                   )}
                 </TableCell>
               </TableRow>

@@ -50,23 +50,25 @@ export function TableFilterBar({
   }, [localSearch, searchQuery, onSearch]);
 
   // Count active column filters
-  const activeFilterCount = Object.entries(columnFilters).filter(([key, filter]) => {
-    // Skip checking for Status=Released vs default
-    return filter.value || filter.valueTo;
-  }).length;
+  const activeFilterCount = Object.entries(columnFilters).filter(
+    ([key, filter]) => {
+      // Skip checking for Status=Released vs default
+      return filter.value || filter.valueTo;
+    },
+  ).length;
 
   const hasActiveFilters = searchQuery || activeFilterCount > 0;
 
   return (
     <div className="flex flex-wrap items-center gap-3 pb-3">
       {/* Search Input */}
-      <div className="relative flex-1 min-w-[200px] max-w-sm">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+      <div className="relative max-w-sm min-w-[200px] flex-1">
+        <Search className="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
         <Input
           placeholder="Search by No, Description..."
           value={localSearch}
           onChange={(e) => setLocalSearch(e.target.value)}
-          className="pl-10 pr-10"
+          className="pr-10 pl-10"
         />
         {localSearch && (
           <button
@@ -74,7 +76,7 @@ export function TableFilterBar({
               setLocalSearch("");
               onSearch("");
             }}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+            className="text-muted-foreground hover:text-foreground absolute top-1/2 right-3 -translate-y-1/2"
           >
             <X className="h-4 w-4" />
           </button>
@@ -85,7 +87,12 @@ export function TableFilterBar({
 
       {/* Clear Filters */}
       {hasActiveFilters && (
-        <Button variant="ghost" size="sm" onClick={onClearFilters} className="gap-1">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onClearFilters}
+          className="gap-1"
+        >
           <X className="h-4 w-4" />
           Reset Filters
         </Button>

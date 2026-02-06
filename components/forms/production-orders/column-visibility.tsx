@@ -10,7 +10,11 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Separator } from "@/components/ui/separator";
-import { DEFAULT_COLUMNS, OPTIONAL_COLUMNS, type ColumnConfig } from "./column-config";
+import {
+  DEFAULT_COLUMNS,
+  OPTIONAL_COLUMNS,
+  type ColumnConfig,
+} from "./column-config";
 
 interface ColumnVisibilityProps {
   visibleColumns: string[];
@@ -26,7 +30,7 @@ export function ColumnVisibility({
   onShowAllColumns,
 }: ColumnVisibilityProps) {
   const [open, setOpen] = useState(false);
-  
+
   // Count visible columns
   const visibleCount = visibleColumns.length;
   const totalCount = DEFAULT_COLUMNS.length + OPTIONAL_COLUMNS.length;
@@ -40,7 +44,7 @@ export function ColumnVisibility({
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-56 p-0" align="end">
-        <div className="p-3 border-b">
+        <div className="border-b p-3">
           <div className="flex items-center justify-between">
             <span className="text-sm font-medium">Toggle Columns</span>
             <div className="flex gap-1">
@@ -58,17 +62,19 @@ export function ColumnVisibility({
                 className="h-7 px-2 text-xs"
                 onClick={onResetColumns}
               >
-                <RotateCcw className="h-3 w-3 mr-1" />
+                <RotateCcw className="mr-1 h-3 w-3" />
                 Reset
               </Button>
             </div>
           </div>
         </div>
-        
-        <div className="p-2 max-h-80 overflow-y-auto">
+
+        <div className="max-h-80 overflow-y-auto p-2">
           {/* Default columns */}
           <div className="mb-2">
-            <span className="text-xs text-muted-foreground px-2">Default Columns</span>
+            <span className="text-muted-foreground px-2 text-xs">
+              Default Columns
+            </span>
             {DEFAULT_COLUMNS.map((column) => (
               <ColumnToggleItem
                 key={column.id}
@@ -83,7 +89,9 @@ export function ColumnVisibility({
 
           {/* Optional columns */}
           <div>
-            <span className="text-xs text-muted-foreground px-2">Additional Columns</span>
+            <span className="text-muted-foreground px-2 text-xs">
+              Additional Columns
+            </span>
             {OPTIONAL_COLUMNS.map((column) => (
               <ColumnToggleItem
                 key={column.id}
@@ -114,8 +122,8 @@ function ColumnToggleItem({
 }: ColumnToggleItemProps) {
   return (
     <div
-      className={`flex items-center gap-2 px-2 py-1.5 rounded-sm hover:bg-accent cursor-pointer ${
-        isDisabled ? "opacity-60 cursor-not-allowed" : ""
+      className={`hover:bg-accent flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 ${
+        isDisabled ? "cursor-not-allowed opacity-60" : ""
       }`}
       onClick={() => !isDisabled && onToggle()}
     >

@@ -86,22 +86,24 @@ function ProductionOrdersContent() {
   };
 
   return (
-    <div className={cn(
-      "flex w-full",
-      "h-[calc(100vh-5rem)] max-h-[calc(100vh-5rem)]",
-    )}>
+    <div
+      className={cn(
+        "flex w-full",
+        "h-[calc(100vh-5rem)] max-h-[calc(100vh-5rem)]",
+      )}
+    >
       {/* Main Content Area */}
-      <div className="flex-1 min-w-0 flex flex-col p-4 overflow-hidden">
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden p-4">
         {/* Header - fixed at top */}
-        <div className="flex-shrink-0 flex items-center justify-between pb-3">
+        <div className="flex flex-shrink-0 items-center justify-between pb-3">
           <div>
             <h1 className="text-lg font-bold">Released Production Orders</h1>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-muted-foreground text-sm">
               View and manage released production orders
             </p>
           </div>
           <Button onClick={handleCreateOrder} size="sm">
-            <Plus className="h-4 w-4 mr-2" />
+            <Plus className="mr-2 h-4 w-4" />
             Add Order
           </Button>
         </div>
@@ -133,7 +135,7 @@ function ProductionOrdersContent() {
         </div>
 
         {/* Table container - takes remaining space with internal scrolling */}
-        <div className="flex-1 min-h-0">
+        <div className="min-h-0 flex-1">
           <ProductionOrdersTable
             orders={orders}
             isLoading={isLoading}
@@ -173,8 +175,6 @@ function ProductionOrdersContent() {
   );
 }
 
-
-
 export function ProductionOrdersForm() {
   return (
     <FormStackProvider formScope="production-orders">
@@ -182,4 +182,3 @@ export function ProductionOrdersForm() {
     </FormStackProvider>
   );
 }
-

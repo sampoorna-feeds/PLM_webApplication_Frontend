@@ -3,8 +3,8 @@
  * Handles creating sales orders and adding line items
  */
 
-import { apiPost } from '../client';
-import type { ApiError } from '../client';
+import { apiPost } from "../client";
+import type { ApiError } from "../client";
 
 export interface SalesOrderData {
   customerNo: string;
@@ -23,7 +23,7 @@ export interface SalesOrderData {
 }
 
 export interface SalesOrderLineItem {
-  type: 'G/L Account' | 'Item';
+  type: "G/L Account" | "Item";
   no: string;
   description: string;
   uom?: string;
@@ -46,24 +46,25 @@ export interface CreateSalesOrderResponse {
   // Add other response fields as needed
 }
 
-const COMPANY = process.env.NEXT_PUBLIC_API_COMPANY || 'Sampoorna Feeds Pvt. Ltd';
+const COMPANY =
+  process.env.NEXT_PUBLIC_API_COMPANY || "Sampoorna Feeds Pvt. Ltd";
 
 /**
  * Create a new sales order
  * Returns the order ID and order number
  */
 export async function createSalesOrder(
-  orderData: SalesOrderData
+  orderData: SalesOrderData,
 ): Promise<CreateSalesOrderResponse> {
   // TODO: Replace with actual API endpoint once confirmed
   // The endpoint might be something like:
   // POST /SalesOrderHeader
   // or
   // POST /SalesOrder
-  
+
   // For now, this is a placeholder
   // The actual implementation will depend on the ERP API structure
-  
+
   try {
     // Example structure (needs to be updated based on actual API):
     const payload = {
@@ -73,14 +74,14 @@ export async function createSalesOrder(
 
     // Placeholder endpoint - needs to be updated
     const endpoint = `/SalesOrderHeader`; // or whatever the actual endpoint is
-    
+
     const response = await apiPost<CreateSalesOrderResponse>(endpoint, payload);
-    
+
     // The response structure will depend on the actual API
     // For now, assuming it returns { orderId, orderNo }
-    return response || { orderId: '', orderNo: '' };
+    return response || { orderId: "", orderNo: "" };
   } catch (error) {
-    console.error('Error creating sales order:', error);
+    console.error("Error creating sales order:", error);
     throw error as ApiError;
   }
 }
@@ -90,7 +91,7 @@ export async function createSalesOrder(
  */
 export async function addSalesOrderLineItems(
   orderId: string,
-  lineItems: SalesOrderLineItem[]
+  lineItems: SalesOrderLineItem[],
 ): Promise<void> {
   if (!orderId || lineItems.length === 0) {
     return;
@@ -101,7 +102,7 @@ export async function addSalesOrderLineItems(
   // POST /SalesOrderHeader('...')/SalesOrderLines
   // or
   // POST /SalesOrderLine with orderId in payload
-  
+
   try {
     // Add line items one by one or in batch, depending on API support
     for (const lineItem of lineItems) {
@@ -122,11 +123,11 @@ export async function addSalesOrderLineItems(
 
       // Placeholder endpoint - needs to be updated
       const endpoint = `/SalesOrderLine`; // or whatever the actual endpoint is
-      
+
       await apiPost(endpoint, payload);
     }
   } catch (error) {
-    console.error('Error adding sales order line items:', error);
+    console.error("Error adding sales order line items:", error);
     throw error as ApiError;
   }
 }

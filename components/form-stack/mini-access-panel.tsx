@@ -131,23 +131,23 @@ export function MiniAccessPanel({
         <>
           {/* Overlay */}
           <div
-            className="fixed inset-0 bg-black/10 backdrop-blur-xs z-60 animate-in fade-in-0"
+            className="animate-in fade-in-0 fixed inset-0 z-60 bg-black/10 backdrop-blur-xs"
             onClick={() => setIsOpen(false)}
           />
 
           {/* Modal */}
           <div
             className={cn(
-              "fixed z-70 w-96 max-w-[calc(100vw-40vw-16px)] bg-background border shadow-xl rounded-lg",
-              "top-20 left-1/2 -translate-x-1/2 max-h-[80vh] flex flex-col animate-in slide-in-from-top-2 duration-200",
+              "bg-background fixed z-70 w-96 max-w-[calc(100vw-40vw-16px)] rounded-lg border shadow-xl",
+              "animate-in slide-in-from-top-2 top-20 left-1/2 flex max-h-[80vh] -translate-x-1/2 flex-col duration-200",
               hasTabs ? "" : "max-w-md",
             )}
           >
             {/* Header */}
-            <div className="px-4 py-3 border-b flex items-center justify-between">
+            <div className="flex items-center justify-between border-b px-4 py-3">
               <div>
                 <h3 className="text-base font-semibold">Open Tabs</h3>
-                <p className="text-xs text-muted-foreground mt-0.5">
+                <p className="text-muted-foreground mt-0.5 text-xs">
                   {tabs.length} tab{tabs.length !== 1 ? "s" : ""} open
                 </p>
               </div>
@@ -162,20 +162,20 @@ export function MiniAccessPanel({
             </div>
 
             {/* Search */}
-            <div className="px-4 py-3 border-b">
+            <div className="border-b px-4 py-3">
               <div className="relative">
-                <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Search className="text-muted-foreground absolute top-1/2 left-2 h-4 w-4 -translate-y-1/2" />
                 <Input
                   placeholder="Search tabs..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-8 pr-8"
+                  className="pr-8 pl-8"
                 />
                 {searchQuery && (
                   <Button
                     variant="ghost"
                     size="icon-sm"
-                    className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6"
+                    className="absolute top-1/2 right-1 h-6 w-6 -translate-y-1/2"
                     onClick={() => setSearchQuery("")}
                   >
                     <X className="h-3 w-3" />
@@ -185,18 +185,18 @@ export function MiniAccessPanel({
             </div>
 
             {/* Tab List */}
-            <div className="flex-1 overflow-y-auto px-4 py-4 min-h-50">
+            <div className="min-h-50 flex-1 overflow-y-auto px-4 py-4">
               {filteredTabs.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-full text-center px-4 py-12">
+                <div className="flex h-full flex-col items-center justify-center px-4 py-12 text-center">
                   {/* Icon */}
-                  <div className="w-20 h-20 rounded-full bg-muted/50 flex items-center justify-center mb-4">
-                    <Shield className="w-10 h-10 text-muted-foreground/40" />
+                  <div className="bg-muted/50 mb-4 flex h-20 w-20 items-center justify-center rounded-full">
+                    <Shield className="text-muted-foreground/40 h-10 w-10" />
                   </div>
-                  <div className="text-base font-semibold text-foreground mb-1">
+                  <div className="text-foreground mb-1 text-base font-semibold">
                     {searchQuery ? "No tabs found" : "No tabs open"}
                   </div>
                   {!searchQuery && (
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-muted-foreground text-sm">
                       Click on items to open them
                     </p>
                   )}
@@ -211,7 +211,7 @@ export function MiniAccessPanel({
                       <div
                         key={tab.id}
                         className={cn(
-                          "group flex items-center gap-3 px-3 py-2.5 rounded-md cursor-pointer transition-colors border",
+                          "group flex cursor-pointer items-center gap-3 rounded-md border px-3 py-2.5 transition-colors",
                           isActive
                             ? "bg-primary/5 border-primary/30"
                             : "hover:bg-muted/50 border-transparent",
@@ -222,21 +222,21 @@ export function MiniAccessPanel({
                           setPanelOpen(false); // Close panel when switching
                         }}
                       >
-                        <div className="flex-1 min-w-0">
-                          <div className="text-sm font-medium truncate flex items-center gap-1.5">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5 truncate text-sm font-medium">
                             {tab.title}
                             {isUnsaved && (
-                              <span className="text-orange-500 text-xs">*</span>
+                              <span className="text-xs text-orange-500">*</span>
                             )}
                           </div>
-                          <div className="text-xs text-muted-foreground truncate mt-0.5">
+                          <div className="text-muted-foreground mt-0.5 truncate text-xs">
                             {tab.formType}
                           </div>
                         </div>
                         <Button
                           variant="ghost"
                           size="icon-sm"
-                          className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+                          className="h-6 w-6 shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
                           onClick={(e) => {
                             e.stopPropagation();
                             handleCloseTab(tab.id);
@@ -254,14 +254,14 @@ export function MiniAccessPanel({
 
             {/* Footer */}
             {hasTabs && (
-              <div className="px-4 py-3 border-t bg-muted/30">
+              <div className="bg-muted/30 border-t px-4 py-3">
                 <Button
                   variant="destructive"
                   size="sm"
                   className="w-full"
                   onClick={() => setShowCloseAllDialog(true)}
                 >
-                  <Trash2 className="h-4 w-4 mr-2" />
+                  <Trash2 className="mr-2 h-4 w-4" />
                   Close All Tabs
                 </Button>
               </div>

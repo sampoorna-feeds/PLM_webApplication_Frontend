@@ -3,10 +3,11 @@
  * Handles voucher creation, TDS/TCS section fetching, and attachment uploads
  */
 
-import { apiGet, apiPost, apiDelete, apiPatch } from '../client';
-import type { ODataResponse } from '../types';
+import { apiGet, apiPost, apiDelete, apiPatch } from "../client";
+import type { ODataResponse } from "../types";
 
-const COMPANY = process.env.NEXT_PUBLIC_API_COMPANY || 'Sampoorna Feeds Pvt. Ltd';
+const COMPANY =
+  process.env.NEXT_PUBLIC_API_COMPANY || "Sampoorna Feeds Pvt. Ltd";
 
 /**
  * TDS Section type
@@ -77,14 +78,14 @@ export interface UploadAttachmentPayload {
  */
 function getVoucherEndpoint(voucherType: string): string {
   switch (voucherType) {
-    case 'General Journal':
-      return '/GJ';
-    case 'Cash Receipt':
-      return '/CR';
-    case 'Cash Payment':
-      return '/CP';
+    case "General Journal":
+      return "/GJ";
+    case "Cash Receipt":
+      return "/CR";
+    case "Cash Payment":
+      return "/CP";
     default:
-      return '/GJ'; // Default to GJ for now (all use same endpoint)
+      return "/GJ"; // Default to GJ for now (all use same endpoint)
   }
 }
 
@@ -95,14 +96,14 @@ function getVoucherEndpoint(voucherType: string): string {
  */
 function getVoucherTypeFromTemplate(journalTemplateName: string): string {
   const template = journalTemplateName.toUpperCase();
-  if (template === 'GENERAL') {
-    return 'General Journal';
-  } else if (template === 'CASH RECE' || template === 'CASH RECEIPT') {
-    return 'Cash Receipt';
-  } else if (template === 'CASH PAYM' || template === 'CASH PAYMENT') {
-    return 'Cash Payment';
+  if (template === "GENERAL") {
+    return "General Journal";
+  } else if (template === "CASH RECE" || template === "CASH RECEIPT") {
+    return "Cash Receipt";
+  } else if (template === "CASH PAYM" || template === "CASH PAYMENT") {
+    return "Cash Payment";
   }
-  return 'General Journal'; // Default
+  return "General Journal"; // Default
 }
 
 /**
@@ -112,7 +113,7 @@ function getVoucherTypeFromTemplate(journalTemplateName: string): string {
  */
 function getUploadEndpoint(voucherType: string): string {
   // For now, all use the same endpoint (easy to change later)
-  return '/API_InitiateUploadFileGJ';
+  return "/API_InitiateUploadFileGJ";
 }
 
 /**
@@ -172,10 +173,12 @@ export interface VoucherEntryResponse {
  * @param voucherType - Voucher type (General Journal, Cash Receipt, Cash Payment)
  * @returns Document number string
  */
-export async function createNoSeriesForVouchers(voucherType: string): Promise<string> {
+export async function createNoSeriesForVouchers(
+  voucherType: string,
+): Promise<string> {
   // Hardcoded series code for now
-  const seriesCode = 'GJTEST';
-  
+  const seriesCode = "GJTEST";
+
   const endpoint = `/API_CreateNoSeriesForVouchers?company='${encodeURIComponent(COMPANY)}'`;
   const response = await apiPost<{ value: string }>(endpoint, { seriesCode });
   return response.value;
@@ -186,29 +189,32 @@ export async function createNoSeriesForVouchers(voucherType: string): Promise<st
  * @param voucherType - Voucher type (General Journal, Cash Receipt, Cash Payment)
  * @returns Array of voucher entries
  */
-export async function getVoucherEntries(voucherType: string, userID: string): Promise<VoucherEntryResponse[]> {
+export async function getVoucherEntries(
+  voucherType: string,
+  userID: string,
+): Promise<VoucherEntryResponse[]> {
   const endpointPath = getVoucherEndpoint(voucherType);
-  
+
   // Map voucher type to template name for filter
   let templateName: string;
   switch (voucherType) {
-    case 'General Journal':
-      templateName = 'GENERAL';
+    case "General Journal":
+      templateName = "GENERAL";
       break;
-    case 'Cash Receipt':
-      templateName = 'CASH RECE';
+    case "Cash Receipt":
+      templateName = "CASH RECE";
       break;
-    case 'Cash Payment':
-      templateName = 'CASH PAYM';
+    case "Cash Payment":
+      templateName = "CASH PAYM";
       break;
     default:
-      templateName = 'GENERAL';
+      templateName = "GENERAL";
   }
-  
+
   // Build filter with actual userID
   const filter = `Journal_Template_Name eq '${templateName}' and Journal_Batch_Name eq 'DEFAULT' and User_ID eq '${userID}'`;
   const endpoint = `${endpointPath}?company='${encodeURIComponent(COMPANY)}'&$top=10&$Filter=${encodeURIComponent(filter)}`;
-  
+
   const response = await apiGet<ODataResponse<VoucherEntryResponse>>(endpoint);
   return response.value;
 }
@@ -220,7 +226,7 @@ export async function getVoucherEntries(voucherType: string, userID: string): Pr
  */
 export async function createVoucher(
   payload: CreateVoucherPayload,
-  voucherType: string
+  voucherType: string,
 ): Promise<CreateVoucherResponse> {
   const endpointPath = getVoucherEndpoint(voucherType);
   const endpoint = `${endpointPath}?company='${encodeURIComponent(COMPANY)}'`;
@@ -235,15 +241,15 @@ export async function createVoucher(
  */
 export async function uploadAttachment(
   payload: UploadAttachmentPayload,
-  voucherType: string
+  voucherType: string,
 ): Promise<{ success: boolean; message?: string }> {
   const endpointPath = getUploadEndpoint(voucherType);
   const endpoint = `${endpointPath}?company='${encodeURIComponent(COMPANY)}'`;
-  
+
   try {
     await apiPost<unknown>(endpoint, payload);
     // If response is successful (including 204), return success
-    return { success: true, message: 'File uploaded' };
+    return { success: true, message: "File uploaded" };
   } catch (error) {
     // Re-throw the error to be handled by caller
     throw error;
@@ -254,7 +260,7 @@ export async function uploadAttachment(
  * Post vouchers
  * @param userID - User ID (default: 'temp')
  */
-export async function postVouchers(userID: string = 'temp'): Promise<unknown> {
+export async function postVouchers(userID: string = "temp"): Promise<unknown> {
   const endpoint = `/API_PostVouchers?company='${encodeURIComponent(COMPANY)}'`;
   const response = await apiPost<unknown>(endpoint, { userID });
   return response;
@@ -269,14 +275,14 @@ export async function postVouchers(userID: string = 'temp'): Promise<unknown> {
 export async function deleteVoucher(
   journalTemplateName: string,
   journalBatchName: string,
-  lineNo: number
+  lineNo: number,
 ): Promise<void> {
   // Determine voucher type from template name
   const voucherType = getVoucherTypeFromTemplate(journalTemplateName);
   const endpointPath = getVoucherEndpoint(voucherType);
   // Format: /CR(Journal_Template_Name='GENERAL', Journal_Batch_Name='DEFAULT', Line_No=20000)
   const endpoint = `${endpointPath}(Journal_Template_Name='${encodeURIComponent(journalTemplateName)}', Journal_Batch_Name='${encodeURIComponent(journalBatchName)}', Line_No=${lineNo})?company='${encodeURIComponent(COMPANY)}'`;
-  
+
   // Use apiDelete from client
   await apiDelete<void>(endpoint);
 }
@@ -292,7 +298,7 @@ export async function updateVoucher(
   journalTemplateName: string,
   journalBatchName: string,
   lineNo: number,
-  updateData: Partial<VoucherEntryResponse>
+  updateData: Partial<VoucherEntryResponse>,
 ): Promise<void> {
   // Determine voucher type from template name
   const voucherType = getVoucherTypeFromTemplate(journalTemplateName);
@@ -303,7 +309,7 @@ export async function updateVoucher(
   const encodedTemplate = encodeURIComponent(journalTemplateName);
   const encodedBatch = encodeURIComponent(journalBatchName);
   const endpoint = `/Company('${encodedCompany}')${endpointPath}(Journal_Template_Name='${encodedTemplate}',Journal_Batch_Name='${encodedBatch}',Line_No=${lineNo})`;
-  
+
   // Use apiPatch from client
   await apiPatch<void>(endpoint, updateData);
 }
@@ -324,14 +330,16 @@ export interface DefaultDimension {
  * Get default dimensions for an account number
  * @param accountNo - Account number or Balance Account number
  */
-export async function getDefaultDimensions(accountNo: string): Promise<DefaultDimension[]> {
+export async function getDefaultDimensions(
+  accountNo: string,
+): Promise<DefaultDimension[]> {
   if (!accountNo) return [];
-  
-  const tableIds = ['15', '18', '23']; // Hardcoded Table_IDs
-  const filter = `Table_ID in(${tableIds.map(id => `'${id}'`).join(',')}) and No eq '${accountNo}'`;
+
+  const tableIds = ["15", "18", "23"]; // Hardcoded Table_IDs
+  const filter = `Table_ID in(${tableIds.map((id) => `'${id}'`).join(",")}) and No eq '${accountNo}'`;
   const query = `$filter=${encodeURIComponent(filter)}`;
   const endpoint = `/DefaultDimensions?company='${encodeURIComponent(COMPANY)}'&${query}`;
-  
+
   const response = await apiGet<ODataResponse<DefaultDimension>>(endpoint);
   return response.value || [];
 }
@@ -341,20 +349,23 @@ export async function getDefaultDimensions(accountNo: string): Promise<DefaultDi
  * @param documentNo - Document number
  * @param tableID - Table ID (hardcoded to "81")
  */
-export async function getTaxComponentsInJson(documentNo: string, tableID: string = '81'): Promise<unknown[]> {
+export async function getTaxComponentsInJson(
+  documentNo: string,
+  tableID: string = "81",
+): Promise<unknown[]> {
   const endpoint = `/API_GetTaxComponentsInJson?company='${encodeURIComponent(COMPANY)}'`;
   const payload = {
     tableID,
     documentNo,
   };
-  
+
   const response = await apiPost<{ value?: string }>(endpoint, payload);
-  
+
   // Response contains base64 encoded JSON
   if (!response.value) {
     return [];
   }
-  
+
   try {
     // Decode base64 to string
     const decodedString = atob(response.value);
@@ -363,9 +374,7 @@ export async function getTaxComponentsInJson(documentNo: string, tableID: string
     // Return as array (assuming it's an array or can be converted to one)
     return Array.isArray(taxData) ? taxData : [taxData];
   } catch (error) {
-    console.error('Error decoding tax components:', error);
+    console.error("Error decoding tax components:", error);
     return [];
   }
 }
-
-

@@ -7,7 +7,16 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
-import { Loader2, Pencil, List, RefreshCw, Factory, MoreVertical, FileText, QrCode } from "lucide-react";
+import {
+  Loader2,
+  Pencil,
+  List,
+  RefreshCw,
+  Factory,
+  MoreVertical,
+  FileText,
+  QrCode,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { FieldTitle } from "@/components/ui/field";
@@ -56,6 +65,7 @@ import {
   getProductionOrderComponents,
   createProductionOrder,
   refreshProductionOrder,
+  refreshProductionOrderJournal,
   changeProductionOrderStatus,
   type ProductionOrder,
   type ProductionOrderLine,
@@ -119,7 +129,7 @@ export function ProductionOrderForm({
     Shortcut_Dimension_3_Code: "", // LOC Code
     Source_Type: "" as SourceType,
     Source_No: "",
-    Quantity: 0,
+    Quantity: "" as string | number, // Allow string for user input, parse on submit
     Due_Date: "",
     Location_Code: "",
     Hatching_Date: "",
@@ -623,50 +633,62 @@ export function ProductionOrderForm({
     [updateTab],
   );
 
-  const handleLOBChange = useCallback((value: string) => {
-    setFormState((prev) => ({
-      ...prev,
-      Shortcut_Dimension_1_Code: value,
-      Shortcut_Dimension_2_Code: "",
-      Shortcut_Dimension_3_Code: "",
-      Location_Code: "",
-    }));
-    updateTab({ isSaved: false });
-  }, [updateTab]);
+  const handleLOBChange = useCallback(
+    (value: string) => {
+      setFormState((prev) => ({
+        ...prev,
+        Shortcut_Dimension_1_Code: value,
+        Shortcut_Dimension_2_Code: "",
+        Shortcut_Dimension_3_Code: "",
+        Location_Code: "",
+      }));
+      updateTab({ isSaved: false });
+    },
+    [updateTab],
+  );
 
-  const handleBranchChange = useCallback((value: string) => {
-    setFormState((prev) => ({
-      ...prev,
-      Shortcut_Dimension_2_Code: value,
-      Shortcut_Dimension_3_Code: "",
-      Location_Code: "",
-    }));
-    updateTab({ isSaved: false });
-  }, [updateTab]);
+  const handleBranchChange = useCallback(
+    (value: string) => {
+      setFormState((prev) => ({
+        ...prev,
+        Shortcut_Dimension_2_Code: value,
+        Shortcut_Dimension_3_Code: "",
+        Location_Code: "",
+      }));
+      updateTab({ isSaved: false });
+    },
+    [updateTab],
+  );
 
-  const handleLOCChange = useCallback((value: string) => {
-    setFormState((prev) => ({
-      ...prev,
-      Shortcut_Dimension_3_Code: value,
-      Location_Code: value, // Prefill Location Code
-    }));
-    updateTab({ isSaved: false });
-  }, [updateTab]);
+  const handleLOCChange = useCallback(
+    (value: string) => {
+      setFormState((prev) => ({
+        ...prev,
+        Shortcut_Dimension_3_Code: value,
+        Location_Code: value, // Prefill Location Code
+      }));
+      updateTab({ isSaved: false });
+    },
+    [updateTab],
+  );
 
-  const handleSourceTypeChange = useCallback((value: SourceType) => {
-    setFormState((prev) => ({
-      ...prev,
-      Source_Type: value,
-      Source_No: "",
-      Prod_Bom_No: "",
-      BOM_Version_No: "",
-      isProdBomFromItem: false,
-    }));
-    // Keep search query persistent, don't reset it
-    setSourceOptions([]);
-    setSourcePage(1); // Reset page
-    updateTab({ isSaved: false });
-  }, [updateTab]);
+  const handleSourceTypeChange = useCallback(
+    (value: SourceType) => {
+      setFormState((prev) => ({
+        ...prev,
+        Source_Type: value,
+        Source_No: "",
+        Prod_Bom_No: "",
+        BOM_Version_No: "",
+        isProdBomFromItem: false,
+      }));
+      // Keep search query persistent, don't reset it
+      setSourceOptions([]);
+      setSourcePage(1); // Reset page
+      updateTab({ isSaved: false });
+    },
+    [updateTab],
+  );
 
   // Handle source search
   const handleSourceSearch = useCallback((query: string) => {
@@ -949,6 +971,12 @@ export function ProductionOrderForm({
     setIsSubmitting(true);
     try {
       if (isCreateMode) {
+        // Parse quantity to number for API
+        const quantityValue =
+          typeof formState.Quantity === "string"
+            ? parseFloat(formState.Quantity) || 0
+            : formState.Quantity;
+
         // Create new production order
         const payload = {
           Status: "Released" as const,
@@ -958,7 +986,7 @@ export function ProductionOrderForm({
             | "Family"
             | "Sales Header",
           Source_No: formState.Source_No,
-          Quantity: formState.Quantity,
+          Quantity: quantityValue,
           Due_Date: formState.Due_Date,
           Location_Code: formState.Location_Code,
           Hatching_Date: formState.Hatching_Date || undefined,
@@ -976,6 +1004,15 @@ export function ProductionOrderForm({
 
         const createdOrder = await createProductionOrder(payload);
         console.log("Production Order created:", createdOrder);
+
+        // Refresh journal entries in the backend
+        try {
+          await refreshProductionOrderJournal(createdOrder.No);
+          console.log("Production Order journal entries refreshed");
+        } catch (refreshError) {
+          console.warn("Failed to refresh journal entries:", refreshError);
+          // Don't block the order creation flow if refresh fails
+        }
 
         // Notify parent to add order to list (optimistic update)
         if (
@@ -1045,15 +1082,15 @@ export function ProductionOrderForm({
     showBomFields && !formState.isProdBomFromItem && formState.Prod_Bom_No;
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex h-full flex-col">
       <div className="flex-1 overflow-y-auto px-6 py-6 [overflow-anchor:none]">
         {/* Header with action buttons - Only show for created orders */}
         {!isCreateMode && formState.No && (
-          <div className="flex items-center justify-between mb-6 gap-2">
-            <h2 className="text-lg font-semibold truncate min-w-0">
+          <div className="mb-6 flex items-center justify-between gap-2">
+            <h2 className="min-w-0 truncate text-lg font-semibold">
               {isViewMode ? "View" : "Edit"} Production Order: {formState.No}
             </h2>
-            <div className="flex items-center gap-2 flex-shrink-0">
+            <div className="flex shrink-0 items-center gap-2">
               {/* Buttons visible on larger screens - hidden progressively */}
               {/* Post Order - hidden on xs, visible on sm+ */}
               <div className="hidden sm:block">
@@ -1072,9 +1109,9 @@ export function ProductionOrderForm({
                   disabled={isRefreshing || isManufacturing}
                 >
                   {isRefreshing ? (
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   ) : (
-                    <RefreshCw className="h-4 w-4 mr-2" />
+                    <RefreshCw className="mr-2 h-4 w-4" />
                   )}
                   Refresh
                 </Button>
@@ -1088,9 +1125,9 @@ export function ProductionOrderForm({
                   disabled={isRefreshing || isManufacturing}
                 >
                   {isManufacturing ? (
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   ) : (
-                    <Factory className="h-4 w-4 mr-2" />
+                    <Factory className="mr-2 h-4 w-4" />
                   )}
                   Change Status
                 </Button>
@@ -1109,22 +1146,25 @@ export function ProductionOrderForm({
                     className="sm:hidden"
                     onClick={() => {
                       // Trigger the sheet by programmatically clicking
-                      const trigger = document.querySelector('[data-post-order-trigger]');
+                      const trigger = document.querySelector(
+                        "[data-post-order-trigger]",
+                      );
                       if (trigger instanceof HTMLElement) trigger.click();
                     }}
                   >
-                    <FileText className="h-4 w-4 mr-2" />
+                    <FileText className="mr-2 h-4 w-4" />
                     Post Order
                   </DropdownMenuItem>
                   {/* QR Code - show in dropdown on xs/sm */}
                   <DropdownMenuItem
                     className="md:hidden"
                     onClick={() => {
-                      const trigger = document.querySelector('[data-qr-trigger]');
+                      const trigger =
+                        document.querySelector("[data-qr-trigger]");
                       if (trigger instanceof HTMLElement) trigger.click();
                     }}
                   >
-                    <QrCode className="h-4 w-4 mr-2" />
+                    <QrCode className="mr-2 h-4 w-4" />
                     QR Code
                   </DropdownMenuItem>
                   {/* Refresh - show in dropdown on xs/sm/md */}
@@ -1133,7 +1173,7 @@ export function ProductionOrderForm({
                     onClick={handleRefresh}
                     disabled={isRefreshing || isManufacturing}
                   >
-                    <RefreshCw className="h-4 w-4 mr-2" />
+                    <RefreshCw className="mr-2 h-4 w-4" />
                     Refresh
                   </DropdownMenuItem>
                   {/* Change Status - always in dropdown except xl */}
@@ -1141,7 +1181,7 @@ export function ProductionOrderForm({
                     onClick={handleManufacture}
                     disabled={isRefreshing || isManufacturing}
                   >
-                    <Factory className="h-4 w-4 mr-2" />
+                    <Factory className="mr-2 h-4 w-4" />
                     Change Status
                   </DropdownMenuItem>
                 </DropdownMenuContent>
@@ -1150,7 +1190,7 @@ export function ProductionOrderForm({
           </div>
         )}
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           <div className="space-y-2">
             <FieldTitle required>LOB</FieldTitle>
             {isViewMode ? (
@@ -1269,7 +1309,7 @@ export function ProductionOrderForm({
                   placeholder="Enter description"
                   maxLength={100}
                 />
-                <p className="text-xs text-muted-foreground text-right">
+                <p className="text-muted-foreground text-right text-xs">
                   {formState.Description?.length || 0}/100 characters
                 </p>
               </div>
@@ -1315,7 +1355,7 @@ export function ProductionOrderForm({
                 value={formState.Source_No}
                 onValueChange={handleSourceNoChange}
                 options={sourceSelectOptions}
-                placeholder="Select source"
+                placeholder="Select or enter source"
                 searchPlaceholder={
                   formState.Source_Type === "Item"
                     ? "Search by No or Description..."
@@ -1334,6 +1374,7 @@ export function ProductionOrderForm({
                 onLoadMore={handleLoadMoreSource}
                 hasMore={hasMoreSource}
                 isLoadingMore={isLoadingMoreSource}
+                allowCustomValue
               />
             )}
           </div>
@@ -1347,11 +1388,16 @@ export function ProductionOrderForm({
               />
             ) : (
               <Input
-                type="number"
+                type="text"
+                inputMode="decimal"
                 value={formState.Quantity}
-                onChange={(e) =>
-                  handleChange("Quantity", parseFloat(e.target.value) || 0)
-                }
+                onChange={(e) => {
+                  const val = e.target.value;
+                  // Allow empty, digits and one decimal point
+                  if (val === "" || /^[0-9]*\.?[0-9]*$/.test(val)) {
+                    handleChange("Quantity", val);
+                  }
+                }}
                 placeholder="Enter quantity"
               />
             )}
@@ -1428,7 +1474,7 @@ export function ProductionOrderForm({
                     disabled
                     className="bg-muted"
                   />
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-muted-foreground text-xs">
                     Auto-filled from selected item
                   </p>
                 </div>
@@ -1449,7 +1495,7 @@ export function ProductionOrderForm({
                         placeholder="Select Location Code first"
                         className="bg-muted"
                       />
-                      <p className="text-xs text-muted-foreground mt-1">
+                      <p className="text-muted-foreground mt-1 text-xs">
                         Location Code is required to load location-specific
                         BOMs. Item-only BOMs will be loaded as fallback.
                       </p>
@@ -1462,7 +1508,7 @@ export function ProductionOrderForm({
                         placeholder="No BOM No. available"
                         className="bg-muted"
                       />
-                      <p className="text-xs text-muted-foreground mt-1">
+                      <p className="text-muted-foreground mt-1 text-xs">
                         No BOMs found for this item/location
                       </p>
                     </div>
@@ -1505,7 +1551,7 @@ export function ProductionOrderForm({
                       className="bg-muted"
                     />
                   ) : isLoadingBomVersions ? (
-                    <div className="flex items-center gap-2 h-9 px-3 border rounded-md bg-muted">
+                    <div className="bg-muted flex h-9 items-center gap-2 rounded-md border px-3">
                       <Loader2 className="h-4 w-4 animate-spin" />
                       <span className="text-sm">Loading versions...</span>
                     </div>
@@ -1517,7 +1563,7 @@ export function ProductionOrderForm({
                         placeholder="No versions available"
                         className="bg-muted"
                       />
-                      <p className="text-xs text-muted-foreground mt-1">
+                      <p className="text-muted-foreground mt-1 text-xs">
                         This BOM has no versions defined
                       </p>
                     </div>
@@ -1579,9 +1625,9 @@ export function ProductionOrderForm({
 
           {/* Order Lines - Only for view/edit mode */}
           {!isCreateMode && (
-            <div className="space-y-4 col-span-full">
+            <div className="col-span-full space-y-4">
               <div className="flex items-center justify-between">
-                <h3 className="text-sm font-medium text-muted-foreground">
+                <h3 className="text-muted-foreground text-sm font-medium">
                   Release Production Order Line
                 </h3>
                 <Button
@@ -1591,9 +1637,9 @@ export function ProductionOrderForm({
                   disabled={isLoadingComponents}
                 >
                   {isLoadingComponents ? (
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   ) : (
-                    <List className="h-4 w-4 mr-2" />
+                    <List className="mr-2 h-4 w-4" />
                   )}
                   View Components ({orderComponents.length})
                 </Button>
@@ -1613,8 +1659,7 @@ export function ProductionOrderForm({
           >
             <SheetContent
               side="right"
-              className="w-[40vw]! max-w-none overflow-y-auto p-4"
-              style={{ width: "40vw", maxWidth: "none" }}
+              className="w-full overflow-y-auto p-4 md:w-[70vw] lg:w-[60vw]"
             >
               <SheetHeader>
                 <SheetTitle>Production Order Components</SheetTitle>
@@ -1632,7 +1677,7 @@ export function ProductionOrderForm({
       </div>
 
       {/* Footer */}
-      <div className="px-6 py-4 border-t">
+      <div className="border-t px-6 py-4">
         {isViewMode ? (
           <Button
             onClick={() => {

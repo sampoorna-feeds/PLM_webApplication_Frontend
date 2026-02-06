@@ -1,22 +1,31 @@
-'use client';
+"use client";
 
 /**
  * ShipToSelect component for Sales forms
  * Dropdown for selecting ship-to addresses based on selected customer
  */
 
-import React, { useCallback, useEffect, useState, useRef } from 'react';
-import { Loader2, ChevronDownIcon, CheckIcon, Plus, Pencil } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import React, { useCallback, useEffect, useState, useRef } from "react";
+import {
+  Loader2,
+  ChevronDownIcon,
+  CheckIcon,
+  Plus,
+  Pencil,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from '@/components/ui/popover';
-import { getShipToAddresses, type ShipToAddress } from '@/lib/api/services/shipto.service';
-import { useFormStackContext } from '@/lib/form-stack/form-stack-context';
+} from "@/components/ui/popover";
+import {
+  getShipToAddresses,
+  type ShipToAddress,
+} from "@/lib/api/services/shipto.service";
+import { useFormStackContext } from "@/lib/form-stack/form-stack-context";
 
 interface ShipToSelectProps {
   customerNo: string;
@@ -35,11 +44,11 @@ export function ShipToSelect({
   customerNo,
   value,
   onChange,
-  placeholder = 'Select ship-to address',
+  placeholder = "Select ship-to address",
   disabled = false,
   className,
   hasError = false,
-  errorClass = '',
+  errorClass = "",
   tabId,
   loc,
 }: ShipToSelectProps) {
@@ -47,7 +56,7 @@ export function ShipToSelect({
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const onChangeRef = useRef(onChange);
-  
+
   // Get FormStack context to access openTab
   // Note: This will throw if not in FormStackProvider, but component should only be used
   // within FormStack when tabId is provided. For standalone use, wrap in error boundary.
@@ -76,21 +85,21 @@ export function ShipToSelect({
       try {
         const addresses = await getShipToAddresses(customerNo);
         setItems(addresses);
-        
+
         // Check if current value is still valid for this customer (only if value exists)
         // Use a ref to track if we've already cleared to prevent infinite loops
         if (value && addresses.length > 0) {
           const isValid = addresses.some((item) => item.Code === value);
-          if (!isValid && value !== '') {
+          if (!isValid && value !== "") {
             // Clear invalid selection only if value is not already empty
-            onChangeRef.current('', undefined);
+            onChangeRef.current("", undefined);
           }
-        } else if (value && addresses.length === 0 && value !== '') {
+        } else if (value && addresses.length === 0 && value !== "") {
           // No addresses found but we have a value - clear it only if not already empty
-          onChangeRef.current('', undefined);
+          onChangeRef.current("", undefined);
         }
       } catch (error) {
-        console.error('Error loading ship-to addresses:', error);
+        console.error("Error loading ship-to addresses:", error);
         setItems([]);
       } finally {
         setIsLoading(false);
@@ -107,11 +116,11 @@ export function ShipToSelect({
       return;
     }
     setIsOpen(false);
-    formStackContext.openTab('add-shipto', {
-      title: 'Add Ship-To Address',
-      formData: { 
+    formStackContext.openTab("add-shipto", {
+      title: "Add Ship-To Address",
+      formData: {
         customerNo,
-        locationCode: loc || '', // Pass LOC value to auto-populate location code
+        locationCode: loc || "", // Pass LOC value to auto-populate location code
       },
       context: { openedFromParent: true },
       autoCloseOnSuccess: true,
@@ -126,8 +135,8 @@ export function ShipToSelect({
         return;
       }
       setIsOpen(false);
-      formStackContext.openTab('add-shipto', {
-        title: 'Edit Ship-To Address',
+      formStackContext.openTab("add-shipto", {
+        title: "Edit Ship-To Address",
         formData: {
           customerNo,
           existingShipTo: shipTo,
@@ -137,41 +146,49 @@ export function ShipToSelect({
         autoCloseOnSuccess: true,
       });
     },
-    [formStackContext, customerNo]
+    [formStackContext, customerNo],
   );
 
   // Refresh list when a ship-to form tab closes (if form was opened from here)
   // Use a ref to track previous tab count to detect when a tab closes
   const prevTabCountRef = useRef<number>(0);
-  const tabsRef = useRef<string>('');
-  
+  const tabsRef = useRef<string>("");
+
   useEffect(() => {
     if (!formStackContext || !tabId || !customerNo) return;
 
     // Create a stable string representation of relevant tabs to detect changes
     const shipToTabs = formStackContext.tabs
-      .filter((tab) => tab.formType === 'add-shipto' && tab.context?.openedFromParent === true)
+      .filter(
+        (tab) =>
+          tab.formType === "add-shipto" &&
+          tab.context?.openedFromParent === true,
+      )
       .map((tab) => tab.id)
       .sort()
-      .join(',');
-    
+      .join(",");
+
     const currentTabCount = formStackContext.tabs.filter(
-      (tab) => tab.formType === 'add-shipto' && tab.context?.openedFromParent === true
+      (tab) =>
+        tab.formType === "add-shipto" && tab.context?.openedFromParent === true,
     ).length;
 
     // Only refresh if tabs actually changed (not just on every render)
     if (tabsRef.current !== shipToTabs) {
       tabsRef.current = shipToTabs;
-      
+
       // Only refresh if a tab was closed (count decreased)
-      if (prevTabCountRef.current > 0 && currentTabCount < prevTabCountRef.current) {
+      if (
+        prevTabCountRef.current > 0 &&
+        currentTabCount < prevTabCountRef.current
+      ) {
         // Tab was closed, refresh the list
         getShipToAddresses(customerNo)
           .then((addresses) => {
             setItems(addresses);
           })
           .catch((error) => {
-            console.error('Error refreshing ship-to addresses:', error);
+            console.error("Error refreshing ship-to addresses:", error);
           });
       }
 
@@ -183,7 +200,7 @@ export function ShipToSelect({
   const selectedItem = items.find((item) => item.Code === value);
   const displayValue = selectedItem
     ? `${selectedItem.Code} - ${selectedItem.Name}`
-    : value || '';
+    : value || "";
 
   return (
     <Popover open={isOpen} onOpenChange={setIsOpen}>
@@ -193,23 +210,23 @@ export function ShipToSelect({
           role="combobox"
           disabled={disabled || !customerNo}
           className={cn(
-            'h-9 text-sm w-full justify-between font-normal shadow-sm',
-            !value && 'text-muted-foreground',
+            "h-9 w-full justify-between text-sm font-normal shadow-sm",
+            !value && "text-muted-foreground",
             className,
-            errorClass
+            errorClass,
           )}
           data-field-error={hasError}
         >
           <span className="truncate">
             {!customerNo
-              ? 'Select customer first'
+              ? "Select customer first"
               : displayValue || placeholder}
           </span>
           <ChevronDownIcon className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
       <PopoverContent
-        className="p-0 min-w-[280px] max-w-[500px] w-auto"
+        className="w-auto max-w-[500px] min-w-[280px] p-0"
         align="start"
         onOpenAutoFocus={(e) => {
           // Prevent auto-focus from scrolling
@@ -222,7 +239,7 @@ export function ShipToSelect({
       >
         {/* Header with Add New button */}
         {customerNo && formStackContext && (
-          <div className="p-2 border-b flex items-center justify-between">
+          <div className="flex items-center justify-between border-b p-2">
             <span className="text-sm font-medium">Ship-To Addresses</span>
             <Button
               variant="ghost"
@@ -230,21 +247,21 @@ export function ShipToSelect({
               onClick={handleAddNew}
               className="h-7 px-2 text-xs"
             >
-              <Plus className="h-3 w-3 mr-1" />
+              <Plus className="mr-1 h-3 w-3" />
               Add New
             </Button>
           </div>
         )}
-        <div className="max-h-[300px] overflow-y-auto overflow-x-hidden">
+        <div className="max-h-[300px] overflow-x-hidden overflow-y-auto">
           {isLoading ? (
             <div className="flex items-center justify-center p-4">
               <Loader2 className="h-4 w-4 animate-spin" />
             </div>
           ) : items.length === 0 ? (
-            <div className="p-4 text-center text-sm text-muted-foreground">
+            <div className="text-muted-foreground p-4 text-center text-sm">
               {!customerNo
-                ? 'Select a customer first'
-                : 'No ship-to addresses found'}
+                ? "Select a customer first"
+                : "No ship-to addresses found"}
             </div>
           ) : (
             <>
@@ -252,12 +269,12 @@ export function ShipToSelect({
                 <div
                   key={item.Code}
                   className={cn(
-                    'group relative flex cursor-default select-none items-start rounded-sm px-2 py-2 text-sm outline-none hover:bg-muted/50',
-                    value === item.Code && 'bg-muted'
+                    "group hover:bg-muted/50 relative flex cursor-default items-start rounded-sm px-2 py-2 text-sm outline-none select-none",
+                    value === item.Code && "bg-muted",
                   )}
                 >
                   <div
-                    className="flex-1 flex items-start"
+                    className="flex flex-1 items-start"
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
@@ -267,16 +284,16 @@ export function ShipToSelect({
                   >
                     <CheckIcon
                       className={cn(
-                        'mr-2 h-4 w-4 mt-0.5 shrink-0',
-                        value === item.Code ? 'opacity-100' : 'opacity-0'
+                        "mt-0.5 mr-2 h-4 w-4 shrink-0",
+                        value === item.Code ? "opacity-100" : "opacity-0",
                       )}
                     />
-                    <div className="flex-1 min-w-0">
-                      <div className="font-medium text-foreground">
+                    <div className="min-w-0 flex-1">
+                      <div className="text-foreground font-medium">
                         {item.Code} - {item.Name}
                       </div>
                       {item.Location_Code && (
-                        <div className="text-muted-foreground text-xs mt-0.5">
+                        <div className="text-muted-foreground mt-0.5 text-xs">
                           Location: {item.Location_Code}
                         </div>
                       )}
@@ -286,7 +303,7 @@ export function ShipToSelect({
                     <Button
                       variant="ghost"
                       size="icon-sm"
-                      className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                      className="h-6 w-6 opacity-0 transition-opacity group-hover:opacity-100"
                       onClick={(e) => handleEdit(item, e)}
                       title="Edit ship-to address"
                     >

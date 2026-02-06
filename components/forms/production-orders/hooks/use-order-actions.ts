@@ -42,7 +42,9 @@ interface UseOrderActionsParams {
   formState: OrderFormState;
   setFormState: React.Dispatch<React.SetStateAction<OrderFormState>>;
   setOrderLines: React.Dispatch<React.SetStateAction<ProductionOrderLine[]>>;
-  setOrderComponents: React.Dispatch<React.SetStateAction<ProductionOrderComponent[]>>;
+  setOrderComponents: React.Dispatch<
+    React.SetStateAction<ProductionOrderComponent[]>
+  >;
 }
 
 interface UseOrderActionsReturn {
@@ -102,7 +104,7 @@ export function useOrderActions({
         if (line.Line_No) {
           const lineComponents = await getProductionOrderComponents(
             formState.No,
-            line.Line_No
+            line.Line_No,
           );
           allComponents.push(...lineComponents);
         }
@@ -113,7 +115,7 @@ export function useOrderActions({
       toast.error(
         error instanceof Error
           ? error.message
-          : "Failed to refresh production order"
+          : "Failed to refresh production order",
       );
     } finally {
       setIsRefreshing(false);
@@ -160,7 +162,7 @@ export function useOrderActions({
         if (line.Line_No) {
           const lineComponents = await getProductionOrderComponents(
             formState.No,
-            line.Line_No
+            line.Line_No,
           );
           allComponents.push(...lineComponents);
         }
@@ -171,7 +173,7 @@ export function useOrderActions({
       toast.error(
         error instanceof Error
           ? error.message
-          : "Failed to change production order status"
+          : "Failed to change production order status",
       );
     } finally {
       setIsManufacturing(false);
@@ -188,7 +190,10 @@ export function useOrderActions({
       const payload = {
         Status: "Released" as const,
         Description: formState.Description,
-        Source_Type: formState.Source_Type as "Item" | "Family" | "Sales Header",
+        Source_Type: formState.Source_Type as
+          | "Item"
+          | "Family"
+          | "Sales Header",
         Source_No: formState.Source_No,
         Quantity: formState.Quantity,
         Due_Date: formState.Due_Date,
@@ -206,7 +211,9 @@ export function useOrderActions({
       };
 
       const createdOrder = await createProductionOrder(payload);
-      toast.success(`Production Order ${createdOrder.No} created successfully!`);
+      toast.success(
+        `Production Order ${createdOrder.No} created successfully!`,
+      );
 
       return { success: true, orderNo: createdOrder.No };
     } catch (error) {
@@ -214,7 +221,7 @@ export function useOrderActions({
       toast.error(
         error instanceof Error
           ? error.message
-          : "Failed to create production order"
+          : "Failed to create production order",
       );
       return { success: false };
     } finally {

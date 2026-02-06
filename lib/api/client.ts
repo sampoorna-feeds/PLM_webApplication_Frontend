@@ -5,9 +5,9 @@
  * User credentials are stored for login validation only
  */
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL_DEV || '';
-const API_USERNAME = process.env.NEXT_PUBLIC_API_USERNAME || '';
-const API_PASSWORD = process.env.NEXT_PUBLIC_API_PASSWORD || '';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL_DEV || "";
+const API_USERNAME = process.env.NEXT_PUBLIC_API_USERNAME || "";
+const API_PASSWORD = process.env.NEXT_PUBLIC_API_PASSWORD || "";
 
 /**
  * Creates Basic Auth header for direct API calls
@@ -17,11 +17,11 @@ function createAuthHeaders(): HeadersInit {
   // Use system credentials from environment variables
   const credentials = `${API_USERNAME}:${API_PASSWORD}`;
   const encodedCredentials = btoa(credentials);
-  
+
   return {
-    'Authorization': `Basic ${encodedCredentials}`,
-    'Content-Type': 'application/json',
-    'Accept': 'application/json',
+    Authorization: `Basic ${encodedCredentials}`,
+    "Content-Type": "application/json",
+    Accept: "application/json",
   };
 }
 
@@ -45,10 +45,10 @@ export interface ApiError {
  */
 export async function apiRequest<T>(
   endpoint: string,
-  options: RequestInit = {}
+  options: RequestInit = {},
 ): Promise<T> {
   // Ensure endpoint starts with /
-  const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+  const cleanEndpoint = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
   const url = `${API_BASE_URL}${cleanEndpoint}`;
 
   try {
@@ -67,10 +67,10 @@ export async function apiRequest<T>(
       let errorDetails: string | undefined;
 
       try {
-        const contentType = response.headers.get('content-type');
-        if (contentType && contentType.includes('application/json')) {
+        const contentType = response.headers.get("content-type");
+        if (contentType && contentType.includes("application/json")) {
           const errorData = await response.json();
-          
+
           // Handle OData error format
           if (errorData.error) {
             errorMessage = errorData.error.message || errorMessage;
@@ -82,9 +82,10 @@ export async function apiRequest<T>(
             errorMessage = errorData.message;
             errorCode = errorData.code;
             if (errorData.details) {
-              errorDetails = typeof errorData.details === 'string' 
-                ? errorData.details 
-                : JSON.stringify(errorData.details, null, 2);
+              errorDetails =
+                typeof errorData.details === "string"
+                  ? errorData.details
+                  : JSON.stringify(errorData.details, null, 2);
             }
           }
           // Handle ERP-specific error format
@@ -92,7 +93,7 @@ export async function apiRequest<T>(
             errorMessage = String(errorData.value);
           }
           // If response is an object, stringify it for details
-          else if (typeof errorData === 'object') {
+          else if (typeof errorData === "object") {
             errorDetails = JSON.stringify(errorData, null, 2);
           }
         } else {
@@ -105,7 +106,7 @@ export async function apiRequest<T>(
         }
       } catch (parseError) {
         // If we can't parse the error response, use the default message
-        console.error('Error parsing error response:', parseError);
+        console.error("Error parsing error response:", parseError);
       }
 
       const error: ApiError = {
@@ -113,10 +114,10 @@ export async function apiRequest<T>(
         status: response.status,
         code: errorCode,
       };
-      
+
       // Attach details to error object for access
       (error as ApiError & { details?: string }).details = errorDetails;
-      
+
       throw error;
     }
 
@@ -126,8 +127,8 @@ export async function apiRequest<T>(
     }
 
     // Check if response has content to parse
-    const contentType = response.headers.get('content-type');
-    if (contentType && contentType.includes('application/json')) {
+    const contentType = response.headers.get("content-type");
+    if (contentType && contentType.includes("application/json")) {
       return await response.json();
     }
 
@@ -137,7 +138,7 @@ export async function apiRequest<T>(
     if (error instanceof Error) {
       throw {
         message: error.message,
-        code: 'NETWORK_ERROR',
+        code: "NETWORK_ERROR",
       } as ApiError;
     }
     throw error;
@@ -148,18 +149,15 @@ export async function apiRequest<T>(
  * GET request helper
  */
 export async function apiGet<T>(endpoint: string): Promise<T> {
-  return apiRequest<T>(endpoint, { method: 'GET' });
+  return apiRequest<T>(endpoint, { method: "GET" });
 }
 
 /**
  * POST request helper
  */
-export async function apiPost<T>(
-  endpoint: string,
-  data: unknown
-): Promise<T> {
+export async function apiPost<T>(endpoint: string, data: unknown): Promise<T> {
   return apiRequest<T>(endpoint, {
-    method: 'POST',
+    method: "POST",
     body: JSON.stringify(data),
   });
 }
@@ -167,16 +165,13 @@ export async function apiPost<T>(
 /**
  * PATCH request helper
  */
-export async function apiPatch<T>(
-  endpoint: string,
-  data: unknown
-): Promise<T> {
+export async function apiPatch<T>(endpoint: string, data: unknown): Promise<T> {
   return apiRequest<T>(endpoint, {
-    method: 'PATCH',
+    method: "PATCH",
     body: JSON.stringify(data),
     headers: {
-      'Content-Type': 'application/json',
-      'If-Match': '*', // Required for OData PATCH requests
+      "Content-Type": "application/json",
+      "If-Match": "*", // Required for OData PATCH requests
     },
   });
 }
@@ -185,6 +180,5 @@ export async function apiPatch<T>(
  * DELETE request helper
  */
 export async function apiDelete<T>(endpoint: string): Promise<T> {
-  return apiRequest<T>(endpoint, { method: 'DELETE' });
+  return apiRequest<T>(endpoint, { method: "DELETE" });
 }
-

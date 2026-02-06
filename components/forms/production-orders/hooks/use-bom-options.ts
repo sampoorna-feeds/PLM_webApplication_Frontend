@@ -40,7 +40,9 @@ export function useBomOptions({
   isViewMode,
 }: UseBomOptionsParams): UseBomOptionsReturn {
   const [bomOptions, setBomOptions] = useState<ProdOrderBOM[]>([]);
-  const [bomVersionOptions, setBomVersionOptions] = useState<ProdOrderBOMVersion[]>([]);
+  const [bomVersionOptions, setBomVersionOptions] = useState<
+    ProdOrderBOMVersion[]
+  >([]);
   const [isLoadingBom, setIsLoadingBom] = useState(false);
   const [isLoadingBomVersions, setIsLoadingBomVersions] = useState(false);
 

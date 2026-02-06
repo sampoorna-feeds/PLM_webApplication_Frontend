@@ -30,8 +30,8 @@ export function ProductionOrderLinesTable({
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-8">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-        <span className="ml-2 text-sm text-muted-foreground">
+        <Loader2 className="text-muted-foreground h-6 w-6 animate-spin" />
+        <span className="text-muted-foreground ml-2 text-sm">
           Loading order lines...
         </span>
       </div>
@@ -40,7 +40,7 @@ export function ProductionOrderLinesTable({
 
   if (lines.length === 0) {
     return (
-      <div className="flex items-center justify-center py-8 text-muted-foreground">
+      <div className="text-muted-foreground flex items-center justify-center py-8">
         No line items found for this order.
       </div>
     );
@@ -64,21 +64,21 @@ export function ProductionOrderLinesTable({
         <TableBody>
           {lines.map((line) => {
             // Check if this item has a tracking code
-            const itemKey = line.Item_No ? line.Item_No.trim().toLowerCase() : "";
+            const itemKey = line.Item_No
+              ? line.Item_No.trim().toLowerCase()
+              : "";
             const hasTracking = trackingMap[itemKey] || false;
-            
+
             return (
-              <TableRow 
+              <TableRow
                 key={`${line.Prod_Order_No}-${line.Line_No}`}
                 className={cn(
                   hasTracking && "text-red-600",
-                  "cursor-pointer hover:bg-muted/50"
+                  "hover:bg-muted/50 cursor-pointer",
                 )}
                 onClick={() => onRowClick?.(line, hasTracking)}
               >
-                <TableCell>
-                  {line.Line_No}
-                </TableCell>
+                <TableCell>{line.Line_No}</TableCell>
                 <TableCell className="font-medium">
                   {line.Item_No || "-"}
                 </TableCell>
@@ -102,4 +102,3 @@ export function ProductionOrderLinesTable({
     </div>
   );
 }
-

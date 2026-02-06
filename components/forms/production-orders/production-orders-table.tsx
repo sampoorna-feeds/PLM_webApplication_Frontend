@@ -3,7 +3,11 @@
 import { ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 import type { ProductionOrder } from "@/lib/api/services/production-orders.service";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ALL_COLUMNS, type SortDirection, type ColumnConfig } from "./column-config";
+import {
+  ALL_COLUMNS,
+  type SortDirection,
+  type ColumnConfig,
+} from "./column-config";
 import { ColumnFilter } from "./column-filter";
 
 interface ProductionOrdersTableProps {
@@ -42,14 +46,14 @@ export function ProductionOrdersTable({
   const startingSerialNo = (currentPage - 1) * pageSize;
 
   return (
-    <div className="flex-1 rounded-lg border bg-card h-full flex flex-col overflow-hidden">
-      <div className="overflow-auto flex-1">
+    <div className="bg-card flex h-full flex-1 flex-col overflow-hidden rounded-lg border">
+      <div className="flex-1 overflow-auto">
         <table className="w-full caption-bottom text-sm">
           {/* Header is ALWAYS visible with filters - sticky */}
-          <thead className="[&_tr]:border-b sticky top-0 z-10 bg-muted">
+          <thead className="bg-muted sticky top-0 z-10 [&_tr]:border-b">
             <tr className="border-b transition-colors">
               {/* Serial Number Column Header */}
-              <th className="text-foreground h-10 px-3 py-3 text-center align-middle font-medium whitespace-nowrap text-xs font-bold w-12">
+              <th className="text-foreground h-10 w-12 px-3 py-3 text-center align-middle text-xs font-bold font-medium whitespace-nowrap">
                 S.No
               </th>
               {columns.map((column) => (
@@ -57,12 +61,18 @@ export function ProductionOrdersTable({
                   key={column.id}
                   column={column}
                   isActive={sortColumn === column.id}
-                  sortDirection={sortColumn === column.id ? sortDirection : null}
+                  sortDirection={
+                    sortColumn === column.id ? sortDirection : null
+                  }
                   filterValue={columnFilters[column.id]?.value || ""}
                   filterValueTo={columnFilters[column.id]?.valueTo || ""}
                   onSort={onSort}
                   onFilter={onColumnFilter}
-                  options={column.id === 'Shortcut_Dimension_2_Code' ? branchOptions : undefined}
+                  options={
+                    column.id === "Shortcut_Dimension_2_Code"
+                      ? branchOptions
+                      : undefined
+                  }
                 />
               ))}
             </tr>
@@ -72,12 +82,18 @@ export function ProductionOrdersTable({
             {isLoading && (
               <>
                 {Array.from({ length: pageSize }).map((_, rowIndex) => (
-                  <tr key={`skeleton-${rowIndex}`} className="border-b transition-colors">
-                    <td className="px-3 py-3 p-2 align-middle whitespace-nowrap text-center text-xs text-muted-foreground">
+                  <tr
+                    key={`skeleton-${rowIndex}`}
+                    className="border-b transition-colors"
+                  >
+                    <td className="text-muted-foreground p-2 px-3 py-3 text-center align-middle text-xs whitespace-nowrap">
                       {startingSerialNo + rowIndex + 1}
                     </td>
                     {columns.map((column) => (
-                      <td key={column.id} className="px-3 py-3 p-2 align-middle whitespace-nowrap">
+                      <td
+                        key={column.id}
+                        className="p-2 px-3 py-3 align-middle whitespace-nowrap"
+                      >
                         <Skeleton className="h-4 w-full" />
                       </td>
                     ))}
@@ -88,21 +104,26 @@ export function ProductionOrdersTable({
             {/* Empty state */}
             {!isLoading && orders.length === 0 && (
               <tr className="border-b transition-colors">
-                <td colSpan={columns.length + 1} className="h-24 text-center text-muted-foreground p-2 align-middle">
+                <td
+                  colSpan={columns.length + 1}
+                  className="text-muted-foreground h-24 p-2 text-center align-middle"
+                >
                   No production orders found
                 </td>
               </tr>
             )}
             {/* Data rows */}
-            {!isLoading && orders.length > 0 && orders.map((order, index) => (
-              <ProductionOrderRow
-                key={order.No}
-                order={order}
-                columns={columns}
-                serialNo={startingSerialNo + index + 1}
-                onClick={() => onRowClick(order.No)}
-              />
-            ))}
+            {!isLoading &&
+              orders.length > 0 &&
+              orders.map((order, index) => (
+                <ProductionOrderRow
+                  key={order.No}
+                  order={order}
+                  columns={columns}
+                  serialNo={startingSerialNo + index + 1}
+                  onClick={() => onRowClick(order.No)}
+                />
+              ))}
           </tbody>
         </table>
       </div>
@@ -143,13 +164,13 @@ function SortableTableHead({
 
   return (
     <th
-      className={`text-foreground h-10 px-2 text-left align-middle font-medium whitespace-nowrap px-3 py-3 text-xs font-bold select-none ${
+      className={`text-foreground h-10 px-2 px-3 py-3 text-left align-middle text-xs font-bold font-medium whitespace-nowrap select-none ${
         isActive ? "text-primary" : ""
       }`}
     >
       <div className="flex items-center gap-1.5">
         <span
-          className="cursor-pointer hover:text-primary transition-colors"
+          className="hover:text-primary cursor-pointer transition-colors"
           onClick={() => column.sortable && onSort(column.id)}
         >
           {column.label}
@@ -183,22 +204,31 @@ interface ProductionOrderRowProps {
   onClick: () => void;
 }
 
-function ProductionOrderRow({ order, columns, serialNo, onClick }: ProductionOrderRowProps) {
+function ProductionOrderRow({
+  order,
+  columns,
+  serialNo,
+  onClick,
+}: ProductionOrderRowProps) {
   // Helper to get cell value
   const getCellValue = (columnId: string): string => {
     const value = (order as unknown as Record<string, unknown>)[columnId];
-    
+
     if (value === null || value === undefined || value === "") {
       return "-";
     }
-    
+
     // Format boolean values
     if (typeof value === "boolean") {
       return value ? "Yes" : "No";
     }
-    
+
     // Format dates
-    if (columnId.includes("Date") && typeof value === "string" && value !== "0001-01-01") {
+    if (
+      columnId.includes("Date") &&
+      typeof value === "string" &&
+      value !== "0001-01-01"
+    ) {
       try {
         const date = new Date(value);
         if (!isNaN(date.getTime())) {
@@ -208,22 +238,26 @@ function ProductionOrderRow({ order, columns, serialNo, onClick }: ProductionOrd
         // Return as-is if parsing fails
       }
     }
-    
+
     return String(value);
   };
 
   return (
-    <tr className="hover:bg-muted/50 cursor-pointer border-b transition-colors" onClick={onClick}>
-      <td className="px-3 py-3 text-xs p-2 align-middle whitespace-nowrap text-center text-muted-foreground">
+    <tr
+      className="hover:bg-muted/50 cursor-pointer border-b transition-colors"
+      onClick={onClick}
+    >
+      <td className="text-muted-foreground p-2 px-3 py-3 text-center align-middle text-xs whitespace-nowrap">
         {serialNo}
       </td>
       {columns.map((column) => (
-        <td key={column.id} className="px-3 py-3 text-xs p-2 align-middle whitespace-nowrap">
+        <td
+          key={column.id}
+          className="p-2 px-3 py-3 align-middle text-xs whitespace-nowrap"
+        >
           {getCellValue(column.id)}
         </td>
       ))}
     </tr>
   );
 }
-
-

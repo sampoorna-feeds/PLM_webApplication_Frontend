@@ -3,14 +3,14 @@
  * Two column layout with banner
  */
 
-'use client';
+"use client";
 
-import { useState, Suspense } from 'react';
-import { PublicGuard } from '@/components/layout/public-guard';
-import { LoginForm } from '@/components/forms/login-form';
-import { ForgotPasswordForm } from '@/components/forms/forgot-password-form';
-import { ThemeToggle } from '@/components/theme/theme-toggle';
-import Image from 'next/image';
+import { useState, Suspense } from "react";
+import { PublicGuard } from "@/components/layout/public-guard";
+import { LoginForm } from "@/components/forms/login-form";
+import { ForgotPasswordForm } from "@/components/forms/forgot-password-form";
+import { ThemeToggle } from "@/components/theme/theme-toggle";
+import Image from "next/image";
 
 function LoginContent() {
   const [showForgotPassword, setShowForgotPassword] = useState(false);
@@ -19,7 +19,7 @@ function LoginContent() {
     <PublicGuard>
       <div className="grid min-h-svh lg:grid-cols-2">
         <div className="flex flex-col gap-4 p-6 md:p-10">
-          <div className="flex justify-between items-center">
+          <div className="flex items-center justify-between">
             <a href="#" className="flex items-center gap-2">
               <Image
                 src="/logo.png"
@@ -29,8 +29,10 @@ function LoginContent() {
                 priority
               />
               <div className="grid text-left text-sm leading-tight">
-                <span className="font-semibold text-lg">Sampoorna Feeds</span>
-                <span className="text-xs text-muted-foreground">Feed... as it should be</span>
+                <span className="text-lg font-semibold">Sampoorna Feeds</span>
+                <span className="text-muted-foreground text-xs">
+                  Feed... as it should be
+                </span>
               </div>
             </a>
             <ThemeToggle />
@@ -44,7 +46,7 @@ function LoginContent() {
                     <button
                       type="button"
                       onClick={() => setShowForgotPassword(true)}
-                      className="text-sm text-muted-foreground hover:text-foreground underline"
+                      className="text-muted-foreground hover:text-foreground text-sm underline"
                     >
                       Forgot Password?
                     </button>

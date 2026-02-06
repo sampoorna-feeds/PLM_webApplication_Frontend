@@ -3,5 +3,4 @@
  * Export all stores from here for clean imports
  */
 
-export * from './auth-store';
-
+export * from "./auth-store";

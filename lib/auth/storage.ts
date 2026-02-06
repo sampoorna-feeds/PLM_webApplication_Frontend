@@ -4,8 +4,8 @@
  * For static hosting - no server-side cookies needed
  */
 
-const AUTH_STORAGE_KEY = 'sf_auth_credentials';
-const USERNAME_STORAGE_KEY = 'sf_remembered_username';
+const AUTH_STORAGE_KEY = "sf_auth_credentials";
+const USERNAME_STORAGE_KEY = "sf_remembered_username";
 
 export interface AuthCredentials {
   userID: string;
@@ -20,17 +20,17 @@ export interface AuthCredentials {
 export function setAuthCredentials(
   userID: string,
   password: string,
-  rememberMe: boolean = false
+  rememberMe: boolean = false,
 ): void {
-  if (typeof window === 'undefined') {
+  if (typeof window === "undefined") {
     return; // Server-side, do nothing
   }
 
   const storage = rememberMe ? localStorage : sessionStorage;
   const credentials: AuthCredentials = { userID, password };
-  
+
   storage.setItem(AUTH_STORAGE_KEY, JSON.stringify(credentials));
-  
+
   // Also store username separately for "Remember Me" functionality
   if (rememberMe) {
     localStorage.setItem(USERNAME_STORAGE_KEY, userID);
@@ -44,7 +44,7 @@ export function setAuthCredentials(
  * Checks both sessionStorage and localStorage (sessionStorage takes precedence)
  */
 export function getAuthCredentials(): AuthCredentials | null {
-  if (typeof window === 'undefined') {
+  if (typeof window === "undefined") {
     return null; // Server-side, return null
   }
 
@@ -77,7 +77,7 @@ export function getAuthCredentials(): AuthCredentials | null {
  * Clear authentication credentials from both storages
  */
 export function clearAuthCredentials(): void {
-  if (typeof window === 'undefined') {
+  if (typeof window === "undefined") {
     return; // Server-side, do nothing
   }
 
@@ -97,7 +97,7 @@ export function isAuthenticated(): boolean {
  * Get remembered username (for login form pre-fill)
  */
 export function getRememberedUsername(): string | null {
-  if (typeof window === 'undefined') {
+  if (typeof window === "undefined") {
     return null;
   }
   return localStorage.getItem(USERNAME_STORAGE_KEY);

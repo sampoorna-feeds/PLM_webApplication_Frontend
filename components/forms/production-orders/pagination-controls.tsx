@@ -40,7 +40,7 @@ export function PaginationControls({
     <div className="flex items-center justify-between gap-4 pt-3">
       <div className="flex items-center gap-4">
         <PageSizeSelector value={pageSize} onChange={onPageSizeChange} />
-        <span className="text-sm text-muted-foreground">
+        <span className="text-muted-foreground text-sm">
           {totalCount > 0 ? `${totalCount} records` : "No records"}
         </span>
       </div>
@@ -63,7 +63,7 @@ interface PageSizeSelectorProps {
 function PageSizeSelector({ value, onChange }: PageSizeSelectorProps) {
   return (
     <div className="flex items-center gap-2">
-      <span className="text-sm text-muted-foreground">Rows per page:</span>
+      <span className="text-muted-foreground text-sm">Rows per page:</span>
       <Select
         value={value.toString()}
         onValueChange={(val) => onChange(Number(val) as PageSize)}
@@ -127,7 +127,7 @@ function PageNavigator({
 
   return (
     <div className="flex items-center gap-2">
-      <span className="text-sm text-muted-foreground">Page</span>
+      <span className="text-muted-foreground text-sm">Page</span>
       <Input
         type="number"
         min={1}
@@ -136,9 +136,9 @@ function PageNavigator({
         onChange={handleInputChange}
         onBlur={handleInputBlur}
         onKeyDown={handleInputKeyDown}
-        className="w-16 h-9 text-center text-sm"
+        className="h-9 w-16 text-center text-sm"
       />
-      <span className="text-sm text-muted-foreground">/ {totalPages}</span>
+      <span className="text-muted-foreground text-sm">/ {totalPages}</span>
       <Button
         variant="outline"
         size="icon"

@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 /**
  * Authentication Context
@@ -6,9 +6,15 @@
  * For static hosting - checks localStorage/sessionStorage instead of server API
  */
 
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import { getAuthCredentials, clearAuthCredentials } from '@/lib/auth/storage';
-import { clearAllFormStacks } from '@/lib/form-stack/storage';
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  useCallback,
+} from "react";
+import { getAuthCredentials, clearAuthCredentials } from "@/lib/auth/storage";
+import { clearAllFormStacks } from "@/lib/form-stack/storage";
 
 interface AuthContextType {
   userID: string | null;
@@ -33,7 +39,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const checkAuth = useCallback(async () => {
     try {
       const credentials = getAuthCredentials();
-      
+
       if (credentials) {
         setUserID(credentials.userID);
         setUsername(credentials.userID); // Use userID as username
@@ -44,7 +50,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setIsAuthenticated(false);
       }
     } catch (error) {
-      console.error('Auth check error:', error);
+      console.error("Auth check error:", error);
       setUserID(null);
       setUsername(null);
       setIsAuthenticated(false);
@@ -69,7 +75,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       clearAuthCredentials();
       clearAllFormStacks(); // Clear all FormStack data
     } catch (error) {
-      console.error('Logout error:', error);
+      console.error("Logout error:", error);
     } finally {
       setUserID(null);
       setUsername(null);
@@ -100,8 +106,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 export function useAuth() {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
 }
-

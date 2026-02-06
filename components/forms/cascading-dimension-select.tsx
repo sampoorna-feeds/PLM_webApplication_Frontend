@@ -1,28 +1,28 @@
-'use client';
+"use client";
 
 /**
  * CascadingDimensionSelect component
  * Cascading dropdowns for LOB → Branch → LOC based on WebUserSetup API
  */
 
-import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Loader2, ChevronDownIcon, CheckIcon } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { Loader2, ChevronDownIcon, CheckIcon } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from '@/components/ui/popover';
+} from "@/components/ui/popover";
 import {
   getLOBsFromUserSetup,
   getBranchesFromUserSetup,
   getLOCsFromUserSetup,
   type DimensionValue,
-} from '@/lib/api/services/dimension.service';
+} from "@/lib/api/services/dimension.service";
 
-type CascadingDimensionType = 'LOB' | 'BRANCH' | 'LOC';
+type CascadingDimensionType = "LOB" | "BRANCH" | "LOC";
 
 interface CascadingDimensionSelectProps {
   dimensionType: CascadingDimensionType;
@@ -46,11 +46,11 @@ export function CascadingDimensionSelect({
   dimensionType,
   value,
   onChange,
-  placeholder = '',
+  placeholder = "",
   disabled = false,
   className,
   hasError = false,
-  errorClass = '',
+  errorClass = "",
   lobValue,
   branchValue,
   userId,
@@ -58,7 +58,7 @@ export function CascadingDimensionSelect({
   const [items, setItems] = useState<DimensionValue[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
 
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const listRef = useRef<HTMLDivElement | null>(null);
@@ -70,23 +70,23 @@ export function CascadingDimensionSelect({
       setItems([]);
       return;
     }
-    
+
     setIsLoading(true);
     try {
       let result: DimensionValue[] = [];
-      
+
       switch (dimensionType) {
-        case 'LOB':
+        case "LOB":
           result = await getLOBsFromUserSetup(userId);
           break;
-        case 'BRANCH':
+        case "BRANCH":
           if (!lobValue) {
             result = [];
           } else {
             result = await getBranchesFromUserSetup(lobValue, userId);
           }
           break;
-        case 'LOC':
+        case "LOC":
           if (!lobValue || !branchValue) {
             result = [];
           } else {
@@ -94,7 +94,7 @@ export function CascadingDimensionSelect({
           }
           break;
       }
-      
+
       setItems(result);
     } catch (error) {
       console.error(`Error loading ${dimensionType}:`, error);
@@ -106,11 +106,11 @@ export function CascadingDimensionSelect({
 
   // Clear value if parent dependency is not met (but don't reload items here)
   useEffect(() => {
-    if (dimensionType === 'BRANCH' && !lobValue && value) {
-      onChange('');
+    if (dimensionType === "BRANCH" && !lobValue && value) {
+      onChange("");
     }
-    if (dimensionType === 'LOC' && (!lobValue || !branchValue) && value) {
-      onChange('');
+    if (dimensionType === "LOC" && (!lobValue || !branchValue) && value) {
+      onChange("");
     }
   }, [dimensionType, lobValue, branchValue, value, onChange]);
 
@@ -151,18 +151,22 @@ export function CascadingDimensionSelect({
         try {
           // Load all items first, then filter client-side
           await loadItems();
-          
+
           // Filter items client-side based on search query
-          setItems(prev => {
-            const filtered = prev.filter(item => {
-              const codeMatch = item.Code?.toLowerCase().includes(query.toLowerCase());
-              const nameMatch = item.Name?.toLowerCase().includes(query.toLowerCase());
+          setItems((prev) => {
+            const filtered = prev.filter((item) => {
+              const codeMatch = item.Code?.toLowerCase().includes(
+                query.toLowerCase(),
+              );
+              const nameMatch = item.Name?.toLowerCase().includes(
+                query.toLowerCase(),
+              );
               return codeMatch || nameMatch;
             });
             return filtered;
           });
         } catch (error) {
-          if (error instanceof Error && error.name === 'AbortError') {
+          if (error instanceof Error && error.name === "AbortError") {
             return;
           }
           console.error(`Error searching ${dimensionType}:`, error);
@@ -173,7 +177,7 @@ export function CascadingDimensionSelect({
         }
       }, DEBOUNCE_MS);
     },
-    [dimensionType, loadItems]
+    [dimensionType, loadItems],
   );
 
   // Handle dropdown open
@@ -185,15 +189,16 @@ export function CascadingDimensionSelect({
         loadItems();
       }
     } else {
-      setSearchQuery('');
+      setSearchQuery("");
       // Don't reload when closing - it's unnecessary
     }
   };
 
   // Check if field should be disabled
-  const isFieldDisabled = disabled || 
-    (dimensionType === 'BRANCH' && !lobValue) ||
-    (dimensionType === 'LOC' && (!lobValue || !branchValue));
+  const isFieldDisabled =
+    disabled ||
+    (dimensionType === "BRANCH" && !lobValue) ||
+    (dimensionType === "LOC" && (!lobValue || !branchValue));
 
   // Find selected item display value
   const selectedItem = items.find((item) => item.Code === value);
@@ -201,16 +206,21 @@ export function CascadingDimensionSelect({
     ? selectedItem.Name
       ? `${selectedItem.Code} - ${selectedItem.Name}`
       : selectedItem.Code
-    : value || '';
+    : value || "";
 
   // Filter items based on search query
-  const filteredItems = searchQuery.length >= MIN_SEARCH_LENGTH
-    ? items.filter(item => {
-        const codeMatch = item.Code?.toLowerCase().includes(searchQuery.toLowerCase());
-        const nameMatch = item.Name?.toLowerCase().includes(searchQuery.toLowerCase());
-        return codeMatch || nameMatch;
-      })
-    : items;
+  const filteredItems =
+    searchQuery.length >= MIN_SEARCH_LENGTH
+      ? items.filter((item) => {
+          const codeMatch = item.Code?.toLowerCase().includes(
+            searchQuery.toLowerCase(),
+          );
+          const nameMatch = item.Name?.toLowerCase().includes(
+            searchQuery.toLowerCase(),
+          );
+          return codeMatch || nameMatch;
+        })
+      : items;
 
   return (
     <Popover open={isOpen} onOpenChange={handleOpenChange}>
@@ -220,27 +230,29 @@ export function CascadingDimensionSelect({
           role="combobox"
           disabled={isFieldDisabled}
           className={cn(
-            'h-9 text-sm w-full justify-between font-normal shadow-sm',
-            !value && 'text-muted-foreground',
+            "h-9 w-full justify-between text-sm font-normal shadow-sm",
+            !value && "text-muted-foreground",
             className,
-            errorClass
+            errorClass,
           )}
           data-field-error={hasError}
         >
           <span className="truncate">
-            {isFieldDisabled && dimensionType === 'BRANCH' && !lobValue
-              ? 'Select LOB first'
-              : isFieldDisabled && dimensionType === 'LOC' && (!lobValue || !branchValue)
-              ? 'Select Branch first'
-              : !isFieldDisabled && items.length === 0 && !isLoading && userId
-              ? `No ${dimensionType} found. Please contact IT.`
-              : displayValue || placeholder}
+            {isFieldDisabled && dimensionType === "BRANCH" && !lobValue
+              ? "Select LOB first"
+              : isFieldDisabled &&
+                  dimensionType === "LOC" &&
+                  (!lobValue || !branchValue)
+                ? "Select Branch first"
+                : !isFieldDisabled && items.length === 0 && !isLoading && userId
+                  ? `No ${dimensionType} found. Please contact IT.`
+                  : displayValue || placeholder}
           </span>
           <ChevronDownIcon className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent 
-        className="p-0 min-w-[280px] max-w-[500px] w-auto" 
+      <PopoverContent
+        className="w-auto max-w-[500px] min-w-[280px] p-0"
         align="start"
         onOpenAutoFocus={(e) => {
           // Prevent auto-focus from scrolling
@@ -251,7 +263,7 @@ export function CascadingDimensionSelect({
           e.preventDefault();
         }}
       >
-        <div className="p-2 border-b">
+        <div className="border-b p-2">
           <Input
             placeholder="Search by Code or Name..."
             value={searchQuery}
@@ -266,23 +278,23 @@ export function CascadingDimensionSelect({
         </div>
         <div
           ref={listRef}
-          className="max-h-[300px] overflow-y-auto overflow-x-hidden"
+          className="max-h-[300px] overflow-x-hidden overflow-y-auto"
         >
           {isLoading && items.length === 0 ? (
             <div className="flex items-center justify-center p-4">
               <Loader2 className="h-4 w-4 animate-spin" />
             </div>
           ) : filteredItems.length === 0 ? (
-            <div className="p-4 text-center text-sm text-muted-foreground">
+            <div className="text-muted-foreground p-4 text-center text-sm">
               {isFieldDisabled
-                ? dimensionType === 'BRANCH'
-                  ? 'Select LOB first'
-                  : 'Select Branch first'
+                ? dimensionType === "BRANCH"
+                  ? "Select LOB first"
+                  : "Select Branch first"
                 : searchQuery.length < MIN_SEARCH_LENGTH && items.length === 0
-                ? `No ${dimensionType} found. Please contact IT.`
-                : searchQuery.length < MIN_SEARCH_LENGTH
-                ? `Type at least ${MIN_SEARCH_LENGTH} characters to search`
-                : 'No items found'}
+                  ? `No ${dimensionType} found. Please contact IT.`
+                  : searchQuery.length < MIN_SEARCH_LENGTH
+                    ? `Type at least ${MIN_SEARCH_LENGTH} characters to search`
+                    : "No items found"}
             </div>
           ) : (
             <>
@@ -290,8 +302,8 @@ export function CascadingDimensionSelect({
                 <div
                   key={item.Code}
                   className={cn(
-                    'relative flex cursor-default select-none items-start rounded-sm px-2 py-2 text-sm outline-none hover:bg-muted/50',
-                    value === item.Code && 'bg-muted'
+                    "hover:bg-muted/50 relative flex cursor-default items-start rounded-sm px-2 py-2 text-sm outline-none select-none",
+                    value === item.Code && "bg-muted",
                   )}
                   onClick={() => {
                     onChange(item.Code);
@@ -300,16 +312,16 @@ export function CascadingDimensionSelect({
                 >
                   <CheckIcon
                     className={cn(
-                      'mr-2 h-4 w-4 mt-0.5 shrink-0',
-                      value === item.Code ? 'opacity-100' : 'opacity-0'
+                      "mt-0.5 mr-2 h-4 w-4 shrink-0",
+                      value === item.Code ? "opacity-100" : "opacity-0",
                     )}
                   />
-                  <div className="flex-1 min-w-0">
-                    <div className="font-medium text-foreground">
+                  <div className="min-w-0 flex-1">
+                    <div className="text-foreground font-medium">
                       {item.Code}
                     </div>
                     {item.Name && (
-                      <div className="text-muted-foreground text-xs mt-0.5 break-words">
+                      <div className="text-muted-foreground mt-0.5 text-xs break-words">
                         {item.Name}
                       </div>
                     )}
@@ -328,4 +340,3 @@ export function CascadingDimensionSelect({
     </Popover>
   );
 }
-

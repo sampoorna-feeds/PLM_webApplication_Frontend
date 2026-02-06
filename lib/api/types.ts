@@ -7,16 +7,16 @@
  * OData V4 response wrapper
  */
 export interface ODataResponse<T> {
-  '@odata.context': string;
+  "@odata.context": string;
   value: T[];
-  '@odata.count'?: number;
+  "@odata.count"?: number;
 }
 
 /**
  * OData V4 single entity response
  */
 export interface ODataEntity<T> {
-  '@odata.context': string;
+  "@odata.context": string;
   [key: string]: unknown;
 }
 
@@ -49,6 +49,5 @@ export interface PaginationParams {
  */
 export interface SortParams {
   field: string;
-  direction: 'asc' | 'desc';
+  direction: "asc" | "desc";
 }
-

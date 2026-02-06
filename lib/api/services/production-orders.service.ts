@@ -360,6 +360,21 @@ export async function createProductionOrder(
   return apiPost<ProductionOrder>(endpoint, payload);
 }
 
+/**
+ * Refresh production order journal entries
+ * This populates the journal entries in the backend after order creation
+ * @param prodOrderNo - Production order number (e.g., "RPO/2526/041189")
+ */
+export async function refreshProductionOrderJournal(
+  prodOrderNo: string,
+): Promise<void> {
+  const endpoint = `/API_RefressProductionOrder?company='${encodeURIComponent(COMPANY)}'`;
+
+  await apiPost<void>(endpoint, {
+    prodOrder: prodOrderNo,
+  });
+}
+
 // ============================================
 // UPDATE PRODUCTION ORDER LINE
 // ============================================
@@ -613,6 +628,8 @@ export interface ProductionJournalEntry {
   Item_No_: string;
   Quantity: number;
   Output_Quantity: number;
+  Location_Code?: string;
+  Remaining_Quantity?: number;
   [key: string]: unknown;
 }
 
@@ -645,7 +662,8 @@ export async function getProductionJournal(
   orderNo: string,
 ): Promise<ProductionJournalEntry[]> {
   const filter = `Order_No_ eq '${orderNo}' and Journal_Template_Name eq 'PROD.ORDEA'`;
-  const select = "Line_No,Entry_Type,Item_No_,Quantity,Output_Quantity";
+  const select =
+    "Line_No,Entry_Type,Item_No_,Quantity,Output_Quantity,Location_Code,Remaining_Quantity";
   const query = buildODataQuery({
     $filter: filter,
     $select: select,
@@ -655,4 +673,50 @@ export async function getProductionJournal(
   const response =
     await apiGet<ODataResponse<ProductionJournalEntry>>(endpoint);
   return response.value || [];
+}
+
+// ============================================
+// DELETE PRODUCTION JOURNAL LINES
+// ============================================
+
+/**
+ * Delete production journal lines for a production order
+ * @param prodOrderNo - Production Order No
+ * @param prodOrderLineNo - Production Order Line No (empty string = all lines)
+ */
+export async function deleteProdJnlLines(
+  prodOrderNo: string,
+  prodOrderLineNo: string = "",
+): Promise<void> {
+  const endpoint = `/API_DeleteProdJnlLines?company='${encodeURIComponent(COMPANY)}'`;
+  await apiPost<void>(endpoint, {
+    ProdOrderNo: prodOrderNo,
+    ProdOrderLineNo: prodOrderLineNo,
+  });
+}
+
+// ============================================
+// UPDATE COMPONENT WITH SUBSTITUTE
+// ============================================
+
+/**
+ * Update a production order component with a substitute item
+ * @param prodOrderNo - Production Order No
+ * @param prodOrderLineNo - Production Order Line No (empty string = all)
+ * @param componentLineNo - Component Line No (empty string = all)
+ * @param substItemNo - Substitute Item No to apply
+ */
+export async function updateComponentSubstitute(
+  prodOrderNo: string,
+  prodOrderLineNo: string,
+  componentLineNo: string,
+  substItemNo: string,
+): Promise<void> {
+  const endpoint = `/API_UpdateComponent?company='${encodeURIComponent(COMPANY)}'`;
+  await apiPost<void>(endpoint, {
+    ProdOrderNo: prodOrderNo,
+    ProdOrderLineNo: prodOrderLineNo,
+    ComponenetLineNo: componentLineNo, // Note: API has typo in parameter name
+    SubstItemNo: substItemNo,
+  });
 }

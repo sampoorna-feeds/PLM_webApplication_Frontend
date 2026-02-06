@@ -16,6 +16,8 @@
 # local logs
 /logs
 
+# vscode
+/.vscode
 
 # next.js
 /.next/

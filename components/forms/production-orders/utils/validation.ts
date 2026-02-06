@@ -12,7 +12,7 @@ export interface ProductionOrderFormData {
   Shortcut_Dimension_3_Code: string;
   Source_Type: string;
   Source_No: string;
-  Quantity: number;
+  Quantity: number | string; // Can be string during form input
   Due_Date: string;
   Location_Code: string;
   Hatching_Date?: string;
@@ -59,14 +59,20 @@ export function validateProductionOrderForm(
     errors.push({ field: "Source_No", message: "Source No is required" });
   }
 
-  if (!data.Quantity || data.Quantity <= 0) {
+  // Parse quantity to number for validation
+  const quantityValue =
+    typeof data.Quantity === "string"
+      ? parseFloat(data.Quantity) || 0
+      : data.Quantity || 0;
+
+  if (!quantityValue || quantityValue <= 0) {
     errors.push({
       field: "Quantity",
       message: "Quantity must be greater than 0",
     });
   }
 
-  if (data.Quantity > 999999999) {
+  if (quantityValue > 999999999) {
     errors.push({
       field: "Quantity",
       message: "Quantity exceeds maximum allowed value",

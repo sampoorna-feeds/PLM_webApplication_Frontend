@@ -38,7 +38,7 @@ interface UseSourceOptionsReturn {
   handleLoadMore: () => void;
   handleSourceChange: (
     value: string,
-    onSelect: (item: SourceOption | null) => void
+    onSelect: (item: SourceOption | null) => void,
   ) => Promise<void>;
 }
 
@@ -86,7 +86,7 @@ export function useSourceOptions({
               searchQuery || undefined,
               lobCode,
               skip,
-              PAGE_SIZE
+              PAGE_SIZE,
             );
             setHasMoreSource(options.length === PAGE_SIZE);
             break;
@@ -174,7 +174,7 @@ export function useSourceOptions({
   const handleSourceChange = useCallback(
     async (
       value: string,
-      onSelect: (item: SourceOption | null) => void
+      onSelect: (item: SourceOption | null) => void,
     ): Promise<void> => {
       // Find existing option or create temporary one
       let selectedOption = sourceOptions.find((opt) => opt.No === value);
@@ -182,11 +182,20 @@ export function useSourceOptions({
       if (!selectedOption) {
         // Create temporary option for immediate display
         if (sourceType === "Item") {
-          selectedOption = { No: value, Description: `Loading ${value}...` } as Item;
+          selectedOption = {
+            No: value,
+            Description: `Loading ${value}...`,
+          } as Item;
         } else if (sourceType === "Family") {
-          selectedOption = { No: value, Description: `Loading ${value}...` } as Family;
+          selectedOption = {
+            No: value,
+            Description: `Loading ${value}...`,
+          } as Family;
         } else if (sourceType === "Sales Header") {
-          selectedOption = { No: value, Sell_to_Customer_Name: `Loading ${value}...` } as SalesHeader;
+          selectedOption = {
+            No: value,
+            Sell_to_Customer_Name: `Loading ${value}...`,
+          } as SalesHeader;
         }
 
         if (selectedOption) {
@@ -219,7 +228,7 @@ export function useSourceOptions({
 
       onSelect(selectedOption || null);
     },
-    [sourceOptions, sourceType]
+    [sourceOptions, sourceType],
   );
 
   return {

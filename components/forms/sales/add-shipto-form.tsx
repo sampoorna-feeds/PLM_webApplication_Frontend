@@ -3,20 +3,20 @@
  * Form for creating and editing ship-to addresses
  */
 
-'use client';
+"use client";
 
-import React, { useState, useEffect, useRef } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { FieldTitle } from '@/components/ui/field';
+import React, { useState, useEffect, useRef } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { FieldTitle } from "@/components/ui/field";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from '@/components/ui/popover';
-import { ChevronDownIcon, CheckIcon } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { useFormStack } from '@/lib/form-stack/use-form-stack';
+} from "@/components/ui/popover";
+import { ChevronDownIcon, CheckIcon } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { useFormStack } from "@/lib/form-stack/use-form-stack";
 import {
   getShipToAddress,
   createShipToAddress,
@@ -25,10 +25,10 @@ import {
   type ShipToAddress,
   type ShipToAddressCreatePayload,
   type ShipToAddressUpdatePayload,
-} from '@/lib/api/services/shipto.service';
-import { getStates, type State } from '@/lib/api/services/state.service';
-import { clearAddressCache } from '@/lib/validations/shipto.validation';
-import { Loader2 } from 'lucide-react';
+} from "@/lib/api/services/shipto.service";
+import { getStates, type State } from "@/lib/api/services/state.service";
+import { clearAddressCache } from "@/lib/validations/shipto.validation";
+import { Loader2 } from "lucide-react";
 
 interface AddShipToFormProps {
   tabId: string;
@@ -36,13 +36,17 @@ interface AddShipToFormProps {
   context?: Record<string, any>;
 }
 
-export function AddShipToForm({ tabId, formData: initialFormData, context }: AddShipToFormProps) {
+export function AddShipToForm({
+  tabId,
+  formData: initialFormData,
+  context,
+}: AddShipToFormProps) {
   const { handleSuccess, closeTab } = useFormStack(tabId);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [states, setStates] = useState<State[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [stateSearchQuery, setStateSearchQuery] = useState('');
+  const [stateSearchQuery, setStateSearchQuery] = useState("");
   const [isStateOpen, setIsStateOpen] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [countdown, setCountdown] = useState(5);
@@ -50,25 +54,29 @@ export function AddShipToForm({ tabId, formData: initialFormData, context }: Add
   const closeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Determine if this is update mode
-  const existingShipTo = initialFormData?.existingShipTo as ShipToAddress | undefined;
+  const existingShipTo = initialFormData?.existingShipTo as
+    | ShipToAddress
+    | undefined;
   const customerNo = initialFormData?.customerNo as string;
-  const initialLocationCode = initialFormData?.locationCode as string | undefined;
+  const initialLocationCode = initialFormData?.locationCode as
+    | string
+    | undefined;
   const isUpdateMode = !!existingShipTo;
 
   // Form state
   const [formData, setFormData] = useState({
-    code: '',
-    name: '',
-    address: '',
-    address2: '',
-    landmark: '',
-    state: '',
-    city: '',
-    postCode: '',
-    phoneNo: '',
-    contact: '',
-    email: '',
-    locationCode: initialLocationCode || '', // Auto-populate from LOC in create mode
+    code: "",
+    name: "",
+    address: "",
+    address2: "",
+    landmark: "",
+    state: "",
+    city: "",
+    postCode: "",
+    phoneNo: "",
+    contact: "",
+    email: "",
+    locationCode: initialLocationCode || "", // Auto-populate from LOC in create mode
   });
 
   // Cleanup timers on unmount
@@ -93,11 +101,11 @@ export function AddShipToForm({ tabId, formData: initialFormData, context }: Add
           setStates(statesList);
         }
       } catch (error) {
-        console.error('Error loading states:', error);
+        console.error("Error loading states:", error);
       }
     };
     loadStates();
-    
+
     return () => {
       isMounted = false;
     };
@@ -111,43 +119,46 @@ export function AddShipToForm({ tabId, formData: initialFormData, context }: Add
 
     let isMounted = true;
     setIsLoading(true);
-    
+
     const loadData = async () => {
       try {
-        const latestData = await getShipToAddress(customerNo, existingShipTo.Code);
+        const latestData = await getShipToAddress(
+          customerNo,
+          existingShipTo.Code,
+        );
         if (isMounted && latestData) {
           setFormData({
-            code: latestData.Code || '',
-            name: latestData.Name || '',
-            address: latestData.Address || '',
-            address2: latestData.Address_2 || '',
-            landmark: latestData.Landmark || '',
-            state: latestData.State || '',
-            city: latestData.City || '',
-            postCode: latestData.Post_Code || '',
-            phoneNo: latestData.Phone_No || '',
-            contact: latestData.Contact || '',
-            email: latestData.E_Mail || '',
-            locationCode: latestData.Location_Code || '',
+            code: latestData.Code || "",
+            name: latestData.Name || "",
+            address: latestData.Address || "",
+            address2: latestData.Address_2 || "",
+            landmark: latestData.Landmark || "",
+            state: latestData.State || "",
+            city: latestData.City || "",
+            postCode: latestData.Post_Code || "",
+            phoneNo: latestData.Phone_No || "",
+            contact: latestData.Contact || "",
+            email: latestData.E_Mail || "",
+            locationCode: latestData.Location_Code || "",
           });
         }
       } catch (error) {
-        console.error('Error loading ship-to address:', error);
+        console.error("Error loading ship-to address:", error);
         // Fallback to existingShipTo if API fails
         if (isMounted && existingShipTo) {
           setFormData({
-            code: existingShipTo.Code || '',
-            name: existingShipTo.Name || '',
-            address: existingShipTo.Address || '',
-            address2: existingShipTo.Address_2 || '',
-            landmark: existingShipTo.Landmark || '',
-            state: existingShipTo.State || '',
-            city: existingShipTo.City || '',
-            postCode: existingShipTo.Post_Code || '',
-            phoneNo: existingShipTo.Phone_No || '',
-            contact: existingShipTo.Contact || '',
-            email: existingShipTo.E_Mail || '',
-            locationCode: existingShipTo.Location_Code || '',
+            code: existingShipTo.Code || "",
+            name: existingShipTo.Name || "",
+            address: existingShipTo.Address || "",
+            address2: existingShipTo.Address_2 || "",
+            landmark: existingShipTo.Landmark || "",
+            state: existingShipTo.State || "",
+            city: existingShipTo.City || "",
+            postCode: existingShipTo.Post_Code || "",
+            phoneNo: existingShipTo.Phone_No || "",
+            contact: existingShipTo.Contact || "",
+            email: existingShipTo.E_Mail || "",
+            locationCode: existingShipTo.Location_Code || "",
           });
         }
       } finally {
@@ -158,7 +169,7 @@ export function AddShipToForm({ tabId, formData: initialFormData, context }: Add
     };
 
     loadData();
-    
+
     return () => {
       isMounted = false;
     };
@@ -169,26 +180,31 @@ export function AddShipToForm({ tabId, formData: initialFormData, context }: Add
   };
 
   const handleStateChange = (value: string) => {
-    setFormData((prev) => ({ ...prev, state: value, postCode: '' }));
+    setFormData((prev) => ({ ...prev, state: value, postCode: "" }));
     setIsStateOpen(false);
-    setStateSearchQuery('');
+    setStateSearchQuery("");
   };
 
   // Filter states based on search query
-  const filteredStates = stateSearchQuery.length > 0
-    ? states.filter((state) => {
-        const codeMatch = state.Code?.toLowerCase().includes(stateSearchQuery.toLowerCase());
-        const nameMatch = state.Description?.toLowerCase().includes(stateSearchQuery.toLowerCase());
-        return codeMatch || nameMatch;
-      })
-    : states;
+  const filteredStates =
+    stateSearchQuery.length > 0
+      ? states.filter((state) => {
+          const codeMatch = state.Code?.toLowerCase().includes(
+            stateSearchQuery.toLowerCase(),
+          );
+          const nameMatch = state.Description?.toLowerCase().includes(
+            stateSearchQuery.toLowerCase(),
+          );
+          return codeMatch || nameMatch;
+        })
+      : states;
 
   // Find selected state for display
   const selectedState = states.find((s) => s.Code === formData.state);
 
   const handleSubmit = async () => {
     if (!customerNo) {
-      setError('Customer number is required');
+      setError("Customer number is required");
       return;
     }
 
@@ -212,7 +228,7 @@ export function AddShipToForm({ tabId, formData: initialFormData, context }: Add
           Contact: formData.contact || undefined,
           E_Mail: formData.email || undefined,
           Location_Code: formData.locationCode || undefined,
-          Country_Region_Code: 'IN',
+          Country_Region_Code: "IN",
         };
 
         await updateShipToAddress(customerNo, formData.code, updatePayload);
@@ -232,7 +248,7 @@ export function AddShipToForm({ tabId, formData: initialFormData, context }: Add
           Contact: formData.contact || undefined,
           E_Mail: formData.email || undefined,
           Location_Code: formData.locationCode || undefined,
-          Country_Region_Code: 'IN',
+          Country_Region_Code: "IN",
         };
 
         await createShipToAddress(createPayload);
@@ -246,14 +262,14 @@ export function AddShipToForm({ tabId, formData: initialFormData, context }: Add
         // Fire and forget - don't await, don't catch errors here
         createPinCode(formData.postCode, formData.city).catch((err) => {
           // Silently log - this is non-blocking
-          console.log('Pincode creation failed (non-blocking):', err);
+          console.log("Pincode creation failed (non-blocking):", err);
         });
       }
 
       // Show success message with countdown
       setShowSuccess(true);
       setCountdown(5);
-      
+
       // Clear any existing timers
       if (countdownIntervalRef.current) {
         clearInterval(countdownIntervalRef.current);
@@ -261,7 +277,7 @@ export function AddShipToForm({ tabId, formData: initialFormData, context }: Add
       if (closeTimeoutRef.current) {
         clearTimeout(closeTimeoutRef.current);
       }
-      
+
       // Countdown timer
       countdownIntervalRef.current = setInterval(() => {
         setCountdown((prev) => {
@@ -288,8 +304,10 @@ export function AddShipToForm({ tabId, formData: initialFormData, context }: Add
         await handleSuccess();
       }, 5000);
     } catch (err: any) {
-      console.error('Error saving ship-to address:', err);
-      setError(err.message || 'Failed to save ship-to address. Please try again.');
+      console.error("Error saving ship-to address:", err);
+      setError(
+        err.message || "Failed to save ship-to address. Please try again.",
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -297,36 +315,42 @@ export function AddShipToForm({ tabId, formData: initialFormData, context }: Add
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-full">
+      <div className="flex h-full items-center justify-center">
         <Loader2 className="h-6 w-6 animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col h-full relative">
+    <div className="relative flex h-full flex-col">
       {showSuccess && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
-          <div className="bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg p-6 shadow-lg max-w-md mx-4">
+        <div className="bg-background/80 absolute inset-0 z-50 flex items-center justify-center backdrop-blur-sm">
+          <div className="mx-4 max-w-md rounded-lg border border-green-200 bg-green-50 p-6 shadow-lg dark:border-green-800 dark:bg-green-950">
             <div className="text-center">
-              <div className="text-4xl mb-4">✅</div>
-              <div className="text-green-800 dark:text-green-200 font-semibold text-lg mb-2">
+              <div className="mb-4 text-4xl">✅</div>
+              <div className="mb-2 text-lg font-semibold text-green-800 dark:text-green-200">
                 Success!
               </div>
-              <div className="text-green-700 dark:text-green-300 text-sm mb-4">
-                {isUpdateMode ? 'Ship-to address updated' : 'Ship-to address created'} successfully.
+              <div className="mb-4 text-sm text-green-700 dark:text-green-300">
+                {isUpdateMode
+                  ? "Ship-to address updated"
+                  : "Ship-to address created"}{" "}
+                successfully.
               </div>
-              <div className="text-green-600 dark:text-green-400 text-xs">
-                Closing automatically in {countdown} second{countdown !== 1 ? 's' : ''}...
+              <div className="text-xs text-green-600 dark:text-green-400">
+                Closing automatically in {countdown} second
+                {countdown !== 1 ? "s" : ""}...
               </div>
             </div>
           </div>
         </div>
       )}
 
-      <div className={`flex-1 overflow-y-auto px-6 py-6 ${showSuccess ? 'blur-sm pointer-events-none' : ''}`}>
+      <div
+        className={`flex-1 overflow-y-auto px-6 py-6 ${showSuccess ? "pointer-events-none blur-sm" : ""}`}
+      >
         {error && (
-          <div className="mb-4 p-3 bg-destructive/10 text-destructive text-sm rounded-md">
+          <div className="bg-destructive/10 text-destructive mb-4 rounded-md p-3 text-sm">
             {error}
           </div>
         )}
@@ -337,7 +361,7 @@ export function AddShipToForm({ tabId, formData: initialFormData, context }: Add
             <FieldTitle>Code *</FieldTitle>
             <Input
               value={formData.code}
-              onChange={(e) => handleInputChange('code', e.target.value)}
+              onChange={(e) => handleInputChange("code", e.target.value)}
               placeholder="Enter code"
               disabled={isUpdateMode}
             />
@@ -348,7 +372,7 @@ export function AddShipToForm({ tabId, formData: initialFormData, context }: Add
             <FieldTitle>Name *</FieldTitle>
             <Input
               value={formData.name}
-              onChange={(e) => handleInputChange('name', e.target.value)}
+              onChange={(e) => handleInputChange("name", e.target.value)}
               placeholder="Enter name"
             />
           </div>
@@ -359,7 +383,7 @@ export function AddShipToForm({ tabId, formData: initialFormData, context }: Add
               <FieldTitle>Address</FieldTitle>
               <Input
                 value={formData.address}
-                onChange={(e) => handleInputChange('address', e.target.value)}
+                onChange={(e) => handleInputChange("address", e.target.value)}
                 placeholder="Enter address"
               />
             </div>
@@ -367,7 +391,7 @@ export function AddShipToForm({ tabId, formData: initialFormData, context }: Add
               <FieldTitle>Address 2</FieldTitle>
               <Input
                 value={formData.address2}
-                onChange={(e) => handleInputChange('address2', e.target.value)}
+                onChange={(e) => handleInputChange("address2", e.target.value)}
                 placeholder="Enter address line 2"
               />
             </div>
@@ -378,7 +402,7 @@ export function AddShipToForm({ tabId, formData: initialFormData, context }: Add
             <FieldTitle>Landmark *</FieldTitle>
             <Input
               value={formData.landmark}
-              onChange={(e) => handleInputChange('landmark', e.target.value)}
+              onChange={(e) => handleInputChange("landmark", e.target.value)}
               placeholder="Enter landmark"
             />
           </div>
@@ -391,16 +415,19 @@ export function AddShipToForm({ tabId, formData: initialFormData, context }: Add
                 <Button
                   variant="outline"
                   role="combobox"
-                  className="h-9 text-sm w-full justify-between font-normal shadow-sm"
+                  className="h-9 w-full justify-between text-sm font-normal shadow-sm"
                 >
                   <span className="truncate">
-                    {selectedState ? selectedState.Description : 'Select state'}
+                    {selectedState ? selectedState.Description : "Select state"}
                   </span>
                   <ChevronDownIcon className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="p-0 min-w-[280px] max-w-[400px] w-auto" align="start">
-                <div className="p-2 border-b">
+              <PopoverContent
+                className="w-auto max-w-[400px] min-w-[280px] p-0"
+                align="start"
+              >
+                <div className="border-b p-2">
                   <Input
                     placeholder="Search state..."
                     value={stateSearchQuery}
@@ -409,9 +436,9 @@ export function AddShipToForm({ tabId, formData: initialFormData, context }: Add
                     autoFocus
                   />
                 </div>
-                <div className="max-h-[200px] overflow-y-auto overflow-x-hidden">
+                <div className="max-h-[200px] overflow-x-hidden overflow-y-auto">
                   {filteredStates.length === 0 ? (
-                    <div className="p-4 text-center text-sm text-muted-foreground">
+                    <div className="text-muted-foreground p-4 text-center text-sm">
                       No states found
                     </div>
                   ) : (
@@ -419,22 +446,24 @@ export function AddShipToForm({ tabId, formData: initialFormData, context }: Add
                       <div
                         key={state.Code}
                         className={cn(
-                          'relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-muted/50',
-                          formData.state === state.Code && 'bg-muted'
+                          "hover:bg-muted/50 relative flex cursor-default items-center rounded-sm px-2 py-1.5 text-sm outline-none select-none",
+                          formData.state === state.Code && "bg-muted",
                         )}
                         onClick={() => handleStateChange(state.Code)}
                       >
                         <CheckIcon
                           className={cn(
-                            'mr-2 h-4 w-4 shrink-0',
-                            formData.state === state.Code ? 'opacity-100' : 'opacity-0'
+                            "mr-2 h-4 w-4 shrink-0",
+                            formData.state === state.Code
+                              ? "opacity-100"
+                              : "opacity-0",
                           )}
                         />
-                        <div className="flex-1 min-w-0">
-                          <div className="font-medium text-foreground">
+                        <div className="min-w-0 flex-1">
+                          <div className="text-foreground font-medium">
                             {state.Description}
                           </div>
-                          <div className="text-muted-foreground text-xs mt-0.5">
+                          <div className="text-muted-foreground mt-0.5 text-xs">
                             {state.Code}
                           </div>
                         </div>
@@ -455,17 +484,17 @@ export function AddShipToForm({ tabId, formData: initialFormData, context }: Add
                 inputMode="numeric"
                 value={formData.postCode}
                 onChange={(e) => {
-                  const value = e.target.value.replace(/\D/g, '');
-                  handleInputChange('postCode', value);
+                  const value = e.target.value.replace(/\D/g, "");
+                  handleInputChange("postCode", value);
                 }}
                 placeholder="Enter postcode"
               />
             </div>
             <div className="space-y-2">
-              <FieldTitle>City {formData.postCode ? '*' : ''}</FieldTitle>
+              <FieldTitle>City {formData.postCode ? "*" : ""}</FieldTitle>
               <Input
                 value={formData.city}
-                onChange={(e) => handleInputChange('city', e.target.value)}
+                onChange={(e) => handleInputChange("city", e.target.value)}
                 placeholder="Enter city"
               />
             </div>
@@ -480,8 +509,8 @@ export function AddShipToForm({ tabId, formData: initialFormData, context }: Add
                 inputMode="tel"
                 value={formData.phoneNo}
                 onChange={(e) => {
-                  const value = e.target.value.replace(/\D/g, '');
-                  handleInputChange('phoneNo', value);
+                  const value = e.target.value.replace(/\D/g, "");
+                  handleInputChange("phoneNo", value);
                 }}
                 placeholder="Enter phone number"
               />
@@ -490,7 +519,7 @@ export function AddShipToForm({ tabId, formData: initialFormData, context }: Add
               <FieldTitle>Contact</FieldTitle>
               <Input
                 value={formData.contact}
-                onChange={(e) => handleInputChange('contact', e.target.value)}
+                onChange={(e) => handleInputChange("contact", e.target.value)}
                 placeholder="Enter contact name"
               />
             </div>
@@ -502,7 +531,7 @@ export function AddShipToForm({ tabId, formData: initialFormData, context }: Add
             <Input
               type="email"
               value={formData.email}
-              onChange={(e) => handleInputChange('email', e.target.value)}
+              onChange={(e) => handleInputChange("email", e.target.value)}
               placeholder="Enter email"
             />
           </div>
@@ -512,14 +541,16 @@ export function AddShipToForm({ tabId, formData: initialFormData, context }: Add
             <FieldTitle>Location Code</FieldTitle>
             <Input
               value={formData.locationCode}
-              onChange={(e) => handleInputChange('locationCode', e.target.value)}
+              onChange={(e) =>
+                handleInputChange("locationCode", e.target.value)
+              }
               placeholder="Enter location code"
             />
           </div>
         </div>
       </div>
 
-      <div className="px-6 py-4 border-t flex gap-2">
+      <div className="flex gap-2 border-t px-6 py-4">
         <Button
           variant="outline"
           onClick={() => closeTab()}
@@ -536,10 +567,12 @@ export function AddShipToForm({ tabId, formData: initialFormData, context }: Add
           {isSubmitting ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              {isUpdateMode ? 'Updating...' : 'Creating...'}
+              {isUpdateMode ? "Updating..." : "Creating..."}
             </>
+          ) : isUpdateMode ? (
+            "Update"
           ) : (
-            isUpdateMode ? 'Update' : 'Create'
+            "Create"
           )}
         </Button>
       </div>

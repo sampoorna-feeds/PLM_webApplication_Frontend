@@ -5,7 +5,7 @@
  * Displays detailed error messages from API/ERP failures
  */
 
-import React from 'react';
+import React from "react";
 import {
   Dialog,
   DialogContent,
@@ -13,9 +13,9 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { AlertCircle } from 'lucide-react';
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { AlertCircle } from "lucide-react";
 
 export interface ErrorDetail {
   entryId?: string;
@@ -32,7 +32,7 @@ export interface ErrorDialogProps {
   title?: string;
   message?: string;
   errors?: ErrorDetail[];
-  type?: 'submit' | 'post' | 'upload' | 'general';
+  type?: "submit" | "post" | "upload" | "general";
 }
 
 export function ErrorDialog({
@@ -41,31 +41,31 @@ export function ErrorDialog({
   title,
   message,
   errors = [],
-  type = 'general',
+  type = "general",
 }: ErrorDialogProps) {
   const getDefaultTitle = () => {
     switch (type) {
-      case 'submit':
-        return 'Voucher Submission Failed';
-      case 'post':
-        return 'Post Vouchers Failed';
-      case 'upload':
-        return 'File Upload Failed';
+      case "submit":
+        return "Voucher Submission Failed";
+      case "post":
+        return "Post Vouchers Failed";
+      case "upload":
+        return "File Upload Failed";
       default:
-        return 'Error Occurred';
+        return "Error Occurred";
     }
   };
 
   const getDefaultMessage = () => {
     switch (type) {
-      case 'submit':
-        return 'Some vouchers failed to submit. Please review the errors below:';
-      case 'post':
-        return 'Failed to post vouchers. Please review the errors below:';
-      case 'upload':
-        return 'Some files failed to upload. Please review the errors below:';
+      case "submit":
+        return "Some vouchers failed to submit. Please review the errors below:";
+      case "post":
+        return "Failed to post vouchers. Please review the errors below:";
+      case "upload":
+        return "Some files failed to upload. Please review the errors below:";
       default:
-        return 'An error occurred. Please review the details below:';
+        return "An error occurred. Please review the details below:";
     }
   };
 
@@ -74,41 +74,43 @@ export function ErrorDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
+      <DialogContent className="flex max-h-[80vh] max-w-2xl flex-col overflow-hidden">
         <DialogHeader>
           <div className="flex items-center gap-2">
-            <AlertCircle className="h-5 w-5 text-destructive" />
-            <DialogTitle className="text-destructive">{displayTitle}</DialogTitle>
+            <AlertCircle className="text-destructive h-5 w-5" />
+            <DialogTitle className="text-destructive">
+              {displayTitle}
+            </DialogTitle>
           </div>
           <DialogDescription>{displayMessage}</DialogDescription>
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto min-h-0">
+        <div className="min-h-0 flex-1 overflow-y-auto">
           {errors.length > 0 ? (
             <div className="space-y-3">
               {errors.map((error, index) => (
                 <div
                   key={index}
-                  className="rounded-lg border border-destructive/20 bg-destructive/5 p-4 space-y-2"
+                  className="border-destructive/20 bg-destructive/5 space-y-2 rounded-lg border p-4"
                 >
                   {error.entryLabel && (
-                    <div className="font-semibold text-sm text-foreground">
+                    <div className="text-foreground text-sm font-semibold">
                       {error.entryLabel}
                     </div>
                   )}
-                  <div className="text-sm text-foreground">{error.message}</div>
+                  <div className="text-foreground text-sm">{error.message}</div>
                   {(error.code || error.status) && (
-                    <div className="flex gap-4 text-xs text-muted-foreground">
+                    <div className="text-muted-foreground flex gap-4 text-xs">
                       {error.code && <span>Code: {error.code}</span>}
                       {error.status && <span>Status: {error.status}</span>}
                     </div>
                   )}
                   {error.details && (
                     <details className="mt-2">
-                      <summary className="cursor-pointer text-xs text-muted-foreground hover:text-foreground">
+                      <summary className="text-muted-foreground hover:text-foreground cursor-pointer text-xs">
                         View Details
                       </summary>
-                      <pre className="mt-2 p-2 bg-muted rounded text-xs overflow-x-auto">
+                      <pre className="bg-muted mt-2 overflow-x-auto rounded p-2 text-xs">
                         {error.details}
                       </pre>
                     </details>
@@ -117,9 +119,9 @@ export function ErrorDialog({
               ))}
             </div>
           ) : (
-            <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-4">
-              <div className="text-sm text-foreground">
-                {displayMessage || 'An unexpected error occurred.'}
+            <div className="border-destructive/20 bg-destructive/5 rounded-lg border p-4">
+              <div className="text-foreground text-sm">
+                {displayMessage || "An unexpected error occurred."}
               </div>
             </div>
           )}
@@ -132,4 +134,3 @@ export function ErrorDialog({
     </Dialog>
   );
 }
-

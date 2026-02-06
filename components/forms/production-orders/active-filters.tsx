@@ -22,12 +22,13 @@ export function ActiveFilters({
   userBranchCodes,
 }: ActiveFiltersProps) {
   // Build list of active filters
-  const activeFilters: { key: string; label: string; displayValue: string }[] = [];
+  const activeFilters: { key: string; label: string; displayValue: string }[] =
+    [];
 
   if (searchQuery) {
     activeFilters.push({
-      key: 'search',
-      label: 'Search',
+      key: "search",
+      label: "Search",
       displayValue: searchQuery,
     });
   }
@@ -37,32 +38,32 @@ export function ActiveFilters({
     if (!filter.value && !filter.valueTo) return;
 
     // Skip Branch filter if it matches ALL user branches (default state)
-    if (columnId === 'Shortcut_Dimension_2_Code') {
-        const selectedBranches = filter.value.split(',').sort().join(',');
-        const allUserBranches = [...userBranchCodes].sort().join(',');
-        
-        // If they match (ignoring order), don't show the filter badge
-        if (selectedBranches === allUserBranches) return;
+    if (columnId === "Shortcut_Dimension_2_Code") {
+      const selectedBranches = filter.value.split(",").sort().join(",");
+      const allUserBranches = [...userBranchCodes].sort().join(",");
+
+      // If they match (ignoring order), don't show the filter badge
+      if (selectedBranches === allUserBranches) return;
     }
 
-    const column = ALL_COLUMNS.find(c => c.id === columnId);
+    const column = ALL_COLUMNS.find((c) => c.id === columnId);
     if (!column) return;
 
     let displayValue = filter.value;
 
     // Format number filter display
-    if (column.filterType === 'number') {
+    if (column.filterType === "number") {
       if (filter.valueTo) {
-        displayValue = `${filter.value || '0'} - ${filter.valueTo}`;
-      } else if (filter.value.includes(':')) {
-        const [op, num] = filter.value.split(':');
-        const opLabels: Record<string, string> = { eq: '=', gt: '>', lt: '<' };
-        displayValue = `${opLabels[op] || '='} ${num}`;
+        displayValue = `${filter.value || "0"} - ${filter.valueTo}`;
+      } else if (filter.value.includes(":")) {
+        const [op, num] = filter.value.split(":");
+        const opLabels: Record<string, string> = { eq: "=", gt: ">", lt: "<" };
+        displayValue = `${opLabels[op] || "="} ${num}`;
       }
     }
 
     // Format date filter display
-    if (column.filterType === 'date') {
+    if (column.filterType === "date") {
       if (filter.value && filter.valueTo) {
         displayValue = `${filter.value} to ${filter.valueTo}`;
       } else if (filter.value) {
@@ -73,8 +74,8 @@ export function ActiveFilters({
     }
 
     // Format boolean filter display
-    if (column.filterType === 'boolean') {
-      displayValue = filter.value === 'true' ? 'Yes' : 'No';
+    if (column.filterType === "boolean") {
+      displayValue = filter.value === "true" ? "Yes" : "No";
     }
 
     activeFilters.push({
@@ -89,33 +90,40 @@ export function ActiveFilters({
   }
 
   const handleClear = (key: string) => {
-    if (key === 'search') {
-      onSearch('');
+    if (key === "search") {
+      onSearch("");
     } else {
-      onColumnFilter(key, '', '');
+      onColumnFilter(key, "", "");
     }
   };
 
   return (
     <div className="flex flex-wrap items-center gap-2 pb-3">
-      <span className="text-xs text-muted-foreground">Active filters:</span>
+      <span className="text-muted-foreground text-xs">Active filters:</span>
       {activeFilters.map(({ key, label, displayValue }) => (
         <div
           key={key}
-          className="flex items-center gap-1 bg-muted text-sm px-2 py-0.5 rounded-full"
+          className="bg-muted flex items-center gap-1 rounded-full px-2 py-0.5 text-sm"
         >
           <span className="font-medium">{label}:</span>
-          <span className="text-muted-foreground max-w-[120px] truncate">{displayValue}</span>
+          <span className="text-muted-foreground max-w-[120px] truncate">
+            {displayValue}
+          </span>
           <button
             onClick={() => handleClear(key)}
-            className="ml-0.5 text-muted-foreground hover:text-foreground"
+            className="text-muted-foreground hover:text-foreground ml-0.5"
           >
             <X className="h-3 w-3" />
           </button>
         </div>
       ))}
       {activeFilters.length > 1 && (
-        <Button variant="ghost" size="sm" onClick={onClearFilters} className="h-6 px-2 text-xs">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onClearFilters}
+          className="h-6 px-2 text-xs"
+        >
           Reset Filters
         </Button>
       )}

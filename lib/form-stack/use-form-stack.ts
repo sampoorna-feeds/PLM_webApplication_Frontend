@@ -3,24 +3,24 @@
  * Custom hook for form components to interact with FormStack
  */
 
-import { useEffect, useCallback, useMemo } from 'react';
-import { useFormStackContext } from './form-stack-context';
-import type { FormTab } from './types';
+import { useEffect, useCallback, useMemo } from "react";
+import { useFormStackContext } from "./form-stack-context";
+import type { FormTab } from "./types";
 
 export function useFormStack(tabId: string) {
   const context = useFormStackContext();
-  
+
   // Extract stable function references from context
-  const { 
-    tabs, 
-    activeTabId, 
+  const {
+    tabs,
+    activeTabId,
     currentTab,
-    registerRefreshCallback, 
+    registerRefreshCallback,
     unregisterRefreshCallback,
     updateTab: contextUpdateTab,
     closeTab: contextCloseTab,
   } = context;
-  
+
   // Memoize tab lookup to prevent unnecessary re-renders
   const tab = useMemo(() => tabs.find((t) => t.id === tabId), [tabs, tabId]);
 
@@ -48,11 +48,14 @@ export function useFormStack(tabId: string) {
     }
   }, [tab, tabId, contextUpdateTab]);
 
-  const updateFormData = useCallback((formData: Record<string, any>) => {
-    if (tab) {
-      contextUpdateTab(tabId, { formData });
-    }
-  }, [tab, tabId, contextUpdateTab]);
+  const updateFormData = useCallback(
+    (formData: Record<string, any>) => {
+      if (tab) {
+        contextUpdateTab(tabId, { formData });
+      }
+    },
+    [tab, tabId, contextUpdateTab],
+  );
 
   const handleSuccess = useCallback(async () => {
     if (!tab) {

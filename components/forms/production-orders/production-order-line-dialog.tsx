@@ -48,7 +48,7 @@ export function ProductionOrderLineDialog({
   onAssignTracking,
   hasTracking = false,
 }: ProductionOrderLineDialogProps) {
-  const [quantity, setQuantity] = useState<number>(0);
+  const [quantity, setQuantity] = useState<string>("");
   const [description, setDescription] = useState("");
   const [locationCode, setLocationCode] = useState("");
   const [isSaving, setIsSaving] = useState(false);
@@ -72,7 +72,7 @@ export function ProductionOrderLineDialog({
   // Reset form when line changes
   useEffect(() => {
     if (line) {
-      setQuantity(line.Quantity || 0);
+      setQuantity(line.Quantity?.toString() || "");
       setDescription(line.Description || "");
       setLocationCode(line.Location_Code || "");
     }
@@ -81,8 +81,11 @@ export function ProductionOrderLineDialog({
   const handleSave = async () => {
     if (!line) return;
 
+    // Parse quantity
+    const quantityValue = parseFloat(quantity) || 0;
+
     // Validation
-    if (quantity < 0) {
+    if (quantityValue < 0) {
       toast.error("Quantity cannot be negative");
       return;
     }
@@ -100,7 +103,7 @@ export function ProductionOrderLineDialog({
     setIsSaving(true);
     try {
       await updateProductionOrderLine(line.Prod_Order_No, line.Line_No, {
-        Quantity: quantity,
+        Quantity: quantityValue,
         Description: description.trim(),
         Location_Code: locationCode,
       });
@@ -134,7 +137,7 @@ export function ProductionOrderLineDialog({
         <div className="grid gap-4 py-4">
           {/* Read-only Item No */}
           <div className="grid grid-cols-4 items-center gap-4">
-            <Label className="text-right text-muted-foreground">Item No.</Label>
+            <Label className="text-muted-foreground text-right">Item No.</Label>
             <div className="col-span-3 font-medium">{line.Item_No || "-"}</div>
           </div>
 
@@ -171,12 +174,12 @@ export function ProductionOrderLineDialog({
           </div>
 
           <div className="grid grid-cols-4 items-center gap-4">
-            <Label className="text-right text-muted-foreground">UOM</Label>
+            <Label className="text-muted-foreground text-right">UOM</Label>
             <div className="col-span-3">{line.Unit_of_Measure_Code || "-"}</div>
           </div>
 
           <div className="grid grid-cols-4 items-center gap-4">
-            <Label className="text-right text-muted-foreground">
+            <Label className="text-muted-foreground text-right">
               Finished Qty
             </Label>
             <div className="col-span-3">
@@ -185,7 +188,7 @@ export function ProductionOrderLineDialog({
           </div>
 
           <div className="grid grid-cols-4 items-center gap-4">
-            <Label className="text-right text-muted-foreground">
+            <Label className="text-muted-foreground text-right">
               Remaining Qty
             </Label>
             <div className="col-span-3">
@@ -199,12 +202,17 @@ export function ProductionOrderLineDialog({
             </Label>
             <Input
               id="quantity"
-              type="number"
+              type="text"
+              inputMode="decimal"
               value={quantity}
-              onChange={(e) => setQuantity(parseFloat(e.target.value) || 0)}
+              onChange={(e) => {
+                const val = e.target.value;
+                if (val === "" || /^[0-9]*\.?[0-9]*$/.test(val)) {
+                  setQuantity(val);
+                }
+              }}
               className="col-span-3"
-              min={0}
-              step="any"
+              placeholder="Enter quantity"
             />
           </div>
         </div>
@@ -221,10 +229,10 @@ export function ProductionOrderLineDialog({
 
         {/* Item Tracking Action - only show if has tracking */}
         {hasTracking && onAssignTracking && (
-          <div className="px-6 pb-6 pt-2 border-t mt-2">
+          <div className="mt-2 border-t px-6 pt-2 pb-6">
             <Button
               variant="outline"
-              className="w-full text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700 justify-center"
+              className="w-full justify-center border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
               onClick={() => {
                 onAssignTracking();
                 onOpenChange(false); // Close this dialog to open the tracking dialog

@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "format": "prettier --write --ignore-path .gitignore .",
+    "format:check": "prettier --check --ignore-path .gitignore ."
   },
   "dependencies": {
     "@base-ui/react": "^1.0.0",
@@ -38,6 +40,8 @@
     "baseline-browser-mapping": "^2.9.19",
     "eslint": "^9",
     "eslint-config-next": "16.0.10",
-    "typescript": "^5"
+    "prettier": "^3.8.1",
+    "prettier-plugin-tailwindcss": "^0.7.2",
+    "typescript": "5.9.3"
   }
 }

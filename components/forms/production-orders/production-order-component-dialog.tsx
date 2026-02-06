@@ -15,9 +15,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   updateProductionOrderComponent,
-  getComponentSubstitutes,
+  getSubstituteItems,
+  updateComponentSubstitute,
   type ProductionOrderComponent,
-  type LotAvailability,
+  type SubstituteItem,
 } from "@/lib/api/services/production-orders.service";
 import {
   Table,
@@ -59,7 +60,7 @@ export function ProductionOrderComponentDialog({
   onAssignTracking,
   hasTracking = false,
 }: ProductionOrderComponentDialogProps) {
-  const [quantityPer, setQuantityPer] = useState<number>(0);
+  const [quantityPer, setQuantityPer] = useState<string>("");
   const [description, setDescription] = useState("");
   const [locationCode, setLocationCode] = useState("");
   const [itemNo, setItemNo] = useState("");
@@ -68,8 +69,9 @@ export function ProductionOrderComponentDialog({
 
   // Substitution state
   const [isSubstituteOpen, setIsSubstituteOpen] = useState(false);
-  const [substitutes, setSubstitutes] = useState<LotAvailability[]>([]);
+  const [substitutes, setSubstitutes] = useState<SubstituteItem[]>([]);
   const [isLoadingSubstitutes, setIsLoadingSubstitutes] = useState(false);
+  const [isUpdatingSubstitute, setIsUpdatingSubstitute] = useState(false);
   const [locations, setLocations] = useState<DimensionValue[]>([]);
   const { userID } = useAuth();
 
@@ -87,7 +89,7 @@ export function ProductionOrderComponentDialog({
   // Reset form when component changes
   useEffect(() => {
     if (component) {
-      setQuantityPer(component.Quantity_per || 0);
+      setQuantityPer(component.Quantity_per?.toString() || "");
       setDescription(component.Description || "");
       setLocationCode(component.Location_Code || "");
       setItemNo(component.Item_No || "");
@@ -95,44 +97,68 @@ export function ProductionOrderComponentDialog({
   }, [component]);
 
   const handleFetchSubstitutes = async () => {
-    // Determine which item/location to check.
-    // Use current state values so user can type a new item and check it.
-    const targetItem = itemNo || component?.Item_No || "";
-    const targetLocation = locationCode || component?.Location_Code || "";
-
-    if (!targetItem || !targetLocation) {
-      toast.error(
-        "Item No and Location Code are required to check availability.",
-      );
+    if (!component) {
+      toast.error("Component data is required to check substitutes.");
       return;
     }
 
     setIsLoadingSubstitutes(true);
     try {
-      const data = await getComponentSubstitutes(targetItem, targetLocation);
+      // Call the correct API to get substitute items for this component
+      const data = await getSubstituteItems(
+        component.Prod_Order_No,
+        component.Prod_Order_Line_No,
+        component.Line_No,
+      );
       setSubstitutes(data);
       setIsSubstituteOpen(true);
 
       if (data.length === 0) {
-        toast.info("No availability found for this item/location.");
+        toast.info("No substitutes found for this component.");
       }
     } catch (error) {
       console.error("Error fetching substitutes:", error);
-      toast.error("Failed to fetch availability");
+      toast.error("Failed to fetch substitutes");
     } finally {
       setIsLoadingSubstitutes(false);
     }
   };
 
-  const handleSelectSubstitute = (sub: LotAvailability) => {
-    // If user selects a lot, we confirm using this Item No (and potentially Lot logic later)
-    setItemNo(sub.ItemNo);
-    setIsSubstituteOpen(false);
-    toast.success(`Selected Item: ${sub.ItemNo} (Lot: ${sub.LotNo})`);
+  const handleSelectSubstitute = async (sub: SubstituteItem) => {
+    if (!component) return;
+
+    setIsUpdatingSubstitute(true);
+    try {
+      // Call API to update component with substitute item
+      await updateComponentSubstitute(
+        component.Prod_Order_No,
+        component.Prod_Order_Line_No.toString(),
+        component.Line_No.toString(),
+        sub.Item_No,
+      );
+
+      // Update local state
+      setItemNo(sub.Item_No);
+      setIsSubstituteOpen(false);
+      toast.success(`Component updated with substitute: ${sub.Item_No}`);
+
+      // Refresh the components list
+      onSave();
+    } catch (error) {
+      console.error("Error updating component with substitute:", error);
+      toast.error(
+        error instanceof Error ? error.message : "Failed to apply substitute",
+      );
+    } finally {
+      setIsUpdatingSubstitute(false);
+    }
   };
 
   const handleSave = async () => {
     if (!component) return;
+
+    // Parse quantity
+    const quantityPerValue = parseFloat(quantityPer) || 0;
 
     // Validation
     if (!itemNo.trim()) {
@@ -140,7 +166,7 @@ export function ProductionOrderComponentDialog({
       return;
     }
 
-    if (quantityPer < 0) {
+    if (quantityPerValue < 0) {
       toast.error("Quantity Per cannot be negative");
       return;
     }
@@ -162,7 +188,7 @@ export function ProductionOrderComponentDialog({
         component.Prod_Order_Line_No,
         component.Line_No,
         {
-          Quantity_per: quantityPer,
+          Quantity_per: quantityPerValue,
           Description: description.trim(),
           Location_Code: locationCode,
           Item_No:
@@ -210,17 +236,19 @@ export function ProductionOrderComponentDialog({
                 onChange={(e) => setItemNo(e.target.value)}
                 className=""
               />
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleFetchSubstitutes}
-                disabled={isLoadingSubstitutes}
-              >
-                {isLoadingSubstitutes ? (
-                  <Loader2 className="h-3 w-3 animate-spin mr-1" />
-                ) : null}
-                Check Availability
-              </Button>
+              {component?.Substitution_Available && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleFetchSubstitutes}
+                  disabled={isLoadingSubstitutes}
+                >
+                  {isLoadingSubstitutes ? (
+                    <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                  ) : null}
+                  Check Substitutes
+                </Button>
+              )}
             </div>
           </div>
 
@@ -258,7 +286,7 @@ export function ProductionOrderComponentDialog({
 
           {/* Read-only stats */}
           <div className="grid grid-cols-4 items-center gap-4">
-            <Label className="text-right text-muted-foreground">
+            <Label className="text-muted-foreground text-right">
               Expected Qty
             </Label>
             <div className="col-span-3">
@@ -267,7 +295,7 @@ export function ProductionOrderComponentDialog({
           </div>
 
           <div className="grid grid-cols-4 items-center gap-4">
-            <Label className="text-right text-muted-foreground">
+            <Label className="text-muted-foreground text-right">
               Remaining Qty
             </Label>
             <div className="col-span-3">
@@ -282,11 +310,17 @@ export function ProductionOrderComponentDialog({
             </Label>
             <Input
               id="quantityPer"
-              type="number"
+              type="text"
+              inputMode="decimal"
               value={quantityPer}
-              onChange={(e) => setQuantityPer(parseFloat(e.target.value) || 0)}
+              onChange={(e) => {
+                const val = e.target.value;
+                if (val === "" || /^[0-9]*\.?[0-9]*$/.test(val)) {
+                  setQuantityPer(val);
+                }
+              }}
               className="col-span-3"
-              step="any"
+              placeholder="Enter quantity"
             />
           </div>
         </div>
@@ -301,19 +335,21 @@ export function ProductionOrderComponentDialog({
           </Button>
         </DialogFooter>
 
-        {/* Tracking Action */}
-        <div className="px-6 pb-6 pt-2 border-t mt-2">
-          <Button
-            variant="outline"
-            className="w-full text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700 justify-center"
-            onClick={() => {
-              onAssignTracking();
-              onOpenChange(false); // Close this dialog to open the next one
-            }}
-          >
-            Item Tracking
-          </Button>
-        </div>
+        {/* Tracking Action - only shown for items with tracking codes */}
+        {hasTracking && (
+          <div className="mt-2 border-t px-6 pt-2 pb-6">
+            <Button
+              variant="outline"
+              className="w-full justify-center border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+              onClick={() => {
+                onAssignTracking();
+                onOpenChange(false); // Close this dialog to open the next one
+              }}
+            >
+              Item Tracking
+            </Button>
+          </div>
+        )}
       </DialogContent>
 
       {/* Substitution Dialog */}
@@ -327,34 +363,39 @@ export function ProductionOrderComponentDialog({
               <TableHeader>
                 <TableRow>
                   <TableHead>Item No</TableHead>
-                  <TableHead>Lot No</TableHead>
-                  <TableHead>Location</TableHead>
-                  <TableHead>Available</TableHead>
+                  <TableHead>Description</TableHead>
+                  <TableHead className="text-right">Quantity</TableHead>
                   <TableHead className="w-25">Action</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {substitutes.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-4">
-                      No availability found
+                    <TableCell colSpan={4} className="py-4 text-center">
+                      No substitutes found
                     </TableCell>
                   </TableRow>
                 ) : (
                   substitutes.map((sub, idx) => (
                     <TableRow key={idx}>
                       <TableCell className="font-medium">
-                        {sub.ItemNo}
+                        {sub.Item_No}
                       </TableCell>
-                      <TableCell>{sub.LotNo}</TableCell>
-                      <TableCell>{sub.Location_Code}</TableCell>
-                      <TableCell>{sub.RemainingQty}</TableCell>
+                      <TableCell>{sub.Description}</TableCell>
+                      <TableCell className="text-right">
+                        {sub.Quantity?.toLocaleString() ?? "-"}
+                      </TableCell>
                       <TableCell>
                         <Button
                           size="sm"
                           onClick={() => handleSelectSubstitute(sub)}
+                          disabled={isUpdatingSubstitute}
                         >
-                          Select
+                          {isUpdatingSubstitute ? (
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                          ) : (
+                            "Select"
+                          )}
                         </Button>
                       </TableCell>
                     </TableRow>

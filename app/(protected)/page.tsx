@@ -3,16 +3,16 @@
  * Redirects to voucher-form by default
  */
 
-'use client';
+"use client";
 
-import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 
 export default function ProtectedPage() {
   const router = useRouter();
 
   useEffect(() => {
-    router.replace('/voucher-form');
+    router.replace("/voucher-form");
   }, [router]);
 
   return (
@@ -21,4 +21,3 @@ export default function ProtectedPage() {
     </div>
   );
 }
-

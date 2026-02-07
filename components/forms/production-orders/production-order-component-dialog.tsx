@@ -42,6 +42,11 @@ import {
   type DimensionValue,
 } from "@/lib/api/services/dimension.service";
 import { useAuth } from "@/lib/contexts/auth-context";
+import {
+  ApiErrorDialog,
+  extractApiError,
+  type ApiErrorState,
+} from "./api-error-dialog";
 
 interface ProductionOrderComponentDialogProps {
   component: ProductionOrderComponent | null;
@@ -74,6 +79,7 @@ export function ProductionOrderComponentDialog({
   const [isUpdatingSubstitute, setIsUpdatingSubstitute] = useState(false);
   const [locations, setLocations] = useState<DimensionValue[]>([]);
   const { userID } = useAuth();
+  const [apiError, setApiError] = useState<ApiErrorState | null>(null);
 
   useEffect(() => {
     if (userID) {
@@ -81,7 +87,8 @@ export function ProductionOrderComponentDialog({
         .then(setLocations)
         .catch((err) => {
           console.error("Failed to fetch locations", err);
-          toast.error("Failed to load locations");
+          const { message, code } = extractApiError(err);
+          setApiError({ title: "Load Locations Failed", message, code });
         });
     }
   }, [userID]);
@@ -118,7 +125,8 @@ export function ProductionOrderComponentDialog({
       }
     } catch (error) {
       console.error("Error fetching substitutes:", error);
-      toast.error("Failed to fetch substitutes");
+      const { message, code } = extractApiError(error);
+      setApiError({ title: "Substitutes Failed", message, code });
     } finally {
       setIsLoadingSubstitutes(false);
     }
@@ -146,9 +154,8 @@ export function ProductionOrderComponentDialog({
       onSave();
     } catch (error) {
       console.error("Error updating component with substitute:", error);
-      toast.error(
-        error instanceof Error ? error.message : "Failed to apply substitute",
-      );
+      const { message, code } = extractApiError(error);
+      setApiError({ title: "Substitute Failed", message, code });
     } finally {
       setIsUpdatingSubstitute(false);
     }
@@ -200,9 +207,8 @@ export function ProductionOrderComponentDialog({
       onOpenChange(false);
     } catch (error) {
       console.error("Error updating component:", error);
-      toast.error(
-        error instanceof Error ? error.message : "Failed to update component",
-      );
+      const { message, code } = extractApiError(error);
+      setApiError({ title: "Update Failed", message, code });
     } finally {
       setIsSaving(false);
     }
@@ -213,21 +219,23 @@ export function ProductionOrderComponentDialog({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-125">
+        <DialogContent className="p-8 sm:max-w-160">
           <DialogHeader>
-            <DialogTitle className={cn(hasTracking && "text-red-600")}>
+            <DialogTitle
+              className={cn("text-lg", hasTracking && "text-red-600")}
+            >
               Edit Component
               {hasTracking && (
-                <span className="ml-2 text-xs font-normal">(Has Tracking)</span>
+                <span className="ml-2 text-sm font-normal">(Has Tracking)</span>
               )}
             </DialogTitle>
           </DialogHeader>
 
-          <div className="grid gap-4 py-4">
+          <div className="grid gap-5 py-5">
             {/* Read-only fields */}
             {/* Edit Item No with Substitute */}
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="itemNo" className="text-right">
+              <Label htmlFor="itemNo" className="text-right text-sm">
                 Item No.
               </Label>
               <div className="col-span-3 flex items-center gap-2">
@@ -254,7 +262,7 @@ export function ProductionOrderComponentDialog({
             </div>
 
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="description" className="text-right">
+              <Label htmlFor="description" className="text-right text-sm">
                 Description
               </Label>
               <Input
@@ -266,7 +274,7 @@ export function ProductionOrderComponentDialog({
             </div>
 
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="locationCode" className="text-right">
+              <Label htmlFor="locationCode" className="text-right text-sm">
                 Location Code
               </Label>
               <div className="col-span-3">
@@ -287,26 +295,26 @@ export function ProductionOrderComponentDialog({
 
             {/* Read-only stats */}
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label className="text-muted-foreground text-right">
+              <Label className="text-muted-foreground text-right text-sm">
                 Expected Qty
               </Label>
-              <div className="col-span-3">
+              <div className="col-span-3 text-sm">
                 {component.Expected_Quantity?.toLocaleString() ?? "-"}
               </div>
             </div>
 
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label className="text-muted-foreground text-right">
+              <Label className="text-muted-foreground text-right text-sm">
                 Remaining Qty
               </Label>
-              <div className="col-span-3">
+              <div className="col-span-3 text-sm">
                 {component.Remaining_Quantity?.toLocaleString() ?? "-"}
               </div>
             </div>
 
             {/* Editable field */}
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="quantityPer" className="text-right">
+              <Label htmlFor="quantityPer" className="text-right text-sm">
                 Quantity Per
               </Label>
               <Input
@@ -326,7 +334,7 @@ export function ProductionOrderComponentDialog({
             </div>
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="pt-2">
             <Button variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
@@ -338,7 +346,7 @@ export function ProductionOrderComponentDialog({
 
           {/* Tracking Action - only shown for items with tracking codes */}
           {hasTracking && (
-            <div className="mt-2 border-t px-6 pt-2 pb-6">
+            <div className="mt-3 border-t pt-4 pb-2">
               <Button
                 variant="outline"
                 className="w-full justify-center border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
@@ -416,6 +424,8 @@ export function ProductionOrderComponentDialog({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ApiErrorDialog error={apiError} onClose={() => setApiError(null)} />
     </>
   );
 }

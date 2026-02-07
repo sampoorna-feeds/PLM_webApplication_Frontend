@@ -80,11 +80,7 @@ export function FormStackPanel() {
                 <button
                   key={tab.id}
                   onClick={() => {
-                    // Switch to tab and expand
                     switchTab(tab.id);
-                    if (isCollapsed) {
-                      toggleCollapse();
-                    }
                   }}
                   className={cn(
                     "flex h-8 w-8 items-center justify-center rounded-md text-xs font-medium transition-all",

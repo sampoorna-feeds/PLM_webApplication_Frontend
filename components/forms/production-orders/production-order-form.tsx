@@ -89,6 +89,11 @@ import {
   validateProductionOrderForm,
   showValidationErrors,
 } from "./utils/validation";
+import {
+  ApiErrorDialog,
+  extractApiError,
+  type ApiErrorState,
+} from "./api-error-dialog";
 
 type SourceType = "Item" | "Family" | "Sales Header" | "";
 type BatchSize = "0.8" | "1.0" | "1.5" | "2.0" | "";
@@ -112,6 +117,7 @@ export function ProductionOrderForm({
   const [userId, setUserId] = useState<string | undefined>(undefined);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isInitialLoadComplete, setIsInitialLoadComplete] = useState(false);
+  const [apiError, setApiError] = useState<ApiErrorState | null>(null);
 
   // Form mode: 'create' | 'view' | 'edit'
   const [localMode, setLocalMode] = useState(context?.mode || "create");
@@ -814,11 +820,8 @@ export function ProductionOrderForm({
       setOrderComponents(allComponents);
     } catch (error) {
       console.error("Error refreshing production order:", error);
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "Failed to refresh production order",
-      );
+      const { message, code } = extractApiError(error);
+      setApiError({ title: "Refresh Failed", message, code });
     } finally {
       setIsRefreshing(false);
     }
@@ -874,11 +877,8 @@ export function ProductionOrderForm({
       setOrderComponents(allComponents);
     } catch (error) {
       console.error("Error changing production order status:", error);
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "Failed to change production order status",
-      );
+      const { message, code } = extractApiError(error);
+      setApiError({ title: "Status Change Failed", message, code });
     } finally {
       setIsManufacturing(false);
     }
@@ -1029,11 +1029,8 @@ export function ProductionOrderForm({
       }
     } catch (error) {
       console.error("Error submitting Production Order:", error);
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "Failed to create production order",
-      );
+      const { message, code } = extractApiError(error);
+      setApiError({ title: "Create Order Failed", message, code });
     } finally {
       setIsSubmitting(false);
     }
@@ -1644,7 +1641,7 @@ export function ProductionOrderForm({
           >
             <SheetContent
               side="right"
-              className="flex w-full flex-col gap-0 overflow-y-auto p-0 sm:max-w-full md:w-[70vw] lg:w-[60vw]"
+              className="flex w-[50vw] max-w-[50vw] flex-col gap-0 overflow-y-auto p-0"
             >
               <SheetHeader className="bg-background sticky top-0 z-10 border-b px-6 py-4">
                 <SheetTitle>Production Order Components</SheetTitle>
@@ -1714,6 +1711,8 @@ export function ProductionOrderForm({
         prodOrderNo={formState.No}
         onSave={handleItemTrackingSave}
       />
+
+      <ApiErrorDialog error={apiError} onClose={() => setApiError(null)} />
     </div>
   );
 }

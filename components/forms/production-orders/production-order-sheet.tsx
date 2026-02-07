@@ -115,7 +115,7 @@ export function ProductionOrderSheet({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="flex w-full flex-col gap-0 p-0 sm:max-w-full md:w-[70vw] lg:w-[60vw]">
+      <SheetContent className="flex w-[50vw] max-w-[50vw] flex-col gap-0 p-0">
         <SheetHeader className="bg-background sticky top-0 z-10 border-b px-6 py-4">
           <div className="flex items-center justify-between">
             <div>

@@ -37,6 +37,11 @@ import {
 } from "@/lib/api/services/production-orders.service";
 import { getItemsByNos } from "@/lib/api/services/item.service";
 import { ItemTrackingDialog } from "./item-tracking-dialog";
+import {
+  ApiErrorDialog,
+  extractApiError,
+  type ApiErrorState,
+} from "./api-error-dialog";
 
 interface ProductionOrderPostSheetProps {
   prodOrderNo: string;
@@ -57,6 +62,7 @@ export function ProductionOrderPostSheet({
     useState<ProductionJournalEntry | null>(null);
   const [isTrackingDialogOpen, setIsTrackingDialogOpen] = useState(false);
   const [trackingMap, setTrackingMap] = useState<Record<string, boolean>>({});
+  const [apiError, setApiError] = useState<ApiErrorState | null>(null);
 
   // Fetch journal entries
   const fetchJournalEntries = useCallback(async () => {
@@ -71,7 +77,8 @@ export function ProductionOrderPostSheet({
       }
     } catch (error) {
       console.error("Error fetching production journal:", error);
-      toast.error("Failed to load production journal entries");
+      const { message, code } = extractApiError(error);
+      setApiError({ title: "Load Journal Failed", message, code });
       setJournalEntries([]);
     } finally {
       setIsLoading(false);
@@ -137,11 +144,8 @@ export function ProductionOrderPostSheet({
       await fetchJournalEntries();
     } catch (error) {
       console.error("Error deleting journal lines:", error);
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "Failed to delete journal lines",
-      );
+      const { message, code } = extractApiError(error);
+      setApiError({ title: "Delete Failed", message, code });
     } finally {
       setIsDeleting(false);
     }
@@ -173,7 +177,7 @@ export function ProductionOrderPostSheet({
         </SheetTrigger>
         <SheetContent
           side="right"
-          className="flex w-full flex-col gap-0 p-0 sm:max-w-full md:w-[70vw] lg:w-[60vw]"
+          className="flex w-[50vw] max-w-[50vw] flex-col gap-0 p-0"
         >
           <SheetHeader className="bg-background sticky top-0 z-10 flex flex-row items-center justify-between border-b px-6 py-4">
             <SheetTitle>Production Journal - {prodOrderNo}</SheetTitle>
@@ -292,6 +296,8 @@ export function ProductionOrderPostSheet({
         }}
         prodOrderNo={prodOrderNo}
       />
+
+      <ApiErrorDialog error={apiError} onClose={() => setApiError(null)} />
     </>
   );
 }

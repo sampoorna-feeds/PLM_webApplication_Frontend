@@ -521,7 +521,7 @@ export async function assignItemTracking(
   const payload = {
     itemNo: params.itemNo,
     locationCode: params.locationCode,
-    qyantity: params.quantity, // Note: API has typo "qyantity"
+    quantity: params.quantity,
     sourceProdOrderLine: params.sourceProdOrderLine,
     sourceType: sourceType,
     sourceSubType: 3, // Fixed value for Released status
@@ -533,6 +533,7 @@ export async function assignItemTracking(
     manufacuringdate: "0001-01-01",
     newExpirationdate: "0001-01-01",
     newManufacuringdate: "0001-01-01",
+    reservationStatus: 2, // Surplus - standard for manual lot assignment
   };
 
   return apiPost<unknown>(endpoint, payload);

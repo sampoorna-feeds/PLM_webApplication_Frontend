@@ -177,7 +177,7 @@ export function ProductionOrderPostSheet({
         </SheetTrigger>
         <SheetContent
           side="right"
-          className="flex w-[50vw] max-w-[50vw] flex-col gap-0 p-0"
+          className="flex w-[100vw] flex-col gap-0 p-0 md:w-[75vw] lg:w-[50vw]"
         >
           <SheetHeader className="bg-background sticky top-0 z-10 flex flex-row items-center justify-between border-b px-6 py-4">
             <SheetTitle>Production Journal - {prodOrderNo}</SheetTitle>

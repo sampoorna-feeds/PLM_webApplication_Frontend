@@ -117,8 +117,8 @@ export function FormStackPanel() {
           "bg-background border-border fixed top-0 right-0 z-50 flex h-full flex-col border-l shadow-xl",
           currentTab?.formType === "sales-order" ||
             currentTab?.formType === "line-item"
-            ? "w-[70vw] max-w-[70vw]"
-            : "w-[50vw] max-w-[50vw]",
+            ? "w-screen md:w-[75vw] lg:w-[70vw]"
+            : "w-screen md:w-[75vw] lg:w-[50vw]",
         )}
       >
         {/* Tabs - Always show at top */}

@@ -5,4 +5,3 @@
 
 // Example: export { UserProfile } from './user-profile';
 // Add feature component exports here as they are created
-

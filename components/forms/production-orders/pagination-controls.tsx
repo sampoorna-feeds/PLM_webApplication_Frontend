@@ -1,7 +1,9 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -16,6 +18,8 @@ const PAGE_SIZE_OPTIONS: PageSize[] = [10, 20, 30, 40, 50];
 interface PaginationControlsProps {
   pageSize: PageSize;
   currentPage: number;
+  totalPages: number;
+  totalCount: number;
   hasNextPage: boolean;
   onPageSizeChange: (size: PageSize) => void;
   onPageChange: (page: number) => void;
@@ -24,6 +28,8 @@ interface PaginationControlsProps {
 export function PaginationControls({
   pageSize,
   currentPage,
+  totalPages,
+  totalCount,
   hasNextPage,
   onPageSizeChange,
   onPageChange,
@@ -31,10 +37,16 @@ export function PaginationControls({
   const hasPrevPage = currentPage > 1;
 
   return (
-    <div className="flex items-center justify-between gap-4 py-4">
-      <PageSizeSelector value={pageSize} onChange={onPageSizeChange} />
+    <div className="flex items-center justify-between gap-4 pt-3">
+      <div className="flex items-center gap-4">
+        <PageSizeSelector value={pageSize} onChange={onPageSizeChange} />
+        <span className="text-muted-foreground text-sm">
+          {totalCount > 0 ? `${totalCount} records` : "No records"}
+        </span>
+      </div>
       <PageNavigator
         currentPage={currentPage}
+        totalPages={totalPages}
         hasPrevPage={hasPrevPage}
         hasNextPage={hasNextPage}
         onPageChange={onPageChange}
@@ -51,7 +63,7 @@ interface PageSizeSelectorProps {
 function PageSizeSelector({ value, onChange }: PageSizeSelectorProps) {
   return (
     <div className="flex items-center gap-2">
-      <span className="text-sm text-muted-foreground">Rows per page:</span>
+      <span className="text-muted-foreground text-sm">Rows per page:</span>
       <Select
         value={value.toString()}
         onValueChange={(val) => onChange(Number(val) as PageSize)}
@@ -73,6 +85,7 @@ function PageSizeSelector({ value, onChange }: PageSizeSelectorProps) {
 
 interface PageNavigatorProps {
   currentPage: number;
+  totalPages: number;
   hasPrevPage: boolean;
   hasNextPage: boolean;
   onPageChange: (page: number) => void;
@@ -80,13 +93,52 @@ interface PageNavigatorProps {
 
 function PageNavigator({
   currentPage,
+  totalPages,
   hasPrevPage,
   hasNextPage,
   onPageChange,
 }: PageNavigatorProps) {
+  const [inputValue, setInputValue] = useState(currentPage.toString());
+
+  // Sync input with current page when it changes externally
+  useEffect(() => {
+    setInputValue(currentPage.toString());
+  }, [currentPage]);
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setInputValue(e.target.value);
+  };
+
+  const handleInputBlur = () => {
+    const page = parseInt(inputValue, 10);
+    if (!isNaN(page) && page >= 1 && page <= totalPages) {
+      onPageChange(page);
+    } else {
+      // Reset to current page if invalid
+      setInputValue(currentPage.toString());
+    }
+  };
+
+  const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      handleInputBlur();
+    }
+  };
+
   return (
     <div className="flex items-center gap-2">
-      <span className="text-sm text-muted-foreground">Page {currentPage}</span>
+      <span className="text-muted-foreground text-sm">Page</span>
+      <Input
+        type="number"
+        min={1}
+        max={totalPages}
+        value={inputValue}
+        onChange={handleInputChange}
+        onBlur={handleInputBlur}
+        onKeyDown={handleInputKeyDown}
+        className="h-9 w-16 text-center text-sm"
+      />
+      <span className="text-muted-foreground text-sm">/ {totalPages}</span>
       <Button
         variant="outline"
         size="icon"

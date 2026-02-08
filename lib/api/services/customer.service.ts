@@ -3,9 +3,9 @@
  * Handles fetching customers from ERP OData V4 API
  */
 
-import { apiGet } from '../client';
-import { buildODataQuery } from '../endpoints';
-import type { ODataResponse } from '../types';
+import { apiGet } from "../client";
+import { buildODataQuery } from "../endpoints";
+import type { ODataResponse } from "../types";
 
 export interface Customer {
   No: string;
@@ -14,7 +14,8 @@ export interface Customer {
   Customer_Price_Group?: string;
 }
 
-const COMPANY = process.env.NEXT_PUBLIC_API_COMPANY || 'Sampoorna Feeds Pvt. Ltd';
+const COMPANY =
+  process.env.NEXT_PUBLIC_API_COMPANY || "Sampoorna Feeds Pvt. Ltd";
 
 // Cache for search results
 const searchCache = new Map<string, Customer[]>();
@@ -40,7 +41,7 @@ export async function getCustomers(): Promise<Customer[]> {
   const query = buildODataQuery({
     $select: 'No,Name,Assessee_Code,Customer_Price_Group',
     $filter: getBaseFilter(),
-    $orderby: 'No',
+    $orderby: "No",
     $top: 20,
   });
 
@@ -76,7 +77,7 @@ export async function searchCustomers(query: string): Promise<Customer[]> {
       const odataQuery = buildODataQuery({
         $select: 'No,Name,Assessee_Code,Customer_Price_Group',
         $filter: filterByNo,
-        $orderby: 'No',
+        $orderby: "No",
         $top: 30,
       });
       const endpoint = `/CustomerCard?company='${encodeURIComponent(COMPANY)}'&${odataQuery}`;
@@ -89,7 +90,7 @@ export async function searchCustomers(query: string): Promise<Customer[]> {
       const odataQuery = buildODataQuery({
         $select: 'No,Name,Assessee_Code,Customer_Price_Group',
         $filter: filterByName,
-        $orderby: 'No',
+        $orderby: "No",
         $top: 30,
       });
       const endpoint = `/CustomerCard?company='${encodeURIComponent(COMPANY)}'&${odataQuery}`;
@@ -107,7 +108,7 @@ export async function searchCustomers(query: string): Promise<Customer[]> {
     }
   });
   const uniqueResults = Array.from(uniqueMap.values()).sort((a, b) =>
-    a.No.localeCompare(b.No)
+    a.No.localeCompare(b.No),
   );
 
   // Cache results
@@ -123,7 +124,7 @@ export async function searchCustomers(query: string): Promise<Customer[]> {
  */
 export async function getCustomersPage(
   skip: number,
-  search?: string
+  search?: string,
 ): Promise<Customer[]> {
   const baseFilter = getBaseFilter();
 
@@ -132,7 +133,7 @@ export async function getCustomersPage(
     const query = buildODataQuery({
       $select: 'No,Name,Assessee_Code,Customer_Price_Group',
       $filter: baseFilter,
-      $orderby: 'No',
+      $orderby: "No",
       $top: 30,
       $skip: skip,
     });
@@ -152,7 +153,7 @@ export async function getCustomersPage(
       const odataQuery = buildODataQuery({
         $select: 'No,Name,Assessee_Code,Customer_Price_Group',
         $filter: filterByNo,
-        $orderby: 'No',
+        $orderby: "No",
         $top: 30,
         $skip: skip,
       });
@@ -166,7 +167,7 @@ export async function getCustomersPage(
       const odataQuery = buildODataQuery({
         $select: 'No,Name,Assessee_Code,Customer_Price_Group',
         $filter: filterByName,
-        $orderby: 'No',
+        $orderby: "No",
         $top: 30,
         $skip: skip,
       });
@@ -185,7 +186,7 @@ export async function getCustomersPage(
     }
   });
   const uniqueResults = Array.from(uniqueMap.values()).sort((a, b) =>
-    a.No.localeCompare(b.No)
+    a.No.localeCompare(b.No),
   );
 
   return uniqueResults;
@@ -195,9 +196,11 @@ export async function getCustomersPage(
  * Get a single customer by customer number
  * @param customerNo - Customer number
  */
-export async function getCustomerByNo(customerNo: string): Promise<Customer | null> {
+export async function getCustomerByNo(
+  customerNo: string,
+): Promise<Customer | null> {
   if (!customerNo) return null;
-  
+
   const query = buildODataQuery({
     $select: 'No,Name,Assessee_Code,Customer_Price_Group',
     $filter: `No eq '${customerNo.replace(/'/g, "''")}'`,
@@ -205,7 +208,7 @@ export async function getCustomerByNo(customerNo: string): Promise<Customer | nu
 
   const endpoint = `/CustomerCard?company='${encodeURIComponent(COMPANY)}'&${query}`;
   const response = await apiGet<ODataResponse<Customer>>(endpoint);
-  
+
   return response.value.length > 0 ? response.value[0] : null;
 }
 
@@ -215,4 +218,3 @@ export async function getCustomerByNo(customerNo: string): Promise<Customer | nu
 export function clearCustomerCache(): void {
   searchCache.clear();
 }
-

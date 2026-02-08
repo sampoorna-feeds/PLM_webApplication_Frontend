@@ -126,7 +126,7 @@ export function AppSidebar({
                 </div>
                 <div className="grid flex-1 text-left text-sm leading-tight">
                   <span className="truncate font-medium">Sampoorna Feeds</span>
-                  <span className="truncate text-xs text-muted-foreground">
+                  <span className="text-muted-foreground truncate text-xs">
                     Feed... as it should be
                   </span>
                 </div>
@@ -215,7 +215,7 @@ export function AppSidebar({
                     <span className="truncate font-medium">
                       {username || "User"}
                     </span>
-                    <span className="truncate text-xs text-muted-foreground">
+                    <span className="text-muted-foreground truncate text-xs">
                       {userID || ""}
                     </span>
                   </div>
@@ -241,7 +241,7 @@ export function AppSidebar({
                       <span className="truncate font-medium">
                         {username || "User"}
                       </span>
-                      <span className="truncate text-xs text-muted-foreground">
+                      <span className="text-muted-foreground truncate text-xs">
                         {userID || ""}
                       </span>
                     </div>

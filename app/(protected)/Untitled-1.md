@@ -1,21 +1,21 @@
 Base URL = https://api.sampoornafeeds.in:2028/BCtest/ODataV4
 
-1. G/L account
-  a. Initial dropdown open (NO search, fast)
-        👉 Load only 20 items, only required fields.
+1.  G/L account
+    a. Initial dropdown open (NO search, fast)
+    👉 Load only 20 items, only required fields.
 
-        https://api.sampoornafeeds.in:2028/BCtest/ODataV4/GLAccount
-        ?company='Sampoorna Feeds Pvt. Ltd'
-        &$select=No,Name
-        &$filter=Account_Type eq 'Posting' and Direct_Posting eq true
-        &$orderby=No
-        &$top=20
+          https://api.sampoornafeeds.in:2028/BCtest/ODataV4/GLAccount
+          ?company='Sampoorna Feeds Pvt. Ltd'
+          &$select=No,Name
+          &$filter=Account_Type eq 'Posting' and Direct_Posting eq true
+          &$orderby=No
+          &$top=20
 
 
-        ⛔ Do NOT load everything. This is just to populate an empty dropdown.
+          ⛔ Do NOT load everything. This is just to populate an empty dropdown.
 
-  b. Search when user types (BEST approach)
-        Trigger this only after 2–3 characters + debounce (300ms).
+b. Search when user types (BEST approach)
+Trigger this only after 2–3 characters + debounce (300ms).
 
         Example: user types cash
         https://api.sampoornafeeds.in:2028/BCtest/ODataV4/GLAccount
@@ -32,8 +32,8 @@ Base URL = https://api.sampoornafeeds.in:2028/BCtest/ODataV4
         👉 Payload is tiny
         👉 Response is fast
 
-  c. Infinite scroll / pagination (when user scrolls)
-        Second page:
+c. Infinite scroll / pagination (when user scrolls)
+Second page:
 
         &$top=30
         &$skip=30
@@ -57,8 +57,8 @@ Base URL = https://api.sampoornafeeds.in:2028/BCtest/ODataV4
         &$top=30
         &$skip=30
 
-  d. If performance is still slow (important)
-        Use startswith instead of contains whenever possible:
+d. If performance is still slow (important)
+Use startswith instead of contains whenever possible:
 
         ✅ FAST:
 
@@ -69,14 +69,10 @@ Base URL = https://api.sampoornafeeds.in:2028/BCtest/ODataV4
 
         contains(Name,'101')
 
-
-
-repet same for 
+repet same for
 https://api.sampoornafeeds.in:2028/BCtest/ODataV4/VendorCard?company='Sampoorna Feeds Pvt. Ltd'&$select=No,Name&$Filter=Responsibility_Center in ('','FEED','CATTLE','SWINE') and Blocked eq ' '
 
-
 https://api.sampoornafeeds.in:2028/BCtest/ODataV4/CustomerCard?company='Sampoorna Feeds Pvt. Ltd'&$select=No,Name&$Filter=Responsibility_Center in ('','FEED','CATTLE','SWINE') and Blocked eq ' '
-
 
 UI rules you must follow (non-negotiable)
 

@@ -4,8 +4,8 @@
  * Stores minimal user info for UI state
  */
 
-import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { create } from "zustand";
+import { persist } from "zustand/middleware";
 
 export interface User {
   id: string;
@@ -16,7 +16,7 @@ export interface User {
 export interface AuthState {
   user: User | null;
   isAuthenticated: boolean;
-  
+
   // Actions
   setUser: (user: User | null) => void;
   setAuthenticated: (isAuthenticated: boolean) => void;
@@ -50,13 +50,12 @@ export const useAuthStore = create<AuthState>()(
       },
     }),
     {
-      name: 'auth-storage',
+      name: "auth-storage",
       // Only persist user info, not credentials
       partialize: (state) => ({
         user: state.user,
         isAuthenticated: state.isAuthenticated,
       }),
-    }
-  )
+    },
+  ),
 );
-

@@ -3,25 +3,39 @@
  * React context for managing FormStack state and operations
  */
 
-'use client';
+"use client";
 
-import React, { createContext, useCallback, useEffect, useRef, useState } from 'react';
-import type { FormTab, FormStackContextType, FormStackState } from './types';
-import { saveFormStack, loadFormStack, clearFormStack } from './storage';
+import React, {
+  createContext,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useMemo,
+} from "react";
+import type { FormTab, FormStackContextType, FormStackState } from "./types";
+import { saveFormStack, loadFormStack, clearFormStack } from "./storage";
 
-const FormStackContext = createContext<FormStackContextType | undefined>(undefined);
+const FormStackContext = createContext<FormStackContextType | undefined>(
+  undefined,
+);
 
 interface FormStackProviderProps {
   children: React.ReactNode;
   formScope: string;
 }
 
-export function FormStackProvider({ children, formScope }: FormStackProviderProps) {
+export function FormStackProvider({
+  children,
+  formScope,
+}: FormStackProviderProps) {
   const [tabs, setTabs] = useState<FormTab[]>([]);
   const [activeTabId, setActiveTabId] = useState<string | null>(null);
   const [isCollapsed, setIsCollapsed] = useState<boolean>(true); // Start collapsed by default
   const [isFloating, setIsFloating] = useState<boolean>(false);
-  const refreshCallbacksRef = useRef<Map<string, () => void | Promise<void>>>(new Map());
+  const refreshCallbacksRef = useRef<Map<string, () => void | Promise<void>>>(
+    new Map(),
+  );
 
   // Load persisted state from session storage on mount
   useEffect(() => {
@@ -67,11 +81,11 @@ export function FormStackProvider({ children, formScope }: FormStackProviderProp
         formData?: Record<string, any>;
         context?: Record<string, any>;
         autoCloseOnSuccess?: boolean;
-      }
+      },
     ): string => {
       const now = Date.now();
       const tabId = `tab-${now}-${Math.random().toString(36).substr(2, 9)}`;
-      
+
       const newTab: FormTab = {
         id: tabId,
         title: options?.title || `New ${formType}`,
@@ -90,7 +104,7 @@ export function FormStackProvider({ children, formScope }: FormStackProviderProp
 
       setTabs((prev) => [...prev, newTab]);
       setActiveTabId(tabId);
-      
+
       // Auto-expand panel when opening a new tab (form is being opened)
       if (isCollapsed) {
         setIsCollapsed(false);
@@ -98,31 +112,39 @@ export function FormStackProvider({ children, formScope }: FormStackProviderProp
 
       return tabId;
     },
-    [isCollapsed]
+    [isCollapsed],
   );
 
-  const closeTab = useCallback((tabId: string) => {
-    setTabs((prev) => {
-      const newTabs = prev.filter((tab) => tab.id !== tabId);
-      
-      // If closing active tab, switch to another tab
-      if (activeTabId === tabId) {
-        if (newTabs.length > 0) {
-          // Switch to the tab that was before this one, or the first one
-          const closedIndex = prev.findIndex((tab) => tab.id === tabId);
-          const newActiveIndex = closedIndex > 0 ? closedIndex - 1 : 0;
-          setActiveTabId(newTabs[newActiveIndex]?.id || null);
-        } else {
-          setActiveTabId(null);
-        }
-      }
-      
-      return newTabs;
-    });
+  const closeTab = useCallback(
+    (tabId: string) => {
+      // Unregister refresh callback first
+      refreshCallbacksRef.current.delete(tabId);
 
-    // Unregister refresh callback
-    refreshCallbacksRef.current.delete(tabId);
-  }, [activeTabId]);
+      setTabs((prev) => {
+        const newTabs = prev.filter((tab) => tab.id !== tabId);
+
+        // If closing active tab, switch to another tab
+        if (activeTabId === tabId) {
+          if (newTabs.length > 0) {
+            // Switch to the tab that was before this one, or the first one
+            const closedIndex = prev.findIndex((tab) => tab.id === tabId);
+            const newActiveIndex = closedIndex > 0 ? closedIndex - 1 : 0;
+            setActiveTabId(newTabs[newActiveIndex]?.id || null);
+          } else {
+            setActiveTabId(null);
+          }
+        }
+
+        // Auto-collapse if no tabs remaining
+        if (newTabs.length === 0) {
+          setIsCollapsed(true);
+        }
+
+        return newTabs;
+      });
+    },
+    [activeTabId],
+  );
 
   const switchTab = useCallback(
     async (tabId: string) => {
@@ -136,7 +158,7 @@ export function FormStackProvider({ children, formScope }: FormStackProviderProp
 
       // Update last visited time
       setTabs((prev) =>
-        prev.map((t) => (t.id === tabId ? { ...t, lastVisitedAt: now } : t))
+        prev.map((t) => (t.id === tabId ? { ...t, lastVisitedAt: now } : t)),
       );
 
       setActiveTabId(tabId);
@@ -153,12 +175,12 @@ export function FormStackProvider({ children, formScope }: FormStackProviderProp
           try {
             await refreshCallback();
           } catch (error) {
-            console.error('Error refreshing tab:', error);
+            console.error("Error refreshing tab:", error);
           }
         }
       }
     },
-    [tabs, isCollapsed]
+    [tabs, isCollapsed],
   );
 
   const closeAllTabs = useCallback(() => {
@@ -169,7 +191,7 @@ export function FormStackProvider({ children, formScope }: FormStackProviderProp
 
   const updateTab = useCallback((tabId: string, updates: Partial<FormTab>) => {
     setTabs((prev) =>
-      prev.map((tab) => (tab.id === tabId ? { ...tab, ...updates } : tab))
+      prev.map((tab) => (tab.id === tabId ? { ...tab, ...updates } : tab)),
     );
   }, []);
 
@@ -177,34 +199,60 @@ export function FormStackProvider({ children, formScope }: FormStackProviderProp
     (tabId: string, callback: () => void | Promise<void>) => {
       refreshCallbacksRef.current.set(tabId, callback);
     },
-    []
+    [],
   );
 
   const unregisterRefreshCallback = useCallback((tabId: string) => {
     refreshCallbacksRef.current.delete(tabId);
   }, []);
 
-  const currentTab = tabs.find((tab) => tab.id === activeTabId) || null;
+  const currentTab = useMemo(
+    () => tabs.find((tab) => tab.id === activeTabId) || null,
+    [tabs, activeTabId],
+  );
 
-  const value: FormStackContextType = {
-    tabs,
-    activeTabId,
-    currentTab,
-    formScope,
-    isCollapsed,
-    isFloating,
-    toggleCollapse,
-    toggleFloat,
-    openTab,
-    closeTab,
-    switchTab,
-    closeAllTabs,
-    updateTab,
-    registerRefreshCallback,
-    unregisterRefreshCallback,
-  };
+  const value: FormStackContextType = useMemo(
+    () => ({
+      tabs,
+      activeTabId,
+      currentTab,
+      formScope,
+      isCollapsed,
+      isFloating,
+      toggleCollapse,
+      toggleFloat,
+      openTab,
+      closeTab,
+      switchTab,
+      closeAllTabs,
+      updateTab,
+      registerRefreshCallback,
+      unregisterRefreshCallback,
+    }),
+    [
+      tabs,
+      activeTabId,
+      currentTab,
+      formScope,
+      isCollapsed,
+      isFloating,
+      toggleCollapse,
+      toggleFloat,
+      openTab,
+      closeTab,
+      switchTab,
+      closeAllTabs,
+      updateTab,
+      registerRefreshCallback,
+      unregisterRefreshCallback,
+    ],
+  );
 
-  return <FormStackContext.Provider value={value}>{children}</FormStackContext.Provider>;
+  return (
+    <FormStackContext.Provider value={value}>
+      {children}
+    </FormStackContext.Provider>
+  );
 }
 
 /**
@@ -213,7 +261,9 @@ export function FormStackProvider({ children, formScope }: FormStackProviderProp
 export function useFormStackContext(): FormStackContextType {
   const context = React.useContext(FormStackContext);
   if (context === undefined) {
-    throw new Error('useFormStackContext must be used within a FormStackProvider');
+    throw new Error(
+      "useFormStackContext must be used within a FormStackProvider",
+    );
   }
   return context;
 }

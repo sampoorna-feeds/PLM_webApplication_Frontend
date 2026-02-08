@@ -3,20 +3,20 @@
  * Form component for creating/editing Sales Invoices
  */
 
-'use client';
+"use client";
 
-import React, { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import React, { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
-import { FieldTitle } from '@/components/ui/field';
-import { useFormStack } from '@/lib/form-stack/use-form-stack';
+} from "@/components/ui/select";
+import { FieldTitle } from "@/components/ui/field";
+import { useFormStack } from "@/lib/form-stack/use-form-stack";
 
 interface SalesInvoiceFormProps {
   tabId: string;
@@ -24,30 +24,35 @@ interface SalesInvoiceFormProps {
   context?: Record<string, any>;
 }
 
-export function SalesInvoiceForm({ tabId, formData: initialFormData, context }: SalesInvoiceFormProps) {
-  const { registerRefresh, handleSuccess, updateFormData } = useFormStack(tabId);
+export function SalesInvoiceForm({
+  tabId,
+  formData: initialFormData,
+  context,
+}: SalesInvoiceFormProps) {
+  const { registerRefresh, handleSuccess, updateFormData } =
+    useFormStack(tabId);
   const [formData, setFormData] = useState({
-    customerNo: '',
-    customerName: '',
-    shipToCode: '',
-    shippingFrom: '',
-    salesPersonCode: '',
-    locationCode: '',
-    postingDate: '',
-    documentDate: '',
-    invoiceDate: '',
-    externalDocumentNo: '',
-    status: '',
-    invoiceType: '',
-    lob: '',
-    branch: '',
-    loc: '',
+    customerNo: "",
+    customerName: "",
+    shipToCode: "",
+    shippingFrom: "",
+    salesPersonCode: "",
+    locationCode: "",
+    postingDate: "",
+    documentDate: "",
+    invoiceDate: "",
+    externalDocumentNo: "",
+    status: "",
+    invoiceType: "",
+    lob: "",
+    branch: "",
+    loc: "",
     ...initialFormData,
   });
 
   useEffect(() => {
     registerRefresh(async () => {
-      console.log('Refreshing Sales Invoice form...');
+      console.log("Refreshing Sales Invoice form...");
     });
   }, [registerRefresh]);
 
@@ -65,20 +70,20 @@ export function SalesInvoiceForm({ tabId, formData: initialFormData, context }: 
 
   const handleSubmit = async () => {
     try {
-      console.log('Submitting Sales Invoice:', formData);
+      console.log("Submitting Sales Invoice:", formData);
       await new Promise((resolve) => setTimeout(resolve, 500));
       await handleSuccess();
     } catch (error) {
-      console.error('Error submitting Sales Invoice:', error);
+      console.error("Error submitting Sales Invoice:", error);
     }
   };
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex h-full flex-col">
       <div className="flex-1 overflow-y-auto px-6 py-6">
-        <div className="flex items-center justify-center h-full">
+        <div className="flex h-full items-center justify-center">
           <div className="text-center">
-            <p className="text-lg font-medium text-muted-foreground">
+            <p className="text-muted-foreground text-lg font-medium">
               Not available for now
             </p>
           </div>

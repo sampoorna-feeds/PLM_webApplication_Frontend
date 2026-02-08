@@ -1,7 +1,7 @@
-import type { Metadata } from 'next';
+import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: 'Login',
+  title: "Login",
 };
 
 export default function LoginLayout({
@@ -11,4 +11,3 @@ export default function LoginLayout({
 }) {
   return <>{children}</>;
 }
-

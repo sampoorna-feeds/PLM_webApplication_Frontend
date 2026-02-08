@@ -75,7 +75,10 @@ export function ProductionOrderFormFields({
 
   // Handle field changes
   const handleChange = useCallback(
-    (field: keyof ProductionOrderFormData, value: string | number | boolean) => {
+    (
+      field: keyof ProductionOrderFormData,
+      value: string | number | boolean,
+    ) => {
       onChange({ ...data, [field]: value });
     },
     [data, onChange],
@@ -232,11 +235,13 @@ export function ProductionOrderFormFields({
             isProdBomFromItem: true,
           });
         } else {
-          // No BOM from item - load BOM dropdown options
-          setIsLoadingBom(true);
-          const boms = await getProdOrderBOMs();
-          setBomOptions(boms);
-          setIsLoadingBom(false);
+          // No BOM from item - load BOM dropdown options filtered by item and location
+          if (data.Location_Code) {
+            setIsLoadingBom(true);
+            const boms = await getProdOrderBOMs(value, data.Location_Code);
+            setBomOptions(boms);
+            setIsLoadingBom(false);
+          }
         }
       } catch (error) {
         console.error("Error checking item BOM:", error);
@@ -293,7 +298,8 @@ export function ProductionOrderFormFields({
   // Check if BOM is editable (manual entry needed)
   const isBomEditable = showBomFields && !data.isProdBomFromItem && !isReadOnly;
   // Check if BOM Version should be shown (only when manually filling BOM)
-  const showBomVersion = showBomFields && !data.isProdBomFromItem && data.Prod_Bom_No;
+  const showBomVersion =
+    showBomFields && !data.isProdBomFromItem && data.Prod_Bom_No;
 
   return (
     <div className="space-y-6">
@@ -380,11 +386,11 @@ export function ProductionOrderFormFields({
         />
         <FormField
           label="Quantity"
-          value={data.Quantity}
-          onChange={(v) => handleChange("Quantity", parseFloat(v) || 0)}
+          value={data.Quantity?.toString() || ""}
+          onChange={(v) => handleChange("Quantity", v)}
           disabled={isReadOnly}
           type="number"
-          step="0.01"
+          placeholder="Enter quantity"
           required
         />
       </FormSection>
@@ -399,13 +405,12 @@ export function ProductionOrderFormFields({
           type="date"
           required
         />
-        <SelectField
+        <FormField
           label="Location Code"
           value={data.Location_Code}
-          options={locs.map((l) => ({ value: l.Code, label: l.Code }))}
-          onChange={(v) => handleChange("Location_Code", v)}
-          disabled={isReadOnly}
-          placeholder="Prefilled from LOC"
+          onChange={() => {}}
+          disabled
+          helpText="Auto-filled from LOC Code"
           required
         />
         <FormField
@@ -488,7 +493,7 @@ interface FormSectionProps {
 function FormSection({ title, children }: FormSectionProps) {
   return (
     <div className="space-y-3">
-      <h3 className="text-sm font-semibold border-b pb-2">{title}</h3>
+      <h3 className="border-b pb-2 text-sm font-semibold">{title}</h3>
       <div className="grid grid-cols-2 gap-4">{children}</div>
     </div>
   );
@@ -520,26 +525,43 @@ function FormField({
   step,
   helpText,
 }: FormFieldProps) {
+  // For number type, use text input with decimal validation for better UX
+  const isNumericInput = type === "number";
+  const inputType = isNumericInput ? "text" : type;
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    if (isNumericInput) {
+      // Allow empty, digits and one decimal point
+      if (val === "" || /^[0-9]*\.?[0-9]*$/.test(val)) {
+        onChange(val);
+      }
+    } else {
+      onChange(val);
+    }
+  };
+
   return (
     <div className="space-y-1.5">
-      <Label className="text-xs font-medium text-muted-foreground">
+      <Label className="text-muted-foreground text-xs font-medium">
         {label}
         {required && <span className="text-destructive ml-1">*</span>}
       </Label>
       {disabled ? (
         <div>
-          <p className="text-sm py-2 px-3 bg-muted/50 rounded-md min-h-9 flex items-center">
+          <p className="bg-muted/50 flex h-9 items-center truncate rounded-md px-3 py-2 text-sm">
             {value || "-"}
           </p>
           {helpText && (
-            <p className="text-xs text-muted-foreground mt-1">{helpText}</p>
+            <p className="text-muted-foreground mt-1 text-xs">{helpText}</p>
           )}
         </div>
       ) : (
         <Input
-          type={type}
+          type={inputType}
+          inputMode={isNumericInput ? "decimal" : undefined}
           value={value}
-          onChange={(e) => onChange(e.target.value)}
+          onChange={handleChange}
           placeholder={placeholder}
           step={step}
           className="h-9 text-sm"
@@ -575,12 +597,12 @@ function SelectField({
 }: SelectFieldProps) {
   return (
     <div className="space-y-1.5">
-      <Label className="text-xs font-medium text-muted-foreground">
+      <Label className="text-muted-foreground text-xs font-medium">
         {label}
         {required && <span className="text-destructive ml-1">*</span>}
       </Label>
       {disabled ? (
-        <p className="text-sm py-2 px-3 bg-muted/50 rounded-md min-h-9 flex items-center">
+        <p className="bg-muted/50 flex h-9 items-center truncate rounded-md px-3 py-2 text-sm">
           {value || "-"}
         </p>
       ) : (

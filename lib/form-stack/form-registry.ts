@@ -78,14 +78,16 @@ export const formRegistry: Record<
   },
   "item-selector": async () => {
     if (!ItemSelectorForm) {
-      const module = await import("@/components/forms/sales/item-selector-form");
+      const module =
+        await import("@/components/forms/sales/item-selector-form");
       ItemSelectorForm = module.ItemSelectorForm;
     }
     return { default: ItemSelectorForm! };
   },
   "line-item": async () => {
     if (!LineItemTabForm) {
-      const module = await import("@/components/forms/sales/line-item-tab-form");
+      const module =
+        await import("@/components/forms/sales/line-item-tab-form");
       LineItemTabForm = module.LineItemTabForm;
     }
     return { default: LineItemTabForm! };

@@ -57,6 +57,7 @@ export function ProductionOrderSheet({
   const { components, isLoading: isLoadingComponents } =
     useProductionOrderComponents(
       mode !== "create" ? (order?.No ?? null) : null,
+      null,
     );
 
   // Reset form data when order changes or mode changes
@@ -114,8 +115,8 @@ export function ProductionOrderSheet({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-full sm:max-w-[70vw]! flex flex-col gap-0 p-0">
-        <SheetHeader className="sticky top-0 z-10 bg-background border-b px-6 py-4">
+      <SheetContent className="flex w-[100vw] flex-col gap-0 p-0 md:w-[75vw] lg:w-[50vw]">
+        <SheetHeader className="bg-background sticky top-0 z-10 border-b px-6 py-4">
           <div className="flex items-center justify-between">
             <div>
               <SheetTitle>{getTitle()}</SheetTitle>
@@ -123,14 +124,14 @@ export function ProductionOrderSheet({
             </div>
             {mode === "view" && (
               <Button variant="outline" size="sm" onClick={handleEdit}>
-                <Pencil className="h-4 w-4 mr-2" />
+                <Pencil className="mr-2 h-4 w-4" />
                 Edit
               </Button>
             )}
           </div>
         </SheetHeader>
 
-        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-6">
+        <div className="flex-1 space-y-6 overflow-y-auto px-6 py-4">
           <ProductionOrderFormFields
             data={formData}
             mode={mode}
@@ -164,8 +165,8 @@ export function ProductionOrderSheet({
           )}
         </div>
 
-        <SheetFooter className="sticky bottom-0 z-10 bg-background border-t px-6 py-4">
-          <div className="flex justify-end gap-2 w-full">
+        <SheetFooter className="bg-background sticky bottom-0 z-10 border-t px-6 py-4">
+          <div className="flex w-full justify-end gap-2">
             {mode === "view" ? (
               <Button variant="destructive" onClick={handleClose}>
                 Close
@@ -177,14 +178,14 @@ export function ProductionOrderSheet({
                   onClick={handleCancel}
                   disabled={isSaving}
                 >
-                  <X className="h-4 w-4 mr-2" />
+                  <X className="mr-2 h-4 w-4" />
                   Cancel
                 </Button>
                 <Button onClick={handleSave} disabled={isSaving}>
                   {isSaving ? (
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   ) : (
-                    <Save className="h-4 w-4 mr-2" />
+                    <Save className="mr-2 h-4 w-4" />
                   )}
                   {mode === "create" ? "Create Order" : "Save Changes"}
                 </Button>

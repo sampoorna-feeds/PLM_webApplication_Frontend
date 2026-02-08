@@ -8,6 +8,7 @@ alwaysApply: true
 ## Architecture Overview
 
 This is a Next.js 16 ERP UI system with production-level architecture. The system uses:
+
 - **Next.js App Router** with route groups for protected routes
 - **shadcn/ui** components for UI
 - **TanStack Query** for API calls and data fetching
@@ -171,6 +172,7 @@ sf-ui/
 ## Environment Variables
 
 Environment variables should be defined in `.env.example`:
+
 - `NEXT_PUBLIC_API_BASE_URL` - Base URL for ERP API
 - `NEXT_PUBLIC_API_COMPANY` - Company name for authentication
 - `NEXT_PUBLIC_API_USERNAME` - Username for authentication
@@ -181,6 +183,7 @@ Environment variables should be defined in `.env.example`:
 ## Dependencies
 
 Required dependencies:
+
 - `@tanstack/react-query` - API calls and server state
 - `@tanstack/react-form` - Form validation and management
 - `zustand` - State management
@@ -224,30 +227,34 @@ Required dependencies:
 ## Code Examples
 
 ### API Call Pattern
+
 ```typescript
 // ❌ BAD - Direct API call in component
 const MyComponent = () => {
   const [data, setData] = useState();
   useEffect(() => {
-    fetch('/api/users').then(r => r.json()).then(setData);
+    fetch("/api/users")
+      .then((r) => r.json())
+      .then(setData);
   }, []);
 };
 
 // ✅ GOOD - Through service layer with TanStack Query
 const MyComponent = () => {
   const { data, isLoading, error } = useQuery({
-    queryKey: ['users'],
+    queryKey: ["users"],
     queryFn: () => userService.getUsers(),
   });
 };
 ```
 
 ### Form Pattern
+
 ```typescript
 // ✅ GOOD - TanStack Form with Zod validation
-import { useForm } from '@tanstack/react-form';
-import { zodValidator } from '@tanstack/zod-form-adapter';
-import { z } from 'zod';
+import { useForm } from "@tanstack/react-form";
+import { zodValidator } from "@tanstack/zod-form-adapter";
+import { z } from "zod";
 
 const schema = z.object({
   email: z.string().email(),
@@ -257,7 +264,7 @@ const schema = z.object({
 const LoginForm = () => {
   const form = useForm({
     validatorAdapter: zodValidator(),
-    defaultValues: { email: '', password: '' },
+    defaultValues: { email: "", password: "" },
     onSubmit: async ({ value }) => {
       await authService.login(value);
     },
@@ -267,10 +274,11 @@ const LoginForm = () => {
 ```
 
 ### State Management Pattern
+
 ```typescript
 // ✅ GOOD - Zustand store
-import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { create } from "zustand";
+import { persist } from "zustand/middleware";
 
 interface AuthState {
   user: User | null;
@@ -289,8 +297,8 @@ export const useAuthStore = create<AuthState>()(
       },
       logout: () => set({ user: null, isAuthenticated: false }),
     }),
-    { name: 'auth-storage' }
-  )
+    { name: "auth-storage" },
+  ),
 );
 ```
 
@@ -318,4 +326,3 @@ export const useAuthStore = create<AuthState>()(
 - Use **code splitting** for large features
 - **Optimize images** and assets
 - **Lazy load** components when appropriate
-

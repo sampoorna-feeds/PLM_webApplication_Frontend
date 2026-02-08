@@ -17,21 +17,47 @@ import { useFormStackContext } from "@/lib/form-stack/form-stack-context";
 import { useProductionOrders } from "./use-production-orders";
 import { ProductionOrdersTable } from "./production-orders-table";
 import { PaginationControls } from "./pagination-controls";
+import { TableFilterBar } from "./table-filter-bar";
+import { ActiveFilters } from "./active-filters";
+import { cn } from "@/lib/utils";
 
 function ProductionOrdersContent() {
   const {
     orders,
     isLoading,
+    // Pagination
     pageSize,
     currentPage,
+    totalPages,
+    totalCount,
     onPageSizeChange,
     onPageChange,
+    // Sorting
+    sortColumn,
+    sortDirection,
+    onSort,
+    // Filtering - Basic
+    searchQuery,
+    onSearch,
+    onClearFilters,
+    // Column filters (generic)
+    columnFilters,
+    onColumnFilter,
+    // Column visibility
+    // Column visibility
+    visibleColumns,
+    onColumnToggle,
+    onResetColumns,
+    onShowAllColumns,
+    addOrder,
+    branchOptions,
+    userBranchCodes,
   } = useProductionOrders();
 
   const { openTab } = useFormStackContext();
 
-  // Determine if there's a next page based on current results
-  const hasNextPage = orders.length === pageSize;
+  // Determine if there's a next page
+  const hasNextPage = currentPage < totalPages;
 
   // Open create form in FormStack
   const handleCreateOrder = () => {
@@ -40,6 +66,7 @@ function ProductionOrdersContent() {
       context: {
         mode: "create",
         openedFromParent: true,
+        onOrderCreated: addOrder,
       },
       autoCloseOnSuccess: true,
     });
@@ -59,26 +86,84 @@ function ProductionOrdersContent() {
   };
 
   return (
-    <div className="flex w-full h-full min-h-0">
+    <div
+      className={cn(
+        "flex w-full",
+        "h-[calc(100vh-5rem)] max-h-[calc(100vh-5rem)]",
+      )}
+    >
       {/* Main Content Area */}
-      <div className="flex-1 min-w-0 flex flex-col p-4 gap-4 overflow-y-auto">
-        <Header onCreateOrder={handleCreateOrder} />
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden p-4">
+        {/* Header - fixed at top */}
+        <div className="flex shrink-0 items-center justify-between pb-3">
+          <div>
+            <h1 className="text-lg font-bold">Released Production Orders</h1>
+            <p className="text-muted-foreground text-sm">
+              View and manage released production orders
+            </p>
+          </div>
+          <Button onClick={handleCreateOrder} size="sm">
+            <Plus className="mr-2 h-4 w-4" />
+            Add Order
+          </Button>
+        </div>
 
-        <div className="flex-1">
-          <ProductionOrdersTable
-            orders={orders}
-            isLoading={isLoading}
-            onRowClick={handleRowClick}
+        {/* Filter Bar - fixed at top */}
+        <div className="shrink-0">
+          <TableFilterBar
+            searchQuery={searchQuery}
+            visibleColumns={visibleColumns}
+            columnFilters={columnFilters}
+            onSearch={onSearch}
+            onClearFilters={onClearFilters}
+            onColumnToggle={onColumnToggle}
+            onResetColumns={onResetColumns}
+            onShowAllColumns={onShowAllColumns}
           />
         </div>
 
-        <PaginationControls
-          pageSize={pageSize}
-          currentPage={currentPage}
-          hasNextPage={hasNextPage}
-          onPageSizeChange={onPageSizeChange}
-          onPageChange={onPageChange}
-        />
+        {/* Active Filters Display - conditionally rendered by the component itself */}
+        <div className="shrink-0">
+          <ActiveFilters
+            searchQuery={searchQuery}
+            columnFilters={columnFilters}
+            onSearch={onSearch}
+            onColumnFilter={onColumnFilter}
+            onClearFilters={onClearFilters}
+            userBranchCodes={userBranchCodes}
+          />
+        </div>
+
+        {/* Table container - takes remaining space with internal scrolling */}
+        <div className="min-h-0 flex-1">
+          <ProductionOrdersTable
+            orders={orders}
+            isLoading={isLoading}
+            pageSize={pageSize}
+            currentPage={currentPage}
+            visibleColumns={visibleColumns}
+            sortColumn={sortColumn}
+            sortDirection={sortDirection}
+            columnFilters={columnFilters}
+            onRowClick={handleRowClick}
+            onSort={onSort}
+            onColumnFilter={onColumnFilter}
+            branchOptions={branchOptions}
+          />
+        </div>
+
+        {/* Pagination Controls - fixed at bottom */}
+        <div className="shrink-0">
+          <PaginationControls
+            pageSize={pageSize}
+            currentPage={currentPage}
+            totalPages={totalPages}
+            totalCount={totalCount}
+            hasNextPage={hasNextPage}
+            onPageSizeChange={onPageSizeChange}
+            onPageChange={onPageChange}
+          />
+        </div>
       </div>
 
       {/* FormStack Panel */}
@@ -86,27 +171,6 @@ function ProductionOrdersContent() {
 
       {/* Mini Access Panel */}
       <MiniAccessPanel />
-    </div>
-  );
-}
-
-interface HeaderProps {
-  onCreateOrder: () => void;
-}
-
-function Header({ onCreateOrder }: HeaderProps) {
-  return (
-    <div className="flex items-center justify-between">
-      <div>
-        <h1 className="text-2xl font-bold">Released Production Orders</h1>
-        <p className="text-sm text-muted-foreground">
-          View and manage released production orders
-        </p>
-      </div>
-      <Button onClick={onCreateOrder} size="sm">
-        <Plus className="h-4 w-4 mr-2" />
-        Add Order
-      </Button>
     </div>
   );
 }

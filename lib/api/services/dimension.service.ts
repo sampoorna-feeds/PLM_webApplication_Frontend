@@ -3,16 +3,17 @@
  * Handles fetching dimension values (Branch, LOB, LOC) from ERP OData V4 API
  */
 
-import { apiGet } from '../client';
-import { buildODataQuery } from '../endpoints';
-import type { ODataResponse } from '../types';
+import { apiGet } from "../client";
+import { buildODataQuery } from "../endpoints";
+import type { ODataResponse } from "../types";
 
 export interface DimensionValue {
   Code: string;
   Name?: string;
 }
 
-const COMPANY = process.env.NEXT_PUBLIC_API_COMPANY || 'Sampoorna Feeds Pvt. Ltd';
+const COMPANY =
+  process.env.NEXT_PUBLIC_API_COMPANY || "Sampoorna Feeds Pvt. Ltd";
 
 // Cache for search results
 const searchCache = new Map<string, DimensionValue[]>();
@@ -20,7 +21,9 @@ const searchCache = new Map<string, DimensionValue[]>();
 /**
  * Builds the base filter for Dimension Values
  */
-function getBaseFilter(dimensionCode: 'BRANCH' | 'LOB' | 'LOC' | 'EMPLOYEE' | 'ASSIGNMENT'): string {
+function getBaseFilter(
+  dimensionCode: "BRANCH" | "LOB" | "LOC" | "EMPLOYEE" | "ASSIGNMENT",
+): string {
   return `Dimension_Code eq '${dimensionCode}' and Dimension_Value_Type eq 'Standard'`;
 }
 
@@ -33,7 +36,7 @@ function getBaseFilter(dimensionCode: 'BRANCH' | 'LOB' | 'LOC' | 'EMPLOYEE' | 'A
 function getSearchFilter(
   query: string,
   baseFilter: string,
-  hasName: boolean
+  hasName: boolean,
 ): string {
   // Check if query contains only digits
   const isNumeric = /^\d+$/.test(query.trim());
@@ -54,7 +57,7 @@ function getSearchFilter(
  * @param search - Optional search query (3+ chars)
  */
 export async function getBranches(search?: string): Promise<DimensionValue[]> {
-  const baseFilter = getBaseFilter('BRANCH');
+  const baseFilter = getBaseFilter("BRANCH");
   let filter = baseFilter;
 
   if (search && search.length >= 3) {
@@ -62,9 +65,9 @@ export async function getBranches(search?: string): Promise<DimensionValue[]> {
   }
 
   const query = buildODataQuery({
-    $select: 'Code,Name',
+    $select: "Code,Name",
     $filter: filter,
-    $orderby: 'Code',
+    $orderby: "Code",
     $top: search ? 30 : 20,
   });
 
@@ -80,9 +83,9 @@ export async function getBranches(search?: string): Promise<DimensionValue[]> {
  */
 export async function getBranchesPage(
   skip: number,
-  search?: string
+  search?: string,
 ): Promise<DimensionValue[]> {
-  const baseFilter = getBaseFilter('BRANCH');
+  const baseFilter = getBaseFilter("BRANCH");
   let filter = baseFilter;
 
   if (search && search.length >= 3) {
@@ -90,9 +93,9 @@ export async function getBranchesPage(
   }
 
   const query = buildODataQuery({
-    $select: 'Code,Name',
+    $select: "Code,Name",
     $filter: filter,
-    $orderby: 'Code',
+    $orderby: "Code",
     $top: 30,
     $skip: skip,
   });
@@ -106,12 +109,12 @@ export async function getBranchesPage(
  * Get LOB values (Code only, no search)
  */
 export async function getLOBs(): Promise<DimensionValue[]> {
-  const baseFilter = getBaseFilter('LOB');
+  const baseFilter = getBaseFilter("LOB");
 
   const query = buildODataQuery({
-    $select: 'Code',
+    $select: "Code",
     $filter: baseFilter,
-    $orderby: 'Code',
+    $orderby: "Code",
     $top: 20,
   });
 
@@ -125,7 +128,7 @@ export async function getLOBs(): Promise<DimensionValue[]> {
  * @param search - Optional search query (3+ chars)
  */
 export async function getLOCs(search?: string): Promise<DimensionValue[]> {
-  const baseFilter = getBaseFilter('LOC');
+  const baseFilter = getBaseFilter("LOC");
   let filter = baseFilter;
 
   if (search && search.length >= 3) {
@@ -133,9 +136,9 @@ export async function getLOCs(search?: string): Promise<DimensionValue[]> {
   }
 
   const query = buildODataQuery({
-    $select: 'Code,Name',
+    $select: "Code,Name",
     $filter: filter,
-    $orderby: 'Code',
+    $orderby: "Code",
     $top: search ? 30 : 20,
   });
 
@@ -151,9 +154,9 @@ export async function getLOCs(search?: string): Promise<DimensionValue[]> {
  */
 export async function getLOCsPage(
   skip: number,
-  search?: string
+  search?: string,
 ): Promise<DimensionValue[]> {
-  const baseFilter = getBaseFilter('LOC');
+  const baseFilter = getBaseFilter("LOC");
   let filter = baseFilter;
 
   if (search && search.length >= 3) {
@@ -161,9 +164,9 @@ export async function getLOCsPage(
   }
 
   const query = buildODataQuery({
-    $select: 'Code,Name',
+    $select: "Code,Name",
     $filter: filter,
-    $orderby: 'Code',
+    $orderby: "Code",
     $top: 30,
     $skip: skip,
   });
@@ -178,7 +181,7 @@ export async function getLOCsPage(
  * @param search - Optional search query (3+ chars)
  */
 export async function getEmployees(search?: string): Promise<DimensionValue[]> {
-  const baseFilter = getBaseFilter('EMPLOYEE');
+  const baseFilter = getBaseFilter("EMPLOYEE");
   let filter = baseFilter;
 
   if (search && search.length >= 3) {
@@ -186,9 +189,9 @@ export async function getEmployees(search?: string): Promise<DimensionValue[]> {
   }
 
   const query = buildODataQuery({
-    $select: 'Code,Name',
+    $select: "Code,Name",
     $filter: filter,
-    $orderby: 'Code',
+    $orderby: "Code",
     $top: search ? 30 : 20,
   });
 
@@ -204,9 +207,9 @@ export async function getEmployees(search?: string): Promise<DimensionValue[]> {
  */
 export async function getEmployeesPage(
   skip: number,
-  search?: string
+  search?: string,
 ): Promise<DimensionValue[]> {
-  const baseFilter = getBaseFilter('EMPLOYEE');
+  const baseFilter = getBaseFilter("EMPLOYEE");
   let filter = baseFilter;
 
   if (search && search.length >= 3) {
@@ -214,9 +217,9 @@ export async function getEmployeesPage(
   }
 
   const query = buildODataQuery({
-    $select: 'Code,Name',
+    $select: "Code,Name",
     $filter: filter,
-    $orderby: 'Code',
+    $orderby: "Code",
     $top: 30,
     $skip: skip,
   });
@@ -230,8 +233,10 @@ export async function getEmployeesPage(
  * Get Assignment values
  * @param search - Optional search query (3+ chars)
  */
-export async function getAssignments(search?: string): Promise<DimensionValue[]> {
-  const baseFilter = getBaseFilter('ASSIGNMENT');
+export async function getAssignments(
+  search?: string,
+): Promise<DimensionValue[]> {
+  const baseFilter = getBaseFilter("ASSIGNMENT");
   let filter = baseFilter;
 
   if (search && search.length >= 3) {
@@ -239,9 +244,9 @@ export async function getAssignments(search?: string): Promise<DimensionValue[]>
   }
 
   const query = buildODataQuery({
-    $select: 'Code,Name',
+    $select: "Code,Name",
     $filter: filter,
-    $orderby: 'Code',
+    $orderby: "Code",
     $top: search ? 30 : 20,
   });
 
@@ -257,9 +262,9 @@ export async function getAssignments(search?: string): Promise<DimensionValue[]>
  */
 export async function getAssignmentsPage(
   skip: number,
-  search?: string
+  search?: string,
 ): Promise<DimensionValue[]> {
-  const baseFilter = getBaseFilter('ASSIGNMENT');
+  const baseFilter = getBaseFilter("ASSIGNMENT");
   let filter = baseFilter;
 
   if (search && search.length >= 3) {
@@ -267,9 +272,9 @@ export async function getAssignmentsPage(
   }
 
   const query = buildODataQuery({
-    $select: 'Code,Name',
+    $select: "Code,Name",
     $filter: filter,
-    $orderby: 'Code',
+    $orderby: "Code",
     $top: 30,
     $skip: skip,
   });
@@ -297,7 +302,10 @@ export interface WebUserSetup {
 }
 
 // Cache for WebUserSetup data to prevent redundant API calls
-const webUserSetupCache = new Map<string, { data: WebUserSetup[]; timestamp: number }>();
+const webUserSetupCache = new Map<
+  string,
+  { data: WebUserSetup[]; timestamp: number }
+>();
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
 /**
@@ -314,13 +322,13 @@ export async function getWebUserSetup(userId: string): Promise<WebUserSetup[]> {
   const filter = `User_name eq '${userId}'`;
   const query = `$filter=${encodeURIComponent(filter)}`;
   const endpoint = `/WebUserSetup?company='${encodeURIComponent(COMPANY)}'&${query}`;
-  
+
   const response = await apiGet<ODataResponse<WebUserSetup>>(endpoint);
   const data = response.value || [];
-  
+
   // Cache the result
   webUserSetupCache.set(userId, { data, timestamp: Date.now() });
-  
+
   return data;
 }
 
@@ -328,10 +336,14 @@ export async function getWebUserSetup(userId: string): Promise<WebUserSetup[]> {
  * Get unique LOB values from WebUserSetup
  * @param userId - User ID (required)
  */
-export async function getLOBsFromUserSetup(userId: string): Promise<DimensionValue[]> {
+export async function getLOBsFromUserSetup(
+  userId: string,
+): Promise<DimensionValue[]> {
   const setupData = await getWebUserSetup(userId);
-  const uniqueLOBs = Array.from(new Set(setupData.map(item => item.LOB).filter(Boolean)));
-  return uniqueLOBs.map(lob => ({ Code: lob }));
+  const uniqueLOBs = Array.from(
+    new Set(setupData.map((item) => item.LOB).filter(Boolean)),
+  );
+  return uniqueLOBs.map((lob) => ({ Code: lob }));
 }
 
 /**
@@ -339,11 +351,16 @@ export async function getLOBsFromUserSetup(userId: string): Promise<DimensionVal
  * @param lob - Selected LOB value
  * @param userId - User ID (required)
  */
-export async function getBranchesFromUserSetup(lob: string, userId: string): Promise<DimensionValue[]> {
+export async function getBranchesFromUserSetup(
+  lob: string,
+  userId: string,
+): Promise<DimensionValue[]> {
   const setupData = await getWebUserSetup(userId);
-  const filtered = setupData.filter(item => item.LOB === lob);
-  const uniqueBranches = Array.from(new Set(filtered.map(item => item.Branch_Code).filter(Boolean)));
-  return uniqueBranches.map(branch => ({ Code: branch }));
+  const filtered = setupData.filter((item) => item.LOB === lob);
+  const uniqueBranches = Array.from(
+    new Set(filtered.map((item) => item.Branch_Code).filter(Boolean)),
+  );
+  return uniqueBranches.map((branch) => ({ Code: branch }));
 }
 
 /**
@@ -352,10 +369,45 @@ export async function getBranchesFromUserSetup(lob: string, userId: string): Pro
  * @param branch - Selected Branch value
  * @param userId - User ID (required)
  */
-export async function getLOCsFromUserSetup(lob: string, branch: string, userId: string): Promise<DimensionValue[]> {
+export async function getLOCsFromUserSetup(
+  lob: string,
+  branch: string,
+  userId: string,
+): Promise<DimensionValue[]> {
   const setupData = await getWebUserSetup(userId);
-  const filtered = setupData.filter(item => item.LOB === lob && item.Branch_Code === branch);
-  const uniqueLOCs = Array.from(new Set(filtered.map(item => item.LOC_Code).filter(Boolean)));
-  return uniqueLOCs.map(loc => ({ Code: loc }));
+  const filtered = setupData.filter(
+    (item) => item.LOB === lob && item.Branch_Code === branch,
+  );
+  const uniqueLOCs = Array.from(
+    new Set(filtered.map((item) => item.LOC_Code).filter(Boolean)),
+  );
+  return uniqueLOCs.map((loc) => ({ Code: loc }));
 }
 
+/**
+ * Get all unique Branch values from WebUserSetup for a user (across all LOBs)
+ * @param userId - User ID (required)
+ */
+export async function getAllBranchesFromUserSetup(
+  userId: string,
+): Promise<DimensionValue[]> {
+  const setupData = await getWebUserSetup(userId);
+  const uniqueBranches = Array.from(
+    new Set(setupData.map((item) => item.Branch_Code).filter(Boolean)),
+  );
+  return uniqueBranches.map((branch) => ({ Code: branch }));
+}
+
+/**
+ * Get all unique LOC values from WebUserSetup for a user (across all LOBs and Branches)
+ * @param userId - User ID (required)
+ */
+export async function getAllLOCsFromUserSetup(
+  userId: string,
+): Promise<DimensionValue[]> {
+  const setupData = await getWebUserSetup(userId);
+  const uniqueLOCs = Array.from(
+    new Set(setupData.map((item) => item.LOC_Code).filter(Boolean)),
+  );
+  return uniqueLOCs.map((loc) => ({ Code: loc }));
+}

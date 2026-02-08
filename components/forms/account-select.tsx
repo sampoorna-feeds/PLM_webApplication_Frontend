@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 /**
  * AccountSelect component
@@ -6,36 +6,36 @@
  * Supports G/L Account, Vendor, and Customer based on accountType prop
  */
 
-import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Loader2, ChevronDownIcon, CheckIcon } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { Loader2, ChevronDownIcon, CheckIcon } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from '@/components/ui/popover';
+} from "@/components/ui/popover";
 import {
   getGLAccounts,
   searchGLAccounts,
   getGLAccountsPage,
   type GLAccount,
-} from '@/lib/api/services/account.service';
+} from "@/lib/api/services/account.service";
 import {
   getVendors,
   searchVendors,
   getVendorsPage,
   type Vendor,
-} from '@/lib/api/services/vendor.service';
+} from "@/lib/api/services/vendor.service";
 import {
   getCustomers,
   searchCustomers,
   getCustomersPage,
   type Customer,
-} from '@/lib/api/services/customer.service';
+} from "@/lib/api/services/customer.service";
 
-type AccountType = 'G/L Account' | 'Vendor' | 'Customer';
+type AccountType = "G/L Account" | "Vendor" | "Customer";
 type AccountItem = GLAccount | Vendor | Customer;
 
 interface AccountSelectProps {
@@ -59,17 +59,17 @@ export function AccountSelect({
   accountType,
   value,
   onChange,
-  placeholder = '',
+  placeholder = "",
   disabled = false,
   className,
   hasError = false,
-  errorClass = '',
+  errorClass = "",
   excludeValue,
 }: AccountSelectProps) {
   const [items, setItems] = useState<AccountItem[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
   const [hasMore, setHasMore] = useState(true);
   const [skip, setSkip] = useState(0);
 
@@ -89,13 +89,13 @@ export function AccountSelect({
     try {
       let result: AccountItem[];
       switch (accountType) {
-        case 'G/L Account':
+        case "G/L Account":
           result = await getGLAccounts();
           break;
-        case 'Vendor':
+        case "Vendor":
           result = await getVendors();
           break;
-        case 'Customer':
+        case "Customer":
           result = await getCustomers();
           break;
         default:
@@ -105,7 +105,7 @@ export function AccountSelect({
       setSkip(result.length);
       setHasMore(result.length >= INITIAL_LOAD_COUNT);
     } catch (error) {
-      console.error('Error loading accounts:', error);
+      console.error("Error loading accounts:", error);
       setItems([]);
     } finally {
       setIsLoading(false);
@@ -149,13 +149,13 @@ export function AccountSelect({
         try {
           let result: AccountItem[];
           switch (accountType) {
-            case 'G/L Account':
+            case "G/L Account":
               result = await searchGLAccounts(query);
               break;
-            case 'Vendor':
+            case "Vendor":
               result = await searchVendors(query);
               break;
-            case 'Customer':
+            case "Customer":
               result = await searchCustomers(query);
               break;
             default:
@@ -172,14 +172,14 @@ export function AccountSelect({
           setHasMore(result.length >= PAGE_SIZE);
         } catch (error) {
           // Ignore abort errors
-          if (error instanceof Error && error.name === 'AbortError') {
+          if (error instanceof Error && error.name === "AbortError") {
             return;
           }
           // Check if request was aborted
           if (controller.signal.aborted) {
             return;
           }
-          console.error('Error searching accounts:', error);
+          console.error("Error searching accounts:", error);
           setItems([]);
         } finally {
           if (!controller.signal.aborted) {
@@ -188,7 +188,7 @@ export function AccountSelect({
         }
       }, DEBOUNCE_MS);
     },
-    [accountType, loadInitialItems]
+    [accountType, loadInitialItems],
   );
 
   // Load more items (pagination)
@@ -199,13 +199,13 @@ export function AccountSelect({
     try {
       let result: AccountItem[];
       switch (accountType) {
-        case 'G/L Account':
+        case "G/L Account":
           result = await getGLAccountsPage(skip, searchQuery || undefined);
           break;
-        case 'Vendor':
+        case "Vendor":
           result = await getVendorsPage(skip, searchQuery || undefined);
           break;
-        case 'Customer':
+        case "Customer":
           result = await getCustomersPage(skip, searchQuery || undefined);
           break;
         default:
@@ -215,8 +215,8 @@ export function AccountSelect({
       if (result.length > 0) {
         setItems((prev) => {
           // Filter out duplicates by No
-          const existingNos = new Set(prev.map(item => item.No));
-          const newItems = result.filter(item => !existingNos.has(item.No));
+          const existingNos = new Set(prev.map((item) => item.No));
+          const newItems = result.filter((item) => !existingNos.has(item.No));
           return [...prev, ...newItems];
         });
         setSkip((prev) => prev + result.length);
@@ -225,7 +225,7 @@ export function AccountSelect({
         setHasMore(false);
       }
     } catch (error) {
-      console.error('Error loading more accounts:', error);
+      console.error("Error loading more accounts:", error);
       setHasMore(false);
     } finally {
       setIsLoading(false);
@@ -237,12 +237,15 @@ export function AccountSelect({
     setIsOpen(open);
     if (open) {
       // Always load items when opening, even if we have some, to ensure value is in list
-      if (items.length === 0 || (value && !items.find(item => item.No === value))) {
+      if (
+        items.length === 0 ||
+        (value && !items.find((item) => item.No === value))
+      ) {
         loadInitialItems();
       }
     }
     if (!open) {
-      setSearchQuery('');
+      setSearchQuery("");
       setSkip(0);
       setHasMore(true);
     }
@@ -255,13 +258,17 @@ export function AccountSelect({
     const listElement = listRef.current;
     const handleScroll = () => {
       const { scrollTop, scrollHeight, clientHeight } = listElement;
-      if (scrollHeight - scrollTop <= clientHeight * 1.5 && hasMore && !isLoading) {
+      if (
+        scrollHeight - scrollTop <= clientHeight * 1.5 &&
+        hasMore &&
+        !isLoading
+      ) {
         loadMore();
       }
     };
 
-    listElement.addEventListener('scroll', handleScroll);
-    return () => listElement.removeEventListener('scroll', handleScroll);
+    listElement.addEventListener("scroll", handleScroll);
+    return () => listElement.removeEventListener("scroll", handleScroll);
   }, [isOpen, hasMore, isLoading, loadMore]);
 
   // Reload items when accountType changes
@@ -270,27 +277,27 @@ export function AccountSelect({
     if (prevAccountTypeRef.current === accountType) {
       return;
     }
-    
+
     prevAccountTypeRef.current = accountType;
 
     if (!accountType) {
       setItems([]);
-      setSearchQuery('');
+      setSearchQuery("");
       setSkip(0);
       setHasMore(true);
       // Clear value when account type is cleared
       if (value) {
-        onChange('');
+        onChange("");
       }
       return;
     }
 
     // Clear items and search state when account type changes
     setItems([]);
-    setSearchQuery('');
+    setSearchQuery("");
     setSkip(0);
     setHasMore(true);
-    
+
     // Cancel any pending requests
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
@@ -307,13 +314,13 @@ export function AccountSelect({
       try {
         let result: AccountItem[];
         switch (accountType) {
-          case 'G/L Account':
+          case "G/L Account":
             result = await getGLAccounts();
             break;
-          case 'Vendor':
+          case "Vendor":
             result = await getVendors();
             break;
-          case 'Customer':
+          case "Customer":
             result = await getCustomers();
             break;
           default:
@@ -323,7 +330,7 @@ export function AccountSelect({
         setSkip(result.length);
         setHasMore(result.length >= INITIAL_LOAD_COUNT);
       } catch (error) {
-        console.error('Error loading accounts:', error);
+        console.error("Error loading accounts:", error);
         setItems([]);
       } finally {
         setIsLoading(false);
@@ -331,7 +338,7 @@ export function AccountSelect({
     };
 
     loadItems();
-    
+
     // Don't clear value when account type changes if we're just loading items
     // The value will be validated when items are loaded
   }, [accountType]);
@@ -352,18 +359,23 @@ export function AccountSelect({
 
   // Find selected item name
   const selectedItem = items.find((item) => item.No === value);
-  const displayValue = selectedItem ? `${selectedItem.No} - ${selectedItem.Name}` : value || '';
-  
+  const displayValue = selectedItem
+    ? `${selectedItem.No} - ${selectedItem.Name}`
+    : value || "";
+
   // Calculate max width needed for dropdown based on items
   const calculateDropdownWidth = () => {
-    if (items.length === 0) return '280px';
-    const codeLengths = items.map(item => item.No?.length || 0);
-    const nameLengths = items.map(item => item.Name?.length || 0);
+    if (items.length === 0) return "280px";
+    const codeLengths = items.map((item) => item.No?.length || 0);
+    const nameLengths = items.map((item) => item.Name?.length || 0);
     const maxCodeLength = codeLengths.length > 0 ? Math.max(...codeLengths) : 0;
     const maxNameLength = nameLengths.length > 0 ? Math.max(...nameLengths) : 0;
     // Estimate: code (8ch) + padding + name (max 40ch) + check icon + padding
     // Use min-width to ensure readability, max-width to prevent overflow
-    const estimatedWidth = Math.max(280, Math.min(500, (maxCodeLength + maxNameLength) * 8 + 80));
+    const estimatedWidth = Math.max(
+      280,
+      Math.min(500, (maxCodeLength + maxNameLength) * 8 + 80),
+    );
     return `${estimatedWidth}px`;
   };
 
@@ -375,10 +387,10 @@ export function AccountSelect({
           role="combobox"
           disabled={disabled || !accountType}
           className={cn(
-            'h-9 text-sm w-full justify-between font-normal shadow-sm',
-            !value && 'text-muted-foreground',
+            "h-9 w-full justify-between text-sm font-normal shadow-sm",
+            !value && "text-muted-foreground",
             className,
-            errorClass
+            errorClass,
           )}
           data-field-error={hasError}
         >
@@ -386,8 +398,8 @@ export function AccountSelect({
           <ChevronDownIcon className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent 
-        className="p-0 min-w-[280px] max-w-[500px] w-auto" 
+      <PopoverContent
+        className="w-auto max-w-[500px] min-w-[280px] p-0"
         align="start"
         style={{ width: calculateDropdownWidth() }}
         onOpenAutoFocus={(e) => {
@@ -399,7 +411,7 @@ export function AccountSelect({
           e.preventDefault();
         }}
       >
-        <div className="p-2 border-b">
+        <div className="border-b p-2">
           <Input
             placeholder="Search by No or Name..."
             value={searchQuery}
@@ -414,11 +426,12 @@ export function AccountSelect({
         </div>
         <div
           ref={listRef}
-          className="max-h-[300px] overflow-y-auto overflow-x-hidden"
+          className="max-h-[300px] overflow-x-hidden overflow-y-auto"
           onScroll={(e) => {
             const target = e.currentTarget;
             if (
-              target.scrollHeight - target.scrollTop <= target.clientHeight * 1.5 &&
+              target.scrollHeight - target.scrollTop <=
+                target.clientHeight * 1.5 &&
               hasMore &&
               !isLoading
             ) {
@@ -431,10 +444,10 @@ export function AccountSelect({
               <Loader2 className="h-4 w-4 animate-spin" />
             </div>
           ) : items.length === 0 ? (
-            <div className="p-4 text-center text-sm text-muted-foreground">
+            <div className="text-muted-foreground p-4 text-center text-sm">
               {searchQuery.length < MIN_SEARCH_LENGTH
                 ? `Type at least ${MIN_SEARCH_LENGTH} characters to search`
-                : 'No accounts found'}
+                : "No accounts found"}
             </div>
           ) : (
             <>
@@ -444,8 +457,8 @@ export function AccountSelect({
                   <div
                     key={item.No}
                     className={cn(
-                      'relative flex cursor-default select-none items-start rounded-sm px-2 py-2 text-sm outline-none hover:bg-muted/50',
-                      value === item.No && 'bg-muted'
+                      "hover:bg-muted/50 relative flex cursor-default items-start rounded-sm px-2 py-2 text-sm outline-none select-none",
+                      value === item.No && "bg-muted",
                     )}
                     onClick={() => {
                       onChange(item.No);
@@ -454,15 +467,15 @@ export function AccountSelect({
                   >
                     <CheckIcon
                       className={cn(
-                        'mr-2 h-4 w-4 mt-0.5 shrink-0',
-                        value === item.No ? 'opacity-100' : 'opacity-0'
+                        "mt-0.5 mr-2 h-4 w-4 shrink-0",
+                        value === item.No ? "opacity-100" : "opacity-0",
                       )}
                     />
-                    <div className="flex-1 min-w-0">
-                      <div className="font-medium text-foreground">
+                    <div className="min-w-0 flex-1">
+                      <div className="text-foreground font-medium">
                         {item.No}
                       </div>
-                      <div className="text-muted-foreground text-xs mt-0.5 break-words">
+                      <div className="text-muted-foreground mt-0.5 text-xs break-words">
                         {item.Name}
                       </div>
                     </div>

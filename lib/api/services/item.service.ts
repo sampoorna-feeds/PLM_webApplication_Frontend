@@ -3,9 +3,9 @@
  * Handles fetching Items (ItemList for listing, ItemCard for details) and Item Unit of Measures from ERP OData V4 API
  */
 
-import { apiGet } from '../client';
-import { buildODataQuery } from '../endpoints';
-import type { ODataResponse } from '../types';
+import { apiGet } from "../client";
+import { buildODataQuery } from "../endpoints";
+import type { ODataResponse } from "../types";
 
 export interface Item {
   No: string;
@@ -24,7 +24,8 @@ export interface ItemUnitOfMeasure {
   Qty_per_Unit_of_Measure: number;
 }
 
-const COMPANY = process.env.NEXT_PUBLIC_API_COMPANY || 'Sampoorna Feeds Pvt. Ltd';
+const COMPANY =
+  process.env.NEXT_PUBLIC_API_COMPANY || "Sampoorna Feeds Pvt. Ltd";
 
 // Cache for search results
 const searchCache = new Map<string, Item[]>();
@@ -130,7 +131,7 @@ export async function searchItems(query: string, locationCode?: string): Promise
     }
   });
   const uniqueResults = Array.from(uniqueMap.values()).sort((a, b) =>
-    a.No.localeCompare(b.No)
+    a.No.localeCompare(b.No),
   );
   searchCache.set(cacheKey, uniqueResults);
   return uniqueResults;
@@ -224,14 +225,16 @@ export async function getItemsPage(
 /**
  * Get Item Unit of Measures for a specific item
  */
-export async function getItemUnitOfMeasures(itemNo: string): Promise<ItemUnitOfMeasure[]> {
+export async function getItemUnitOfMeasures(
+  itemNo: string,
+): Promise<ItemUnitOfMeasure[]> {
   if (!itemNo) return [];
 
   const escapedItemNo = escapeODataValue(itemNo);
   const query = buildODataQuery({
-    $select: 'Code,Qty_per_Unit_of_Measure',
+    $select: "Code,Qty_per_Unit_of_Measure",
     $filter: `Item_No eq '${escapedItemNo}'`,
-    $orderby: 'Code',
+    $orderby: "Code",
   });
 
   const endpoint = `/ItemUnitofMeasure?company='${encodeURIComponent(COMPANY)}'&${query}`;
@@ -254,7 +257,36 @@ export async function getItemByNo(itemNo: string): Promise<Item | null> {
   const endpoint = `/ItemCard?company='${encodeURIComponent(COMPANY)}'&${query}`;
   const response = await apiGet<ODataResponse<Item>>(endpoint);
 
+
   return response.value.length > 0 ? response.value[0] : null;
+}
+
+/**
+ * Get multiple Items by their No values in a single batch call
+ * Returns items with Item_Tracking_Code for highlighting purposes
+ *
+ * Note: Uses multiple 'eq' conditions with 'or' instead of 'in' operator
+ * because Business Central OData API doesn't properly support 'in'
+ */
+export async function getItemsByNos(itemNos: string[]): Promise<Item[]> {
+  if (itemNos.length === 0) return [];
+
+  // Build filter using multiple eq conditions: (No eq 'ITEM1' or No eq 'ITEM2' or ...)
+  // The 'in' operator is not reliably supported by Business Central OData API
+  const filterConditions = itemNos.map(
+    (no) => `No eq '${escapeODataValue(no)}'`,
+  );
+  const filter = `(${filterConditions.join(" or ")})`;
+
+  const query = buildODataQuery({
+    $select: "No,Description,Item_Tracking_Code",
+    $filter: filter,
+    $top: itemNos.length,
+  });
+
+  const endpoint = `/ItemCard?company='${encodeURIComponent(COMPANY)}'&${query}`;
+  const response = await apiGet<ODataResponse<Item>>(endpoint);
+  return response.value;
 }
 
 /**

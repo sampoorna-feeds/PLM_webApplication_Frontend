@@ -3,9 +3,9 @@
  * Handles fetching states with postcode validation ranges from ERP OData V4 API
  */
 
-import { apiGet } from '../client';
-import { buildODataQuery } from '../endpoints';
-import type { ODataResponse } from '../types';
+import { apiGet } from "../client";
+import { buildODataQuery } from "../endpoints";
+import type { ODataResponse } from "../types";
 
 export interface State {
   Code: string;
@@ -17,7 +17,8 @@ export interface State {
   State_Code_GST_Reg_No?: string;
 }
 
-const COMPANY = process.env.NEXT_PUBLIC_API_COMPANY || 'Sampoorna Feeds Pvt. Ltd';
+const COMPANY =
+  process.env.NEXT_PUBLIC_API_COMPANY || "Sampoorna Feeds Pvt. Ltd";
 
 // Cache for states (rarely changes)
 let statesCache: State[] | null = null;
@@ -48,13 +49,13 @@ export async function getStates(): Promise<State[]> {
   loadingPromise = (async () => {
     try {
       const query = buildODataQuery({
-        $select: 'Code,Description,From_PIN_Code,To_PIN_Code',
-        $orderby: 'Description',
+        $select: "Code,Description,From_PIN_Code,To_PIN_Code",
+        $orderby: "Description",
       });
 
       const endpoint = `/State?company='${encodeURIComponent(COMPANY)}'&${query}`;
       const response = await apiGet<ODataResponse<State>>(endpoint);
-      
+
       if (response.value && response.value.length > 0) {
         statesCache = response.value;
         return statesCache;
@@ -64,7 +65,7 @@ export async function getStates(): Promise<State[]> {
       statesCache = [];
       return [];
     } catch (error) {
-      console.error('Error fetching states:', error);
+      console.error("Error fetching states:", error);
       // Mark that we've failed to prevent future retries
       statesCacheError = true;
       // Return empty array on error - form will still work without state validation

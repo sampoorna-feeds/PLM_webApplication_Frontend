@@ -40,13 +40,16 @@ export interface FormStackContextType {
       formData?: Record<string, any>;
       context?: Record<string, any>;
       autoCloseOnSuccess?: boolean;
-    }
+    },
   ) => string; // Returns tab ID
   closeTab: (tabId: string) => void;
   switchTab: (tabId: string) => void;
   closeAllTabs: () => void;
   updateTab: (tabId: string, updates: Partial<FormTab>) => void;
-  registerRefreshCallback: (tabId: string, callback: () => void | Promise<void>) => void;
+  registerRefreshCallback: (
+    tabId: string,
+    callback: () => void | Promise<void>,
+  ) => void;
   unregisterRefreshCallback: (tabId: string) => void;
 }
 

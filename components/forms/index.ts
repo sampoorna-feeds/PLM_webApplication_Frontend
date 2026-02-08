@@ -3,9 +3,8 @@
  * Export all form components from here
  */
 
-export { LoginForm } from './login-form';
-export { VoucherForm } from './voucher-form';
-export { SalesForm } from './sales-form';
-export { AccountSelect } from './account-select';
-export { DimensionSelect } from './dimension-select';
-
+export { LoginForm } from "./login-form";
+export { VoucherForm } from "./voucher-form";
+export { SalesForm } from "./sales-form";
+export { AccountSelect } from "./account-select";
+export { DimensionSelect } from "./dimension-select";

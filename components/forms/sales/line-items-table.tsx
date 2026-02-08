@@ -1,12 +1,12 @@
-'use client';
+"use client";
 
 /**
  * Line Items Table Component
  * Editable table with right-click context menu for managing line items
  */
 
-import React, { useState, useCallback } from 'react';
-import { Pencil, Trash2 } from 'lucide-react';
+import React, { useState, useCallback } from "react";
+import { Pencil, Trash2 } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -14,13 +14,13 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table';
+} from "@/components/ui/table";
 import {
   ContextMenu,
   ContextMenuContent,
   ContextMenuItem,
   ContextMenuTrigger,
-} from '@/components/ui/context-menu';
+} from "@/components/ui/context-menu";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -30,11 +30,11 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { cn } from '@/lib/utils';
-import type { LineItem } from './line-item-form';
+} from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
+import type { LineItem } from "./line-item-form";
 
 interface LineItemsTableProps {
   lineItems: LineItem[];
@@ -56,7 +56,7 @@ function LineItemsTableComponent({
     itemId: string;
     field: keyof LineItem;
   } | null>(null);
-  const [editValue, setEditValue] = useState<string>('');
+  const [editValue, setEditValue] = useState<string>("");
 
   const handleRemoveClick = useCallback((itemId: string) => {
     setItemToRemove(itemId);
@@ -73,11 +73,14 @@ function LineItemsTableComponent({
     setItemToRemove(null);
   }, []);
 
-  const handleCellClick = useCallback((itemId: string, field: keyof LineItem, currentValue: any) => {
-    if (!editable) return;
-    setEditingCell({ itemId, field });
-    setEditValue(String(currentValue || ''));
-  }, [editable]);
+  const handleCellClick = useCallback(
+    (itemId: string, field: keyof LineItem, currentValue: any) => {
+      if (!editable) return;
+      setEditingCell({ itemId, field });
+      setEditValue(String(currentValue || ""));
+    },
+    [editable],
+  );
 
   const handleCellBlur = useCallback(() => {
     if (!editingCell || !onUpdate) return;
@@ -90,10 +93,15 @@ function LineItemsTableComponent({
 
     // Parse value based on field type
     let newValue: any = editValue;
-    if (editingCell.field === 'quantity' || editingCell.field === 'unitPrice' || 
-        editingCell.field === 'discount' || editingCell.field === 'mrp' || 
-        editingCell.field === 'price' || editingCell.field === 'totalMRP' || 
-        editingCell.field === 'amount') {
+    if (
+      editingCell.field === "quantity" ||
+      editingCell.field === "unitPrice" ||
+      editingCell.field === "discount" ||
+      editingCell.field === "mrp" ||
+      editingCell.field === "price" ||
+      editingCell.field === "totalMRP" ||
+      editingCell.field === "amount"
+    ) {
       newValue = parseFloat(editValue) || 0;
     }
 
@@ -104,7 +112,11 @@ function LineItemsTableComponent({
     };
 
     // Recalculate amounts if needed
-    if (editingCell.field === 'quantity' || editingCell.field === 'unitPrice' || editingCell.field === 'discount') {
+    if (
+      editingCell.field === "quantity" ||
+      editingCell.field === "unitPrice" ||
+      editingCell.field === "discount"
+    ) {
       updatedItem.totalMRP = updatedItem.unitPrice * updatedItem.quantity;
       updatedItem.amount = updatedItem.totalMRP - updatedItem.discount;
     }
@@ -113,18 +125,21 @@ function LineItemsTableComponent({
     setEditingCell(null);
   }, [editingCell, editValue, lineItems, onUpdate]);
 
-  const handleCellKeyDown = useCallback((e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      handleCellBlur();
-    } else if (e.key === 'Escape') {
-      setEditingCell(null);
-    }
-  }, [handleCellBlur]);
+  const handleCellKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === "Enter") {
+        handleCellBlur();
+      } else if (e.key === "Escape") {
+        setEditingCell(null);
+      }
+    },
+    [handleCellBlur],
+  );
 
   if (lineItems.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-12 text-center">
-        <p className="text-sm text-muted-foreground">No line items added yet</p>
+        <p className="text-muted-foreground text-sm">No line items added yet</p>
       </div>
     );
   }
@@ -161,16 +176,22 @@ function LineItemsTableComponent({
                     <TableRow className="hover:bg-muted/50">
                       <TableCell className="font-medium">{item.type}</TableCell>
                       <TableCell>{item.no}</TableCell>
-                      <TableCell className="max-w-[200px] truncate">{item.description}</TableCell>
-                      <TableCell>{item.uom || '-'}</TableCell>
+                      <TableCell className="max-w-[200px] truncate">
+                        {item.description}
+                      </TableCell>
+                      <TableCell>{item.uom || "-"}</TableCell>
                       <TableCell
                         className={cn(
-                          editable && 'cursor-pointer hover:bg-muted',
-                          isEditing && editingCell?.field === 'quantity' && 'p-0'
+                          editable && "hover:bg-muted cursor-pointer",
+                          isEditing &&
+                            editingCell?.field === "quantity" &&
+                            "p-0",
                         )}
-                        onClick={() => handleCellClick(item.id, 'quantity', item.quantity)}
+                        onClick={() =>
+                          handleCellClick(item.id, "quantity", item.quantity)
+                        }
                       >
-                        {isEditing && editingCell?.field === 'quantity' ? (
+                        {isEditing && editingCell?.field === "quantity" ? (
                           <Input
                             type="number"
                             step="0.01"
@@ -190,12 +211,14 @@ function LineItemsTableComponent({
                       </TableCell>
                       <TableCell
                         className={cn(
-                          editable && 'cursor-pointer hover:bg-muted',
-                          isEditing && editingCell?.field === 'mrp' && 'p-0'
+                          editable && "hover:bg-muted cursor-pointer",
+                          isEditing && editingCell?.field === "mrp" && "p-0",
                         )}
-                        onClick={() => handleCellClick(item.id, 'mrp', item.mrp)}
+                        onClick={() =>
+                          handleCellClick(item.id, "mrp", item.mrp)
+                        }
                       >
-                        {isEditing && editingCell?.field === 'mrp' ? (
+                        {isEditing && editingCell?.field === "mrp" ? (
                           <Input
                             type="number"
                             step="0.01"
@@ -210,17 +233,19 @@ function LineItemsTableComponent({
                             autoFocus={false}
                           />
                         ) : (
-                          item.mrp || '-'
+                          item.mrp || "-"
                         )}
                       </TableCell>
                       <TableCell
                         className={cn(
-                          editable && 'cursor-pointer hover:bg-muted',
-                          isEditing && editingCell?.field === 'price' && 'p-0'
+                          editable && "hover:bg-muted cursor-pointer",
+                          isEditing && editingCell?.field === "price" && "p-0",
                         )}
-                        onClick={() => handleCellClick(item.id, 'price', item.price)}
+                        onClick={() =>
+                          handleCellClick(item.id, "price", item.price)
+                        }
                       >
-                        {isEditing && editingCell?.field === 'price' ? (
+                        {isEditing && editingCell?.field === "price" ? (
                           <Input
                             type="number"
                             step="0.01"
@@ -235,17 +260,21 @@ function LineItemsTableComponent({
                             autoFocus={false}
                           />
                         ) : (
-                          item.price || '-'
+                          item.price || "-"
                         )}
                       </TableCell>
                       <TableCell
                         className={cn(
-                          editable && 'cursor-pointer hover:bg-muted',
-                          isEditing && editingCell?.field === 'unitPrice' && 'p-0'
+                          editable && "hover:bg-muted cursor-pointer",
+                          isEditing &&
+                            editingCell?.field === "unitPrice" &&
+                            "p-0",
                         )}
-                        onClick={() => handleCellClick(item.id, 'unitPrice', item.unitPrice)}
+                        onClick={() =>
+                          handleCellClick(item.id, "unitPrice", item.unitPrice)
+                        }
                       >
-                        {isEditing && editingCell?.field === 'unitPrice' ? (
+                        {isEditing && editingCell?.field === "unitPrice" ? (
                           <Input
                             type="number"
                             step="0.01"
@@ -268,12 +297,16 @@ function LineItemsTableComponent({
                       </TableCell>
                       <TableCell
                         className={cn(
-                          editable && 'cursor-pointer hover:bg-muted',
-                          isEditing && editingCell?.field === 'discount' && 'p-0'
+                          editable && "hover:bg-muted cursor-pointer",
+                          isEditing &&
+                            editingCell?.field === "discount" &&
+                            "p-0",
                         )}
-                        onClick={() => handleCellClick(item.id, 'discount', item.discount)}
+                        onClick={() =>
+                          handleCellClick(item.id, "discount", item.discount)
+                        }
                       >
-                        {isEditing && editingCell?.field === 'discount' ? (
+                        {isEditing && editingCell?.field === "discount" ? (
                           <Input
                             type="number"
                             step="0.01"
@@ -294,10 +327,10 @@ function LineItemsTableComponent({
                       <TableCell className="font-medium">
                         {item.amount.toFixed(2)}
                       </TableCell>
-                      <TableCell>{item.exempted ? 'Yes' : 'No'}</TableCell>
-                      <TableCell>{item.gstGroupCode || '-'}</TableCell>
-                      <TableCell>{item.hsnSacCode || '-'}</TableCell>
-                      <TableCell>{item.tcsGroupCode || '-'}</TableCell>
+                      <TableCell>{item.exempted ? "Yes" : "No"}</TableCell>
+                      <TableCell>{item.gstGroupCode || "-"}</TableCell>
+                      <TableCell>{item.hsnSacCode || "-"}</TableCell>
+                      <TableCell>{item.tcsGroupCode || "-"}</TableCell>
                     </TableRow>
                   </ContextMenuTrigger>
                   <ContextMenuContent>
@@ -321,16 +354,22 @@ function LineItemsTableComponent({
       </div>
 
       {/* Remove Confirmation Dialog */}
-      <AlertDialog open={!!itemToRemove} onOpenChange={(open) => !open && handleCancelRemove()}>
+      <AlertDialog
+        open={!!itemToRemove}
+        onOpenChange={(open) => !open && handleCancelRemove()}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Remove Line Item</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to remove this line item? This action cannot be undone.
+              Are you sure you want to remove this line item? This action cannot
+              be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={handleCancelRemove}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel onClick={handleCancelRemove}>
+              Cancel
+            </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleConfirmRemove}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
@@ -344,23 +383,26 @@ function LineItemsTableComponent({
   );
 }
 
-export const LineItemsTable = React.memo(LineItemsTableComponent, (prev, next) => {
-  // Only re-render if lineItems array changed or editable changed
-  return (
-    prev.lineItems.length === next.lineItems.length &&
-    prev.lineItems.every((item, idx) => {
-      const nextItem = next.lineItems[idx];
-      return (
-        nextItem &&
-        item.id === nextItem.id &&
-        item.quantity === nextItem.quantity &&
-        item.unitPrice === nextItem.unitPrice &&
-        item.discount === nextItem.discount &&
-        item.amount === nextItem.amount
-      );
-    }) &&
-    prev.editable === next.editable
-  );
-});
+export const LineItemsTable = React.memo(
+  LineItemsTableComponent,
+  (prev, next) => {
+    // Only re-render if lineItems array changed or editable changed
+    return (
+      prev.lineItems.length === next.lineItems.length &&
+      prev.lineItems.every((item, idx) => {
+        const nextItem = next.lineItems[idx];
+        return (
+          nextItem &&
+          item.id === nextItem.id &&
+          item.quantity === nextItem.quantity &&
+          item.unitPrice === nextItem.unitPrice &&
+          item.discount === nextItem.discount &&
+          item.amount === nextItem.amount
+        );
+      }) &&
+      prev.editable === next.editable
+    );
+  },
+);
 
-LineItemsTable.displayName = 'LineItemsTable';
+LineItemsTable.displayName = "LineItemsTable";

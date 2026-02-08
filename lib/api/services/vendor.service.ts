@@ -3,16 +3,17 @@
  * Handles fetching vendors from ERP OData V4 API
  */
 
-import { apiGet } from '../client';
-import { buildODataQuery } from '../endpoints';
-import type { ODataResponse } from '../types';
+import { apiGet } from "../client";
+import { buildODataQuery } from "../endpoints";
+import type { ODataResponse } from "../types";
 
 export interface Vendor {
   No: string;
   Name: string;
 }
 
-const COMPANY = process.env.NEXT_PUBLIC_API_COMPANY || 'Sampoorna Feeds Pvt. Ltd';
+const COMPANY =
+  process.env.NEXT_PUBLIC_API_COMPANY || "Sampoorna Feeds Pvt. Ltd";
 
 // Cache for search results
 const searchCache = new Map<string, Vendor[]>();
@@ -36,9 +37,9 @@ function escapeODataValue(value: string): string {
  */
 export async function getVendors(): Promise<Vendor[]> {
   const query = buildODataQuery({
-    $select: 'No,Name',
+    $select: "No,Name",
     $filter: getBaseFilter(),
-    $orderby: 'No',
+    $orderby: "No",
     $top: 20,
   });
 
@@ -72,9 +73,9 @@ export async function searchVendors(query: string): Promise<Vendor[]> {
     (async () => {
       const filterByNo = `(${baseFilter}) and contains(No,'${escapedQuery}')`;
       const odataQuery = buildODataQuery({
-        $select: 'No,Name',
+        $select: "No,Name",
         $filter: filterByNo,
-        $orderby: 'No',
+        $orderby: "No",
         $top: 30,
       });
       const endpoint = `/VendorCard?company='${encodeURIComponent(COMPANY)}'&${odataQuery}`;
@@ -85,9 +86,9 @@ export async function searchVendors(query: string): Promise<Vendor[]> {
     (async () => {
       const filterByName = `(${baseFilter}) and contains(Name,'${escapedQuery}')`;
       const odataQuery = buildODataQuery({
-        $select: 'No,Name',
+        $select: "No,Name",
         $filter: filterByName,
-        $orderby: 'No',
+        $orderby: "No",
         $top: 30,
       });
       const endpoint = `/VendorCard?company='${encodeURIComponent(COMPANY)}'&${odataQuery}`;
@@ -105,7 +106,7 @@ export async function searchVendors(query: string): Promise<Vendor[]> {
     }
   });
   const uniqueResults = Array.from(uniqueMap.values()).sort((a, b) =>
-    a.No.localeCompare(b.No)
+    a.No.localeCompare(b.No),
   );
 
   // Cache results
@@ -121,16 +122,16 @@ export async function searchVendors(query: string): Promise<Vendor[]> {
  */
 export async function getVendorsPage(
   skip: number,
-  search?: string
+  search?: string,
 ): Promise<Vendor[]> {
   const baseFilter = getBaseFilter();
 
   if (!search || search.length < 2) {
     // No search - return paginated results
     const query = buildODataQuery({
-      $select: 'No,Name',
+      $select: "No,Name",
       $filter: baseFilter,
-      $orderby: 'No',
+      $orderby: "No",
       $top: 30,
       $skip: skip,
     });
@@ -148,9 +149,9 @@ export async function getVendorsPage(
     (async () => {
       const filterByNo = `(${baseFilter}) and contains(No,'${escapedQuery}')`;
       const odataQuery = buildODataQuery({
-        $select: 'No,Name',
+        $select: "No,Name",
         $filter: filterByNo,
-        $orderby: 'No',
+        $orderby: "No",
         $top: 30,
         $skip: skip,
       });
@@ -162,9 +163,9 @@ export async function getVendorsPage(
     (async () => {
       const filterByName = `(${baseFilter}) and contains(Name,'${escapedQuery}')`;
       const odataQuery = buildODataQuery({
-        $select: 'No,Name',
+        $select: "No,Name",
         $filter: filterByName,
-        $orderby: 'No',
+        $orderby: "No",
         $top: 30,
         $skip: skip,
       });
@@ -183,7 +184,7 @@ export async function getVendorsPage(
     }
   });
   const uniqueResults = Array.from(uniqueMap.values()).sort((a, b) =>
-    a.No.localeCompare(b.No)
+    a.No.localeCompare(b.No),
   );
 
   return uniqueResults;
@@ -195,4 +196,3 @@ export async function getVendorsPage(
 export function clearVendorCache(): void {
   searchCache.clear();
 }
-

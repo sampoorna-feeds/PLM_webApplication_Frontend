@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 /**
  * CustomerSelect component for Sales forms
@@ -6,19 +6,19 @@
  * Uses Customer API with fields: No, Name, Responsibility_Center, P_A_N_No, Salesperson_Code
  */
 
-import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Loader2, ChevronDownIcon, CheckIcon } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { Loader2, ChevronDownIcon, CheckIcon } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from '@/components/ui/popover';
-import { apiGet } from '@/lib/api/client';
-import { buildODataQuery } from '@/lib/api/endpoints';
-import type { ODataResponse } from '@/lib/api/types';
+} from "@/components/ui/popover";
+import { apiGet } from "@/lib/api/client";
+import { buildODataQuery } from "@/lib/api/endpoints";
+import type { ODataResponse } from "@/lib/api/types";
 
 export interface SalesCustomer {
   No: string;
@@ -30,7 +30,8 @@ export interface SalesCustomer {
   Customer_Price_Group?: string;
 }
 
-const COMPANY = process.env.NEXT_PUBLIC_API_COMPANY || 'Sampoorna Feeds Pvt. Ltd';
+const COMPANY =
+  process.env.NEXT_PUBLIC_API_COMPANY || "Sampoorna Feeds Pvt. Ltd";
 
 interface CustomerSelectProps {
   value: string;
@@ -71,7 +72,7 @@ async function getCustomers(): Promise<SalesCustomer[]> {
   const query = buildODataQuery({
     $select: 'No,Name,Assessee_Code,Customer_Price_Group,Responsibility_Center,P_A_N_No,Salesperson_Code',
     $filter: getBaseFilter(),
-    $orderby: 'No',
+    $orderby: "No",
     $top: INITIAL_LOAD_COUNT,
   });
 
@@ -106,7 +107,7 @@ async function searchCustomers(query: string): Promise<SalesCustomer[]> {
       const odataQuery = buildODataQuery({
         $select: 'No,Name,Assessee_Code,Customer_Price_Group,Responsibility_Center,P_A_N_No,Salesperson_Code',
         $filter: filterByNo,
-        $orderby: 'No',
+        $orderby: "No",
         $top: PAGE_SIZE,
       });
       const endpoint = `/CustomerCard?company='${encodeURIComponent(COMPANY)}'&${odataQuery}`;
@@ -119,7 +120,7 @@ async function searchCustomers(query: string): Promise<SalesCustomer[]> {
       const odataQuery = buildODataQuery({
         $select: 'No,Name,Assessee_Code,Customer_Price_Group,Responsibility_Center,P_A_N_No,Salesperson_Code',
         $filter: filterByName,
-        $orderby: 'No',
+        $orderby: "No",
         $top: PAGE_SIZE,
       });
       const endpoint = `/CustomerCard?company='${encodeURIComponent(COMPANY)}'&${odataQuery}`;
@@ -137,7 +138,7 @@ async function searchCustomers(query: string): Promise<SalesCustomer[]> {
     }
   });
   const uniqueResults = Array.from(uniqueMap.values()).sort((a, b) =>
-    a.No.localeCompare(b.No)
+    a.No.localeCompare(b.No),
   );
 
   // Cache results
@@ -151,7 +152,7 @@ async function searchCustomers(query: string): Promise<SalesCustomer[]> {
  */
 async function getCustomersPage(
   skip: number,
-  search?: string
+  search?: string,
 ): Promise<SalesCustomer[]> {
   const baseFilter = getBaseFilter();
 
@@ -160,7 +161,7 @@ async function getCustomersPage(
     const query = buildODataQuery({
       $select: 'No,Name,Assessee_Code,Customer_Price_Group,Responsibility_Center,P_A_N_No,Salesperson_Code',
       $filter: baseFilter,
-      $orderby: 'No',
+      $orderby: "No",
       $top: PAGE_SIZE,
       $skip: skip,
     });
@@ -180,7 +181,7 @@ async function getCustomersPage(
       const odataQuery = buildODataQuery({
         $select: 'No,Name,Assessee_Code,Customer_Price_Group,Responsibility_Center,P_A_N_No,Salesperson_Code',
         $filter: filterByNo,
-        $orderby: 'No',
+        $orderby: "No",
         $top: PAGE_SIZE,
         $skip: skip,
       });
@@ -194,7 +195,7 @@ async function getCustomersPage(
       const odataQuery = buildODataQuery({
         $select: 'No,Name,Assessee_Code,Customer_Price_Group,Responsibility_Center,P_A_N_No,Salesperson_Code',
         $filter: filterByName,
-        $orderby: 'No',
+        $orderby: "No",
         $top: PAGE_SIZE,
         $skip: skip,
       });
@@ -213,7 +214,7 @@ async function getCustomersPage(
     }
   });
   const uniqueResults = Array.from(uniqueMap.values()).sort((a, b) =>
-    a.No.localeCompare(b.No)
+    a.No.localeCompare(b.No),
   );
 
   return uniqueResults;
@@ -222,16 +223,16 @@ async function getCustomersPage(
 export function CustomerSelect({
   value,
   onChange,
-  placeholder = 'Select customer',
+  placeholder = "Select customer",
   disabled = false,
   className,
   hasError = false,
-  errorClass = '',
+  errorClass = "",
 }: CustomerSelectProps) {
   const [items, setItems] = useState<SalesCustomer[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
   const [hasMore, setHasMore] = useState(true);
   const [skip, setSkip] = useState(0);
 
@@ -248,7 +249,7 @@ export function CustomerSelect({
       setSkip(result.length);
       setHasMore(result.length >= INITIAL_LOAD_COUNT);
     } catch (error) {
-      console.error('Error loading customers:', error);
+      console.error("Error loading customers:", error);
       setItems([]);
     } finally {
       setIsLoading(false);
@@ -293,14 +294,14 @@ export function CustomerSelect({
           setHasMore(result.length >= PAGE_SIZE);
         } catch (error) {
           // Ignore abort errors
-          if (error instanceof Error && error.name === 'AbortError') {
+          if (error instanceof Error && error.name === "AbortError") {
             return;
           }
           // Check if request was aborted
           if (controller.signal.aborted) {
             return;
           }
-          console.error('Error searching customers:', error);
+          console.error("Error searching customers:", error);
           setItems([]);
         } finally {
           if (!controller.signal.aborted) {
@@ -309,7 +310,7 @@ export function CustomerSelect({
         }
       }, DEBOUNCE_MS);
     },
-    [loadInitialItems]
+    [loadInitialItems],
   );
 
   // Load more items (pagination)
@@ -323,8 +324,12 @@ export function CustomerSelect({
         setItems((prev) => {
           // Deduplicate by No
           const existingNos = new Set(prev.map((item) => item.No));
-          const uniqueNewItems = newItems.filter((item) => !existingNos.has(item.No));
-          return [...prev, ...uniqueNewItems].sort((a, b) => a.No.localeCompare(b.No));
+          const uniqueNewItems = newItems.filter(
+            (item) => !existingNos.has(item.No),
+          );
+          return [...prev, ...uniqueNewItems].sort((a, b) =>
+            a.No.localeCompare(b.No),
+          );
         });
         setSkip((prev) => prev + newItems.length);
         setHasMore(newItems.length >= PAGE_SIZE);
@@ -332,7 +337,7 @@ export function CustomerSelect({
         setHasMore(false);
       }
     } catch (error) {
-      console.error('Error loading more customers:', error);
+      console.error("Error loading more customers:", error);
       setHasMore(false);
     } finally {
       setIsLoading(false);
@@ -346,7 +351,7 @@ export function CustomerSelect({
       if (items.length === 0) {
         loadInitialItems();
       }
-      setSearchQuery('');
+      setSearchQuery("");
     }
   };
 
@@ -367,24 +372,29 @@ export function CustomerSelect({
     };
 
     const element = listRef.current;
-    element.addEventListener('scroll', handleScroll);
-    return () => element.removeEventListener('scroll', handleScroll);
+    element.addEventListener("scroll", handleScroll);
+    return () => element.removeEventListener("scroll", handleScroll);
   }, [isOpen, hasMore, isLoading, loadMore]);
 
   // Find selected item display value
   const selectedItem = items.find((item) => item.No === value);
   const displayValue = selectedItem
     ? `${selectedItem.No} - ${selectedItem.Name}`
-    : value || '';
+    : value || "";
 
   // Filter items based on search query (client-side filtering for display)
-  const filteredItems = searchQuery.length >= MIN_SEARCH_LENGTH
-    ? items.filter((item) => {
-        const codeMatch = item.No?.toLowerCase().includes(searchQuery.toLowerCase());
-        const nameMatch = item.Name?.toLowerCase().includes(searchQuery.toLowerCase());
-        return codeMatch || nameMatch;
-      })
-    : items;
+  const filteredItems =
+    searchQuery.length >= MIN_SEARCH_LENGTH
+      ? items.filter((item) => {
+          const codeMatch = item.No?.toLowerCase().includes(
+            searchQuery.toLowerCase(),
+          );
+          const nameMatch = item.Name?.toLowerCase().includes(
+            searchQuery.toLowerCase(),
+          );
+          return codeMatch || nameMatch;
+        })
+      : items;
 
   return (
     <Popover open={isOpen} onOpenChange={handleOpenChange}>
@@ -394,10 +404,10 @@ export function CustomerSelect({
           role="combobox"
           disabled={disabled}
           className={cn(
-            'h-9 text-sm w-full justify-between font-normal shadow-sm',
-            !value && 'text-muted-foreground',
+            "h-9 w-full justify-between text-sm font-normal shadow-sm",
+            !value && "text-muted-foreground",
             className,
-            errorClass
+            errorClass,
           )}
           data-field-error={hasError}
         >
@@ -406,7 +416,7 @@ export function CustomerSelect({
         </Button>
       </PopoverTrigger>
       <PopoverContent
-        className="p-0 min-w-[280px] max-w-[500px] w-auto"
+        className="w-auto max-w-[500px] min-w-[280px] p-0"
         align="start"
         onOpenAutoFocus={(e) => {
           // Prevent auto-focus from scrolling
@@ -417,7 +427,7 @@ export function CustomerSelect({
           e.preventDefault();
         }}
       >
-        <div className="p-2 border-b">
+        <div className="border-b p-2">
           <Input
             placeholder="Search by Code or Name..."
             value={searchQuery}
@@ -432,17 +442,17 @@ export function CustomerSelect({
         </div>
         <div
           ref={listRef}
-          className="max-h-[300px] overflow-y-auto overflow-x-hidden"
+          className="max-h-[300px] overflow-x-hidden overflow-y-auto"
         >
           {isLoading && items.length === 0 ? (
             <div className="flex items-center justify-center p-4">
               <Loader2 className="h-4 w-4 animate-spin" />
             </div>
           ) : filteredItems.length === 0 ? (
-            <div className="p-4 text-center text-sm text-muted-foreground">
+            <div className="text-muted-foreground p-4 text-center text-sm">
               {searchQuery.length < MIN_SEARCH_LENGTH
                 ? `Type at least ${MIN_SEARCH_LENGTH} characters to search`
-                : 'No customers found'}
+                : "No customers found"}
             </div>
           ) : (
             <>
@@ -450,8 +460,8 @@ export function CustomerSelect({
                 <div
                   key={item.No}
                   className={cn(
-                    'relative flex cursor-default select-none items-start rounded-sm px-2 py-2 text-sm outline-none hover:bg-muted/50',
-                    value === item.No && 'bg-muted'
+                    "hover:bg-muted/50 relative flex cursor-default items-start rounded-sm px-2 py-2 text-sm outline-none select-none",
+                    value === item.No && "bg-muted",
                   )}
                   onClick={() => {
                     onChange(item.No, item);
@@ -460,19 +470,23 @@ export function CustomerSelect({
                 >
                   <CheckIcon
                     className={cn(
-                      'mr-2 h-4 w-4 mt-0.5 shrink-0',
-                      value === item.No ? 'opacity-100' : 'opacity-0'
+                      "mt-0.5 mr-2 h-4 w-4 shrink-0",
+                      value === item.No ? "opacity-100" : "opacity-0",
                     )}
                   />
-                  <div className="flex-1 min-w-0">
-                    <div className="font-medium text-foreground">
+                  <div className="min-w-0 flex-1">
+                    <div className="text-foreground font-medium">
                       {item.No} - {item.Name}
                     </div>
                     {(item.Responsibility_Center || item.Salesperson_Code) && (
-                      <div className="text-muted-foreground text-xs mt-0.5">
-                        {item.Responsibility_Center && `RC: ${item.Responsibility_Center}`}
-                        {item.Responsibility_Center && item.Salesperson_Code && ' • '}
-                        {item.Salesperson_Code && `SP: ${item.Salesperson_Code}`}
+                      <div className="text-muted-foreground mt-0.5 text-xs">
+                        {item.Responsibility_Center &&
+                          `RC: ${item.Responsibility_Center}`}
+                        {item.Responsibility_Center &&
+                          item.Salesperson_Code &&
+                          " • "}
+                        {item.Salesperson_Code &&
+                          `SP: ${item.Salesperson_Code}`}
                       </div>
                     )}
                   </div>

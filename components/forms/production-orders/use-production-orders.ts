@@ -1,10 +1,14 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { toast } from "sonner";
 import { useAuth } from "@/lib/contexts/auth-context";
-import { getLOBsFromUserSetup } from "@/lib/api/services/dimension.service";
 import {
-  getProductionOrders,
+  getLOBsFromUserSetup,
+  getAllBranchesFromUserSetup,
+} from "@/lib/api/services/dimension.service";
+import {
+  getProductionOrdersWithCount,
   getProductionOrderByNo,
   getProductionOrderLines,
   getProductionOrderComponents,
@@ -20,6 +24,18 @@ import type {
   BatchSize,
 } from "./types";
 import { EMPTY_FORM_DATA } from "./types";
+import {
+  type SortDirection,
+  loadVisibleColumns,
+  saveVisibleColumns,
+  getDefaultVisibleColumns,
+  buildSelectQuery,
+  ALL_COLUMNS,
+} from "./column-config";
+import {
+  buildFilterString as buildODataFilter,
+  buildOrderByString,
+} from "./utils/filter-builder";
 
 const DEFAULT_LOB_CODES = ["CATTLE", "CBF", "FEED"];
 
@@ -27,71 +43,333 @@ export function useProductionOrders() {
   const { userID } = useAuth();
   const [orders, setOrders] = useState<ProductionOrder[]>([]);
   const [lobCodes, setLobCodes] = useState<string[]>([]);
+  const [userBranchCodes, setUserBranchCodes] = useState<string[]>([]);
+  const [branchOptions, setBranchOptions] = useState<
+    { label: string; value: string }[]
+  >([]);
   const [isLoading, setIsLoading] = useState(true);
   const [pageSize, setPageSize] = useState<PageSize>(10);
   const [currentPage, setCurrentPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
 
-  // Fetch LOB codes from user setup
+  // Sorting state
+  const [sortColumn, setSortColumn] = useState<string | null>(
+    "Last_Date_Modified",
+  );
+  const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
+
+  // Filter state
+  const [searchQuery, setSearchQuery] = useState("");
+  const [dueDateFrom, setDueDateFrom] = useState<string>("");
+  const [dueDateTo, setDueDateTo] = useState<string>("");
+
+  // Column filters - stores filter values keyed by column ID
+  // Note: Status default is ALL (empty), so we initialize as empty object
+  const [columnFilters, setColumnFilters] = useState<
+    Record<string, { value: string; valueTo?: string }>
+  >({});
+
+  // Column visibility state
+  const [visibleColumns, setVisibleColumns] = useState<string[]>(() =>
+    typeof window !== "undefined"
+      ? loadVisibleColumns()
+      : getDefaultVisibleColumns(),
+  );
+
+  // Calculate total pages
+  const totalPages = useMemo(() => {
+    return Math.max(1, Math.ceil(totalCount / pageSize));
+  }, [totalCount, pageSize]);
+
+  // Fetch LOB codes and Branch codes from user setup
   useEffect(() => {
     if (!userID) return;
 
-    const fetchLOBCodes = async () => {
+    const fetchData = async () => {
       try {
-        const lobs = await getLOBsFromUserSetup(userID);
-        const codes = lobs.map((lob) => lob.Code);
-        setLobCodes(codes.length > 0 ? codes : DEFAULT_LOB_CODES);
+        const [lobs, branches] = await Promise.all([
+          getLOBsFromUserSetup(userID),
+          getAllBranchesFromUserSetup(userID),
+        ]);
+
+        const lCodes = lobs.map((lob) => lob.Code);
+        setLobCodes(lCodes.length > 0 ? lCodes : DEFAULT_LOB_CODES);
+
+        const bCodes = branches.map((b) => b.Code);
+        setUserBranchCodes(bCodes);
+        setBranchOptions(bCodes.map((code) => ({ label: code, value: code })));
+
+        // Select all branches by default - User requirement: "Branch -> ALL Selected"
+        if (bCodes.length > 0) {
+          setColumnFilters((prev) => ({
+            ...prev,
+            Shortcut_Dimension_2_Code: { value: bCodes.join(",") },
+          }));
+        }
       } catch (error) {
-        console.error("Error fetching LOB codes:", error);
+        console.error("Error fetching user setup:", error);
+        toast.error("Failed to load user settings. Using defaults.");
         setLobCodes(DEFAULT_LOB_CODES);
+        setUserBranchCodes([]);
+        setBranchOptions([]);
       }
     };
 
-    fetchLOBCodes();
+    fetchData();
   }, [userID]);
 
-  // Fetch production orders when LOB codes or pagination changes
+  // Build filter string for OData using the utility
+  const buildFilterString = useCallback(
+    (searchField?: "No" | "Search_Description") => {
+      return buildODataFilter({
+        lobCodes,
+        searchQuery: searchQuery.trim(),
+        searchField,
+        dueDateFrom,
+        dueDateTo,
+        columnFilters,
+      });
+    },
+    [lobCodes, searchQuery, dueDateFrom, dueDateTo, columnFilters],
+  );
+
+  // Build orderby string for OData
+  const getOrderByString = useCallback(() => {
+    return buildOrderByString(sortColumn, sortDirection);
+  }, [sortColumn, sortDirection]);
+
+  // Fetch production orders
   const fetchOrders = useCallback(async () => {
     if (lobCodes.length === 0) return;
 
     setIsLoading(true);
     try {
-      const lobFilter = lobCodes.map((c) => `'${c}'`).join(",");
-      const data = await getProductionOrders({
-        $filter: `Status eq 'Released' and Shortcut_Dimension_1_Code in (${lobFilter})`,
+      const baseParams = {
+        $select: buildSelectQuery(visibleColumns),
+        $orderby: getOrderByString(),
         $top: pageSize,
         $skip: (currentPage - 1) * pageSize,
-      });
-      setOrders(data);
+      };
+
+      // Calculate branch codes to use (User allowed + Filter)
+      const branchFilterValue =
+        columnFilters["Shortcut_Dimension_2_Code"]?.value;
+      const effectiveBranchCodes = branchFilterValue
+        ? branchFilterValue.split(",")
+        : userBranchCodes;
+
+      // If there's a search query, make 2 parallel API calls
+      if (searchQuery.trim()) {
+        const [resultByNo, resultByDesc] = await Promise.all([
+          getProductionOrdersWithCount(
+            {
+              ...baseParams,
+              $filter: buildFilterString("No"),
+            },
+            lobCodes,
+            effectiveBranchCodes,
+          ),
+          getProductionOrdersWithCount(
+            {
+              ...baseParams,
+              $filter: buildFilterString("Search_Description"),
+            },
+            lobCodes,
+            effectiveBranchCodes,
+          ),
+        ]);
+
+        // Merge results and remove duplicates by No
+        const seen = new Set<string>();
+        const mergedOrders: ProductionOrder[] = [];
+
+        for (const order of [...resultByNo.orders, ...resultByDesc.orders]) {
+          if (!seen.has(order.No)) {
+            seen.add(order.No);
+            mergedOrders.push(order);
+          }
+        }
+
+        // Limit to pageSize and estimate total count
+        setOrders(mergedOrders.slice(0, pageSize));
+        setTotalCount(Math.max(resultByNo.totalCount, resultByDesc.totalCount));
+      } else {
+        const result = await getProductionOrdersWithCount(
+          {
+            ...baseParams,
+            $filter: buildFilterString(),
+          },
+          lobCodes,
+          effectiveBranchCodes,
+        );
+
+        setOrders(result.orders);
+        setTotalCount(result.totalCount);
+      }
     } catch (error) {
       console.error("Error fetching production orders:", error);
+      toast.error("Failed to load production orders. Please try again.");
       setOrders([]);
+      setTotalCount(0);
     } finally {
       setIsLoading(false);
     }
-  }, [lobCodes, pageSize, currentPage]);
+  }, [
+    lobCodes,
+    userBranchCodes,
+    pageSize,
+    currentPage,
+    visibleColumns,
+    searchQuery,
+    buildFilterString,
+    getOrderByString,
+    columnFilters,
+  ]);
 
   useEffect(() => {
     fetchOrders();
   }, [fetchOrders]);
 
-  const handlePageSizeChange = (size: PageSize) => {
+  // Handlers
+  const handlePageSizeChange = useCallback((size: PageSize) => {
     setPageSize(size);
     setCurrentPage(1);
-  };
+  }, []);
 
-  const handlePageChange = (page: number) => {
+  const handlePageChange = useCallback((page: number) => {
     setCurrentPage(page);
-  };
+  }, []);
+
+  const handleSort = useCallback((column: string) => {
+    setSortColumn((prevColumn) => {
+      if (prevColumn === column) {
+        setSortDirection((prevDir) => {
+          if (prevDir === "asc") return "desc";
+          if (prevDir === "desc") return null;
+          return "asc";
+        });
+        return column;
+      } else {
+        setSortDirection("asc");
+        return column;
+      }
+    });
+    setCurrentPage(1);
+  }, []);
+
+  const handleSearch = useCallback((query: string) => {
+    setSearchQuery(query);
+    setCurrentPage(1);
+  }, []);
+
+  const handleDateFilter = useCallback((from: string, to: string) => {
+    setDueDateFrom(from);
+    setDueDateTo(to);
+    setCurrentPage(1);
+  }, []);
+
+  const handleColumnToggle = useCallback((columnId: string) => {
+    setVisibleColumns((prev) => {
+      const newColumns = prev.includes(columnId)
+        ? prev.filter((id) => id !== columnId)
+        : [...prev, columnId];
+      saveVisibleColumns(newColumns);
+      return newColumns;
+    });
+  }, []);
+
+  const handleResetColumns = useCallback(() => {
+    const defaults = getDefaultVisibleColumns();
+    setVisibleColumns(defaults);
+    saveVisibleColumns(defaults);
+  }, []);
+
+  const handleShowAllColumns = useCallback(() => {
+    const allColumnIds = ALL_COLUMNS.map((c) => c.id);
+    setVisibleColumns(allColumnIds);
+    saveVisibleColumns(allColumnIds);
+  }, []);
+
+  const handleClearFilters = useCallback(() => {
+    setSearchQuery("");
+    setDueDateFrom("");
+    setDueDateTo("");
+
+    // Reset to defaults: Status=All (Empty), Branch=All User Branches
+    const defaultFilters: Record<string, { value: string; valueTo?: string }> =
+      {};
+
+    if (userBranchCodes.length > 0) {
+      defaultFilters["Shortcut_Dimension_2_Code"] = {
+        value: userBranchCodes.join(","),
+      };
+    }
+
+    setColumnFilters(defaultFilters);
+    // Reset to default sort: Last Modified Desc
+    setSortColumn("Last_Date_Modified");
+    setSortDirection("desc");
+    setCurrentPage(1);
+  }, [userBranchCodes]);
+
+  // Generic column filter handler
+  const handleColumnFilter = useCallback(
+    (columnId: string, value: string, valueTo?: string) => {
+      setColumnFilters((prev) => {
+        if (!value && !valueTo) {
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          const { [columnId]: _, ...rest } = prev;
+          return rest;
+        }
+        return {
+          ...prev,
+          [columnId]: { value, valueTo },
+        };
+      });
+      setCurrentPage(1);
+    },
+    [],
+  );
 
   return {
+    // Data
     orders,
     isLoading,
+    lobCodes,
+    userBranchCodes,
+    branchOptions,
+    // Pagination
     pageSize,
     currentPage,
-    lobCodes,
+    totalCount,
+    totalPages,
     onPageSizeChange: handlePageSizeChange,
     onPageChange: handlePageChange,
+    // Sorting
+    sortColumn,
+    sortDirection,
+    onSort: handleSort,
+    // Filtering - Basic
+    searchQuery,
+    dueDateFrom,
+    dueDateTo,
+    onSearch: handleSearch,
+    onDateFilter: handleDateFilter,
+    onClearFilters: handleClearFilters,
+    // Column filters (generic)
+    columnFilters,
+    onColumnFilter: handleColumnFilter,
+    // Column visibility
+    visibleColumns,
+    onColumnToggle: handleColumnToggle,
+    onResetColumns: handleResetColumns,
+    onShowAllColumns: handleShowAllColumns,
+    // Refresh
     refetch: fetchOrders,
+    addOrder: useCallback((order: ProductionOrder) => {
+      setOrders((prev) => [order, ...prev]);
+      setTotalCount((prev) => prev + 1);
+    }, []),
   };
 }
 
@@ -248,14 +526,17 @@ export function useProductionOrderLines(orderNo: string | null) {
 }
 
 /**
- * Hook for fetching production order components
+ * Hook for fetching production order components for a specific line
  */
-export function useProductionOrderComponents(orderNo: string | null) {
+export function useProductionOrderComponents(
+  orderNo: string | null,
+  lineNo: number | null,
+) {
   const [components, setComponents] = useState<ProductionOrderComponent[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    if (!orderNo) {
+    if (!orderNo || !lineNo) {
       setComponents([]);
       return;
     }
@@ -263,7 +544,7 @@ export function useProductionOrderComponents(orderNo: string | null) {
     const fetchComponents = async () => {
       setIsLoading(true);
       try {
-        const data = await getProductionOrderComponents(orderNo);
+        const data = await getProductionOrderComponents(orderNo, lineNo);
         setComponents(data);
       } catch (error) {
         console.error("Error fetching order components:", error);
@@ -274,7 +555,7 @@ export function useProductionOrderComponents(orderNo: string | null) {
     };
 
     fetchComponents();
-  }, [orderNo]);
+  }, [orderNo, lineNo]);
 
   return {
     components,

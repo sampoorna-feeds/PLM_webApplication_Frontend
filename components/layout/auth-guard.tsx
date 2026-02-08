@@ -1,13 +1,13 @@
-'use client';
+"use client";
 
 /**
  * Auth Guard component
  * Redirects to login if user is not authenticated
  */
 
-import { useEffect } from 'react';
-import { useRouter, usePathname } from 'next/navigation';
-import { useAuth } from '@/lib/contexts/auth-context';
+import { useEffect } from "react";
+import { useRouter, usePathname } from "next/navigation";
+import { useAuth } from "@/lib/contexts/auth-context";
 
 export function AuthGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -24,8 +24,8 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   // Show loading state while checking auth
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-sm text-muted-foreground">Loading...</div>
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="text-muted-foreground text-sm">Loading...</div>
       </div>
     );
   }
@@ -36,4 +36,3 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
 
   return <>{children}</>;
 }
-

@@ -10,4 +10,3 @@
 //   createdAt: string;
 //   updatedAt: string;
 // }
-

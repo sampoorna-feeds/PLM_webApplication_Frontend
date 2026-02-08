@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 /**
  * Reusable Searchable Select Component
@@ -6,16 +6,16 @@
  * Used for GL Account, Item, UOM, and other searchable dropdowns
  */
 
-import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Loader2, ChevronDownIcon, CheckIcon } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { Loader2, ChevronDownIcon, CheckIcon } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from '@/components/ui/popover';
+} from "@/components/ui/popover";
 
 export interface SearchableItem {
   [key: string]: any;
@@ -47,7 +47,7 @@ interface SearchableSelectProps<T extends SearchableItem> {
   pageSize?: number;
   // Dual search support (search by No and Name separately)
   supportsDualSearch?: boolean;
-  searchByField?: (query: string, field: 'No' | 'Name') => Promise<T[]>;
+  searchByField?: (query: string, field: "No" | "Name") => Promise<T[]>;
 }
 
 const DEFAULT_DEBOUNCE_MS = 300;
@@ -58,11 +58,11 @@ const DEFAULT_PAGE_SIZE = 30;
 export function SearchableSelect<T extends SearchableItem>({
   value,
   onChange,
-  placeholder = 'Select...',
+  placeholder = "Select...",
   disabled = false,
   className,
   hasError = false,
-  errorClass = '',
+  errorClass = "",
   loadInitial,
   searchItems,
   loadMore,
@@ -78,7 +78,7 @@ export function SearchableSelect<T extends SearchableItem>({
   const [items, setItems] = useState<T[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
   const [hasMore, setHasMore] = useState(true);
   const [skip, setSkip] = useState(0);
 
@@ -89,7 +89,9 @@ export function SearchableSelect<T extends SearchableItem>({
   // Load initial items when dropdown opens
   const loadInitialItems = useCallback(async () => {
     // Preserve scroll position before API call
-    const scrollContainer = document.querySelector('.flex-1.overflow-y-auto') as HTMLElement;
+    const scrollContainer = document.querySelector(
+      ".flex-1.overflow-y-auto",
+    ) as HTMLElement;
     const savedScrollPos = scrollContainer?.scrollTop ?? 0;
 
     setIsLoading(true);
@@ -108,7 +110,7 @@ export function SearchableSelect<T extends SearchableItem>({
         });
       }
     } catch (error) {
-      console.error('Error loading initial items:', error);
+      console.error("Error loading initial items:", error);
       setItems([]);
     } finally {
       setIsLoading(false);
@@ -149,8 +151,8 @@ export function SearchableSelect<T extends SearchableItem>({
           if (supportsDualSearch && searchByField) {
             // Make 2 parallel API calls: one for No, one for Name
             const [resultsByNo, resultsByName] = await Promise.all([
-              searchByField(query, 'No'),
-              searchByField(query, 'Name'),
+              searchByField(query, "No"),
+              searchByField(query, "Name"),
             ]);
 
             // Combine results and deduplicate
@@ -173,7 +175,9 @@ export function SearchableSelect<T extends SearchableItem>({
           }
 
           // Preserve scroll position during API response
-          const scrollContainer = document.querySelector('.flex-1.overflow-y-auto') as HTMLElement;
+          const scrollContainer = document.querySelector(
+            ".flex-1.overflow-y-auto",
+          ) as HTMLElement;
           const savedScrollPos = scrollContainer?.scrollTop ?? 0;
 
           setItems(result);
@@ -190,14 +194,14 @@ export function SearchableSelect<T extends SearchableItem>({
           }
         } catch (error) {
           // Ignore abort errors
-          if (error instanceof Error && error.name === 'AbortError') {
+          if (error instanceof Error && error.name === "AbortError") {
             return;
           }
           // Check if request was aborted
           if (controller.signal.aborted) {
             return;
           }
-          console.error('Error searching items:', error);
+          console.error("Error searching items:", error);
           setItems([]);
         } finally {
           if (!controller.signal.aborted) {
@@ -206,7 +210,16 @@ export function SearchableSelect<T extends SearchableItem>({
         }
       }, debounceMs);
     },
-    [minSearchLength, debounceMs, searchItems, supportsDualSearch, searchByField, getItemValue, pageSize, loadInitialItems]
+    [
+      minSearchLength,
+      debounceMs,
+      searchItems,
+      supportsDualSearch,
+      searchByField,
+      getItemValue,
+      pageSize,
+      loadInitialItems,
+    ],
   );
 
   // Load more items (pagination)
@@ -214,7 +227,9 @@ export function SearchableSelect<T extends SearchableItem>({
     if (isLoading || !hasMore || !loadMore) return;
 
     // Preserve scroll position before API call
-    const scrollContainer = document.querySelector('.flex-1.overflow-y-auto') as HTMLElement;
+    const scrollContainer = document.querySelector(
+      ".flex-1.overflow-y-auto",
+    ) as HTMLElement;
     const savedScrollPos = scrollContainer?.scrollTop ?? 0;
 
     setIsLoading(true);
@@ -237,7 +252,7 @@ export function SearchableSelect<T extends SearchableItem>({
         });
       }
     } catch (error) {
-      console.error('Error loading more items:', error);
+      console.error("Error loading more items:", error);
     } finally {
       setIsLoading(false);
     }
@@ -252,7 +267,7 @@ export function SearchableSelect<T extends SearchableItem>({
         loadInitialItems();
       }
     } else {
-      setSearchQuery('');
+      setSearchQuery("");
     }
   };
 
@@ -273,21 +288,24 @@ export function SearchableSelect<T extends SearchableItem>({
     };
 
     const element = listRef.current;
-    element.addEventListener('scroll', handleScroll);
-    return () => element.removeEventListener('scroll', handleScroll);
+    element.addEventListener("scroll", handleScroll);
+    return () => element.removeEventListener("scroll", handleScroll);
   }, [isOpen, hasMore, isLoading, loadMoreItems, loadMore]);
 
   // Find selected item display value
   const selectedItem = items.find((item) => getItemValue(item) === value);
-  const displayValue = selectedItem ? getDisplayValue(selectedItem) : value || '';
+  const displayValue = selectedItem
+    ? getDisplayValue(selectedItem)
+    : value || "";
 
   // Filter items based on search query (client-side filtering for display)
-  const filteredItems = searchQuery.length >= minSearchLength
-    ? items.filter((item) => {
-        const display = getDisplayValue(item).toLowerCase();
-        return display.includes(searchQuery.toLowerCase());
-      })
-    : items;
+  const filteredItems =
+    searchQuery.length >= minSearchLength
+      ? items.filter((item) => {
+          const display = getDisplayValue(item).toLowerCase();
+          return display.includes(searchQuery.toLowerCase());
+        })
+      : items;
 
   return (
     <Popover open={isOpen} onOpenChange={handleOpenChange}>
@@ -297,10 +315,10 @@ export function SearchableSelect<T extends SearchableItem>({
           role="combobox"
           aria-expanded={isOpen}
           className={cn(
-            'w-full justify-between font-normal',
-            !value && 'text-muted-foreground',
-            hasError && (errorClass || 'border-destructive'),
-            className
+            "w-full justify-between font-normal",
+            !value && "text-muted-foreground",
+            hasError && (errorClass || "border-destructive"),
+            className,
           )}
           disabled={disabled}
         >
@@ -308,8 +326,8 @@ export function SearchableSelect<T extends SearchableItem>({
           <ChevronDownIcon className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent 
-        className="w-[var(--radix-popover-trigger-width)] min-w-[400px] p-0 overflow-hidden" 
+      <PopoverContent
+        className="w-[var(--radix-popover-trigger-width)] min-w-[400px] overflow-hidden p-0"
         align="start"
         onOpenAutoFocus={(e) => {
           // Prevent auto-focus from scrolling
@@ -322,7 +340,7 @@ export function SearchableSelect<T extends SearchableItem>({
       >
         <div className="flex flex-col overflow-hidden">
           {/* Search Input */}
-          <div className="p-2 border-b flex-shrink-0">
+          <div className="flex-shrink-0 border-b p-2">
             <Input
               placeholder="Search..."
               value={searchQuery}
@@ -339,18 +357,18 @@ export function SearchableSelect<T extends SearchableItem>({
           {/* Items List */}
           <div
             ref={listRef}
-            className="max-h-[300px] overflow-y-auto overflow-x-hidden p-1 flex-1 min-h-0"
-            style={{ WebkitOverflowScrolling: 'touch' }}
+            className="max-h-[300px] min-h-0 flex-1 overflow-x-hidden overflow-y-auto p-1"
+            style={{ WebkitOverflowScrolling: "touch" }}
           >
             {isLoading && items.length === 0 ? (
               <div className="flex items-center justify-center py-6">
-                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                <Loader2 className="text-muted-foreground h-4 w-4 animate-spin" />
               </div>
             ) : filteredItems.length === 0 ? (
-              <div className="py-6 text-center text-sm text-muted-foreground">
+              <div className="text-muted-foreground py-6 text-center text-sm">
                 {searchQuery.length < minSearchLength
                   ? `Type at least ${minSearchLength} characters to search`
-                  : 'No items found'}
+                  : "No items found"}
               </div>
             ) : (
               <>
@@ -361,40 +379,44 @@ export function SearchableSelect<T extends SearchableItem>({
                     <div
                       key={itemValue}
                       className={cn(
-                        'relative flex cursor-default select-none items-start rounded-sm px-2 py-2 text-sm outline-none hover:bg-accent hover:text-accent-foreground',
-                        isSelected && 'bg-accent text-accent-foreground'
+                        "hover:bg-accent hover:text-accent-foreground relative flex cursor-default items-start rounded-sm px-2 py-2 text-sm outline-none select-none",
+                        isSelected && "bg-accent text-accent-foreground",
                       )}
                       onClick={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
-                        
+
                         onChange(itemValue, item);
                         setIsOpen(false);
-                        setSearchQuery('');
+                        setSearchQuery("");
                       }}
                     >
-                      <div className="flex-1 min-w-0">
+                      <div className="min-w-0 flex-1">
                         {/* Two-line format: No on first line, Description/Name on second */}
                         {item.No && (item.Description || item.Name) ? (
                           <div className="flex flex-col">
-                            <span className="font-medium text-foreground">{item.No}</span>
-                            <span className="text-xs text-muted-foreground truncate">
-                              {item.Description || item.Name || ''}
+                            <span className="text-foreground font-medium">
+                              {item.No}
+                            </span>
+                            <span className="text-muted-foreground truncate text-xs">
+                              {item.Description || item.Name || ""}
                             </span>
                           </div>
                         ) : (
-                          <span className="truncate">{getDisplayValue(item)}</span>
+                          <span className="truncate">
+                            {getDisplayValue(item)}
+                          </span>
                         )}
                       </div>
                       {isSelected && (
-                        <CheckIcon className="ml-2 h-4 w-4 shrink-0 mt-0.5" />
+                        <CheckIcon className="mt-0.5 ml-2 h-4 w-4 shrink-0" />
                       )}
                     </div>
                   );
                 })}
                 {isLoading && items.length > 0 && (
                   <div className="flex items-center justify-center py-2">
-                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                    <Loader2 className="text-muted-foreground h-4 w-4 animate-spin" />
                   </div>
                 )}
               </>

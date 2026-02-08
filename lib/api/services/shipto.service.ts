@@ -3,12 +3,12 @@
  * Handles fetching ship-to addresses from ERP OData V4 API
  */
 
-import { apiGet, apiPost, apiPatch } from '../client';
-import { buildODataQuery } from '../endpoints';
-import type { ODataResponse } from '../types';
+import { apiGet, apiPost, apiPatch } from "../client";
+import { buildODataQuery } from "../endpoints";
+import type { ODataResponse } from "../types";
 
 export interface ShipToAddress {
-  '@odata.etag'?: string;
+  "@odata.etag"?: string;
   Customer_No: string;
   Code: string;
   Name: string;
@@ -93,22 +93,25 @@ export interface ShipToAddressUpdatePayload {
   Ship_to_GST_Customer_Type?: string;
 }
 
-const COMPANY = process.env.NEXT_PUBLIC_API_COMPANY || 'Sampoorna Feeds Pvt. Ltd';
+const COMPANY =
+  process.env.NEXT_PUBLIC_API_COMPANY || "Sampoorna Feeds Pvt. Ltd";
 
 /**
  * Get ship-to addresses for a specific customer
  * @param customerNo - Customer number to filter by
  */
-export async function getShipToAddresses(customerNo: string): Promise<ShipToAddress[]> {
+export async function getShipToAddresses(
+  customerNo: string,
+): Promise<ShipToAddress[]> {
   if (!customerNo) {
     return [];
   }
 
   const filter = `Customer_No eq '${customerNo.replace(/'/g, "''")}'`;
   const query = buildODataQuery({
-    $select: 'Code,Name,Location_Code',
+    $select: "Code,Name,Location_Code",
     $filter: filter,
-    $orderby: 'Code',
+    $orderby: "Code",
   });
 
   const endpoint = `/ShiptoAddress?company='${encodeURIComponent(COMPANY)}'&${query}`;
@@ -121,7 +124,10 @@ export async function getShipToAddresses(customerNo: string): Promise<ShipToAddr
  * @param customerNo - Customer number
  * @param code - Ship-to address code
  */
-export async function getShipToAddress(customerNo: string, code: string): Promise<ShipToAddress | null> {
+export async function getShipToAddress(
+  customerNo: string,
+  code: string,
+): Promise<ShipToAddress | null> {
   if (!customerNo || !code) {
     return null;
   }
@@ -129,14 +135,14 @@ export async function getShipToAddress(customerNo: string, code: string): Promis
   const encodedCompany = encodeURIComponent(COMPANY);
   const encodedCustomerNo = encodeURIComponent(customerNo.replace(/'/g, "''"));
   const encodedCode = encodeURIComponent(code.replace(/'/g, "''"));
-  
+
   const endpoint = `/Company('${encodedCompany}')/ShiptoAddress(Customer_No='${encodedCustomerNo}',Code='${encodedCode}')`;
-  
+
   try {
     const response = await apiGet<ShipToAddress>(endpoint);
     return response;
   } catch (error) {
-    console.error('Error fetching ship-to address:', error);
+    console.error("Error fetching ship-to address:", error);
     return null;
   }
 }
@@ -145,7 +151,9 @@ export async function getShipToAddress(customerNo: string, code: string): Promis
  * Create a new ship-to address
  * @param data - Ship-to address data in PascalCase format
  */
-export async function createShipToAddress(data: ShipToAddressCreatePayload): Promise<ShipToAddress> {
+export async function createShipToAddress(
+  data: ShipToAddressCreatePayload,
+): Promise<ShipToAddress> {
   const endpoint = `/ShiptoAddress?company='${encodeURIComponent(COMPANY)}'`;
   const response = await apiPost<ShipToAddress>(endpoint, data);
   return response;
@@ -160,14 +168,14 @@ export async function createShipToAddress(data: ShipToAddressCreatePayload): Pro
 export async function updateShipToAddress(
   customerNo: string,
   code: string,
-  data: ShipToAddressUpdatePayload
+  data: ShipToAddressUpdatePayload,
 ): Promise<ShipToAddress> {
   const encodedCompany = encodeURIComponent(COMPANY);
   const encodedCustomerNo = encodeURIComponent(customerNo.replace(/'/g, "''"));
   const encodedCode = encodeURIComponent(code.replace(/'/g, "''"));
-  
+
   const endpoint = `/Company('${encodedCompany}')/ShiptoAddress(Customer_No='${encodedCustomerNo}',Code='${encodedCode}')`;
-  
+
   const response = await apiPatch<ShipToAddress>(endpoint, data);
   return response;
 }
@@ -187,7 +195,7 @@ export async function createPinCode(code: string, city: string): Promise<void> {
   const payload = {
     Code: code,
     City: city,
-    Country_Region_Code: 'IN',
+    Country_Region_Code: "IN",
   };
 
   try {
@@ -196,11 +204,14 @@ export async function createPinCode(code: string, city: string): Promise<void> {
   } catch (error: any) {
     // Fire-and-forget: Log but don't throw
     // Common errors like "City already exists" are expected and ignored
-    if (error?.message?.includes('already exists')) {
+    if (error?.message?.includes("already exists")) {
       // This is fine - pincode/city combination already exists
       return;
     }
     // Other errors are also ignored for fire-and-forget
-    console.log('Pincode creation failed (non-blocking, expected):', error?.message || error);
+    console.log(
+      "Pincode creation failed (non-blocking, expected):",
+      error?.message || error,
+    );
   }
 }

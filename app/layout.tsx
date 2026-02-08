@@ -3,8 +3,10 @@ import { Geist, Geist_Mono, Noto_Sans } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme/theme-provider";
 import { AuthProvider } from "@/lib/contexts/auth-context";
+import { Toaster } from "sonner";
+import { cn } from "@/lib/utils";
 
-const notoSans = Noto_Sans({variable:'--font-sans'});
+const notoSans = Noto_Sans({ variable: "--font-sans" });
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -18,10 +20,10 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    template: '%s | Sampoorna Feeds',
-    default: 'Sampoorna Feeds',
+    template: "%s | Sampoorna Feeds",
+    default: "Sampoorna Feeds",
   },
-  description: 'Sampoorna Feeds ERP System',
+  description: "Sampoorna Feeds ERP System",
 };
 
 export default function RootLayout({
@@ -32,7 +34,10 @@ export default function RootLayout({
   return (
     <html lang="en" className={notoSans.variable} suppressHydrationWarning>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased overflow-y-auto`}
+        className={cn(
+          `${geistSans.variable} ${geistMono.variable}`,
+          `overflow-y-auto antialiased`,
+        )}
       >
         <ThemeProvider
           attribute="class"
@@ -40,9 +45,8 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <AuthProvider>
-          {children}
-          </AuthProvider>
+          <AuthProvider>{children}</AuthProvider>
+          <Toaster richColors position="top-right" />
         </ThemeProvider>
       </body>
     </html>

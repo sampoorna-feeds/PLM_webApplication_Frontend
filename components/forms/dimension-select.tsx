@@ -1,20 +1,20 @@
-'use client';
+"use client";
 
 /**
  * DimensionSelect component
  * Smart dropdown for Branch, LOB, and LOC dimension values
  */
 
-import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Loader2, ChevronDownIcon, CheckIcon } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { Loader2, ChevronDownIcon, CheckIcon } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from '@/components/ui/popover';
+} from "@/components/ui/popover";
 import {
   getBranches,
   getBranchesPage,
@@ -26,9 +26,9 @@ import {
   getAssignments,
   getAssignmentsPage,
   type DimensionValue,
-} from '@/lib/api/services/dimension.service';
+} from "@/lib/api/services/dimension.service";
 
-type DimensionType = 'BRANCH' | 'LOB' | 'LOC' | 'EMPLOYEE' | 'ASSIGNMENT';
+type DimensionType = "BRANCH" | "LOB" | "LOC" | "EMPLOYEE" | "ASSIGNMENT";
 
 interface DimensionSelectProps {
   dimensionType: DimensionType;
@@ -50,16 +50,16 @@ export function DimensionSelect({
   dimensionType,
   value,
   onChange,
-  placeholder = '',
+  placeholder = "",
   disabled = false,
   className,
   hasError = false,
-  errorClass = '',
+  errorClass = "",
 }: DimensionSelectProps) {
   const [items, setItems] = useState<DimensionValue[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
   const [hasMore, setHasMore] = useState(true);
   const [skip, setSkip] = useState(0);
 
@@ -69,7 +69,7 @@ export function DimensionSelect({
   const abortControllerRef = useRef<AbortController | null>(null);
 
   // Check if this dimension supports search (LOB doesn't)
-  const supportsSearch = dimensionType !== 'LOB';
+  const supportsSearch = dimensionType !== "LOB";
 
   // Load initial items when dropdown opens
   const loadInitialItems = useCallback(async () => {
@@ -77,19 +77,19 @@ export function DimensionSelect({
     try {
       let result: DimensionValue[];
       switch (dimensionType) {
-        case 'BRANCH':
+        case "BRANCH":
           result = await getBranches();
           break;
-        case 'LOB':
+        case "LOB":
           result = await getLOBs();
           break;
-        case 'LOC':
+        case "LOC":
           result = await getLOCs();
           break;
-        case 'EMPLOYEE':
+        case "EMPLOYEE":
           result = await getEmployees();
           break;
-        case 'ASSIGNMENT':
+        case "ASSIGNMENT":
           result = await getAssignments();
           break;
         default:
@@ -140,16 +140,16 @@ export function DimensionSelect({
         try {
           let result: DimensionValue[];
           switch (dimensionType) {
-            case 'BRANCH':
+            case "BRANCH":
               result = await getBranches(query);
               break;
-            case 'LOC':
+            case "LOC":
               result = await getLOCs(query);
               break;
-            case 'EMPLOYEE':
+            case "EMPLOYEE":
               result = await getEmployees(query);
               break;
-            case 'ASSIGNMENT':
+            case "ASSIGNMENT":
               result = await getAssignments(query);
               break;
             default:
@@ -166,7 +166,7 @@ export function DimensionSelect({
           setHasMore(result.length >= PAGE_SIZE);
         } catch (error) {
           // Ignore abort errors
-          if (error instanceof Error && error.name === 'AbortError') {
+          if (error instanceof Error && error.name === "AbortError") {
             return;
           }
           // Check if request was aborted
@@ -182,7 +182,7 @@ export function DimensionSelect({
         }
       }, DEBOUNCE_MS);
     },
-    [dimensionType, supportsSearch]
+    [dimensionType, supportsSearch],
   );
 
   // Reload items when dimensionType changes
@@ -196,7 +196,7 @@ export function DimensionSelect({
 
     // Clear items and search state when dimension type changes
     setItems([]);
-    setSearchQuery('');
+    setSearchQuery("");
     setSkip(0);
     setHasMore(true);
 
@@ -216,19 +216,19 @@ export function DimensionSelect({
       try {
         let result: DimensionValue[];
         switch (dimensionType) {
-          case 'BRANCH':
+          case "BRANCH":
             result = await getBranches();
             break;
-          case 'LOB':
+          case "LOB":
             result = await getLOBs();
             break;
-          case 'LOC':
+          case "LOC":
             result = await getLOCs();
             break;
-          case 'EMPLOYEE':
+          case "EMPLOYEE":
             result = await getEmployees();
             break;
-          case 'ASSIGNMENT':
+          case "ASSIGNMENT":
             result = await getAssignments();
             break;
           default:
@@ -249,7 +249,7 @@ export function DimensionSelect({
 
     // Clear value when dimension type changes
     if (value) {
-      onChange('');
+      onChange("");
     }
   }, [dimensionType, value, onChange]);
 
@@ -261,16 +261,16 @@ export function DimensionSelect({
     try {
       let result: DimensionValue[];
       switch (dimensionType) {
-        case 'BRANCH':
+        case "BRANCH":
           result = await getBranchesPage(skip, searchQuery || undefined);
           break;
-        case 'LOC':
+        case "LOC":
           result = await getLOCsPage(skip, searchQuery || undefined);
           break;
-        case 'EMPLOYEE':
+        case "EMPLOYEE":
           result = await getEmployeesPage(skip, searchQuery || undefined);
           break;
-        case 'ASSIGNMENT':
+        case "ASSIGNMENT":
           result = await getAssignmentsPage(skip, searchQuery || undefined);
           break;
         default:
@@ -280,8 +280,10 @@ export function DimensionSelect({
       if (result.length > 0) {
         setItems((prev) => {
           // Filter out duplicates by Code
-          const existingCodes = new Set(prev.map(item => item.Code));
-          const newItems = result.filter(item => !existingCodes.has(item.Code));
+          const existingCodes = new Set(prev.map((item) => item.Code));
+          const newItems = result.filter(
+            (item) => !existingCodes.has(item.Code),
+          );
           return [...prev, ...newItems];
         });
         setSkip((prev) => prev + result.length);
@@ -304,7 +306,7 @@ export function DimensionSelect({
       loadInitialItems();
     }
     if (!open) {
-      setSearchQuery('');
+      setSearchQuery("");
       setSkip(0);
       setHasMore(true);
     }
@@ -317,13 +319,17 @@ export function DimensionSelect({
     const listElement = listRef.current;
     const handleScroll = () => {
       const { scrollTop, scrollHeight, clientHeight } = listElement;
-      if (scrollHeight - scrollTop <= clientHeight * 1.5 && hasMore && !isLoading) {
+      if (
+        scrollHeight - scrollTop <= clientHeight * 1.5 &&
+        hasMore &&
+        !isLoading
+      ) {
         loadMore();
       }
     };
 
-    listElement.addEventListener('scroll', handleScroll);
-    return () => listElement.removeEventListener('scroll', handleScroll);
+    listElement.addEventListener("scroll", handleScroll);
+    return () => listElement.removeEventListener("scroll", handleScroll);
   }, [isOpen, hasMore, isLoading, loadMore, supportsSearch]);
 
   // Cleanup on unmount
@@ -346,18 +352,21 @@ export function DimensionSelect({
     ? selectedItem.Name
       ? `${selectedItem.Code} - ${selectedItem.Name}`
       : selectedItem.Code
-    : value || '';
-  
+    : value || "";
+
   // Calculate max width needed for dropdown based on items
   const calculateDropdownWidth = () => {
-    if (items.length === 0) return '280px';
-    const codeLengths = items.map(item => item.Code?.length || 0);
-    const nameLengths = items.map(item => item.Name?.length || 0);
+    if (items.length === 0) return "280px";
+    const codeLengths = items.map((item) => item.Code?.length || 0);
+    const nameLengths = items.map((item) => item.Name?.length || 0);
     const maxCodeLength = codeLengths.length > 0 ? Math.max(...codeLengths) : 0;
     const maxNameLength = nameLengths.length > 0 ? Math.max(...nameLengths) : 0;
     // Estimate: code (8ch) + padding + name (max 40ch) + check icon + padding
     // Use min-width to ensure readability, max-width to prevent overflow
-    const estimatedWidth = Math.max(280, Math.min(500, (maxCodeLength + maxNameLength) * 8 + 80));
+    const estimatedWidth = Math.max(
+      280,
+      Math.min(500, (maxCodeLength + maxNameLength) * 8 + 80),
+    );
     return `${estimatedWidth}px`;
   };
 
@@ -369,10 +378,10 @@ export function DimensionSelect({
           role="combobox"
           disabled={disabled}
           className={cn(
-            'h-9 text-sm w-full justify-between font-normal shadow-sm',
-            !value && 'text-muted-foreground',
+            "h-9 w-full justify-between text-sm font-normal shadow-sm",
+            !value && "text-muted-foreground",
             className,
-            errorClass
+            errorClass,
           )}
           data-field-error={hasError}
         >
@@ -380,8 +389,8 @@ export function DimensionSelect({
           <ChevronDownIcon className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent 
-        className="p-0 min-w-[280px] max-w-[500px] w-auto" 
+      <PopoverContent
+        className="w-auto max-w-[500px] min-w-[280px] p-0"
         align="start"
         style={{ width: calculateDropdownWidth() }}
         onOpenAutoFocus={(e) => {
@@ -394,7 +403,7 @@ export function DimensionSelect({
         }}
       >
         {supportsSearch && (
-          <div className="p-2 border-b">
+          <div className="border-b p-2">
             <Input
               placeholder="Search by Code or Name..."
               value={searchQuery}
@@ -410,12 +419,13 @@ export function DimensionSelect({
         )}
         <div
           ref={listRef}
-          className="max-h-[300px] overflow-y-auto overflow-x-hidden"
+          className="max-h-[300px] overflow-x-hidden overflow-y-auto"
           onScroll={(e) => {
             if (!supportsSearch) return;
             const target = e.currentTarget;
             if (
-              target.scrollHeight - target.scrollTop <= target.clientHeight * 1.5 &&
+              target.scrollHeight - target.scrollTop <=
+                target.clientHeight * 1.5 &&
               hasMore &&
               !isLoading
             ) {
@@ -428,10 +438,10 @@ export function DimensionSelect({
               <Loader2 className="h-4 w-4 animate-spin" />
             </div>
           ) : items.length === 0 ? (
-            <div className="p-4 text-center text-sm text-muted-foreground">
+            <div className="text-muted-foreground p-4 text-center text-sm">
               {supportsSearch && searchQuery.length < MIN_SEARCH_LENGTH
                 ? `Type at least ${MIN_SEARCH_LENGTH} characters to search`
-                : 'No items found'}
+                : "No items found"}
             </div>
           ) : (
             <>
@@ -439,8 +449,8 @@ export function DimensionSelect({
                 <div
                   key={item.Code}
                   className={cn(
-                    'relative flex cursor-default select-none items-start rounded-sm px-2 py-2 text-sm outline-none hover:bg-muted/50',
-                    value === item.Code && 'bg-muted'
+                    "hover:bg-muted/50 relative flex cursor-default items-start rounded-sm px-2 py-2 text-sm outline-none select-none",
+                    value === item.Code && "bg-muted",
                   )}
                   onClick={() => {
                     onChange(item.Code);
@@ -449,16 +459,16 @@ export function DimensionSelect({
                 >
                   <CheckIcon
                     className={cn(
-                      'mr-2 h-4 w-4 mt-0.5 shrink-0',
-                      value === item.Code ? 'opacity-100' : 'opacity-0'
+                      "mt-0.5 mr-2 h-4 w-4 shrink-0",
+                      value === item.Code ? "opacity-100" : "opacity-0",
                     )}
                   />
-                  <div className="flex-1 min-w-0">
-                    <div className="font-medium text-foreground">
+                  <div className="min-w-0 flex-1">
+                    <div className="text-foreground font-medium">
                       {item.Code}
                     </div>
                     {item.Name && (
-                      <div className="text-muted-foreground text-xs mt-0.5 break-words">
+                      <div className="text-muted-foreground mt-0.5 text-xs break-words">
                         {item.Name}
                       </div>
                     )}
@@ -477,4 +487,3 @@ export function DimensionSelect({
     </Popover>
   );
 }
-

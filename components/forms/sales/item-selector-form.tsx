@@ -92,12 +92,6 @@ export function ItemSelectorForm({
         loadInitialItems();
         return;
       }
-  const performSearch = useCallback(
-    async (query: string) => {
-      if (query.length < 2) {
-        loadInitialItems();
-        return;
-      }
 
       setIsLoading(true);
       try {

@@ -3,10 +3,11 @@
 /**
  * Sales Form component
  * Tabbed view with tables for Sales Order, Sales Invoice, Sales Return Order, and Sales Credit Memo
- * Uses FormStack for managing multiple form tabs
+ * Uses FormStack for Invoice/Return/Credit Memo; Place Order navigates to full page.
  */
 
 import React, { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -188,6 +189,7 @@ const dummySalesCreditMemoData = [
 type SalesType = "order" | "invoice" | "return-order" | "credit-memo";
 
 function SalesFormContent() {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<SalesType>("order");
   const { openTab } = useFormStackContext();
 
@@ -207,6 +209,11 @@ function SalesFormContent() {
   };
 
   const handleOpenForm = (type: SalesType) => {
+    if (type === "order") {
+      router.push("/sales-form/place-order");
+      return;
+    }
+
     const formTypeMap: Record<SalesType, string> = {
       order: "sales-order",
       invoice: "sales-invoice",

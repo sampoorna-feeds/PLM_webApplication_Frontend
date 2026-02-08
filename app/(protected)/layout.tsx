@@ -50,6 +50,13 @@ export default function ProtectedLayout({
         { label: "Sales", href: null },
       ];
     }
+    if (pathname === "/sales-form/place-order") {
+      return [
+        { label: "Forms", href: "#" },
+        { label: "Sales", href: "/sales-form" },
+        { label: "Place Order", href: null },
+      ];
+    }
     if (pathname === "/production-orders") {
       return [
         { label: "Forms", href: "#" },
@@ -77,13 +84,18 @@ export default function ProtectedLayout({
 
   const breadcrumbs = getBreadcrumbs();
 
-  // Check if we should show "Return to Dashboard" button
-  // Show it on settings pages and other non-main pages
-  const showReturnToDashboard =
+  // Back button: show on non-main pages
+  const showBackButton =
     pathname !== "/voucher-form" &&
     pathname !== "/sales-form" &&
     pathname !== "/production-orders" &&
     pathname !== "/";
+
+  // Place Order page: Back to Sales; others: Return to Dashboard
+  const backLabel =
+    pathname === "/sales-form/place-order" ? "Back to Sales" : "Return to Dashboard";
+  const backHref =
+    pathname === "/sales-form/place-order" ? "/sales-form" : "/voucher-form";
 
   return (
     <AuthGuard>
@@ -113,15 +125,15 @@ export default function ProtectedLayout({
               </Breadcrumb>
             )}
             <div className="ml-auto flex items-center gap-2">
-              {showReturnToDashboard && (
+              {showBackButton && (
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => router.push("/voucher-form")}
+                  onClick={() => router.push(backHref)}
                   className="gap-2"
                 >
                   <ArrowLeft className="h-4 w-4" />
-                  <span>Return to Dashboard</span>
+                  <span>{backLabel}</span>
                 </Button>
               )}
               <ThemeToggle />

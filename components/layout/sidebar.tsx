@@ -143,7 +143,14 @@ export function AppSidebar({
               <SidebarMenu>
                 {formsItems.map((item) => (
                   <SidebarMenuItem key={item.url}>
-                    <SidebarMenuButton asChild isActive={pathname === item.url}>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={
+                        pathname === item.url ||
+                        (item.url === "/sales-form" &&
+                          pathname?.startsWith("/sales-form"))
+                      }
+                    >
                       <Link href={item.url}>
                         <item.icon />
                         <span>{item.title}</span>

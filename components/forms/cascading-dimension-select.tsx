@@ -33,6 +33,8 @@ interface CascadingDimensionSelectProps {
   className?: string;
   hasError?: boolean;
   errorClass?: string;
+  /** When true and only one option exists, show as compact label instead of dropdown */
+  compactWhenSingle?: boolean;
   // Parent values for cascading
   lobValue?: string;
   branchValue?: string;
@@ -51,6 +53,7 @@ export function CascadingDimensionSelect({
   className,
   hasError = false,
   errorClass = "",
+  compactWhenSingle = false,
   lobValue,
   branchValue,
   userId,
@@ -121,6 +124,18 @@ export function CascadingDimensionSelect({
       loadItems();
     }
   }, [dimensionType, lobValue, branchValue, userId, isOpen]);
+
+  // Auto-select when single option and compactWhenSingle
+  useEffect(() => {
+    if (
+      compactWhenSingle &&
+      items.length === 1 &&
+      !value &&
+      items[0]?.Code
+    ) {
+      onChange(items[0].Code);
+    }
+  }, [compactWhenSingle, items, value, onChange]);
 
   // Search with debounce
   const performSearch = useCallback(
@@ -221,6 +236,22 @@ export function CascadingDimensionSelect({
           return codeMatch || nameMatch;
         })
       : items;
+
+  const showAsLabel =
+    compactWhenSingle && items.length === 1 && value === items[0]?.Code;
+
+  if (showAsLabel) {
+    return (
+      <span
+        className={cn(
+          "text-foreground inline text-sm",
+          className,
+        )}
+      >
+        {items[0].Name ? `${items[0].Code} - ${items[0].Name}` : items[0].Code}
+      </span>
+    );
+  }
 
   return (
     <Popover open={isOpen} onOpenChange={handleOpenChange}>

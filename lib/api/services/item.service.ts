@@ -17,6 +17,8 @@ export interface Item {
   /** From ItemList (list) */
   Unit_Price?: number;
   Sales_Unit_of_Measure?: string;
+  /** For tracking lookup */
+  Item_Tracking_Code?: string;
 }
 
 export interface ItemUnitOfMeasure {

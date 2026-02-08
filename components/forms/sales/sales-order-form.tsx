@@ -3,6 +3,9 @@
  * Step 1: Order Information
  * Step 2: Line Items
  * Step 3: Order Summary & Submission
+ *
+ * SalesOrderFormContent: Shared form logic for both FormStack tab and full-page modes.
+ * SalesOrderForm: FormStack tab wrapper (for form registry).
  */
 
 "use client";
@@ -17,7 +20,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { FieldTitle } from "@/components/ui/field";
 import { CascadingDimensionSelect } from "@/components/forms/cascading-dimension-select";
 import { CustomerSelect, type SalesCustomer } from "./customer-select";
 import { ShipToSelect } from "./shipto-select";
@@ -36,22 +38,33 @@ import {
   type SalesOrderLineItem,
 } from "@/lib/api/services/sales-order.service";
 
-interface SalesOrderFormProps {
+export interface SalesOrderFormContentProps {
+  /** Called when order is successfully placed */
+  onSuccess: () => void;
+  /** Open line-item add/edit tab (from FormStackContext.openTab) */
+  openLineItemTab: (params: {
+    title: string;
+    formData: Record<string, any>;
+    context: { openedFromParent: boolean; onSave: (item: LineItem) => void };
+    autoCloseOnSuccess: boolean;
+  }) => void;
+  /** Tab ID for ShipToSelect (form stack context) */
   tabId: string;
-  formData?: Record<string, any>;
-  context?: Record<string, any>;
+  /** Initial form data (for restore from line-item tab or page load) */
+  initialFormData?: Record<string, any>;
+  /** Optional: persist form data (e.g. to FormStack tab). Omit for standalone page. */
+  persistFormData?: (data: Record<string, any>) => void;
 }
 
 type Step = 1 | 2 | 3;
 
-export function SalesOrderForm({
+export function SalesOrderFormContent({
+  onSuccess,
+  openLineItemTab,
   tabId,
-  formData: initialFormData,
-  context,
-}: SalesOrderFormProps) {
-  const { registerRefresh, handleSuccess, updateFormData } =
-    useFormStack(tabId);
-  const { openTab } = useFormStackContext();
+  initialFormData = {},
+  persistFormData,
+}: SalesOrderFormContentProps) {
 
   const [formData, setFormData] = useState({
     customerNo: '',
@@ -74,12 +87,21 @@ export function SalesOrderForm({
   });
 
   const [userId, setUserId] = useState<string | undefined>(undefined);
-  const [lineItems, setLineItems] = useState<LineItem[]>(initialFormData?.lineItems ?? []);
+  const [lineItems, setLineItems] = useState<LineItem[]>(
+    Array.isArray(initialFormData?.lineItems) ? initialFormData.lineItems : []
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [currentStep, setCurrentStep] = useState<Step>((initialFormData?.currentStep as Step) ?? 1);
+  const [currentStep, setCurrentStep] = useState<Step>(
+    (typeof initialFormData?.currentStep === "number" &&
+    initialFormData.currentStep >= 1 &&
+    initialFormData.currentStep <= 3
+      ? initialFormData.currentStep
+      : 1) as Step
+  );
 
-  // Only sync to FormStack when needed (step changes, not on every keystroke)
-  // This prevents re-renders that cause focus loss
+  const persist = (data: Record<string, any>) => {
+    if (persistFormData) persistFormData(data);
+  };
 
   // Get logged-in user ID
   useEffect(() => {
@@ -89,26 +111,30 @@ export function SalesOrderForm({
     }
   }, []);
 
-  // Set Order Date to current date on mount
+  // Set all dates to today on load when form is not filled
   useEffect(() => {
-    if (!formData.orderDate) {
-      const today = new Date();
-      const formattedDate = today.toISOString().split("T")[0];
-      setFormData((prev) => ({ ...prev, orderDate: formattedDate }));
-    }
-  }, []);
-
-  // Register refresh callback
-  useEffect(() => {
-    registerRefresh(async () => {
-      console.log("Refreshing Sales Order form...");
+    const today = new Date().toISOString().split("T")[0];
+    setFormData((prev) => {
+      const updates: Record<string, string> = {};
+      if (!prev.postingDate) updates.postingDate = today;
+      if (!prev.documentDate) updates.documentDate = today;
+      if (!prev.orderDate) updates.orderDate = today;
+      if (Object.keys(updates).length === 0) return prev;
+      return { ...prev, ...updates };
     });
-  }, [registerRefresh]);
+  }, []);
 
   // Initialize form data from props (and restore step + line items when returning from line-item tab)
   useEffect(() => {
     if (initialFormData && Object.keys(initialFormData).length > 0) {
-      setFormData((prev) => ({ ...prev, ...initialFormData }));
+      const today = new Date().toISOString().split("T")[0];
+      setFormData((prev) => {
+        const next = { ...prev, ...initialFormData };
+        if (!next.postingDate) next.postingDate = today;
+        if (!next.documentDate) next.documentDate = today;
+        if (!next.orderDate) next.orderDate = today;
+        return next;
+      });
       if (Array.isArray(initialFormData.lineItems)) {
         setLineItems(initialFormData.lineItems);
       }
@@ -208,7 +234,7 @@ export function SalesOrderForm({
     const nextStep = (currentStep + 1) as Step;
     if (currentStep < 3 && canGoToStep(nextStep)) {
       setCurrentStep(nextStep);
-      updateFormData({ ...formData, currentStep: nextStep, lineItems });
+      persist({ ...formData, currentStep: nextStep, lineItems });
     }
   };
 
@@ -216,20 +242,20 @@ export function SalesOrderForm({
     if (currentStep > 1) {
       const prevStep = (currentStep - 1) as Step;
       setCurrentStep(prevStep);
-      updateFormData({ ...formData, currentStep: prevStep, lineItems });
+      persist({ ...formData, currentStep: prevStep, lineItems });
     }
   };
 
   const handleStepClick = (step: Step) => {
     if (canGoToStep(step)) {
       setCurrentStep(step);
-      updateFormData({ ...formData, currentStep: step, lineItems });
+      persist({ ...formData, currentStep: step, lineItems });
     }
   };
 
   // Line Items management
   const handleAddLineItem = () => {
-    openTab("line-item", {
+    openLineItemTab({
       title: "Add Line Item",
       formData: {
         customerNo: formData.customerNo,
@@ -241,8 +267,7 @@ export function SalesOrderForm({
         onSave: (lineItem: LineItem) => {
           const updated = [...lineItems, lineItem];
           setLineItems(updated);
-          // Persist step 2 and line items so we stay on Step 2 (Line Items) when tab closes
-          updateFormData({ ...formData, lineItems: updated, currentStep: 2 });
+          persist({ ...formData, lineItems: updated, currentStep: 2 });
         },
       },
       autoCloseOnSuccess: true,
@@ -250,7 +275,7 @@ export function SalesOrderForm({
   };
 
   const handleEditLineItem = (lineItem: LineItem) => {
-    openTab("line-item", {
+    openLineItemTab({
       title: "Edit Line Item",
       formData: {
         lineItem,
@@ -265,8 +290,7 @@ export function SalesOrderForm({
             item.id === lineItem.id ? updatedLineItem : item
           );
           setLineItems(updated);
-          // Persist step 2 and line items so we stay on Step 2 when tab closes
-          updateFormData({ ...formData, lineItems: updated, currentStep: 2 });
+          persist({ ...formData, lineItems: updated, currentStep: 2 });
         },
       },
       autoCloseOnSuccess: true,
@@ -276,7 +300,7 @@ export function SalesOrderForm({
   const handleRemoveLineItem = (lineItemId: string) => {
     const updated = lineItems.filter((item) => item.id !== lineItemId);
     setLineItems(updated);
-    updateFormData({ ...formData, lineItems: updated, currentStep });
+    persist({ ...formData, lineItems: updated, currentStep });
   };
 
   const handleUpdateLineItem = (lineItem: LineItem) => {
@@ -284,7 +308,7 @@ export function SalesOrderForm({
       item.id === lineItem.id ? lineItem : item,
     );
     setLineItems(updated);
-    updateFormData({ ...formData, lineItems: updated, currentStep });
+    persist({ ...formData, lineItems: updated, currentStep });
   };
 
   // Final submission
@@ -338,7 +362,7 @@ export function SalesOrderForm({
       }));
 
       await addSalesOrderLineItems(orderId, lineItemsData);
-      await handleSuccess();
+      onSuccess();
     } catch (error) {
       console.error("Error placing order:", error);
       alert("Failed to place order. Please try again.");
@@ -347,208 +371,65 @@ export function SalesOrderForm({
     }
   };
 
-  // Step 1: Order Information
+  // Step 1: Order Information (grouped, clean layout)
   const renderStep1 = () => (
     <div className="space-y-6">
-      {/* Dimension Information Section */}
-      <div className="space-y-4">
-        <h3 className="text-muted-foreground text-sm font-medium">
-          Dimension Information
-        </h3>
-        <div className="grid grid-cols-3 gap-4">
-          <div className="space-y-2">
-            <FieldTitle>LOB</FieldTitle>
-            <CascadingDimensionSelect
-              dimensionType="LOB"
-              value={formData.lob}
-              onChange={(value) => handleInputChange("lob", value)}
-              placeholder="Select LOB"
-              userId={userId}
-            />
-          </div>
-          <div className="space-y-2">
-            <FieldTitle>Branch</FieldTitle>
-            <CascadingDimensionSelect
-              dimensionType="BRANCH"
-              value={formData.branch}
-              onChange={(value) => handleInputChange("branch", value)}
-              placeholder="Select Branch"
-              lobValue={formData.lob}
-              userId={userId}
-            />
-          </div>
-          <div className="space-y-2">
-            <FieldTitle>LOC</FieldTitle>
-            <CascadingDimensionSelect
-              dimensionType="LOC"
-              value={formData.loc}
-              onChange={(value) => handleInputChange("loc", value)}
-              placeholder="Select LOC"
-              lobValue={formData.lob}
-              branchValue={formData.branch}
-              userId={userId}
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* Customer Information Section */}
-      <div className="space-y-4">
-        <h3 className="text-muted-foreground text-sm font-medium">
-          Customer Information
-        </h3>
-        <div className="grid grid-cols-1 gap-4">
-          <div className="space-y-2">
-            <FieldTitle>Customer</FieldTitle>
-            <CustomerSelect
-              value={formData.customerNo}
-              onChange={handleCustomerChange}
-              placeholder="Select customer"
-            />
-          </div>
-          {formData.customerName && (
-            <div className="space-y-2">
-              <FieldTitle>Customer Name</FieldTitle>
-              <Input
-                value={formData.customerName}
-                disabled
-                className="bg-muted"
+      {/* Organization */}
+      <div>
+        <h4 className="text-muted-foreground mb-3 text-xs font-medium uppercase tracking-wider">
+          Organization
+        </h4>
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+          <div className="flex items-center gap-2">
+            <span className="text-muted-foreground shrink-0 text-xs">LOB:</span>
+            <div className="min-w-0 flex-1">
+              <CascadingDimensionSelect
+                dimensionType="LOB"
+                value={formData.lob}
+                onChange={(value) => handleInputChange("lob", value)}
+                placeholder="Select LOB"
+                userId={userId}
+                compactWhenSingle
               />
             </div>
-          )}
-        </div>
-      </div>
-
-      {/* Shipping Information Section */}
-      <div className="space-y-4">
-        <h3 className="text-muted-foreground text-sm font-medium">
-          Shipping Information
-        </h3>
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <FieldTitle>Ship to Code</FieldTitle>
-            <ShipToSelect
-              customerNo={formData.customerNo}
-              value={formData.shipToCode}
-              onChange={handleShipToChange}
-              placeholder="Select ship-to address"
-              tabId={tabId}
-              loc={formData.loc}
-            />
           </div>
-          <div className="space-y-2">
-            <FieldTitle>Shipping From</FieldTitle>
-            <Input
-              value={formData.shippingFrom}
-              onChange={(e) =>
-                handleInputChange("shippingFrom", e.target.value)
-              }
-              placeholder="Enter shipping from"
-              onFocus={(e) => {
-                e.stopPropagation();
-              }}
-            />
+          <div className="flex items-center gap-2">
+            <span className="text-muted-foreground shrink-0 text-xs">Branch:</span>
+            <div className="min-w-0 flex-1">
+              <CascadingDimensionSelect
+                dimensionType="BRANCH"
+                value={formData.branch}
+                onChange={(value) => handleInputChange("branch", value)}
+                placeholder="Select Branch"
+                lobValue={formData.lob}
+                userId={userId}
+                compactWhenSingle
+              />
+            </div>
           </div>
-        </div>
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <FieldTitle>Sales Person Code/Name</FieldTitle>
-            <Input
-              value={formData.salesPersonCode}
-              onChange={(e) =>
-                handleInputChange("salesPersonCode", e.target.value)
-              }
-              placeholder="Enter sales person code/name"
-              onFocus={(e) => {
-                e.stopPropagation();
-              }}
-            />
+          <div className="flex items-center gap-2">
+            <span className="text-muted-foreground shrink-0 text-xs">LOC:</span>
+            <div className="min-w-0 flex-1">
+              <CascadingDimensionSelect
+                dimensionType="LOC"
+                value={formData.loc}
+                onChange={(value) => handleInputChange("loc", value)}
+                placeholder="Select LOC"
+                lobValue={formData.lob}
+                branchValue={formData.branch}
+                userId={userId}
+                compactWhenSingle
+              />
+            </div>
           </div>
-          <div className="space-y-2">
-            <FieldTitle>Location Code</FieldTitle>
-            <Input
-              value={formData.locationCode || formData.loc || ""}
-              disabled
-              className="bg-muted"
-              placeholder="Auto-filled from LOC"
-              readOnly
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* Date Information Section */}
-      <div className="space-y-4">
-        <h3 className="text-muted-foreground text-sm font-medium">
-          Date Information
-        </h3>
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <FieldTitle>Posting Date</FieldTitle>
-            <Input
-              type="date"
-              value={formData.postingDate}
-              onChange={(e) => handleInputChange("postingDate", e.target.value)}
-              onFocus={(e) => {
-                e.stopPropagation();
-              }}
-            />
-          </div>
-          <div className="space-y-2">
-            <FieldTitle>Document Date</FieldTitle>
-            <Input
-              type="date"
-              value={formData.documentDate}
-              onChange={(e) =>
-                handleInputChange("documentDate", e.target.value)
-              }
-              onFocus={(e) => {
-                e.stopPropagation();
-              }}
-            />
-          </div>
-        </div>
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <FieldTitle>Order Date</FieldTitle>
-            <Input
-              type="date"
-              value={formData.orderDate}
-              onChange={(e) => handleInputChange("orderDate", e.target.value)}
-              disabled
-              className="bg-muted"
-            />
-          </div>
-          <div className="space-y-2">
-            <FieldTitle>External Document No.</FieldTitle>
-            <Input
-              value={formData.externalDocumentNo}
-              onChange={(e) =>
-                handleInputChange("externalDocumentNo", e.target.value)
-              }
-              placeholder="Enter external document number"
-              onFocus={(e) => {
-                e.stopPropagation();
-              }}
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* Document Information Section */}
-      <div className="space-y-4">
-        <h3 className="text-muted-foreground text-sm font-medium">
-          Document Information
-        </h3>
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <FieldTitle>Invoice Type</FieldTitle>
+          <div>
+            <label className="text-muted-foreground mb-1.5 block text-xs">Invoice Type</label>
             <Select
               value={formData.invoiceType}
               onValueChange={(value) => handleInputChange("invoiceType", value)}
             >
-              <SelectTrigger>
-                <SelectValue placeholder="Select invoice type" />
+              <SelectTrigger className="h-9">
+                <SelectValue placeholder="Select" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="Bill of supply">Bill of supply</SelectItem>
@@ -562,6 +443,112 @@ export function SalesOrderForm({
           </div>
         </div>
       </div>
+
+      {/* Customer & Shipping */}
+      <div>
+        <h4 className="text-muted-foreground mb-3 text-xs font-medium uppercase tracking-wider">
+          Customer & Shipping
+        </h4>
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
+          <div>
+            <label className="text-muted-foreground mb-1.5 block text-xs">Customer</label>
+            <CustomerSelect
+              value={formData.customerNo}
+              onChange={handleCustomerChange}
+              placeholder="Select"
+            />
+          </div>
+          <div>
+            <label className="text-muted-foreground mb-1.5 block text-xs">Ship to</label>
+            <ShipToSelect
+              customerNo={formData.customerNo}
+              value={formData.shipToCode}
+              onChange={handleShipToChange}
+              placeholder="Select"
+              tabId={tabId}
+              loc={formData.loc}
+            />
+          </div>
+          <div>
+            <label className="text-muted-foreground mb-1.5 block text-xs">Shipping From</label>
+            <Input
+              value={formData.shippingFrom}
+              onChange={(e) => handleInputChange("shippingFrom", e.target.value)}
+              placeholder="Optional"
+              className="h-9"
+              onFocus={(e) => e.stopPropagation()}
+            />
+          </div>
+          <div>
+            <label className="text-muted-foreground mb-1.5 block text-xs">Sales Person</label>
+            <Input
+              value={formData.salesPersonCode}
+              onChange={(e) => handleInputChange("salesPersonCode", e.target.value)}
+              placeholder="Code/Name"
+              className="h-9"
+              onFocus={(e) => e.stopPropagation()}
+            />
+          </div>
+          <div>
+            <label className="text-muted-foreground mb-1.5 block text-xs">Location</label>
+            <Input
+              value={formData.locationCode || formData.loc || ""}
+              disabled
+              className="h-9 bg-muted"
+              readOnly
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Dates */}
+      <div>
+        <h4 className="text-muted-foreground mb-3 text-xs font-medium uppercase tracking-wider">
+          Dates
+        </h4>
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+          <div>
+            <label className="text-muted-foreground mb-1.5 block text-xs">Posting Date</label>
+            <Input
+              type="date"
+              value={formData.postingDate}
+              onChange={(e) => handleInputChange("postingDate", e.target.value)}
+              className="h-9"
+              onFocus={(e) => e.stopPropagation()}
+            />
+          </div>
+          <div>
+            <label className="text-muted-foreground mb-1.5 block text-xs">Document Date</label>
+            <Input
+              type="date"
+              value={formData.documentDate}
+              onChange={(e) => handleInputChange("documentDate", e.target.value)}
+              className="h-9"
+              onFocus={(e) => e.stopPropagation()}
+            />
+          </div>
+          <div>
+            <label className="text-muted-foreground mb-1.5 block text-xs">Order Date</label>
+            <Input
+              type="date"
+              value={formData.orderDate}
+              onChange={(e) => handleInputChange("orderDate", e.target.value)}
+              disabled
+              className="h-9 bg-muted"
+            />
+          </div>
+          <div>
+            <label className="text-muted-foreground mb-1.5 block text-xs">External Doc No.</label>
+            <Input
+              value={formData.externalDocumentNo}
+              onChange={(e) => handleInputChange("externalDocumentNo", e.target.value)}
+              placeholder="Optional"
+              className="h-9"
+              onFocus={(e) => e.stopPropagation()}
+            />
+          </div>
+        </div>
+      </div>
     </div>
   );
 
@@ -569,9 +556,9 @@ export function SalesOrderForm({
   const renderStep2 = () => (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-muted-foreground text-sm font-medium">
+        <h4 className="text-muted-foreground text-xs font-medium uppercase tracking-wider">
           Line Items
-        </h3>
+        </h4>
         <Button onClick={handleAddLineItem} size="sm">
           <Plus className="mr-2 h-4 w-4" />
           Add Item
@@ -585,8 +572,9 @@ export function SalesOrderForm({
         editable={true}
       />
       {lineItems.length === 0 && (
-        <div className="text-muted-foreground py-8 text-center text-sm">
-          No line items added. Click "Add Item" to add your first item.
+        <div className="flex flex-col items-center justify-center rounded-lg border border-dashed py-12">
+          <p className="text-muted-foreground text-sm">No line items added yet.</p>
+          <p className="text-muted-foreground mt-1 text-xs">Click "Add Item" to add your first item.</p>
         </div>
       )}
     </div>
@@ -598,52 +586,54 @@ export function SalesOrderForm({
     return (
       <div className="space-y-6">
         {/* Order Information Summary */}
-        <div className="space-y-4">
-          <h3 className="text-muted-foreground text-sm font-medium">
-            Order Information
-          </h3>
-          <div className="grid grid-cols-2 gap-4 text-sm">
-            <div>
-              <span className="text-muted-foreground">Customer:</span>{" "}
-              <span className="font-medium">
-                {formData.customerName || formData.customerNo}
-              </span>
-            </div>
-            <div>
-              <span className="text-muted-foreground">Order Date:</span>{" "}
-              <span className="font-medium">{formData.orderDate}</span>
-            </div>
-            <div>
-              <span className="text-muted-foreground">Posting Date:</span>{" "}
-              <span className="font-medium">{formData.postingDate}</span>
-            </div>
-            <div>
-              <span className="text-muted-foreground">Document Date:</span>{" "}
-              <span className="font-medium">{formData.documentDate}</span>
-            </div>
-            {formData.shipToCode && (
+        <div>
+          <h4 className="text-muted-foreground mb-3 text-xs font-medium uppercase tracking-wider">
+            Order Summary
+          </h4>
+          <div className="bg-muted/30 rounded-lg p-4">
+            <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
               <div>
-                <span className="text-muted-foreground">Ship To:</span>{" "}
-                <span className="font-medium">{formData.shipToCode}</span>
+                <span className="text-muted-foreground block text-xs">Customer</span>
+                <span className="font-medium">
+                  {formData.customerName || formData.customerNo}
+                </span>
               </div>
-            )}
-            {formData.invoiceType && (
               <div>
-                <span className="text-muted-foreground">Invoice Type:</span>{" "}
-                <span className="font-medium">{formData.invoiceType}</span>
+                <span className="text-muted-foreground block text-xs">Order Date</span>
+                <span className="font-medium">{formData.orderDate}</span>
               </div>
-            )}
+              <div>
+                <span className="text-muted-foreground block text-xs">Posting Date</span>
+                <span className="font-medium">{formData.postingDate}</span>
+              </div>
+              <div>
+                <span className="text-muted-foreground block text-xs">Document Date</span>
+                <span className="font-medium">{formData.documentDate}</span>
+              </div>
+              {formData.shipToCode && (
+                <div>
+                  <span className="text-muted-foreground block text-xs">Ship To</span>
+                  <span className="font-medium">{formData.shipToCode}</span>
+                </div>
+              )}
+              {formData.invoiceType && (
+                <div>
+                  <span className="text-muted-foreground block text-xs">Invoice Type</span>
+                  <span className="font-medium">{formData.invoiceType}</span>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
-        {/* Line Items Summary */}
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-muted-foreground text-sm font-medium">
+        {/* Line Items */}
+        <div>
+          <div className="mb-3 flex items-center justify-between">
+            <h4 className="text-muted-foreground text-xs font-medium uppercase tracking-wider">
               Line Items
-            </h3>
+            </h4>
             <Button onClick={handleAddLineItem} size="sm" variant="outline">
-              <Plus className="mr-2 h-4 w-4" />
+              <Plus className="mr-1.5 h-3.5 w-3.5" />
               Add Item
             </Button>
           </div>
@@ -656,17 +646,13 @@ export function SalesOrderForm({
           />
         </div>
 
-        {/* Total Summary */}
-        <div className="border-t pt-4">
-          <div className="flex justify-end">
-            <div className="w-64 space-y-2">
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Total Amount:</span>
-                <span className="text-lg font-semibold">
-                  {totalAmount.toFixed(2)}
-                </span>
-              </div>
-            </div>
+        {/* Total */}
+        <div className="flex justify-end rounded-lg border bg-muted/20 px-4 py-3">
+          <div className="flex items-baseline gap-3">
+            <span className="text-muted-foreground text-sm">Total Amount</span>
+            <span className="text-lg font-semibold">
+              {totalAmount.toFixed(2)}
+            </span>
           </div>
         </div>
       </div>
@@ -677,27 +663,33 @@ export function SalesOrderForm({
     <div className="flex h-full flex-col">
       {/* Step Indicators */}
       <div className="border-b px-6 py-4">
-        <div className="flex items-center justify-between">
-          {[1, 2, 3].map((step) => (
-            <React.Fragment key={step}>
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  handleStepClick(step as Step);
-                }}
-                disabled={!canGoToStep(step as Step)}
-                className={cn(
-                  "flex items-center gap-2 rounded-md px-4 py-2 transition-colors",
+        <div className="flex w-full justify-center">
+          <div className="flex w-full max-w-3xl items-center gap-2">
+            {[1, 2, 3].map((step) => (
+              <React.Fragment key={step}>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleStepClick(step as Step);
+                  }}
+                  disabled={!canGoToStep(step as Step)}
+                  className={cn(
+                    "flex h-9 flex-1 items-center justify-center gap-2 rounded-md px-4 transition-all",
                   currentStep === step
                     ? "bg-primary text-primary-foreground"
                     : canGoToStep(step as Step)
-                      ? "hover:bg-muted text-foreground"
+                      ? "bg-muted/50 hover:bg-muted text-foreground"
                       : "text-muted-foreground cursor-not-allowed opacity-50",
                 )}
               >
-                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-current/20 text-xs font-medium">
+                <span
+                  className={cn(
+                    "flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-xs font-medium",
+                    currentStep === step ? "bg-primary-foreground/20" : "bg-muted",
+                  )}
+                >
                   {step}
                 </span>
                 <span className="text-sm font-medium">
@@ -707,10 +699,11 @@ export function SalesOrderForm({
                 </span>
               </button>
               {step < 3 && (
-                <ChevronRight className="text-muted-foreground mx-2 h-4 w-4" />
+                <ChevronRight className="text-muted-foreground h-4 w-4 shrink-0" />
               )}
             </React.Fragment>
           ))}
+          </div>
         </div>
       </div>
 
@@ -722,7 +715,7 @@ export function SalesOrderForm({
       </div>
 
       {/* Step Navigation */}
-      <div className="flex justify-between border-t px-6 py-4">
+      <div className="flex justify-between border-t bg-muted/20 px-6 py-4">
         <Button
           variant="outline"
           onClick={handlePrevious}
@@ -750,5 +743,31 @@ export function SalesOrderForm({
         )}
       </div>
     </div>
+  );
+}
+
+/** FormStack tab wrapper - for form registry (Invoice, Return, Credit Memo may still use) */
+interface SalesOrderFormProps {
+  tabId: string;
+  formData?: Record<string, any>;
+  context?: Record<string, any>;
+}
+
+export function SalesOrderForm({
+  tabId,
+  formData: initialFormData,
+  context,
+}: SalesOrderFormProps) {
+  const { handleSuccess, updateFormData } = useFormStack(tabId);
+  const { openTab } = useFormStackContext();
+
+  return (
+    <SalesOrderFormContent
+      onSuccess={handleSuccess}
+      openLineItemTab={(params) => openTab("line-item", params)}
+      tabId={tabId}
+      initialFormData={initialFormData}
+      persistFormData={updateFormData}
+    />
   );
 }

@@ -47,6 +47,7 @@ const PAGE_SIZE = 20;
 
 export function ItemSelectorForm({ tabId, formData, context }: ItemSelectorFormProps) {
   const { closeTab } = useFormStackContext();
+  const locationCode = formData?.filterParams?.locationCode as string | undefined;
   const [searchQuery, setSearchQuery] = useState('');
   const [items, setItems] = useState<(Item | GLPostingAccount)[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -57,14 +58,15 @@ export function ItemSelectorForm({ tabId, formData, context }: ItemSelectorFormP
   );
   const tableContainerRef = useRef<HTMLDivElement>(null);
 
-  // Load initial items
+  // Load initial items (ItemList filtered by location when provided)
   const loadInitialItems = useCallback(async () => {
     setIsLoading(true);
     try {
-      const result = selectedType === 'Item'
-        ? await getItems(PAGE_SIZE)
-        : await getGLAccounts(PAGE_SIZE);
-      
+      const result =
+        selectedType === 'Item'
+          ? await getItems(PAGE_SIZE, locationCode)
+          : await getGLAccounts(PAGE_SIZE);
+
       setItems(result);
       setSkip(result.length);
       setHasMore(result.length >= PAGE_SIZE);
@@ -74,31 +76,35 @@ export function ItemSelectorForm({ tabId, formData, context }: ItemSelectorFormP
     } finally {
       setIsLoading(false);
     }
-  }, [selectedType]);
+  }, [selectedType, locationCode]);
 
   // Search items
-  const performSearch = useCallback(async (query: string) => {
-    if (query.length < 2) {
-      loadInitialItems();
-      return;
-    }
+  const performSearch = useCallback(
+    async (query: string) => {
+      if (query.length < 2) {
+        loadInitialItems();
+        return;
+      }
 
-    setIsLoading(true);
-    try {
-      const result = selectedType === 'Item'
-        ? await searchItems(query)
-        : await searchGLAccounts(query);
-      
-      setItems(result);
-      setSkip(result.length);
-      setHasMore(result.length >= PAGE_SIZE);
-    } catch (error) {
-      console.error('Error searching items:', error);
-      setItems([]);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [selectedType, loadInitialItems]);
+      setIsLoading(true);
+      try {
+        const result =
+          selectedType === 'Item'
+            ? await searchItems(query, locationCode)
+            : await searchGLAccounts(query);
+
+        setItems(result);
+        setSkip(result.length);
+        setHasMore(result.length >= PAGE_SIZE);
+      } catch (error) {
+        console.error('Error searching items:', error);
+        setItems([]);
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [selectedType, loadInitialItems, locationCode]
+  );
 
   // Load more items (pagination)
   const loadMore = useCallback(async () => {
@@ -106,10 +112,11 @@ export function ItemSelectorForm({ tabId, formData, context }: ItemSelectorFormP
 
     setIsLoading(true);
     try {
-      const newItems = selectedType === 'Item'
-        ? await getItemsPage(skip, searchQuery || undefined)
-        : await getGLAccountsPage(skip, searchQuery || undefined);
-      
+      const newItems =
+        selectedType === 'Item'
+          ? await getItemsPage(skip, searchQuery || undefined, PAGE_SIZE, locationCode)
+          : await getGLAccountsPage(skip, searchQuery || undefined);
+
       if (newItems.length === 0) {
         setHasMore(false);
       } else {
@@ -122,7 +129,7 @@ export function ItemSelectorForm({ tabId, formData, context }: ItemSelectorFormP
     } finally {
       setIsLoading(false);
     }
-  }, [isLoading, hasMore, skip, searchQuery, selectedType]);
+  }, [isLoading, hasMore, skip, searchQuery, selectedType, locationCode]);
 
   // Load items when type changes
   useEffect(() => {
@@ -172,25 +179,23 @@ export function ItemSelectorForm({ tabId, formData, context }: ItemSelectorFormP
     return () => container.removeEventListener('scroll', handleScroll);
   }, [hasMore, isLoading, loadMore]);
 
-  // Get display values
+  // Get display values (ItemList: No, Description, Unit_Price, Sales_Unit_of_Measure)
   const getItemDisplay = useCallback((item: Item | GLPostingAccount) => {
     if (selectedType === 'Item') {
       const itemData = item as Item;
       return {
         no: itemData.No,
         description: itemData.Description,
-        gstGroupCode: itemData.GST_Group_Code || '',
-        hsnSacCode: itemData.HSN_SAC_Code || '',
-        exempted: itemData.Exempted || false,
+        unitPrice: itemData.Unit_Price ?? '',
+        salesUom: itemData.Sales_Unit_of_Measure ?? '-',
       };
     } else {
       const accountData = item as GLPostingAccount;
       return {
         no: accountData.No,
         description: accountData.Name,
-        gstGroupCode: '',
-        hsnSacCode: '',
-        exempted: false,
+        unitPrice: '',
+        salesUom: '-',
       };
     }
   }, [selectedType]);
@@ -244,9 +249,8 @@ export function ItemSelectorForm({ tabId, formData, context }: ItemSelectorFormP
               <TableHead>Description</TableHead>
               {selectedType === 'Item' && (
                 <>
-                  <TableHead className="w-[120px]">GST Group</TableHead>
-                  <TableHead className="w-[120px]">HSN/SAC</TableHead>
-                  <TableHead className="w-[100px]">Exempted</TableHead>
+                  <TableHead className="w-[100px]">Unit Price</TableHead>
+                  <TableHead className="w-[100px]">UOM</TableHead>
                 </>
               )}
               <TableHead className="w-[100px] text-right">Action</TableHead>
@@ -255,13 +259,13 @@ export function ItemSelectorForm({ tabId, formData, context }: ItemSelectorFormP
           <TableBody>
             {isLoading && items.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={selectedType === 'Item' ? 6 : 3} className="text-center py-8">
+                <TableCell colSpan={selectedType === 'Item' ? 5 : 3} className="text-center py-8">
                   <Loader2 className="h-5 w-5 animate-spin mx-auto text-muted-foreground" />
                 </TableCell>
               </TableRow>
             ) : items.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={selectedType === 'Item' ? 6 : 3} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={selectedType === 'Item' ? 5 : 3} className="text-center py-8 text-muted-foreground">
                   {searchQuery.length >= 2 ? 'No items found' : 'Start typing to search...'}
                 </TableCell>
               </TableRow>
@@ -275,9 +279,10 @@ export function ItemSelectorForm({ tabId, formData, context }: ItemSelectorFormP
                       <TableCell>{display.description}</TableCell>
                       {selectedType === 'Item' && (
                         <>
-                          <TableCell className="text-sm">{display.gstGroupCode || '-'}</TableCell>
-                          <TableCell className="text-sm">{display.hsnSacCode || '-'}</TableCell>
-                          <TableCell className="text-sm">{display.exempted ? 'Yes' : 'No'}</TableCell>
+                          <TableCell className="text-sm">
+                            {typeof display.unitPrice === 'number' ? display.unitPrice : display.unitPrice || '-'}
+                          </TableCell>
+                          <TableCell className="text-sm">{display.salesUom}</TableCell>
                         </>
                       )}
                       <TableCell className="text-right">
@@ -293,7 +298,7 @@ export function ItemSelectorForm({ tabId, formData, context }: ItemSelectorFormP
                 })}
                 {hasMore && (
                   <TableRow>
-                    <TableCell colSpan={selectedType === 'Item' ? 6 : 3} className="text-center py-4">
+                    <TableCell colSpan={selectedType === 'Item' ? 5 : 3} className="text-center py-4">
                       <Button
                         variant="outline"
                         size="sm"

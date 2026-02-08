@@ -59,6 +59,7 @@ export function SalesOrderForm({ tabId, formData: initialFormData, context }: Sa
     documentDate: '',
     orderDate: '',
     externalDocumentNo: '',
+    customerPriceGroup: '',
     status: '',
     invoiceType: '',
     lob: '',
@@ -68,9 +69,9 @@ export function SalesOrderForm({ tabId, formData: initialFormData, context }: Sa
   });
 
   const [userId, setUserId] = useState<string | undefined>(undefined);
-  const [lineItems, setLineItems] = useState<LineItem[]>([]);
+  const [lineItems, setLineItems] = useState<LineItem[]>(initialFormData?.lineItems ?? []);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [currentStep, setCurrentStep] = useState<Step>(1);
+  const [currentStep, setCurrentStep] = useState<Step>((initialFormData?.currentStep as Step) ?? 1);
 
   // Only sync to FormStack when needed (step changes, not on every keystroke)
   // This prevents re-renders that cause focus loss
@@ -99,10 +100,16 @@ export function SalesOrderForm({ tabId, formData: initialFormData, context }: Sa
     });
   }, [registerRefresh]);
 
-  // Initialize form data from props
+  // Initialize form data from props (and restore step + line items when returning from line-item tab)
   useEffect(() => {
     if (initialFormData && Object.keys(initialFormData).length > 0) {
       setFormData((prev) => ({ ...prev, ...initialFormData }));
+      if (Array.isArray(initialFormData.lineItems)) {
+        setLineItems(initialFormData.lineItems);
+      }
+      if (typeof initialFormData.currentStep === 'number' && initialFormData.currentStep >= 1 && initialFormData.currentStep <= 3) {
+        setCurrentStep(initialFormData.currentStep as Step);
+      }
     }
   }, [initialFormData]);
 
@@ -133,6 +140,7 @@ export function SalesOrderForm({ tabId, formData: initialFormData, context }: Sa
       customerNo,
       customerName: customer?.Name || '',
       salesPersonCode: customer?.Salesperson_Code || formData.salesPersonCode,
+      customerPriceGroup: customer?.Customer_Price_Group || '',
       shipToCode: '',
       locationCode: '',
     };
@@ -151,13 +159,29 @@ export function SalesOrderForm({ tabId, formData: initialFormData, context }: Sa
     // Don't call updateFormData - it causes re-renders
   };
 
+  // Step 1 validation - all key fields mandatory except Shipping From and External Document No.
+  const isStep1Valid = (): boolean => {
+    return !!(
+      formData.lob &&
+      formData.branch &&
+      formData.loc &&
+      formData.customerNo &&
+      formData.shipToCode &&
+      formData.salesPersonCode &&
+      (formData.locationCode || formData.loc) &&
+      formData.postingDate &&
+      formData.documentDate &&
+      formData.orderDate &&
+      formData.invoiceType
+    );
+  };
+
   // Step navigation
   const canGoToStep = (step: Step): boolean => {
     if (step === 1) return true;
     if (step === 2) {
-      // Allow moving to line items step without validation
-      // User can add line items and come back to fill customer if needed
-      return true;
+      // Require all mandatory Step 1 fields (except Shipping From and External Document No.)
+      return isStep1Valid();
     }
     if (step === 3) {
       // Require customer, at least one line item and essential dates for final submission
@@ -176,6 +200,7 @@ export function SalesOrderForm({ tabId, formData: initialFormData, context }: Sa
     const nextStep = (currentStep + 1) as Step;
     if (currentStep < 3 && canGoToStep(nextStep)) {
       setCurrentStep(nextStep);
+      updateFormData({ ...formData, currentStep: nextStep, lineItems });
     }
   };
 
@@ -183,12 +208,14 @@ export function SalesOrderForm({ tabId, formData: initialFormData, context }: Sa
     if (currentStep > 1) {
       const prevStep = (currentStep - 1) as Step;
       setCurrentStep(prevStep);
+      updateFormData({ ...formData, currentStep: prevStep, lineItems });
     }
   };
 
   const handleStepClick = (step: Step) => {
     if (canGoToStep(step)) {
       setCurrentStep(step);
+      updateFormData({ ...formData, currentStep: step, lineItems });
     }
   };
 
@@ -198,13 +225,16 @@ export function SalesOrderForm({ tabId, formData: initialFormData, context }: Sa
       title: 'Add Line Item',
       formData: {
         customerNo: formData.customerNo,
+        locationCode: formData.locationCode || formData.loc || '',
+        customerPriceGroup: formData.customerPriceGroup || '',
       },
       context: {
         openedFromParent: true,
         onSave: (lineItem: LineItem) => {
           const updated = [...lineItems, lineItem];
           setLineItems(updated);
-          updateFormData({ ...formData, lineItems: updated });
+          // Persist step 2 and line items so we stay on Step 2 (Line Items) when tab closes
+          updateFormData({ ...formData, lineItems: updated, currentStep: 2 });
         },
       },
       autoCloseOnSuccess: true,
@@ -217,15 +247,18 @@ export function SalesOrderForm({ tabId, formData: initialFormData, context }: Sa
       formData: {
         lineItem,
         customerNo: formData.customerNo,
+        locationCode: formData.locationCode || formData.loc || '',
+        customerPriceGroup: formData.customerPriceGroup || '',
       },
       context: {
         openedFromParent: true,
         onSave: (updatedLineItem: LineItem) => {
-          const updated = lineItems.map((item) => 
+          const updated = lineItems.map((item) =>
             item.id === lineItem.id ? updatedLineItem : item
           );
           setLineItems(updated);
-          updateFormData({ ...formData, lineItems: updated });
+          // Persist step 2 and line items so we stay on Step 2 when tab closes
+          updateFormData({ ...formData, lineItems: updated, currentStep: 2 });
         },
       },
       autoCloseOnSuccess: true,
@@ -235,15 +268,13 @@ export function SalesOrderForm({ tabId, formData: initialFormData, context }: Sa
   const handleRemoveLineItem = (lineItemId: string) => {
     const updated = lineItems.filter((item) => item.id !== lineItemId);
     setLineItems(updated);
-    // Sync to FormStack after removing line item
-    updateFormData({ ...formData, lineItems: updated });
+    updateFormData({ ...formData, lineItems: updated, currentStep });
   };
 
   const handleUpdateLineItem = (lineItem: LineItem) => {
     const updated = lineItems.map((item) => (item.id === lineItem.id ? lineItem : item));
     setLineItems(updated);
-    // Sync to FormStack after updating line item
-    updateFormData({ ...formData, lineItems: updated });
+    updateFormData({ ...formData, lineItems: updated, currentStep });
   };
 
   // Final submission
@@ -256,6 +287,7 @@ export function SalesOrderForm({ tabId, formData: initialFormData, context }: Sa
     try {
       const orderData: SalesOrderData = {
         customerNo: formData.customerNo,
+        customerName: formData.customerName,
         shipToCode: formData.shipToCode,
         shippingFrom: formData.shippingFrom,
         salesPersonCode: formData.salesPersonCode,

@@ -18,13 +18,13 @@ import {
 import { FieldTitle } from '@/components/ui/field';
 import { SearchableSelect } from '@/components/forms/shared/searchable-select';
 import { useFormStackContext } from '@/lib/form-stack/form-stack-context';
-import { useAuth } from '@/lib/contexts/auth-context';
 import {
   getItems,
   searchItems,
   getItemsPage,
   searchItemsByField,
   getItemUnitOfMeasures,
+  getItemByNo,
   type Item,
   type ItemUnitOfMeasure,
 } from '@/lib/api/services/item.service';
@@ -35,6 +35,7 @@ import {
   type GLPostingAccount,
 } from '@/lib/api/services/gl-account.service';
 import { getTCSGroupCodes, type TCSGroupCode } from '@/lib/api/services/tcs.service';
+import { getSalesPrice, type SalesPriceResponse } from '@/lib/api/services/sales-price.service';
 import type { LineItem } from './line-item-form';
 
 interface LineItemTabFormProps {
@@ -42,6 +43,8 @@ interface LineItemTabFormProps {
   formData?: {
     lineItem?: LineItem;
     customerNo?: string;
+    locationCode?: string;
+    customerPriceGroup?: string;
   };
   context?: {
     onSave?: (lineItem: LineItem) => void;
@@ -51,10 +54,11 @@ interface LineItemTabFormProps {
 
 export function LineItemTabForm({ tabId, formData, context }: LineItemTabFormProps) {
   const { closeTab } = useFormStackContext();
-  const { username } = useAuth();
-  
+
   const lineItem = formData?.lineItem;
   const customerNo = formData?.customerNo;
+  const locationCode = formData?.locationCode;
+  const customerPriceGroup = formData?.customerPriceGroup;
 
   // Single source of truth for form state
   const [formState, setFormState] = useState<Partial<LineItem>>(() => ({
@@ -76,21 +80,22 @@ export function LineItemTabForm({ tabId, formData, context }: LineItemTabFormPro
   const [uomOptions, setUomOptions] = useState<ItemUnitOfMeasure[]>([]);
   const [tcsOptions, setTcsOptions] = useState<TCSGroupCode[]>([]);
   const [isLoadingUOM, setIsLoadingUOM] = useState(false);
+  const [hasSalesPrice, setHasSalesPrice] = useState<boolean | null>(null);
 
-  // Load TCS options using logged-in user's username
+  // Load TCS options based on selected customer number
   useEffect(() => {
-    if (!username) {
+    if (!customerNo) {
       setTcsOptions([]);
       return;
     }
 
-    getTCSGroupCodes(username)
+    getTCSGroupCodes(customerNo)
       .then(setTcsOptions)
       .catch((error) => {
         console.error('Error loading TCS Group Codes:', error);
         setTcsOptions([]);
       });
-  }, [username]);
+  }, [customerNo]);
 
   // Load UOM when Item type and No are selected
   useEffect(() => {
@@ -159,19 +164,77 @@ export function LineItemTabForm({ tabId, formData, context }: LineItemTabFormPro
     }
   }, []);
 
-  // Handle Item selection
+  // Handle Item selection: prefill from ItemList (Unit_Price, Sales_Unit_of_Measure), then fetch ItemCard (Exempted, GST, HSN)
   const handleItemChange = useCallback((value: string, item?: Item) => {
-    if (item) {
-      setFormState((prev) => ({
-        ...prev,
-        no: item.No,
-        description: item.Description,
-        exempted: item.Exempted || false,
-        gstGroupCode: item.GST_Group_Code || '',
-        hsnSacCode: item.HSN_SAC_Code || '',
-      }));
-    }
+    if (!item) return;
+
+    const unitPrice = Number(item.Unit_Price ?? 0);
+    setFormState((prev) => ({
+      ...prev,
+      no: item.No,
+      description: item.Description,
+      uom: item.Sales_Unit_of_Measure || prev.uom,
+      mrp: unitPrice,
+      price: unitPrice,
+      unitPrice,
+    }));
+
+    getItemByNo(item.No).then((cardItem) => {
+      if (cardItem) {
+        setFormState((prev) => ({
+          ...prev,
+          exempted: cardItem.Exempted ?? false,
+          gstGroupCode: cardItem.GST_Group_Code ?? '',
+          hsnSacCode: cardItem.HSN_SAC_Code ?? '',
+        }));
+      }
+    }).catch((err) => {
+      console.error('Error loading item card details:', err);
+    });
   }, []);
+
+  // Fetch sales price once we know item, UOM, location, and customer price group
+  useEffect(() => {
+    if (
+      formState.type !== 'Item' ||
+      !formState.no ||
+      !formState.uom ||
+      !locationCode ||
+      !customerPriceGroup
+    ) {
+      setHasSalesPrice(null);
+      return;
+    }
+
+    const today = new Date();
+    const orderDate = today.toISOString().split('T')[0]; // YYYY-MM-DD
+
+    getSalesPrice({
+      salesType: '1',
+      salesCode: customerPriceGroup,
+      itemNo: formState.no,
+      location: locationCode,
+      unitofmeasure: formState.uom,
+      orderDate,
+    })
+      .then((price: SalesPriceResponse | null) => {
+        if (price && (price.Unit_Price != null || price.MRP != null)) {
+          setFormState((prev) => ({
+            ...prev,
+            mrp: price.MRP ?? prev.mrp,
+            price: price.Unit_Price ?? prev.price,
+            unitPrice: price.Unit_Price ?? prev.unitPrice,
+          }));
+          setHasSalesPrice(true);
+        } else {
+          setHasSalesPrice(false);
+        }
+      })
+      .catch((err) => {
+        console.error('Error fetching sales price:', err);
+        setHasSalesPrice(false);
+      });
+  }, [formState.type, formState.no, formState.uom, locationCode, customerPriceGroup]);
 
   const handleFieldChange = useCallback((field: keyof LineItem, value: any) => {
     setFormState((prev) => ({ ...prev, [field]: value }));
@@ -249,9 +312,9 @@ export function LineItemTabForm({ tabId, formData, context }: LineItemTabFormPro
               </Select>
             </div>
 
-            {/* No */}
+            {/* Select Item */}
             <div className="space-y-2">
-              <FieldTitle>No.</FieldTitle>
+              <FieldTitle>Select Item</FieldTitle>
               {formState.type === 'G/L Account' ? (
                 <SearchableSelect<GLPostingAccount>
                   value={formState.no || ''}
@@ -276,13 +339,13 @@ export function LineItemTabForm({ tabId, formData, context }: LineItemTabFormPro
                   value={formState.no || ''}
                   onChange={handleItemChange}
                   placeholder="Select Item"
-                  loadInitial={() => getItems(20)}
-                  searchItems={searchItems}
-                  loadMore={(skip, search) => getItemsPage(skip, search)}
+                  loadInitial={() => getItems(20, locationCode)}
+                  searchItems={(q) => searchItems(q, locationCode)}
+                  loadMore={(skip, search) => getItemsPage(skip, search, 20, locationCode)}
                   getDisplayValue={(item) => `${item.No} - ${item.Description}`}
                   getItemValue={(item) => item.No}
                   supportsDualSearch={true}
-                  searchByField={searchItemsByField}
+                  searchByField={(q, field) => searchItemsByField(q, field, locationCode)}
                 />
               )}
             </div>

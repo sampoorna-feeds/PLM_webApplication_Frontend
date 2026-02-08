@@ -20,6 +20,7 @@ import { Search, Loader2 } from 'lucide-react';
 import { useFormStackContext } from '@/lib/form-stack/form-stack-context';
 import {
   getItemUnitOfMeasures,
+  getItemByNo,
   type Item,
   type ItemUnitOfMeasure,
 } from '@/lib/api/services/item.service';
@@ -51,11 +52,12 @@ export interface LineItem {
 interface LineItemFormProps {
   lineItem?: LineItem;
   customerNo?: string;
+  locationCode?: string;
   onSubmit: (lineItem: LineItem) => void;
   onCancel: () => void;
 }
 
-function LineItemFormComponent({ lineItem, customerNo, onSubmit, onCancel }: LineItemFormProps) {
+function LineItemFormComponent({ lineItem, customerNo, locationCode, onSubmit, onCancel }: LineItemFormProps) {
   const { openTab } = useFormStackContext();
   const { username } = useAuth();
   
@@ -151,26 +153,41 @@ function LineItemFormComponent({ lineItem, customerNo, onSubmit, onCancel }: Lin
     }));
   }, []);
 
-  // Handle opening item selector tab
+  // Handle opening item selector tab (ItemList filtered by location; on select prefill from list then ItemCard for details)
   const handleOpenItemSelector = useCallback(() => {
     openTab('item-selector', {
       title: `Select ${formData.type || 'Item'}`,
       formData: {
         type: formData.type || 'Item',
+        filterParams: { locationCode },
       },
       context: {
         openedFromParent: true,
         onSelect: (item: Item | GLPostingAccount, type: 'Item' | 'G/L Account') => {
           if (type === 'Item') {
-            const itemData = item as Item;
+            const listItem = item as Item;
+            const unitPrice = Number(listItem.Unit_Price ?? 0);
             setFormData((prev) => ({
               ...prev,
-              no: itemData.No,
-              description: itemData.Description,
-              exempted: itemData.Exempted || false,
-              gstGroupCode: itemData.GST_Group_Code || '',
-              hsnSacCode: itemData.HSN_SAC_Code || '',
+              no: listItem.No,
+              description: listItem.Description,
+              uom: listItem.Sales_Unit_of_Measure || prev.uom,
+              mrp: unitPrice,
+              price: unitPrice,
+              unitPrice,
             }));
+            getItemByNo(listItem.No)
+              .then((cardItem) => {
+                if (cardItem) {
+                  setFormData((prev) => ({
+                    ...prev,
+                    exempted: cardItem.Exempted ?? false,
+                    gstGroupCode: cardItem.GST_Group_Code ?? '',
+                    hsnSacCode: cardItem.HSN_SAC_Code ?? '',
+                  }));
+                }
+              })
+              .catch((err) => console.error('Error loading item card details:', err));
           } else {
             const accountData = item as GLPostingAccount;
             setFormData((prev) => ({
@@ -183,7 +200,7 @@ function LineItemFormComponent({ lineItem, customerNo, onSubmit, onCancel }: Lin
       },
       autoCloseOnSuccess: true,
     });
-  }, [openTab, formData.type]);
+  }, [openTab, formData.type, locationCode]);
 
   const handleFieldChange = useCallback((field: keyof LineItem, value: any) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -253,9 +270,9 @@ function LineItemFormComponent({ lineItem, customerNo, onSubmit, onCancel }: Lin
             </Select>
           </div>
 
-          {/* No */}
+          {/* Select Item */}
           <div className="space-y-2">
-            <FieldTitle>No.</FieldTitle>
+            <FieldTitle>Select Item</FieldTitle>
             <div className="flex gap-2">
               <Input
                 value={formData.no || ''}
@@ -482,7 +499,8 @@ function LineItemFormComponent({ lineItem, customerNo, onSubmit, onCancel }: Lin
 export const LineItemForm = React.memo(LineItemFormComponent, (prev, next) => {
   return (
     prev.lineItem?.id === next.lineItem?.id &&
-    prev.customerNo === next.customerNo
+    prev.customerNo === next.customerNo &&
+    prev.locationCode === next.locationCode
   );
 });
 

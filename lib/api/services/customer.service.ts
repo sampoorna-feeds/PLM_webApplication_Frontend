@@ -11,6 +11,7 @@ export interface Customer {
   No: string;
   Name: string;
   Assessee_Code?: string;
+  Customer_Price_Group?: string;
 }
 
 const COMPANY = process.env.NEXT_PUBLIC_API_COMPANY || 'Sampoorna Feeds Pvt. Ltd';
@@ -22,7 +23,7 @@ const searchCache = new Map<string, Customer[]>();
  * Builds the base filter for Customers
  */
 function getBaseFilter(): string {
-  return `Responsibility_Center in ('','FEED','CATTLE','SWINE') and Blocked eq ' '`;
+  return `Responsibility_Center in ('','feed','cattle','swime') and Blocked eq ' '`;
 }
 
 /**
@@ -37,7 +38,7 @@ function escapeODataValue(value: string): string {
  */
 export async function getCustomers(): Promise<Customer[]> {
   const query = buildODataQuery({
-    $select: 'No,Name,Assessee_Code',
+    $select: 'No,Name,Assessee_Code,Customer_Price_Group',
     $filter: getBaseFilter(),
     $orderby: 'No',
     $top: 20,
@@ -73,7 +74,7 @@ export async function searchCustomers(query: string): Promise<Customer[]> {
     (async () => {
       const filterByNo = `(${baseFilter}) and contains(No,'${escapedQuery}')`;
       const odataQuery = buildODataQuery({
-        $select: 'No,Name,Assessee_Code',
+        $select: 'No,Name,Assessee_Code,Customer_Price_Group',
         $filter: filterByNo,
         $orderby: 'No',
         $top: 30,
@@ -86,7 +87,7 @@ export async function searchCustomers(query: string): Promise<Customer[]> {
     (async () => {
       const filterByName = `(${baseFilter}) and contains(Name,'${escapedQuery}')`;
       const odataQuery = buildODataQuery({
-        $select: 'No,Name,Assessee_Code',
+        $select: 'No,Name,Assessee_Code,Customer_Price_Group',
         $filter: filterByName,
         $orderby: 'No',
         $top: 30,
@@ -129,7 +130,7 @@ export async function getCustomersPage(
   if (!search || search.length < 2) {
     // No search - return paginated results
     const query = buildODataQuery({
-      $select: 'No,Name,Assessee_Code',
+      $select: 'No,Name,Assessee_Code,Customer_Price_Group',
       $filter: baseFilter,
       $orderby: 'No',
       $top: 30,
@@ -149,7 +150,7 @@ export async function getCustomersPage(
     (async () => {
       const filterByNo = `(${baseFilter}) and contains(No,'${escapedQuery}')`;
       const odataQuery = buildODataQuery({
-        $select: 'No,Name,Assessee_Code',
+        $select: 'No,Name,Assessee_Code,Customer_Price_Group',
         $filter: filterByNo,
         $orderby: 'No',
         $top: 30,
@@ -163,7 +164,7 @@ export async function getCustomersPage(
     (async () => {
       const filterByName = `(${baseFilter}) and contains(Name,'${escapedQuery}')`;
       const odataQuery = buildODataQuery({
-        $select: 'No,Name,Assessee_Code',
+        $select: 'No,Name,Assessee_Code,Customer_Price_Group',
         $filter: filterByName,
         $orderby: 'No',
         $top: 30,
@@ -198,7 +199,7 @@ export async function getCustomerByNo(customerNo: string): Promise<Customer | nu
   if (!customerNo) return null;
   
   const query = buildODataQuery({
-    $select: 'No,Name,Assessee_Code',
+    $select: 'No,Name,Assessee_Code,Customer_Price_Group',
     $filter: `No eq '${customerNo.replace(/'/g, "''")}'`,
   });
 

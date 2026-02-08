@@ -8,6 +8,7 @@ import type { ApiError } from '../client';
 
 export interface SalesOrderData {
   customerNo: string;
+  customerName?: string;
   shipToCode?: string;
   shippingFrom?: string;
   salesPersonCode?: string;
@@ -55,29 +56,16 @@ const COMPANY = process.env.NEXT_PUBLIC_API_COMPANY || 'Sampoorna Feeds Pvt. Ltd
 export async function createSalesOrder(
   orderData: SalesOrderData
 ): Promise<CreateSalesOrderResponse> {
-  // TODO: Replace with actual API endpoint once confirmed
-  // The endpoint might be something like:
-  // POST /SalesOrderHeader
-  // or
-  // POST /SalesOrder
-  
-  // For now, this is a placeholder
-  // The actual implementation will depend on the ERP API structure
-  
   try {
-    // Example structure (needs to be updated based on actual API):
+    const endpoint = `/SalesOrder?company='${encodeURIComponent(COMPANY)}'`;
+
     const payload = {
       Company: COMPANY,
       ...orderData,
     };
 
-    // Placeholder endpoint - needs to be updated
-    const endpoint = `/SalesOrderHeader`; // or whatever the actual endpoint is
-    
     const response = await apiPost<CreateSalesOrderResponse>(endpoint, payload);
-    
-    // The response structure will depend on the actual API
-    // For now, assuming it returns { orderId, orderNo }
+
     return response || { orderId: '', orderNo: '' };
   } catch (error) {
     console.error('Error creating sales order:', error);

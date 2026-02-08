@@ -1,6 +1,6 @@
 /**
  * Item API Service
- * Handles fetching Items and Item Unit of Measures from ERP OData V4 API
+ * Handles fetching Items (ItemList for listing, ItemCard for details) and Item Unit of Measures from ERP OData V4 API
  */
 
 import { apiGet } from '../client';
@@ -10,9 +10,13 @@ import type { ODataResponse } from '../types';
 export interface Item {
   No: string;
   Description: string;
+  /** From ItemCard (detail) */
   GST_Group_Code?: string;
   HSN_SAC_Code?: string;
   Exempted?: boolean;
+  /** From ItemList (list) */
+  Unit_Price?: number;
+  Sales_Unit_of_Measure?: string;
 }
 
 export interface ItemUnitOfMeasure {
@@ -33,77 +37,91 @@ function escapeODataValue(value: string): string {
 }
 
 /**
- * Builds the base filter for Items
+ * Builds the base filter for Items.
+ * For ItemList: (Item_Location eq 'LOCATION_CODE') and (Blocked eq false)
+ * For ItemCard / no location: Blocked eq false
  */
-function getBaseFilter(): string {
-  return `Blocked eq false`;
+function getBaseFilter(locationCode?: string): string {
+  const blockedFilter = `Blocked eq false`;
+  if (!locationCode) {
+    return blockedFilter;
+  }
+  const escapedLocation = escapeODataValue(locationCode);
+  return `(Item_Location eq '${escapedLocation}') and (${blockedFilter})`;
+}
+
+const ITEM_LIST_SELECT = 'No,Description,Unit_Price,Sales_Unit_of_Measure';
+
+/**
+ * Builds the ItemList endpoint URL with Company and $filter (and optional OData params)
+ */
+function buildItemListEndpoint(
+  filter: string,
+  options?: { top?: number; skip?: number; orderby?: string; select?: string }
+): string {
+  const params = new URLSearchParams();
+  params.set('$filter', filter);
+  if (options?.select) params.set('$select', options.select);
+  if (options?.orderby) params.set('$orderby', options.orderby);
+  if (options?.top != null) params.set('$top', String(options.top));
+  if (options?.skip != null) params.set('$skip', String(options.skip));
+  return `/ItemList?Company=${encodeURIComponent(COMPANY)}&${params.toString()}`;
 }
 
 /**
- * Initial load - Get first batch of items (no search)
+ * Initial load - Get first batch of items from ItemList (optionally filtered by location)
  */
-export async function getItems(top: number = 20): Promise<Item[]> {
-  const query = buildODataQuery({
-    $select: 'No,Description,GST_Group_Code,HSN_SAC_Code,Exempted',
-    $filter: getBaseFilter(),
-    $orderby: 'No',
-    $top: top,
+export async function getItems(top: number = 20, locationCode?: string): Promise<Item[]> {
+  const filter = getBaseFilter(locationCode);
+  const endpoint = buildItemListEndpoint(filter, {
+    top,
+    orderby: 'No',
+    select: ITEM_LIST_SELECT,
   });
-
-  const endpoint = `/ItemCard?company='${encodeURIComponent(COMPANY)}'&${query}`;
   const response = await apiGet<ODataResponse<Item>>(endpoint);
   return response.value;
 }
 
 /**
- * Search items with query string
- * Makes 2 separate API calls (one for No, one for Description) and combines unique results
+ * Search items with query string (ItemList).
+ * Makes 2 separate API calls (one for No, one for Description) and combines unique results.
  */
-export async function searchItems(query: string): Promise<Item[]> {
+export async function searchItems(query: string, locationCode?: string): Promise<Item[]> {
   if (query.length < 2) {
     return [];
   }
 
-  // Check cache first
-  const cacheKey = `search_${query.toLowerCase()}`;
+  const cacheKey = `search_${locationCode ?? 'none'}_${query.toLowerCase()}`;
   if (searchCache.has(cacheKey)) {
     return searchCache.get(cacheKey)!;
   }
 
-  const baseFilter = getBaseFilter();
+  const baseFilter = getBaseFilter(locationCode);
   const escapedQuery = escapeODataValue(query);
+  const filterByNo = `(${baseFilter}) and contains(No,'${escapedQuery}')`;
+  const filterByDescription = `(${baseFilter}) and contains(Description,'${escapedQuery}')`;
 
-  // Make 2 parallel API calls: one for No, one for Description
   const [resultsByNo, resultsByDescription] = await Promise.all([
-    // Search by No field
     (async () => {
-      const filterByNo = `(${baseFilter}) and contains(No,'${escapedQuery}')`;
-      const odataQuery = buildODataQuery({
-        $select: 'No,Description,GST_Group_Code,HSN_SAC_Code,Exempted',
-        $filter: filterByNo,
-        $orderby: 'No',
-        $top: 30,
+      const endpoint = buildItemListEndpoint(filterByNo, {
+        top: 30,
+        orderby: 'No',
+        select: ITEM_LIST_SELECT,
       });
-      const endpoint = `/ItemCard?company='${encodeURIComponent(COMPANY)}'&${odataQuery}`;
       const response = await apiGet<ODataResponse<Item>>(endpoint);
       return response.value;
     })(),
-    // Search by Description field
     (async () => {
-      const filterByDescription = `(${baseFilter}) and contains(Description,'${escapedQuery}')`;
-      const odataQuery = buildODataQuery({
-        $select: 'No,Description,GST_Group_Code,HSN_SAC_Code,Exempted',
-        $filter: filterByDescription,
-        $orderby: 'No',
-        $top: 30,
+      const endpoint = buildItemListEndpoint(filterByDescription, {
+        top: 30,
+        orderby: 'No',
+        select: ITEM_LIST_SELECT,
       });
-      const endpoint = `/ItemCard?company='${encodeURIComponent(COMPANY)}'&${odataQuery}`;
       const response = await apiGet<ODataResponse<Item>>(endpoint);
       return response.value;
     })(),
   ]);
 
-  // Combine results and deduplicate by No field
   const combined = [...resultsByNo, ...resultsByDescription];
   const uniqueMap = new Map<string, Item>();
   combined.forEach((item) => {
@@ -114,105 +132,85 @@ export async function searchItems(query: string): Promise<Item[]> {
   const uniqueResults = Array.from(uniqueMap.values()).sort((a, b) =>
     a.No.localeCompare(b.No)
   );
-
-  // Cache results
   searchCache.set(cacheKey, uniqueResults);
-
   return uniqueResults;
 }
 
 /**
- * Search items by specific field (for dual search support)
+ * Search items by specific field (ItemList, for dual search support)
  */
 export async function searchItemsByField(
   query: string,
-  field: 'No' | 'Name'
+  field: 'No' | 'Name',
+  locationCode?: string
 ): Promise<Item[]> {
   if (query.length < 2) {
     return [];
   }
 
-  const baseFilter = getBaseFilter();
+  const baseFilter = getBaseFilter(locationCode);
   const escapedQuery = escapeODataValue(query);
-  
-  // Map 'Name' to 'Description' for items
   const searchField = field === 'Name' ? 'Description' : field;
   const filter = `(${baseFilter}) and contains(${searchField},'${escapedQuery}')`;
-  
-  const odataQuery = buildODataQuery({
-    $select: 'No,Description,GST_Group_Code,HSN_SAC_Code,Exempted',
-    $filter: filter,
-    $orderby: 'No',
-    $top: 30,
+
+  const endpoint = buildItemListEndpoint(filter, {
+    top: 30,
+    orderby: 'No',
+    select: ITEM_LIST_SELECT,
   });
-  
-  const endpoint = `/ItemCard?company='${encodeURIComponent(COMPANY)}'&${odataQuery}`;
   const response = await apiGet<ODataResponse<Item>>(endpoint);
   return response.value;
 }
 
 /**
- * Get paginated items
- * @param skip - Number of records to skip
- * @param search - Optional search query
+ * Get paginated items from ItemList (with optional search and location filter)
  */
 export async function getItemsPage(
   skip: number,
   search?: string,
-  top: number = 30
+  top: number = 30,
+  locationCode?: string
 ): Promise<Item[]> {
-  const baseFilter = getBaseFilter();
+  const baseFilter = getBaseFilter(locationCode);
 
   if (!search || search.length < 2) {
-    // No search - return paginated results
-    const query = buildODataQuery({
-      $select: 'No,Description,GST_Group_Code,HSN_SAC_Code,Exempted',
-      $filter: baseFilter,
-      $orderby: 'No',
-      $top: top,
-      $skip: skip,
+    const endpoint = buildItemListEndpoint(baseFilter, {
+      top,
+      skip,
+      orderby: 'No',
+      select: ITEM_LIST_SELECT,
     });
-    const endpoint = `/ItemCard?company='${encodeURIComponent(COMPANY)}'&${query}`;
     const response = await apiGet<ODataResponse<Item>>(endpoint);
     return response.value;
   }
 
-  // With search - use dual-call approach
   const escapedQuery = escapeODataValue(search);
+  const filterByNo = `(${baseFilter}) and contains(No,'${escapedQuery}')`;
+  const filterByDescription = `(${baseFilter}) and contains(Description,'${escapedQuery}')`;
 
-  // Make 2 parallel API calls: one for No, one for Description
   const [resultsByNo, resultsByDescription] = await Promise.all([
-    // Search by No field
     (async () => {
-      const filterByNo = `(${baseFilter}) and contains(No,'${escapedQuery}')`;
-      const odataQuery = buildODataQuery({
-        $select: 'No,Description,GST_Group_Code,HSN_SAC_Code,Exempted',
-        $filter: filterByNo,
-        $orderby: 'No',
-        $top: top,
-        $skip: skip,
+      const endpoint = buildItemListEndpoint(filterByNo, {
+        top,
+        skip,
+        orderby: 'No',
+        select: ITEM_LIST_SELECT,
       });
-      const endpoint = `/ItemCard?company='${encodeURIComponent(COMPANY)}'&${odataQuery}`;
       const response = await apiGet<ODataResponse<Item>>(endpoint);
       return response.value;
     })(),
-    // Search by Description field
     (async () => {
-      const filterByDescription = `(${baseFilter}) and contains(Description,'${escapedQuery}')`;
-      const odataQuery = buildODataQuery({
-        $select: 'No,Description,GST_Group_Code,HSN_SAC_Code,Exempted',
-        $filter: filterByDescription,
-        $orderby: 'No',
-        $top: top,
-        $skip: skip,
+      const endpoint = buildItemListEndpoint(filterByDescription, {
+        top,
+        skip,
+        orderby: 'No',
+        select: ITEM_LIST_SELECT,
       });
-      const endpoint = `/ItemCard?company='${encodeURIComponent(COMPANY)}'&${odataQuery}`;
       const response = await apiGet<ODataResponse<Item>>(endpoint);
       return response.value;
     })(),
   ]);
 
-  // Combine results and deduplicate by No field
   const combined = [...resultsByNo, ...resultsByDescription];
   const uniqueMap = new Map<string, Item>();
   combined.forEach((item) => {
@@ -220,11 +218,7 @@ export async function getItemsPage(
       uniqueMap.set(item.No, item);
     }
   });
-  const uniqueResults = Array.from(uniqueMap.values()).sort((a, b) =>
-    a.No.localeCompare(b.No)
-  );
-
-  return uniqueResults;
+  return Array.from(uniqueMap.values()).sort((a, b) => a.No.localeCompare(b.No));
 }
 
 /**
@@ -246,19 +240,20 @@ export async function getItemUnitOfMeasures(itemNo: string): Promise<ItemUnitOfM
 }
 
 /**
- * Get a single item by number
+ * Get a single item by number (ItemCard - for details like Exempted, GST, HSN)
  */
 export async function getItemByNo(itemNo: string): Promise<Item | null> {
   if (!itemNo) return null;
-  
+
+  const baseFilter = getBaseFilter();
   const query = buildODataQuery({
     $select: 'No,Description,GST_Group_Code,HSN_SAC_Code,Exempted',
-    $filter: `No eq '${itemNo.replace(/'/g, "''")}' and ${getBaseFilter()}`,
+    $filter: `No eq '${itemNo.replace(/'/g, "''")}' and ${baseFilter}`,
   });
 
   const endpoint = `/ItemCard?company='${encodeURIComponent(COMPANY)}'&${query}`;
   const response = await apiGet<ODataResponse<Item>>(endpoint);
-  
+
   return response.value.length > 0 ? response.value[0] : null;
 }
 

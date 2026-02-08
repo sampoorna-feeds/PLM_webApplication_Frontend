@@ -26,6 +26,8 @@ export interface SalesCustomer {
   Responsibility_Center?: string;
   P_A_N_No?: string;
   Salesperson_Code?: string;
+  Assessee_Code?: string;
+  Customer_Price_Group?: string;
 }
 
 const COMPANY = process.env.NEXT_PUBLIC_API_COMPANY || 'Sampoorna Feeds Pvt. Ltd';
@@ -52,7 +54,7 @@ const searchCache = new Map<string, SalesCustomer[]>();
  * Builds the base filter for Customers
  */
 function getBaseFilter(): string {
-  return `Responsibility_Center in ('','FEED','CATTLE','SWINE') and Blocked eq ' '`;
+  return `Responsibility_Center in ('','feed','cattle','swime') and Blocked eq ' '`;
 }
 
 /**
@@ -67,7 +69,7 @@ function escapeODataValue(value: string): string {
  */
 async function getCustomers(): Promise<SalesCustomer[]> {
   const query = buildODataQuery({
-    $select: 'No,Name,Responsibility_Center,P_A_N_No,Salesperson_Code',
+    $select: 'No,Name,Assessee_Code,Customer_Price_Group,Responsibility_Center,P_A_N_No,Salesperson_Code',
     $filter: getBaseFilter(),
     $orderby: 'No',
     $top: INITIAL_LOAD_COUNT,
@@ -102,7 +104,7 @@ async function searchCustomers(query: string): Promise<SalesCustomer[]> {
     (async () => {
       const filterByNo = `(${baseFilter}) and contains(No,'${escapedQuery}')`;
       const odataQuery = buildODataQuery({
-        $select: 'No,Name,Responsibility_Center,P_A_N_No,Salesperson_Code',
+        $select: 'No,Name,Assessee_Code,Customer_Price_Group,Responsibility_Center,P_A_N_No,Salesperson_Code',
         $filter: filterByNo,
         $orderby: 'No',
         $top: PAGE_SIZE,
@@ -115,7 +117,7 @@ async function searchCustomers(query: string): Promise<SalesCustomer[]> {
     (async () => {
       const filterByName = `(${baseFilter}) and contains(Name,'${escapedQuery}')`;
       const odataQuery = buildODataQuery({
-        $select: 'No,Name,Responsibility_Center,P_A_N_No,Salesperson_Code',
+        $select: 'No,Name,Assessee_Code,Customer_Price_Group,Responsibility_Center,P_A_N_No,Salesperson_Code',
         $filter: filterByName,
         $orderby: 'No',
         $top: PAGE_SIZE,
@@ -156,7 +158,7 @@ async function getCustomersPage(
   if (!search || search.length < MIN_SEARCH_LENGTH) {
     // No search - return paginated results
     const query = buildODataQuery({
-      $select: 'No,Name,Responsibility_Center,P_A_N_No,Salesperson_Code',
+      $select: 'No,Name,Assessee_Code,Customer_Price_Group,Responsibility_Center,P_A_N_No,Salesperson_Code',
       $filter: baseFilter,
       $orderby: 'No',
       $top: PAGE_SIZE,
@@ -176,7 +178,7 @@ async function getCustomersPage(
     (async () => {
       const filterByNo = `(${baseFilter}) and contains(No,'${escapedQuery}')`;
       const odataQuery = buildODataQuery({
-        $select: 'No,Name,Responsibility_Center,P_A_N_No,Salesperson_Code',
+        $select: 'No,Name,Assessee_Code,Customer_Price_Group,Responsibility_Center,P_A_N_No,Salesperson_Code',
         $filter: filterByNo,
         $orderby: 'No',
         $top: PAGE_SIZE,
@@ -190,7 +192,7 @@ async function getCustomersPage(
     (async () => {
       const filterByName = `(${baseFilter}) and contains(Name,'${escapedQuery}')`;
       const odataQuery = buildODataQuery({
-        $select: 'No,Name,Responsibility_Center,P_A_N_No,Salesperson_Code',
+        $select: 'No,Name,Assessee_Code,Customer_Price_Group,Responsibility_Center,P_A_N_No,Salesperson_Code',
         $filter: filterByName,
         $orderby: 'No',
         $top: PAGE_SIZE,

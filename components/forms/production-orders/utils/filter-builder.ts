@@ -48,7 +48,8 @@ function buildTextFilter(columnId: string, value: string): string {
 
 /**
  * Builds an enum filter condition
- * Supports multiple comma-separated values using OData 'in' operator
+ * Supports multiple comma-separated values using OR conditions
+ * (more reliable than 'in' operator for some OData implementations)
  */
 function buildEnumFilter(columnId: string, value: string): string {
   const values = value
@@ -63,9 +64,12 @@ function buildEnumFilter(columnId: string, value: string): string {
     return `${columnId} eq '${escaped}'`;
   }
 
-  // Multiple values - use OData 'in' operator
-  const inValues = values.map((v) => `'${escapeODataValue(v)}'`).join(",");
-  return `${columnId} in (${inValues})`;
+  // Multiple values - use OR conditions (more reliable than 'in' operator)
+  const orConditions = values.map((v) => {
+    const escaped = escapeODataValue(v);
+    return `${columnId} eq '${escaped}'`;
+  });
+  return `(${orConditions.join(" or ")})`;
 }
 
 /**

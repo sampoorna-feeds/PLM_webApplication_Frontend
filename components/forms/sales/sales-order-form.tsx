@@ -23,6 +23,7 @@ import {
 import { CascadingDimensionSelect } from "@/components/forms/cascading-dimension-select";
 import { CustomerSelect, type SalesCustomer } from "./customer-select";
 import { ShipToSelect } from "./shipto-select";
+import { SalesPersonSelect } from "./sales-person-select";
 import type { ShipToAddress } from "@/lib/api/services/shipto.service";
 import { useFormStack } from "@/lib/form-stack/use-form-stack";
 import { useFormStackContext } from "@/lib/form-stack/form-stack-context";
@@ -31,6 +32,7 @@ import type { LineItem } from "./line-item-form";
 import { LineItemsTable } from "./line-items-table";
 import { Plus, ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ClearableField } from "@/components/ui/clearable-field";
 import {
   createSalesOrder,
   addSalesOrderLineItems,
@@ -70,7 +72,7 @@ export function SalesOrderFormContent({
     customerNo: '',
     customerName: '',
     shipToCode: '',
-    shippingFrom: '',
+    shipToName: '',
     salesPersonCode: '',
     locationCode: '',
     postingDate: '',
@@ -79,7 +81,7 @@ export function SalesOrderFormContent({
     externalDocumentNo: '',
     customerPriceGroup: '',
     status: '',
-    invoiceType: '',
+    invoiceType: 'Bill of supply',
     lob: '',
     branch: '',
     loc: '',
@@ -176,6 +178,7 @@ export function SalesOrderFormContent({
       salesPersonCode: customer?.Salesperson_Code || formData.salesPersonCode,
       customerPriceGroup: customer?.Customer_Price_Group || '',
       shipToCode: '',
+      shipToName: '',
       locationCode: '',
     };
     setFormData(newData);
@@ -187,13 +190,14 @@ export function SalesOrderFormContent({
     const newData = {
       ...formData,
       shipToCode,
+      shipToName: shipTo?.Name || "",
       locationCode: shipTo?.Location_Code || formData.locationCode,
     };
     setFormData(newData);
     // Don't call updateFormData - it causes re-renders
   };
 
-  // Step 1 validation - all key fields mandatory except Shipping From and External Document No.
+  // Step 1 validation - all key fields mandatory except External Document No.
   const isStep1Valid = (): boolean => {
     return !!(
       formData.lob &&
@@ -214,7 +218,7 @@ export function SalesOrderFormContent({
   const canGoToStep = (step: Step): boolean => {
     if (step === 1) return true;
     if (step === 2) {
-      // Require all mandatory Step 1 fields (except Shipping From and External Document No.)
+      // Require all mandatory Step 1 fields (except External Document No.)
       return isStep1Valid();
     }
     if (step === 3) {
@@ -323,9 +327,8 @@ export function SalesOrderFormContent({
         customerNo: formData.customerNo,
         customerName: formData.customerName,
         shipToCode: formData.shipToCode,
-        shippingFrom: formData.shippingFrom,
         salesPersonCode: formData.salesPersonCode,
-        locationCode: formData.locationCode,
+        locationCode: formData.locationCode || formData.loc,
         postingDate: formData.postingDate,
         documentDate: formData.documentDate,
         orderDate: formData.orderDate,
@@ -365,189 +368,197 @@ export function SalesOrderFormContent({
       onSuccess();
     } catch (error) {
       console.error("Error placing order:", error);
-      alert("Failed to place order. Please try again.");
+      const message =
+        error &&
+        typeof error === "object" &&
+        "message" in error &&
+        typeof (error as { message: unknown }).message === "string"
+          ? (error as { message: string }).message
+          : error instanceof Error
+            ? error.message
+            : "Failed to place order. Please try again.";
+      alert(message);
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // Step 1: Order Information (grouped, clean layout)
+  // Step 1: Order Information - 2-column grid, aligned and spaced
+  const fieldClass = "min-w-0 space-y-2";
+  const labelClass = "text-muted-foreground block text-xs font-medium";
   const renderStep1 = () => (
-    <div className="space-y-6">
-      {/* Organization */}
-      <div>
-        <h4 className="text-muted-foreground mb-3 text-xs font-medium uppercase tracking-wider">
-          Organization
-        </h4>
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-          <div className="flex items-center gap-2">
-            <span className="text-muted-foreground shrink-0 text-xs">LOB:</span>
-            <div className="min-w-0 flex-1">
-              <CascadingDimensionSelect
-                dimensionType="LOB"
-                value={formData.lob}
-                onChange={(value) => handleInputChange("lob", value)}
-                placeholder="Select LOB"
-                userId={userId}
-                compactWhenSingle
-              />
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-muted-foreground shrink-0 text-xs">Branch:</span>
-            <div className="min-w-0 flex-1">
-              <CascadingDimensionSelect
-                dimensionType="BRANCH"
-                value={formData.branch}
-                onChange={(value) => handleInputChange("branch", value)}
-                placeholder="Select Branch"
-                lobValue={formData.lob}
-                userId={userId}
-                compactWhenSingle
-              />
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-muted-foreground shrink-0 text-xs">LOC:</span>
-            <div className="min-w-0 flex-1">
-              <CascadingDimensionSelect
-                dimensionType="LOC"
-                value={formData.loc}
-                onChange={(value) => handleInputChange("loc", value)}
-                placeholder="Select LOC"
-                lobValue={formData.lob}
-                branchValue={formData.branch}
-                userId={userId}
-                compactWhenSingle
-              />
-            </div>
-          </div>
-          <div>
-            <label className="text-muted-foreground mb-1.5 block text-xs">Invoice Type</label>
-            <Select
-              value={formData.invoiceType}
-              onValueChange={(value) => handleInputChange("invoiceType", value)}
-            >
-              <SelectTrigger className="h-9">
-                <SelectValue placeholder="Select" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Bill of supply">Bill of supply</SelectItem>
-                <SelectItem value="Export">Export</SelectItem>
-                <SelectItem value="Supplementary">Supplementary</SelectItem>
-                <SelectItem value="Debit Note">Debit Note</SelectItem>
-                <SelectItem value="Non-GST">Non-GST</SelectItem>
-                <SelectItem value="Taxable">Taxable</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
+    <div className="grid grid-cols-1 gap-x-10 gap-y-6 sm:grid-cols-2">
+      <div className={fieldClass}>
+        <label className={labelClass}>LOB</label>
+        <ClearableField value={formData.lob} onClear={() => handleInputChange("lob", "")}>
+          <CascadingDimensionSelect
+            dimensionType="LOB"
+            value={formData.lob}
+            onChange={(value) => handleInputChange("lob", value)}
+            placeholder="Select LOB"
+            userId={userId}
+            compactWhenSingle
+          />
+        </ClearableField>
       </div>
-
-      {/* Customer & Shipping */}
-      <div>
-        <h4 className="text-muted-foreground mb-3 text-xs font-medium uppercase tracking-wider">
-          Customer & Shipping
-        </h4>
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
-          <div>
-            <label className="text-muted-foreground mb-1.5 block text-xs">Customer</label>
-            <CustomerSelect
-              value={formData.customerNo}
-              onChange={handleCustomerChange}
-              placeholder="Select"
-            />
-          </div>
-          <div>
-            <label className="text-muted-foreground mb-1.5 block text-xs">Ship to</label>
-            <ShipToSelect
-              customerNo={formData.customerNo}
-              value={formData.shipToCode}
-              onChange={handleShipToChange}
-              placeholder="Select"
-              tabId={tabId}
-              loc={formData.loc}
-            />
-          </div>
-          <div>
-            <label className="text-muted-foreground mb-1.5 block text-xs">Shipping From</label>
-            <Input
-              value={formData.shippingFrom}
-              onChange={(e) => handleInputChange("shippingFrom", e.target.value)}
-              placeholder="Optional"
-              className="h-9"
-              onFocus={(e) => e.stopPropagation()}
-            />
-          </div>
-          <div>
-            <label className="text-muted-foreground mb-1.5 block text-xs">Sales Person</label>
-            <Input
-              value={formData.salesPersonCode}
-              onChange={(e) => handleInputChange("salesPersonCode", e.target.value)}
-              placeholder="Code/Name"
-              className="h-9"
-              onFocus={(e) => e.stopPropagation()}
-            />
-          </div>
-          <div>
-            <label className="text-muted-foreground mb-1.5 block text-xs">Location</label>
-            <Input
-              value={formData.locationCode || formData.loc || ""}
-              disabled
-              className="h-9 bg-muted"
-              readOnly
-            />
-          </div>
-        </div>
+      <div className={fieldClass}>
+        <label className={labelClass}>Branch</label>
+        <ClearableField value={formData.branch} onClear={() => handleInputChange("branch", "")}>
+          <CascadingDimensionSelect
+            dimensionType="BRANCH"
+            value={formData.branch}
+            onChange={(value) => handleInputChange("branch", value)}
+            placeholder="Select Branch"
+            lobValue={formData.lob}
+            userId={userId}
+            compactWhenSingle
+          />
+        </ClearableField>
       </div>
-
-      {/* Dates */}
-      <div>
-        <h4 className="text-muted-foreground mb-3 text-xs font-medium uppercase tracking-wider">
-          Dates
-        </h4>
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-          <div>
-            <label className="text-muted-foreground mb-1.5 block text-xs">Posting Date</label>
-            <Input
-              type="date"
-              value={formData.postingDate}
-              onChange={(e) => handleInputChange("postingDate", e.target.value)}
-              className="h-9"
-              onFocus={(e) => e.stopPropagation()}
-            />
-          </div>
-          <div>
-            <label className="text-muted-foreground mb-1.5 block text-xs">Document Date</label>
-            <Input
-              type="date"
-              value={formData.documentDate}
-              onChange={(e) => handleInputChange("documentDate", e.target.value)}
-              className="h-9"
-              onFocus={(e) => e.stopPropagation()}
-            />
-          </div>
-          <div>
-            <label className="text-muted-foreground mb-1.5 block text-xs">Order Date</label>
-            <Input
-              type="date"
-              value={formData.orderDate}
-              onChange={(e) => handleInputChange("orderDate", e.target.value)}
-              disabled
-              className="h-9 bg-muted"
-            />
-          </div>
-          <div>
-            <label className="text-muted-foreground mb-1.5 block text-xs">External Doc No.</label>
-            <Input
-              value={formData.externalDocumentNo}
-              onChange={(e) => handleInputChange("externalDocumentNo", e.target.value)}
-              placeholder="Optional"
-              className="h-9"
-              onFocus={(e) => e.stopPropagation()}
-            />
-          </div>
-        </div>
+      <div className={fieldClass}>
+        <label className={labelClass}>LOC</label>
+        <ClearableField value={formData.loc} onClear={() => handleInputChange("loc", "")}>
+          <CascadingDimensionSelect
+            dimensionType="LOC"
+            value={formData.loc}
+            onChange={(value) => handleInputChange("loc", value)}
+            placeholder="Select LOC"
+            lobValue={formData.lob}
+            branchValue={formData.branch}
+            userId={userId}
+            compactWhenSingle
+          />
+        </ClearableField>
+      </div>
+      <div className={fieldClass}>
+        <label className={labelClass}>Invoice Type</label>
+        <ClearableField
+          value={formData.invoiceType}
+          onClear={() => handleInputChange("invoiceType", "Bill of supply")}
+        >
+          <Select
+            value={formData.invoiceType}
+            onValueChange={(value) => handleInputChange("invoiceType", value)}
+          >
+            <SelectTrigger className="h-9">
+              <SelectValue placeholder="Select" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="Bill of supply">Bill of supply</SelectItem>
+              <SelectItem value="Export">Export</SelectItem>
+              <SelectItem value="Supplementary">Supplementary</SelectItem>
+              <SelectItem value="Debit Note">Debit Note</SelectItem>
+              <SelectItem value="Non-GST">Non-GST</SelectItem>
+              <SelectItem value="Taxable">Taxable</SelectItem>
+            </SelectContent>
+          </Select>
+        </ClearableField>
+      </div>
+      <div className={fieldClass}>
+        <label className={labelClass}>Customer</label>
+        <ClearableField
+          value={formData.customerNo}
+          onClear={() => handleCustomerChange("", undefined)}
+        >
+          <CustomerSelect
+            value={formData.customerNo}
+            onChange={handleCustomerChange}
+            placeholder="Select"
+          />
+        </ClearableField>
+      </div>
+      <div className={fieldClass}>
+        <label className={labelClass}>Ship to</label>
+        <ClearableField
+          value={formData.shipToCode}
+          onClear={() => handleShipToChange("", undefined)}
+        >
+          <ShipToSelect
+            customerNo={formData.customerNo}
+            value={formData.shipToCode}
+            onChange={handleShipToChange}
+            placeholder="Select"
+            tabId={tabId}
+            loc={formData.loc}
+          />
+        </ClearableField>
+      </div>
+        <div className={fieldClass}>
+          <label className={labelClass}>Sales Person</label>
+        <ClearableField
+          value={formData.salesPersonCode}
+          onClear={() => handleInputChange("salesPersonCode", "")}
+        >
+          <SalesPersonSelect
+            value={formData.salesPersonCode}
+            onChange={(value) => handleInputChange("salesPersonCode", value)}
+            placeholder="Select"
+          />
+        </ClearableField>
+      </div>
+      <div className={fieldClass}>
+        <label className={labelClass}>Location</label>
+        <Input
+          value={formData.locationCode || formData.loc || ""}
+          disabled
+          className="h-9 bg-muted"
+          readOnly
+        />
+      </div>
+      <div className={fieldClass}>
+        <label className={labelClass}>Posting Date</label>
+        <ClearableField
+          value={formData.postingDate}
+          onClear={() => handleInputChange("postingDate", "")}
+        >
+          <Input
+            type="date"
+            value={formData.postingDate}
+            onChange={(e) => handleInputChange("postingDate", e.target.value)}
+            className="h-9"
+            onFocus={(e) => e.stopPropagation()}
+          />
+        </ClearableField>
+      </div>
+      <div className={fieldClass}>
+        <label className={labelClass}>Document Date</label>
+        <ClearableField
+          value={formData.documentDate}
+          onClear={() => handleInputChange("documentDate", "")}
+        >
+          <Input
+            type="date"
+            value={formData.documentDate}
+            onChange={(e) => handleInputChange("documentDate", e.target.value)}
+            className="h-9"
+            onFocus={(e) => e.stopPropagation()}
+          />
+        </ClearableField>
+      </div>
+      <div className={fieldClass}>
+        <label className={labelClass}>Order Date</label>
+        <Input
+          type="date"
+          value={formData.orderDate}
+          onChange={(e) => handleInputChange("orderDate", e.target.value)}
+          disabled
+          className="h-9 bg-muted"
+        />
+      </div>
+      <div className={fieldClass}>
+        <label className={labelClass}>External Doc No.</label>
+        <ClearableField
+          value={formData.externalDocumentNo}
+          onClear={() => handleInputChange("externalDocumentNo", "")}
+        >
+          <Input
+            value={formData.externalDocumentNo}
+            onChange={(e) => handleInputChange("externalDocumentNo", e.target.value)}
+            placeholder="Optional"
+            className="h-9"
+            onFocus={(e) => e.stopPropagation()}
+          />
+        </ClearableField>
       </div>
     </div>
   );
@@ -555,10 +566,7 @@ export function SalesOrderFormContent({
   // Step 2: Line Items
   const renderStep2 = () => (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h4 className="text-muted-foreground text-xs font-medium uppercase tracking-wider">
-          Line Items
-        </h4>
+      <div className="flex justify-end">
         <Button onClick={handleAddLineItem} size="sm">
           <Plus className="mr-2 h-4 w-4" />
           Add Item
@@ -585,12 +593,7 @@ export function SalesOrderFormContent({
     const totalAmount = lineItems.reduce((sum, item) => sum + item.amount, 0);
     return (
       <div className="space-y-6">
-        {/* Order Information Summary */}
-        <div>
-          <h4 className="text-muted-foreground mb-3 text-xs font-medium uppercase tracking-wider">
-            Order Summary
-          </h4>
-          <div className="bg-muted/30 rounded-lg p-4">
+        <div className="bg-muted/30 rounded-lg p-4">
             <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
               <div>
                 <span className="text-muted-foreground block text-xs">Customer</span>
@@ -613,7 +616,9 @@ export function SalesOrderFormContent({
               {formData.shipToCode && (
                 <div>
                   <span className="text-muted-foreground block text-xs">Ship To</span>
-                  <span className="font-medium">{formData.shipToCode}</span>
+                  <span className="font-medium">
+                    {formData.shipToName || formData.shipToCode}
+                  </span>
                 </div>
               )}
               {formData.invoiceType && (
@@ -623,15 +628,10 @@ export function SalesOrderFormContent({
                 </div>
               )}
             </div>
-          </div>
         </div>
 
-        {/* Line Items */}
         <div>
-          <div className="mb-3 flex items-center justify-between">
-            <h4 className="text-muted-foreground text-xs font-medium uppercase tracking-wider">
-              Line Items
-            </h4>
+          <div className="mb-3 flex justify-end">
             <Button onClick={handleAddLineItem} size="sm" variant="outline">
               <Plus className="mr-1.5 h-3.5 w-3.5" />
               Add Item

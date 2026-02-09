@@ -416,8 +416,9 @@ export function CustomerSelect({
         </Button>
       </PopoverTrigger>
       <PopoverContent
-        className="w-auto max-w-[500px] min-w-[280px] p-0"
+        className="flex w-[var(--radix-popover-trigger-width)] min-w-[320px] max-w-[calc(100vw-2rem)] max-h-[var(--radix-popover-content-available-height,80vh)] min-h-0 flex-col overflow-hidden p-0"
         align="start"
+        collisionPadding={8}
         onOpenAutoFocus={(e) => {
           // Prevent auto-focus from scrolling
           e.preventDefault();
@@ -427,7 +428,8 @@ export function CustomerSelect({
           e.preventDefault();
         }}
       >
-        <div className="border-b p-2">
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+        <div className="flex-shrink-0 border-b p-2">
           <Input
             placeholder="Search by Code or Name..."
             value={searchQuery}
@@ -442,7 +444,7 @@ export function CustomerSelect({
         </div>
         <div
           ref={listRef}
-          className="max-h-[300px] overflow-x-hidden overflow-y-auto"
+          className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto"
         >
           {isLoading && items.length === 0 ? (
             <div className="flex items-center justify-center p-4">
@@ -475,11 +477,11 @@ export function CustomerSelect({
                     )}
                   />
                   <div className="min-w-0 flex-1">
-                    <div className="text-foreground font-medium">
+                    <div className="text-foreground font-medium break-words">
                       {item.No} - {item.Name}
                     </div>
                     {(item.Responsibility_Center || item.Salesperson_Code) && (
-                      <div className="text-muted-foreground mt-0.5 text-xs">
+                      <div className="text-muted-foreground mt-0.5 text-xs break-words">
                         {item.Responsibility_Center &&
                           `RC: ${item.Responsibility_Center}`}
                         {item.Responsibility_Center &&
@@ -499,6 +501,7 @@ export function CustomerSelect({
               )}
             </>
           )}
+        </div>
         </div>
       </PopoverContent>
     </Popover>

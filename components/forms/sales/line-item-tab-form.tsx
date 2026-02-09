@@ -16,6 +16,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { FieldTitle } from '@/components/ui/field';
+import { ClearableField } from '@/components/ui/clearable-field';
 import { SearchableSelect } from '@/components/forms/shared/searchable-select';
 import { useFormStackContext } from '@/lib/form-stack/form-stack-context';
 import {
@@ -160,6 +161,10 @@ export function LineItemTabForm({
   // Handle GL Account selection
   const handleGLAccountChange = useCallback(
     (value: string, account?: GLPostingAccount) => {
+      if (value === "" && !account) {
+        setFormState((prev) => ({ ...prev, no: "", description: "" }));
+        return;
+      }
       if (account) {
         setFormState((prev) => ({
           ...prev,
@@ -173,6 +178,18 @@ export function LineItemTabForm({
 
   // Handle Item selection: prefill from ItemList (Unit_Price, Sales_Unit_of_Measure), then fetch ItemCard (Exempted, GST, HSN)
   const handleItemChange = useCallback((value: string, item?: Item) => {
+    if (value === "" && !item) {
+      setFormState((prev) => ({
+        ...prev,
+        no: "",
+        description: "",
+        uom: "",
+        mrp: 0,
+        price: 0,
+        unitPrice: 0,
+      }));
+      return;
+    }
     if (!item) return;
 
     const unitPrice = Number(item.Unit_Price ?? 0);
@@ -193,6 +210,7 @@ export function LineItemTabForm({
           exempted: cardItem.Exempted ?? false,
           gstGroupCode: cardItem.GST_Group_Code ?? '',
           hsnSacCode: cardItem.HSN_SAC_Code ?? '',
+          uom: cardItem.Sales_Unit_of_Measure || prev.uom,
         }));
       }
     }).catch((err) => {
@@ -325,6 +343,10 @@ export function LineItemTabForm({
             {/* Type */}
             <div className="space-y-2">
               <FieldTitle>Type</FieldTitle>
+              <ClearableField
+                value={formState.type}
+                onClear={() => handleTypeChange("Item")}
+              >
               <Select value={formState.type} onValueChange={handleTypeChange}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select type" />
@@ -334,12 +356,17 @@ export function LineItemTabForm({
                   <SelectItem value="Item">Item</SelectItem>
                 </SelectContent>
               </Select>
+              </ClearableField>
             </div>
 
             {/* Select Item */}
             <div className="space-y-2">
               <FieldTitle>Select Item</FieldTitle>
               {formState.type === 'G/L Account' ? (
+                <ClearableField
+                  value={formState.no}
+                  onClear={() => handleGLAccountChange("", undefined)}
+                >
                 <SearchableSelect<GLPostingAccount>
                   value={formState.no || ""}
                   onChange={handleGLAccountChange}
@@ -362,7 +389,12 @@ export function LineItemTabForm({
                     );
                   }}
                 />
+                </ClearableField>
               ) : (
+                <ClearableField
+                  value={formState.no}
+                  onClear={() => handleItemChange("", undefined)}
+                >
                 <SearchableSelect<Item>
                   value={formState.no || ""}
                   onChange={handleItemChange}
@@ -375,6 +407,7 @@ export function LineItemTabForm({
                   supportsDualSearch={true}
                   searchByField={(q, field) => searchItemsByField(q, field, locationCode)}
                 />
+                </ClearableField>
               )}
             </div>
           </div>
@@ -382,18 +415,27 @@ export function LineItemTabForm({
           {/* Description */}
           <div className="space-y-2">
             <FieldTitle>Description</FieldTitle>
+            <ClearableField
+              value={formState.description}
+              onClear={() => handleFieldChange("description", "")}
+            >
             <Input
               value={formState.description || ""}
               onChange={(e) => handleFieldChange("description", e.target.value)}
               disabled={!isDescriptionEditable}
               placeholder="Description"
             />
+            </ClearableField>
           </div>
 
           {/* UOM (only for Item) */}
           {isItemType && (
             <div className="space-y-2">
               <FieldTitle>UOM</FieldTitle>
+              <ClearableField
+                value={formState.uom}
+                onClear={() => handleFieldChange("uom", "")}
+              >
               <Select
                 value={formState.uom || ""}
                 onValueChange={(value) => handleFieldChange("uom", value)}
@@ -412,6 +454,7 @@ export function LineItemTabForm({
                   ))}
                 </SelectContent>
               </Select>
+              </ClearableField>
             </div>
           )}
         </div>

@@ -390,7 +390,7 @@ export function DimensionSelect({
         </Button>
       </PopoverTrigger>
       <PopoverContent
-        className="w-auto max-w-[500px] min-w-[280px] p-0"
+        className="flex w-auto max-w-[500px] min-w-[280px] max-h-[var(--radix-popover-content-available-height,80vh)] min-h-0 flex-col overflow-hidden p-0"
         align="start"
         style={{ width: calculateDropdownWidth() }}
         onOpenAutoFocus={(e) => {
@@ -402,8 +402,9 @@ export function DimensionSelect({
           e.preventDefault();
         }}
       >
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
         {supportsSearch && (
-          <div className="border-b p-2">
+          <div className="flex-shrink-0 border-b p-2">
             <Input
               placeholder="Search by Code or Name..."
               value={searchQuery}
@@ -419,7 +420,7 @@ export function DimensionSelect({
         )}
         <div
           ref={listRef}
-          className="max-h-[300px] overflow-x-hidden overflow-y-auto"
+          className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto"
           onScroll={(e) => {
             if (!supportsSearch) return;
             const target = e.currentTarget;
@@ -482,6 +483,7 @@ export function DimensionSelect({
               )}
             </>
           )}
+        </div>
         </div>
       </PopoverContent>
     </Popover>

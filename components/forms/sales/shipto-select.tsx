@@ -226,8 +226,9 @@ export function ShipToSelect({
         </Button>
       </PopoverTrigger>
       <PopoverContent
-        className="w-auto max-w-[500px] min-w-[280px] p-0"
+        className="flex w-[var(--radix-popover-trigger-width)] min-w-[320px] max-w-[calc(100vw-2rem)] max-h-[var(--radix-popover-content-available-height,80vh)] min-h-0 flex-col overflow-hidden p-0"
         align="start"
+        collisionPadding={8}
         onOpenAutoFocus={(e) => {
           // Prevent auto-focus from scrolling
           e.preventDefault();
@@ -238,8 +239,9 @@ export function ShipToSelect({
         }}
       >
         {/* Header with Add New button */}
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
         {customerNo && formStackContext && (
-          <div className="flex items-center justify-between border-b p-2">
+          <div className="flex flex-shrink-0 items-center justify-between border-b p-2">
             <span className="text-sm font-medium">Ship-To Addresses</span>
             <Button
               variant="ghost"
@@ -252,7 +254,7 @@ export function ShipToSelect({
             </Button>
           </div>
         )}
-        <div className="max-h-[300px] overflow-x-hidden overflow-y-auto">
+        <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto">
           {isLoading ? (
             <div className="flex items-center justify-center p-4">
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -289,11 +291,11 @@ export function ShipToSelect({
                       )}
                     />
                     <div className="min-w-0 flex-1">
-                      <div className="text-foreground font-medium">
+                      <div className="text-foreground font-medium break-words">
                         {item.Code} - {item.Name}
                       </div>
                       {item.Location_Code && (
-                        <div className="text-muted-foreground mt-0.5 text-xs">
+                        <div className="text-muted-foreground mt-0.5 text-xs break-words">
                           Location: {item.Location_Code}
                         </div>
                       )}
@@ -314,6 +316,7 @@ export function ShipToSelect({
               ))}
             </>
           )}
+        </div>
         </div>
       </PopoverContent>
     </Popover>

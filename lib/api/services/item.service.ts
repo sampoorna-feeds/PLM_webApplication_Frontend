@@ -252,7 +252,7 @@ export async function getItemByNo(itemNo: string): Promise<Item | null> {
 
   const baseFilter = getBaseFilter();
   const query = buildODataQuery({
-    $select: 'No,Description,GST_Group_Code,HSN_SAC_Code,Exempted',
+    $select: 'No,Description,GST_Group_Code,HSN_SAC_Code,Exempted,Sales_Unit_of_Measure',
     $filter: `No eq '${itemNo.replace(/'/g, "''")}' and ${baseFilter}`,
   });
 

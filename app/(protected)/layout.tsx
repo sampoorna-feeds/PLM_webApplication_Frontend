@@ -50,13 +50,6 @@ export default function ProtectedLayout({
         { label: "Sales", href: null },
       ];
     }
-    if (pathname === "/sales-form/place-order") {
-      return [
-        { label: "Forms", href: "#" },
-        { label: "Sales", href: "/sales-form" },
-        { label: "Place Order", href: null },
-      ];
-    }
     if (pathname === "/production-orders") {
       return [
         { label: "Forms", href: "#" },
@@ -91,11 +84,8 @@ export default function ProtectedLayout({
     pathname !== "/production-orders" &&
     pathname !== "/";
 
-  // Place Order page: Back to Sales; others: Return to Dashboard
-  const backLabel =
-    pathname === "/sales-form/place-order" ? "Back to Sales" : "Return to Dashboard";
-  const backHref =
-    pathname === "/sales-form/place-order" ? "/sales-form" : "/voucher-form";
+  const backLabel = "Return to Dashboard";
+  const backHref = "/voucher-form";
 
   return (
     <AuthGuard>

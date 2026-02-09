@@ -16,6 +16,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { FieldTitle } from "@/components/ui/field";
+import { ClearableField } from "@/components/ui/clearable-field";
 import { Search, Loader2 } from "lucide-react";
 import { useFormStackContext } from "@/lib/form-stack/form-stack-context";
 import {
@@ -185,6 +186,7 @@ function LineItemFormComponent({ lineItem, customerNo, locationCode, onSubmit, o
                     exempted: cardItem.Exempted ?? false,
                     gstGroupCode: cardItem.GST_Group_Code ?? '',
                     hsnSacCode: cardItem.HSN_SAC_Code ?? '',
+                    uom: cardItem.Sales_Unit_of_Measure || prev.uom,
                   }));
                 }
               })
@@ -274,6 +276,10 @@ function LineItemFormComponent({ lineItem, customerNo, locationCode, onSubmit, o
           {/* Type */}
           <div className="space-y-2">
             <FieldTitle>Type</FieldTitle>
+            <ClearableField
+              value={formData.type}
+              onClear={() => handleTypeChange("Item")}
+            >
             <Select value={formData.type} onValueChange={handleTypeChange}>
               <SelectTrigger>
                 <SelectValue placeholder="Select type" />
@@ -283,11 +289,26 @@ function LineItemFormComponent({ lineItem, customerNo, locationCode, onSubmit, o
                 <SelectItem value="Item">Item</SelectItem>
               </SelectContent>
             </Select>
+            </ClearableField>
           </div>
 
           {/* Select Item */}
           <div className="space-y-2">
             <FieldTitle>Select Item</FieldTitle>
+            <ClearableField
+              value={formData.no}
+              onClear={() =>
+              setFormData((prev) => ({
+                ...prev,
+                no: "",
+                description: "",
+                uom: "",
+                mrp: 0,
+                price: 0,
+                unitPrice: 0,
+              }))
+            }
+            >
             <div className="flex gap-2">
               <Input
                 value={formData.no || ""}
@@ -305,24 +326,34 @@ function LineItemFormComponent({ lineItem, customerNo, locationCode, onSubmit, o
                 <Search className="h-4 w-4" />
               </Button>
             </div>
+            </ClearableField>
           </div>
         </div>
 
         {/* Description */}
         <div className="space-y-2">
           <FieldTitle>Description</FieldTitle>
+          <ClearableField
+            value={formData.description}
+            onClear={() => handleFieldChange("description", "")}
+          >
           <Input
             value={formData.description || ""}
             onChange={(e) => handleFieldChange("description", e.target.value)}
             disabled={!isDescriptionEditable}
             placeholder="Description"
           />
+          </ClearableField>
         </div>
 
         {/* UOM (only for Item) */}
         {isItemType && (
           <div className="space-y-2">
             <FieldTitle>UOM</FieldTitle>
+            <ClearableField
+              value={formData.uom}
+              onClear={() => handleFieldChange("uom", "")}
+            >
             <Select
               value={formData.uom || ""}
               onValueChange={(value) => handleFieldChange("uom", value)}
@@ -341,6 +372,7 @@ function LineItemFormComponent({ lineItem, customerNo, locationCode, onSubmit, o
                 ))}
               </SelectContent>
             </Select>
+            </ClearableField>
           </div>
         )}
       </div>

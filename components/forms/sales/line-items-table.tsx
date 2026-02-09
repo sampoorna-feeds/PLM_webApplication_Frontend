@@ -165,6 +165,7 @@ function LineItemsTableComponent({
               <TableHead className="w-[120px]">GST Group Code</TableHead>
               <TableHead className="w-[120px]">HSN/SAC Code</TableHead>
               <TableHead className="w-[120px]">TCS Group Code</TableHead>
+              <TableHead className="w-[90px] text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -331,6 +332,36 @@ function LineItemsTableComponent({
                       <TableCell>{item.gstGroupCode || "-"}</TableCell>
                       <TableCell>{item.hsnSacCode || "-"}</TableCell>
                       <TableCell>{item.tcsGroupCode || "-"}</TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onEdit(item);
+                            }}
+                            aria-label="Edit"
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleRemoveClick(item.id);
+                            }}
+                            aria-label="Delete"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
                     </TableRow>
                   </ContextMenuTrigger>
                   <ContextMenuContent>

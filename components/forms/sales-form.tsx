@@ -7,7 +7,6 @@
  */
 
 import React, { useState } from "react";
-import { useRouter } from "next/navigation";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -189,7 +188,6 @@ const dummySalesCreditMemoData = [
 type SalesType = "order" | "invoice" | "return-order" | "credit-memo";
 
 function SalesFormContent() {
-  const router = useRouter();
   const [activeTab, setActiveTab] = useState<SalesType>("order");
   const { openTab } = useFormStackContext();
 
@@ -209,11 +207,6 @@ function SalesFormContent() {
   };
 
   const handleOpenForm = (type: SalesType) => {
-    if (type === "order") {
-      router.push("/sales-form/place-order");
-      return;
-    }
-
     const formTypeMap: Record<SalesType, string> = {
       order: "sales-order",
       invoice: "sales-invoice",
@@ -222,7 +215,7 @@ function SalesFormContent() {
     };
 
     const titleMap: Record<SalesType, string> = {
-      order: "Create Sales Order",
+      order: "New Order",
       invoice: "Create Sales Invoice",
       "return-order": "Create Sales Return Order",
       "credit-memo": "Create Sales Credit Memo",

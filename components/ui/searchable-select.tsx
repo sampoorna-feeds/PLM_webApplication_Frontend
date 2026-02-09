@@ -158,13 +158,15 @@ export function SearchableSelect({
         </Button>
       </PopoverTrigger>
       <PopoverContent
-        className="w-[--radix-popover-trigger-width] p-0"
+        className="flex w-[var(--radix-popover-trigger-width)] min-w-[320px] max-w-[calc(100vw-2rem)] max-h-[var(--radix-popover-content-available-height,80vh)] min-h-0 flex-col overflow-hidden p-0"
         align="start"
         sideOffset={4}
+        collisionPadding={8}
         onOpenAutoFocus={(e) => e.preventDefault()}
       >
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
         {/* Search Input */}
-        <div className="flex items-center border-b px-3 py-2">
+        <div className="flex flex-shrink-0 items-center border-b px-3 py-2">
           <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
           <Input
             placeholder={
@@ -182,7 +184,7 @@ export function SearchableSelect({
         {/* Options List */}
         <div
           ref={listRef}
-          className="max-h-75 overflow-y-auto p-1"
+          className="min-h-0 flex-1 overflow-y-auto p-1"
           onScroll={handleScroll}
         >
           {isLoading ? (
@@ -292,6 +294,7 @@ export function SearchableSelect({
               )}
             </>
           )}
+        </div>
         </div>
       </PopoverContent>
     </Popover>

@@ -10,7 +10,6 @@ export interface SalesOrderData {
   customerNo: string;
   customerName?: string;
   shipToCode?: string;
-  shippingFrom?: string;
   salesPersonCode?: string;
   locationCode?: string;
   postingDate: string;
@@ -61,8 +60,19 @@ export async function createSalesOrder(
     const endpoint = `/SalesOrder?company='${encodeURIComponent(COMPANY)}'`;
 
     const payload = {
-      Company: COMPANY,
-      ...orderData,
+      Document_Type: "Order",
+      Sell_to_Customer_No: orderData.customerNo,
+      Ship_to_Code: orderData.shipToCode || "",
+      Salesperson_Code: orderData.salesPersonCode || "",
+      Location_Code: orderData.locationCode || orderData.loc || "",
+      Posting_Date: orderData.postingDate,
+      Document_Date: orderData.documentDate,
+      Order_Date: orderData.orderDate,
+      External_Document_No: orderData.externalDocumentNo || "",
+      Invoice_Type: orderData.invoiceType || "Bill of supply",
+      Shortcut_Dimension_1_Code: orderData.lob || "",
+      Shortcut_Dimension_2_Code: orderData.branch || "",
+      Shortcut_Dimension_3_Code: orderData.loc || "",
     };
 
     const response = await apiPost<CreateSalesOrderResponse>(endpoint, payload);

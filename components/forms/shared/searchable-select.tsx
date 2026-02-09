@@ -327,8 +327,9 @@ export function SearchableSelect<T extends SearchableItem>({
         </Button>
       </PopoverTrigger>
       <PopoverContent
-        className="w-[var(--radix-popover-trigger-width)] min-w-[400px] overflow-hidden p-0"
+        className="flex w-[var(--radix-popover-trigger-width)] min-w-[320px] max-w-[calc(100vw-2rem)] max-h-[var(--radix-popover-content-available-height,80vh)] min-h-0 flex-col overflow-hidden p-0"
         align="start"
+        collisionPadding={8}
         onOpenAutoFocus={(e) => {
           // Prevent auto-focus from scrolling
           e.preventDefault();
@@ -338,7 +339,7 @@ export function SearchableSelect<T extends SearchableItem>({
           e.preventDefault();
         }}
       >
-        <div className="flex flex-col overflow-hidden">
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
           {/* Search Input */}
           <div className="flex-shrink-0 border-b p-2">
             <Input
@@ -357,7 +358,7 @@ export function SearchableSelect<T extends SearchableItem>({
           {/* Items List */}
           <div
             ref={listRef}
-            className="max-h-[300px] min-h-0 flex-1 overflow-x-hidden overflow-y-auto p-1"
+            className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto p-1"
             style={{ WebkitOverflowScrolling: "touch" }}
           >
             {isLoading && items.length === 0 ? (
@@ -398,12 +399,12 @@ export function SearchableSelect<T extends SearchableItem>({
                             <span className="text-foreground font-medium">
                               {item.No}
                             </span>
-                            <span className="text-muted-foreground truncate text-xs">
+                            <span className="text-muted-foreground text-xs break-words">
                               {item.Description || item.Name || ""}
                             </span>
                           </div>
                         ) : (
-                          <span className="truncate">
+                          <span className="break-words">
                             {getDisplayValue(item)}
                           </span>
                         )}

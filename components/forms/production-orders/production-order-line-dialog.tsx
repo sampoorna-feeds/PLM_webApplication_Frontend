@@ -145,8 +145,8 @@ export function ProductionOrderLineDialog({
 
           <div className="grid gap-5 py-5">
             {/* Read-only Item No */}
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label className="text-muted-foreground text-right text-sm">
+            <div className="grid grid-cols-1 items-start gap-2 sm:grid-cols-4 sm:items-center sm:gap-4">
+              <Label className="text-muted-foreground text-left text-sm sm:text-right">
                 Item No.
               </Label>
               <div className="col-span-3 text-sm font-medium">
@@ -154,8 +154,11 @@ export function ProductionOrderLineDialog({
               </div>
             </div>
 
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="description" className="text-right text-sm">
+            <div className="grid grid-cols-1 items-start gap-2 sm:grid-cols-4 sm:items-center sm:gap-4">
+              <Label
+                htmlFor="description"
+                className="text-left text-sm sm:text-right"
+              >
                 Description
               </Label>
               <Input
@@ -166,8 +169,11 @@ export function ProductionOrderLineDialog({
               />
             </div>
 
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="locationCode" className="text-right text-sm">
+            <div className="grid grid-cols-1 items-start gap-2 sm:grid-cols-4 sm:items-center sm:gap-4">
+              <Label
+                htmlFor="locationCode"
+                className="text-left text-sm sm:text-right"
+              >
                 Location Code
               </Label>
               <div className="col-span-3">
@@ -186,8 +192,8 @@ export function ProductionOrderLineDialog({
               </div>
             </div>
 
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label className="text-muted-foreground text-right text-sm">
+            <div className="grid grid-cols-1 items-start gap-2 sm:grid-cols-4 sm:items-center sm:gap-4">
+              <Label className="text-muted-foreground text-left text-sm sm:text-right">
                 UOM
               </Label>
               <div className="col-span-3 text-sm">
@@ -195,8 +201,8 @@ export function ProductionOrderLineDialog({
               </div>
             </div>
 
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label className="text-muted-foreground text-right text-sm">
+            <div className="grid grid-cols-1 items-start gap-2 sm:grid-cols-4 sm:items-center sm:gap-4">
+              <Label className="text-muted-foreground text-left text-sm sm:text-right">
                 Finished Qty
               </Label>
               <div className="col-span-3 text-sm">
@@ -204,8 +210,8 @@ export function ProductionOrderLineDialog({
               </div>
             </div>
 
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label className="text-muted-foreground text-right text-sm">
+            <div className="grid grid-cols-1 items-start gap-2 sm:grid-cols-4 sm:items-center sm:gap-4">
+              <Label className="text-muted-foreground text-left text-sm sm:text-right">
                 Remaining Qty
               </Label>
               <div className="col-span-3 text-sm">
@@ -213,8 +219,11 @@ export function ProductionOrderLineDialog({
               </div>
             </div>
 
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="quantity" className="text-right text-sm">
+            <div className="grid grid-cols-1 items-start gap-2 sm:grid-cols-4 sm:items-center sm:gap-4">
+              <Label
+                htmlFor="quantity"
+                className="text-left text-sm sm:text-right"
+              >
                 Quantity
               </Label>
               <Input

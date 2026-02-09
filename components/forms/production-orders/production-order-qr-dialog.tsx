@@ -126,7 +126,7 @@ export function ProductionOrderQRDialog({
           QR Code
         </Button>
       </DialogTrigger>
-      <DialogContent className="flex h-[80vh] flex-col sm:max-w-200">
+      <DialogContent className="flex h-[80vh] max-w-[95vw] flex-col p-4 sm:max-w-[85vw] sm:p-6 md:max-w-4xl md:p-8">
         <DialogHeader>
           <DialogTitle>QR Code</DialogTitle>
           <DialogDescription>Production Order {prodOrderNo}</DialogDescription>

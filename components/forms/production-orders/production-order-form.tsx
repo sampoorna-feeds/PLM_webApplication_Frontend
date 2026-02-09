@@ -27,6 +27,17 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -64,6 +75,7 @@ import {
   getProductionOrderLines,
   getProductionOrderComponents,
   createProductionOrder,
+  updateProductionOrder,
   refreshProductionOrder,
   refreshProductionOrderJournal,
   changeProductionOrderStatus,
@@ -112,8 +124,14 @@ export function ProductionOrderForm({
   formData: initialFormData,
   context,
 }: ProductionOrderFormProps) {
-  const { tab, registerRefresh, handleSuccess, updateFormData, updateTab } =
-    useFormStack(tabId);
+  const {
+    tab,
+    registerRefresh,
+    handleSuccess,
+    updateFormData,
+    updateTab,
+    closeTab,
+  } = useFormStack(tabId);
   const [userId, setUserId] = useState<string | undefined>(undefined);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isInitialLoadComplete, setIsInitialLoadComplete] = useState(false);
@@ -180,6 +198,8 @@ export function ProductionOrderForm({
   const [isComponentsSheetOpen, setIsComponentsSheetOpen] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isManufacturing, setIsManufacturing] = useState(false);
+  const [isChangeStatusDialogOpen, setIsChangeStatusDialogOpen] =
+    useState(false);
 
   // Line Dialog State
   const [selectedLine, setSelectedLine] = useState<ProductionOrderLine | null>(
@@ -831,6 +851,9 @@ export function ProductionOrderForm({
   const handleManufacture = async () => {
     if (!formState.No) return;
 
+    // Close the dialog
+    setIsChangeStatusDialogOpen(false);
+
     // Get today's date in YYYY-MM-DD format
     const today = new Date().toISOString().split("T")[0];
 
@@ -839,42 +862,16 @@ export function ProductionOrderForm({
       await changeProductionOrderStatus(formState.No, today);
       toast.success("Production Order status changed to Finished!");
 
-      // Reload order data after status change
-      const order = await getProductionOrderByNo(formState.No);
-      if (order) {
-        setFormState((prev) => ({
-          ...prev,
-          Description: order.Description || "",
-          Shortcut_Dimension_1_Code: order.Shortcut_Dimension_1_Code || "",
-          Shortcut_Dimension_2_Code: order.Shortcut_Dimension_2_Code || "",
-          Shortcut_Dimension_3_Code: order.Shortcut_Dimension_3_Code || "",
-          Source_Type: mapSourceType(order.Source_Type),
-          Source_No: order.Source_No || "",
-          Quantity: order.Quantity || 0,
-          Due_Date: order.Due_Date || "",
-          Location_Code: order.Location_Code || "",
-          Hatching_Date: order.Hatching_Date || "",
-          Prod_Bom_No: order.Prod_Bom_No || "",
-          BOM_Version_No: order.BOM_Version_No || "",
-        }));
+      // Trigger parent refresh if callback provided
+      if (
+        context?.onStatusChanged &&
+        typeof context.onStatusChanged === "function"
+      ) {
+        context.onStatusChanged();
       }
 
-      // Refresh lines and components
-      const lines = await getProductionOrderLines(formState.No);
-      setOrderLines(lines);
-
-      // Always refresh components
-      const allComponents: ProductionOrderComponent[] = [];
-      for (const line of lines) {
-        if (line.Line_No) {
-          const lineComponents = await getProductionOrderComponents(
-            formState.No,
-            line.Line_No,
-          );
-          allComponents.push(...lineComponents);
-        }
-      }
-      setOrderComponents(allComponents);
+      // Close the form tab
+      closeTab();
     } catch (error) {
       console.error("Error changing production order status:", error);
       const { message, code } = extractApiError(error);
@@ -1023,14 +1020,74 @@ export function ProductionOrderForm({
           context: { ...context, mode: "view", orderNo: createdOrder.No },
         });
       } else {
-        // TODO: Implement update API call for edit mode
-        await new Promise((resolve) => setTimeout(resolve, 500));
-        await handleSuccess();
+        // Edit mode - update production order
+        if (!formState.No) {
+          throw new Error("Production Order No is required for update");
+        }
+
+        // Build update payload with only changed fields
+        const updatePayload: {
+          Description?: string;
+          Quantity?: number;
+          Due_Date?: string;
+          Location_Code?: string;
+          Batch_Size?: string;
+        } = {};
+
+        // Only include fields that should be updateable
+        if (formState.Description) {
+          updatePayload.Description = formState.Description;
+        }
+        if (formState.Quantity) {
+          updatePayload.Quantity =
+            typeof formState.Quantity === "string"
+              ? parseFloat(formState.Quantity)
+              : formState.Quantity;
+        }
+        if (formState.Due_Date) {
+          updatePayload.Due_Date = formState.Due_Date;
+        }
+        if (formState.Location_Code) {
+          updatePayload.Location_Code = formState.Location_Code;
+        }
+        if (formState.Batch_Size) {
+          updatePayload.Batch_Size = formState.Batch_Size;
+        }
+
+        await updateProductionOrder(formState.No, updatePayload);
+
+        toast.success(`Production Order ${formState.No} updated successfully!`);
+
+        // Refresh order data
+        const updatedOrder = await getProductionOrderByNo(formState.No);
+        if (updatedOrder) {
+          setFormState((prev) => ({
+            ...prev,
+            Description: updatedOrder.Description || "",
+            Quantity: updatedOrder.Quantity || 0,
+            Due_Date: updatedOrder.Due_Date || "",
+            Location_Code: updatedOrder.Location_Code || "",
+            Batch_Size: (updatedOrder.Batch_Size as BatchSize) || "",
+          }));
+        }
+
+        // Switch back to view mode
+        setLocalMode("view");
+        updateTab({
+          context: { ...context, mode: "view" },
+          isSaved: true,
+        });
+
+        // Refresh lines and components in case quantity change affected them
+        await handleRefresh();
       }
     } catch (error) {
       console.error("Error submitting Production Order:", error);
       const { message, code } = extractApiError(error);
-      setApiError({ title: "Create Order Failed", message, code });
+      const errorTitle = isCreateMode
+        ? "Create Order Failed"
+        : "Update Order Failed";
+      setApiError({ title: errorTitle, message, code });
     } finally {
       setIsSubmitting(false);
     }
@@ -1076,7 +1133,10 @@ export function ProductionOrderForm({
               {/* Buttons visible on larger screens - hidden progressively */}
               {/* Post Order - hidden on xs, visible on sm+ */}
               <div className="hidden sm:block">
-                <ProductionOrderPostDialog prodOrderNo={formState.No} />
+                <ProductionOrderPostDialog
+                  prodOrderNo={formState.No}
+                  userId={userId || ""}
+                />
               </div>
               {/* QR Code - hidden on xs/sm, visible on md+ */}
               <div className="hidden md:block">
@@ -1100,19 +1160,43 @@ export function ProductionOrderForm({
               </div>
               {/* Change Status - hidden on xs/sm/md/lg, visible on xl+ */}
               <div className="hidden xl:block">
-                <Button
-                  variant="default"
-                  size="sm"
-                  onClick={handleManufacture}
-                  disabled={isRefreshing || isManufacturing}
+                <AlertDialog
+                  open={isChangeStatusDialogOpen}
+                  onOpenChange={setIsChangeStatusDialogOpen}
                 >
-                  {isManufacturing ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <Factory className="mr-2 h-4 w-4" />
-                  )}
-                  Change Status
-                </Button>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      variant="default"
+                      size="sm"
+                      disabled={isRefreshing || isManufacturing}
+                    >
+                      {isManufacturing ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <Factory className="mr-2 h-4 w-4" />
+                      )}
+                      Change Status
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>
+                        Change Production Order Status?
+                      </AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This will change the status of production order{" "}
+                        <strong>{formState.No}</strong> to Finished. This action
+                        cannot be undone.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={handleManufacture}>
+                        Confirm
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               </div>
 
               {/* Overflow dropdown - shows items hidden at current breakpoint */}
@@ -1160,7 +1244,7 @@ export function ProductionOrderForm({
                   </DropdownMenuItem>
                   {/* Change Status - always in dropdown except xl */}
                   <DropdownMenuItem
-                    onClick={handleManufacture}
+                    onClick={() => setIsChangeStatusDialogOpen(true)}
                     disabled={isRefreshing || isManufacturing}
                   >
                     <Factory className="mr-2 h-4 w-4" />
@@ -1641,7 +1725,7 @@ export function ProductionOrderForm({
           >
             <SheetContent
               side="right"
-              className="flex w-[100vw] flex-col gap-0 overflow-y-auto p-0 md:w-[75vw] lg:w-[50vw]"
+              className="flex w-screen flex-col gap-0 overflow-y-auto p-0 md:w-[75vw] lg:w-[50vw]"
             >
               <SheetHeader className="bg-background sticky top-0 z-10 border-b px-6 py-4">
                 <SheetTitle>Production Order Components</SheetTitle>

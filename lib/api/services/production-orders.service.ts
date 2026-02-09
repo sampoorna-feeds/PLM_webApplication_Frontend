@@ -376,6 +376,35 @@ export async function refreshProductionOrderJournal(
 }
 
 // ============================================
+// UPDATE PRODUCTION ORDER
+// ============================================
+
+/**
+ * Update a production order header
+ * Uses entity key format: ReleaseprodOrder(Status='Released',No='...')
+ * @param prodOrderNo - Production order number
+ * @param data - Data to update (only changed fields)
+ */
+export async function updateProductionOrder(
+  prodOrderNo: string,
+  data: {
+    Description?: string;
+    Quantity?: number;
+    Due_Date?: string;
+    Location_Code?: string;
+    Batch_Size?: string;
+  },
+): Promise<void> {
+  // Encode the production order number for URL (handles slashes)
+  const encodedProdOrderNo = encodeURIComponent(prodOrderNo);
+  const encodedCompany = encodeURIComponent(COMPANY);
+
+  const endpoint = `/Company('${encodedCompany}')/ReleaseprodOrder(Status='Released',No='${encodedProdOrderNo}')`;
+
+  await apiPatch<void>(endpoint, data);
+}
+
+// ============================================
 // UPDATE PRODUCTION ORDER LINE
 // ============================================
 
@@ -540,6 +569,45 @@ export async function assignItemTracking(
 }
 
 // ============================================
+// GET ITEM TRACKING LINES
+// ============================================
+
+export interface ItemTrackingLine {
+  Entry_No: number;
+  Positive?: boolean;
+  Source_Type?: number;
+  Source_Subtype?: string;
+  Source_ID?: string;
+  Source_Batch_Name?: string;
+  Source_Prod_Order_Line?: number;
+  Source_Ref_No_?: number;
+  Item_No: string;
+  Location_Code?: string;
+  Lot_No?: string;
+  Expiration_Date?: string;
+  Quantity_Base?: number;
+  Qty_to_Handl_Base?: number;
+  [key: string]: unknown;
+}
+
+/**
+ * Get item tracking lines for a production order
+ * @param sourceId - Source ID (Production Order No)
+ */
+export async function getItemTrackingLines(
+  sourceId: string,
+): Promise<ItemTrackingLine[]> {
+  const filter = `Source_ID eq '${sourceId}'`;
+  const query = buildODataQuery({
+    $filter: filter,
+  });
+  const endpoint = `/ItemTrackingLine?company='${encodeURIComponent(COMPANY)}'&${query}`;
+
+  const response = await apiGet<ODataResponse<ItemTrackingLine>>(endpoint);
+  return response.value || [];
+}
+
+// ============================================
 // GET ITEM AVAILABILITY BY LOT
 // ============================================
 
@@ -660,12 +728,12 @@ export async function getProductionJournal(
  */
 export async function deleteProdJnlLines(
   prodOrderNo: string,
-  prodOrderLineNo: string = "",
+  prodOrderLineNo: number = 0,
 ): Promise<void> {
   const endpoint = `/API_DeleteProdJnlLines?company='${encodeURIComponent(COMPANY)}'`;
   await apiPost<void>(endpoint, {
-    ProdOrderNo: prodOrderNo,
-    ProdOrderLineNo: prodOrderLineNo,
+    prodOrderNo: prodOrderNo,
+    prodOrderLineNo: prodOrderLineNo,
   });
 }
 
@@ -693,4 +761,17 @@ export async function updateComponentSubstitute(
     ComponenetLineNo: componentLineNo, // Note: API has typo in parameter name
     SubstItemNo: substItemNo,
   });
+}
+
+// ============================================
+// POST PRODUCTION ORDER
+// ============================================
+
+/**
+ * Post production order journal
+ * @param pPONo - Production Order No
+ */
+export async function postProductionOrder(pPONo: string): Promise<void> {
+  const endpoint = `/API_PostRPO?company='${encodeURIComponent(COMPANY)}'`;
+  await apiPost<void>(endpoint, { rPONo: pPONo });
 }

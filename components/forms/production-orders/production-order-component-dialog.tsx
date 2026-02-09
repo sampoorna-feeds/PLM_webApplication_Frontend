@@ -147,11 +147,16 @@ export function ProductionOrderComponentDialog({
 
       // Update local state
       setItemNo(sub.Item_No);
-      setIsSubstituteOpen(false);
       toast.success(`Component updated with substitute: ${sub.Item_No}`);
+
+      // Close substitute dialog
+      setIsSubstituteOpen(false);
 
       // Refresh the components list
       onSave();
+
+      // Close the main component dialog
+      onOpenChange(false);
     } catch (error) {
       console.error("Error updating component with substitute:", error);
       const { message, code } = extractApiError(error);
@@ -219,7 +224,7 @@ export function ProductionOrderComponentDialog({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="p-8 sm:max-w-160">
+        <DialogContent className="max-w-[95vw] p-4 sm:max-w-160 sm:p-6 md:p-8">
           <DialogHeader>
             <DialogTitle
               className={cn("text-lg", hasTracking && "text-red-600")}
@@ -234,8 +239,11 @@ export function ProductionOrderComponentDialog({
           <div className="grid gap-5 py-5">
             {/* Read-only fields */}
             {/* Edit Item No with Substitute */}
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="itemNo" className="text-right text-sm">
+            <div className="grid grid-cols-1 items-start gap-2 sm:grid-cols-4 sm:items-center sm:gap-4">
+              <Label
+                htmlFor="itemNo"
+                className="text-left text-sm sm:text-right"
+              >
                 Item No.
               </Label>
               <div className="col-span-3 flex items-center gap-2">
@@ -261,8 +269,11 @@ export function ProductionOrderComponentDialog({
               </div>
             </div>
 
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="description" className="text-right text-sm">
+            <div className="grid grid-cols-1 items-start gap-2 sm:grid-cols-4 sm:items-center sm:gap-4">
+              <Label
+                htmlFor="description"
+                className="text-left text-sm sm:text-right"
+              >
                 Description
               </Label>
               <Input
@@ -273,8 +284,11 @@ export function ProductionOrderComponentDialog({
               />
             </div>
 
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="locationCode" className="text-right text-sm">
+            <div className="grid grid-cols-1 items-start gap-2 sm:grid-cols-4 sm:items-center sm:gap-4">
+              <Label
+                htmlFor="locationCode"
+                className="text-left text-sm sm:text-right"
+              >
                 Location Code
               </Label>
               <div className="col-span-3">
@@ -294,8 +308,8 @@ export function ProductionOrderComponentDialog({
             </div>
 
             {/* Read-only stats */}
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label className="text-muted-foreground text-right text-sm">
+            <div className="grid grid-cols-1 items-start gap-2 sm:grid-cols-4 sm:items-center sm:gap-4">
+              <Label className="text-muted-foreground text-left text-sm sm:text-right">
                 Expected Qty
               </Label>
               <div className="col-span-3 text-sm">
@@ -303,8 +317,8 @@ export function ProductionOrderComponentDialog({
               </div>
             </div>
 
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label className="text-muted-foreground text-right text-sm">
+            <div className="grid grid-cols-1 items-start gap-2 sm:grid-cols-4 sm:items-center sm:gap-4">
+              <Label className="text-muted-foreground text-left text-sm sm:text-right">
                 Remaining Qty
               </Label>
               <div className="col-span-3 text-sm">
@@ -313,8 +327,11 @@ export function ProductionOrderComponentDialog({
             </div>
 
             {/* Editable field */}
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="quantityPer" className="text-right text-sm">
+            <div className="grid grid-cols-1 items-start gap-2 sm:grid-cols-4 sm:items-center sm:gap-4">
+              <Label
+                htmlFor="quantityPer"
+                className="text-left text-sm sm:text-right"
+              >
                 Quantity Per
               </Label>
               <Input
@@ -364,7 +381,7 @@ export function ProductionOrderComponentDialog({
 
       {/* Substitution Dialog - sibling to main dialog to avoid nesting issues */}
       <Dialog open={isSubstituteOpen} onOpenChange={setIsSubstituteOpen}>
-        <DialogContent className="max-w-3xl">
+        <DialogContent className="max-w-[95vw] p-4 sm:max-w-3xl sm:p-6 md:p-8">
           <DialogHeader>
             <DialogTitle>Select Substitute Item</DialogTitle>
           </DialogHeader>

@@ -52,6 +52,7 @@ function ProductionOrdersContent() {
     addOrder,
     branchOptions,
     userBranchCodes,
+    refetch,
   } = useProductionOrders();
 
   const { openTab } = useFormStackContext();
@@ -80,6 +81,7 @@ function ProductionOrdersContent() {
         mode: "view",
         orderNo,
         openedFromParent: true,
+        onStatusChanged: refetch,
       },
       autoCloseOnSuccess: false, // View mode shouldn't auto-close
     });

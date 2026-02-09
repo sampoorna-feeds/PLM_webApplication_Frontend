@@ -48,10 +48,24 @@ function buildTextFilter(columnId: string, value: string): string {
 
 /**
  * Builds an enum filter condition
+ * Supports multiple comma-separated values using OData 'in' operator
  */
 function buildEnumFilter(columnId: string, value: string): string {
-  const escaped = escapeODataValue(value);
-  return `${columnId} eq '${escaped}'`;
+  const values = value
+    .split(",")
+    .map((v) => v.trim())
+    .filter(Boolean);
+
+  if (values.length === 0) return "";
+
+  if (values.length === 1) {
+    const escaped = escapeODataValue(values[0]);
+    return `${columnId} eq '${escaped}'`;
+  }
+
+  // Multiple values - use OData 'in' operator
+  const inValues = values.map((v) => `'${escapeODataValue(v)}'`).join(",");
+  return `${columnId} in (${inValues})`;
 }
 
 /**

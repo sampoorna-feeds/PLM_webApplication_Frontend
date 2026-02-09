@@ -57,6 +57,12 @@ export function FormStackPanel() {
       });
   }, [currentFormType, currentTabId]);
 
+  // When empty and not explicitly opened: hide panel entirely
+  const isExplicitlyOpened = tabs.length === 0 && !isCollapsed;
+  if (tabs.length === 0 && !isExplicitlyOpened) {
+    return null;
+  }
+
   // Collapsed state - thin vertical bar
   if (isCollapsed) {
     return (
@@ -116,6 +122,7 @@ export function FormStackPanel() {
         className={cn(
           "bg-background border-border fixed top-0 right-0 z-50 flex h-full flex-col border-l shadow-xl",
           currentTab?.formType === "sales-order" ||
+            currentTab?.formType === "sales-order-detail" ||
             currentTab?.formType === "line-item"
             ? "w-screen md:w-[55vw] lg:w-[42vw]"
             : "w-screen md:w-[65vw] lg:w-[48vw]",

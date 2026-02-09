@@ -24,46 +24,12 @@ import {
   MiniAccessPanel,
 } from "@/components/form-stack";
 import { useFormStackContext } from "@/lib/form-stack/form-stack-context";
-
-// Dummy data for Sales Order
-const dummySalesOrderData = [
-  {
-    id: 1,
-    orderNo: "SO-001",
-    customerNo: "CUST001",
-    customerName: "ABC Corporation",
-    orderDate: "2026-01-15",
-    postingDate: "2026-01-15",
-    documentDate: "2026-01-15",
-    externalDocumentNo: "EXT001",
-    status: "Pending",
-    amount: 50000,
-  },
-  {
-    id: 2,
-    orderNo: "SO-002",
-    customerNo: "CUST002",
-    customerName: "XYZ Industries",
-    orderDate: "2026-01-16",
-    postingDate: "2026-01-16",
-    documentDate: "2026-01-16",
-    externalDocumentNo: "EXT002",
-    status: "Approved",
-    amount: 75000,
-  },
-  {
-    id: 3,
-    orderNo: "SO-003",
-    customerNo: "CUST003",
-    customerName: "Global Trading Co.",
-    orderDate: "2026-01-17",
-    postingDate: "2026-01-17",
-    documentDate: "2026-01-17",
-    externalDocumentNo: "EXT003",
-    status: "Completed",
-    amount: 30000,
-  },
-];
+import {
+  SalesOrdersTable,
+  SalesOrderFilterBar,
+  SalesOrderPaginationControls,
+  useSalesOrders,
+} from "@/components/forms/sales-orders";
 
 // Dummy data for Sales Invoice
 const dummySalesInvoiceData = [
@@ -187,6 +153,74 @@ const dummySalesCreditMemoData = [
 
 type SalesType = "order" | "invoice" | "return-order" | "credit-memo";
 
+function SalesOrderTabContent() {
+  const { openTab } = useFormStackContext();
+  const {
+    orders,
+    isLoading,
+    pageSize,
+    currentPage,
+    totalPages,
+    totalCount,
+    sortColumn,
+    sortDirection,
+    searchQuery,
+    visibleColumns,
+    onPageSizeChange,
+    onPageChange,
+    onSort,
+    onSearch,
+    onColumnToggle,
+    onResetColumns,
+    onShowAllColumns,
+    onClearFilters,
+  } = useSalesOrders();
+
+  const hasNextPage = currentPage < totalPages;
+
+  return (
+    <div className="flex flex-col gap-3">
+      <SalesOrderFilterBar
+        searchQuery={searchQuery}
+        visibleColumns={visibleColumns}
+        onSearch={onSearch}
+        onClearFilters={onClearFilters}
+        onColumnToggle={onColumnToggle}
+        onResetColumns={onResetColumns}
+        onShowAllColumns={onShowAllColumns}
+      />
+      <div className="min-h-[300px] flex-1">
+        <SalesOrdersTable
+          orders={orders}
+          isLoading={isLoading}
+          visibleColumns={visibleColumns}
+          sortColumn={sortColumn}
+          sortDirection={sortDirection}
+          pageSize={pageSize}
+          currentPage={currentPage}
+          onRowClick={(orderNo) => {
+            openTab("sales-order-detail", {
+              title: `Order ${orderNo}`,
+              context: { orderNo },
+              autoCloseOnSuccess: false,
+            });
+          }}
+          onSort={onSort}
+        />
+      </div>
+      <SalesOrderPaginationControls
+        pageSize={pageSize}
+        currentPage={currentPage}
+        totalPages={totalPages}
+        totalCount={totalCount}
+        hasNextPage={hasNextPage}
+        onPageSizeChange={onPageSizeChange}
+        onPageChange={onPageChange}
+      />
+    </div>
+  );
+}
+
 function SalesFormContent() {
   const [activeTab, setActiveTab] = useState<SalesType>("order");
   const { openTab } = useFormStackContext();
@@ -263,76 +297,7 @@ function SalesFormContent() {
 
           {/* Sales Order Tab */}
           <TabsContent value="order" className="mt-4">
-            <div className="bg-card overflow-hidden rounded-lg border">
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="px-3 py-3 text-xs font-medium">
-                        Order No.
-                      </TableHead>
-                      <TableHead className="px-3 py-3 text-xs font-medium">
-                        Customer No.
-                      </TableHead>
-                      <TableHead className="px-3 py-3 text-xs font-medium">
-                        Customer Name
-                      </TableHead>
-                      <TableHead className="px-3 py-3 text-xs font-medium">
-                        Order Date
-                      </TableHead>
-                      <TableHead className="px-3 py-3 text-xs font-medium">
-                        Posting Date
-                      </TableHead>
-                      <TableHead className="px-3 py-3 text-xs font-medium">
-                        Document Date
-                      </TableHead>
-                      <TableHead className="px-3 py-3 text-xs font-medium">
-                        External Doc No.
-                      </TableHead>
-                      <TableHead className="px-3 py-3 text-xs font-medium">
-                        Status
-                      </TableHead>
-                      <TableHead className="px-3 py-3 text-xs font-medium">
-                        Amount
-                      </TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {dummySalesOrderData.map((order) => (
-                      <TableRow key={order.id} className="hover:bg-muted/50">
-                        <TableCell className="px-3 py-3 text-xs">
-                          {order.orderNo}
-                        </TableCell>
-                        <TableCell className="px-3 py-3 text-xs">
-                          {order.customerNo}
-                        </TableCell>
-                        <TableCell className="px-3 py-3 text-xs">
-                          {order.customerName}
-                        </TableCell>
-                        <TableCell className="px-3 py-3 text-xs">
-                          {order.orderDate}
-                        </TableCell>
-                        <TableCell className="px-3 py-3 text-xs">
-                          {order.postingDate}
-                        </TableCell>
-                        <TableCell className="px-3 py-3 text-xs">
-                          {order.documentDate}
-                        </TableCell>
-                        <TableCell className="px-3 py-3 text-xs">
-                          {order.externalDocumentNo}
-                        </TableCell>
-                        <TableCell className="px-3 py-3 text-xs">
-                          {order.status}
-                        </TableCell>
-                        <TableCell className="px-3 py-3 text-xs">
-                          {order.amount.toLocaleString()}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            </div>
+            <SalesOrderTabContent />
           </TabsContent>
 
           {/* Sales Invoice Tab */}

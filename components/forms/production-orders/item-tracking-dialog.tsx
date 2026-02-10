@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Loader2, Calendar, Pencil, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -87,6 +87,8 @@ interface ItemTrackingDialogProps {
   onOpenChange: (open: boolean) => void;
   onSave: () => void;
   prodOrderNo: string;
+  /** User ID - required for journal entries */
+  userId?: string;
 }
 
 export function ItemTrackingDialog({
@@ -98,9 +100,11 @@ export function ItemTrackingDialog({
   onOpenChange,
   onSave,
   prodOrderNo,
+  userId,
 }: ItemTrackingDialogProps) {
   const [lotNo, setLotNo] = useState("");
   const [expirationDate, setExpirationDate] = useState("");
+
   const [quantity, setQuantity] = useState<string>("");
   const [isSaving, setIsSaving] = useState(false);
   const [availableLots, setAvailableLots] = useState<LotAvailability[]>([]);
@@ -123,6 +127,27 @@ export function ItemTrackingDialog({
   const source: TrackingSource = component || line || journalEntry || null;
   const isComponentSource = isComponent(source);
   const isJournalSource = isJournalEntry(source);
+
+  const filter = useMemo(() => {
+    if (!source || !prodOrderNo) return "";
+
+    if (isComponentSource) {
+      return `Source_ID eq '${prodOrderNo}' and Source_Ref_No_ eq ${source.Line_No}`;
+    }
+
+    if (isJournalSource) {
+      if (!userId) {
+        console.error("userId is required for journal entry tracking");
+        return "";
+      }
+      // For journals: Source_ID = template name, Source_Prod_Order_Line = journal Line_No, Source_Ref_No_ = 0
+      // Source_Prod_Order_Line, Source_Ref_No_, Source_Type are Int32; Source_Subtype is String
+      return `Source_ID eq 'PROD.ORDEA' and Source_Prod_Order_Line eq ${source.Line_No} and Source_Ref_No_ eq 0 and Source_Type eq 83 and Source_Subtype eq '5' and Source_Batch_Name eq '${userId}'`;
+    }
+
+    // Production order line
+    return `Source_ID eq '${prodOrderNo}' and Source_Ref_No_ eq 0`;
+  }, [source, prodOrderNo, isComponentSource, isJournalSource, userId]);
 
   // Helper to get item number from source (journal entries use Item_No_)
   const getItemNo = (src: TrackingSource): string => {
@@ -164,8 +189,6 @@ export function ItemTrackingDialog({
       const fetchTrackingLines = async () => {
         setIsLoadingTrackingLines(true);
         try {
-          let filter = `Source_ID eq '${prodOrderNo}' and Source_Ref_No_ eq ${(source as ProductionOrderComponent).Line_No}`;
-
           const lines = await getItemTrackingLines({ customFilter: filter });
           setTrackingLines(lines);
         } catch (error) {
@@ -241,7 +264,6 @@ export function ItemTrackingDialog({
 
         // Refresh tracking lines
         try {
-          let filter = `Source_ID eq '${prodOrderNo}' and Source_Ref_No_ eq ${(source as ProductionOrderComponent).Line_No}`;
           const lines = await getItemTrackingLines({ customFilter: filter });
           setTrackingLines(lines);
         } catch (error) {
@@ -322,7 +344,6 @@ export function ItemTrackingDialog({
 
       // Refresh tracking lines after assignment
       try {
-        let filter = `Source_ID eq '${prodOrderNo}' and Source_Ref_No_ eq ${(source as ProductionOrderComponent).Line_No}`;
         const lines = await getItemTrackingLines({ customFilter: filter });
         setTrackingLines(lines);
       } catch (error) {
@@ -375,7 +396,6 @@ export function ItemTrackingDialog({
 
       // Refresh tracking lines
       try {
-        let filter = `Source_ID eq '${prodOrderNo}' and Source_Ref_No_ eq ${(source as ProductionOrderComponent).Line_No}`;
         const lines = await getItemTrackingLines({ customFilter: filter });
         setTrackingLines(lines);
       } catch (error) {

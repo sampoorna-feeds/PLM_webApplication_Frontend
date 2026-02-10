@@ -316,6 +316,7 @@ export function ProductionOrderPostSheet({
           fetchJournalEntries();
         }}
         prodOrderNo={prodOrderNo}
+        userId={userId}
       />
 
       <ApiErrorDialog error={apiError} onClose={() => setApiError(null)} />

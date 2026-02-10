@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Loader2, Calendar } from "lucide-react";
+import { Loader2, Calendar, Pencil, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -10,6 +10,16 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,6 +27,8 @@ import {
   assignItemTracking,
   getItemAvailabilityByLot,
   getItemTrackingLines,
+  modifyItemTrackingLine,
+  deleteItemTrackingLine,
   type ProductionOrderComponent,
   type ProductionOrderLine,
   type ProductionJournalEntry,
@@ -97,6 +109,14 @@ export function ItemTrackingDialog({
   const [isLoadingTrackingLines, setIsLoadingTrackingLines] = useState(false);
   const [apiError, setApiError] = useState<ApiErrorState | null>(null);
 
+  // Edit mode state
+  const [editingLine, setEditingLine] = useState<ItemTrackingLine | null>(null);
+  const [isDeleting, setIsDeleting] = useState<number | null>(null);
+
+  // Delete confirmation state
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [entryToDelete, setEntryToDelete] = useState<number | null>(null);
+
   // Determine the source (component, line, or journal entry)
   const source: TrackingSource = component || line || journalEntry || null;
   const isComponentSource = isComponent(source);
@@ -109,10 +129,10 @@ export function ItemTrackingDialog({
     return src.Item_No || "";
   };
 
-  // Helper to get location code from source (journal entries don't have location)
+  // Helper to get location code from source
   const getLocationCode = (src: TrackingSource): string | undefined => {
     if (!src) return undefined;
-    if (isJournalEntry(src)) return undefined;
+    if (isJournalEntry(src)) return src.Location_Code || undefined;
     return (
       (src as ProductionOrderLine | ProductionOrderComponent).Location_Code ||
       undefined
@@ -160,6 +180,8 @@ export function ItemTrackingDialog({
       setLotNo("");
       setExpirationDate("");
       setQuantity("");
+      setEditingLine(null);
+      setIsDeleting(null);
     }
   }, [open, source, prodOrderNo]);
 
@@ -197,7 +219,45 @@ export function ItemTrackingDialog({
       return;
     }
 
-    // Validate against remaining quantity
+    // If editing, handle modification
+    if (editingLine) {
+      setIsSaving(true);
+      try {
+        await modifyItemTrackingLine({
+          entryNo: editingLine.Entry_No,
+          quantityBase: -Math.abs(quantityValue),
+          qtyToHandlBase: -Math.abs(quantityValue),
+          lotNo: lotNo.trim(),
+          expirationDate: expirationDate || undefined,
+        });
+
+        toast.success("Item tracking updated successfully");
+        onSave();
+
+        // Refresh tracking lines
+        try {
+          const lines = await getItemTrackingLines(prodOrderNo);
+          setTrackingLines(lines);
+        } catch (error) {
+          console.error("Error refreshing tracking lines:", error);
+        }
+
+        // Reset form
+        setLotNo("");
+        setExpirationDate("");
+        setQuantity("");
+        setEditingLine(null);
+      } catch (error) {
+        console.error("Error updating item tracking:", error);
+        const { message, code } = extractApiError(error);
+        setApiError({ title: "Update Failed", message, code });
+      } finally {
+        setIsSaving(false);
+      }
+      return;
+    }
+
+    // Validate against remaining quantity (only for new assignments)
     // Journal entries use Quantity, lines/components use Remaining_Quantity
     const remainingQty = isJournalSource
       ? (source as ProductionJournalEntry).Quantity || 0
@@ -213,33 +273,38 @@ export function ItemTrackingDialog({
     setIsSaving(true);
     try {
       // Determine tracking parameters based on source type
-      // Journal entries use same sourceType as lines (5406)
-      const trackingType = isComponentSource ? "component" : "line";
-
+      let trackingType: "line" | "component" | "journal";
       let sourceProdOrderLine: number;
       let sourcerefNo: number;
+      let sourceID: string;
 
       if (isComponentSource) {
         // Component: use Prod_Order_Line_No and component Line_No
+        trackingType = "component";
         sourceProdOrderLine = (source as ProductionOrderComponent)
           .Prod_Order_Line_No;
         sourcerefNo = (source as ProductionOrderComponent).Line_No;
+        sourceID = prodOrderNo; // Production order number for components
       } else if (isJournalSource) {
-        // Journal entry: use journal Line_No, sourcerefNo is 0
+        // Journal entry: use journal Line_No, sourcerefNo is 0, sourceID is template name
+        trackingType = "journal";
         sourceProdOrderLine = (source as ProductionJournalEntry).Line_No;
         sourcerefNo = 0;
+        sourceID = "PROD.ORDEA"; // Journal template name for journals
       } else {
         // Production order line: use Line_No, sourcerefNo is 0
+        trackingType = "line";
         sourceProdOrderLine = (source as ProductionOrderLine).Line_No;
         sourcerefNo = 0;
+        sourceID = prodOrderNo; // Production order number for lines
       }
 
       await assignItemTracking({
         itemNo: getItemNo(source),
         locationCode: getLocationCode(source) || "",
-        quantity: quantityValue,
+        quantity: -Math.abs(quantityValue), // Send as negative number
         sourceProdOrderLine: sourceProdOrderLine,
-        sourceID: prodOrderNo,
+        sourceID: sourceID,
         sourcerefNo: sourcerefNo,
         lotNo: lotNo.trim(),
         expirationDate: expirationDate || undefined,
@@ -270,6 +335,54 @@ export function ItemTrackingDialog({
     }
   };
 
+  const handleEditLine = (line: ItemTrackingLine) => {
+    setEditingLine(line);
+    setLotNo(line.Lot_No || "");
+    setExpirationDate(line.Expiration_Date?.split("T")[0] || "");
+    // Convert negative quantity to positive for display
+    setQuantity(Math.abs(line.Quantity_Base || 0).toString());
+  };
+
+  const handleCancelEdit = () => {
+    setEditingLine(null);
+    setLotNo("");
+    setExpirationDate("");
+    setQuantity("");
+  };
+
+  const handleDeleteLine = (entryNo: number) => {
+    setEntryToDelete(entryNo);
+    setDeleteConfirmOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!entryToDelete) return;
+
+    setIsDeleting(entryToDelete);
+    setDeleteConfirmOpen(false);
+
+    try {
+      await deleteItemTrackingLine(entryToDelete);
+      toast.success("Item tracking deleted successfully");
+      onSave();
+
+      // Refresh tracking lines
+      try {
+        const lines = await getItemTrackingLines(prodOrderNo);
+        setTrackingLines(lines);
+      } catch (error) {
+        console.error("Error refreshing tracking lines:", error);
+      }
+    } catch (error) {
+      console.error("Error deleting item tracking:", error);
+      const { message, code } = extractApiError(error);
+      setApiError({ title: "Delete Failed", message, code });
+    } finally {
+      setIsDeleting(null);
+      setEntryToDelete(null);
+    }
+  };
+
   if (!source) return null;
 
   // Get source type label for title
@@ -282,250 +395,336 @@ export function ItemTrackingDialog({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="flex max-h-[90vh] max-w-[95vw] flex-col p-4 sm:max-w-[85vw] sm:p-6 md:max-w-4xl md:p-8 lg:max-w-6xl">
-          <DialogHeader>
+        <DialogContent className="flex max-h-[90vh] max-w-[95vw] flex-col gap-0 p-0 sm:max-w-[85vw] md:max-w-4xl lg:max-w-6xl">
+          <DialogHeader className="border-b px-4 py-4 sm:px-6 md:px-8">
             <DialogTitle className="text-lg">
-              Assign Item Tracking {getSourceTypeLabel()}
+              {editingLine
+                ? `Edit Item Tracking ${getSourceTypeLabel()}`
+                : `Assign Item Tracking ${getSourceTypeLabel()}`}
             </DialogTitle>
           </DialogHeader>
 
-          {!hasTracking && (
-            <div className="mb-4 rounded-md border border-yellow-200 bg-yellow-50 p-4 text-sm text-yellow-800">
-              <p className="font-medium">Item Tracking Not Available</p>
-              <p className="mt-1 text-xs">
-                This item does not have item tracking enabled. Tracking codes
-                such as lot numbers or serial numbers cannot be assigned.
-              </p>
-            </div>
-          )}
+          {/* Scrollable content area */}
+          <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-6 md:px-8">
+            {!hasTracking && (
+              <div className="mb-4 rounded-md border border-yellow-200 bg-yellow-50 p-4 text-sm text-yellow-800">
+                <p className="font-medium">Item Tracking Not Available</p>
+                <p className="mt-1 text-xs">
+                  This item does not have item tracking enabled. Tracking codes
+                  such as lot numbers or serial numbers cannot be assigned.
+                </p>
+              </div>
+            )}
 
-          {hasTracking && (
-            <div className="grid flex-1 grid-cols-1 gap-4 overflow-hidden py-3 md:grid-cols-2 md:gap-8 md:py-5">
-              {/* Left Side: Available Lots */}
-              <div className="flex h-full flex-col overflow-hidden rounded-md border">
-                <div className="bg-muted border-b px-4 py-3 font-medium">
-                  Available Lots
+            {hasTracking && (
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-8">
+                {/* Left Side: Available Lots */}
+                <div className="flex h-100 flex-col overflow-hidden rounded-md border">
+                  <div className="bg-muted border-b px-4 py-3 font-medium">
+                    Available Lots
+                  </div>
+                  <div className="flex-1 overflow-auto">
+                    {isLoadingLots ? (
+                      <div className="flex h-40 flex-col items-center justify-center gap-2">
+                        <Loader2 className="text-muted-foreground h-6 w-6 animate-spin" />
+                        <p className="text-muted-foreground text-sm">
+                          Loading lots...
+                        </p>
+                      </div>
+                    ) : availableLots.length === 0 ? (
+                      <div className="text-muted-foreground flex h-40 items-center justify-center p-4 text-center text-sm">
+                        No available lots found for this item and location.
+                      </div>
+                    ) : (
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="h-8">Lot No.</TableHead>
+                            <TableHead className="h-8 text-right">
+                              Qty
+                            </TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {availableLots.map((lot, index) => (
+                            <TableRow
+                              key={`${lot.LotNo}-${index}`}
+                              className="hover:bg-muted/50 cursor-pointer"
+                              onClick={() => handleLotSelect(lot)}
+                            >
+                              <TableCell className="py-2 font-medium">
+                                {lot.LotNo}
+                                <div className="text-muted-foreground flex items-center gap-1 text-xs">
+                                  <Calendar className="h-3 w-3" />
+                                  {lot.Expiration_Date
+                                    ? lot.Expiration_Date.split("T")[0]
+                                    : "-"}
+                                </div>
+                              </TableCell>
+                              <TableCell className="py-2 text-right">
+                                {(lot.RemainingQty || 0).toLocaleString()}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    )}
+                  </div>
                 </div>
-                <div className="flex-1 overflow-auto">
-                  {isLoadingLots ? (
-                    <div className="flex h-40 flex-col items-center justify-center gap-2">
-                      <Loader2 className="text-muted-foreground h-6 w-6 animate-spin" />
-                      <p className="text-muted-foreground text-sm">
-                        Loading lots...
+
+                {/* Right Side: Assignment Form */}
+                <div className="space-y-4">
+                  {editingLine && (
+                    <div className="rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800">
+                      <p className="font-medium">Editing Tracking Line</p>
+                      <p className="mt-1 text-xs">
+                        Modifying Entry #{editingLine.Entry_No}. Click
+                        &quot;Cancel Edit&quot; to create a new tracking line
+                        instead.
                       </p>
                     </div>
-                  ) : availableLots.length === 0 ? (
-                    <div className="text-muted-foreground flex h-40 items-center justify-center p-4 text-center text-sm">
-                      No available lots found for this item and location.
-                    </div>
-                  ) : (
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead className="h-8">Lot No.</TableHead>
-                          <TableHead className="h-8 text-right">Qty</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {availableLots.map((lot, index) => (
-                          <TableRow
-                            key={`${lot.LotNo}-${index}`}
-                            className="hover:bg-muted/50 cursor-pointer"
-                            onClick={() => handleLotSelect(lot)}
-                          >
-                            <TableCell className="py-2 font-medium">
-                              {lot.LotNo}
-                              <div className="text-muted-foreground flex items-center gap-1 text-xs">
-                                <Calendar className="h-3 w-3" />
-                                {lot.Expiration_Date
-                                  ? lot.Expiration_Date.split("T")[0]
-                                  : "-"}
-                              </div>
-                            </TableCell>
-                            <TableCell className="py-2 text-right">
-                              {(lot.RemainingQty || 0).toLocaleString()}
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
                   )}
-                </div>
-              </div>
 
-              {/* Right Side: Assignment Form */}
-              <div className="space-y-4">
-                {/* Source Info */}
-                <div className="bg-muted/50 space-y-2 rounded-md p-4 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Type:</span>
-                    <span className="font-medium">
-                      {isComponentSource
-                        ? "Component"
-                        : isJournalSource
-                          ? "Journal"
-                          : "Line"}
-                    </span>
+                  {/* Source Info */}
+                  <div className="bg-muted/50 space-y-2 rounded-md p-4 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Type:</span>
+                      <span className="font-medium">
+                        {isComponentSource
+                          ? "Component"
+                          : isJournalSource
+                            ? "Journal"
+                            : "Line"}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Item No:</span>
+                      <span className="font-medium">{getItemNo(source)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Location:</span>
+                      <span className="font-medium">
+                        {getLocationCode(source) || "-"}
+                      </span>
+                    </div>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Item No:</span>
-                    <span className="font-medium">{getItemNo(source)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Location:</span>
-                    <span className="font-medium">
-                      {getLocationCode(source) || "-"}
-                    </span>
-                  </div>
-                </div>
 
-                <div className="space-y-4">
-                  <div className="space-y-1.5">
-                    <Label htmlFor="lotNo" className="text-sm">
-                      Lot No.
-                    </Label>
-                    <Input
-                      id="lotNo"
-                      value={lotNo}
-                      onChange={(e) => setLotNo(e.target.value)}
-                      placeholder="Select or enter lot no"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="expirationDate" className="text-sm">
-                      Expiration Date
-                    </Label>
-                    <Input
-                      id="expirationDate"
-                      type="date"
-                      value={expirationDate}
-                      onChange={(e) => setExpirationDate(e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="quantity" className="text-sm">
-                      Quantity to Assign
-                    </Label>
-                    <Input
-                      id="quantity"
-                      type="text"
-                      inputMode="decimal"
-                      value={quantity}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        if (val === "" || /^[0-9]*\.?[0-9]*$/.test(val)) {
-                          setQuantity(val);
-                        }
-                      }}
-                      placeholder="Enter quantity"
-                    />
-                    <p className="text-muted-foreground mt-1 text-right text-xs">
-                      Remaining:{" "}
-                      {(isJournalSource
-                        ? (source as ProductionJournalEntry).Quantity
-                        : (
-                            source as
-                              | ProductionOrderLine
-                              | ProductionOrderComponent
-                          ).Remaining_Quantity
-                      )?.toLocaleString() || 0}
-                    </p>
+                  <div className="space-y-4">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="lotNo" className="text-sm">
+                        Lot No.
+                      </Label>
+                      <Input
+                        id="lotNo"
+                        value={lotNo}
+                        onChange={(e) => setLotNo(e.target.value)}
+                        placeholder="Select or enter lot no"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="expirationDate" className="text-sm">
+                        Expiration Date
+                      </Label>
+                      <Input
+                        id="expirationDate"
+                        type="date"
+                        value={expirationDate}
+                        onChange={(e) => setExpirationDate(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="quantity" className="text-sm">
+                        Quantity to Assign
+                      </Label>
+                      <Input
+                        id="quantity"
+                        type="text"
+                        inputMode="decimal"
+                        value={quantity}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          if (val === "" || /^[0-9]*\.?[0-9]*$/.test(val)) {
+                            setQuantity(val);
+                          }
+                        }}
+                        placeholder="Enter quantity"
+                      />
+                      <p className="text-muted-foreground mt-1 text-right text-xs">
+                        Remaining:{" "}
+                        {(isJournalSource
+                          ? (source as ProductionJournalEntry).Quantity
+                          : (
+                              source as
+                                | ProductionOrderLine
+                                | ProductionOrderComponent
+                            ).Remaining_Quantity
+                        )?.toLocaleString() || 0}
+                      </p>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          )}
+            )}
 
-          <DialogFooter className="pt-2">
+            {/* Separator and Item Tracking Lines Section */}
+            {trackingLines.length > 0 && hasTracking && (
+              <>
+                <div className="my-6 border-t" />
+                <div className="space-y-3">
+                  <h3 className="text-sm font-medium">
+                    Existing Item Tracking Lines
+                  </h3>
+                  <div className="max-h-60 overflow-auto rounded-md border">
+                    {isLoadingTrackingLines ? (
+                      <div className="flex items-center justify-center py-8">
+                        <Loader2 className="text-muted-foreground h-5 w-5 animate-spin" />
+                        <span className="text-muted-foreground ml-2 text-sm">
+                          Loading tracking lines...
+                        </span>
+                      </div>
+                    ) : (
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="h-8">Item No.</TableHead>
+                            <TableHead className="h-8">Lot No.</TableHead>
+                            <TableHead className="h-8">Location</TableHead>
+                            <TableHead className="h-8 text-right">
+                              Quantity
+                            </TableHead>
+                            <TableHead className="h-8 text-right">
+                              Qty to Handle
+                            </TableHead>
+                            <TableHead className="h-8">Expiration</TableHead>
+                            <TableHead className="h-8 text-center">
+                              Type
+                            </TableHead>
+                            <TableHead className="h-8 text-center">
+                              Actions
+                            </TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {trackingLines.map((line, index) => (
+                            <TableRow
+                              key={`${line.Entry_No}-${index}`}
+                              className={
+                                editingLine?.Entry_No === line.Entry_No
+                                  ? "bg-blue-100/50"
+                                  : ""
+                              }
+                            >
+                              <TableCell className="py-2 font-medium">
+                                {line.Item_No || "-"}
+                              </TableCell>
+                              <TableCell className="py-2">
+                                {line.Lot_No || "-"}
+                              </TableCell>
+                              <TableCell className="py-2">
+                                {line.Location_Code || "-"}
+                              </TableCell>
+                              <TableCell className="py-2 text-right">
+                                {line.Quantity_Base?.toLocaleString() ?? "-"}
+                              </TableCell>
+                              <TableCell className="py-2 text-right">
+                                {line.Qty_to_Handl_Base?.toLocaleString() ??
+                                  "-"}
+                              </TableCell>
+                              <TableCell className="py-2">
+                                {line.Expiration_Date
+                                  ? line.Expiration_Date.split("T")[0]
+                                  : "-"}
+                              </TableCell>
+                              <TableCell className="py-2 text-center">
+                                <span className="text-xs">
+                                  {line.Source_Type === 5407
+                                    ? "Component"
+                                    : line.Source_Type === 5406
+                                      ? "Line"
+                                      : "-"}
+                                </span>
+                              </TableCell>
+                              <TableCell className="py-2">
+                                <div className="flex items-center justify-center gap-1">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-7 w-7 p-0"
+                                    onClick={() => handleEditLine(line)}
+                                    disabled={!!editingLine}
+                                    title="Edit tracking line"
+                                  >
+                                    <Pencil className="h-3.5 w-3.5" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="text-destructive hover:text-destructive h-7 w-7 p-0"
+                                    onClick={() =>
+                                      handleDeleteLine(line.Entry_No)
+                                    }
+                                    disabled={isDeleting === line.Entry_No}
+                                    title="Delete tracking line"
+                                  >
+                                    {isDeleting === line.Entry_No ? (
+                                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                    ) : (
+                                      <Trash2 className="h-3.5 w-3.5" />
+                                    )}
+                                  </Button>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    )}
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+
+          <DialogFooter className="border-t px-4 py-4 sm:px-6 md:px-8">
             <Button variant="outline" onClick={() => onOpenChange(false)}>
-              {hasTracking ? "Cancel" : "Close"}
+              Close
             </Button>
+            {hasTracking && editingLine && (
+              <Button variant="destructive" onClick={handleCancelEdit}>
+                <X className="mr-2 h-4 w-4" />
+                Cancel Edit
+              </Button>
+            )}
             {hasTracking && (
               <Button onClick={handleSave} disabled={isSaving}>
                 {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Assign
+                {editingLine ? "Update" : "Assign"}
               </Button>
             )}
           </DialogFooter>
-
-          {/* Separator and Item Tracking Lines Section */}
-          {trackingLines.length > 0 && (
-            <>
-              <div className="my-4 border-t" />
-              <div className="space-y-3">
-                <h3 className="text-sm font-medium">
-                  Existing Item Tracking Lines
-                </h3>
-                <div className="max-h-60 overflow-auto rounded-md border">
-                  {isLoadingTrackingLines ? (
-                    <div className="flex items-center justify-center py-8">
-                      <Loader2 className="text-muted-foreground h-5 w-5 animate-spin" />
-                      <span className="text-muted-foreground ml-2 text-sm">
-                        Loading tracking lines...
-                      </span>
-                    </div>
-                  ) : (
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead className="h-8">Item No.</TableHead>
-                          <TableHead className="h-8">Lot No.</TableHead>
-                          <TableHead className="h-8">Location</TableHead>
-                          <TableHead className="h-8 text-right">
-                            Quantity
-                          </TableHead>
-                          <TableHead className="h-8 text-right">
-                            Qty to Handle
-                          </TableHead>
-                          <TableHead className="h-8">Expiration</TableHead>
-                          <TableHead className="h-8 text-center">
-                            Type
-                          </TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {trackingLines.map((line, index) => (
-                          <TableRow key={`${line.Entry_No}-${index}`}>
-                            <TableCell className="py-2 font-medium">
-                              {line.Item_No || "-"}
-                            </TableCell>
-                            <TableCell className="py-2">
-                              {line.Lot_No || "-"}
-                            </TableCell>
-                            <TableCell className="py-2">
-                              {line.Location_Code || "-"}
-                            </TableCell>
-                            <TableCell className="py-2 text-right">
-                              {line.Quantity_Base?.toLocaleString() ?? "-"}
-                            </TableCell>
-                            <TableCell className="py-2 text-right">
-                              {line.Qty_to_Handl_Base?.toLocaleString() ?? "-"}
-                            </TableCell>
-                            <TableCell className="py-2">
-                              {line.Expiration_Date
-                                ? line.Expiration_Date.split("T")[0]
-                                : "-"}
-                            </TableCell>
-                            <TableCell className="py-2 text-center">
-                              <span className="text-xs">
-                                {line.Source_Type === 5407
-                                  ? "Component"
-                                  : line.Source_Type === 5406
-                                    ? "Line"
-                                    : "-"}
-                              </span>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  )}
-                </div>
-              </div>
-            </>
-          )}
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Item Tracking?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this tracking line? This action
+              cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel variant="destructive">
+              <X className="mr-2 h-4 w-4" />
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete}>
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <ApiErrorDialog error={apiError} onClose={() => setApiError(null)} />
     </>

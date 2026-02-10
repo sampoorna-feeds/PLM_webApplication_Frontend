@@ -34,6 +34,7 @@ import {
   extractApiError,
   type ApiErrorState,
 } from "./api-error-dialog";
+import { cn } from "@/lib/utils";
 
 interface ProductionOrderPostSheetProps {
   prodOrderNo: string;
@@ -162,10 +163,15 @@ export function ProductionOrderPostSheet({
   };
 
   // Handle row click to open item tracking
-  const handleRowClick = (entry: ProductionJournalEntry) => {
-    // Check if this item has tracking
-    const itemKey = entry.Item_No_ ? entry.Item_No_.trim().toLowerCase() : "";
-    const hasTracking = trackingMap[itemKey] || false;
+  const handleRowClick = (
+    entry: ProductionJournalEntry,
+    hasTracking: boolean,
+  ) => {
+    // Only open dialog if item has tracking
+    if (!hasTracking) {
+      toast.info("Item tracking not available for this item");
+      return;
+    }
 
     setSelectedEntry(entry);
     setSelectedEntryHasTracking(hasTracking);
@@ -250,6 +256,7 @@ export function ProductionOrderPostSheet({
                       <TableHead className="w-32">Entry Type</TableHead>
                       <TableHead>Item No.</TableHead>
                       <TableHead>Description</TableHead>
+                      <TableHead className="w-32">Location Code</TableHead>
                       <TableHead className="w-32 text-right">
                         Quantity
                       </TableHead>
@@ -259,25 +266,37 @@ export function ProductionOrderPostSheet({
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {journalEntries.map((entry, index) => (
-                      <TableRow
-                        key={`${entry.Line_No}-${index}`}
-                        className="hover:bg-muted/50 cursor-pointer"
-                        onClick={() => handleRowClick(entry)}
-                      >
-                        <TableCell>{entry.Entry_Type}</TableCell>
-                        <TableCell className="font-medium">
-                          {entry.Item_No_ || "-"}
-                        </TableCell>
-                        <TableCell>{entry.Description || "-"}</TableCell>
-                        <TableCell className="text-right">
-                          {entry.Quantity?.toLocaleString() ?? "-"}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {entry.Output_Quantity?.toLocaleString() ?? "-"}
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    {journalEntries.map((entry, index) => {
+                      // Check if this item has a tracking code
+                      const itemKey = entry.Item_No_
+                        ? entry.Item_No_.trim().toLowerCase()
+                        : "";
+                      const hasTracking = trackingMap[itemKey] || false;
+
+                      return (
+                        <TableRow
+                          key={`${entry.Line_No}-${index}`}
+                          className={cn(
+                            hasTracking && "text-red-600",
+                            "hover:bg-muted/50 cursor-pointer",
+                          )}
+                          onClick={() => handleRowClick(entry, hasTracking)}
+                        >
+                          <TableCell>{entry.Entry_Type}</TableCell>
+                          <TableCell className="font-medium">
+                            {entry.Item_No_ || "-"}
+                          </TableCell>
+                          <TableCell>{entry.Description || "-"}</TableCell>
+                          <TableCell>{entry.Location_Code || "-"}</TableCell>
+                          <TableCell className="text-right">
+                            {entry.Quantity?.toLocaleString() ?? "-"}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {entry.Output_Quantity?.toLocaleString() ?? "-"}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </div>

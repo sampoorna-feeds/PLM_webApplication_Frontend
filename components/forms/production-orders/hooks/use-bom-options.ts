@@ -65,10 +65,12 @@ export function useBomOptions({
     const loadBomOptions = async () => {
       setIsLoadingBom(true);
       try {
-        // Try item-specific BOMs first, fall back to all BOMs
-        let boms = await getProdOrderBOMsByItemOnly(sourceNo);
+        // Try primary method: BOMs filtered by Item_No AND Location_Code_1
+        let boms = await getProdOrderBOMs(sourceNo, locationCode);
+
+        // If no BOMs found with location filter, try item-only filter
         if (!boms.length) {
-          boms = await getProdOrderBOMs(sourceNo, locationCode);
+          boms = await getProdOrderBOMsByItemOnly(sourceNo);
         }
         setBomOptions(boms);
       } catch (error) {

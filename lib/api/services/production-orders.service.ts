@@ -3,7 +3,7 @@
  * Handles fetching production orders from ERP OData V4 API
  */
 
-import { apiGet, apiPost, apiPatch } from "../client";
+import { apiGet, apiPost, apiPatch, apiDelete } from "../client";
 import { buildODataQuery } from "../endpoints";
 import type { ODataResponse } from "../types";
 
@@ -524,30 +524,33 @@ export interface AssignItemTrackingParams {
   locationCode: string;
   quantity: number;
   sourceProdOrderLine: number; // Prod_Order_Line_No
-  sourceID: string; // Prod_Order_No
+  sourceID: string; // Prod_Order_No for components/lines, "PROD.ORDEA" for journals
   sourcerefNo: number; // Component Line_No (0 for lines)
   lotNo: string;
   expirationDate?: string;
-  /** 'line' for production order lines, 'component' for components. Defaults to 'component' */
-  trackingType?: "line" | "component";
+  /** 'line' for production order lines, 'component' for components, 'journal' for journal entries */
+  trackingType?: "line" | "component" | "journal";
 }
 
 /**
- * Assign item tracking (lot number) to a production order line or component
+ * Assign item tracking (lot number) to a production order line, component, or journal entry
  * @param params - Item tracking parameters
- * - For lines: sourceType = 5406, sourcerefNo = 0
- * - For components: sourceType = 5407, sourcerefNo = component Line_No
+ * - For lines: sourceType = 5406, sourcerefNo = 0, sourceID = prodOrderNo
+ * - For components: sourceType = 5407, sourcerefNo = component Line_No, sourceID = prodOrderNo
+ * - For journals: sourceType = 5406, sourcerefNo = 0, sourceID = "PROD.ORDEA", ReservationStatus = "Prospect"
  */
 export async function assignItemTracking(
   params: AssignItemTrackingParams,
 ): Promise<unknown> {
   const endpoint = `/API_TrackingAssign?company='${encodeURIComponent(COMPANY)}'`;
 
-  // Determine sourceType based on tracking type
-  // 5406 = Production Order Line, 5407 = Production Order Component
-  const sourceType = params.trackingType === "line" ? 5406 : 5407;
+  const isJournal = params.trackingType === "journal";
 
-  const payload = {
+  // Determine sourceType based on tracking type
+  // 5406 = Production Order Line / Journal, 5407 = Production Order Component
+  const sourceType = params.trackingType === "component" ? 5407 : 5406;
+
+  const payload: Record<string, unknown> = {
     itemNo: params.itemNo,
     locationCode: params.locationCode,
     quantity: params.quantity,
@@ -562,8 +565,16 @@ export async function assignItemTracking(
     manufacuringdate: "0001-01-01",
     newExpirationdate: "0001-01-01",
     newManufacuringdate: "0001-01-01",
-    reservationStatus: 2, // Surplus - standard for manual lot assignment
   };
+
+  // Add ReservationStatus only for journal entries (as string "Prospect")
+  if (isJournal) {
+    payload.ReservationStatus = "Prospect";
+  }
+  // For components/lines, omit reservationStatus or use numeric value
+  else {
+    payload.reservationStatus = 2; // Surplus - standard for manual lot assignment
+  }
 
   return apiPost<unknown>(endpoint, payload);
 }
@@ -573,6 +584,7 @@ export async function assignItemTracking(
 // ============================================
 
 export interface ItemTrackingLine {
+  "@odata.etag"?: string;
   Entry_No: number;
   Positive?: boolean;
   Source_Type?: number;
@@ -590,14 +602,58 @@ export interface ItemTrackingLine {
   [key: string]: unknown;
 }
 
+export interface GetItemTrackingLinesParams {
+  /** Source ID - Production Order No */
+  sourceId?: string;
+  /** Source Batch Name - User ID or Journal Template */
+  sourceBatchName?: string;
+  /** Source Type - 5406 (Line), 5407 (Component), 83 (Journal) */
+  sourceType?: number;
+  /** Item Number */
+  itemNo?: string;
+  /** Location Code */
+  locationCode?: string;
+  /** Custom OData filter string */
+  customFilter?: string;
+}
+
 /**
- * Get item tracking lines for a production order
- * @param sourceId - Source ID (Production Order No)
+ * Get item tracking lines with flexible filtering options
+ * @param params - Filter parameters
  */
 export async function getItemTrackingLines(
-  sourceId: string,
+  params?: GetItemTrackingLinesParams | string,
 ): Promise<ItemTrackingLine[]> {
-  const filter = `Source_ID eq '${sourceId}'`;
+  // Backward compatibility: if params is a string, treat it as sourceId
+  if (typeof params === "string") {
+    params = { sourceId: params };
+  }
+
+  const filters: string[] = [];
+
+  if (params) {
+    if (params.customFilter) {
+      filters.push(params.customFilter);
+    } else {
+      if (params.sourceId) {
+        filters.push(`Source_ID eq '${params.sourceId}'`);
+      }
+      if (params.sourceBatchName) {
+        filters.push(`Source_Batch_Name eq '${params.sourceBatchName}'`);
+      }
+      if (params.sourceType !== undefined) {
+        filters.push(`Source_Type eq ${params.sourceType}`);
+      }
+      if (params.itemNo) {
+        filters.push(`Item_No eq '${params.itemNo}'`);
+      }
+      if (params.locationCode) {
+        filters.push(`Location_Code eq '${params.locationCode}'`);
+      }
+    }
+  }
+
+  const filter = filters.length > 0 ? filters.join(" and ") : undefined;
   const query = buildODataQuery({
     $filter: filter,
   });
@@ -605,6 +661,59 @@ export async function getItemTrackingLines(
 
   const response = await apiGet<ODataResponse<ItemTrackingLine>>(endpoint);
   return response.value || [];
+}
+
+export interface ModifyItemTrackingLineParams {
+  /** Entry number of the tracking line to modify */
+  entryNo: number;
+  /** Updated quantity base (optional) */
+  quantityBase?: number;
+  /** Updated quantity to handle base (optional) */
+  qtyToHandlBase?: number;
+  /** Updated lot number (optional) */
+  lotNo?: string;
+  /** Updated expiration date (optional) */
+  expirationDate?: string;
+}
+
+/**
+ * Modify an existing item tracking line using PATCH
+ * @param params - Modification parameters
+ */
+export async function modifyItemTrackingLine(
+  params: ModifyItemTrackingLineParams,
+): Promise<unknown> {
+  const encodedCompany = encodeURIComponent(COMPANY);
+  const endpoint = `/Company('${encodedCompany}')/ItemTrackingLine(${params.entryNo})`;
+
+  const payload: Record<string, unknown> = {};
+
+  if (params.quantityBase !== undefined) {
+    payload.Quantity_Base = params.quantityBase;
+  }
+  if (params.qtyToHandlBase !== undefined) {
+    payload.Qty_to_Handl_Base = params.qtyToHandlBase;
+  }
+  if (params.lotNo !== undefined) {
+    payload.Lot_No = params.lotNo;
+  }
+  if (params.expirationDate !== undefined) {
+    payload.Expiration_Date = params.expirationDate;
+  }
+
+  return apiPatch<unknown>(endpoint, payload);
+}
+
+/**
+ * Delete an item tracking line
+ * @param entryNo - Entry number of the tracking line to delete
+ */
+export async function deleteItemTrackingLine(
+  entryNo: number,
+): Promise<unknown> {
+  const encodedCompany = encodeURIComponent(COMPANY);
+  const endpoint = `/Company('${encodedCompany}')/ItemTrackingLine(${entryNo})`;
+  return apiDelete<unknown>(endpoint);
 }
 
 // ============================================
@@ -672,6 +781,7 @@ export interface ProductionJournalEntry {
   Description?: string;
   Quantity: number;
   Output_Quantity: number;
+  Location_Code?: string;
   [key: string]: unknown;
 }
 
@@ -705,7 +815,7 @@ export async function getProductionJournal(
 ): Promise<ProductionJournalEntry[]> {
   const filter = `Order_No_ eq '${orderNo}' and Journal_Template_Name eq 'PROD.ORDEA'`;
   const select =
-    "Line_No,Entry_Type,Item_No_,Description,Quantity,Output_Quantity";
+    "Line_No,Entry_Type,Item_No_,Description,Quantity,Output_Quantity,Location_Code";
   const query = buildODataQuery({
     $filter: filter,
     $select: select,

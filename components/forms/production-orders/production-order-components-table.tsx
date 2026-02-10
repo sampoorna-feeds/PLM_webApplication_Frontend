@@ -13,6 +13,33 @@ import {
 import { useItemTracking } from "./use-item-tracking";
 import { cn } from "@/lib/utils";
 
+/**
+ * Format number with precision preservation
+ * Removes trailing zeros but preserves significant digits
+ */
+function formatQuantity(value: number | undefined | null): string {
+  if (value == null) return "-";
+
+  // Convert to string with high precision
+  const str = value.toString();
+
+  // If the number has an 'e' notation (very small or large), handle it
+  if (str.includes("e")) {
+    // Parse the exponential notation and format appropriately
+    const num = parseFloat(str);
+    // Use toFixed with enough decimal places, then remove trailing zeros
+    const formatted = num.toFixed(20);
+    return formatted.replace(/\.?0+$/, "");
+  }
+
+  // For normal numbers, just remove trailing zeros after decimal
+  if (str.includes(".")) {
+    return str.replace(/\.?0+$/, "");
+  }
+
+  return str;
+}
+
 interface ProductionOrderComponentsTableProps {
   components: ProductionOrderComponent[];
   isLoading: boolean;
@@ -92,13 +119,13 @@ export function ProductionOrderComponentsTable({
                 <TableCell>{component.Description || "-"}</TableCell>
                 <TableCell>{component.Location_Code || "-"}</TableCell>
                 <TableCell className="text-right">
-                  {component.Quantity_per?.toLocaleString() ?? "-"}
+                  {formatQuantity(component.Quantity_per)}
                 </TableCell>
                 <TableCell className="text-right">
-                  {component.Expected_Quantity?.toLocaleString() ?? "-"}
+                  {formatQuantity(component.Expected_Quantity)}
                 </TableCell>
                 <TableCell className="text-right">
-                  {component.Remaining_Quantity?.toLocaleString() ?? "-"}
+                  {formatQuantity(component.Remaining_Quantity)}
                 </TableCell>
                 <TableCell className="text-center">
                   {component.Substitution_Available ? (

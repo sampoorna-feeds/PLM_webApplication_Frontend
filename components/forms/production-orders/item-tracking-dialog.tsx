@@ -115,7 +115,9 @@ export function ItemTrackingDialog({
 
   // Delete confirmation state
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
-  const [entryToDelete, setEntryToDelete] = useState<number | null>(null);
+  const [lineToDelete, setLineToDelete] = useState<ItemTrackingLine | null>(
+    null,
+  );
 
   // Determine the source (component, line, or journal entry)
   const source: TrackingSource = component || line || journalEntry || null;
@@ -225,6 +227,7 @@ export function ItemTrackingDialog({
       try {
         await modifyItemTrackingLine({
           entryNo: editingLine.Entry_No,
+          positive: editingLine.Positive,
           quantityBase: -Math.abs(quantityValue),
           qtyToHandlBase: -Math.abs(quantityValue),
           lotNo: lotNo.trim(),
@@ -350,19 +353,19 @@ export function ItemTrackingDialog({
     setQuantity("");
   };
 
-  const handleDeleteLine = (entryNo: number) => {
-    setEntryToDelete(entryNo);
+  const handleDeleteLine = (line: ItemTrackingLine) => {
+    setLineToDelete(line);
     setDeleteConfirmOpen(true);
   };
 
   const confirmDelete = async () => {
-    if (!entryToDelete) return;
+    if (!lineToDelete) return;
 
-    setIsDeleting(entryToDelete);
+    setIsDeleting(lineToDelete.Entry_No);
     setDeleteConfirmOpen(false);
 
     try {
-      await deleteItemTrackingLine(entryToDelete);
+      await deleteItemTrackingLine(lineToDelete);
       toast.success("Item tracking deleted successfully");
       onSave();
 
@@ -379,7 +382,7 @@ export function ItemTrackingDialog({
       setApiError({ title: "Delete Failed", message, code });
     } finally {
       setIsDeleting(null);
-      setEntryToDelete(null);
+      setLineToDelete(null);
     }
   };
 
@@ -660,9 +663,7 @@ export function ItemTrackingDialog({
                                     variant="ghost"
                                     size="sm"
                                     className="text-destructive hover:text-destructive h-7 w-7 p-0"
-                                    onClick={() =>
-                                      handleDeleteLine(line.Entry_No)
-                                    }
+                                    onClick={() => handleDeleteLine(line)}
                                     disabled={isDeleting === line.Entry_No}
                                     title="Delete tracking line"
                                   >

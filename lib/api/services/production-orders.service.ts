@@ -546,9 +546,9 @@ export async function assignItemTracking(
 
   const isJournal = params.trackingType === "journal";
 
-  // Determine sourceType based on tracking type
-  // 5406 = Production Order Line / Journal, 5407 = Production Order Component
-  const sourceType = params.trackingType === "component" ? 5407 : 5406;
+  // sourceType is always 5406 per Postman specification
+  // Used for Production Order Lines, Components, and Journals
+  const sourceType = 5406;
 
   const payload: Record<string, unknown> = {
     itemNo: params.itemNo,
@@ -568,12 +568,9 @@ export async function assignItemTracking(
   };
 
   // Add ReservationStatus only for journal entries (as string "Prospect")
+  // Per Postman spec: components/lines should NOT have any reservationStatus field
   if (isJournal) {
     payload.ReservationStatus = "Prospect";
-  }
-  // For components/lines, omit reservationStatus or use numeric value
-  else {
-    payload.reservationStatus = 2; // Surplus - standard for manual lot assignment
   }
 
   return apiPost<unknown>(endpoint, payload);
@@ -666,6 +663,8 @@ export async function getItemTrackingLines(
 export interface ModifyItemTrackingLineParams {
   /** Entry number of the tracking line to modify */
   entryNo: number;
+  /** Positive field for composite key (required for Business Central) */
+  positive?: boolean;
   /** Updated quantity base (optional) */
   quantityBase?: number;
   /** Updated quantity to handle base (optional) */
@@ -684,7 +683,10 @@ export async function modifyItemTrackingLine(
   params: ModifyItemTrackingLineParams,
 ): Promise<unknown> {
   const encodedCompany = encodeURIComponent(COMPANY);
-  const endpoint = `/Company('${encodedCompany}')/ItemTrackingLine(${params.entryNo})`;
+
+  // Business Central requires composite key: (Entry_No, Positive)
+  const positive = params.positive ?? false;
+  const endpoint = `/Company('${encodedCompany}')/ItemTrackingLine(Entry_No=${params.entryNo},Positive=${positive})`;
 
   const payload: Record<string, unknown> = {};
 
@@ -705,15 +707,35 @@ export async function modifyItemTrackingLine(
 }
 
 /**
- * Delete an item tracking line
- * @param entryNo - Entry number of the tracking line to delete
+ * Delete an item tracking line using PATCH method (Business Central requirement)
+ * @param line - Full tracking line object to delete
  */
 export async function deleteItemTrackingLine(
-  entryNo: number,
+  line: ItemTrackingLine,
 ): Promise<unknown> {
   const encodedCompany = encodeURIComponent(COMPANY);
-  const endpoint = `/Company('${encodedCompany}')/ItemTrackingLine(${entryNo})`;
-  return apiDelete<unknown>(endpoint);
+
+  // Business Central uses composite key: (Entry_No, Positive)
+  const positive = line.Positive ?? false;
+  const endpoint = `/Company('${encodedCompany}')/ItemTrackingLine(Entry_No=${line.Entry_No},Positive=${positive})`;
+
+  // Body contains all tracking line data
+  const payload = {
+    Source_Type: line.Source_Type,
+    Source_Subtype: line.Source_Subtype,
+    Source_ID: line.Source_ID,
+    Source_Batch_Name: line.Source_Batch_Name,
+    Source_Prod_Order_Line: line.Source_Prod_Order_Line,
+    Source_Ref_No_: line.Source_Ref_No_,
+    Item_No: line.Item_No,
+    Location_Code: line.Location_Code,
+    Lot_No: line.Lot_No,
+    Expiration_Date: line.Expiration_Date,
+    Quantity_Base: line.Quantity_Base,
+    Qty_to_Handl_Base: line.Qty_to_Handl_Base,
+  };
+
+  return apiPatch<unknown>(endpoint, payload);
 }
 
 // ============================================

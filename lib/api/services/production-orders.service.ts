@@ -287,13 +287,41 @@ export async function changeProductionOrderStatus(
  * Refresh production order data
  * @param prodOrder - Production Order No
  */
+/**
+ * Refresh a production order (recalculate components based on BOM changes)
+ * Note: API may return "Application_CallbackNotAllowed" error when components are already picked,
+ * but the operation still succeeds. This error occurs because Business Central tries to show
+ * a confirmation dialog which is not supported in API calls.
+ */
 export async function refreshProductionOrder(
   prodOrder: string,
 ): Promise<unknown> {
   const endpoint = `/API_RefressProductionOrder?company='${encodeURIComponent(COMPANY)}'`;
   const payload = { prodOrder };
 
-  return apiPost<unknown>(endpoint, payload);
+  try {
+    return await apiPost<unknown>(endpoint, payload);
+  } catch (error: any) {
+    // Handle "Application_CallbackNotAllowed" as a warning, not an error
+    // This occurs when Business Central tries to show a confirmation dialog
+    // The operation still succeeds despite this error
+    if (
+      error?.error?.code === "Application_CallbackNotAllowed" ||
+      error?.code === "Application_CallbackNotAllowed"
+    ) {
+      // Log as warning but don't throw - operation succeeded
+      console.warn(
+        "Production order refresh succeeded with callback warning:",
+        error?.error?.message || error?.message,
+      );
+      return {
+        success: true,
+        warning: error?.error?.message || error?.message,
+      };
+    }
+    // Re-throw other errors
+    throw error;
+  }
 }
 
 // ============================================
@@ -365,14 +393,34 @@ export async function createProductionOrder(
  * This populates the journal entries in the backend after order creation
  * @param prodOrderNo - Production order number (e.g., "RPO/2526/041189")
  */
+/**
+ * Refresh production order for journal creation
+ * Note: API may return "Application_CallbackNotAllowed" error when components are already picked,
+ * but the operation still succeeds.
+ */
 export async function refreshProductionOrderJournal(
   prodOrderNo: string,
 ): Promise<void> {
   const endpoint = `/API_RefressProductionOrder?company='${encodeURIComponent(COMPANY)}'`;
 
-  await apiPost<void>(endpoint, {
-    prodOrder: prodOrderNo,
-  });
+  try {
+    await apiPost<void>(endpoint, {
+      prodOrder: prodOrderNo,
+    });
+  } catch (error: any) {
+    // Handle "Application_CallbackNotAllowed" as a warning, not an error
+    if (
+      error?.error?.code === "Application_CallbackNotAllowed" ||
+      error?.code === "Application_CallbackNotAllowed"
+    ) {
+      console.warn(
+        "Production order journal refresh succeeded with callback warning:",
+        error?.error?.message || error?.message,
+      );
+      return; // Operation succeeded
+    }
+    throw error;
+  }
 }
 
 // ============================================
@@ -535,9 +583,10 @@ export interface AssignItemTrackingParams {
 /**
  * Assign item tracking (lot number) to a production order line, component, or journal entry
  * @param params - Item tracking parameters
- * - For lines: sourceType = 5406, sourcerefNo = 0, sourceID = prodOrderNo
- * - For components: sourceType = 5407, sourcerefNo = component Line_No, sourceID = prodOrderNo
- * - For journals: sourceType = 5406, sourcerefNo = 0, sourceID = "PROD.ORDEA", ReservationStatus = "Prospect"
+ * - For lines: sourceType = 5406, sourcerefNo = 0, sourceID = prodOrderNo, NO reservationStatus
+ * - For components: sourceType = 5406, sourcerefNo = component Line_No, sourceID = prodOrderNo, reservationStatus = 2 (Tracking)
+ * - For journals: sourceType = 5406, sourcerefNo = 0, sourceID = "PROD.ORDEA", reservationStatus = 4 (Prospect)
+ * Note: reservationStatus is NUMERIC (0=Blank, 1=Reservation, 2=Tracking, 3=Surplus, 4=Prospect)
  */
 export async function assignItemTracking(
   params: AssignItemTrackingParams,
@@ -567,11 +616,19 @@ export async function assignItemTracking(
     newManufacuringdate: "0001-01-01",
   };
 
-  // Add ReservationStatus only for journal entries (as string "Prospect")
-  // Per Postman spec: components/lines should NOT have any reservationStatus field
-  if (isJournal) {
-    payload.ReservationStatus = "Prospect";
+  // Handle reservationStatus based on tracking type
+  // API expects numeric values: 0=Blank, 1=Reservation, 2=Tracking, 3=Surplus, 4=Prospect
+  // Components: reservationStatus = 2 (Tracking)
+  // Journals: reservationStatus = 4 (Prospect)
+  // Lines: no reservationStatus field
+  const isComponent = params.trackingType === "component";
+
+  if (isComponent) {
+    payload.reservationStatus = 2; // Tracking - for components
+  } else if (isJournal) {
+    payload.reservationStatus = 4; // Prospect - for production journals
   }
+  // Lines don't need reservationStatus
 
   return apiPost<unknown>(endpoint, payload);
 }

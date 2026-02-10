@@ -241,12 +241,7 @@ export function ItemTrackingDialog({
 
         // Refresh tracking lines
         try {
-          let filter = `Source_ID eq '${prodOrderNo}'`;
-          if (isComponentSource && source) {
-            filter += ` and Source_Ref_No_ eq ${(source as ProductionOrderComponent).Line_No}`;
-          } else if (isJournalSource || !source) {
-            filter += ` and Source_Ref_No_ eq 0`;
-          }
+          let filter = `Source_ID eq '${prodOrderNo}' and Source_Ref_No_ eq ${(source as ProductionOrderComponent).Line_No}`;
           const lines = await getItemTrackingLines({ customFilter: filter });
           setTrackingLines(lines);
         } catch (error) {
@@ -327,12 +322,7 @@ export function ItemTrackingDialog({
 
       // Refresh tracking lines after assignment
       try {
-        let filter = `Source_ID eq '${prodOrderNo}'`;
-        if (isComponentSource && source) {
-          filter += ` and Source_Ref_No_ eq ${(source as ProductionOrderComponent).Line_No}`;
-        } else if (isJournalSource || !source) {
-          filter += ` and Source_Ref_No_ eq 0`;
-        }
+        let filter = `Source_ID eq '${prodOrderNo}' and Source_Ref_No_ eq ${(source as ProductionOrderComponent).Line_No}`;
         const lines = await getItemTrackingLines({ customFilter: filter });
         setTrackingLines(lines);
       } catch (error) {
@@ -385,12 +375,7 @@ export function ItemTrackingDialog({
 
       // Refresh tracking lines
       try {
-        let filter = `Source_ID eq '${prodOrderNo}'`;
-        if (isComponentSource && source) {
-          filter += ` and Source_Ref_No_ eq ${(source as ProductionOrderComponent).Line_No}`;
-        } else if (isJournalSource || !source) {
-          filter += ` and Source_Ref_No_ eq 0`;
-        }
+        let filter = `Source_ID eq '${prodOrderNo}' and Source_Ref_No_ eq ${(source as ProductionOrderComponent).Line_No}`;
         const lines = await getItemTrackingLines({ customFilter: filter });
         setTrackingLines(lines);
       } catch (error) {

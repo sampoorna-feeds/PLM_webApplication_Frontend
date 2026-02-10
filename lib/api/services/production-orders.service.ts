@@ -534,7 +534,7 @@ export interface SubstituteItem {
 
 /**
  * Get component substitutes using API_GetCompSubst endpoint
- * This endpoint returns substitute items for a specific component
+ * This endpoint returns a base64-encoded JSON string containing substitute items
  * @param prodOrderNo - Production Order No
  * @param prodOrderLineNo - Production Order Line No
  * @param componentLineNo - Component Line No
@@ -553,9 +553,37 @@ export async function getSubstituteItems(
 
   try {
     const response = await apiPost<any>(endpoint, payload);
-    // The response structure may vary - handle different cases
+
+    // API returns base64-encoded JSON in response.value
+    if (response?.value && typeof response.value === "string") {
+      try {
+        // Decode base64 string
+        const decodedString = atob(response.value);
+
+        // Parse JSON
+        const decodedData = JSON.parse(decodedString);
+
+        // Extract Substitutions array and map to SubstituteItem format
+        if (
+          decodedData?.Substitutions &&
+          Array.isArray(decodedData.Substitutions)
+        ) {
+          return decodedData.Substitutions.map((sub: any) => ({
+            Item_No: sub["Substitute_No."] || sub.Substitute_No || "",
+            Description: sub.Description || "",
+            Quantity: sub.Inventory || 0,
+          }));
+        }
+      } catch (decodeError) {
+        console.error("Error decoding substitute items:", decodeError);
+        return [];
+      }
+    }
+
+    // Fallback: handle other response formats (for backward compatibility)
     if (Array.isArray(response)) return response;
     if (response?.value && Array.isArray(response.value)) return response.value;
+
     return [];
   } catch (error) {
     console.error("Error fetching substitute items:", error);
@@ -584,7 +612,7 @@ export interface AssignItemTrackingParams {
  * Assign item tracking (lot number) to a production order line, component, or journal entry
  * @param params - Item tracking parameters
  * - For lines: sourceType = 5406, sourcerefNo = 0, sourceID = prodOrderNo, NO reservationStatus
- * - For components: sourceType = 5406, sourcerefNo = component Line_No, sourceID = prodOrderNo, reservationStatus = 2 (Tracking)
+ * - For components: sourceType = 5406, sourcerefNo = component Line_No, sourceID = prodOrderNo, reservationStatus = 3 (Surplus)
  * - For journals: sourceType = 5406, sourcerefNo = 0, sourceID = "PROD.ORDEA", reservationStatus = 4 (Prospect)
  * Note: reservationStatus is NUMERIC (0=Blank, 1=Reservation, 2=Tracking, 3=Surplus, 4=Prospect)
  */
@@ -618,13 +646,13 @@ export async function assignItemTracking(
 
   // Handle reservationStatus based on tracking type
   // API expects numeric values: 0=Blank, 1=Reservation, 2=Tracking, 3=Surplus, 4=Prospect
-  // Components: reservationStatus = 2 (Tracking)
+  // Components: reservationStatus = 3 (Surplus)
   // Journals: reservationStatus = 4 (Prospect)
   // Lines: no reservationStatus field
   const isComponent = params.trackingType === "component";
 
   if (isComponent) {
-    payload.reservationStatus = 2; // Tracking - for components
+    payload.reservationStatus = 3; // Surplus - for components
   } else if (isJournal) {
     payload.reservationStatus = 4; // Prospect - for production journals
   }
@@ -917,12 +945,12 @@ export async function getProductionJournal(
  */
 export async function deleteProdJnlLines(
   prodOrderNo: string,
-  prodOrderLineNo: number = 0,
+  prodOrderLineNo: string = "",
 ): Promise<void> {
   const endpoint = `/API_DeleteProdJnlLines?company='${encodeURIComponent(COMPANY)}'`;
   await apiPost<void>(endpoint, {
-    prodOrderNo: prodOrderNo,
-    prodOrderLineNo: prodOrderLineNo,
+    ProdOrderNo: prodOrderNo,
+    ProdOrderLineNo: prodOrderLineNo,
   });
 }
 
@@ -933,22 +961,22 @@ export async function deleteProdJnlLines(
 /**
  * Update a production order component with a substitute item
  * @param prodOrderNo - Production Order No
- * @param prodOrderLineNo - Production Order Line No (empty string = all)
- * @param componentLineNo - Component Line No (empty string = all)
+ * @param prodOrderLineNo - Production Order Line No
+ * @param componentLineNo - Component Line No
  * @param substItemNo - Substitute Item No to apply
  */
 export async function updateComponentSubstitute(
   prodOrderNo: string,
-  prodOrderLineNo: string,
-  componentLineNo: string,
+  prodOrderLineNo: number,
+  componentLineNo: number,
   substItemNo: string,
 ): Promise<void> {
   const endpoint = `/API_UpdateComponent?company='${encodeURIComponent(COMPANY)}'`;
   await apiPost<void>(endpoint, {
-    ProdOrderNo: prodOrderNo,
-    ProdOrderLineNo: prodOrderLineNo,
-    ComponenetLineNo: componentLineNo, // Note: API has typo in parameter name
-    SubstItemNo: substItemNo,
+    prodOrderNo: prodOrderNo,
+    prodOrderLineNo: prodOrderLineNo,
+    componenetLineNo: componentLineNo, // Note: API has typo "componenet" in parameter name
+    substItemNo: substItemNo,
   });
 }
 

@@ -140,8 +140,8 @@ export function ProductionOrderComponentDialog({
       // Call API to update component with substitute item
       await updateComponentSubstitute(
         component.Prod_Order_No,
-        component.Prod_Order_Line_No.toString(),
-        component.Line_No.toString(),
+        component.Prod_Order_Line_No,
+        component.Line_No,
         sub.Item_No,
       );
 

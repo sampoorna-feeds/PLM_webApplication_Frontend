@@ -337,6 +337,7 @@ export function ItemTrackingDialog({
         lotNo: lotNo.trim(),
         expirationDate: expirationDate || undefined,
         trackingType: trackingType,
+        sourceBatch: isJournalSource ? userId : undefined,
       });
 
       toast.success("Item tracking assigned successfully");

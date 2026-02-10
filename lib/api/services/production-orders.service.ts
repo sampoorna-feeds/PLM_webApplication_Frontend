@@ -606,6 +606,8 @@ export interface AssignItemTrackingParams {
   expirationDate?: string;
   /** 'line' for production order lines, 'component' for components, 'journal' for journal entries */
   trackingType?: "line" | "component" | "journal";
+  /** User ID - required for journal entries (used as sourceBatch) */
+  sourceBatch?: string;
 }
 
 /**
@@ -622,10 +624,12 @@ export async function assignItemTracking(
   const endpoint = `/API_TrackingAssign?company='${encodeURIComponent(COMPANY)}'`;
 
   const isJournal = params.trackingType === "journal";
+  const isComponent = params.trackingType === "component";
 
-  // sourceType is always 5406 per Postman specification
-  // Used for Production Order Lines, Components, and Journals
-  const sourceType = 5406;
+  // For journals: sourceType = 83, sourceSubType = 5
+  // For lines/components: sourceType = 5406, sourceSubType = 3
+  const sourceType = isJournal ? 83 : 5406;
+  const sourceSubType = isJournal ? 5 : 3;
 
   const payload: Record<string, unknown> = {
     itemNo: params.itemNo,
@@ -633,9 +637,9 @@ export async function assignItemTracking(
     quantity: params.quantity,
     sourceProdOrderLine: params.sourceProdOrderLine,
     sourceType: sourceType,
-    sourceSubType: 3, // Fixed value for Released status
+    sourceSubType: sourceSubType,
     sourceID: params.sourceID,
-    sourceBatch: "",
+    sourceBatch: isJournal ? params.sourceBatch || "" : "",
     sourcerefNo: params.sourcerefNo,
     lotNo: params.lotNo,
     expirationdate: params.expirationDate || "0001-01-01",
@@ -649,8 +653,6 @@ export async function assignItemTracking(
   // Components: reservationStatus = 3 (Surplus)
   // Journals: reservationStatus = 4 (Prospect)
   // Lines: no reservationStatus field
-  const isComponent = params.trackingType === "component";
-
   if (isComponent) {
     payload.reservationStatus = 3; // Surplus - for components
   } else if (isJournal) {
@@ -767,11 +769,9 @@ export interface ModifyItemTrackingLineParams {
 export async function modifyItemTrackingLine(
   params: ModifyItemTrackingLineParams,
 ): Promise<unknown> {
-  const encodedCompany = encodeURIComponent(COMPANY);
-
   // Business Central requires composite key: (Entry_No, Positive)
   const positive = params.positive ?? false;
-  const endpoint = `/Company('${encodedCompany}')/ItemTrackingLine(Entry_No=${params.entryNo},Positive=${positive})`;
+  const endpoint = `/ItemTrackingLine(Entry_No=${params.entryNo},Positive=${positive})?company='${encodeURIComponent(COMPANY)}'`;
 
   const payload: Record<string, unknown> = {};
 
@@ -798,13 +798,11 @@ export async function modifyItemTrackingLine(
 export async function deleteItemTrackingLine(
   line: ItemTrackingLine,
 ): Promise<unknown> {
-  const encodedCompany = encodeURIComponent(COMPANY);
-
   // Business Central uses composite key: (Entry_No, Positive)
   const positive = line.Positive ?? false;
-  const endpoint = `/Company('${encodedCompany}')/ItemTrackingLine(Entry_No=${line.Entry_No},Positive=${positive})`;
+  const endpoint = `/ItemTrackingLine(Entry_No=${line.Entry_No},Positive=${positive})?company='${encodeURIComponent(COMPANY)}'`;
 
-  // Body contains all tracking line data
+  // Body contains source identification data
   const payload = {
     Source_Type: line.Source_Type,
     Source_Subtype: line.Source_Subtype,
@@ -814,13 +812,9 @@ export async function deleteItemTrackingLine(
     Source_Ref_No_: line.Source_Ref_No_,
     Item_No: line.Item_No,
     Location_Code: line.Location_Code,
-    Lot_No: line.Lot_No,
-    Expiration_Date: line.Expiration_Date,
-    Quantity_Base: line.Quantity_Base,
-    Qty_to_Handl_Base: line.Qty_to_Handl_Base,
   };
 
-  return apiPatch<unknown>(endpoint, payload);
+  return apiDelete<unknown>(endpoint, payload);
 }
 
 // ============================================

@@ -61,7 +61,6 @@ import {
   getFamilies,
   getSalesHeaders,
   getProdOrderBOMs,
-  getProdOrderBOMsByItemOnly,
   getProdOrderBOMVersions,
   getItemByNo,
   type Item,
@@ -602,22 +601,17 @@ export function ProductionOrderForm({
     const loadBomOptions = async () => {
       setIsLoadingBom(true);
       try {
-        // Try primary method: BOMs filtered by Item_No AND Location_Code_1
-        let boms = await getProdOrderBOMs(
+        // Fetch BOMs filtered by Item_No AND Location_Code_1 only
+        const boms = await getProdOrderBOMs(
           formState.Source_No,
           formState.Location_Code,
         );
-
-        // If no BOMs found with location filter, try item-only filter
-        if (boms.length === 0) {
-          boms = await getProdOrderBOMsByItemOnly(formState.Source_No);
-        }
 
         setBomOptions(boms);
 
         if (boms.length === 0) {
           console.warn(
-            `No BOMs found for item ${formState.Source_No} with any filter`,
+            `No BOMs found for item ${formState.Source_No} at location ${formState.Location_Code}`,
           );
         }
       } catch (error) {

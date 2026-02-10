@@ -238,9 +238,22 @@ export function ProductionOrderFormFields({
           // No BOM from item - load BOM dropdown options filtered by item and location
           if (data.Location_Code) {
             setIsLoadingBom(true);
-            const boms = await getProdOrderBOMs(value, data.Location_Code);
-            setBomOptions(boms);
-            setIsLoadingBom(false);
+            try {
+              // Fetch BOMs filtered by Item_No AND Location_Code_1 only
+              const boms = await getProdOrderBOMs(value, data.Location_Code);
+              setBomOptions(boms);
+
+              if (boms.length === 0) {
+                console.warn(
+                  `No BOMs found for item ${value} at location ${data.Location_Code}`,
+                );
+              }
+            } catch (error) {
+              console.error("Error loading BOM options:", error);
+              setBomOptions([]);
+            } finally {
+              setIsLoadingBom(false);
+            }
           }
         }
       } catch (error) {

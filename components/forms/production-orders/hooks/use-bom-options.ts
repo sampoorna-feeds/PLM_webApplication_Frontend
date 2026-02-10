@@ -9,7 +9,6 @@
 import { useState, useEffect, useCallback } from "react";
 import {
   getProdOrderBOMs,
-  getProdOrderBOMsByItemOnly,
   getProdOrderBOMVersions,
   type ProdOrderBOM,
   type ProdOrderBOMVersion,
@@ -65,14 +64,15 @@ export function useBomOptions({
     const loadBomOptions = async () => {
       setIsLoadingBom(true);
       try {
-        // Try primary method: BOMs filtered by Item_No AND Location_Code_1
-        let boms = await getProdOrderBOMs(sourceNo, locationCode);
-
-        // If no BOMs found with location filter, try item-only filter
-        if (!boms.length) {
-          boms = await getProdOrderBOMsByItemOnly(sourceNo);
-        }
+        // Fetch BOMs filtered by Item_No AND Location_Code_1 only
+        const boms = await getProdOrderBOMs(sourceNo, locationCode);
         setBomOptions(boms);
+
+        if (boms.length === 0) {
+          console.warn(
+            `No BOMs found for item ${sourceNo} at location ${locationCode}`,
+          );
+        }
       } catch (error) {
         console.error("Error loading BOM options:", error);
         setBomOptions([]);

@@ -949,8 +949,8 @@ export async function deleteProdJnlLines(
 ): Promise<void> {
   const endpoint = `/API_DeleteProdJnlLines?company='${encodeURIComponent(COMPANY)}'`;
   await apiPost<void>(endpoint, {
-    ProdOrderNo: prodOrderNo,
-    ProdOrderLineNo: prodOrderLineNo,
+    prodOrderNo: prodOrderNo,
+    prodOrderLineNo: prodOrderLineNo,
   });
 }
 

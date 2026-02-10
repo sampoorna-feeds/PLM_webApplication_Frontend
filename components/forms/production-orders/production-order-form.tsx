@@ -788,15 +788,11 @@ export function ProductionOrderForm({
     [sourceOptions, formState.Source_Type, updateTab],
   );
 
-  // Handle Refresh Production Order
-  const handleRefresh = useCallback(async () => {
+  // Refresh order data without calling the refresh API
+  const refreshOrderData = useCallback(async () => {
     if (!formState.No) return;
 
-    setIsRefreshing(true);
     try {
-      await refreshProductionOrder(formState.No);
-      toast.success("Production Order refreshed successfully!");
-
       // Reload order data
       const order = await getProductionOrderByNo(formState.No);
       if (order) {
@@ -833,13 +829,29 @@ export function ProductionOrderForm({
       }
       setOrderComponents(allComponents);
     } catch (error) {
+      console.error("Error refreshing order data:", error);
+    }
+  }, [formState.No]);
+
+  // Handle Refresh Production Order (calls API to recalculate components)
+  const handleRefresh = useCallback(async () => {
+    if (!formState.No) return;
+
+    setIsRefreshing(true);
+    try {
+      await refreshProductionOrder(formState.No);
+      toast.success("Production Order refreshed successfully!");
+
+      // Reload order data
+      await refreshOrderData();
+    } catch (error) {
       console.error("Error refreshing production order:", error);
       const { message, code } = extractApiError(error);
       setApiError({ title: "Refresh Failed", message, code });
     } finally {
       setIsRefreshing(false);
     }
-  }, [formState.No]);
+  }, [formState.No, refreshOrderData]);
 
   // Handle Manufacture (Change Status to Finished)
   const handleManufacture = async () => {
@@ -888,8 +900,8 @@ export function ProductionOrderForm({
   // Handle Line Dialog Save
   const handleLineSave = useCallback(() => {
     // Refresh the order to get updated values
-    handleRefresh();
-  }, [handleRefresh]);
+    refreshOrderData();
+  }, [refreshOrderData]);
 
   // Handle Component Row Click
   const handleComponentClick = useCallback(
@@ -903,8 +915,8 @@ export function ProductionOrderForm({
 
   // Handle Component Save
   const handleComponentSave = useCallback(() => {
-    handleRefresh();
-  }, [handleRefresh]);
+    refreshOrderData();
+  }, [refreshOrderData]);
 
   // Handle Assign Tracking Click for Components
   const handleAssignComponentTracking = useCallback(() => {
@@ -920,8 +932,9 @@ export function ProductionOrderForm({
 
   // Handle Item Tracking Save
   const handleItemTrackingSave = useCallback(() => {
-    handleRefresh();
-  }, [handleRefresh]);
+    // Just refresh the data, don't call the refresh production order API
+    refreshOrderData();
+  }, [refreshOrderData]);
 
   const handleSubmit = async () => {
     // Validate form using utility
@@ -1073,7 +1086,7 @@ export function ProductionOrderForm({
         });
 
         // Refresh lines and components in case quantity change affected them
-        await handleRefresh();
+        await refreshOrderData();
       }
     } catch (error) {
       console.error("Error submitting Production Order:", error);

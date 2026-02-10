@@ -122,7 +122,7 @@ export function ProductionOrderPostSheet({
     setIsClosing(true);
     try {
       // Delete all journal lines
-      await deleteProdJnlLines(prodOrderNo);
+      await deleteProdJnlLines(prodOrderNo, prodOrderLineNo.toString());
       // Close the sheet
       setIsOpen(false);
     } catch (error) {
@@ -134,7 +134,7 @@ export function ProductionOrderPostSheet({
     } finally {
       setIsClosing(false);
     }
-  }, [prodOrderNo]);
+  }, [prodOrderNo, prodOrderLineNo]);
 
   // Create journal entries when sheet opens
   useEffect(() => {

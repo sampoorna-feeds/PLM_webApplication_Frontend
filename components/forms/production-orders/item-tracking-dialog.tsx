@@ -164,7 +164,9 @@ export function ItemTrackingDialog({
       const fetchTrackingLines = async () => {
         setIsLoadingTrackingLines(true);
         try {
-          const lines = await getItemTrackingLines(prodOrderNo);
+          let filter = `Source_ID eq '${prodOrderNo}' and Source_Ref_No_ eq ${(source as ProductionOrderComponent).Line_No}`;
+
+          const lines = await getItemTrackingLines({ customFilter: filter });
           setTrackingLines(lines);
         } catch (error) {
           console.error("Error fetching tracking lines:", error);
@@ -239,7 +241,13 @@ export function ItemTrackingDialog({
 
         // Refresh tracking lines
         try {
-          const lines = await getItemTrackingLines(prodOrderNo);
+          let filter = `Source_ID eq '${prodOrderNo}'`;
+          if (isComponentSource && source) {
+            filter += ` and Source_Ref_No_ eq ${(source as ProductionOrderComponent).Line_No}`;
+          } else if (isJournalSource || !source) {
+            filter += ` and Source_Ref_No_ eq 0`;
+          }
+          const lines = await getItemTrackingLines({ customFilter: filter });
           setTrackingLines(lines);
         } catch (error) {
           console.error("Error refreshing tracking lines:", error);
@@ -319,7 +327,13 @@ export function ItemTrackingDialog({
 
       // Refresh tracking lines after assignment
       try {
-        const lines = await getItemTrackingLines(prodOrderNo);
+        let filter = `Source_ID eq '${prodOrderNo}'`;
+        if (isComponentSource && source) {
+          filter += ` and Source_Ref_No_ eq ${(source as ProductionOrderComponent).Line_No}`;
+        } else if (isJournalSource || !source) {
+          filter += ` and Source_Ref_No_ eq 0`;
+        }
+        const lines = await getItemTrackingLines({ customFilter: filter });
         setTrackingLines(lines);
       } catch (error) {
         console.error("Error refreshing tracking lines:", error);
@@ -371,7 +385,13 @@ export function ItemTrackingDialog({
 
       // Refresh tracking lines
       try {
-        const lines = await getItemTrackingLines(prodOrderNo);
+        let filter = `Source_ID eq '${prodOrderNo}'`;
+        if (isComponentSource && source) {
+          filter += ` and Source_Ref_No_ eq ${(source as ProductionOrderComponent).Line_No}`;
+        } else if (isJournalSource || !source) {
+          filter += ` and Source_Ref_No_ eq 0`;
+        }
+        const lines = await getItemTrackingLines({ customFilter: filter });
         setTrackingLines(lines);
       } catch (error) {
         console.error("Error refreshing tracking lines:", error);
@@ -570,7 +590,7 @@ export function ItemTrackingDialog({
             )}
 
             {/* Separator and Item Tracking Lines Section */}
-            {trackingLines.length > 0 && hasTracking && (
+            {hasTracking && (
               <>
                 <div className="my-6 border-t" />
                 <div className="space-y-3">
@@ -608,75 +628,93 @@ export function ItemTrackingDialog({
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {trackingLines.map((line, index) => (
-                            <TableRow
-                              key={`${line.Entry_No}-${index}`}
-                              className={
-                                editingLine?.Entry_No === line.Entry_No
-                                  ? "bg-blue-100/50"
-                                  : ""
-                              }
-                            >
-                              <TableCell className="py-2 font-medium">
-                                {line.Item_No || "-"}
-                              </TableCell>
-                              <TableCell className="py-2">
-                                {line.Lot_No || "-"}
-                              </TableCell>
-                              <TableCell className="py-2">
-                                {line.Location_Code || "-"}
-                              </TableCell>
-                              <TableCell className="py-2 text-right">
-                                {line.Quantity_Base?.toLocaleString() ?? "-"}
-                              </TableCell>
-                              <TableCell className="py-2 text-right">
-                                {line.Qty_to_Handl_Base?.toLocaleString() ??
-                                  "-"}
-                              </TableCell>
-                              <TableCell className="py-2">
-                                {line.Expiration_Date
-                                  ? line.Expiration_Date.split("T")[0]
-                                  : "-"}
-                              </TableCell>
-                              <TableCell className="py-2 text-center">
-                                <span className="text-xs">
-                                  {line.Source_Type === 5407
-                                    ? "Component"
-                                    : line.Source_Type === 5406
-                                      ? "Line"
-                                      : "-"}
-                                </span>
-                              </TableCell>
-                              <TableCell className="py-2">
-                                <div className="flex items-center justify-center gap-1">
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-7 w-7 p-0"
-                                    onClick={() => handleEditLine(line)}
-                                    disabled={!!editingLine}
-                                    title="Edit tracking line"
-                                  >
-                                    <Pencil className="h-3.5 w-3.5" />
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="text-destructive hover:text-destructive h-7 w-7 p-0"
-                                    onClick={() => handleDeleteLine(line)}
-                                    disabled={isDeleting === line.Entry_No}
-                                    title="Delete tracking line"
-                                  >
-                                    {isDeleting === line.Entry_No ? (
-                                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                    ) : (
-                                      <Trash2 className="h-3.5 w-3.5" />
-                                    )}
-                                  </Button>
+                          {trackingLines.length === 0 ? (
+                            <TableRow>
+                              <TableCell
+                                colSpan={8}
+                                className="h-24 text-center"
+                              >
+                                <div className="text-muted-foreground flex flex-col items-center justify-center gap-1">
+                                  <p className="text-sm">
+                                    No tracking lines assigned yet
+                                  </p>
+                                  <p className="text-xs">
+                                    Assign a lot number above to create tracking
+                                  </p>
                                 </div>
                               </TableCell>
                             </TableRow>
-                          ))}
+                          ) : (
+                            trackingLines.map((line, index) => (
+                              <TableRow
+                                key={`${line.Entry_No}-${index}`}
+                                className={
+                                  editingLine?.Entry_No === line.Entry_No
+                                    ? "bg-blue-100/50"
+                                    : ""
+                                }
+                              >
+                                <TableCell className="py-2 font-medium">
+                                  {line.Item_No || "-"}
+                                </TableCell>
+                                <TableCell className="py-2">
+                                  {line.Lot_No || "-"}
+                                </TableCell>
+                                <TableCell className="py-2">
+                                  {line.Location_Code || "-"}
+                                </TableCell>
+                                <TableCell className="py-2 text-right">
+                                  {line.Quantity_Base?.toLocaleString() ?? "-"}
+                                </TableCell>
+                                <TableCell className="py-2 text-right">
+                                  {line.Qty_to_Handl_Base?.toLocaleString() ??
+                                    "-"}
+                                </TableCell>
+                                <TableCell className="py-2">
+                                  {line.Expiration_Date
+                                    ? line.Expiration_Date.split("T")[0]
+                                    : "-"}
+                                </TableCell>
+                                <TableCell className="py-2 text-center">
+                                  <span className="text-xs">
+                                    {line.Source_Type === 5407
+                                      ? "Component"
+                                      : line.Source_Type === 5406
+                                        ? "Line"
+                                        : "-"}
+                                  </span>
+                                </TableCell>
+                                <TableCell className="py-2">
+                                  <div className="flex items-center justify-center gap-1">
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-7 w-7 p-0"
+                                      onClick={() => handleEditLine(line)}
+                                      disabled={!!editingLine}
+                                      title="Edit tracking line"
+                                    >
+                                      <Pencil className="h-3.5 w-3.5" />
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="text-destructive hover:text-destructive h-7 w-7 p-0"
+                                      onClick={() => handleDeleteLine(line)}
+                                      disabled={isDeleting === line.Entry_No}
+                                      title="Delete tracking line"
+                                    >
+                                      {isDeleting === line.Entry_No ? (
+                                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                      ) : (
+                                        <Trash2 className="h-3.5 w-3.5" />
+                                      )}
+                                    </Button>
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            ))
+                          )}
                         </TableBody>
                       </Table>
                     )}

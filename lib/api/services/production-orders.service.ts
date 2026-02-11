@@ -613,10 +613,10 @@ export interface AssignItemTrackingParams {
 /**
  * Assign item tracking (lot number) to a production order line, component, or journal entry
  * @param params - Item tracking parameters
- * - For lines: sourceType = 5406, sourcerefNo = 0, sourceID = prodOrderNo, NO reservationStatus
- * - For components: sourceType = 5406, sourcerefNo = component Line_No, sourceID = prodOrderNo, reservationStatus = 3 (Surplus)
- * - For journals: sourceType = 5406, sourcerefNo = 0, sourceID = "PROD.ORDEA", reservationStatus = 4 (Prospect)
- * Note: reservationStatus is NUMERIC (0=Blank, 1=Reservation, 2=Tracking, 3=Surplus, 4=Prospect)
+ * - For lines: sourceType = 5406, sourcerefNo = 0, sourceID = prodOrderNo, reservationStatus = 2 (Surplus), quantity POSITIVE
+ * - For components: sourceType = 5407, sourcerefNo = component Line_No, sourceID = prodOrderNo, reservationStatus = 2 (Surplus)
+ * - For journals: sourceType = 83, sourcerefNo = journal Line_No, sourceID = "PROD.ORDEA", reservationStatus = 3 (Prospect)
+ * Note: reservationStatus is NUMERIC (0=Reservation, 1=Tracking, 2=Surplus, 3=Prospect)
  */
 export async function assignItemTracking(
   params: AssignItemTrackingParams,
@@ -625,16 +625,34 @@ export async function assignItemTracking(
 
   const isJournal = params.trackingType === "journal";
   const isComponent = params.trackingType === "component";
+  const isLine = params.trackingType === "line";
 
-  // For journals: sourceType = 83, sourceSubType = 5
-  // For lines/components: sourceType = 5406, sourceSubType = 3
-  const sourceType = isJournal ? 83 : 5406;
+  // Source Type values:
+  // - Lines: 5406
+  // - Components: 5407
+  // - Journals: 83
+  let sourceType: number;
+  if (isJournal) {
+    sourceType = 83;
+  } else if (isComponent) {
+    sourceType = 5407;
+  } else {
+    sourceType = 5406; // line
+  }
+
+  // Source Subtype: 3 for lines/components, 5 for journals
   const sourceSubType = isJournal ? 5 : 3;
+
+  // Lines use POSITIVE quantities, components and journals use NEGATIVE
+  const quantity = isLine
+    ? Math.abs(params.quantity)
+    : -Math.abs(params.quantity);
 
   const payload: Record<string, unknown> = {
     itemNo: params.itemNo,
     locationCode: params.locationCode,
-    quantity: params.quantity,
+    quantity: quantity,
+    qtytoHandle: quantity,
     sourceProdOrderLine: params.sourceProdOrderLine,
     sourceType: sourceType,
     sourceSubType: sourceSubType,
@@ -649,16 +667,14 @@ export async function assignItemTracking(
   };
 
   // Handle reservationStatus based on tracking type
-  // API expects numeric values: 0=Blank, 1=Reservation, 2=Tracking, 3=Surplus, 4=Prospect
-  // Components: reservationStatus = 3 (Surplus)
-  // Journals: reservationStatus = 4 (Prospect)
-  // Lines: no reservationStatus field
-  if (isComponent) {
-    payload.reservationStatus = 3; // Surplus - for components
+  // API expects numeric values: 0=Reservation, 1=Tracking, 2=Surplus, 3=Prospect
+  // Components and Lines: reservationStatus = 2 (Surplus)
+  // Journals: reservationStatus = 3 (Prospect)
+  if (isComponent || isLine) {
+    payload.reservationStatus = 2; // Surplus - for components and lines
   } else if (isJournal) {
-    payload.reservationStatus = 4; // Prospect - for production journals
+    payload.reservationStatus = 3; // Prospect - for production journals
   }
-  // Lines don't need reservationStatus
 
   return apiPost<unknown>(endpoint, payload);
 }
@@ -980,9 +996,13 @@ export async function updateComponentSubstitute(
 
 /**
  * Post production order journal
- * @param pPONo - Production Order No
+ * @param rPONo - Production Order No
+ * @param postingDate - Posting date in YYYY-MM-DD format
  */
-export async function postProductionOrder(pPONo: string): Promise<void> {
+export async function postProductionOrder(
+  rPONo: string,
+  postingDate: string,
+): Promise<void> {
   const endpoint = `/API_PostRPO?company='${encodeURIComponent(COMPANY)}'`;
-  await apiPost<void>(endpoint, { rPONo: pPONo });
+  await apiPost<void>(endpoint, { rPONo, pOstingdate: postingDate });
 }

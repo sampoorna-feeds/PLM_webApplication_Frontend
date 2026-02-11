@@ -687,7 +687,9 @@ export function ItemTrackingDialog({
                                       ? "Component"
                                       : line.Source_Type === 5406
                                         ? "Line"
-                                        : "-"}
+                                        : line.Source_Type === 83
+                                          ? "Journal"
+                                          : "-"}
                                   </span>
                                 </TableCell>
                                 <TableCell className="py-2">

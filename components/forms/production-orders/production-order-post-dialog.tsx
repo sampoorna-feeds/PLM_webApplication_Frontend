@@ -24,10 +24,10 @@ import {
   getProductionJournal,
   deleteProdJnlLines,
   createProductionJournal,
-  postProductionOrder,
   type ProductionJournalEntry,
 } from "@/lib/api/services/production-orders.service";
 import { ItemTrackingDialog } from "./item-tracking-dialog";
+import { ProductionOrderPostConfirmationDialog } from "./production-order-post-confirmation-dialog";
 import { useItemTracking } from "./use-item-tracking";
 import {
   ApiErrorDialog,
@@ -51,10 +51,12 @@ export function ProductionOrderPostSheet({
   const [isLoading, setIsLoading] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
-  const [isPosting, setIsPosting] = useState(false);
   const [journalEntries, setJournalEntries] = useState<
     ProductionJournalEntry[]
   >([]);
+
+  // Post confirmation dialog state
+  const [isPostConfirmationOpen, setIsPostConfirmationOpen] = useState(false);
 
   // Item tracking state
   const [selectedEntry, setSelectedEntry] =
@@ -143,23 +145,16 @@ export function ProductionOrderPostSheet({
     }
   }, [isOpen, handleSheetOpen]);
 
-  // Handle post production order journal
-  const handlePostOrderJn = async () => {
+  // Handle post production order journal - opens confirmation dialog
+  const handlePostOrderJn = () => {
     if (!prodOrderNo) return;
+    setIsPostConfirmationOpen(true);
+  };
 
-    setIsPosting(true);
-    try {
-      await postProductionOrder(prodOrderNo);
-      toast.success("Production order journal posted successfully");
-      // Refresh the entries list
-      await fetchJournalEntries();
-    } catch (error) {
-      console.error("Error posting production order:", error);
-      const { message, code } = extractApiError(error);
-      setApiError({ title: "Post Failed", message, code });
-    } finally {
-      setIsPosting(false);
-    }
+  // Handle successful post from confirmation dialog
+  const handlePostSuccess = async () => {
+    // Refresh the entries list
+    await fetchJournalEntries();
   };
 
   // Handle row click to open item tracking
@@ -210,13 +205,9 @@ export function ProductionOrderPostSheet({
                   variant="default"
                   size="sm"
                   onClick={handlePostOrderJn}
-                  disabled={isPosting || isLoading}
+                  disabled={isLoading}
                 >
-                  {isPosting ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <Send className="mr-2 h-4 w-4" />
-                  )}
+                  <Send className="mr-2 h-4 w-4" />
                   Post Order Jn
                 </Button>
               )}
@@ -317,6 +308,13 @@ export function ProductionOrderPostSheet({
         }}
         prodOrderNo={prodOrderNo}
         userId={userId}
+      />
+
+      <ProductionOrderPostConfirmationDialog
+        open={isPostConfirmationOpen}
+        onOpenChange={setIsPostConfirmationOpen}
+        prodOrderNo={prodOrderNo}
+        onSuccess={handlePostSuccess}
       />
 
       <ApiErrorDialog error={apiError} onClose={() => setApiError(null)} />

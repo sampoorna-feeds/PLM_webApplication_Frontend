@@ -128,6 +128,34 @@ export function ItemTrackingDialog({
   const isComponentSource = isComponent(source);
   const isJournalSource = isJournalEntry(source);
 
+  // Calculate total quantity already assigned in tracking lines (using absolute values)
+  const assignedQuantity = useMemo(() => {
+    if (editingLine) {
+      // When editing, exclude the line being edited from the total
+      return trackingLines
+        .filter((line) => line.Entry_No !== editingLine.Entry_No)
+        .reduce((sum, line) => sum + Math.abs(line.Quantity_Base || 0), 0);
+    }
+    return trackingLines.reduce(
+      (sum, line) => sum + Math.abs(line.Quantity_Base || 0),
+      0,
+    );
+  }, [trackingLines, editingLine]);
+
+  // Get remaining quantity from source
+  const remainingQuantity = useMemo(() => {
+    if (!source) return 0;
+    return isJournalSource
+      ? (source as ProductionJournalEntry).Quantity || 0
+      : (source as ProductionOrderLine | ProductionOrderComponent)
+          .Remaining_Quantity || 0;
+  }, [source, isJournalSource]);
+
+  // Calculate available quantity for new assignment
+  const availableForAssignment = useMemo(() => {
+    return Math.max(0, remainingQuantity - assignedQuantity);
+  }, [remainingQuantity, assignedQuantity]);
+
   const filter = useMemo(() => {
     if (!source || !prodOrderNo) return "";
 
@@ -217,15 +245,11 @@ export function ItemTrackingDialog({
     // Format date for input type="date" (YYYY-MM-DD)
     const expDate = lot.Expiration_Date?.split("T")[0] || "";
     setExpirationDate(expDate);
-    // Auto-suggest remaining quantity or available qty (whichever is smaller)
-    // Journal entries use Quantity, lines/components use Remaining_Quantity
-    const sourceRemainingQty = source
-      ? isJournalEntry(source)
-        ? source.Quantity || 0
-        : (source as ProductionOrderLine | ProductionOrderComponent)
-            .Remaining_Quantity || 0
-      : 0;
-    const suggestedQty = Math.min(lot.RemainingQty || 0, sourceRemainingQty);
+    // Auto-suggest the smaller of: available lot qty, available for assignment
+    const suggestedQty = Math.min(
+      lot.RemainingQty || 0,
+      availableForAssignment,
+    );
     setQuantity(suggestedQty.toString());
   };
 
@@ -243,6 +267,15 @@ export function ItemTrackingDialog({
 
     if (!quantityValue || quantityValue <= 0) {
       toast.error("Quantity must be greater than 0");
+      return;
+    }
+
+    // Validate against available quantity for assignment
+    // Check if the new quantity would exceed the available amount
+    if (quantityValue > availableForAssignment) {
+      toast.error(
+        `Quantity exceeds available amount. Available: ${availableForAssignment.toLocaleString()} (Remaining: ${remainingQuantity.toLocaleString()}, Already Assigned: ${assignedQuantity.toLocaleString()})`,
+      );
       return;
     }
 
@@ -282,19 +315,6 @@ export function ItemTrackingDialog({
       } finally {
         setIsSaving(false);
       }
-      return;
-    }
-
-    // Validate against remaining quantity (only for new assignments)
-    // Journal entries use Quantity, lines/components use Remaining_Quantity
-    const remainingQty = isJournalSource
-      ? (source as ProductionJournalEntry).Quantity || 0
-      : (source as ProductionOrderLine | ProductionOrderComponent)
-          .Remaining_Quantity || 0;
-    if (quantityValue > remainingQty && remainingQty > 0) {
-      toast.error(
-        `Quantity cannot exceed remaining quantity (${remainingQty})`,
-      );
       return;
     }
 
@@ -514,6 +534,17 @@ export function ItemTrackingDialog({
                     </div>
                   )}
 
+                  {/* Warning when no quantity available */}
+                  {availableForAssignment <= 0 && !editingLine && (
+                    <div className="rounded-md border border-orange-200 bg-orange-50 p-3 text-sm text-orange-800">
+                      <p className="font-medium">⚠️ No Quantity Available</p>
+                      <p className="mt-1 text-xs">
+                        All quantity has been assigned. You can edit or delete
+                        existing tracking lines.
+                      </p>
+                    </div>
+                  )}
+
                   {/* Source Info */}
                   <div className="bg-muted/50 space-y-2 rounded-md p-4 text-sm">
                     <div className="flex justify-between">
@@ -578,17 +609,26 @@ export function ItemTrackingDialog({
                         }}
                         placeholder="Enter quantity"
                       />
-                      <p className="text-muted-foreground mt-1 text-right text-xs">
-                        Remaining:{" "}
-                        {(isJournalSource
-                          ? (source as ProductionJournalEntry).Quantity
-                          : (
-                              source as
-                                | ProductionOrderLine
-                                | ProductionOrderComponent
-                            ).Remaining_Quantity
-                        )?.toLocaleString() || 0}
-                      </p>
+                      <div className="mt-1 space-y-0.5 text-xs text-muted-foreground">
+                        <p className="flex justify-between">
+                          <span>Total Remaining:</span>
+                          <span className="font-medium">
+                            {remainingQuantity.toLocaleString()}
+                          </span>
+                        </p>
+                        <p className="flex justify-between">
+                          <span>Already Assigned:</span>
+                          <span className="font-medium">
+                            {assignedQuantity.toLocaleString()}
+                          </span>
+                        </p>
+                        <p className="flex justify-between border-t pt-0.5">
+                          <span className="font-medium">Available to Assign:</span>
+                          <span className={`font-semibold ${availableForAssignment > 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>
+                            {availableForAssignment.toLocaleString()}
+                          </span>
+                        </p>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -743,7 +783,17 @@ export function ItemTrackingDialog({
               </Button>
             )}
             {hasTracking && (
-              <Button onClick={handleSave} disabled={isSaving}>
+              <Button
+                onClick={handleSave}
+                disabled={
+                  isSaving || (!editingLine && availableForAssignment <= 0)
+                }
+                title={
+                  !editingLine && availableForAssignment <= 0
+                    ? "No available quantity for assignment"
+                    : undefined
+                }
+              >
                 {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {editingLine ? "Update" : "Assign"}
               </Button>

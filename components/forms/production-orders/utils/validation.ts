@@ -41,10 +41,8 @@ export function validateProductionOrderForm(
 ): ValidationResult {
   const errors: ValidationError[] = [];
 
-  // Required field validations
-  if (!data.Description?.trim()) {
-    errors.push({ field: "Description", message: "Description is required" });
-  } else if (data.Description.length > 100) {
+  // Optional field validations (description not mandatory)
+  if (data.Description && data.Description.length > 100) {
     errors.push({
       field: "Description",
       message: "Description must be 100 characters or less",

@@ -334,10 +334,10 @@ export function ItemTrackingDialog({
         sourcerefNo = (source as ProductionOrderComponent).Line_No;
         sourceID = prodOrderNo; // Production order number for components
       } else if (isJournalSource) {
-        // Journal entry: use journal Line_No, sourcerefNo is 0, sourceID is template name
+        // Journal entry: sourceProdOrderLine is always 0, sourcerefNo is the journal Line_No
         trackingType = "journal";
-        sourceProdOrderLine = (source as ProductionJournalEntry).Line_No;
-        sourcerefNo = 0;
+        sourceProdOrderLine = 0; // Always 0 for journals
+        sourcerefNo = (source as ProductionJournalEntry).Line_No; // Prod jn line no.
         sourceID = "PROD.ORDEA"; // Journal template name for journals
       } else {
         // Production order line: use Line_No, sourcerefNo is 0
@@ -609,7 +609,7 @@ export function ItemTrackingDialog({
                         }}
                         placeholder="Enter quantity"
                       />
-                      <div className="mt-1 space-y-0.5 text-xs text-muted-foreground">
+                      <div className="text-muted-foreground mt-1 space-y-0.5 text-xs">
                         <p className="flex justify-between">
                           <span>Total Remaining:</span>
                           <span className="font-medium">
@@ -623,8 +623,12 @@ export function ItemTrackingDialog({
                           </span>
                         </p>
                         <p className="flex justify-between border-t pt-0.5">
-                          <span className="font-medium">Available to Assign:</span>
-                          <span className={`font-semibold ${availableForAssignment > 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>
+                          <span className="font-medium">
+                            Available to Assign:
+                          </span>
+                          <span
+                            className={`font-semibold ${availableForAssignment > 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}
+                          >
                             {availableForAssignment.toLocaleString()}
                           </span>
                         </p>

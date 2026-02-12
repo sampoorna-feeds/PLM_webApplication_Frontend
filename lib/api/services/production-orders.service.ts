@@ -599,9 +599,9 @@ export interface AssignItemTrackingParams {
   itemNo: string;
   locationCode: string;
   quantity: number;
-  sourceProdOrderLine: number; // Prod_Order_Line_No
+  sourceProdOrderLine: number; // Prod_Order_Line_No for components/lines, 0 for journals
   sourceID: string; // Prod_Order_No for components/lines, "PROD.ORDEA" for journals
-  sourcerefNo: number; // Component Line_No (0 for lines)
+  sourcerefNo: number; // Component Line_No for components, journal Line_No for journals, 0 for lines
   lotNo: string;
   expirationDate?: string;
   /** 'line' for production order lines, 'component' for components, 'journal' for journal entries */
@@ -613,9 +613,9 @@ export interface AssignItemTrackingParams {
 /**
  * Assign item tracking (lot number) to a production order line, component, or journal entry
  * @param params - Item tracking parameters
- * - For lines: sourceType = 5406, sourcerefNo = 0, sourceID = prodOrderNo, reservationStatus = 2 (Surplus), quantity POSITIVE
- * - For components: sourceType = 5407, sourcerefNo = component Line_No, sourceID = prodOrderNo, reservationStatus = 2 (Surplus)
- * - For journals: sourceType = 83, sourcerefNo = journal Line_No, sourceID = "PROD.ORDEA", reservationStatus = 3 (Prospect)
+ * - For lines: sourceType = 5406, sourceProdOrderLine = Line_No, sourcerefNo = 0, sourceID = prodOrderNo, reservationStatus = 2 (Surplus), quantity POSITIVE
+ * - For components: sourceType = 5407, sourceProdOrderLine = Prod_Order_Line_No, sourcerefNo = component Line_No, sourceID = prodOrderNo, reservationStatus = 2 (Surplus)
+ * - For journals: sourceType = 83, sourceProdOrderLine = 0, sourcerefNo = journal Line_No, sourceID = "PROD.ORDEA", reservationStatus = 3 (Prospect)
  * Note: reservationStatus is NUMERIC (0=Reservation, 1=Tracking, 2=Surplus, 3=Prospect)
  */
 export async function assignItemTracking(

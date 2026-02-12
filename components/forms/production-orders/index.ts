@@ -2,6 +2,8 @@ export {
   ProductionOrdersForm,
   ProductionOrdersForm as default,
 } from "./production-orders-form";
+export { ReleasedOrdersView } from "./released-orders-view";
+export { FinishedOrdersView } from "./finished-orders-view";
 export { ProductionOrderForm } from "./production-order-form";
 export { ProductionOrdersTable } from "./production-orders-table";
 export { ProductionOrderSheet } from "./production-order-sheet";

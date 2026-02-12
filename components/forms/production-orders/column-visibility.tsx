@@ -21,6 +21,7 @@ interface ColumnVisibilityProps {
   onColumnToggle: (columnId: string) => void;
   onResetColumns: () => void;
   onShowAllColumns: () => void;
+  excludeColumns?: string[];
 }
 
 export function ColumnVisibility({
@@ -28,12 +29,18 @@ export function ColumnVisibility({
   onColumnToggle,
   onResetColumns,
   onShowAllColumns,
+  excludeColumns = [],
 }: ColumnVisibilityProps) {
   const [open, setOpen] = useState(false);
 
+  // Filter out excluded columns
+  const filteredOptionalColumns = OPTIONAL_COLUMNS.filter(
+    (col) => !excludeColumns.includes(col.id),
+  );
+
   // Count visible columns
   const visibleCount = visibleColumns.length;
-  const totalCount = DEFAULT_COLUMNS.length + OPTIONAL_COLUMNS.length;
+  const totalCount = DEFAULT_COLUMNS.length + filteredOptionalColumns.length;
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -92,7 +99,7 @@ export function ColumnVisibility({
             <span className="text-muted-foreground px-2 text-xs">
               Additional Columns
             </span>
-            {OPTIONAL_COLUMNS.map((column) => (
+            {filteredOptionalColumns.map((column) => (
               <ColumnToggleItem
                 key={column.id}
                 column={column}

@@ -21,6 +21,11 @@ export function ActiveFilters({
   onClearFilters,
   userBranchCodes,
 }: ActiveFiltersProps) {
+  // Early return if no potential filters
+  if (!searchQuery && Object.keys(columnFilters).length === 0) {
+    return null;
+  }
+
   // Build list of active filters
   const activeFilters: { key: string; label: string; displayValue: string }[] =
     [];
@@ -98,35 +103,37 @@ export function ActiveFilters({
   };
 
   return (
-    <div className="flex flex-wrap items-center gap-2 pb-3">
-      <span className="text-muted-foreground text-xs">Active filters:</span>
-      {activeFilters.map(({ key, label, displayValue }) => (
-        <div
-          key={key}
-          className="bg-muted flex items-center gap-1 rounded-full px-2 py-0.5 text-sm"
-        >
-          <span className="font-medium">{label}:</span>
-          <span className="text-muted-foreground max-w-[120px] truncate">
-            {displayValue}
-          </span>
-          <button
-            onClick={() => handleClear(key)}
-            className="text-muted-foreground hover:text-foreground ml-0.5"
+    <div className="shrink-0">
+      <div className="flex flex-wrap items-center gap-2 pb-3">
+        <span className="text-muted-foreground text-xs">Active filters:</span>
+        {activeFilters.map(({ key, label, displayValue }) => (
+          <div
+            key={key}
+            className="bg-muted flex items-center gap-1 rounded-full px-2 py-0.5 text-sm"
           >
-            <X className="h-3 w-3" />
-          </button>
-        </div>
-      ))}
-      {activeFilters.length > 1 && (
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onClearFilters}
-          className="h-6 px-2 text-xs"
-        >
-          Reset Filters
-        </Button>
-      )}
+            <span className="font-medium">{label}:</span>
+            <span className="text-muted-foreground max-w-30 truncate">
+              {displayValue}
+            </span>
+            <button
+              onClick={() => handleClear(key)}
+              className="text-muted-foreground hover:text-foreground ml-0.5"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          </div>
+        ))}
+        {activeFilters.length > 1 && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onClearFilters}
+            className="h-6 px-2 text-xs"
+          >
+            Reset Filters
+          </Button>
+        )}
+      </div>
     </div>
   );
 }

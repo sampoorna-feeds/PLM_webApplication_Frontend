@@ -30,14 +30,13 @@ import {
   saveVisibleColumns,
   getDefaultVisibleColumns,
   buildSelectQuery,
-  ALL_COLUMNS,
+  RELEASED_ORDERS_EXCLUDED_COLUMNS,
+  getAvailableColumns,
 } from "./column-config";
 import {
   buildFilterString as buildODataFilter,
   buildOrderByString,
 } from "./utils/filter-builder";
-
-const DEFAULT_LOB_CODES = ["CATTLE", "CBF", "FEED"];
 
 export function useProductionOrders() {
   const { userID } = useAuth();
@@ -93,7 +92,7 @@ export function useProductionOrders() {
         ]);
 
         const lCodes = lobs.map((lob) => lob.Code);
-        setLobCodes(lCodes.length > 0 ? lCodes : DEFAULT_LOB_CODES);
+        setLobCodes(lCodes);
 
         const bCodes = branches.map((b) => b.Code);
         setUserBranchCodes(bCodes);
@@ -108,8 +107,8 @@ export function useProductionOrders() {
         }
       } catch (error) {
         console.error("Error fetching user setup:", error);
-        toast.error("Failed to load user settings. Using defaults.");
-        setLobCodes(DEFAULT_LOB_CODES);
+        toast.error("Failed to load user settings");
+        setLobCodes([]);
         setUserBranchCodes([]);
         setBranchOptions([]);
       }
@@ -128,6 +127,7 @@ export function useProductionOrders() {
         dueDateFrom,
         dueDateTo,
         columnFilters,
+        excludeColumns: RELEASED_ORDERS_EXCLUDED_COLUMNS,
       });
     },
     [lobCodes, searchQuery, dueDateFrom, dueDateTo, columnFilters],
@@ -145,7 +145,10 @@ export function useProductionOrders() {
     setIsLoading(true);
     try {
       const baseParams = {
-        $select: buildSelectQuery(visibleColumns),
+        $select: buildSelectQuery(
+          visibleColumns,
+          RELEASED_ORDERS_EXCLUDED_COLUMNS,
+        ),
         $orderby: getOrderByString(),
         $top: pageSize,
         $skip: (currentPage - 1) * pageSize,
@@ -241,6 +244,7 @@ export function useProductionOrders() {
   }, []);
 
   const handleSort = useCallback((column: string) => {
+    if (RELEASED_ORDERS_EXCLUDED_COLUMNS.includes(column)) return;
     setSortColumn((prevColumn) => {
       if (prevColumn === column) {
         setSortDirection((prevDir) => {
@@ -269,6 +273,7 @@ export function useProductionOrders() {
   }, []);
 
   const handleColumnToggle = useCallback((columnId: string) => {
+    if (RELEASED_ORDERS_EXCLUDED_COLUMNS.includes(columnId)) return;
     setVisibleColumns((prev) => {
       const newColumns = prev.includes(columnId)
         ? prev.filter((id) => id !== columnId)
@@ -285,7 +290,10 @@ export function useProductionOrders() {
   }, []);
 
   const handleShowAllColumns = useCallback(() => {
-    const allColumnIds = ALL_COLUMNS.map((c) => c.id);
+    const availableColumns = getAvailableColumns(
+      RELEASED_ORDERS_EXCLUDED_COLUMNS,
+    );
+    const allColumnIds = availableColumns.map((c) => c.id);
     setVisibleColumns(allColumnIds);
     saveVisibleColumns(allColumnIds);
   }, []);

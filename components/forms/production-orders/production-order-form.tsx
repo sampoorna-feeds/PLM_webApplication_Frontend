@@ -1365,7 +1365,7 @@ export function ProductionOrderForm({
             </div>
           )}
           <div className="space-y-2">
-            <FieldTitle required>Description</FieldTitle>
+            <FieldTitle>Description</FieldTitle>
             {isViewMode ? (
               <Input
                 value={formState.Description || "-"}

@@ -59,6 +59,11 @@ const formsItems = [
     url: "/production-orders",
     icon: FileText,
   },
+  {
+    title: "Report Ledger",
+    url: "/report-ledger",
+    icon: FileText,
+  },
 ];
 
 const settingsItems = [

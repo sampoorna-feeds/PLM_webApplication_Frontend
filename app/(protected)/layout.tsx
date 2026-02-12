@@ -56,6 +56,12 @@ export default function ProtectedLayout({
         { label: "Production Order", href: null },
       ];
     }
+    if (pathname === "/report-ledger") {
+      return [
+        { label: "Forms", href: "#" },
+        { label: "Report Ledger", href: null },
+      ];
+    }
     if (pathname?.startsWith("/settings")) {
       if (pathname === "/settings/account") {
         return [

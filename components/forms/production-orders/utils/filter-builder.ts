@@ -13,6 +13,7 @@ export interface FilterParams {
   dueDateFrom?: string;
   dueDateTo?: string;
   columnFilters?: Record<string, { value: string; valueTo?: string }>;
+  excludeColumns?: string[];
 }
 
 /**
@@ -172,6 +173,7 @@ export function buildFilterString(params: FilterParams): string {
     dueDateFrom,
     dueDateTo,
     columnFilters = {},
+    excludeColumns = [],
   } = params;
 
   const filterParts: string[] = [];
@@ -198,6 +200,9 @@ export function buildFilterString(params: FilterParams): string {
 
   // Column filters
   Object.entries(columnFilters).forEach(([columnId, filter]) => {
+    // Skip columns not available in the current endpoint
+    if (excludeColumns.includes(columnId)) return;
+
     const column = ALL_COLUMNS.find((c) => c.id === columnId);
     if (!column) return;
 

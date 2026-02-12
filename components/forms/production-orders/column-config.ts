@@ -177,6 +177,20 @@ export const OPTIONAL_COLUMNS: ColumnConfig[] = [
     defaultVisible: false,
     filterType: "text",
   },
+  {
+    id: "Finished_Date",
+    label: "Finished Date",
+    sortable: true,
+    defaultVisible: false,
+    filterType: "date",
+  },
+  {
+    id: "Routing_No",
+    label: "Routing No",
+    sortable: true,
+    defaultVisible: false,
+    filterType: "text",
+  },
 ];
 
 // All columns combined
@@ -184,6 +198,25 @@ export const ALL_COLUMNS: ColumnConfig[] = [
   ...DEFAULT_COLUMNS,
   ...OPTIONAL_COLUMNS,
 ];
+
+// Columns that are NOT available in ReleaseprodOrder endpoint
+export const RELEASED_ORDERS_EXCLUDED_COLUMNS = ["Finished_Date", "Routing_No"];
+
+// Columns that are NOT available in FinishedprodOrder endpoint
+export const FINISHED_ORDERS_EXCLUDED_COLUMNS = [
+  "Source_Type",
+  "Supervisor_Name",
+  "Blocked",
+  "Batch_Size",
+  "Shortcut_Dimension_3_Code",
+];
+
+// Get columns available for a specific view (filters out excluded columns)
+export function getAvailableColumns(
+  excludeColumns: string[] = [],
+): ColumnConfig[] {
+  return ALL_COLUMNS.filter((col) => !excludeColumns.includes(col.id));
+}
 
 // Get default visible column IDs
 export function getDefaultVisibleColumns(): string[] {
@@ -235,7 +268,10 @@ export function saveVisibleColumns(columns: string[]): void {
 }
 
 // Build $select query parameter from visible columns
-export function buildSelectQuery(visibleColumns: string[]): string {
+export function buildSelectQuery(
+  visibleColumns: string[],
+  excludeColumns: string[] = [],
+): string {
   // Always include default columns for data fetching
   const defaultIds = DEFAULT_COLUMNS.map((col) => col.id);
   // Always include Search_Description for search filtering (even if not displayed)
@@ -243,5 +279,9 @@ export function buildSelectQuery(visibleColumns: string[]): string {
   const allNeeded = [
     ...new Set([...defaultIds, ...requiredForSearch, ...visibleColumns]),
   ];
-  return allNeeded.join(",");
+
+  // Filter out excluded columns
+  const filtered = allNeeded.filter((col) => !excludeColumns.includes(col));
+
+  return filtered.join(",");
 }

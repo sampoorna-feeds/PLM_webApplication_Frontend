@@ -54,6 +54,8 @@ export interface ProductionOrder {
   Shortcut_Dimension_1_Code?: string;
   Shortcut_Dimension_2_Code?: string;
   Bin_Code?: string;
+  Routing_No?: string;
+  Finished_Date?: string;
   "Batch_Barcode@odata.mediaEditLink"?: string;
   "Batch_Barcode@odata.mediaReadLink"?: string;
 }
@@ -217,6 +219,87 @@ export async function getProductionOrderByNo(
 
   const response = await apiGet<ODataResponse<ProductionOrder>>(endpoint);
   return response.value?.[0] || null;
+}
+
+// ============================================
+// FINISHED PRODUCTION ORDERS API
+// ============================================
+
+/**
+ * Get finished production orders
+ */
+export async function getFinishedProductionOrders(
+  params: GetProductionOrdersParams = {},
+  lobCodes: string[] = [],
+  branchCodes: string[] = [],
+): Promise<ProductionOrder[]> {
+  const {
+    $select = "No,Description,Source_No,Quantity,Location_Code",
+    $filter,
+    $orderby,
+    $top = 10,
+    $skip,
+    $count,
+  } = params;
+
+  // Use provided filter or build default for Finished status
+  const finalFilter =
+    $filter || buildProductionOrderFilter("Finished", lobCodes, branchCodes);
+
+  const queryParams: Record<string, any> = {
+    $select,
+    $filter: finalFilter,
+    $top,
+  };
+
+  if ($orderby) queryParams.$orderby = $orderby;
+  if ($skip !== undefined) queryParams.$skip = $skip;
+  if ($count !== undefined) queryParams.$count = $count;
+
+  const query = buildODataQuery(queryParams);
+  const endpoint = `/FinishedprodOrder?company='${encodeURIComponent(COMPANY)}'&${query}`;
+  const response = await apiGet<ODataResponse<ProductionOrder>>(endpoint);
+  return response.value;
+}
+
+/**
+ * Get finished production orders with total count for pagination
+ */
+export async function getFinishedProductionOrdersWithCount(
+  params: GetProductionOrdersParams = {},
+  lobCodes: string[] = [],
+  branchCodes: string[] = [],
+): Promise<PaginatedProductionOrdersResponse> {
+  const {
+    $select = "No,Description,Source_No,Quantity,Location_Code",
+    $filter,
+    $orderby,
+    $top = 10,
+    $skip,
+  } = params;
+
+  // Use provided filter or build default for Finished status
+  const finalFilter =
+    $filter || buildProductionOrderFilter("Finished", lobCodes, branchCodes);
+
+  const queryParams: Record<string, any> = {
+    $select,
+    $filter: finalFilter,
+    $top,
+    $count: true, // Always request count
+  };
+
+  if ($orderby) queryParams.$orderby = $orderby;
+  if ($skip !== undefined) queryParams.$skip = $skip;
+
+  const query = buildODataQuery(queryParams);
+  const endpoint = `/FinishedprodOrder?company='${encodeURIComponent(COMPANY)}'&${query}`;
+  const response = await apiGet<ODataResponse<ProductionOrder>>(endpoint);
+
+  return {
+    orders: response.value,
+    totalCount: response["@odata.count"] ?? 0,
+  };
 }
 
 /**

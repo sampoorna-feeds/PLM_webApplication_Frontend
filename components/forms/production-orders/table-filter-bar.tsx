@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Search, X } from "lucide-react";
+import { PlusIcon, Search, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ColumnVisibility } from "./column-visibility";
@@ -19,6 +19,8 @@ interface TableFilterBarProps {
   onColumnToggle: (columnId: string) => void;
   onResetColumns: () => void;
   onShowAllColumns: () => void;
+  // Optional: columns to exclude from visibility toggle
+  excludeColumns?: string[];
 }
 
 export function TableFilterBar({
@@ -30,6 +32,7 @@ export function TableFilterBar({
   onColumnToggle,
   onResetColumns,
   onShowAllColumns,
+  excludeColumns,
 }: TableFilterBarProps) {
   const [localSearch, setLocalSearch] = useState(searchQuery);
 
@@ -104,6 +107,7 @@ export function TableFilterBar({
         onColumnToggle={onColumnToggle}
         onResetColumns={onResetColumns}
         onShowAllColumns={onShowAllColumns}
+        excludeColumns={excludeColumns}
       />
     </div>
   );

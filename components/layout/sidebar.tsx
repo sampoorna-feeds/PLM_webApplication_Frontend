@@ -67,11 +67,6 @@ const formsItems = [
     icon: FileText,
   },
   {
-    title: "Sales",
-    url: "/sales-form",
-    icon: FileText,
-  },
-  {
     title: "Production Order",
     url: "/production-orders",
     icon: FileText,
@@ -163,14 +158,6 @@ export function AppSidebar({
             <SidebarGroupLabel>Forms</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild>
-                    <Link href="/voucher-form">
-                      <FileText />
-                      <span>Voucher</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
                 <Collapsible
                   defaultOpen={pathname?.startsWith("/sales")}
                   className="group/collapsible"

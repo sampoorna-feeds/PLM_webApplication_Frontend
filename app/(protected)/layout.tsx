@@ -8,7 +8,6 @@
 
 import React from "react";
 import { usePathname, useRouter } from "next/navigation";
-import Link from "next/link";
 import { AuthGuard } from "@/components/layout/auth-guard";
 import { AppSidebar } from "@/components/layout/sidebar";
 import {
@@ -116,7 +115,9 @@ export default function ProtectedLayout({
     pathname !== "/voucher-form" &&
     pathname !== "/sales-form" &&
     pathname !== "/production-orders" &&
-    pathname !== "/";
+    pathname !== "/report-ledger" &&
+    pathname !== "/" &&
+    !pathname.includes("/sales");
 
   const backLabel = "Return to Dashboard";
   const backHref = "/voucher-form";

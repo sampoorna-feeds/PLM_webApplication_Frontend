@@ -33,6 +33,7 @@ import { LineItemsTable } from "./line-items-table";
 import { Plus, ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ClearableField } from "@/components/ui/clearable-field";
+import { RequestFailedDialog } from "@/components/ui/request-failed-dialog";
 import {
   createSalesOrder,
   addSalesOrderLineItems,
@@ -93,6 +94,7 @@ export function SalesOrderFormContent({
     Array.isArray(initialFormData?.lineItems) ? initialFormData.lineItems : []
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [placeOrderError, setPlaceOrderError] = useState<string | null>(null);
   const [currentStep, setCurrentStep] = useState<Step>(
     (typeof initialFormData?.currentStep === "number" &&
     initialFormData.currentStep >= 1 &&
@@ -340,10 +342,11 @@ export function SalesOrderFormContent({
       };
 
       const orderResponse = await createSalesOrder(orderData);
-      const orderId = orderResponse.orderId;
+      // API returns document number as "No"; we use it for both orderId and orderNo
+      const orderId = orderResponse.orderId ?? orderResponse.orderNo;
 
       if (!orderId) {
-        throw new Error("Failed to create order: No order ID returned");
+        throw new Error("Failed to create order: No order number returned");
       }
 
       const lineItemsData: SalesOrderLineItem[] = lineItems.map((item) => ({
@@ -364,7 +367,8 @@ export function SalesOrderFormContent({
         tcsGroupCode: item.tcsGroupCode,
       }));
 
-      await addSalesOrderLineItems(orderId, lineItemsData);
+      const locationCode = formData.locationCode || formData.loc || "";
+      await addSalesOrderLineItems(orderId, lineItemsData, locationCode);
       onSuccess();
     } catch (error) {
       console.error("Error placing order:", error);
@@ -377,17 +381,17 @@ export function SalesOrderFormContent({
           : error instanceof Error
             ? error.message
             : "Failed to place order. Please try again.";
-      alert(message);
+      setPlaceOrderError(message);
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // Step 1: Order Information - 2-column grid, aligned and spaced
-  const fieldClass = "min-w-0 space-y-2";
+  // Step 1: Order Information - compact 2-column grid
+  const fieldClass = "min-w-0 space-y-1";
   const labelClass = "text-muted-foreground block text-xs font-medium";
   const renderStep1 = () => (
-    <div className="grid grid-cols-1 gap-x-10 gap-y-6 sm:grid-cols-2">
+    <div className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2">
       <div className={fieldClass}>
         <label className={labelClass}>LOB</label>
         <ClearableField value={formData.lob} onClear={() => handleInputChange("lob", "")}>
@@ -501,7 +505,7 @@ export function SalesOrderFormContent({
         <Input
           value={formData.locationCode || formData.loc || ""}
           disabled
-          className="h-9 bg-muted"
+          className="h-8 bg-muted"
           readOnly
         />
       </div>
@@ -515,7 +519,7 @@ export function SalesOrderFormContent({
             type="date"
             value={formData.postingDate}
             onChange={(e) => handleInputChange("postingDate", e.target.value)}
-            className="h-9"
+            className="h-8"
             onFocus={(e) => e.stopPropagation()}
           />
         </ClearableField>
@@ -530,7 +534,7 @@ export function SalesOrderFormContent({
             type="date"
             value={formData.documentDate}
             onChange={(e) => handleInputChange("documentDate", e.target.value)}
-            className="h-9"
+            className="h-8"
             onFocus={(e) => e.stopPropagation()}
           />
         </ClearableField>
@@ -542,7 +546,7 @@ export function SalesOrderFormContent({
           value={formData.orderDate}
           onChange={(e) => handleInputChange("orderDate", e.target.value)}
           disabled
-          className="h-9 bg-muted"
+          className="h-8 bg-muted"
         />
       </div>
       <div className={fieldClass}>
@@ -555,7 +559,7 @@ export function SalesOrderFormContent({
             value={formData.externalDocumentNo}
             onChange={(e) => handleInputChange("externalDocumentNo", e.target.value)}
             placeholder="Optional"
-            className="h-9"
+            className="h-8"
             onFocus={(e) => e.stopPropagation()}
           />
         </ClearableField>
@@ -565,10 +569,10 @@ export function SalesOrderFormContent({
 
   // Step 2: Line Items
   const renderStep2 = () => (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <div className="flex justify-end">
-        <Button onClick={handleAddLineItem} size="sm">
-          <Plus className="mr-2 h-4 w-4" />
+        <Button onClick={handleAddLineItem} size="sm" className="h-8">
+          <Plus className="mr-1.5 h-3.5 w-3.5" />
           Add Item
         </Button>
       </div>
@@ -580,9 +584,9 @@ export function SalesOrderFormContent({
         editable={true}
       />
       {lineItems.length === 0 && (
-        <div className="flex flex-col items-center justify-center rounded-lg border border-dashed py-12">
+        <div className="flex flex-col items-center justify-center rounded-lg border border-dashed py-8">
           <p className="text-muted-foreground text-sm">No line items added yet.</p>
-          <p className="text-muted-foreground mt-1 text-xs">Click "Add Item" to add your first item.</p>
+          <p className="text-muted-foreground mt-0.5 text-xs">Click "Add Item" to add your first item.</p>
         </div>
       )}
     </div>
@@ -592,9 +596,9 @@ export function SalesOrderFormContent({
   const renderStep3 = () => {
     const totalAmount = lineItems.reduce((sum, item) => sum + item.amount, 0);
     return (
-      <div className="space-y-6">
-        <div className="bg-muted/30 rounded-lg p-4">
-            <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
+      <div className="space-y-4">
+        <div className="bg-muted/30 rounded-lg p-3">
+            <div className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
               <div>
                 <span className="text-muted-foreground block text-xs">Customer</span>
                 <span className="font-medium">
@@ -631,8 +635,8 @@ export function SalesOrderFormContent({
         </div>
 
         <div>
-          <div className="mb-3 flex justify-end">
-            <Button onClick={handleAddLineItem} size="sm" variant="outline">
+          <div className="mb-2 flex justify-end">
+            <Button onClick={handleAddLineItem} size="sm" variant="outline" className="h-8">
               <Plus className="mr-1.5 h-3.5 w-3.5" />
               Add Item
             </Button>
@@ -647,10 +651,10 @@ export function SalesOrderFormContent({
         </div>
 
         {/* Total */}
-        <div className="flex justify-end rounded-lg border bg-muted/20 px-4 py-3">
-          <div className="flex items-baseline gap-3">
+        <div className="flex justify-end rounded-lg border bg-muted/20 px-3 py-2">
+          <div className="flex items-baseline gap-2">
             <span className="text-muted-foreground text-sm">Total Amount</span>
-            <span className="text-lg font-semibold">
+            <span className="text-base font-semibold">
               {totalAmount.toFixed(2)}
             </span>
           </div>
@@ -660,11 +664,17 @@ export function SalesOrderFormContent({
   };
 
   return (
-    <div className="flex h-full flex-col">
+    <>
+      <RequestFailedDialog
+        open={!!placeOrderError}
+        message={placeOrderError}
+        onOpenChange={(open) => !open && setPlaceOrderError(null)}
+      />
+      <div className="flex h-full flex-col">
       {/* Step Indicators */}
-      <div className="border-b px-6 py-4">
+      <div className="border-b px-4 py-3">
         <div className="flex w-full justify-center">
-          <div className="flex w-full max-w-3xl items-center gap-2">
+          <div className="flex w-full max-w-2xl items-center gap-1.5">
             {[1, 2, 3].map((step) => (
               <React.Fragment key={step}>
                 <button
@@ -676,7 +686,7 @@ export function SalesOrderFormContent({
                   }}
                   disabled={!canGoToStep(step as Step)}
                   className={cn(
-                    "flex h-9 flex-1 items-center justify-center gap-2 rounded-md px-4 transition-all",
+                    "flex h-8 flex-1 items-center justify-center gap-1.5 rounded-md px-3 text-sm transition-all",
                   currentStep === step
                     ? "bg-primary text-primary-foreground"
                     : canGoToStep(step as Step)
@@ -686,7 +696,7 @@ export function SalesOrderFormContent({
               >
                 <span
                   className={cn(
-                    "flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-xs font-medium",
+                    "flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-xs font-medium",
                     currentStep === step ? "bg-primary-foreground/20" : "bg-muted",
                   )}
                 >
@@ -708,14 +718,14 @@ export function SalesOrderFormContent({
       </div>
 
       {/* Step Content */}
-      <div className="flex-1 overflow-y-auto px-6 py-6">
+      <div className="flex-1 overflow-y-auto px-4 py-4">
         {currentStep === 1 && renderStep1()}
         {currentStep === 2 && renderStep2()}
         {currentStep === 3 && renderStep3()}
       </div>
 
       {/* Step Navigation */}
-      <div className="flex justify-between border-t bg-muted/20 px-6 py-4">
+      <div className="flex justify-between border-t bg-muted/20 px-4 py-3">
         <Button
           variant="outline"
           onClick={handlePrevious}
@@ -742,7 +752,8 @@ export function SalesOrderFormContent({
           </Button>
         )}
       </div>
-    </div>
+      </div>
+    </>
   );
 }
 
@@ -761,9 +772,14 @@ export function SalesOrderForm({
   const { handleSuccess, updateFormData } = useFormStack(tabId);
   const { openTab } = useFormStackContext();
 
+  const onSuccess = () => {
+    handleSuccess();
+    (context?.onOrderPlaced as (() => void) | undefined)?.();
+  };
+
   return (
     <SalesOrderFormContent
-      onSuccess={handleSuccess}
+      onSuccess={onSuccess}
       openLineItemTab={(params) => openTab("line-item", params)}
       tabId={tabId}
       initialFormData={initialFormData}

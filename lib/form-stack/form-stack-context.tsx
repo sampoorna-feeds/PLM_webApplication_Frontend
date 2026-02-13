@@ -187,6 +187,7 @@ export function FormStackProvider({
     setTabs([]);
     setActiveTabId(null);
     refreshCallbacksRef.current.clear();
+    setIsCollapsed(true);
   }, []);
 
   const updateTab = useCallback((tabId: string, updates: Partial<FormTab>) => {

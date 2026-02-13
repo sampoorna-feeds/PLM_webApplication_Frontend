@@ -21,8 +21,16 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
   useSidebar,
 } from "@/components/ui/sidebar";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -38,10 +46,19 @@ import {
   LifeBuoy,
   Send,
   ChevronsUpDown,
+  ChevronDown,
+  ChevronRight,
   LogOut,
   User,
   KeyRound,
 } from "lucide-react";
+
+const salesSubItems = [
+  { title: "Order", url: "/sales/order" },
+  { title: "Invoice", url: "/sales/invoice" },
+  { title: "Return Order", url: "/sales/return-order" },
+  { title: "Credit Memo", url: "/sales/credit-memo" },
+];
 
 const formsItems = [
   {
@@ -146,16 +163,48 @@ export function AppSidebar({
             <SidebarGroupLabel>Forms</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild>
+                    <Link href="/voucher-form">
+                      <FileText />
+                      <span>Voucher</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <Collapsible
+                  defaultOpen={pathname?.startsWith("/sales")}
+                  className="group/collapsible"
+                >
+                  <SidebarMenuItem>
+                    <CollapsibleTrigger asChild>
+                      <SidebarMenuButton
+                        isActive={pathname?.startsWith("/sales")}
+                        className="w-full"
+                      >
+                        <FileText />
+                        <span>Sales</span>
+                        <ChevronDown className="ml-auto size-4 group-data-[state=closed]/collapsible:-rotate-90 group-data-[state=open]/collapsible:rotate-0" />
+                      </SidebarMenuButton>
+                    </CollapsibleTrigger>
+                  </SidebarMenuItem>
+                  <CollapsibleContent>
+                    <SidebarMenuSub>
+                      {salesSubItems.map((item) => (
+                        <SidebarMenuSubItem key={item.url}>
+                          <SidebarMenuSubButton
+                            asChild
+                            isActive={pathname === item.url}
+                          >
+                            <Link href={item.url}>{item.title}</Link>
+                          </SidebarMenuSubButton>
+                        </SidebarMenuSubItem>
+                      ))}
+                    </SidebarMenuSub>
+                  </CollapsibleContent>
+                </Collapsible>
                 {formsItems.map((item) => (
                   <SidebarMenuItem key={item.url}>
-                    <SidebarMenuButton
-                      asChild
-                      isActive={
-                        pathname === item.url ||
-                        (item.url === "/sales-form" &&
-                          pathname?.startsWith("/sales-form"))
-                      }
-                    >
+                    <SidebarMenuButton asChild isActive={pathname === item.url}>
                       <Link href={item.url}>
                         <item.icon />
                         <span>{item.title}</span>

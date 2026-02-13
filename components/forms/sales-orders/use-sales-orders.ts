@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { toast } from "sonner";
+import { useAuth } from "@/lib/contexts/auth-context";
+import { getAllBranchesFromUserSetup } from "@/lib/api/services/dimension.service";
 import {
   getSalesOrdersWithCount,
   type SalesOrder,
@@ -14,18 +16,33 @@ import {
   buildSelectQuery,
   ALL_COLUMNS,
 } from "./column-config";
+import { buildSalesOrderFilterString } from "./utils/filter-builder";
 
-export function useSalesOrders() {
+export type SalesOrderStatusTab = "Open" | "Pending Approval" | "Released";
+
+export interface UseSalesOrdersOptions {
+  /** Status filter for tab (Open | Pending Approval | Released). Applied at API level. */
+  statusFilter?: SalesOrderStatusTab;
+}
+
+export function useSalesOrders(options: UseSalesOrdersOptions = {}) {
+  const { statusFilter } = options;
+  const { userID } = useAuth();
   const [orders, setOrders] = useState<SalesOrder[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [pageSize, setPageSize] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
 
+  const [userBranchCodes, setUserBranchCodes] = useState<string[]>([]);
+
   const [sortColumn, setSortColumn] = useState<string | null>("No");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
 
   const [searchQuery, setSearchQuery] = useState("");
+  const [columnFilters, setColumnFilters] = useState<
+    Record<string, { value: string; valueTo?: string }>
+  >({});
 
   const [visibleColumns, setVisibleColumns] = useState<string[]>(() =>
     typeof window !== "undefined"
@@ -38,20 +55,59 @@ export function useSalesOrders() {
     [totalCount, pageSize],
   );
 
+  // Fetch user branch codes and default column filter to all branches
+  useEffect(() => {
+    if (!userID) return;
+
+    const fetchBranches = async () => {
+      try {
+        const branches = await getAllBranchesFromUserSetup(userID);
+        const bCodes = branches.map((b) => b.Code);
+        setUserBranchCodes(bCodes);
+        if (bCodes.length > 0) {
+          setColumnFilters((prev) =>
+            prev.Shortcut_Dimension_2_Code !== undefined
+              ? prev
+              : { ...prev, Shortcut_Dimension_2_Code: { value: bCodes.join(",") } },
+          );
+        }
+      } catch (error) {
+        console.error("Error fetching user branches:", error);
+        toast.error("Failed to load user settings. Using defaults.");
+        setUserBranchCodes([]);
+      }
+    };
+
+    fetchBranches();
+  }, [userID]);
+
   const getOrderByString = useCallback(() => {
     if (!sortColumn || !sortDirection) return "No desc";
     return `${sortColumn} ${sortDirection}`;
   }, [sortColumn, sortDirection]);
 
   const fetchOrders = useCallback(async () => {
+    const branchFilterValue =
+      columnFilters["Shortcut_Dimension_2_Code"]?.value;
+    const effectiveBranchCodes = branchFilterValue
+      ? branchFilterValue.split(",").map((c) => c.trim()).filter(Boolean)
+      : userBranchCodes;
+
+    if (effectiveBranchCodes.length === 0) {
+      setOrders([]);
+      setTotalCount(0);
+      setIsLoading(false);
+      return;
+    }
+
     setIsLoading(true);
     try {
-      let filter: string | undefined;
-      if (searchQuery.trim()) {
-        // Search by No or Sell_to_Customer_Name
-        const q = searchQuery.trim().replace(/'/g, "''");
-        filter = `contains(No,'${q}') or contains(Sell_to_Customer_No,'${q}') or contains(Sell_to_Customer_Name,'${q}')`;
-      }
+      const filter = buildSalesOrderFilterString({
+        branchCodes: effectiveBranchCodes,
+        statusFilter,
+        searchQuery,
+        columnFilters,
+      });
 
       const result = await getSalesOrdersWithCount({
         $select: buildSelectQuery(visibleColumns),
@@ -76,8 +132,16 @@ export function useSalesOrders() {
     pageSize,
     visibleColumns,
     searchQuery,
+    columnFilters,
+    userBranchCodes,
+    statusFilter,
     getOrderByString,
   ]);
+
+  // Reset to page 1 when status tab changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [statusFilter]);
 
   useEffect(() => {
     fetchOrders();
@@ -138,10 +202,25 @@ export function useSalesOrders() {
 
   const handleClearFilters = useCallback(() => {
     setSearchQuery("");
+    setColumnFilters({});
     setSortColumn("No");
     setSortDirection("desc");
     setCurrentPage(1);
   }, []);
+
+  const handleColumnFilter = useCallback(
+    (columnId: string, value: string, valueTo?: string) => {
+      setColumnFilters((prev) => {
+        if (!value && !valueTo) {
+          const { [columnId]: _, ...rest } = prev;
+          return rest;
+        }
+        return { ...prev, [columnId]: { value, valueTo } };
+      });
+      setCurrentPage(1);
+    },
+    [],
+  );
 
   return {
     orders,
@@ -153,11 +232,13 @@ export function useSalesOrders() {
     sortColumn,
     sortDirection,
     searchQuery,
+    columnFilters,
     visibleColumns,
     onPageSizeChange: handlePageSizeChange,
     onPageChange: handlePageChange,
     onSort: handleSort,
     onSearch: handleSearch,
+    onColumnFilter: handleColumnFilter,
     onColumnToggle: handleColumnToggle,
     onResetColumns: handleResetColumns,
     onShowAllColumns: handleShowAllColumns,

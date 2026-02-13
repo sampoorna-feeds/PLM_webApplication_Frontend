@@ -57,9 +57,8 @@ export function FormStackPanel() {
       });
   }, [currentFormType, currentTabId]);
 
-  // When empty and not explicitly opened: hide panel entirely
-  const isExplicitlyOpened = tabs.length === 0 && !isCollapsed;
-  if (tabs.length === 0 && !isExplicitlyOpened) {
+  // When no tabs are open, hide the panel entirely (auto-close)
+  if (tabs.length === 0) {
     return null;
   }
 
@@ -117,14 +116,15 @@ export function FormStackPanel() {
         aria-hidden="true"
       />
 
-      {/* Fixed panel - Wider for sales order and line item forms */}
+      {/* Fixed panel - Sales order form ~60% of page; others slightly wider */}
       <div
         className={cn(
           "bg-background border-border fixed top-0 right-0 z-50 flex h-full flex-col border-l shadow-xl",
           currentTab?.formType === "sales-order" ||
             currentTab?.formType === "sales-order-detail" ||
+            currentTab?.formType === "sales-order-edit" ||
             currentTab?.formType === "line-item"
-            ? "w-screen md:w-[55vw] lg:w-[42vw]"
+            ? "w-screen md:w-[60vw]"
             : "w-screen md:w-[65vw] lg:w-[48vw]",
         )}
       >

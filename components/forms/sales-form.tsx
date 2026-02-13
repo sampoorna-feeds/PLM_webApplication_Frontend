@@ -6,7 +6,7 @@
  * Uses FormStack for Invoice/Return/Credit Memo; Place Order navigates to full page.
  */
 
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -27,6 +27,7 @@ import { useFormStackContext } from "@/lib/form-stack/form-stack-context";
 import {
   SalesOrdersTable,
   SalesOrderFilterBar,
+  SalesOrderActiveFilters,
   SalesOrderPaginationControls,
   useSalesOrders,
 } from "@/components/forms/sales-orders";
@@ -153,11 +154,16 @@ const dummySalesCreditMemoData = [
 
 type SalesType = "order" | "invoice" | "return-order" | "credit-memo";
 
-function SalesOrderTabContent() {
+function SalesOrderTabContent({
+  registerRefetch,
+}: {
+  registerRefetch?: (refetch: () => void) => void;
+}) {
   const { openTab } = useFormStackContext();
   const {
     orders,
     isLoading,
+    refetch,
     pageSize,
     currentPage,
     totalPages,
@@ -165,16 +171,22 @@ function SalesOrderTabContent() {
     sortColumn,
     sortDirection,
     searchQuery,
+    columnFilters,
     visibleColumns,
     onPageSizeChange,
     onPageChange,
     onSort,
     onSearch,
+    onColumnFilter,
     onColumnToggle,
     onResetColumns,
     onShowAllColumns,
     onClearFilters,
   } = useSalesOrders();
+
+  useEffect(() => {
+    registerRefetch?.(refetch);
+  }, [refetch, registerRefetch]);
 
   const hasNextPage = currentPage < totalPages;
 
@@ -183,11 +195,19 @@ function SalesOrderTabContent() {
       <SalesOrderFilterBar
         searchQuery={searchQuery}
         visibleColumns={visibleColumns}
+        columnFilters={columnFilters}
         onSearch={onSearch}
         onClearFilters={onClearFilters}
         onColumnToggle={onColumnToggle}
         onResetColumns={onResetColumns}
         onShowAllColumns={onShowAllColumns}
+      />
+      <SalesOrderActiveFilters
+        searchQuery={searchQuery}
+        columnFilters={columnFilters}
+        onSearch={onSearch}
+        onColumnFilter={onColumnFilter}
+        onClearFilters={onClearFilters}
       />
       <div className="min-h-[300px] flex-1">
         <SalesOrdersTable
@@ -198,6 +218,7 @@ function SalesOrderTabContent() {
           sortDirection={sortDirection}
           pageSize={pageSize}
           currentPage={currentPage}
+          columnFilters={columnFilters}
           onRowClick={(orderNo) => {
             openTab("sales-order-detail", {
               title: `Order ${orderNo}`,
@@ -206,6 +227,7 @@ function SalesOrderTabContent() {
             });
           }}
           onSort={onSort}
+          onColumnFilter={onColumnFilter}
         />
       </div>
       <SalesOrderPaginationControls
@@ -224,6 +246,7 @@ function SalesOrderTabContent() {
 function SalesFormContent() {
   const [activeTab, setActiveTab] = useState<SalesType>("order");
   const { openTab } = useFormStackContext();
+  const salesOrderRefetchRef = useRef<(() => void) | null>(null);
 
   const getButtonLabel = (type: SalesType) => {
     switch (type) {
@@ -259,6 +282,10 @@ function SalesFormContent() {
       title: titleMap[type],
       context: {
         openedFromParent: true,
+        onOrderPlaced:
+          type === "order"
+            ? () => salesOrderRefetchRef.current?.()
+            : undefined,
       },
       autoCloseOnSuccess: true,
     });
@@ -297,7 +324,11 @@ function SalesFormContent() {
 
           {/* Sales Order Tab */}
           <TabsContent value="order" className="mt-4">
-            <SalesOrderTabContent />
+            <SalesOrderTabContent
+              registerRefetch={(fn) => {
+                salesOrderRefetchRef.current = fn;
+              }}
+            />
           </TabsContent>
 
           {/* Sales Invoice Tab */}

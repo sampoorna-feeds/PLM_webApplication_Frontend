@@ -34,6 +34,8 @@ import { useAuth } from "@/lib/contexts/auth-context";
 
 export interface LineItem {
   id: string;
+  /** API Line_No for existing lines; absent or <= 0 for new lines (edit mode) */
+  lineNo?: number;
   type: "G/L Account" | "Item";
   no: string;
   description: string;

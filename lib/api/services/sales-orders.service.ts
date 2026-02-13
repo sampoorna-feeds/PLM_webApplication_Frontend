@@ -3,7 +3,7 @@
  * Fetches sales orders from ERP OData V4 API
  */
 
-import { apiGet } from "../client";
+import { apiGet, apiPost, apiPatch } from "../client";
 import { buildODataQuery } from "../endpoints";
 import type { ODataResponse } from "../types";
 
@@ -135,4 +135,76 @@ export async function getSalesOrderLines(
   const endpoint = `/SalesLine?company='${encodeURIComponent(COMPANY)}'&${query}`;
   const response = await apiGet<ODataResponse<SalesLine>>(endpoint);
   return response.value || [];
+}
+
+/**
+ * Send approval request for a sales order (Approve action)
+ */
+export async function sendApprovalRequest(
+  salesOrderNo: string,
+): Promise<unknown> {
+  const endpoint = `/API_SendApprovalRequest?company='${encodeURIComponent(COMPANY)}'`;
+  return apiPost<unknown>(endpoint, { salesOrderNo });
+}
+
+/**
+ * Reopen a sales order
+ */
+export async function reopenSalesOrder(salesOrderNo: string): Promise<unknown> {
+  const endpoint = `/API_ReOpenSalesOrder?company='${encodeURIComponent(COMPANY)}'`;
+  return apiPost<unknown>(endpoint, { salesOrderNo });
+}
+
+/**
+ * Update ship-to code on a sales order
+ */
+export async function orderShiptocodeModify(
+  documentNo: string,
+  shiptocode: string,
+): Promise<unknown> {
+  const endpoint = `/API_OrderShiptocodeModify?company='${encodeURIComponent(COMPANY)}'`;
+  return apiPost<unknown>(endpoint, { documentNo, shiptocode });
+}
+
+/**
+ * Delete a sales order line (POST to API_SalesOrderLine with orderNo and lineNo)
+ */
+export async function deleteSalesOrderLine(
+  orderNo: string,
+  lineNo: number,
+): Promise<unknown> {
+  const endpoint = `/API_SalesOrderLine?company='${encodeURIComponent(COMPANY)}'`;
+  return apiPost<unknown>(endpoint, { orderNo, lineNo });
+}
+
+export interface AddSalesLinePayload {
+  Document_No: string;
+  Type: string;
+  No: string;
+  Location_Code: string;
+  Quantity: number;
+  Unit_of_Measure_Code: string;
+}
+
+/**
+ * Add a new sales line
+ */
+export async function addSalesLine(
+  line: AddSalesLinePayload,
+): Promise<unknown> {
+  const endpoint = `/SalesLine?company='${encodeURIComponent(COMPANY)}'`;
+  return apiPost<unknown>(endpoint, line);
+}
+
+/**
+ * Update an existing sales line (PATCH by key)
+ */
+export async function updateSalesLine(
+  documentNo: string,
+  lineNo: number,
+  body: Record<string, unknown>,
+): Promise<unknown> {
+  const escapedNo = documentNo.replace(/'/g, "''");
+  const endpoint = `/SalesLine(Document_Type='Order',Document_No='${encodeURIComponent(escapedNo)}',Line_No=${lineNo})?company='${encodeURIComponent(COMPANY)}'`;
+  return apiPatch<unknown>(endpoint, body);
 }

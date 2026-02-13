@@ -43,7 +43,14 @@ export interface SalesOrderLineItem {
 export interface CreateSalesOrderResponse {
   orderId: string;
   orderNo: string;
-  // Add other response fields as needed
+}
+
+/** API may return the created entity with No (document number) */
+interface CreateSalesOrderApiResponse {
+  No?: string;
+  orderId?: string;
+  orderNo?: string;
+  [key: string]: unknown;
 }
 
 const COMPANY =
@@ -51,7 +58,7 @@ const COMPANY =
 
 /**
  * Create a new sales order
- * Returns the order ID and order number
+ * Returns the order ID and order number. API returns document number as "No".
  */
 export async function createSalesOrder(
   orderData: SalesOrderData,
@@ -75,9 +82,20 @@ export async function createSalesOrder(
       Shortcut_Dimension_3_Code: orderData.loc || "",
     };
 
-    const response = await apiPost<CreateSalesOrderResponse>(endpoint, payload);
+    const response = await apiPost<CreateSalesOrderApiResponse>(
+      endpoint,
+      payload,
+    );
 
-    return response || { orderId: '', orderNo: '' };
+    if (!response) {
+      return { orderId: "", orderNo: "" };
+    }
+
+    // API returns document number as "No" (e.g. "SO/2526/080184")
+    const orderNo = response.No ?? response.orderNo ?? "";
+    const orderId = response.orderId ?? orderNo;
+
+    return { orderId, orderNo };
   } catch (error) {
     console.error("Error creating sales order:", error);
     throw error as ApiError;
@@ -85,42 +103,30 @@ export async function createSalesOrder(
 }
 
 /**
- * Add line items to an existing sales order
+ * Add line items to an existing sales order.
+ * Company is passed as query parameter; body only includes required fields.
  */
 export async function addSalesOrderLineItems(
-  orderId: string,
+  documentNo: string,
   lineItems: SalesOrderLineItem[],
+  locationCode: string,
 ): Promise<void> {
-  if (!orderId || lineItems.length === 0) {
+  if (!documentNo || lineItems.length === 0) {
     return;
   }
 
-  // TODO: Replace with actual API endpoint once confirmed
-  // The endpoint might be something like:
-  // POST /SalesOrderHeader('...')/SalesOrderLines
-  // or
-  // POST /SalesOrderLine with orderId in payload
+  const endpoint = `/SalesLine?company='${encodeURIComponent(COMPANY)}'`;
 
   try {
-    // Add line items one by one or in batch, depending on API support
     for (const lineItem of lineItems) {
-      // Example structure (needs to be updated based on actual API):
       const payload = {
-        Company: COMPANY,
-        OrderId: orderId,
+        Document_No: documentNo,
         Type: lineItem.type,
         No: lineItem.no,
-        Description: lineItem.description,
-        Unit_of_Measure_Code: lineItem.uom,
+        Location_Code: locationCode || "",
         Quantity: lineItem.quantity,
-        Unit_Price: lineItem.unitPrice,
-        Line_Discount_Amount: lineItem.discount,
-        Line_Amount: lineItem.amount,
-        // Add other fields as needed
+        Unit_of_Measure_Code: lineItem.uom || "",
       };
-
-      // Placeholder endpoint - needs to be updated
-      const endpoint = `/SalesOrderLine`; // or whatever the actual endpoint is
 
       await apiPost(endpoint, payload);
     }

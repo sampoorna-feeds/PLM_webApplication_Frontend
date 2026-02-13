@@ -8,6 +8,7 @@ import type { FormComponent } from "./types";
 // Lazy imports to avoid circular dependencies
 let SalesOrderForm: FormComponent | null = null;
 let SalesOrderDetailForm: FormComponent | null = null;
+let SalesOrderEditForm: FormComponent | null = null;
 let SalesInvoiceForm: FormComponent | null = null;
 let SalesReturnOrderForm: FormComponent | null = null;
 let SalesCreditMemoForm: FormComponent | null = null;
@@ -39,6 +40,15 @@ export const formRegistry: Record<
       SalesOrderDetailForm = module.SalesOrderDetailForm;
     }
     return { default: SalesOrderDetailForm! };
+  },
+  "sales-order-edit": async () => {
+    if (!SalesOrderEditForm) {
+      const module = await import(
+        "@/components/forms/sales/sales-order-edit-form"
+      );
+      SalesOrderEditForm = module.SalesOrderEditForm;
+    }
+    return { default: SalesOrderEditForm! };
   },
   "sales-invoice": async () => {
     if (!SalesInvoiceForm) {

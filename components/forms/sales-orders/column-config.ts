@@ -1,9 +1,11 @@
 /**
  * Column Configuration for Sales Orders Table
- * Defines all available columns, their metadata, and default visibility
+ * Defines all available columns, their metadata, default visibility, and filter types
  */
 
 export type SortDirection = "asc" | "desc" | null;
+
+export type FilterType = "text" | "enum" | "date" | "number";
 
 export interface ColumnConfig {
   id: string;
@@ -11,6 +13,8 @@ export interface ColumnConfig {
   sortable: boolean;
   defaultVisible: boolean;
   width?: string;
+  filterType?: FilterType;
+  filterOptions?: readonly { value: string; label: string }[];
 }
 
 // Default columns - visible by default
@@ -20,54 +24,63 @@ export const DEFAULT_COLUMNS: ColumnConfig[] = [
     label: "Order No",
     sortable: true,
     defaultVisible: true,
+    filterType: "text",
   },
   {
     id: "Sell_to_Customer_No",
     label: "Customer No",
     sortable: true,
     defaultVisible: true,
+    filterType: "text",
   },
   {
     id: "Sell_to_Customer_Name",
     label: "Customer Name",
     sortable: true,
     defaultVisible: true,
+    filterType: "text",
   },
   {
     id: "Order_Date",
     label: "Order Date",
     sortable: true,
     defaultVisible: true,
+    filterType: "date",
   },
   {
     id: "Posting_Date",
     label: "Posting Date",
     sortable: true,
     defaultVisible: true,
+    filterType: "date",
   },
   {
     id: "Document_Date",
     label: "Document Date",
     sortable: true,
     defaultVisible: true,
+    filterType: "date",
   },
   {
     id: "External_Document_No",
     label: "External Doc No",
     sortable: true,
     defaultVisible: true,
+    filterType: "text",
   },
   {
     id: "Status",
     label: "Status",
     sortable: true,
     defaultVisible: true,
+    filterType: "enum",
   },
   {
     id: "Amt_to_Customer",
     label: "Amount",
     sortable: true,
     defaultVisible: true,
+    filterType: "number",
   },
 ];
 
@@ -78,48 +91,56 @@ export const OPTIONAL_COLUMNS: ColumnConfig[] = [
     label: "Ship-to Code",
     sortable: true,
     defaultVisible: false,
+    filterType: "text",
   },
   {
     id: "Ship_to_Name",
     label: "Ship-to Name",
     sortable: true,
     defaultVisible: false,
+    filterType: "text",
   },
   {
     id: "Location_Code",
     label: "Location",
     sortable: true,
     defaultVisible: false,
+    filterType: "text",
   },
   {
     id: "Invoice_Type",
     label: "Invoice Type",
     sortable: true,
     defaultVisible: false,
+    filterType: "enum",
   },
   {
     id: "Shortcut_Dimension_1_Code",
     label: "LOB",
     sortable: true,
     defaultVisible: false,
+    filterType: "text",
   },
   {
     id: "Shortcut_Dimension_2_Code",
     label: "Branch",
     sortable: true,
     defaultVisible: false,
+    filterType: "text",
   },
   {
     id: "Shortcut_Dimension_3_Code",
     label: "LOC",
     sortable: true,
     defaultVisible: false,
+    filterType: "text",
   },
   {
     id: "Salesperson_Code",
     label: "Salesperson",
     sortable: true,
     defaultVisible: false,
+    filterType: "text",
   },
 ];
 

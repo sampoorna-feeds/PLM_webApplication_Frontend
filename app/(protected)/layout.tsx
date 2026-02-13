@@ -50,6 +50,34 @@ export default function ProtectedLayout({
         { label: "Sales", href: null },
       ];
     }
+    if (pathname === "/sales/order") {
+      return [
+        { label: "Forms", href: "#" },
+        { label: "Sales", href: "/sales/order" },
+        { label: "Sales Order", href: null },
+      ];
+    }
+    if (pathname === "/sales/invoice") {
+      return [
+        { label: "Forms", href: "#" },
+        { label: "Sales", href: "/sales/order" },
+        { label: "Sales Invoice", href: null },
+      ];
+    }
+    if (pathname === "/sales/return-order") {
+      return [
+        { label: "Forms", href: "#" },
+        { label: "Sales", href: "/sales/order" },
+        { label: "Return Order", href: null },
+      ];
+    }
+    if (pathname === "/sales/credit-memo") {
+      return [
+        { label: "Forms", href: "#" },
+        { label: "Sales", href: "/sales/order" },
+        { label: "Credit Memo", href: null },
+      ];
+    }
     if (pathname === "/production-orders") {
       return [
         { label: "Forms", href: "#" },
@@ -77,12 +105,16 @@ export default function ProtectedLayout({
 
   const breadcrumbs = getBreadcrumbs();
 
-  // Back button: show on non-main pages
+  // Back button: show on non-main pages (hide on main form pages)
   const showBackButton =
     pathname !== "/voucher-form" &&
     pathname !== "/sales-form" &&
     pathname !== "/production-orders" &&
-    pathname !== "/";
+    pathname !== "/" &&
+    pathname !== "/sales/order" &&
+    pathname !== "/sales/invoice" &&
+    pathname !== "/sales/return-order" &&
+    pathname !== "/sales/credit-memo";
 
   const backLabel = "Return to Dashboard";
   const backHref = "/voucher-form";

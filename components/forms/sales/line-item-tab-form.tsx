@@ -87,8 +87,12 @@ export function LineItemTabForm({
   const [isLoadingUOM, setIsLoadingUOM] = useState(false);
   const [hasSalesPrice, setHasSalesPrice] = useState<boolean | null>(null);
 
-  // Load TCS options based on selected customer number
+  // Load TCS options based on selected customer number (skip in edit mode - TCS field hidden)
   useEffect(() => {
+    if (lineItem) {
+      setTcsOptions([]);
+      return;
+    }
     if (!customerNo) {
       setTcsOptions([]);
       return;
@@ -100,7 +104,7 @@ export function LineItemTabForm({
         console.error("Error loading TCS Group Codes:", error);
         setTcsOptions([]);
       });
-  }, [customerNo]);
+  }, [customerNo, lineItem]);
 
   // Load UOM when Item type and No are selected
   useEffect(() => {
@@ -321,8 +325,10 @@ export function LineItemTabForm({
 
       if (context?.onSave) {
         context.onSave(newLineItem);
+        // Parent (e.g. edit form) is responsible for closing this tab after persisting
+      } else {
+        closeTab(tabId);
       }
-      closeTab(tabId);
     },
     [formState, totalMRP, amount, lineItem?.id, context, closeTab, tabId],
   );
@@ -594,39 +600,41 @@ export function LineItemTabForm({
           </div>
         )}
 
-        {/* TCS Group Code */}
-        <div className="space-y-2 border-t pt-4">
-          <FieldTitle>TCS Group Code</FieldTitle>
-          {tcsOptions.length > 0 ? (
-            <Select
-              value={formState.tcsGroupCode || ""}
-              onValueChange={(value) =>
-                handleFieldChange("tcsGroupCode", value)
-              }
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select TCS Group Code" />
-              </SelectTrigger>
-              <SelectContent>
-                {tcsOptions.map((tcs) => (
-                  <SelectItem
-                    key={tcs.TCS_Nature_of_Collection}
-                    value={tcs.TCS_Nature_of_Collection}
-                  >
-                    {tcs.TCS_Nature_of_Collection}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          ) : (
-            <Input
-              value="Not available"
-              disabled
-              className="bg-muted"
-              readOnly
-            />
-          )}
-        </div>
+        {/* TCS Group Code - hidden in edit mode (data not available from API) */}
+        {!lineItem && (
+          <div className="space-y-2 border-t pt-4">
+            <FieldTitle>TCS Group Code</FieldTitle>
+            {tcsOptions.length > 0 ? (
+              <Select
+                value={formState.tcsGroupCode || ""}
+                onValueChange={(value) =>
+                  handleFieldChange("tcsGroupCode", value)
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select TCS Group Code" />
+                </SelectTrigger>
+                <SelectContent>
+                  {tcsOptions.map((tcs) => (
+                    <SelectItem
+                      key={tcs.TCS_Nature_of_Collection}
+                      value={tcs.TCS_Nature_of_Collection}
+                    >
+                      {tcs.TCS_Nature_of_Collection}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : (
+              <Input
+                value="Not available"
+                disabled
+                className="bg-muted"
+                readOnly
+              />
+            )}
+          </div>
+        )}
       </form>
 
       {/* Form Actions */}

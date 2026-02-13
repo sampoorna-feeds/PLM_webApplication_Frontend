@@ -7,6 +7,11 @@ import {
   getItemLedgerEntries,
   ItemLedgerEntry,
 } from "@/lib/api/services/report-ledger.service";
+import {
+  getItemWiseStock,
+  ItemWiseStock,
+  getCalculatedOpeningBalance,
+} from "@/lib/api/services/inventory.service";
 import { getAllLOCsFromUserSetup } from "@/lib/api/services/dimension.service";
 import { getItems } from "@/lib/api/services/production-order-data.service";
 import type { PageSize, ReportLedgerFilters } from "./types";
@@ -35,13 +40,20 @@ export function useReportLedger() {
   const [appliedFilters, setAppliedFilters] =
     useState<ReportLedgerFilters>(EMPTY_FILTERS);
 
-  // Location dropdown state - loaded from WebUserSetup (user's assigned LOC codes)
+  // Metrics State
+  const [currentStock, setCurrentStock] = useState<ItemWiseStock | null>(null);
+  const [openingBalance, setOpeningBalance] = useState<number | null>(null);
+  const [closingBalance, setClosingBalance] = useState<number | null>(null);
+  const [isLoadingStock, setIsLoadingStock] = useState(false);
+  const [isLoadingSummary, setIsLoadingSummary] = useState(false);
+
+  // Location dropdown state
   const [locationOptions, setLocationOptions] = useState<
     { label: string; value: string; description?: string }[]
   >([]);
   const [isLoadingLocations, setIsLoadingLocations] = useState(false);
 
-  // Item dropdown state - loaded from ItemList, filtered by selected location
+  // Item dropdown state
   const [itemOptions, setItemOptions] = useState<
     { label: string; value: string; description?: string }[]
   >([]);
@@ -66,6 +78,30 @@ export function useReportLedger() {
   const totalPages = useMemo(() => {
     return Math.max(1, Math.ceil(totalCount / pageSize));
   }, [totalCount, pageSize]);
+
+  // Selected Item Label for Summary
+  const selectedItemLabel = useMemo(() => {
+    return itemOptions.find((opt) => opt.value === appliedFilters.itemNo);
+  }, [itemOptions, appliedFilters.itemNo]);
+
+  // Selected Location Label
+  const selectedLocationLabel = useMemo(() => {
+    return locationOptions.find(
+      (opt) => opt.value === appliedFilters.locationCode,
+    );
+  }, [locationOptions, appliedFilters.locationCode]);
+
+  // Date Range for Summary
+  const dateRange = useMemo(() => {
+    return {
+      from: appliedFilters.postingDateFrom
+        ? new Date(appliedFilters.postingDateFrom)
+        : undefined,
+      to: appliedFilters.postingDateTo
+        ? new Date(appliedFilters.postingDateTo)
+        : undefined,
+    };
+  }, [appliedFilters.postingDateFrom, appliedFilters.postingDateTo]);
 
   // ─── Load user's assigned location codes from WebUserSetup ───
   useEffect(() => {
@@ -93,9 +129,8 @@ export function useReportLedger() {
     loadLocations();
   }, [userID]);
 
-  // ─── Load items (replicating production order form pattern) ───
+  // ─── Load items ───
   useEffect(() => {
-    // Items can only be loaded after a location is selected
     if (!filters.locationCode) {
       setItemOptions([]);
       setHasMoreItems(false);
@@ -115,7 +150,7 @@ export function useReportLedger() {
         const skip = (itemPage - 1) * ITEM_PAGE_SIZE;
         const items = await getItems(
           itemSearchQuery || undefined,
-          undefined, // lobCode - not used
+          undefined,
           skip,
           ITEM_PAGE_SIZE,
         );
@@ -148,7 +183,136 @@ export function useReportLedger() {
     loadItems();
   }, [filters.locationCode, itemSearchQuery, itemPage]);
 
-  // Build filter string for OData
+  // ─── FETCH METRICS (Current Stock & Opening/Closing) ───
+  useEffect(() => {
+    // Only fetch metrics if item and location applied
+    if (!appliedFilters.itemNo || !appliedFilters.locationCode) {
+      setCurrentStock(null);
+      setOpeningBalance(null);
+      setClosingBalance(null);
+      return;
+    }
+
+    // 1. Fetch Current Stock
+    const fetchStock = async () => {
+      setIsLoadingStock(true);
+      try {
+        const { entries } = await getItemWiseStock({
+          $filter: `ItemNo eq '${appliedFilters.itemNo}' and LocationCode eq '${appliedFilters.locationCode}'`,
+          $top: 1,
+        });
+        setCurrentStock(entries[0] || null);
+      } catch (error) {
+        console.error("Error fetching current stock:", error);
+      } finally {
+        setIsLoadingStock(false);
+      }
+    };
+
+    // 2. Fetch Opening Balance (and calculate Closing)
+    const fetchSummary = async () => {
+      // Logic:
+      // Opening Balance = Sum of ItemLOCWiseSummary before Start Date
+      // Closing Balance = Opening Balance + Net Change (fetched separately? or from visible entries?
+      // Since we paginate entries, we can't sum visible entries to get closing.
+      // We should calculate Closing as:
+      // Option A: Sum of ALL ItemLOCWiseSummary <= End Date.
+      // Option B: Opening + Sum of ALL ItemLedgerEntry in range.
+      // Option A is cleaner if ItemLOCWiseSummary is reliable.
+
+      setIsLoadingSummary(true);
+      try {
+        let openBal = 0;
+        let closeBal = 0;
+
+        // Fetch Opening Balance
+        if (appliedFilters.postingDateFrom) {
+          openBal = await getCalculatedOpeningBalance(
+            appliedFilters.itemNo,
+            appliedFilters.locationCode,
+            new Date(appliedFilters.postingDateFrom),
+          );
+        } else {
+          // If no start date, opening balance is 0 (from beginning of time)
+          openBal = 0;
+        }
+        setOpeningBalance(openBal);
+
+        // Fetch Closing Balance
+        if (appliedFilters.postingDateTo) {
+          // Fetch everything up to end date plus one day (to include end date)?
+          // or use le operator.
+          // Reuse helper? Helper uses 'lt'.
+          // Let's create a custom logic here or update helper.
+          // For simplicity, let's assume Closing Balance = OpenBal + NetChangeInRange.
+          // Net Change = Sum of ItemLedgerEntries in Range.
+          // This requires fetching ALL entries in range (could be many).
+          // Better: Calculate Closing Balance using ItemLOCWiseSummary <= End Date.
+          // I will manually implement the loop here similar to helper but with 'le'.
+
+          const endDate = new Date(appliedFilters.postingDateTo);
+          const dateStr = endDate.toISOString().split("T")[0];
+          const filter = `ItemNo eq '${appliedFilters.itemNo}' and LocationCode eq '${appliedFilters.locationCode}' and Posting_Date le ${dateStr}`;
+
+          let totalQty = 0;
+          let skip = 0;
+          const TOP = 5000;
+          while (true) {
+            const res =
+              await import("@/lib/api/services/inventory.service").then((m) =>
+                m.getItemLocWiseSummary({
+                  $filter: filter,
+                  $top: TOP,
+                  $skip: skip,
+                  $select: "Quantity",
+                }),
+              );
+            for (const e of res.entries) totalQty += e.Quantity || 0;
+            if (res.entries.length < TOP) break;
+            skip += TOP;
+          }
+          closeBal = totalQty;
+        } else {
+          // If no end date, Closing Balance = Current Stock? or Sum of all history?
+          // Usually "Current Stock" (ItemWiseStock) is the single source of truth for "Now".
+          // So if no end date, we might align with Current Stock?
+          // Let's default to summing all history.
+          const filter = `ItemNo eq '${appliedFilters.itemNo}' and LocationCode eq '${appliedFilters.locationCode}'`;
+          // ... same loop ...
+          // For separate concerns, let's just do the loop.
+          let totalQty = 0;
+          let skip = 0;
+          const TOP = 5000;
+          while (true) {
+            const res =
+              await import("@/lib/api/services/inventory.service").then((m) =>
+                m.getItemLocWiseSummary({
+                  $filter: filter,
+                  $top: TOP,
+                  $skip: skip,
+                  $select: "Quantity",
+                }),
+              );
+            for (const e of res.entries) totalQty += e.Quantity || 0;
+            if (res.entries.length < TOP) break;
+            skip += TOP;
+          }
+          closeBal = totalQty;
+        }
+        setClosingBalance(closeBal);
+      } catch (error) {
+        console.error("Error fetching summary:", error);
+      } finally {
+        setIsLoadingSummary(false);
+      }
+    };
+
+    fetchStock();
+    fetchSummary();
+  }, [appliedFilters]);
+
+  // ─── Standard Ledger Logic ───
+
   const buildFilterString = useCallback((): string => {
     const filterParts: string[] = [];
 
@@ -171,13 +335,11 @@ export function useReportLedger() {
     return filterParts.join(" and ");
   }, [appliedFilters]);
 
-  // Build orderby string for OData
   const getOrderByString = useCallback((): string | undefined => {
     if (!sortColumn || !sortDirection) return undefined;
     return `${sortColumn} ${sortDirection}`;
   }, [sortColumn, sortDirection]);
 
-  // Fetch item ledger entries
   const fetchEntries = useCallback(async () => {
     if (
       !appliedFilters.locationCode ||
@@ -221,19 +383,15 @@ export function useReportLedger() {
     getOrderByString,
   ]);
 
-  // Fetch entries when dependencies change
   useEffect(() => {
     fetchEntries();
   }, [fetchEntries]);
 
-  // ─── Handlers ───
-
+  // Handlers (Duplicated for brevity, same as before)
   const handleFiltersChange = useCallback(
     (newFilters: Partial<ReportLedgerFilters>) => {
       setFilters((prev) => {
         const next = { ...prev, ...newFilters };
-
-        // When location changes, reset item selection and item search state
         if (
           "locationCode" in newFilters &&
           newFilters.locationCode !== prev.locationCode
@@ -244,7 +402,6 @@ export function useReportLedger() {
           setItemOptions([]);
           setHasMoreItems(false);
         }
-
         return next;
       });
     },
@@ -281,6 +438,9 @@ export function useReportLedger() {
     setItemPage(1);
     setItemOptions([]);
     setHasMoreItems(false);
+    setCurrentStock(null);
+    setOpeningBalance(null);
+    setClosingBalance(null);
   }, []);
 
   const handlePageSizeChange = useCallback((size: PageSize) => {
@@ -329,7 +489,6 @@ export function useReportLedger() {
     saveVisibleColumns(allColumnIds);
   }, []);
 
-  // Item search and load more handlers
   const handleItemSearch = useCallback((query: string) => {
     setItemSearchQuery(query);
     setItemPage(1);
@@ -340,26 +499,16 @@ export function useReportLedger() {
     setItemPage((prev) => prev + 1);
   }, [hasMoreItems, isLoadingMoreItems]);
 
-  // Determine if there's a next page
   const hasNextPage = currentPage < totalPages;
 
   return {
-    // Data
     entries,
     isLoading,
-    // Pagination
     pageSize,
     currentPage,
     totalPages,
     totalCount,
     hasNextPage,
-    onPageSizeChange: handlePageSizeChange,
-    onPageChange: handlePageChange,
-    // Sorting
-    sortColumn,
-    sortDirection,
-    onSort: handleSort,
-    // Filters
     filters,
     appliedFilters,
     locationOptions,
@@ -368,17 +517,29 @@ export function useReportLedger() {
     isLoadingItems,
     isLoadingMoreItems,
     hasMoreItems,
+    onPageSizeChange: handlePageSizeChange,
+    onPageChange: handlePageChange,
+    onSort: handleSort,
     onFiltersChange: handleFiltersChange,
     onApplyFilters: handleApplyFilters,
     onClearFilters: handleClearFilters,
     onItemSearch: handleItemSearch,
     onLoadMoreItems: handleLoadMoreItems,
-    // Column visibility
     visibleColumns,
     onColumnToggle: handleColumnToggle,
     onResetColumns: handleResetColumns,
     onShowAllColumns: handleShowAllColumns,
-    // Refetch
     refetch: fetchEntries,
+    sortColumn,
+    sortDirection,
+    // Metrics
+    currentStock,
+    openingBalance,
+    closingBalance,
+    isLoadingStock,
+    isLoadingSummary,
+    selectedItem: selectedItemLabel,
+    selectedLocation: selectedLocationLabel,
+    dateRange,
   };
 }

@@ -88,6 +88,7 @@ export default function ProtectedLayout({
     pathname !== "/voucher-form" &&
     pathname !== "/sales-form" &&
     pathname !== "/production-orders" &&
+    pathname !== "/report-ledger" &&
     pathname !== "/";
 
   const backLabel = "Return to Dashboard";

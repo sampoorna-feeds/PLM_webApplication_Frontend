@@ -1,15 +1,11 @@
 "use client";
 
-/**
- * Report Ledger Form
- * Main component for viewing item ledger entries with filtering
- */
-
 import { cn } from "@/lib/utils";
 import { useReportLedger } from "./use-report-ledger";
 import { ReportLedgerTable } from "./report-ledger-table";
 import { PaginationControls } from "./pagination-controls";
 import { TableFilterBar } from "./table-filter-bar";
+import { ReportLedgerSummary } from "./report-ledger-summary";
 
 export function ReportLedgerForm() {
   const {
@@ -45,6 +41,15 @@ export function ReportLedgerForm() {
     onColumnToggle,
     onResetColumns,
     onShowAllColumns,
+    // Metrics
+    currentStock,
+    openingBalance,
+    closingBalance,
+    isLoadingStock,
+    isLoadingSummary,
+    selectedItem,
+    selectedLocation,
+    dateRange,
   } = useReportLedger();
 
   return (
@@ -59,15 +64,15 @@ export function ReportLedgerForm() {
         {/* Header - fixed at top */}
         <div className="flex shrink-0 items-center justify-between pb-3">
           <div>
-            <h1 className="text-lg font-bold">Report Ledger</h1>
+            <h1 className="text-lg font-bold">Item Ledger Report</h1>
             <p className="text-muted-foreground text-sm">
-              View item ledger entries by applying filters
+              View item transactions and inventory details
             </p>
           </div>
         </div>
 
         {/* Filter Bar - fixed at top */}
-        <div className="shrink-0">
+        <div className="mb-4 shrink-0">
           <TableFilterBar
             filters={filters}
             visibleColumns={visibleColumns}
@@ -87,6 +92,22 @@ export function ReportLedgerForm() {
             onLoadMoreItems={onLoadMoreItems}
           />
         </div>
+
+        {/* Summary Metrics - Only show when Item and Location are selected */}
+        {selectedItem && selectedLocation && (
+          <div className="shrink-0">
+            <ReportLedgerSummary
+              currentStock={currentStock}
+              openingBalance={openingBalance}
+              closingBalance={closingBalance}
+              isLoadingStock={isLoadingStock}
+              isLoadingSummary={isLoadingSummary}
+              selectedItem={selectedItem}
+              selectedLocation={selectedLocation}
+              dateRange={dateRange}
+            />
+          </div>
+        )}
 
         {/* Table container - takes remaining space with internal scrolling */}
         <div className="min-h-0 flex-1">

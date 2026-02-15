@@ -148,6 +148,16 @@ export async function sendApprovalRequest(
 }
 
 /**
+ * Cancel approval request for a sales order (Pending Approval -> Open)
+ */
+export async function cancelApprovalRequest(
+  salesOrderNo: string,
+): Promise<unknown> {
+  const endpoint = `/API_CancelApprovalRequest?company='${encodeURIComponent(COMPANY)}'`;
+  return apiPost<unknown>(endpoint, { salesOrderNo });
+}
+
+/**
  * Reopen a sales order
  */
 export async function reopenSalesOrder(salesOrderNo: string): Promise<unknown> {

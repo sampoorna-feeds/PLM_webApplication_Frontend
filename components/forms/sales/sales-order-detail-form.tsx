@@ -2,19 +2,32 @@
 
 /**
  * Sales Order Detail Form
- * Read-only view of a sales order with header and line items
- * Opens in FormStack when clicking a row in the Sales Order list
+ * Read-only view of a sales order with header and line items.
+ * Toolbar: Edit, Delete (disabled when Released), Send For Approval / Cancel Approval / Reopen.
  */
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Loader2 } from "lucide-react";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useFormStack } from "@/lib/form-stack/use-form-stack";
+import { useFormStackContext } from "@/lib/form-stack/form-stack-context";
 import {
   getSalesOrderByNo,
   getSalesOrderLines,
+  sendApprovalRequest,
+  cancelApprovalRequest,
+  reopenSalesOrder,
   type SalesOrder,
   type SalesLine,
 } from "@/lib/api/services/sales-orders.service";
+import { RequestFailedDialog } from "@/components/ui/request-failed-dialog";
 import {
   Table,
   TableBody,
@@ -23,6 +36,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import type { ApiError } from "@/lib/api/client";
 
 interface SalesOrderDetailFormProps {
   tabId: string;
@@ -50,12 +64,34 @@ export function SalesOrderDetailForm({
   context,
 }: SalesOrderDetailFormProps) {
   useFormStack(tabId);
+  const { openTab } = useFormStackContext();
   const orderNo = context?.orderNo as string | undefined;
+  const refetch = context?.refetch as (() => void) | undefined;
 
   const [order, setOrder] = useState<SalesOrder | null>(null);
   const [lines, setLines] = useState<SalesLine[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [isActionLoading, setIsActionLoading] = useState(false);
+
+  const loadOrder = useCallback(() => {
+    if (!orderNo) return;
+    setIsLoading(true);
+    setError(null);
+    Promise.all([
+      getSalesOrderByNo(orderNo),
+      getSalesOrderLines(orderNo),
+    ])
+      .then(([header, lineItems]) => {
+        setOrder(header || null);
+        setLines(lineItems || []);
+      })
+      .catch((err) => {
+        setError(err?.message || "Failed to load order");
+      })
+      .finally(() => setIsLoading(false));
+  }, [orderNo]);
 
   useEffect(() => {
     if (!orderNo) {
@@ -63,32 +99,64 @@ export function SalesOrderDetailForm({
       setIsLoading(false);
       return;
     }
+    loadOrder();
+  }, [orderNo, loadOrder]);
 
-    let cancelled = false;
-    setIsLoading(true);
-    setError(null);
+  const handleEdit = () => {
+    openTab("sales-order-edit", {
+      title: `Edit Order ${orderNo}`,
+      context: { orderNo, onUpdated: refetch },
+      autoCloseOnSuccess: false,
+    });
+  };
 
-    Promise.all([
-      getSalesOrderByNo(orderNo),
-      getSalesOrderLines(orderNo),
-    ])
-      .then(([header, lineItems]) => {
-        if (cancelled) return;
-        setOrder(header || null);
-        setLines(lineItems || []);
-      })
-      .catch((err) => {
-        if (cancelled) return;
-        setError(err?.message || "Failed to load order");
-      })
-      .finally(() => {
-        if (!cancelled) setIsLoading(false);
-      });
+  const handleSendForApproval = async () => {
+    if (!orderNo) return;
+    setIsActionLoading(true);
+    setActionError(null);
+    try {
+      await sendApprovalRequest(orderNo);
+      refetch?.();
+      loadOrder();
+      toast.success("Sent for approval.");
+    } catch (err) {
+      setActionError((err as ApiError).message ?? "Send for approval failed.");
+    } finally {
+      setIsActionLoading(false);
+    }
+  };
 
-    return () => {
-      cancelled = true;
-    };
-  }, [orderNo]);
+  const handleCancelApproval = async () => {
+    if (!orderNo) return;
+    setIsActionLoading(true);
+    setActionError(null);
+    try {
+      await cancelApprovalRequest(orderNo);
+      refetch?.();
+      loadOrder();
+      toast.success("Approval cancelled.");
+    } catch (err) {
+      setActionError((err as ApiError).message ?? "Cancel approval failed.");
+    } finally {
+      setIsActionLoading(false);
+    }
+  };
+
+  const handleReopen = async () => {
+    if (!orderNo) return;
+    setIsActionLoading(true);
+    setActionError(null);
+    try {
+      await reopenSalesOrder(orderNo);
+      refetch?.();
+      loadOrder();
+      toast.success("Order reopened.");
+    } catch (err) {
+      setActionError((err as ApiError).message ?? "Reopen failed.");
+    } finally {
+      setIsActionLoading(false);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -107,10 +175,83 @@ export function SalesOrderDetailForm({
     );
   }
 
+  const isReleased = order.Status === "Released";
+  const isOpen = order.Status === "Open";
+  const isPendingApproval = order.Status === "Pending Approval";
+
   return (
-    <div className="flex flex-col gap-6 px-6 py-4">
-      {/* Header summary - same fields as review step */}
-      <div className="bg-muted/30 rounded-lg p-4">
+    <TooltipProvider>
+      <RequestFailedDialog
+        open={!!actionError}
+        message={actionError}
+        onOpenChange={(open) => !open && setActionError(null)}
+      />
+      <div className="flex flex-col gap-6 px-6 py-4">
+        {/* Action bar: Edit, Delete, Send/Cancel/Reopen */}
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleEdit}
+            disabled={isReleased}
+            className="h-8"
+          >
+            Edit
+          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={isReleased}
+                  className="h-8 text-destructive hover:text-destructive"
+                >
+                  Delete
+                </Button>
+              </span>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>{isReleased ? "Reopen the order first to delete." : "Delete order is not available."}</p>
+            </TooltipContent>
+          </Tooltip>
+          {isOpen && (
+            <Button
+              variant="default"
+              size="sm"
+              onClick={handleSendForApproval}
+              disabled={isActionLoading}
+              className="h-8"
+            >
+              {isActionLoading ? "..." : "Send For Approval"}
+            </Button>
+          )}
+          {isPendingApproval && (
+            <Button
+              variant="default"
+              size="sm"
+              onClick={handleCancelApproval}
+              disabled={isActionLoading}
+              className="h-8"
+            >
+              {isActionLoading ? "..." : "Cancel Approval"}
+            </Button>
+          )}
+          {isReleased && (
+            <Button
+              variant="default"
+              size="sm"
+              onClick={handleReopen}
+              disabled={isActionLoading}
+              className="h-8"
+            >
+              {isActionLoading ? "..." : "Reopen"}
+            </Button>
+          )}
+        </div>
+
+        {/* Header summary - same fields as review step */}
+        <div className="bg-muted/30 rounded-lg p-4">
         <div className="mb-4 text-sm font-semibold">Order Summary</div>
         <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
           <div>
@@ -312,5 +453,6 @@ export function SalesOrderDetailForm({
         </div>
       </div>
     </div>
+    </TooltipProvider>
   );
 }

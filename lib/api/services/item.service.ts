@@ -273,12 +273,11 @@ export async function getItemByNo(itemNo: string): Promise<Item | null> {
 export async function getItemsByNos(itemNos: string[]): Promise<Item[]> {
   if (itemNos.length === 0) return [];
 
-  // Build filter using multiple eq conditions: (No eq 'ITEM1' or No eq 'ITEM2' or ...)
-  // The 'in' operator is not reliably supported by Business Central OData API
+  // Build filter: Blocked eq false and (No eq 'ITEM1' or No eq 'ITEM2' or ...)
   const filterConditions = itemNos.map(
     (no) => `No eq '${escapeODataValue(no)}'`,
   );
-  const filter = `(${filterConditions.join(" or ")})`;
+  const filter = `(Blocked eq false) and (${filterConditions.join(" or ")})`;
 
   const query = buildODataQuery({
     $select: "No,Description,Item_Tracking_Code",

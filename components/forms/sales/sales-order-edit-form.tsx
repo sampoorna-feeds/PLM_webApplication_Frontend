@@ -365,6 +365,29 @@ export function SalesOrderEditForm({
     ],
   );
 
+  const handleViewLineItem = useCallback(
+    (item: LineItem) => {
+      if (!order) return;
+      const locationCode = order.Location_Code ?? "";
+      openTab("line-item", {
+        title: "View Line Item",
+        formData: {
+          lineItem: item,
+          customerNo: order.Sell_to_Customer_No,
+          locationCode,
+          customerPriceGroup: "",
+        },
+        context: {
+          openedFromParent: true,
+          viewOnly: true,
+          onEdit: () => handleEditLineItem(item),
+        },
+        autoCloseOnSuccess: false,
+      });
+    },
+    [order, openTab, handleEditLineItem],
+  );
+
   const handleRemoveLineItem = useCallback(
     (itemId: string) => {
       const item = orderItems.find((i) => i.id === itemId);
@@ -584,6 +607,7 @@ export function SalesOrderEditForm({
                   onEdit={handleEditLineItem}
                   onRemove={handleRemoveLineItem}
                   onUpdate={handleUpdateLineItem}
+                  onRowClick={handleViewLineItem}
                   editable
                 />
               </div>

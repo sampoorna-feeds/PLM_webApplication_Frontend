@@ -120,10 +120,11 @@ export function FormStackPanel() {
       <div
         className={cn(
           "bg-background border-border fixed top-0 right-0 z-50 flex h-full flex-col border-l shadow-xl",
-          currentTab?.formType === "sales-order" ||
-            currentTab?.formType === "sales-order-detail" ||
-            currentTab?.formType === "sales-order-edit" ||
-            currentTab?.formType === "line-item"
+          currentTab?.formType === "line-item"
+            ? "w-screen md:w-[42vw] md:max-w-lg"
+            : currentTab?.formType === "sales-order" ||
+              currentTab?.formType === "sales-order-detail" ||
+              currentTab?.formType === "sales-order-edit"
             ? "w-screen md:w-[60vw]"
             : "w-screen md:w-[65vw] lg:w-[48vw]",
         )}

@@ -3,7 +3,7 @@
  * Fetches sales orders from ERP OData V4 API
  */
 
-import { apiGet, apiPost, apiPatch } from "../client";
+import { apiGet, apiPost, apiPatch, apiDelete } from "../client";
 import { buildODataQuery } from "../endpoints";
 import type { ODataResponse } from "../types";
 
@@ -217,4 +217,107 @@ export async function updateSalesLine(
   const escapedNo = documentNo.replace(/'/g, "''");
   const endpoint = `/SalesLine(Document_Type='Order',Document_No='${encodeURIComponent(escapedNo)}',Line_No=${lineNo})?company='${encodeURIComponent(COMPANY)}'`;
   return apiPatch<unknown>(endpoint, body);
+}
+
+// ============================================
+// SALES ITEM TRACKING (LOT ASSIGN / GET / DELETE)
+// Reuse getItemAvailabilityByLot, modifyItemTrackingLine from production-orders.service
+// ============================================
+
+export interface SalesItemTrackingLine {
+  "@odata.etag"?: string;
+  Entry_No: number;
+  Positive?: boolean;
+  Source_Type?: number;
+  Source_Subtype?: string;
+  Source_ID?: string;
+  Source_Batch_Name?: string;
+  Source_Prod_Order_Line?: number;
+  Source_Ref_No_?: number;
+  Item_No: string;
+  Location_Code?: string;
+  Lot_No?: string;
+  Expiration_Date?: string;
+  Quantity_Base?: number;
+  Qty_to_Handl_Base?: number;
+  [key: string]: unknown;
+}
+
+export interface AssignSalesItemTrackingParams {
+  orderNo: string;
+  lineNo: number;
+  itemNo: string;
+  locationCode: string;
+  quantity: number;
+  lotNo: string;
+  expirationDate?: string;
+}
+
+/**
+ * Assign item tracking (lot) to a sales order line.
+ * POST API_TrackingAssign with sourceType 37, sourceSubType 1; quantity and qtytoHandle are negative.
+ */
+export async function assignSalesItemTracking(
+  params: AssignSalesItemTrackingParams,
+): Promise<unknown> {
+  const endpoint = `/API_TrackingAssign?company='${encodeURIComponent(COMPANY)}'`;
+  const qty = -Math.abs(params.quantity);
+  const payload = {
+    itemNo: params.itemNo,
+    locationCode: params.locationCode,
+    quantity: qty,
+    qtytoHandle: qty,
+    sourceProdOrderLine: 0,
+    sourceType: 37,
+    sourceSubType: 1,
+    sourceID: params.orderNo,
+    sourceBatch: "",
+    sourcerefNo: params.lineNo,
+    lotNo: params.lotNo,
+    expirationdate: params.expirationDate || "0001-01-01",
+    manufacuringdate: "0001-01-01",
+    newExpirationdate: "0001-01-01",
+    newManufacuringdate: "0001-01-01",
+    reservationStatus: 2,
+  };
+  return apiPost<unknown>(endpoint, payload);
+}
+
+function escapeODataString(value: string): string {
+  return value.replace(/'/g, "''");
+}
+
+/**
+ * Get item tracking lines for a sales order line.
+ * Filter: Source_Type eq 39, Source_Subtype eq '1', Source_ID = order No., Source_Ref_No_ = line No., Item_No, Location_Code.
+ */
+export async function getSalesItemTrackingLines(
+  orderNo: string,
+  lineNo: number,
+  itemNo: string,
+  locationCode: string,
+): Promise<SalesItemTrackingLine[]> {
+  const filter = [
+    `Source_ID eq '${escapeODataString(orderNo)}'`,
+    `Source_Ref_No_ eq ${lineNo}`,
+    `Item_No eq '${escapeODataString(itemNo)}'`,
+    `Location_Code eq '${escapeODataString(locationCode)}'`,
+    "Source_Type eq 39",
+    "Source_Subtype eq '1'",
+  ].join(" and ");
+  const query = buildODataQuery({ $filter: filter });
+  const endpoint = `/ItemTrackingLine?company='${encodeURIComponent(COMPANY)}'&${query}`;
+  const response = await apiGet<ODataResponse<SalesItemTrackingLine>>(endpoint);
+  return response.value || [];
+}
+
+/**
+ * Delete a sales item tracking line (DELETE with URL only, no body).
+ */
+export async function deleteSalesItemTrackingLine(
+  entryNo: number,
+  positive: boolean,
+): Promise<unknown> {
+  const endpoint = `/ItemTrackingLine(Entry_No=${entryNo},Positive=${positive})?company='${encodeURIComponent(COMPANY)}'`;
+  return apiDelete<unknown>(endpoint);
 }

@@ -11,6 +11,8 @@ import {
   getItemWiseStock,
   ItemWiseStock,
   getCalculatedOpeningBalance,
+  getIncreaseMetrics,
+  getDecreaseMetrics,
 } from "@/lib/api/services/inventory.service";
 import { getAllLOCsFromUserSetup } from "@/lib/api/services/dimension.service";
 import { getItems } from "@/lib/api/services/production-order-data.service";
@@ -40,10 +42,24 @@ export function useReportLedger() {
   const [appliedFilters, setAppliedFilters] =
     useState<ReportLedgerFilters>(EMPTY_FILTERS);
 
-  // Metrics State
+  // Metrics State (Enhanced: qty + amount for each)
   const [currentStock, setCurrentStock] = useState<ItemWiseStock | null>(null);
-  const [openingBalance, setOpeningBalance] = useState<number | null>(null);
-  const [closingBalance, setClosingBalance] = useState<number | null>(null);
+  const [openingBalance, setOpeningBalance] = useState<{
+    qty: number;
+    amount: number;
+  } | null>(null);
+  const [increaseMetrics, setIncreaseMetrics] = useState<{
+    qty: number;
+    amount: number;
+  } | null>(null);
+  const [decreaseMetrics, setDecreaseMetrics] = useState<{
+    qty: number;
+    amount: number;
+  } | null>(null);
+  const [closingBalance, setClosingBalance] = useState<{
+    qty: number;
+    amount: number;
+  } | null>(null);
   const [isLoadingStock, setIsLoadingStock] = useState(false);
   const [isLoadingSummary, setIsLoadingSummary] = useState(false);
 
@@ -183,132 +199,84 @@ export function useReportLedger() {
     loadItems();
   }, [filters.locationCode, itemSearchQuery, itemPage]);
 
-  // ─── FETCH METRICS (Current Stock & Opening/Closing) ───
+  // ─── FETCH METRICS (Enhanced: 8 metrics) ───
   useEffect(() => {
-    // Only fetch metrics if item and location applied
-    if (!appliedFilters.itemNo || !appliedFilters.locationCode) {
+    // Only fetch metrics if item, location, and dates applied
+    if (
+      !appliedFilters.itemNo ||
+      !appliedFilters.locationCode ||
+      !appliedFilters.postingDateFrom ||
+      !appliedFilters.postingDateTo
+    ) {
       setCurrentStock(null);
       setOpeningBalance(null);
+      setIncreaseMetrics(null);
+      setDecreaseMetrics(null);
       setClosingBalance(null);
       return;
     }
 
-    // 1. Fetch Current Stock
-    const fetchStock = async () => {
+    const fetchMetrics = async () => {
       setIsLoadingStock(true);
+      setIsLoadingSummary(true);
+
       try {
-        const { entries } = await getItemWiseStock({
+        // 1. Fetch Current Stock
+        const { entries: stockEntries } = await getItemWiseStock({
           $filter: `ItemNo eq '${appliedFilters.itemNo}' and LocationCode eq '${appliedFilters.locationCode}'`,
           $top: 1,
         });
-        setCurrentStock(entries[0] || null);
-      } catch (error) {
-        console.error("Error fetching current stock:", error);
-      } finally {
-        setIsLoadingStock(false);
-      }
-    };
+        setCurrentStock(stockEntries[0] || null);
 
-    // 2. Fetch Opening Balance (and calculate Closing)
-    const fetchSummary = async () => {
-      // Logic:
-      // Opening Balance = Sum of ItemLOCWiseSummary before Start Date
-      // Closing Balance = Opening Balance + Net Change (fetched separately? or from visible entries?
-      // Since we paginate entries, we can't sum visible entries to get closing.
-      // We should calculate Closing as:
-      // Option A: Sum of ALL ItemLOCWiseSummary <= End Date.
-      // Option B: Opening + Sum of ALL ItemLedgerEntry in range.
-      // Option A is cleaner if ItemLOCWiseSummary is reliable.
+        // 2. Fetch all metrics in parallel
+        const fromDate = new Date(appliedFilters.postingDateFrom);
+        const toDate = new Date(appliedFilters.postingDateTo);
 
-      setIsLoadingSummary(true);
-      try {
-        let openBal = 0;
-        let closeBal = 0;
-
-        // Fetch Opening Balance
-        if (appliedFilters.postingDateFrom) {
-          openBal = await getCalculatedOpeningBalance(
+        const [opening, increase, decrease] = await Promise.all([
+          getCalculatedOpeningBalance(
             appliedFilters.itemNo,
             appliedFilters.locationCode,
-            new Date(appliedFilters.postingDateFrom),
-          );
-        } else {
-          // If no start date, opening balance is 0 (from beginning of time)
-          openBal = 0;
-        }
-        setOpeningBalance(openBal);
+            fromDate,
+          ),
+          getIncreaseMetrics(
+            appliedFilters.itemNo,
+            appliedFilters.locationCode,
+            fromDate,
+            toDate,
+          ),
+          getDecreaseMetrics(
+            appliedFilters.itemNo,
+            appliedFilters.locationCode,
+            fromDate,
+            toDate,
+          ),
+        ]);
 
-        // Fetch Closing Balance
-        if (appliedFilters.postingDateTo) {
-          // Fetch everything up to end date plus one day (to include end date)?
-          // or use le operator.
-          // Reuse helper? Helper uses 'lt'.
-          // Let's create a custom logic here or update helper.
-          // For simplicity, let's assume Closing Balance = OpenBal + NetChangeInRange.
-          // Net Change = Sum of ItemLedgerEntries in Range.
-          // This requires fetching ALL entries in range (could be many).
-          // Better: Calculate Closing Balance using ItemLOCWiseSummary <= End Date.
-          // I will manually implement the loop here similar to helper but with 'le'.
+        setOpeningBalance(opening);
+        setIncreaseMetrics(increase);
+        setDecreaseMetrics(decrease);
 
-          const endDate = new Date(appliedFilters.postingDateTo);
-          const dateStr = endDate.toISOString().split("T")[0];
-          const filter = `ItemNo eq '${appliedFilters.itemNo}' and LocationCode eq '${appliedFilters.locationCode}' and Posting_Date le ${dateStr}`;
-
-          let totalQty = 0;
-          let skip = 0;
-          const TOP = 5000;
-          while (true) {
-            const res =
-              await import("@/lib/api/services/inventory.service").then((m) =>
-                m.getItemLocWiseSummary({
-                  $filter: filter,
-                  $top: TOP,
-                  $skip: skip,
-                  $select: "Quantity",
-                }),
-              );
-            for (const e of res.entries) totalQty += e.Quantity || 0;
-            if (res.entries.length < TOP) break;
-            skip += TOP;
-          }
-          closeBal = totalQty;
-        } else {
-          // If no end date, Closing Balance = Current Stock? or Sum of all history?
-          // Usually "Current Stock" (ItemWiseStock) is the single source of truth for "Now".
-          // So if no end date, we might align with Current Stock?
-          // Let's default to summing all history.
-          const filter = `ItemNo eq '${appliedFilters.itemNo}' and LocationCode eq '${appliedFilters.locationCode}'`;
-          // ... same loop ...
-          // For separate concerns, let's just do the loop.
-          let totalQty = 0;
-          let skip = 0;
-          const TOP = 5000;
-          while (true) {
-            const res =
-              await import("@/lib/api/services/inventory.service").then((m) =>
-                m.getItemLocWiseSummary({
-                  $filter: filter,
-                  $top: TOP,
-                  $skip: skip,
-                  $select: "Quantity",
-                }),
-              );
-            for (const e of res.entries) totalQty += e.Quantity || 0;
-            if (res.entries.length < TOP) break;
-            skip += TOP;
-          }
-          closeBal = totalQty;
-        }
-        setClosingBalance(closeBal);
+        // 3. Calculate closing: Opening + Increase - Decrease
+        const closing = {
+          qty: opening.qty + increase.qty - decrease.qty,
+          amount: opening.amount + increase.amount - decrease.amount,
+        };
+        setClosingBalance(closing);
       } catch (error) {
-        console.error("Error fetching summary:", error);
+        console.error("Error fetching metrics:", error);
+        toast.error("Failed to fetch inventory metrics");
+        setCurrentStock(null);
+        setOpeningBalance(null);
+        setIncreaseMetrics(null);
+        setDecreaseMetrics(null);
+        setClosingBalance(null);
       } finally {
+        setIsLoadingStock(false);
         setIsLoadingSummary(false);
       }
     };
 
-    fetchStock();
-    fetchSummary();
+    fetchMetrics();
   }, [appliedFilters]);
 
   // ─── Standard Ledger Logic ───
@@ -440,6 +408,8 @@ export function useReportLedger() {
     setHasMoreItems(false);
     setCurrentStock(null);
     setOpeningBalance(null);
+    setIncreaseMetrics(null);
+    setDecreaseMetrics(null);
     setClosingBalance(null);
   }, []);
 
@@ -535,6 +505,8 @@ export function useReportLedger() {
     // Metrics
     currentStock,
     openingBalance,
+    increaseMetrics,
+    decreaseMetrics,
     closingBalance,
     isLoadingStock,
     isLoadingSummary,

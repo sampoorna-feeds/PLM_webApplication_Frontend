@@ -2,12 +2,12 @@
 
 import { Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   SearchableSelect,
   type SearchableSelectOption,
 } from "@/components/ui/searchable-select";
+import { DateInput } from "@/components/ui/date-input";
 import { ColumnVisibility } from "./column-visibility";
 import type { ReportLedgerFilters } from "./types";
 
@@ -100,6 +100,7 @@ export function TableFilterBar({
             onLoadMore={onLoadMoreItems}
             hasMore={hasMoreItems}
             disabled={!filters.locationCode}
+            allowCustomValue={true}
           />
         </div>
 
@@ -108,13 +109,11 @@ export function TableFilterBar({
           <Label htmlFor="date-from-filter" className="text-xs font-medium">
             Posting Date From <span className="text-destructive">*</span>
           </Label>
-          <Input
+          <DateInput
             id="date-from-filter"
-            type="date"
             value={filters.postingDateFrom}
-            onChange={(e) =>
-              onFiltersChange({ postingDateFrom: e.target.value })
-            }
+            onChange={(value) => onFiltersChange({ postingDateFrom: value })}
+            placeholder="DD/MM/YYYY"
             className="h-9"
           />
         </div>
@@ -124,11 +123,11 @@ export function TableFilterBar({
           <Label htmlFor="date-to-filter" className="text-xs font-medium">
             Posting Date To <span className="text-destructive">*</span>
           </Label>
-          <Input
+          <DateInput
             id="date-to-filter"
-            type="date"
             value={filters.postingDateTo}
-            onChange={(e) => onFiltersChange({ postingDateTo: e.target.value })}
+            onChange={(value) => onFiltersChange({ postingDateTo: value })}
+            placeholder="DD/MM/YYYY"
             className="h-9"
           />
         </div>

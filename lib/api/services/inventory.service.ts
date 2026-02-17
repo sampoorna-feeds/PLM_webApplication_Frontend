@@ -88,17 +88,18 @@ export async function getItemLocWiseSummary(
 
 /**
  * Calculates opening balance for a specific item and location before a given date.
- * Fetches all relevant ItemLocWiseSummary entries and sums the Quantity.
+ * Returns both quantity and amount.
  */
 export async function getCalculatedOpeningBalance(
   itemNo: string,
   locationCode: string,
   beforeDate: Date,
-): Promise<number> {
+): Promise<{ qty: number; amount: number }> {
   const dateStr = beforeDate.toISOString().split("T")[0];
   const filter = `ItemNo eq '${itemNo}' and LocationCode eq '${locationCode}' and Posting_Date lt ${dateStr}`;
 
   let totalQuantity = 0;
+  let totalAmount = 0;
   let skip = 0;
   const TOP = 5000; // Fetch in chunks
 
@@ -107,16 +108,102 @@ export async function getCalculatedOpeningBalance(
       $filter: filter,
       $top: TOP,
       $skip: skip,
-      $select: "Quantity", // Minimize data transfer
+      $select: "Quantity,CostAmount",
     });
 
     for (const entry of entries) {
       totalQuantity += entry.Quantity || 0;
+      totalAmount += entry.CostAmount || 0;
     }
 
     if (entries.length < TOP) break;
     skip += TOP;
   }
 
-  return totalQuantity;
+  return { qty: totalQuantity, amount: totalAmount };
+}
+
+/**
+ * Calculates increase metrics (Positive=true transactions) for a specific item and location.
+ * Returns both quantity and amount for the specified date range.
+ */
+export async function getIncreaseMetrics(
+  itemNo: string,
+  locationCode: string,
+  fromDate: Date,
+  toDate: Date,
+): Promise<{ qty: number; amount: number }> {
+  const fromStr = fromDate.toISOString().split("T")[0];
+  const toStr = toDate.toISOString().split("T")[0];
+  const filter = `Item_No eq '${itemNo}' and Location_Code eq '${locationCode}' and Posting_Date ge ${fromStr} and Posting_Date le ${toStr} and Positive eq true`;
+
+  let totalQuantity = 0;
+  let totalAmount = 0;
+  let skip = 0;
+  const TOP = 5000;
+
+  // Import ItemLedgerEntry type dynamically to avoid circular dependency
+  const { getItemLedgerEntries } = await import("./report-ledger.service");
+
+  while (true) {
+    const { entries } = await getItemLedgerEntries({
+      $filter: filter,
+      $top: TOP,
+      $skip: skip,
+      $select: "Quantity,Cost_Amount_Actual",
+    });
+
+    for (const entry of entries) {
+      totalQuantity += entry.Quantity || 0;
+      totalAmount += entry.Cost_Amount_Actual || 0;
+    }
+
+    if (entries.length < TOP) break;
+    skip += TOP;
+  }
+
+  return { qty: totalQuantity, amount: totalAmount };
+}
+
+/**
+ * Calculates decrease metrics (Positive=false transactions) for a specific item and location.
+ * Returns both quantity and amount for the specified date range.
+ */
+export async function getDecreaseMetrics(
+  itemNo: string,
+  locationCode: string,
+  fromDate: Date,
+  toDate: Date,
+): Promise<{ qty: number; amount: number }> {
+  const fromStr = fromDate.toISOString().split("T")[0];
+  const toStr = toDate.toISOString().split("T")[0];
+  const filter = `Item_No eq '${itemNo}' and Location_Code eq '${locationCode}' and Posting_Date ge ${fromStr} and Posting_Date le ${toStr} and Positive eq false`;
+
+  let totalQuantity = 0;
+  let totalAmount = 0;
+  let skip = 0;
+  const TOP = 5000;
+
+  const { getItemLedgerEntries } = await import("./report-ledger.service");
+
+  while (true) {
+    const { entries } = await getItemLedgerEntries({
+      $filter: filter,
+      $top: TOP,
+      $skip: skip,
+      $select: "Quantity,Cost_Amount_Actual",
+    });
+
+    for (const entry of entries) {
+      // Note: Decrease quantities might be stored as positive values with Positive=false flag
+      // So we take absolute value to ensure positive decrease amounts
+      totalQuantity += Math.abs(entry.Quantity || 0);
+      totalAmount += Math.abs(entry.Cost_Amount_Actual || 0);
+    }
+
+    if (entries.length < TOP) break;
+    skip += TOP;
+  }
+
+  return { qty: totalQuantity, amount: totalAmount };
 }

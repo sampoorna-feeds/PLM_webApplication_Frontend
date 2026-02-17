@@ -50,6 +50,11 @@ interface LineItemTabFormProps {
   context?: {
     onSave?: (lineItem: LineItem) => void;
     openedFromParent?: boolean;
+    viewOnly?: boolean;
+    /** When viewOnly, called when user clicks Edit (after closing this tab) */
+    onEdit?: () => void;
+    /** After onSave, close this tab and switch to this tab id (e.g. parent order form) */
+    switchToTabId?: string;
   };
 }
 
@@ -58,12 +63,13 @@ export function LineItemTabForm({
   formData,
   context,
 }: LineItemTabFormProps) {
-  const { closeTab } = useFormStackContext();
+  const { closeTab, switchTab } = useFormStackContext();
 
   const lineItem = formData?.lineItem;
   const customerNo = formData?.customerNo;
   const locationCode = formData?.locationCode;
   const customerPriceGroup = formData?.customerPriceGroup;
+  const viewOnly = context?.viewOnly === true;
 
   // Single source of truth for form state
   const [formState, setFormState] = useState<Partial<LineItem>>(() => ({
@@ -325,36 +331,71 @@ export function LineItemTabForm({
 
       if (context?.onSave) {
         context.onSave(newLineItem);
-        // Parent (e.g. edit form) is responsible for closing this tab after persisting
+        if (context?.switchToTabId) {
+          setTimeout(() => {
+            closeTab(tabId);
+            switchTab(context.switchToTabId!);
+          }, 0);
+        }
       } else {
         closeTab(tabId);
       }
     },
-    [formState, totalMRP, amount, lineItem?.id, context, closeTab, tabId],
+    [formState, totalMRP, amount, lineItem?.id, context, closeTab, switchTab, tabId],
   );
 
   const handleCancel = useCallback(() => {
     closeTab(tabId);
   }, [closeTab, tabId]);
 
+  // View-only: compact read-only summary
+  if (viewOnly) {
+    const handleViewEdit = () => {
+      closeTab(tabId);
+      context?.onEdit?.();
+    };
+    return (
+      <div className="flex h-full flex-col">
+        <div className="flex-1 space-y-3 overflow-y-auto p-6">
+          <div className="text-muted-foreground grid grid-cols-2 gap-x-4 gap-y-2 text-sm sm:grid-cols-3">
+            <div><span className="block text-xs">Type</span><span className="font-medium text-foreground">{formState.type || "-"}</span></div>
+            <div><span className="block text-xs">No</span><span className="font-medium text-foreground">{formState.no || "-"}</span></div>
+            <div><span className="block text-xs">Description</span><span className="font-medium text-foreground max-w-[200px] truncate">{formState.description || "-"}</span></div>
+            <div><span className="block text-xs">UOM</span><span className="font-medium text-foreground">{formState.uom || "-"}</span></div>
+            <div><span className="block text-xs">Quantity</span><span className="font-medium text-foreground">{formState.quantity ?? "-"}</span></div>
+            <div><span className="block text-xs">Unit Price</span><span className="font-medium text-foreground">{formState.unitPrice ?? "-"}</span></div>
+            <div><span className="block text-xs">Discount</span><span className="font-medium text-foreground">{formState.discount ?? "-"}</span></div>
+            <div><span className="block text-xs">Amount</span><span className="font-medium text-foreground">{amount}</span></div>
+          </div>
+        </div>
+        <div className="bg-background flex justify-end gap-3 border-t p-4">
+          <Button type="button" variant="outline" onClick={handleCancel}>Close</Button>
+          {context?.onEdit && (
+            <Button type="button" onClick={handleViewEdit}>Edit</Button>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex h-full flex-col">
       <form
         onSubmit={handleSubmit}
-        className="flex-1 space-y-6 overflow-y-auto p-6"
+        className="flex-1 space-y-3 overflow-y-auto p-3"
       >
         {/* Basic Information Section */}
-        <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <div className="grid grid-cols-2 gap-2">
             {/* Type */}
-            <div className="space-y-2">
+            <div className="space-y-1">
               <FieldTitle>Type</FieldTitle>
               <ClearableField
                 value={formState.type}
                 onClear={() => handleTypeChange("Item")}
               >
               <Select value={formState.type} onValueChange={handleTypeChange}>
-                <SelectTrigger>
+                <SelectTrigger className="h-8">
                   <SelectValue placeholder="Select type" />
                 </SelectTrigger>
                 <SelectContent>
@@ -366,7 +407,7 @@ export function LineItemTabForm({
             </div>
 
             {/* Select Item */}
-            <div className="space-y-2">
+            <div className="space-y-1">
               <FieldTitle>Select Item</FieldTitle>
               {formState.type === 'G/L Account' ? (
                 <ClearableField
@@ -419,7 +460,7 @@ export function LineItemTabForm({
           </div>
 
           {/* Description */}
-          <div className="space-y-2">
+          <div className="space-y-1">
             <FieldTitle>Description</FieldTitle>
             <ClearableField
               value={formState.description}
@@ -430,13 +471,14 @@ export function LineItemTabForm({
               onChange={(e) => handleFieldChange("description", e.target.value)}
               disabled={!isDescriptionEditable}
               placeholder="Description"
+              className="h-8"
             />
             </ClearableField>
           </div>
 
           {/* UOM (only for Item) */}
           {isItemType && (
-            <div className="space-y-2">
+            <div className="space-y-1">
               <FieldTitle>UOM</FieldTitle>
               <ClearableField
                 value={formState.uom}
@@ -447,7 +489,7 @@ export function LineItemTabForm({
                 onValueChange={(value) => handleFieldChange("uom", value)}
                 disabled={isLoadingUOM || uomOptions.length === 0}
               >
-                <SelectTrigger>
+                <SelectTrigger className="h-8">
                   <SelectValue
                     placeholder={isLoadingUOM ? "Loading..." : "Select UOM"}
                   />
@@ -465,11 +507,11 @@ export function LineItemTabForm({
           )}
         </div>
 
-        {/* Pricing Section */}
-        <div className="space-y-4 border-t pt-4">
-          <h3 className="text-foreground text-sm font-medium">Pricing</h3>
-          <div className="grid grid-cols-3 gap-4">
-            <div className="space-y-2">
+        {/* Pricing Section - Price field hidden in Add line item form */}
+        <div className="space-y-2 border-t pt-2">
+          <h3 className="text-foreground text-xs font-medium">Pricing</h3>
+          <div className="grid grid-cols-3 gap-2">
+            <div className="space-y-1">
               <FieldTitle>Quantity</FieldTitle>
               <Input
                 type="text"
@@ -480,10 +522,10 @@ export function LineItemTabForm({
                 }
                 onWheel={(e) => e.currentTarget.blur()}
                 placeholder="0.00"
-                className="[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                className="h-8 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
               />
             </div>
-            <div className="space-y-2">
+            <div className="space-y-1">
               <FieldTitle>MRP</FieldTitle>
               <Input
                 type="text"
@@ -492,25 +534,10 @@ export function LineItemTabForm({
                 onChange={(e) => handleNumericChange("mrp", e.target.value)}
                 onWheel={(e) => e.currentTarget.blur()}
                 placeholder="0.00"
-                className="[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                className="h-8 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
               />
             </div>
-            <div className="space-y-2">
-              <FieldTitle>Price</FieldTitle>
-              <Input
-                type="text"
-                inputMode="decimal"
-                value={formatNumericValue(formState.price)}
-                onChange={(e) => handleNumericChange("price", e.target.value)}
-                onWheel={(e) => e.currentTarget.blur()}
-                placeholder="0.00"
-                className="[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-3 gap-4">
-            <div className="space-y-2">
+            <div className="space-y-1">
               <FieldTitle>Unit Price</FieldTitle>
               <Input
                 type="text"
@@ -521,20 +548,20 @@ export function LineItemTabForm({
                 }
                 onWheel={(e) => e.currentTarget.blur()}
                 placeholder="0.00"
-                className="[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                className="h-8 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
               />
             </div>
-            <div className="space-y-2">
+            <div className="space-y-1">
               <FieldTitle>Total MRP</FieldTitle>
               <Input
                 type="text"
                 value={totalMRP > 0 ? totalMRP.toFixed(2) : ""}
                 disabled
-                className="bg-muted"
+                className="h-8 bg-muted"
                 readOnly
               />
             </div>
-            <div className="space-y-2">
+            <div className="space-y-1">
               <FieldTitle>Discount</FieldTitle>
               <Input
                 type="text"
@@ -545,18 +572,18 @@ export function LineItemTabForm({
                 }
                 onWheel={(e) => e.currentTarget.blur()}
                 placeholder="0.00"
-                className="[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                className="h-8 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
               />
             </div>
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-1">
             <FieldTitle>Amount</FieldTitle>
             <Input
               type="text"
               value={amount > 0 ? amount.toFixed(2) : ""}
               disabled
-              className="bg-muted font-medium"
+              className="h-8 bg-muted font-medium"
               readOnly
             />
           </div>
@@ -564,35 +591,35 @@ export function LineItemTabForm({
 
         {/* Item Details Section (only for Item type) */}
         {isItemType && (
-          <div className="space-y-4 border-t pt-4">
-            <h3 className="text-foreground text-sm font-medium">
+          <div className="space-y-2 border-t pt-2">
+            <h3 className="text-foreground text-xs font-medium">
               Item Details
             </h3>
-            <div className="grid grid-cols-3 gap-4">
-              <div className="space-y-2">
+            <div className="grid grid-cols-3 gap-2">
+              <div className="space-y-1">
                 <FieldTitle>Exempted</FieldTitle>
                 <Input
                   value={formState.exempted ? "Yes" : "No"}
                   disabled
-                  className="bg-muted"
+                  className="h-8 bg-muted"
                   readOnly
                 />
               </div>
-              <div className="space-y-2">
+              <div className="space-y-1">
                 <FieldTitle>GST Group Code</FieldTitle>
                 <Input
                   value={formState.gstGroupCode || ""}
                   disabled
-                  className="bg-muted"
+                  className="h-8 bg-muted"
                   readOnly
                 />
               </div>
-              <div className="space-y-2">
+              <div className="space-y-1">
                 <FieldTitle>HSN/SAC Code</FieldTitle>
                 <Input
                   value={formState.hsnSacCode || ""}
                   disabled
-                  className="bg-muted"
+                  className="h-8 bg-muted"
                   readOnly
                 />
               </div>
@@ -602,7 +629,7 @@ export function LineItemTabForm({
 
         {/* TCS Group Code - hidden in edit mode (data not available from API) */}
         {!lineItem && (
-          <div className="space-y-2 border-t pt-4">
+          <div className="space-y-1 border-t pt-2">
             <FieldTitle>TCS Group Code</FieldTitle>
             {tcsOptions.length > 0 ? (
               <Select
@@ -611,7 +638,7 @@ export function LineItemTabForm({
                   handleFieldChange("tcsGroupCode", value)
                 }
               >
-                <SelectTrigger>
+                <SelectTrigger className="h-8">
                   <SelectValue placeholder="Select TCS Group Code" />
                 </SelectTrigger>
                 <SelectContent>
@@ -629,7 +656,7 @@ export function LineItemTabForm({
               <Input
                 value="Not available"
                 disabled
-                className="bg-muted"
+                className="h-8 bg-muted"
                 readOnly
               />
             )}
@@ -638,13 +665,21 @@ export function LineItemTabForm({
       </form>
 
       {/* Form Actions */}
-      <div className="bg-background flex justify-end gap-3 border-t p-4">
-        <Button type="button" variant="outline" onClick={handleCancel}>
-          Cancel
-        </Button>
-        <Button type="button" onClick={handleSubmit}>
-          Save
-        </Button>
+      <div className="bg-background flex justify-end gap-2 border-t p-3">
+        {viewOnly ? (
+          <Button type="button" variant="outline" onClick={handleCancel}>
+            Close
+          </Button>
+        ) : (
+          <>
+            <Button type="button" variant="outline" onClick={handleCancel}>
+              Cancel
+            </Button>
+            <Button type="button" onClick={handleSubmit}>
+              Save
+            </Button>
+          </>
+        )}
       </div>
     </div>
   );

@@ -1,23 +1,14 @@
 "use client";
 
-import { ArrowUp, ArrowDown, ArrowUpDown, Eye, Pencil, Check, RotateCcw } from "lucide-react";
+import { ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 import type { SalesOrder } from "@/lib/api/services/sales-orders.service";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Button } from "@/components/ui/button";
-import {
-  ContextMenu,
-  ContextMenuContent,
-  ContextMenuItem,
-  ContextMenuSeparator,
-  ContextMenuTrigger,
-} from "@/components/ui/context-menu";
 import {
   ALL_COLUMNS,
   type SortDirection,
   type ColumnConfig,
 } from "./column-config";
 import { SalesOrderColumnFilter } from "./column-filter";
-import type { SalesOrderStatusTab } from "./use-sales-orders";
 
 interface SalesOrdersTableProps {
   orders: SalesOrder[];
@@ -28,12 +19,7 @@ interface SalesOrdersTableProps {
   pageSize: number;
   currentPage: number;
   columnFilters: Record<string, { value: string; valueTo?: string }>;
-  /** Current tab filter; used to show correct row actions (Open | Pending Approval | Released). */
-  statusFilter?: SalesOrderStatusTab;
   onRowClick?: (orderNo: string) => void;
-  onApprove?: (orderNo: string) => void;
-  onReopen?: (orderNo: string) => void;
-  onEdit?: (orderNo: string) => void;
   onSort: (column: string) => void;
   onColumnFilter: (columnId: string, value: string, valueTo?: string) => void;
 }
@@ -47,11 +33,7 @@ export function SalesOrdersTable({
   pageSize,
   currentPage,
   columnFilters,
-  statusFilter,
   onRowClick,
-  onApprove,
-  onReopen,
-  onEdit,
   onSort,
   onColumnFilter,
 }: SalesOrdersTableProps) {
@@ -81,9 +63,6 @@ export function SalesOrdersTable({
                   onFilter={onColumnFilter}
                 />
               ))}
-              <th className="text-foreground bg-muted border-border sticky right-0 z-10 h-10 w-24 min-w-24 border-l px-2 py-3 text-center align-middle text-xs font-bold font-medium whitespace-nowrap shadow-[-4px_0_8px_-2px_rgba(0,0,0,0.05)]">
-                Actions
-              </th>
             </tr>
           </thead>
           <tbody className="[&_tr:last-child]:border-0">
@@ -105,7 +84,6 @@ export function SalesOrdersTable({
                         <Skeleton className="h-4 w-full" />
                       </td>
                     ))}
-                    <td className="bg-muted border-border sticky right-0 w-24 min-w-24 border-l p-2 px-3 py-3 align-middle shadow-[-4px_0_8px_-2px_rgba(0,0,0,0.05)]" />
                   </tr>
                 ))}
               </>
@@ -113,7 +91,7 @@ export function SalesOrdersTable({
             {!isLoading && orders.length === 0 && (
               <tr className="border-b transition-colors">
                 <td
-                  colSpan={columns.length + 2}
+                  colSpan={columns.length + 1}
                   className="text-muted-foreground h-24 p-2 text-center align-middle"
                 >
                   No sales orders found
@@ -128,16 +106,7 @@ export function SalesOrdersTable({
                   order={order}
                   columns={columns}
                   serialNo={startingSerialNo + index + 1}
-                  statusFilter={statusFilter}
-                  onView={onRowClick ? () => onRowClick(order.No) : undefined}
-                  onEdit={onEdit ? () => onEdit(order.No) : undefined}
-                  onApprove={onApprove ? () => onApprove(order.No) : undefined}
-                  onReopen={onReopen ? () => onReopen(order.No) : undefined}
-                  onClick={
-                    onRowClick
-                      ? () => onRowClick(order.No)
-                      : undefined
-                  }
+                  onClick={onRowClick ? () => onRowClick(order.No) : undefined}
                 />
               ))}
           </tbody>
@@ -215,11 +184,6 @@ interface SalesOrderRowProps {
   order: SalesOrder;
   columns: ColumnConfig[];
   serialNo: number;
-  statusFilter?: SalesOrderStatusTab;
-  onView?: () => void;
-  onEdit?: () => void;
-  onApprove?: () => void;
-  onReopen?: () => void;
   onClick?: () => void;
 }
 
@@ -227,11 +191,6 @@ function SalesOrderRow({
   order,
   columns,
   serialNo,
-  statusFilter,
-  onView,
-  onEdit,
-  onApprove,
-  onReopen,
   onClick,
 }: SalesOrderRowProps) {
   const getCellValue = (columnId: string): string => {
@@ -269,17 +228,13 @@ function SalesOrderRow({
     return String(value);
   };
 
-  const handleActionClick = (e: React.MouseEvent, fn?: () => void) => {
-    e.stopPropagation();
-    fn?.();
-  };
-
-  const showEdit = statusFilter === "Open" || statusFilter === "Pending Approval";
-  const showApprove = statusFilter === "Open";
-  const showReopen = statusFilter === "Pending Approval" || statusFilter === "Released";
-
-  const rowContent = (
-    <>
+  return (
+    <tr
+      className={`border-b transition-colors ${
+        onClick ? "hover:bg-muted cursor-pointer" : ""
+      }`}
+      onClick={onClick}
+    >
       <td className="text-muted-foreground p-2 px-3 py-3 text-center align-middle text-xs whitespace-nowrap">
         {serialNo}
       </td>
@@ -291,100 +246,6 @@ function SalesOrderRow({
           {getCellValue(column.id)}
         </td>
       ))}
-      <td className="bg-muted border-border sticky right-0 w-24 min-w-24 border-l p-2 px-3 py-3 align-middle shadow-[-4px_0_8px_-2px_rgba(0,0,0,0.05)]">
-        <div className="flex items-center justify-center gap-0.5">
-          {onView && (
-            <Button
-              variant="ghost"
-              size="icon-xs"
-              className="h-7 w-7"
-              onClick={(e) => handleActionClick(e, onView)}
-              title="View"
-            >
-              <Eye className="h-3.5 w-3.5" />
-            </Button>
-          )}
-          {showEdit && (
-            <Button
-              variant="ghost"
-              size="icon-xs"
-              className="h-7 w-7"
-              onClick={(e) => handleActionClick(e, onEdit)}
-              title="Edit"
-            >
-              <Pencil className="h-3.5 w-3.5" />
-            </Button>
-          )}
-          {showApprove && (
-            <Button
-              variant="ghost"
-              size="icon-xs"
-              className="h-7 w-7"
-              onClick={(e) => handleActionClick(e, onApprove)}
-              title="Approve"
-            >
-              <Check className="h-3.5 w-3.5" />
-            </Button>
-          )}
-          {showReopen && (
-            <Button
-              variant="ghost"
-              size="icon-xs"
-              className="h-7 w-7"
-              onClick={(e) => handleActionClick(e, onReopen)}
-              title="Reopen"
-            >
-              <RotateCcw className="h-3.5 w-3.5" />
-            </Button>
-          )}
-        </div>
-      </td>
-    </>
-  );
-
-  return (
-    <ContextMenu>
-      <ContextMenuTrigger asChild>
-        <tr
-          className={`border-b transition-colors ${
-            onClick ? "hover:bg-muted cursor-pointer" : ""
-          }`}
-          onClick={onClick}
-        >
-          {rowContent}
-        </tr>
-      </ContextMenuTrigger>
-      <ContextMenuContent className="min-w-40">
-        {onView && (
-          <ContextMenuItem onClick={onView}>
-            <Eye className="mr-2 h-4 w-4" />
-            View
-          </ContextMenuItem>
-        )}
-        {onEdit && (
-          <ContextMenuItem onClick={onEdit}>
-            <Pencil className="mr-2 h-4 w-4" />
-            Edit
-          </ContextMenuItem>
-        )}
-        {(showApprove || showReopen) && (
-          <>
-            <ContextMenuSeparator />
-            {showApprove && onApprove && (
-              <ContextMenuItem onClick={onApprove}>
-                <Check className="mr-2 h-4 w-4" />
-                Approve
-              </ContextMenuItem>
-            )}
-            {showReopen && onReopen && (
-              <ContextMenuItem onClick={onReopen}>
-                <RotateCcw className="mr-2 h-4 w-4" />
-                Reopen
-              </ContextMenuItem>
-            )}
-          </>
-        )}
-      </ContextMenuContent>
-    </ContextMenu>
+    </tr>
   );
 }

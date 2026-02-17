@@ -2,7 +2,8 @@
 
 /**
  * Line Items Table Component
- * Editable table with right-click context menu for managing line items
+ * Optional per-row Actions (Edit, Delete) and right-click context menu when showRowActions.
+ * Row click opens line in view when onRowClick provided.
  */
 
 import React, { useState, useCallback } from "react";
@@ -38,10 +39,13 @@ import type { LineItem } from "./line-item-form";
 
 interface LineItemsTableProps {
   lineItems: LineItem[];
-  onEdit: (lineItem: LineItem) => void;
-  onRemove: (lineItemId: string) => void;
+  onEdit?: (lineItem: LineItem) => void;
+  onRemove?: (lineItemId: string) => void;
   onUpdate?: (lineItem: LineItem) => void;
+  onRowClick?: (lineItem: LineItem) => void;
   editable?: boolean;
+  /** When true, show Edit/Delete buttons and right-click context menu on each row */
+  showRowActions?: boolean;
 }
 
 function LineItemsTableComponent({
@@ -49,7 +53,9 @@ function LineItemsTableComponent({
   onEdit,
   onRemove,
   onUpdate,
+  onRowClick,
   editable = false,
+  showRowActions = false,
 }: LineItemsTableProps) {
   const [itemToRemove, setItemToRemove] = useState<string | null>(null);
   const [editingCell, setEditingCell] = useState<{
@@ -64,7 +70,7 @@ function LineItemsTableComponent({
 
   const handleConfirmRemove = useCallback(() => {
     if (itemToRemove) {
-      onRemove(itemToRemove);
+      onRemove?.(itemToRemove);
       setItemToRemove(null);
     }
   }, [itemToRemove, onRemove]);
@@ -74,12 +80,19 @@ function LineItemsTableComponent({
   }, []);
 
   const handleCellClick = useCallback(
-    (itemId: string, field: keyof LineItem, currentValue: any) => {
+    (e: React.MouseEvent, itemId: string, field: keyof LineItem, currentValue: any) => {
+      if (onRowClick) {
+        e.stopPropagation();
+        const item = lineItems.find((li) => li.id === itemId);
+        if (item) onRowClick(item);
+        return;
+      }
       if (!editable) return;
+      e.stopPropagation();
       setEditingCell({ itemId, field });
       setEditValue(String(currentValue || ""));
     },
-    [editable],
+    [editable, onRowClick, lineItems],
   );
 
   const handleCellBlur = useCallback(() => {
@@ -165,16 +178,35 @@ function LineItemsTableComponent({
               <TableHead className="w-[120px]">GST Group Code</TableHead>
               <TableHead className="w-[120px]">HSN/SAC Code</TableHead>
               <TableHead className="w-[120px]">TCS Group Code</TableHead>
-              <TableHead className="w-[90px] text-right">Actions</TableHead>
+              {showRowActions && (
+                <TableHead className="w-[90px] text-right">Actions</TableHead>
+              )}
             </TableRow>
           </TableHeader>
           <TableBody>
             {lineItems.map((item) => {
               const isEditing = editingCell?.itemId === item.id;
-              return (
-                <ContextMenu key={item.id}>
-                  <ContextMenuTrigger asChild>
-                    <TableRow className="hover:bg-muted/50">
+              const row = (
+                <TableRow
+                  key={item.id}
+                  className={cn(
+                    "hover:bg-muted/50",
+                    onRowClick && "cursor-pointer",
+                  )}
+                  onClick={
+                    onRowClick && !showRowActions
+                      ? (e) => {
+                          if (
+                            editingCell?.itemId === item.id &&
+                            (e.target as HTMLElement).closest("input")
+                          ) {
+                            return;
+                          }
+                          onRowClick(item);
+                        }
+                      : undefined
+                  }
+                >
                       <TableCell className="font-medium">{item.type}</TableCell>
                       <TableCell>{item.no}</TableCell>
                       <TableCell className="max-w-[200px] truncate">
@@ -183,13 +215,13 @@ function LineItemsTableComponent({
                       <TableCell>{item.uom || "-"}</TableCell>
                       <TableCell
                         className={cn(
-                          editable && "hover:bg-muted cursor-pointer",
+                          editable && !onRowClick && "hover:bg-muted cursor-pointer",
                           isEditing &&
                             editingCell?.field === "quantity" &&
                             "p-0",
                         )}
-                        onClick={() =>
-                          handleCellClick(item.id, "quantity", item.quantity)
+                        onClick={(e) =>
+                          handleCellClick(e, item.id, "quantity", item.quantity)
                         }
                       >
                         {isEditing && editingCell?.field === "quantity" ? (
@@ -212,11 +244,11 @@ function LineItemsTableComponent({
                       </TableCell>
                       <TableCell
                         className={cn(
-                          editable && "hover:bg-muted cursor-pointer",
+                          editable && !onRowClick && "hover:bg-muted cursor-pointer",
                           isEditing && editingCell?.field === "mrp" && "p-0",
                         )}
-                        onClick={() =>
-                          handleCellClick(item.id, "mrp", item.mrp)
+                        onClick={(e) =>
+                          handleCellClick(e, item.id, "mrp", item.mrp)
                         }
                       >
                         {isEditing && editingCell?.field === "mrp" ? (
@@ -239,11 +271,11 @@ function LineItemsTableComponent({
                       </TableCell>
                       <TableCell
                         className={cn(
-                          editable && "hover:bg-muted cursor-pointer",
+                          editable && !onRowClick && "hover:bg-muted cursor-pointer",
                           isEditing && editingCell?.field === "price" && "p-0",
                         )}
-                        onClick={() =>
-                          handleCellClick(item.id, "price", item.price)
+                        onClick={(e) =>
+                          handleCellClick(e, item.id, "price", item.price)
                         }
                       >
                         {isEditing && editingCell?.field === "price" ? (
@@ -266,13 +298,13 @@ function LineItemsTableComponent({
                       </TableCell>
                       <TableCell
                         className={cn(
-                          editable && "hover:bg-muted cursor-pointer",
+                          editable && !onRowClick && "hover:bg-muted cursor-pointer",
                           isEditing &&
                             editingCell?.field === "unitPrice" &&
                             "p-0",
                         )}
-                        onClick={() =>
-                          handleCellClick(item.id, "unitPrice", item.unitPrice)
+                        onClick={(e) =>
+                          handleCellClick(e, item.id, "unitPrice", item.unitPrice)
                         }
                       >
                         {isEditing && editingCell?.field === "unitPrice" ? (
@@ -298,13 +330,13 @@ function LineItemsTableComponent({
                       </TableCell>
                       <TableCell
                         className={cn(
-                          editable && "hover:bg-muted cursor-pointer",
+                          editable && !onRowClick && "hover:bg-muted cursor-pointer",
                           isEditing &&
                             editingCell?.field === "discount" &&
                             "p-0",
                         )}
-                        onClick={() =>
-                          handleCellClick(item.id, "discount", item.discount)
+                        onClick={(e) =>
+                          handleCellClick(e, item.id, "discount", item.discount)
                         }
                       >
                         {isEditing && editingCell?.field === "discount" ? (
@@ -332,84 +364,99 @@ function LineItemsTableComponent({
                       <TableCell>{item.gstGroupCode || "-"}</TableCell>
                       <TableCell>{item.hsnSacCode || "-"}</TableCell>
                       <TableCell>{item.tcsGroupCode || "-"}</TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onEdit(item);
-                            }}
-                            aria-label="Edit"
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleRemoveClick(item.id);
-                            }}
-                            aria-label="Delete"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
+                      {showRowActions && (
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            {onEdit && (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onEdit(item);
+                                }}
+                                aria-label="Edit"
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                            )}
+                            {onRemove && (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleRemoveClick(item.id);
+                                }}
+                                aria-label="Delete"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
+                        </TableCell>
+                      )}
                     </TableRow>
-                  </ContextMenuTrigger>
-                  <ContextMenuContent>
-                    <ContextMenuItem onClick={() => onEdit(item)}>
-                      <Pencil className="mr-2 h-4 w-4" />
-                      Edit
-                    </ContextMenuItem>
-                    <ContextMenuItem
-                      variant="destructive"
-                      onClick={() => handleRemoveClick(item.id)}
-                    >
-                      <Trash2 className="mr-2 h-4 w-4" />
-                      Remove
-                    </ContextMenuItem>
+              );
+              return showRowActions ? (
+                <ContextMenu key={item.id}>
+                  <ContextMenuTrigger asChild>{row}</ContextMenuTrigger>
+                  <ContextMenuContent className="min-w-40">
+                    {onEdit && (
+                      <ContextMenuItem onClick={() => onEdit(item)}>
+                        <Pencil className="mr-2 h-4 w-4" />
+                        Edit
+                      </ContextMenuItem>
+                    )}
+                    {onRemove && (
+                      <ContextMenuItem
+                        variant="destructive"
+                        onClick={() => handleRemoveClick(item.id)}
+                      >
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Remove
+                      </ContextMenuItem>
+                    )}
                   </ContextMenuContent>
                 </ContextMenu>
+              ) : (
+                <React.Fragment key={item.id}>{row}</React.Fragment>
               );
             })}
           </TableBody>
         </Table>
       </div>
-
-      {/* Remove Confirmation Dialog */}
-      <AlertDialog
-        open={!!itemToRemove}
-        onOpenChange={(open) => !open && handleCancelRemove()}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Remove Line Item</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to remove this line item? This action cannot
-              be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={handleCancelRemove}>
-              Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleConfirmRemove}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              Remove
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {showRowActions && (
+        <AlertDialog
+          open={!!itemToRemove}
+          onOpenChange={(open) => !open && handleCancelRemove()}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Remove Line Item</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to remove this line item? This action cannot
+                be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={handleCancelRemove}>
+                Cancel
+              </AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleConfirmRemove}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                Remove
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
     </>
   );
 }
@@ -417,7 +464,6 @@ function LineItemsTableComponent({
 export const LineItemsTable = React.memo(
   LineItemsTableComponent,
   (prev, next) => {
-    // Only re-render if lineItems array changed or editable changed
     return (
       prev.lineItems.length === next.lineItems.length &&
       prev.lineItems.every((item, idx) => {
@@ -431,7 +477,9 @@ export const LineItemsTable = React.memo(
           item.amount === nextItem.amount
         );
       }) &&
-      prev.editable === next.editable
+      prev.editable === next.editable &&
+      prev.onRowClick === next.onRowClick &&
+      prev.showRowActions === next.showRowActions
     );
   },
 );

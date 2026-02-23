@@ -50,7 +50,7 @@ function getBaseFilter(locationCode?: string): string {
     return blockedFilter;
   }
   const escapedLocation = escapeODataValue(locationCode);
-  return `(Item_Location eq '${escapedLocation}') and (${blockedFilter})`;
+  return `(${blockedFilter})`;
 }
 
 const ITEM_LIST_SELECT = 'No,Description,Unit_Price,Sales_Unit_of_Measure';
@@ -174,7 +174,7 @@ export async function getItemsPage(
   top: number = 30,
   locationCode?: string
 ): Promise<Item[]> {
-  const baseFilter = getBaseFilter();
+  const baseFilter = getBaseFilter(locationCode);
 
   if (!search || search.length < 2) {
     const endpoint = buildItemListEndpoint(baseFilter, {

@@ -174,7 +174,7 @@ export async function getItemsPage(
   top: number = 30,
   locationCode?: string
 ): Promise<Item[]> {
-  const baseFilter = getBaseFilter(locationCode);
+  const baseFilter = getBaseFilter();
 
   if (!search || search.length < 2) {
     const endpoint = buildItemListEndpoint(baseFilter, {

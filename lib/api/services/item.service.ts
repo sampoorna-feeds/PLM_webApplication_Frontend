@@ -68,7 +68,7 @@ function buildItemListEndpoint(
   if (options?.orderby) params.set('$orderby', options.orderby);
   if (options?.top != null) params.set('$top', String(options.top));
   if (options?.skip != null) params.set('$skip', String(options.skip));
-  return `/ItemList?Company=${encodeURIComponent(COMPANY)}&${params.toString()}`;
+  return `/ItemCard?Company=${encodeURIComponent(COMPANY)}&${params.toString()}`;
 }
 
 /**

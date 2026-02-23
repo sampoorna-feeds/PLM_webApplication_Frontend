@@ -289,7 +289,7 @@ function escapeODataString(value: string): string {
 
 /**
  * Get item tracking lines for a sales order line.
- * Filter: Source_Type eq 39, Source_Subtype eq '1', Source_ID = order No., Source_Ref_No_ = line No., Item_No, Location_Code.
+ * Filter: Source_Type eq 37, Source_Subtype eq '1', Source_ID = order No., Source_Ref_No_ = line No., Item_No, Location_Code.
  */
 export async function getSalesItemTrackingLines(
   orderNo: string,
@@ -302,7 +302,7 @@ export async function getSalesItemTrackingLines(
     `Source_Ref_No_ eq ${lineNo}`,
     `Item_No eq '${escapeODataString(itemNo)}'`,
     `Location_Code eq '${escapeODataString(locationCode)}'`,
-    "Source_Type eq 39",
+    "Source_Type eq 37",
     "Source_Subtype eq '1'",
   ].join(" and ");
   const query = buildODataQuery({ $filter: filter });

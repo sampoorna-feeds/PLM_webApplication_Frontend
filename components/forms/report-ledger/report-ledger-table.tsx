@@ -1,13 +1,16 @@
 "use client";
 
-import { ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
+import { useState, useMemo } from "react";
+import { ArrowUp, ArrowDown, ArrowUpDown, X } from "lucide-react";
 import type { ItemLedgerEntry } from "@/lib/api/services/report-ledger.service";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
 import {
   ALL_COLUMNS,
   type SortDirection,
   type ColumnConfig,
 } from "./column-config";
+import { ColumnFilter } from "./column-filter";
 
 interface ReportLedgerTableProps {
   entries: ItemLedgerEntry[];
@@ -30,17 +33,138 @@ export function ReportLedgerTable({
   currentPage,
   onSort,
 }: ReportLedgerTableProps) {
+  // Column filters state
+  const [columnFilters, setColumnFilters] = useState<
+    Record<string, { value: string; valueTo?: string }>
+  >({});
+
   // Get visible column configs in order
   const columns = ALL_COLUMNS.filter((col) => visibleColumns.includes(col.id));
 
   // Calculate starting serial number for current page
   const startingSerialNo = (currentPage - 1) * pageSize;
 
+  // Count active column filters
+  const activeFilterCount = Object.values(columnFilters).filter(
+    (f) => f.value.trim() !== "" || (f.valueTo && f.valueTo.trim() !== ""),
+  ).length;
+
+  // Client-side filtering
+  const filteredEntries = useMemo(() => {
+    if (activeFilterCount === 0) return entries;
+
+    return entries.filter((entry) => {
+      return Object.entries(columnFilters).every(([columnId, filter]) => {
+        if (!filter.value.trim() && (!filter.valueTo || !filter.valueTo.trim()))
+          return true;
+
+        const cellValue = entry[columnId];
+        const column = ALL_COLUMNS.find((c) => c.id === columnId);
+
+        if (cellValue === null || cellValue === undefined) return false;
+
+        switch (column?.filterType) {
+          case "boolean": {
+            if (filter.value === "true") return cellValue === true;
+            if (filter.value === "false") return cellValue === false;
+            return true;
+          }
+          case "number": {
+            const val = filter.value;
+            if (val.startsWith("eq:")) {
+              const num = parseFloat(val.slice(3));
+              return !isNaN(num) && Number(cellValue) === num;
+            }
+            if (val.startsWith("gt:")) {
+              const num = parseFloat(val.slice(3));
+              return !isNaN(num) && Number(cellValue) > num;
+            }
+            if (val.startsWith("lt:")) {
+              const num = parseFloat(val.slice(3));
+              return !isNaN(num) && Number(cellValue) < num;
+            }
+            // Range filter
+            if (val && filter.valueTo) {
+              const min = parseFloat(val);
+              const max = parseFloat(filter.valueTo);
+              const num = Number(cellValue);
+              return num >= min && num <= max;
+            }
+            // Plain text match fallback
+            return String(cellValue).includes(val);
+          }
+          case "date": {
+            const dateVal = String(cellValue);
+            if (filter.value && filter.valueTo) {
+              return dateVal >= filter.value && dateVal <= filter.valueTo;
+            }
+            if (filter.value) {
+              return dateVal >= filter.value;
+            }
+            if (filter.valueTo) {
+              return dateVal <= filter.valueTo;
+            }
+            return true;
+          }
+          case "text": {
+            const textFilter = filter.value.trim().toLowerCase();
+            // Support comma-separated values
+            const values = textFilter
+              .split(",")
+              .map((v) => v.trim())
+              .filter(Boolean);
+            if (values.length === 0) return true;
+            const cellStr = String(cellValue).toLowerCase();
+            return values.some((v) => cellStr.includes(v));
+          }
+          default: {
+            return String(cellValue)
+              .toLowerCase()
+              .includes(filter.value.trim().toLowerCase());
+          }
+        }
+      });
+    });
+  }, [entries, columnFilters, activeFilterCount]);
+
+  const handleColumnFilter = (
+    columnId: string,
+    value: string,
+    valueTo?: string,
+  ) => {
+    setColumnFilters((prev) => ({
+      ...prev,
+      [columnId]: { value, valueTo },
+    }));
+  };
+
+  const clearAllColumnFilters = () => {
+    setColumnFilters({});
+  };
+
   return (
     <div className="bg-card flex h-full flex-1 flex-col overflow-hidden rounded-lg border">
+      {/* Active column filter indicator */}
+      {activeFilterCount > 0 && (
+        <div className="flex items-center justify-between border-b px-3 py-1.5">
+          <span className="text-muted-foreground text-xs">
+            {activeFilterCount} column filter{activeFilterCount > 1 ? "s" : ""}{" "}
+            active · Showing {filteredEntries.length} of {entries.length} rows
+          </span>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-6 gap-1 text-xs"
+            onClick={clearAllColumnFilters}
+          >
+            <X className="h-3 w-3" />
+            Clear
+          </Button>
+        </div>
+      )}
+
       <div className="flex-1 overflow-auto">
         <table className="w-full caption-bottom text-sm">
-          {/* Header - sticky */}
           <thead className="bg-muted sticky top-0 z-10 [&_tr]:border-b">
             <tr className="border-b transition-colors">
               {/* Serial Number Column Header */}
@@ -55,7 +179,10 @@ export function ReportLedgerTable({
                   sortDirection={
                     sortColumn === column.id ? sortDirection : null
                   }
+                  filterValue={columnFilters[column.id]?.value || ""}
+                  filterValueTo={columnFilters[column.id]?.valueTo || ""}
                   onSort={onSort}
+                  onFilter={handleColumnFilter}
                 />
               ))}
             </tr>
@@ -85,20 +212,22 @@ export function ReportLedgerTable({
               </>
             )}
             {/* Empty state */}
-            {!isLoading && entries.length === 0 && (
+            {!isLoading && filteredEntries.length === 0 && (
               <tr className="border-b transition-colors">
                 <td
                   colSpan={columns.length + 1}
                   className="text-muted-foreground h-24 p-2 text-center align-middle"
                 >
-                  No item ledger entries found. Please apply filters to search.
+                  {entries.length > 0 && activeFilterCount > 0
+                    ? "No entries match the column filters."
+                    : "No item ledger entries found. Please apply filters to search."}
                 </td>
               </tr>
             )}
             {/* Data rows */}
             {!isLoading &&
-              entries.length > 0 &&
-              entries.map((entry, index) => (
+              filteredEntries.length > 0 &&
+              filteredEntries.map((entry, index) => (
                 <ItemLedgerRow
                   key={entry.Entry_No}
                   entry={entry}
@@ -117,38 +246,61 @@ interface SortableTableHeadProps {
   column: ColumnConfig;
   isActive: boolean;
   sortDirection: SortDirection;
+  filterValue: string;
+  filterValueTo: string;
   onSort: (column: string) => void;
+  onFilter: (columnId: string, value: string, valueTo?: string) => void;
 }
 
 function SortableTableHead({
   column,
   isActive,
   sortDirection,
+  filterValue,
+  filterValueTo,
   onSort,
+  onFilter,
 }: SortableTableHeadProps) {
-  if (!column.sortable) {
-    return (
-      <th className="text-foreground h-10 px-3 py-3 text-left align-middle text-xs font-bold whitespace-nowrap">
-        {column.label}
-      </th>
-    );
-  }
+  const getSortIcon = () => {
+    if (!isActive || !sortDirection) {
+      return <ArrowUpDown className="h-3 w-3 opacity-50" />;
+    }
+    if (sortDirection === "asc") {
+      return <ArrowUp className="h-3 w-3" />;
+    }
+    return <ArrowDown className="h-3 w-3" />;
+  };
 
   return (
-    <th className="text-foreground h-10 px-3 py-3 text-left align-middle text-xs font-bold whitespace-nowrap">
-      <button
-        onClick={() => onSort(column.id)}
-        className="hover:text-foreground/80 flex items-center gap-1 transition-colors"
-      >
-        {column.label}
-        {isActive && sortDirection === "asc" && <ArrowUp className="h-3 w-3" />}
-        {isActive && sortDirection === "desc" && (
-          <ArrowDown className="h-3 w-3" />
+    <th
+      className={`text-foreground h-10 px-2 py-3 text-left align-middle text-xs font-bold whitespace-nowrap select-none ${
+        isActive ? "text-primary" : ""
+      }`}
+    >
+      <div className="flex items-center gap-1.5">
+        <span
+          className="hover:text-primary cursor-pointer transition-colors"
+          onClick={() => column.sortable && onSort(column.id)}
+        >
+          {column.label}
+        </span>
+        {column.sortable && (
+          <button
+            className="hover:text-primary transition-colors"
+            onClick={() => onSort(column.id)}
+          >
+            {getSortIcon()}
+          </button>
         )}
-        {(!isActive || !sortDirection) && (
-          <ArrowUpDown className="text-muted-foreground h-3 w-3" />
+        {column.filterType && (
+          <ColumnFilter
+            column={column}
+            value={filterValue}
+            valueTo={filterValueTo}
+            onChange={(value, valueTo) => onFilter(column.id, value, valueTo)}
+          />
         )}
-      </button>
+      </div>
     </th>
   );
 }

@@ -105,6 +105,10 @@ export interface SalesLine {
   Description?: string;
   Description_2?: string;
   Quantity?: number;
+  Qty_to_Ship?: number;
+  Quantity_Shipped?: number;
+  Qty_to_Invoice?: number;
+  Quantity_Invoiced?: number;
   Unit_of_Measure_Code?: string;
   Unit_of_Measure?: string;
   Unit_Price?: number;
@@ -187,6 +191,125 @@ export async function deleteSalesOrderLine(
 ): Promise<unknown> {
   const endpoint = `/API_SalesOrderLine?company='${encodeURIComponent(COMPANY)}'`;
   return apiPost<unknown>(endpoint, { orderNo, lineNo });
+}
+
+/**
+ * Delete a sales order header by key.
+ * Use only after deleting child sales lines.
+ */
+export async function deleteSalesOrderHeader(
+  orderNo: string,
+): Promise<unknown> {
+  const escapedNo = orderNo.replace(/'/g, "''");
+  const endpoint = `/SalesOrder(Document_Type='Order',No='${encodeURIComponent(escapedNo)}')?company='${encodeURIComponent(COMPANY)}'`;
+  return apiDelete<unknown>(endpoint);
+}
+
+export interface Transporter {
+  No: string;
+  Name: string;
+  [key: string]: unknown;
+}
+
+function escapeODataValue(value: string): string {
+  return value.replace(/'/g, "''");
+}
+
+/**
+ * Get transporter dropdown list from VendorCard
+ * Filter: Transporter eq true and Blocked eq ''
+ */
+export async function getTransporters(
+  top: number = 20,
+  skip: number = 0,
+): Promise<Transporter[]> {
+  const safeTop = Math.max(1, Math.min(top, 200));
+  const query = buildODataQuery({
+    $select: "No,Name",
+    $filter: "Transporter eq true and Blocked eq ''",
+    $orderby: "No",
+    $top: safeTop,
+    $skip: Math.max(0, skip),
+  });
+  const endpoint = `/VendorCard?company='${encodeURIComponent(COMPANY)}'&${query}`;
+  const response = await apiGet<ODataResponse<Transporter>>(endpoint);
+  return response.value || [];
+}
+
+export async function searchTransporters(
+  query: string,
+  top: number = 30,
+  skip: number = 0,
+): Promise<Transporter[]> {
+  if (!query || query.trim().length < 2) return [];
+  const escaped = escapeODataValue(query.trim());
+  const filter = `Transporter eq true and Blocked eq '' and (contains(No,'${escaped}') or contains(Name,'${escaped}'))`;
+  const odataQuery = buildODataQuery({
+    $select: "No,Name",
+    $filter: filter,
+    $orderby: "No",
+    $top: Math.max(1, Math.min(top, 200)),
+    $skip: Math.max(0, skip),
+  });
+  const endpoint = `/VendorCard?company='${encodeURIComponent(COMPANY)}'&${odataQuery}`;
+  const response = await apiGet<ODataResponse<Transporter>>(endpoint);
+  return response.value || [];
+}
+
+export async function searchTransportersByField(
+  query: string,
+  field: "No" | "Name",
+  top: number = 30,
+  skip: number = 0,
+): Promise<Transporter[]> {
+  if (!query || query.trim().length < 2) return [];
+  const escaped = escapeODataValue(query.trim());
+  const filter = `Transporter eq true and Blocked eq '' and contains(${field},'${escaped}')`;
+  const odataQuery = buildODataQuery({
+    $select: "No,Name",
+    $filter: filter,
+    $orderby: "No",
+    $top: Math.max(1, Math.min(top, 200)),
+    $skip: Math.max(0, skip),
+  });
+  const endpoint = `/VendorCard?company='${encodeURIComponent(COMPANY)}'&${odataQuery}`;
+  const response = await apiGet<ODataResponse<Transporter>>(endpoint);
+  return response.value || [];
+}
+
+export async function getTransportersPage(
+  skip: number,
+  search?: string,
+  top: number = 30,
+): Promise<Transporter[]> {
+  if (search && search.trim().length >= 2) {
+    return searchTransporters(search, top, skip);
+  }
+  return getTransporters(top, skip);
+}
+
+/**
+ * Patch sales order header fields by document number
+ */
+export async function patchSalesOrderHeader(
+  orderNo: string,
+  body: Record<string, unknown>,
+): Promise<unknown> {
+  const escapedNo = orderNo.replace(/'/g, "''");
+  const endpoint = `/SalesOrder(Document_Type='Order',No='${encodeURIComponent(escapedNo)}')?company='${encodeURIComponent(COMPANY)}'`;
+  return apiPatch<unknown>(endpoint, body);
+}
+
+/**
+ * Post sales order
+ * defaultOption: 1-Ship, 2-Invoice, 3-Ship & Invoice
+ */
+export async function postSalesOrder(
+  docNo: string,
+  defaultOption: "1" | "2" | "3",
+): Promise<unknown> {
+  const endpoint = `/API_PostSalesOrder?company='${encodeURIComponent(COMPANY)}'`;
+  return apiPost<unknown>(endpoint, { docNo, defaultOption });
 }
 
 export interface AddSalesLinePayload {

@@ -1,6 +1,10 @@
 /**
  * Inventory API Service
  * Handles fetching inventory stock and summary data from ERP OData V4 API
+ *
+ * APIs used:
+ * - ItemLOCWiseSummary: For Opening/Closing balance (cumulates Quantity + CostAmount)
+ * - Itemwisestock: For Incoming (Positive=true) / Outgoing (Positive=false)
  */
 
 import { apiGet } from "../client";
@@ -10,53 +14,7 @@ import type { ODataResponse } from "../types";
 const COMPANY =
   process.env.NEXT_PUBLIC_API_COMPANY || "Sampoorna Feeds Pvt. Ltd";
 
-// ─── Current Stock (ItemWiseStock) ───
-
-export interface GetItemWiseStockParams {
-  $select?: string;
-  $filter?: string;
-  $orderby?: string;
-  $top?: number;
-  $skip?: number;
-  $count?: boolean;
-}
-
-export interface ItemWiseStock {
-  ItemNo?: string;
-  Item_Name?: string;
-  LocationCode?: string;
-  Location_Name?: string;
-  Quantity?: number;
-  CostAmount?: number;
-  Unit_of_Measure_Code?: string;
-  // Additional fields as per typical inventory snapshots
-  Variant_Code?: string;
-  Lot_No?: string;
-  Serial_No?: string;
-  [key: string]: unknown;
-}
-
-export async function getItemWiseStock(params: GetItemWiseStockParams = {}) {
-  const query = buildODataQuery(params);
-  const endpoint = `/Itemwisestock?company='${encodeURIComponent(COMPANY)}'&${query}`;
-  const response = await apiGet<ODataResponse<ItemWiseStock>>(endpoint);
-
-  return {
-    entries: response.value || [],
-    totalCount: response["@odata.count"] ?? 0,
-  };
-}
-
-// ─── Location-wise Summary (ItemLOCWiseSummary) ───
-
-export interface GetItemLocWiseSummaryParams {
-  $select?: string;
-  $filter?: string;
-  $orderby?: string;
-  $top?: number;
-  $skip?: number;
-  $count?: boolean;
-}
+// ─── Types ───
 
 export interface ItemLocWiseSummary {
   ItemNo?: string;
@@ -64,47 +22,109 @@ export interface ItemLocWiseSummary {
   Posting_Date?: string;
   Quantity?: number;
   CostAmount?: number;
-  // Additional fields for reporting
-  Entry_Type?: string;
-  Document_No?: string;
-  Description?: string;
-  Global_Dimension_1_Code?: string;
-  Global_Dimension_2_Code?: string;
   [key: string]: unknown;
 }
 
-export async function getItemLocWiseSummary(
-  params: GetItemLocWiseSummaryParams = {},
-) {
+export interface ItemWiseStock {
+  ItemNo?: string;
+  LocationCode?: string;
+  Posting_Date?: string;
+  Positive?: boolean;
+  Quantity?: number;
+  CostAmount?: number;
+  [key: string]: unknown;
+}
+
+// ─── Generic fetch helpers ───
+
+interface ODataQueryParams {
+  $select?: string;
+  $filter?: string;
+  $orderby?: string;
+  $top?: number;
+  $skip?: number;
+  $count?: boolean;
+}
+
+async function getItemLocWiseSummary(params: ODataQueryParams = {}) {
   const query = buildODataQuery(params);
   const endpoint = `/ItemLOCWiseSummary?company='${encodeURIComponent(COMPANY)}'&${query}`;
   const response = await apiGet<ODataResponse<ItemLocWiseSummary>>(endpoint);
-
   return {
     entries: response.value || [],
     totalCount: response["@odata.count"] ?? 0,
   };
 }
 
-/**
- * Calculates opening balance for a specific item and location before a given date.
- * Returns both quantity and amount.
- */
-export async function getCalculatedOpeningBalance(
-  itemNo: string,
-  locationCode: string,
-  beforeDate: Date,
-): Promise<{ qty: number; amount: number }> {
-  const dateStr = beforeDate.toISOString().split("T")[0];
-  const filter = `ItemNo eq '${itemNo}' and LocationCode eq '${locationCode}' and Posting_Date lt ${dateStr}`;
+async function getItemWiseStock(params: ODataQueryParams = {}) {
+  const query = buildODataQuery(params);
+  const endpoint = `/Itemwisestock?company='${encodeURIComponent(COMPANY)}'&${query}`;
+  const response = await apiGet<ODataResponse<ItemWiseStock>>(endpoint);
+  return {
+    entries: response.value || [],
+    totalCount: response["@odata.count"] ?? 0,
+  };
+}
 
+// ─── Filter helpers ───
+
+/**
+ * Build location filter for multi-location support.
+ * Field name varies by API:
+ *   - ItemLOCWiseSummary uses "LocationCode"
+ *   - Itemwisestock uses "LocationCode"
+ */
+function buildLocationFilter(
+  locationCodes: string[],
+  fieldName = "LocationCode",
+): string {
+  if (locationCodes.length === 0) return "";
+  if (locationCodes.length === 1) {
+    return `${fieldName} eq '${locationCodes[0]}'`;
+  }
+  const parts = locationCodes.map((code) => `${fieldName} eq '${code}'`);
+  return `(${parts.join(" or ")})`;
+}
+
+/**
+ * Build item filter (optional).
+ * Field name:
+ *   - ItemLOCWiseSummary uses "ItemNo"
+ *   - Itemwisestock uses "ItemNo"
+ */
+function buildItemFilter(
+  itemNo: string | undefined,
+  fieldName = "ItemNo",
+): string {
+  if (!itemNo) return "";
+  return `${fieldName} eq '${itemNo}'`;
+}
+
+/**
+ * Join non-empty filter parts with "and"
+ */
+function joinFilters(...parts: string[]): string {
+  return parts.filter(Boolean).join(" and ");
+}
+
+// ─── Cumulation helper ───
+
+/**
+ * Paginate through all results and cumulate Quantity + CostAmount.
+ */
+async function cumulateFromAPI<
+  T extends { Quantity?: number; CostAmount?: number },
+>(
+  fetcher: (params: ODataQueryParams) => Promise<{ entries: T[] }>,
+  filter: string,
+): Promise<{ qty: number; amount: number }> {
   let totalQuantity = 0;
   let totalAmount = 0;
   let skip = 0;
-  const TOP = 5000; // Fetch in chunks
+  const TOP = 5000;
 
   while (true) {
-    const { entries } = await getItemLocWiseSummary({
+    const { entries } = await fetcher({
       $filter: filter,
       $top: TOP,
       $skip: skip,
@@ -123,87 +143,115 @@ export async function getCalculatedOpeningBalance(
   return { qty: totalQuantity, amount: totalAmount };
 }
 
+// ─── Public API: Metric Functions ───
+
 /**
- * Calculates increase metrics (Positive=true transactions) for a specific item and location.
- * Returns both quantity and amount for the specified date range.
+ * Opening Balance: Cumulate all entries from ItemLOCWiseSummary
+ * where Posting_Date lt {fromDate} (strictly before the period starts).
+ *
+ * This gives the stock position at the START of the reporting period.
+ *
+ * @param locationCodes - Location codes to filter (always required, supports multi)
+ * @param fromDate - The start date of the period (opening = everything strictly before this date)
+ * @param itemNo - Optional item number filter
  */
-export async function getIncreaseMetrics(
-  itemNo: string,
-  locationCode: string,
+export async function getOpeningBalance(
+  locationCodes: string[],
   fromDate: Date,
-  toDate: Date,
+  itemNo?: string,
 ): Promise<{ qty: number; amount: number }> {
-  const fromStr = fromDate.toISOString().split("T")[0];
-  const toStr = toDate.toISOString().split("T")[0];
-  const filter = `Item_No eq '${itemNo}' and Location_Code eq '${locationCode}' and Posting_Date ge ${fromStr} and Posting_Date le ${toStr} and Positive eq true`;
+  const dateStr = fromDate.toISOString().split("T")[0];
 
-  let totalQuantity = 0;
-  let totalAmount = 0;
-  let skip = 0;
-  const TOP = 5000;
+  const filter = joinFilters(
+    buildLocationFilter(locationCodes),
+    buildItemFilter(itemNo),
+    `Posting_Date lt ${dateStr}`,
+  );
 
-  // Import ItemLedgerEntry type dynamically to avoid circular dependency
-  const { getItemLedgerEntries } = await import("./report-ledger.service");
-
-  while (true) {
-    const { entries } = await getItemLedgerEntries({
-      $filter: filter,
-      $top: TOP,
-      $skip: skip,
-      $select: "Quantity,Cost_Amount_Actual",
-    });
-
-    for (const entry of entries) {
-      totalQuantity += entry.Quantity || 0;
-      totalAmount += entry.Cost_Amount_Actual || 0;
-    }
-
-    if (entries.length < TOP) break;
-    skip += TOP;
-  }
-
-  return { qty: totalQuantity, amount: totalAmount };
+  return cumulateFromAPI(getItemLocWiseSummary, filter);
 }
 
 /**
- * Calculates decrease metrics (Positive=false transactions) for a specific item and location.
- * Returns both quantity and amount for the specified date range.
+ * Closing Balance: Cumulate all entries from ItemLOCWiseSummary
+ * where Posting_Date le {toDate} (everything up to end of period).
+ *
+ * This gives the stock position at the END of the reporting period.
+ * Satisfies: Closing = Opening + Incoming + Outgoing
+ *
+ * @param locationCodes - Location codes to filter (always required, supports multi)
+ * @param toDate - The end date of the period
+ * @param itemNo - Optional item number filter
  */
-export async function getDecreaseMetrics(
-  itemNo: string,
-  locationCode: string,
+export async function getClosingBalance(
+  locationCodes: string[],
+  toDate: Date,
+  itemNo?: string,
+): Promise<{ qty: number; amount: number }> {
+  const dateStr = toDate.toISOString().split("T")[0];
+
+  const filter = joinFilters(
+    buildLocationFilter(locationCodes),
+    buildItemFilter(itemNo),
+    `Posting_Date le ${dateStr}`,
+  );
+
+  return cumulateFromAPI(getItemLocWiseSummary, filter);
+}
+
+/**
+ * Incoming (Increase) Metrics: Cumulate from Itemwisestock
+ * where Positive eq true, within date range.
+ *
+ * @param locationCodes - Location codes to filter
+ * @param fromDate - Start of reporting period
+ * @param toDate - End of reporting period
+ * @param itemNo - Optional item number filter
+ */
+export async function getIncomingMetrics(
+  locationCodes: string[],
   fromDate: Date,
   toDate: Date,
+  itemNo?: string,
 ): Promise<{ qty: number; amount: number }> {
   const fromStr = fromDate.toISOString().split("T")[0];
   const toStr = toDate.toISOString().split("T")[0];
-  const filter = `Item_No eq '${itemNo}' and Location_Code eq '${locationCode}' and Posting_Date ge ${fromStr} and Posting_Date le ${toStr} and Positive eq false`;
 
-  let totalQuantity = 0;
-  let totalAmount = 0;
-  let skip = 0;
-  const TOP = 5000;
+  const filter = joinFilters(
+    "Positive eq true",
+    buildLocationFilter(locationCodes),
+    buildItemFilter(itemNo),
+    `Posting_Date ge ${fromStr}`,
+    `Posting_Date le ${toStr}`,
+  );
 
-  const { getItemLedgerEntries } = await import("./report-ledger.service");
+  return cumulateFromAPI(getItemWiseStock, filter);
+}
 
-  while (true) {
-    const { entries } = await getItemLedgerEntries({
-      $filter: filter,
-      $top: TOP,
-      $skip: skip,
-      $select: "Quantity,Cost_Amount_Actual",
-    });
+/**
+ * Outgoing (Decrease) Metrics: Cumulate from Itemwisestock
+ * where Positive eq false, within date range.
+ *
+ * @param locationCodes - Location codes to filter
+ * @param fromDate - Start of reporting period
+ * @param toDate - End of reporting period
+ * @param itemNo - Optional item number filter
+ */
+export async function getOutgoingMetrics(
+  locationCodes: string[],
+  fromDate: Date,
+  toDate: Date,
+  itemNo?: string,
+): Promise<{ qty: number; amount: number }> {
+  const fromStr = fromDate.toISOString().split("T")[0];
+  const toStr = toDate.toISOString().split("T")[0];
 
-    for (const entry of entries) {
-      // Note: Decrease quantities might be stored as positive values with Positive=false flag
-      // So we take absolute value to ensure positive decrease amounts
-      totalQuantity += Math.abs(entry.Quantity || 0);
-      totalAmount += Math.abs(entry.Cost_Amount_Actual || 0);
-    }
+  const filter = joinFilters(
+    "Positive eq false",
+    buildLocationFilter(locationCodes),
+    buildItemFilter(itemNo),
+    `Posting_Date ge ${fromStr}`,
+    `Posting_Date le ${toStr}`,
+  );
 
-    if (entries.length < TOP) break;
-    skip += TOP;
-  }
-
-  return { qty: totalQuantity, amount: totalAmount };
+  return cumulateFromAPI(getItemWiseStock, filter);
 }

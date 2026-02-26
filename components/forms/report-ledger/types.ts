@@ -13,7 +13,7 @@ export interface DateRange {
 
 export interface ReportLedgerFilters {
   mode: ReportMode;
-  locationCode: string;
+  locationCodes: string[];
   itemNo: string;
   postingDateFrom: string;
   postingDateTo: string;
@@ -21,7 +21,7 @@ export interface ReportLedgerFilters {
 
 export const EMPTY_FILTERS: ReportLedgerFilters = {
   mode: "ledger",
-  locationCode: "",
+  locationCodes: [],
   itemNo: "",
   postingDateFrom: "",
   postingDateTo: "",

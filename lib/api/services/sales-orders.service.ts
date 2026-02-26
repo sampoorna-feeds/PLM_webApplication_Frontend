@@ -70,7 +70,9 @@ export async function getSalesOrdersWithCount(
   if ($orderby) queryParams.$orderby = $orderby;
   if ($skip !== undefined) queryParams.$skip = $skip;
 
-  const query = buildODataQuery(queryParams as Parameters<typeof buildODataQuery>[0]);
+  const query = buildODataQuery(
+    queryParams as Parameters<typeof buildODataQuery>[0],
+  );
   const endpoint = `/SalesOrder?company='${encodeURIComponent(COMPANY)}'&${query}`;
   const response = await apiGet<ODataResponse<SalesOrder>>(endpoint);
 
@@ -144,6 +146,16 @@ export async function sendApprovalRequest(
   salesOrderNo: string,
 ): Promise<unknown> {
   const endpoint = `/API_SendApprovalRequest?company='${encodeURIComponent(COMPANY)}'`;
+  return apiPost<unknown>(endpoint, { salesOrderNo });
+}
+
+/**
+ * Cancel approval request for a sales order (Pending Approval -> Open)
+ */
+export async function cancelApprovalRequest(
+  salesOrderNo: string,
+): Promise<unknown> {
+  const endpoint = `/API_CancelApprovalRequest?company='${encodeURIComponent(COMPANY)}'`;
   return apiPost<unknown>(endpoint, { salesOrderNo });
 }
 

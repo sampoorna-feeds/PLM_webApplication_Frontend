@@ -1,6 +1,7 @@
 "use client";
 
-import { Search, X } from "lucide-react";
+import { useState } from "react";
+import { Search, X, Check, ChevronsUpDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import {
@@ -10,6 +11,13 @@ import {
 import { DateInput } from "@/components/ui/date-input";
 import { ColumnVisibility } from "./column-visibility";
 import type { ReportLedgerFilters } from "./types";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
+import { cn } from "@/lib/utils";
 
 interface TableFilterBarProps {
   filters: ReportLedgerFilters;
@@ -48,49 +56,142 @@ export function TableFilterBar({
   onItemSearch,
   onLoadMoreItems,
 }: TableFilterBarProps) {
+  const [locPopoverOpen, setLocPopoverOpen] = useState(false);
+
   const hasActiveFilters =
-    filters.locationCode ||
+    filters.locationCodes.length > 0 ||
     filters.itemNo ||
     filters.postingDateFrom ||
     filters.postingDateTo;
 
   const canSearch =
-    filters.locationCode &&
-    filters.itemNo &&
+    filters.locationCodes.length > 0 &&
     filters.postingDateFrom &&
     filters.postingDateTo;
+
+  // Location multi-select helpers
+  const allSelected =
+    locationOptions.length > 0 &&
+    filters.locationCodes.length === locationOptions.length;
+  const noneSelected = filters.locationCodes.length === 0;
+
+  const toggleLocation = (code: string) => {
+    const current = filters.locationCodes;
+    const next = current.includes(code)
+      ? current.filter((c) => c !== code)
+      : [...current, code];
+    onFiltersChange({ locationCodes: next });
+  };
+
+  const selectAllLocations = () => {
+    onFiltersChange({
+      locationCodes: locationOptions.map((opt) => opt.value),
+    });
+  };
+
+  const deselectAllLocations = () => {
+    onFiltersChange({ locationCodes: [] });
+  };
+
+  // Location trigger text
+  const locationTriggerText = isLoadingLocations
+    ? "Loading..."
+    : noneSelected
+      ? "Select locations..."
+      : allSelected
+        ? `All locations (${locationOptions.length})`
+        : `${filters.locationCodes.length} of ${locationOptions.length} selected`;
 
   return (
     <div className="space-y-3 pb-3">
       {/* Filter Controls Grid */}
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4">
-        {/* Location Code Dropdown */}
+        {/* Location Code Multi-Select */}
         <div className="space-y-1.5">
-          <Label htmlFor="location-filter" className="text-xs font-medium">
+          <Label className="text-xs font-medium">
             Location Code <span className="text-destructive">*</span>
           </Label>
-          <SearchableSelect
-            value={filters.locationCode}
-            onValueChange={(value) => onFiltersChange({ locationCode: value })}
-            options={locationOptions}
-            placeholder="Select location..."
-            searchPlaceholder="Search locations..."
-            emptyText="No locations found"
-            isLoading={isLoadingLocations}
-          />
+          <Popover open={locPopoverOpen} onOpenChange={setLocPopoverOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                role="combobox"
+                aria-expanded={locPopoverOpen}
+                className={cn(
+                  "w-full justify-between font-normal",
+                  noneSelected && "text-muted-foreground",
+                )}
+                disabled={isLoadingLocations}
+              >
+                <span className="truncate">{locationTriggerText}</span>
+                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent
+              className="w-[--radix-popover-trigger-width] min-w-[240px] p-0"
+              align="start"
+            >
+              {/* Select All / Deselect All */}
+              <div className="flex items-center justify-between border-b px-3 py-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 text-xs"
+                  onClick={selectAllLocations}
+                >
+                  Select All
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 text-xs"
+                  onClick={deselectAllLocations}
+                >
+                  Deselect All
+                </Button>
+              </div>
+              {/* Checkbox List */}
+              <div className="max-h-[200px] overflow-y-auto p-1">
+                {locationOptions.map((option) => {
+                  const isChecked = filters.locationCodes.includes(
+                    option.value,
+                  );
+                  return (
+                    <label
+                      key={option.value}
+                      className="hover:bg-accent flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-sm transition-colors"
+                    >
+                      <Checkbox
+                        checked={isChecked}
+                        onCheckedChange={() => toggleLocation(option.value)}
+                      />
+                      <span>{option.label}</span>
+                    </label>
+                  );
+                })}
+                {locationOptions.length === 0 && !isLoadingLocations && (
+                  <div className="text-muted-foreground py-4 text-center text-sm">
+                    No locations available
+                  </div>
+                )}
+              </div>
+            </PopoverContent>
+          </Popover>
         </div>
 
-        {/* Item No Dropdown */}
+        {/* Item No Dropdown (Optional) */}
         <div className="space-y-1.5">
           <Label htmlFor="item-filter" className="text-xs font-medium">
-            Item No <span className="text-destructive">*</span>
+            Item No
           </Label>
           <SearchableSelect
             value={filters.itemNo}
             onValueChange={(value) => onFiltersChange({ itemNo: value })}
             options={itemOptions}
             placeholder={
-              filters.locationCode ? "Select item..." : "Select location first"
+              filters.locationCodes.length > 0
+                ? "All items (optional)"
+                : "Select location first"
             }
             searchPlaceholder="Search items (min 2 chars)..."
             emptyText="No items found"
@@ -99,7 +200,7 @@ export function TableFilterBar({
             onSearch={onItemSearch}
             onLoadMore={onLoadMoreItems}
             hasMore={hasMoreItems}
-            disabled={!filters.locationCode}
+            disabled={filters.locationCodes.length === 0}
             allowCustomValue={true}
           />
         </div>

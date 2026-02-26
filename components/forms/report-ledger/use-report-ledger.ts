@@ -8,11 +8,10 @@ import {
   ItemLedgerEntry,
 } from "@/lib/api/services/report-ledger.service";
 import {
-  getItemWiseStock,
-  ItemWiseStock,
-  getCalculatedOpeningBalance,
-  getIncreaseMetrics,
-  getDecreaseMetrics,
+  getOpeningBalance,
+  getClosingBalance,
+  getIncomingMetrics,
+  getOutgoingMetrics,
 } from "@/lib/api/services/inventory.service";
 import { getAllLOCsFromUserSetup } from "@/lib/api/services/dimension.service";
 import { getItems } from "@/lib/api/services/production-order-data.service";
@@ -42,8 +41,10 @@ export function useReportLedger() {
   const [appliedFilters, setAppliedFilters] =
     useState<ReportLedgerFilters>(EMPTY_FILTERS);
 
+  // All available location codes (for "select all" logic)
+  const [allLocationCodes, setAllLocationCodes] = useState<string[]>([]);
+
   // Metrics State (Enhanced: qty + amount for each)
-  const [currentStock, setCurrentStock] = useState<ItemWiseStock | null>(null);
   const [openingBalance, setOpeningBalance] = useState<{
     qty: number;
     amount: number;
@@ -60,7 +61,6 @@ export function useReportLedger() {
     qty: number;
     amount: number;
   } | null>(null);
-  const [isLoadingStock, setIsLoadingStock] = useState(false);
   const [isLoadingSummary, setIsLoadingSummary] = useState(false);
 
   // Location dropdown state
@@ -100,12 +100,12 @@ export function useReportLedger() {
     return itemOptions.find((opt) => opt.value === appliedFilters.itemNo);
   }, [itemOptions, appliedFilters.itemNo]);
 
-  // Selected Location Label
-  const selectedLocationLabel = useMemo(() => {
-    return locationOptions.find(
-      (opt) => opt.value === appliedFilters.locationCode,
+  // Selected Location Labels
+  const selectedLocationLabels = useMemo(() => {
+    return locationOptions.filter((opt) =>
+      appliedFilters.locationCodes.includes(opt.value),
     );
-  }, [locationOptions, appliedFilters.locationCode]);
+  }, [locationOptions, appliedFilters.locationCodes]);
 
   // Date Range for Summary
   const dateRange = useMemo(() => {
@@ -127,12 +127,16 @@ export function useReportLedger() {
       setIsLoadingLocations(true);
       try {
         const locs = await getAllLOCsFromUserSetup(userID);
-        setLocationOptions(
-          locs.map((loc) => ({
-            label: loc.Code,
-            value: loc.Code,
-          })),
-        );
+        const options = locs.map((loc) => ({
+          label: loc.Code,
+          value: loc.Code,
+        }));
+        setLocationOptions(options);
+
+        // Auto-select all locations by default
+        const allCodes = options.map((opt) => opt.value);
+        setAllLocationCodes(allCodes);
+        setFilters((prev) => ({ ...prev, locationCodes: allCodes }));
       } catch (error) {
         console.error("Error loading user locations:", error);
         toast.error("Failed to load location options");
@@ -147,7 +151,7 @@ export function useReportLedger() {
 
   // ─── Load items ───
   useEffect(() => {
-    if (!filters.locationCode) {
+    if (filters.locationCodes.length === 0) {
       setItemOptions([]);
       setHasMoreItems(false);
       return;
@@ -197,18 +201,16 @@ export function useReportLedger() {
     };
 
     loadItems();
-  }, [filters.locationCode, itemSearchQuery, itemPage]);
+  }, [filters.locationCodes, itemSearchQuery, itemPage]);
 
-  // ─── FETCH METRICS (Enhanced: 8 metrics) ───
+  // ─── FETCH METRICS (when locations + dates are applied) ───
   useEffect(() => {
-    // Only fetch metrics if item, location, and dates applied
+    // Metrics require locations + dates; item is optional
     if (
-      !appliedFilters.itemNo ||
-      !appliedFilters.locationCode ||
+      appliedFilters.locationCodes.length === 0 ||
       !appliedFilters.postingDateFrom ||
       !appliedFilters.postingDateTo
     ) {
-      setCurrentStock(null);
       setOpeningBalance(null);
       setIncreaseMetrics(null);
       setDecreaseMetrics(null);
@@ -217,61 +219,42 @@ export function useReportLedger() {
     }
 
     const fetchMetrics = async () => {
-      setIsLoadingStock(true);
       setIsLoadingSummary(true);
 
       try {
-        // 1. Fetch Current Stock
-        const { entries: stockEntries } = await getItemWiseStock({
-          $filter: `ItemNo eq '${appliedFilters.itemNo}' and LocationCode eq '${appliedFilters.locationCode}'`,
-          $top: 1,
-        });
-        setCurrentStock(stockEntries[0] || null);
-
-        // 2. Fetch all metrics in parallel
         const fromDate = new Date(appliedFilters.postingDateFrom);
         const toDate = new Date(appliedFilters.postingDateTo);
+        const itemNo = appliedFilters.itemNo || undefined;
 
-        const [opening, increase, decrease] = await Promise.all([
-          getCalculatedOpeningBalance(
-            appliedFilters.itemNo,
-            appliedFilters.locationCode,
-            fromDate,
-          ),
-          getIncreaseMetrics(
-            appliedFilters.itemNo,
-            appliedFilters.locationCode,
+        const [opening, closing, incoming, outgoing] = await Promise.all([
+          getOpeningBalance(appliedFilters.locationCodes, fromDate, itemNo),
+          getClosingBalance(appliedFilters.locationCodes, toDate, itemNo),
+          getIncomingMetrics(
+            appliedFilters.locationCodes,
             fromDate,
             toDate,
+            itemNo,
           ),
-          getDecreaseMetrics(
-            appliedFilters.itemNo,
-            appliedFilters.locationCode,
+          getOutgoingMetrics(
+            appliedFilters.locationCodes,
             fromDate,
             toDate,
+            itemNo,
           ),
         ]);
 
         setOpeningBalance(opening);
-        setIncreaseMetrics(increase);
-        setDecreaseMetrics(decrease);
-
-        // 3. Calculate closing: Opening + Increase - Decrease
-        const closing = {
-          qty: opening.qty + increase.qty - decrease.qty,
-          amount: opening.amount + increase.amount - decrease.amount,
-        };
         setClosingBalance(closing);
+        setIncreaseMetrics(incoming);
+        setDecreaseMetrics(outgoing);
       } catch (error) {
         console.error("Error fetching metrics:", error);
         toast.error("Failed to fetch inventory metrics");
-        setCurrentStock(null);
         setOpeningBalance(null);
         setIncreaseMetrics(null);
         setDecreaseMetrics(null);
         setClosingBalance(null);
       } finally {
-        setIsLoadingStock(false);
         setIsLoadingSummary(false);
       }
     };
@@ -284,12 +267,22 @@ export function useReportLedger() {
   const buildFilterString = useCallback((): string => {
     const filterParts: string[] = [];
 
-    if (appliedFilters.itemNo) {
-      filterParts.push(`Item_No eq '${appliedFilters.itemNo}'`);
+    // Multi-location OR filter
+    if (appliedFilters.locationCodes.length > 0) {
+      if (appliedFilters.locationCodes.length === 1) {
+        filterParts.push(
+          `Location_Code eq '${appliedFilters.locationCodes[0]}'`,
+        );
+      } else {
+        const locationOr = appliedFilters.locationCodes
+          .map((code) => `Location_Code eq '${code}'`)
+          .join(" or ");
+        filterParts.push(`(${locationOr})`);
+      }
     }
 
-    if (appliedFilters.locationCode) {
-      filterParts.push(`Location_Code eq '${appliedFilters.locationCode}'`);
+    if (appliedFilters.itemNo) {
+      filterParts.push(`Item_No eq '${appliedFilters.itemNo}'`);
     }
 
     if (appliedFilters.postingDateFrom) {
@@ -309,9 +302,9 @@ export function useReportLedger() {
   }, [sortColumn, sortDirection]);
 
   const fetchEntries = useCallback(async () => {
+    // Only locations + dates are required; item is optional
     if (
-      !appliedFilters.locationCode ||
-      !appliedFilters.itemNo ||
+      appliedFilters.locationCodes.length === 0 ||
       !appliedFilters.postingDateFrom ||
       !appliedFilters.postingDateTo
     ) {
@@ -355,14 +348,16 @@ export function useReportLedger() {
     fetchEntries();
   }, [fetchEntries]);
 
-  // Handlers (Duplicated for brevity, same as before)
+  // Handlers
   const handleFiltersChange = useCallback(
     (newFilters: Partial<ReportLedgerFilters>) => {
       setFilters((prev) => {
         const next = { ...prev, ...newFilters };
+        // If locations changed, reset item selection
         if (
-          "locationCode" in newFilters &&
-          newFilters.locationCode !== prev.locationCode
+          "locationCodes" in newFilters &&
+          JSON.stringify(newFilters.locationCodes) !==
+            JSON.stringify(prev.locationCodes)
         ) {
           next.itemNo = "";
           setItemSearchQuery("");
@@ -377,13 +372,15 @@ export function useReportLedger() {
   );
 
   const handleApplyFilters = useCallback(() => {
+    // Only locations + dates are required
     if (
-      !filters.locationCode ||
-      !filters.itemNo ||
+      filters.locationCodes.length === 0 ||
       !filters.postingDateFrom ||
       !filters.postingDateTo
     ) {
-      toast.error("Please fill in all filter fields");
+      toast.error(
+        "Please select at least one location and fill in date fields",
+      );
       return;
     }
 
@@ -397,7 +394,12 @@ export function useReportLedger() {
   }, [filters]);
 
   const handleClearFilters = useCallback(() => {
-    setFilters(EMPTY_FILTERS);
+    // Reset to all locations selected
+    const resetFilters = {
+      ...EMPTY_FILTERS,
+      locationCodes: allLocationCodes,
+    };
+    setFilters(resetFilters);
     setAppliedFilters(EMPTY_FILTERS);
     setEntries([]);
     setTotalCount(0);
@@ -406,12 +408,11 @@ export function useReportLedger() {
     setItemPage(1);
     setItemOptions([]);
     setHasMoreItems(false);
-    setCurrentStock(null);
     setOpeningBalance(null);
     setIncreaseMetrics(null);
     setDecreaseMetrics(null);
     setClosingBalance(null);
-  }, []);
+  }, [allLocationCodes]);
 
   const handlePageSizeChange = useCallback((size: PageSize) => {
     setPageSize(size);
@@ -503,15 +504,13 @@ export function useReportLedger() {
     sortColumn,
     sortDirection,
     // Metrics
-    currentStock,
     openingBalance,
     increaseMetrics,
     decreaseMetrics,
     closingBalance,
-    isLoadingStock,
     isLoadingSummary,
     selectedItem: selectedItemLabel,
-    selectedLocation: selectedLocationLabel,
+    selectedLocations: selectedLocationLabels,
     dateRange,
   };
 }

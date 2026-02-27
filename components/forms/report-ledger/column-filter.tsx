@@ -17,6 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import type { ColumnConfig } from "./column-config";
 import { DateInput } from "@/components/ui/date-input";
 const BOOLEAN_OPTIONS = [
@@ -76,6 +77,41 @@ export function ColumnFilter({
   };
 
   const renderFilterContent = () => {
+    // Shared checkbox list for columns configured with distinct filterOptions (Date & Text)
+    if (column.filterOptions && column.filterOptions.length > 0) {
+      const selectedValues = localValue ? localValue.split(",") : [];
+
+      const toggleOption = (optValue: string) => {
+        const newSelected = selectedValues.includes(optValue)
+          ? selectedValues.filter((v) => v !== optValue)
+          : [...selectedValues, optValue];
+        setLocalValue(newSelected.join(","));
+      };
+
+      return (
+        <div className="space-y-3">
+          <Label className="text-xs font-medium">Filter {column.label}</Label>
+          <div className="max-h-[200px] space-y-2 overflow-y-auto rounded border p-2">
+            {column.filterOptions.map((opt) => (
+              <div key={opt.value} className="flex items-center space-x-2">
+                <Checkbox
+                  id={`cb-${column.id}-${opt.value}`}
+                  checked={selectedValues.includes(opt.value)}
+                  onCheckedChange={() => toggleOption(opt.value)}
+                />
+                <label
+                  htmlFor={`cb-${column.id}-${opt.value}`}
+                  className="text-sm leading-none font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                >
+                  {opt.label}
+                </label>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
     switch (column.filterType) {
       case "text":
         return (
@@ -115,35 +151,6 @@ export function ColumnFilter({
                 ))}
               </SelectContent>
             </Select>
-          </div>
-        );
-
-      case "date":
-        return (
-          <div className="space-y-3">
-            <Label className="text-xs font-medium">Filter {column.label}</Label>
-            <div className="space-y-2">
-              <div>
-                <Label className="text-muted-foreground text-xs">From</Label>
-                <DateInput
-                  id={`filter-${column.id}-from`}
-                  value={localValue}
-                  onChange={(val) => setLocalValue(val || "")}
-                  placeholder="DD/MM/YYYY"
-                  className="h-8 text-sm"
-                />
-              </div>
-              <div>
-                <Label className="text-muted-foreground text-xs">To</Label>
-                <DateInput
-                  id={`filter-${column.id}-to`}
-                  value={localValueTo}
-                  onChange={(val) => setLocalValueTo(val || "")}
-                  placeholder="DD/MM/YYYY"
-                  className="h-8 text-sm"
-                />
-              </div>
-            </div>
           </div>
         );
 

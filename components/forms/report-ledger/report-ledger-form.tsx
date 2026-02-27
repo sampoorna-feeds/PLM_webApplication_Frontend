@@ -28,9 +28,10 @@ export function ReportLedgerForm() {
     isLoadingItems,
     isLoadingMoreItems,
     hasMoreItems,
-    onFiltersChange,
-    onApplyFilters,
-    onClearFilters,
+    handleFiltersChange: onFiltersChange,
+    handleApplyFilters: onApplyFilters, // Keeping old alias
+    handleApplyAdditionalFilters,
+    handleClearFilters: onClearFilters,
     onItemSearch,
     onLoadMoreItems,
     // Column visibility
@@ -57,6 +58,7 @@ export function ReportLedgerForm() {
             hasMoreItems={hasMoreItems}
             onFiltersChange={onFiltersChange}
             onApplyFilters={onApplyFilters}
+            onApplyAdditionalFilters={handleApplyAdditionalFilters}
             onClearFilters={onClearFilters}
             onColumnToggle={onColumnToggle}
             onResetColumns={onResetColumns}
@@ -77,8 +79,6 @@ export function ReportLedgerForm() {
             sortColumn={sortColumn}
             sortDirection={sortDirection}
             onSort={onSort}
-            filters={filters}
-            onFiltersChange={onFiltersChange}
           />
         </div>
 

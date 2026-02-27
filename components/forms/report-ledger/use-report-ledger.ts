@@ -10,8 +10,12 @@ import {
 
 import { getAllLOCsFromUserSetup } from "@/lib/api/services/dimension.service";
 import { getItems } from "@/lib/api/services/production-order-data.service";
-import type { PageSize, ReportLedgerFilters } from "./types";
-import { EMPTY_FILTERS } from "./types";
+import {
+  type PageSize,
+  type ReportLedgerFilters,
+  type FilterCondition,
+  EMPTY_FILTERS,
+} from "./types";
 import {
   type SortDirection,
   loadVisibleColumns,
@@ -186,6 +190,44 @@ export function useReportLedger() {
       filterParts.push(`Posting_Date le ${appliedFilters.postingDateTo}`);
     }
 
+    // Dynamic additional filters
+    if (
+      appliedFilters.additionalFilters &&
+      appliedFilters.additionalFilters.length > 0
+    ) {
+      appliedFilters.additionalFilters.forEach((filter) => {
+        if (!filter.value && filter.type !== "boolean") return; // Allow empty string for boolean if 'all' or handled
+
+        const isString =
+          filter.type === "text" ||
+          filter.type === "enum" ||
+          filter.type === "date";
+        const formattedValue = isString ? `'${filter.value}'` : filter.value;
+
+        switch (filter.operator) {
+          case "eq":
+          case "ne":
+          case "gt":
+          case "ge":
+          case "lt":
+          case "le":
+            filterParts.push(
+              `${filter.field} ${filter.operator} ${formattedValue}`,
+            );
+            break;
+          case "contains":
+            filterParts.push(`contains(${filter.field}, '${filter.value}')`);
+            break;
+          case "startswith":
+            filterParts.push(`startswith(${filter.field}, '${filter.value}')`);
+            break;
+          case "endswith":
+            filterParts.push(`endswith(${filter.field}, '${filter.value}')`);
+            break;
+        }
+      });
+    }
+
     return filterParts.join(" and ");
   }, [appliedFilters]);
 
@@ -257,6 +299,25 @@ export function useReportLedger() {
           setItemPage(1);
           setItemOptions([]);
           setHasMoreItems(false);
+        }
+        return next;
+      });
+    },
+    [],
+  );
+
+  const handleApplyAdditionalFilters = useCallback(
+    (additionalFilters: FilterCondition[]) => {
+      setFilters((prev) => {
+        const next = { ...prev, additionalFilters };
+        if (
+          next.locationCodes.length > 0 &&
+          next.postingDateFrom &&
+          next.postingDateTo &&
+          next.postingDateFrom <= next.postingDateTo
+        ) {
+          setAppliedFilters(next);
+          setCurrentPage(1);
         }
         return next;
       });
@@ -380,8 +441,11 @@ export function useReportLedger() {
     onPageSizeChange: handlePageSizeChange,
     onPageChange: handlePageChange,
     onSort: handleSort,
-    onFiltersChange: handleFiltersChange,
-    onApplyFilters: handleApplyFilters,
+    // Actions
+    handleFiltersChange,
+    handleApplyFilters,
+    handleApplyAdditionalFilters,
+    handleClearFilters,
     onClearFilters: handleClearFilters,
     onItemSearch: handleItemSearch,
     onLoadMoreItems: handleLoadMoreItems,

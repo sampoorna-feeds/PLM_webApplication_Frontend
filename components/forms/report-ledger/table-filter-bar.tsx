@@ -10,7 +10,8 @@ import {
 } from "@/components/ui/searchable-select";
 import { DateInput } from "@/components/ui/date-input";
 import { ColumnVisibility } from "./column-visibility";
-import type { ReportLedgerFilters } from "./types";
+import { DynamicFilterBuilder } from "./dynamic-filter-builder";
+import type { ReportLedgerFilters, FilterCondition } from "./types";
 import {
   Popover,
   PopoverContent,
@@ -30,6 +31,7 @@ interface TableFilterBarProps {
   hasMoreItems?: boolean;
   onFiltersChange: (filters: Partial<ReportLedgerFilters>) => void;
   onApplyFilters: () => void;
+  onApplyAdditionalFilters?: (filters: FilterCondition[]) => void;
   onClearFilters: () => void;
   onColumnToggle: (columnId: string) => void;
   onResetColumns: () => void;
@@ -55,6 +57,7 @@ export function TableFilterBar({
   onShowAllColumns,
   onItemSearch,
   onLoadMoreItems,
+  onApplyAdditionalFilters,
 }: TableFilterBarProps) {
   const [locPopoverOpen, setLocPopoverOpen] = useState(false);
 
@@ -86,6 +89,26 @@ export function TableFilterBar({
 
   const deselectAllLocations = () => {
     onFiltersChange({ locationCodes: [] });
+  };
+
+  const handleAddAdditionalFilter = (filter: FilterCondition) => {
+    const current = filters.additionalFilters || [];
+    const updated = [...current, filter];
+    if (onApplyAdditionalFilters) {
+      onApplyAdditionalFilters(updated);
+    } else {
+      onFiltersChange({ additionalFilters: updated });
+    }
+  };
+
+  const handleRemoveAdditionalFilter = (index: number) => {
+    const current = filters.additionalFilters || [];
+    const updated = current.filter((_, i) => i !== index);
+    if (onApplyAdditionalFilters) {
+      onApplyAdditionalFilters(updated);
+    } else {
+      onFiltersChange({ additionalFilters: updated });
+    }
   };
 
   // Location trigger text
@@ -236,6 +259,13 @@ export function TableFilterBar({
           <Search className="h-4 w-4" />
           Search
         </Button>
+
+        {/* Dynamic Filters Builder */}
+        <DynamicFilterBuilder
+          filters={filters.additionalFilters || []}
+          onAddFilter={handleAddAdditionalFilter}
+          onRemoveFilter={handleRemoveAdditionalFilter}
+        />
 
         {/* Clear Filters */}
         {hasActiveFilters && (

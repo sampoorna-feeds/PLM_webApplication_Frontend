@@ -11,12 +11,29 @@ export interface DateRange {
   to: string;
 }
 
+export interface FilterCondition {
+  field: string;
+  operator:
+    | "eq"
+    | "ne"
+    | "gt"
+    | "ge"
+    | "lt"
+    | "le"
+    | "contains"
+    | "startswith"
+    | "endswith";
+  value: string;
+  type: "text" | "number" | "boolean" | "date" | "enum";
+}
+
 export interface ReportLedgerFilters {
   mode: ReportMode;
   locationCodes: string[];
   itemNo: string;
   postingDateFrom: string;
   postingDateTo: string;
+  additionalFilters: FilterCondition[];
 }
 
 export const EMPTY_FILTERS: ReportLedgerFilters = {
@@ -25,4 +42,5 @@ export const EMPTY_FILTERS: ReportLedgerFilters = {
   itemNo: "",
   postingDateFrom: "",
   postingDateTo: "",
+  additionalFilters: [],
 };

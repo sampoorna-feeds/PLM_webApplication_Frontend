@@ -155,17 +155,23 @@ async function cumulateFromAPI<
  * @param fromDate - The start date of the period (opening = everything strictly before this date)
  * @param itemNo - Optional item number filter
  */
-export async function getOpeningBalance(
-  locationCodes: string[],
-  fromDate: Date,
-  itemNo?: string,
-): Promise<{ qty: number; amount: number }> {
+export async function getOpeningBalance({
+  locationCodes,
+  fromDate,
+  toDate,
+  itemNo,
+}: {
+  locationCodes: string[];
+  fromDate: Date;
+  toDate: Date;
+  itemNo?: string;
+}): Promise<{ qty: number; amount: number }> {
   const dateStr = fromDate.toISOString().split("T")[0];
 
   const filter = joinFilters(
     buildLocationFilter(locationCodes),
     buildItemFilter(itemNo),
-    `Posting_Date lt ${dateStr}`,
+    `Posting_Date le ${dateStr}`,
   );
 
   return cumulateFromAPI(getItemLocWiseSummary, filter);
@@ -182,11 +188,17 @@ export async function getOpeningBalance(
  * @param toDate - The end date of the period
  * @param itemNo - Optional item number filter
  */
-export async function getClosingBalance(
-  locationCodes: string[],
-  toDate: Date,
-  itemNo?: string,
-): Promise<{ qty: number; amount: number }> {
+export async function getClosingBalance({
+  locationCodes,
+  fromDate,
+  toDate,
+  itemNo,
+}: {
+  locationCodes: string[];
+  fromDate: Date;
+  toDate: Date;
+  itemNo?: string;
+}): Promise<{ qty: number; amount: number }> {
   const dateStr = toDate.toISOString().split("T")[0];
 
   const filter = joinFilters(

@@ -7,12 +7,7 @@ import {
   getItemLedgerEntries,
   ItemLedgerEntry,
 } from "@/lib/api/services/report-ledger.service";
-import {
-  getOpeningBalance,
-  getClosingBalance,
-  getIncomingMetrics,
-  getOutgoingMetrics,
-} from "@/lib/api/services/inventory.service";
+
 import { getAllLOCsFromUserSetup } from "@/lib/api/services/dimension.service";
 import { getItems } from "@/lib/api/services/production-order-data.service";
 import type { PageSize, ReportLedgerFilters } from "./types";
@@ -43,25 +38,6 @@ export function useReportLedger() {
 
   // All available location codes (for "select all" logic)
   const [allLocationCodes, setAllLocationCodes] = useState<string[]>([]);
-
-  // Metrics State (Enhanced: qty + amount for each)
-  const [openingBalance, setOpeningBalance] = useState<{
-    qty: number;
-    amount: number;
-  } | null>(null);
-  const [increaseMetrics, setIncreaseMetrics] = useState<{
-    qty: number;
-    amount: number;
-  } | null>(null);
-  const [decreaseMetrics, setDecreaseMetrics] = useState<{
-    qty: number;
-    amount: number;
-  } | null>(null);
-  const [closingBalance, setClosingBalance] = useState<{
-    qty: number;
-    amount: number;
-  } | null>(null);
-  const [isLoadingSummary, setIsLoadingSummary] = useState(false);
 
   // Location dropdown state
   const [locationOptions, setLocationOptions] = useState<
@@ -94,30 +70,6 @@ export function useReportLedger() {
   const totalPages = useMemo(() => {
     return Math.max(1, Math.ceil(totalCount / pageSize));
   }, [totalCount, pageSize]);
-
-  // Selected Item Label for Summary
-  const selectedItemLabel = useMemo(() => {
-    return itemOptions.find((opt) => opt.value === appliedFilters.itemNo);
-  }, [itemOptions, appliedFilters.itemNo]);
-
-  // Selected Location Labels
-  const selectedLocationLabels = useMemo(() => {
-    return locationOptions.filter((opt) =>
-      appliedFilters.locationCodes.includes(opt.value),
-    );
-  }, [locationOptions, appliedFilters.locationCodes]);
-
-  // Date Range for Summary
-  const dateRange = useMemo(() => {
-    return {
-      from: appliedFilters.postingDateFrom
-        ? new Date(appliedFilters.postingDateFrom)
-        : undefined,
-      to: appliedFilters.postingDateTo
-        ? new Date(appliedFilters.postingDateTo)
-        : undefined,
-    };
-  }, [appliedFilters.postingDateFrom, appliedFilters.postingDateTo]);
 
   // ─── Load user's assigned location codes from WebUserSetup ───
   useEffect(() => {
@@ -202,65 +154,6 @@ export function useReportLedger() {
 
     loadItems();
   }, [filters.locationCodes, itemSearchQuery, itemPage]);
-
-  // ─── FETCH METRICS (when locations + dates are applied) ───
-  useEffect(() => {
-    // Metrics require locations + dates; item is optional
-    if (
-      appliedFilters.locationCodes.length === 0 ||
-      !appliedFilters.postingDateFrom ||
-      !appliedFilters.postingDateTo
-    ) {
-      setOpeningBalance(null);
-      setIncreaseMetrics(null);
-      setDecreaseMetrics(null);
-      setClosingBalance(null);
-      return;
-    }
-
-    const fetchMetrics = async () => {
-      setIsLoadingSummary(true);
-
-      try {
-        const fromDate = new Date(appliedFilters.postingDateFrom);
-        const toDate = new Date(appliedFilters.postingDateTo);
-        const itemNo = appliedFilters.itemNo || undefined;
-
-        const [opening, closing, incoming, outgoing] = await Promise.all([
-          getOpeningBalance(appliedFilters.locationCodes, fromDate, itemNo),
-          getClosingBalance(appliedFilters.locationCodes, toDate, itemNo),
-          getIncomingMetrics(
-            appliedFilters.locationCodes,
-            fromDate,
-            toDate,
-            itemNo,
-          ),
-          getOutgoingMetrics(
-            appliedFilters.locationCodes,
-            fromDate,
-            toDate,
-            itemNo,
-          ),
-        ]);
-
-        setOpeningBalance(opening);
-        setClosingBalance(closing);
-        setIncreaseMetrics(incoming);
-        setDecreaseMetrics(outgoing);
-      } catch (error) {
-        console.error("Error fetching metrics:", error);
-        toast.error("Failed to fetch inventory metrics");
-        setOpeningBalance(null);
-        setIncreaseMetrics(null);
-        setDecreaseMetrics(null);
-        setClosingBalance(null);
-      } finally {
-        setIsLoadingSummary(false);
-      }
-    };
-
-    fetchMetrics();
-  }, [appliedFilters]);
 
   // ─── Standard Ledger Logic ───
 
@@ -408,10 +301,6 @@ export function useReportLedger() {
     setItemPage(1);
     setItemOptions([]);
     setHasMoreItems(false);
-    setOpeningBalance(null);
-    setIncreaseMetrics(null);
-    setDecreaseMetrics(null);
-    setClosingBalance(null);
   }, [allLocationCodes]);
 
   const handlePageSizeChange = useCallback((size: PageSize) => {
@@ -503,14 +392,5 @@ export function useReportLedger() {
     refetch: fetchEntries,
     sortColumn,
     sortDirection,
-    // Metrics
-    openingBalance,
-    increaseMetrics,
-    decreaseMetrics,
-    closingBalance,
-    isLoadingSummary,
-    selectedItem: selectedItemLabel,
-    selectedLocations: selectedLocationLabels,
-    dateRange,
   };
 }

@@ -64,11 +64,6 @@ export function TableFilterBar({
     filters.postingDateFrom ||
     filters.postingDateTo;
 
-  const canSearch =
-    filters.locationCodes.length > 0 &&
-    filters.postingDateFrom &&
-    filters.postingDateTo;
-
   // Location multi-select helpers
   const allSelected =
     locationOptions.length > 0 &&
@@ -237,12 +232,7 @@ export function TableFilterBar({
       {/* Action Buttons Row */}
       <div className="flex flex-wrap items-center gap-3">
         {/* Apply Filters Button */}
-        <Button
-          onClick={onApplyFilters}
-          size="sm"
-          disabled={!canSearch}
-          className="gap-2"
-        >
+        <Button onClick={onApplyFilters} size="sm" className="gap-2">
           <Search className="h-4 w-4" />
           Search
         </Button>

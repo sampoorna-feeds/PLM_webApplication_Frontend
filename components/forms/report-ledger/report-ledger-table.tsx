@@ -11,6 +11,7 @@ import {
   type ColumnConfig,
 } from "./column-config";
 import { ColumnFilter } from "./column-filter";
+import type { ReportLedgerFilters } from "./types";
 
 interface ReportLedgerTableProps {
   entries: ItemLedgerEntry[];
@@ -21,6 +22,8 @@ interface ReportLedgerTableProps {
   pageSize: number;
   currentPage: number;
   onSort: (column: string) => void;
+  filters: ReportLedgerFilters;
+  onFiltersChange: (filters: Partial<ReportLedgerFilters>) => void;
 }
 
 export function ReportLedgerTable({
@@ -32,8 +35,10 @@ export function ReportLedgerTable({
   pageSize,
   currentPage,
   onSort,
+  filters,
+  onFiltersChange,
 }: ReportLedgerTableProps) {
-  // Column filters state
+  // Column filters state (for columns that are NOT synced with top-level filters)
   const [columnFilters, setColumnFilters] = useState<
     Record<string, { value: string; valueTo?: string }>
   >({});
@@ -127,15 +132,48 @@ export function ReportLedgerTable({
     });
   }, [entries, columnFilters, activeFilterCount]);
 
+  const getFilterValue = (columnId: string) => {
+    if (columnId === "Location_Code") {
+      return { value: filters.locationCodes.join(",") };
+    }
+    if (columnId === "Item_No") {
+      return { value: filters.itemNo };
+    }
+    if (columnId === "Posting_Date") {
+      return {
+        value: filters.postingDateFrom,
+        valueTo: filters.postingDateTo,
+      };
+    }
+    return columnFilters[columnId] || { value: "" };
+  };
+
   const handleColumnFilter = (
     columnId: string,
     value: string,
     valueTo?: string,
   ) => {
-    setColumnFilters((prev) => ({
-      ...prev,
-      [columnId]: { value, valueTo },
-    }));
+    if (columnId === "Location_Code") {
+      const codes = value
+        ? value
+            .split(",")
+            .map((v) => v.trim())
+            .filter(Boolean)
+        : [];
+      onFiltersChange({ locationCodes: codes });
+    } else if (columnId === "Item_No") {
+      onFiltersChange({ itemNo: value });
+    } else if (columnId === "Posting_Date") {
+      onFiltersChange({
+        postingDateFrom: value || "",
+        postingDateTo: valueTo || "",
+      });
+    } else {
+      setColumnFilters((prev) => ({
+        ...prev,
+        [columnId]: { value, valueTo },
+      }));
+    }
   };
 
   const clearAllColumnFilters = () => {
@@ -179,8 +217,8 @@ export function ReportLedgerTable({
                   sortDirection={
                     sortColumn === column.id ? sortDirection : null
                   }
-                  filterValue={columnFilters[column.id]?.value || ""}
-                  filterValueTo={columnFilters[column.id]?.valueTo || ""}
+                  filterValue={getFilterValue(column.id).value || ""}
+                  filterValueTo={getFilterValue(column.id).valueTo || ""}
                   onSort={onSort}
                   onFilter={handleColumnFilter}
                 />

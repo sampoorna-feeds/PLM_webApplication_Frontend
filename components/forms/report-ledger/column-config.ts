@@ -80,6 +80,34 @@ export const DEFAULT_COLUMNS: ColumnConfig[] = [
 // Optional columns - can be toggled by user
 export const OPTIONAL_COLUMNS: ColumnConfig[] = [
   {
+    id: "Item_Name",
+    label: "Item Name",
+    sortable: true,
+    defaultVisible: false,
+    filterType: "text",
+  },
+  {
+    id: "Location_Name",
+    label: "Location Name",
+    sortable: true,
+    defaultVisible: false,
+    filterType: "text",
+  },
+  {
+    id: "Cost_Amount_Actual",
+    label: "Cost Amount Actual",
+    sortable: true,
+    defaultVisible: false,
+    filterType: "number",
+  },
+  {
+    id: "Return_Reason_Code",
+    label: "Return Reason Code",
+    sortable: true,
+    defaultVisible: false,
+    filterType: "text",
+  },
+  {
     id: "Document_Type",
     label: "Document Type",
     sortable: true,

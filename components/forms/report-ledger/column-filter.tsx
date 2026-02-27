@@ -18,7 +18,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { ColumnConfig } from "./column-config";
-
+import { DateInput } from "@/components/ui/date-input";
 const BOOLEAN_OPTIONS = [
   { value: "", label: "All" },
   { value: "true", label: "Yes" },
@@ -125,19 +125,21 @@ export function ColumnFilter({
             <div className="space-y-2">
               <div>
                 <Label className="text-muted-foreground text-xs">From</Label>
-                <Input
-                  type="date"
+                <DateInput
+                  id={`filter-${column.id}-from`}
                   value={localValue}
-                  onChange={(e) => setLocalValue(e.target.value)}
+                  onChange={(val) => setLocalValue(val || "")}
+                  placeholder="DD/MM/YYYY"
                   className="h-8 text-sm"
                 />
               </div>
               <div>
                 <Label className="text-muted-foreground text-xs">To</Label>
-                <Input
-                  type="date"
+                <DateInput
+                  id={`filter-${column.id}-to`}
                   value={localValueTo}
-                  onChange={(e) => setLocalValueTo(e.target.value)}
+                  onChange={(val) => setLocalValueTo(val || "")}
+                  placeholder="DD/MM/YYYY"
                   className="h-8 text-sm"
                 />
               </div>

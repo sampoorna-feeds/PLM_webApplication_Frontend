@@ -121,7 +121,7 @@ export function FormStackPanel() {
         className={cn(
           "bg-background border-border fixed top-0 right-0 z-50 flex h-full flex-col border-l shadow-xl",
           currentTab?.formType === "line-item"
-            ? "w-screen md:w-[42vw] md:max-w-lg"
+            ? "w-screen md:w-[60vw]"
             : currentTab?.formType === "sales-order" ||
               currentTab?.formType === "sales-order-detail" ||
               currentTab?.formType === "sales-order-edit"

@@ -152,7 +152,6 @@ export function LineItemTabForm({
 
   // Derived values
   const isItemType = formState.type === "Item";
-  const isDescriptionEditable = formState.type === "G/L Account";
 
   // Memoized handlers
   const handleTypeChange = useCallback((type: "G/L Account" | "Item") => {
@@ -382,13 +381,14 @@ export function LineItemTabForm({
     <div className="flex h-full flex-col">
       <form
         onSubmit={handleSubmit}
-        className="flex-1 space-y-3 overflow-y-auto p-3"
+        className="flex-1 overflow-y-auto p-3"
       >
+        <div className="mx-auto w-full max-w-5xl space-y-4">
         {/* Basic Information Section */}
         <div className="space-y-2">
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 gap-2 md:grid-cols-12">
             {/* Type */}
-            <div className="space-y-1">
+            <div className="space-y-1 md:col-span-2">
               <FieldTitle>Type</FieldTitle>
               <ClearableField
                 value={formState.type}
@@ -407,7 +407,7 @@ export function LineItemTabForm({
             </div>
 
             {/* Select Item */}
-            <div className="space-y-1">
+            <div className="space-y-1 md:col-span-5">
               <FieldTitle>Select Item</FieldTitle>
               {formState.type === 'G/L Account' ? (
                 <ClearableField
@@ -456,29 +456,15 @@ export function LineItemTabForm({
                 />
                 </ClearableField>
               )}
+              {formState.description && (
+                <p className="mt-1 pl-1 text-[10px] font-medium text-green-600">
+                  {formState.description}
+                </p>
+              )}
             </div>
-          </div>
-
-          {/* Description */}
-          <div className="space-y-1">
-            <FieldTitle>Description</FieldTitle>
-            <ClearableField
-              value={formState.description}
-              onClear={() => handleFieldChange("description", "")}
-            >
-            <Input
-              value={formState.description || ""}
-              onChange={(e) => handleFieldChange("description", e.target.value)}
-              disabled={!isDescriptionEditable}
-              placeholder="Description"
-              className="h-8"
-            />
-            </ClearableField>
-          </div>
-
-          {/* UOM (only for Item) */}
-          {isItemType && (
-            <div className="space-y-1">
+            {/* UOM (only for Item) */}
+            {isItemType && (
+            <div className="space-y-1 md:col-span-2">
               <FieldTitle>UOM</FieldTitle>
               <ClearableField
                 value={formState.uom}
@@ -504,14 +490,51 @@ export function LineItemTabForm({
               </Select>
               </ClearableField>
             </div>
-          )}
+            )}
+
+            {/* TCS Group Code - hidden in edit mode (data not available from API) */}
+            {!lineItem && (
+              <div className="space-y-1 md:col-span-3">
+                <FieldTitle>TCS Group Code</FieldTitle>
+                {tcsOptions.length > 0 ? (
+                  <Select
+                    value={formState.tcsGroupCode || ""}
+                    onValueChange={(value) =>
+                      handleFieldChange("tcsGroupCode", value)
+                    }
+                  >
+                    <SelectTrigger className="h-8">
+                      <SelectValue placeholder="Select TCS Group Code" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {tcsOptions.map((tcs) => (
+                        <SelectItem
+                          key={tcs.TCS_Nature_of_Collection}
+                          value={tcs.TCS_Nature_of_Collection}
+                        >
+                          {tcs.TCS_Nature_of_Collection}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <Input
+                    value="Not available"
+                    disabled
+                    className="h-8 bg-muted"
+                    readOnly
+                  />
+                )}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Pricing Section - Price field hidden in Add line item form */}
         <div className="space-y-2 border-t pt-2">
           <h3 className="text-foreground text-xs font-medium">Pricing</h3>
-          <div className="grid grid-cols-3 gap-2">
-            <div className="space-y-1">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 md:grid-cols-6">
+            <div className="space-y-1 md:col-span-2">
               <FieldTitle>Quantity</FieldTitle>
               <Input
                 type="text"
@@ -525,7 +548,7 @@ export function LineItemTabForm({
                 className="h-8 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
               />
             </div>
-            <div className="space-y-1">
+            <div className="space-y-1 md:col-span-2">
               <FieldTitle>MRP</FieldTitle>
               <Input
                 type="text"
@@ -537,7 +560,7 @@ export function LineItemTabForm({
                 className="h-8 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
               />
             </div>
-            <div className="space-y-1">
+            <div className="space-y-1 md:col-span-2">
               <FieldTitle>Unit Price</FieldTitle>
               <Input
                 type="text"
@@ -551,7 +574,7 @@ export function LineItemTabForm({
                 className="h-8 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
               />
             </div>
-            <div className="space-y-1">
+            <div className="space-y-1 md:col-span-2">
               <FieldTitle>Total MRP</FieldTitle>
               <Input
                 type="text"
@@ -561,7 +584,7 @@ export function LineItemTabForm({
                 readOnly
               />
             </div>
-            <div className="space-y-1">
+            <div className="space-y-1 md:col-span-2">
               <FieldTitle>Discount</FieldTitle>
               <Input
                 type="text"
@@ -575,17 +598,16 @@ export function LineItemTabForm({
                 className="h-8 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
               />
             </div>
-          </div>
-
-          <div className="space-y-1">
-            <FieldTitle>Amount</FieldTitle>
-            <Input
-              type="text"
-              value={amount > 0 ? amount.toFixed(2) : ""}
-              disabled
-              className="h-8 bg-muted font-medium"
-              readOnly
-            />
+            <div className="space-y-1 md:col-span-2">
+              <FieldTitle>Amount</FieldTitle>
+              <Input
+                type="text"
+                value={amount > 0 ? amount.toFixed(2) : ""}
+                disabled
+                className="h-8 bg-muted font-medium"
+                readOnly
+              />
+            </div>
           </div>
         </div>
 
@@ -595,7 +617,7 @@ export function LineItemTabForm({
             <h3 className="text-foreground text-xs font-medium">
               Item Details
             </h3>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 md:grid-cols-3">
               <div className="space-y-1">
                 <FieldTitle>Exempted</FieldTitle>
                 <Input
@@ -627,41 +649,7 @@ export function LineItemTabForm({
           </div>
         )}
 
-        {/* TCS Group Code - hidden in edit mode (data not available from API) */}
-        {!lineItem && (
-          <div className="space-y-1 border-t pt-2">
-            <FieldTitle>TCS Group Code</FieldTitle>
-            {tcsOptions.length > 0 ? (
-              <Select
-                value={formState.tcsGroupCode || ""}
-                onValueChange={(value) =>
-                  handleFieldChange("tcsGroupCode", value)
-                }
-              >
-                <SelectTrigger className="h-8">
-                  <SelectValue placeholder="Select TCS Group Code" />
-                </SelectTrigger>
-                <SelectContent>
-                  {tcsOptions.map((tcs) => (
-                    <SelectItem
-                      key={tcs.TCS_Nature_of_Collection}
-                      value={tcs.TCS_Nature_of_Collection}
-                    >
-                      {tcs.TCS_Nature_of_Collection}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            ) : (
-              <Input
-                value="Not available"
-                disabled
-                className="h-8 bg-muted"
-                readOnly
-              />
-            )}
-          </div>
-        )}
+        </div>
       </form>
 
       {/* Form Actions */}

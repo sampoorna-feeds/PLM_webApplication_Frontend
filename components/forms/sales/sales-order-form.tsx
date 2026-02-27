@@ -43,7 +43,7 @@ import {
 
 export interface SalesOrderFormContentProps {
   /** Called when order is successfully placed */
-  onSuccess: () => void;
+  onSuccess: (orderNo: string) => void;
   /** Open line-item add/edit tab (from FormStackContext.openTab) */
   openLineItemTab: (params: {
     title: string;
@@ -81,6 +81,7 @@ export function SalesOrderFormContent({
     shipToCode: '',
     shipToName: '',
     salesPersonCode: '',
+    salesPersonName: '',
     locationCode: '',
     postingDate: '',
     documentDate: '',
@@ -179,11 +180,19 @@ export function SalesOrderFormContent({
     customerNo: string,
     customer?: SalesCustomer,
   ) => {
+    const nextSalesPersonCode =
+      customer?.Salesperson_Code || formData.salesPersonCode;
+    const nextSalesPersonName =
+      nextSalesPersonCode === formData.salesPersonCode
+        ? formData.salesPersonName
+        : "";
+
     const newData = {
       ...formData,
       customerNo,
       customerName: customer?.Name || "",
-      salesPersonCode: customer?.Salesperson_Code || formData.salesPersonCode,
+      salesPersonCode: nextSalesPersonCode,
+      salesPersonName: nextSalesPersonName,
       customerPriceGroup: customer?.Customer_Price_Group || '',
       shipToCode: '',
       shipToName: '',
@@ -376,7 +385,7 @@ export function SalesOrderFormContent({
 
       const locationCode = formData.locationCode || formData.loc || "";
       await addSalesOrderLineItems(orderId, lineItemsData, locationCode);
-      onSuccess();
+      onSuccess(orderResponse.orderNo || orderId);
     } catch (error) {
       console.error("Error placing order:", error);
       const message =
@@ -482,6 +491,11 @@ export function SalesOrderFormContent({
               placeholder="Select"
             />
           </ClearableField>
+          {formData.customerName && (
+            <p className="mt-1 pl-1 text-[10px] font-medium text-green-600">
+              {formData.customerName}
+            </p>
+          )}
         </div>
         <div className={fieldClass}>
           <label className={labelClass}>Location</label>
@@ -496,14 +510,31 @@ export function SalesOrderFormContent({
           <label className={labelClass}>Sales Person</label>
           <ClearableField
             value={formData.salesPersonCode}
-            onClear={() => handleInputChange("salesPersonCode", "")}
+            onClear={() =>
+              setFormData((prev) => ({
+                ...prev,
+                salesPersonCode: "",
+                salesPersonName: "",
+              }))
+            }
           >
             <SalesPersonSelect
               value={formData.salesPersonCode}
-              onChange={(value) => handleInputChange("salesPersonCode", value)}
+              onChange={(value, salesPerson) =>
+                setFormData((prev) => ({
+                  ...prev,
+                  salesPersonCode: value,
+                  salesPersonName: salesPerson?.Name || "",
+                }))
+              }
               placeholder="Select"
             />
           </ClearableField>
+          {formData.salesPersonName && (
+            <p className="mt-1 pl-1 text-[10px] font-medium text-green-600">
+              {formData.salesPersonName}
+            </p>
+          )}
         </div>
         <div className={fieldClass}>
           <label className={labelClass}>Ship to</label>
@@ -520,18 +551,12 @@ export function SalesOrderFormContent({
               loc={formData.loc}
             />
           </ClearableField>
+          {formData.shipToName && (
+            <p className="mt-1 pl-1 text-[10px] font-medium text-green-600">
+              {formData.shipToName}
+            </p>
+          )}
         </div>
-      </div>
-      {/* Name (read-only customer name) */}
-      <div className={fieldClass}>
-        <label className={labelClass}>Name</label>
-        <Input
-          value={formData.customerName || ""}
-          disabled
-          className="h-8 bg-muted"
-          readOnly
-          placeholder="Select customer to see name"
-        />
       </div>
       {/* Dates */}
       <div className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2">
@@ -611,12 +636,6 @@ export function SalesOrderFormContent({
         editable={true}
         showRowActions
       />
-      {lineItems.length === 0 && (
-        <div className="flex flex-col items-center justify-center rounded-lg border border-dashed py-8">
-          <p className="text-muted-foreground text-sm">No line items added yet.</p>
-          <p className="text-muted-foreground mt-0.5 text-xs">Click "Add Item" to add your first item.</p>
-        </div>
-      )}
     </div>
   );
 
@@ -798,12 +817,23 @@ export function SalesOrderForm({
   formData: initialFormData,
   context,
 }: SalesOrderFormProps) {
-  const { handleSuccess, updateFormData } = useFormStack(tabId);
-  const { openTab } = useFormStackContext();
+  const { markAsSaved, closeTab, updateFormData } = useFormStack(tabId);
+  const { openTab, switchTab } = useFormStackContext();
 
-  const onSuccess = () => {
-    handleSuccess();
-    (context?.onOrderPlaced as (() => void) | undefined)?.();
+  const onSuccess = (orderNo: string) => {
+    const onOrderPlaced = (context?.onOrderPlaced as (() => void) | undefined);
+    markAsSaved();
+    onOrderPlaced?.();
+    const detailTabId = openTab("sales-order-detail", {
+      title: `Order ${orderNo}`,
+      context: { orderNo, refetch: onOrderPlaced },
+      autoCloseOnSuccess: false,
+    });
+    // Ensure the new detail tab stays active, then close current tab.
+    setTimeout(() => {
+      switchTab(detailTabId);
+      closeTab();
+    }, 0);
   };
 
   return (

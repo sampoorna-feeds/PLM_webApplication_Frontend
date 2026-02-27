@@ -141,7 +141,6 @@ function LineItemFormComponent({ lineItem, customerNo, locationCode, onSubmit, o
 
   // Derived values
   const isItemType = formData.type === "Item";
-  const isDescriptionEditable = formData.type === "G/L Account";
 
   // Memoized handlers to prevent re-renders
   const handleTypeChange = useCallback((type: "G/L Account" | "Item") => {
@@ -329,23 +328,12 @@ function LineItemFormComponent({ lineItem, customerNo, locationCode, onSubmit, o
               </Button>
             </div>
             </ClearableField>
+            {formData.description && (
+              <p className="mt-1 pl-1 text-[10px] font-medium text-green-600">
+                {formData.description}
+              </p>
+            )}
           </div>
-        </div>
-
-        {/* Description */}
-        <div className="space-y-2">
-          <FieldTitle>Description</FieldTitle>
-          <ClearableField
-            value={formData.description}
-            onClear={() => handleFieldChange("description", "")}
-          >
-          <Input
-            value={formData.description || ""}
-            onChange={(e) => handleFieldChange("description", e.target.value)}
-            disabled={!isDescriptionEditable}
-            placeholder="Description"
-          />
-          </ClearableField>
         </div>
 
         {/* UOM (only for Item) */}

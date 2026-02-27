@@ -88,27 +88,12 @@ export function SearchableSelect<T extends SearchableItem>({
 
   // Load initial items when dropdown opens
   const loadInitialItems = useCallback(async () => {
-    // Preserve scroll position before API call
-    const scrollContainer = document.querySelector(
-      ".flex-1.overflow-y-auto",
-    ) as HTMLElement;
-    const savedScrollPos = scrollContainer?.scrollTop ?? 0;
-
     setIsLoading(true);
     try {
       const result = await loadInitial();
       setItems(result);
       setSkip(result.length);
       setHasMore(result.length >= initialLoadCount);
-
-      // Restore scroll after API response
-      if (scrollContainer && savedScrollPos > 0) {
-        requestAnimationFrame(() => {
-          if (scrollContainer.scrollTop !== savedScrollPos) {
-            scrollContainer.scrollTop = savedScrollPos;
-          }
-        });
-      }
     } catch (error) {
       console.error("Error loading initial items:", error);
       setItems([]);
@@ -174,24 +159,9 @@ export function SearchableSelect<T extends SearchableItem>({
             return;
           }
 
-          // Preserve scroll position during API response
-          const scrollContainer = document.querySelector(
-            ".flex-1.overflow-y-auto",
-          ) as HTMLElement;
-          const savedScrollPos = scrollContainer?.scrollTop ?? 0;
-
           setItems(result);
           setSkip(result.length);
           setHasMore(result.length >= pageSize);
-
-          // Restore scroll after state update
-          if (scrollContainer && savedScrollPos > 0) {
-            requestAnimationFrame(() => {
-              if (scrollContainer.scrollTop !== savedScrollPos) {
-                scrollContainer.scrollTop = savedScrollPos;
-              }
-            });
-          }
         } catch (error) {
           // Ignore abort errors
           if (error instanceof Error && error.name === "AbortError") {
@@ -226,12 +196,6 @@ export function SearchableSelect<T extends SearchableItem>({
   const loadMoreItems = useCallback(async () => {
     if (isLoading || !hasMore || !loadMore) return;
 
-    // Preserve scroll position before API call
-    const scrollContainer = document.querySelector(
-      ".flex-1.overflow-y-auto",
-    ) as HTMLElement;
-    const savedScrollPos = scrollContainer?.scrollTop ?? 0;
-
     setIsLoading(true);
     try {
       const newItems = await loadMore(skip, searchQuery || undefined);
@@ -241,15 +205,6 @@ export function SearchableSelect<T extends SearchableItem>({
         setItems((prev) => [...prev, ...newItems]);
         setSkip((prev) => prev + newItems.length);
         setHasMore(newItems.length >= pageSize);
-      }
-
-      // Restore scroll after API response
-      if (scrollContainer && savedScrollPos > 0) {
-        requestAnimationFrame(() => {
-          if (scrollContainer.scrollTop !== savedScrollPos) {
-            scrollContainer.scrollTop = savedScrollPos;
-          }
-        });
       }
     } catch (error) {
       console.error("Error loading more items:", error);

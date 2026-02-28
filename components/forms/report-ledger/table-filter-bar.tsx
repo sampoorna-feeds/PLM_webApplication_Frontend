@@ -19,12 +19,18 @@ import {
 } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
+import { ExportProgressDialog } from "./export-progress-dialog";
+import { ALL_COLUMNS } from "./column-config";
+import { Download } from "lucide-react";
 
 interface TableFilterBarProps {
   filters: ReportLedgerFilters;
   visibleColumns: string[];
   locationOptions: SearchableSelectOption[];
   itemOptions: SearchableSelectOption[];
+  currentFilterString: string;
+  totalCount: number;
+  humanReadableFilters: string[];
   isLoadingLocations?: boolean;
   isLoadingItems?: boolean;
   isLoadingMoreItems?: boolean;
@@ -45,6 +51,9 @@ export function TableFilterBar({
   visibleColumns,
   locationOptions,
   itemOptions,
+  currentFilterString,
+  totalCount,
+  humanReadableFilters,
   isLoadingLocations = false,
   isLoadingItems = false,
   isLoadingMoreItems = false,
@@ -60,6 +69,7 @@ export function TableFilterBar({
   onApplyAdditionalFilters,
 }: TableFilterBarProps) {
   const [locPopoverOpen, setLocPopoverOpen] = useState(false);
+  const [exportDialogOpen, setExportDialogOpen] = useState(false);
 
   const hasActiveFilters =
     filters.locationCodes.length > 0 ||
@@ -282,6 +292,17 @@ export function TableFilterBar({
 
         <div className="flex-1" />
 
+        {/* Export Button */}
+        <Button
+          variant="outline"
+          size="sm"
+          className="gap-2"
+          onClick={() => setExportDialogOpen(true)}
+        >
+          <Download className="h-4 w-4" />
+          Export
+        </Button>
+
         {/* Column Visibility */}
         <ColumnVisibility
           visibleColumns={visibleColumns}
@@ -290,6 +311,16 @@ export function TableFilterBar({
           onShowAllColumns={onShowAllColumns}
         />
       </div>
+
+      {/* Export Progress Dialog */}
+      <ExportProgressDialog
+        open={exportDialogOpen}
+        onOpenChange={setExportDialogOpen}
+        filterString={currentFilterString}
+        totalRecords={totalCount}
+        humanReadableFilters={humanReadableFilters}
+        visibleColumns={visibleColumns}
+      />
     </div>
   );
 }

@@ -231,6 +231,39 @@ export function useReportLedger() {
     return filterParts.join(" and ");
   }, [appliedFilters]);
 
+  const buildHumanReadableFilters = useCallback((): string[] => {
+    const lines: string[] = [];
+
+    if (appliedFilters.locationCodes.length > 0) {
+      lines.push(`Locations: ${appliedFilters.locationCodes.join(", ")}`);
+    }
+
+    if (appliedFilters.itemNo) {
+      lines.push(`Item No: ${appliedFilters.itemNo}`);
+    }
+
+    if (appliedFilters.postingDateFrom && appliedFilters.postingDateTo) {
+      lines.push(
+        `Date Range: ${appliedFilters.postingDateFrom} to ${appliedFilters.postingDateTo}`,
+      );
+    } else if (appliedFilters.postingDateFrom) {
+      lines.push(`Date From: ${appliedFilters.postingDateFrom}`);
+    } else if (appliedFilters.postingDateTo) {
+      lines.push(`Date To: ${appliedFilters.postingDateTo}`);
+    }
+
+    if (
+      appliedFilters.additionalFilters &&
+      appliedFilters.additionalFilters.length > 0
+    ) {
+      appliedFilters.additionalFilters.forEach((filter) => {
+        lines.push(`${filter.field} ${filter.operator} ${filter.value}`);
+      });
+    }
+
+    return lines;
+  }, [appliedFilters]);
+
   const getOrderByString = useCallback((): string | undefined => {
     if (!sortColumn || !sortDirection) return undefined;
     return `${sortColumn} ${sortDirection}`;
@@ -429,6 +462,8 @@ export function useReportLedger() {
     currentPage,
     totalPages,
     totalCount,
+    currentFilterString: buildFilterString(),
+    humanReadableFilters: buildHumanReadableFilters(),
     hasNextPage,
     filters,
     appliedFilters,

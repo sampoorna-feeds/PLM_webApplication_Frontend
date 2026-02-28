@@ -13,6 +13,8 @@ export function ReportLedgerForm() {
     currentPage,
     totalPages,
     totalCount,
+    currentFilterString,
+    humanReadableFilters,
     hasNextPage,
     onPageSizeChange,
     onPageChange,
@@ -52,6 +54,9 @@ export function ReportLedgerForm() {
             visibleColumns={visibleColumns}
             locationOptions={locationOptions}
             itemOptions={itemOptions}
+            currentFilterString={currentFilterString}
+            totalCount={totalCount}
+            humanReadableFilters={humanReadableFilters}
             isLoadingLocations={isLoadingLocations}
             isLoadingItems={isLoadingItems}
             isLoadingMoreItems={isLoadingMoreItems}

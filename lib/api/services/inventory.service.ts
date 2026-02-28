@@ -267,3 +267,130 @@ export async function getOutgoingMetrics(
 
   return cumulateFromAPI(getItemWiseStock, filter);
 }
+
+// ─── Per-Item Aggregation (for Summary Table) ───
+
+export interface ItemMetrics {
+  qty: number;
+  amount: number;
+}
+
+/**
+ * Paginate through all results and group Quantity + CostAmount by ItemNo.
+ */
+async function groupByItemFromAPI<
+  T extends { ItemNo?: string; Quantity?: number; CostAmount?: number },
+>(
+  fetcher: (params: ODataQueryParams) => Promise<{ entries: T[] }>,
+  filter: string,
+): Promise<Map<string, ItemMetrics>> {
+  const map = new Map<string, ItemMetrics>();
+  let skip = 0;
+  const TOP = 5000;
+
+  while (true) {
+    const { entries } = await fetcher({
+      $filter: filter,
+      $top: TOP,
+      $skip: skip,
+      $select: "ItemNo,Quantity,CostAmount",
+    });
+
+    for (const entry of entries) {
+      const itemNo = entry.ItemNo || "";
+      if (!itemNo) continue;
+
+      const existing = map.get(itemNo) || { qty: 0, amount: 0 };
+      existing.qty += entry.Quantity || 0;
+      existing.amount += entry.CostAmount || 0;
+      map.set(itemNo, existing);
+    }
+
+    if (entries.length < TOP) break;
+    skip += TOP;
+  }
+
+  return map;
+}
+
+/**
+ * Opening Balance per item: ItemLOCWiseSummary where Posting_Date le fromDate
+ */
+export async function getOpeningBalancePerItem({
+  locationCodes,
+  fromDate,
+}: {
+  locationCodes: string[];
+  fromDate: Date;
+}): Promise<Map<string, ItemMetrics>> {
+  const dateStr = fromDate.toISOString().split("T")[0];
+  const filter = joinFilters(
+    buildLocationFilter(locationCodes),
+    `Posting_Date le ${dateStr}`,
+  );
+  return groupByItemFromAPI(getItemLocWiseSummary, filter);
+}
+
+/**
+ * Closing Balance per item: ItemLOCWiseSummary where Posting_Date le toDate
+ */
+export async function getClosingBalancePerItem({
+  locationCodes,
+  toDate,
+}: {
+  locationCodes: string[];
+  toDate: Date;
+}): Promise<Map<string, ItemMetrics>> {
+  const dateStr = toDate.toISOString().split("T")[0];
+  const filter = joinFilters(
+    buildLocationFilter(locationCodes),
+    `Posting_Date le ${dateStr}`,
+  );
+  return groupByItemFromAPI(getItemLocWiseSummary, filter);
+}
+
+/**
+ * Increases per item: Itemwisestock where Positive=true, within date range
+ */
+export async function getIncreasesPerItem({
+  locationCodes,
+  fromDate,
+  toDate,
+}: {
+  locationCodes: string[];
+  fromDate: Date;
+  toDate: Date;
+}): Promise<Map<string, ItemMetrics>> {
+  const fromStr = fromDate.toISOString().split("T")[0];
+  const toStr = toDate.toISOString().split("T")[0];
+  const filter = joinFilters(
+    "Positive eq true",
+    buildLocationFilter(locationCodes),
+    `Posting_Date ge ${fromStr}`,
+    `Posting_Date le ${toStr}`,
+  );
+  return groupByItemFromAPI(getItemWiseStock, filter);
+}
+
+/**
+ * Decreases per item: Itemwisestock where Positive=false, within date range
+ */
+export async function getDecreasesPerItem({
+  locationCodes,
+  fromDate,
+  toDate,
+}: {
+  locationCodes: string[];
+  fromDate: Date;
+  toDate: Date;
+}): Promise<Map<string, ItemMetrics>> {
+  const fromStr = fromDate.toISOString().split("T")[0];
+  const toStr = toDate.toISOString().split("T")[0];
+  const filter = joinFilters(
+    "Positive eq false",
+    buildLocationFilter(locationCodes),
+    `Posting_Date ge ${fromStr}`,
+    `Posting_Date le ${toStr}`,
+  );
+  return groupByItemFromAPI(getItemWiseStock, filter);
+}

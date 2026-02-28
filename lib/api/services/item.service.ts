@@ -19,6 +19,9 @@ export interface Item {
   Sales_Unit_of_Measure?: string;
   /** For tracking lookup */
   Item_Tracking_Code?: string;
+  /** For inventory summary */
+  Base_Unit_of_Measure?: string;
+  Inventory_Posting_Group?: string;
 }
 
 export interface ItemUnitOfMeasure {
@@ -53,32 +56,35 @@ function getBaseFilter(locationCode?: string): string {
   return `(${blockedFilter})`;
 }
 
-const ITEM_LIST_SELECT = 'No,Description,Unit_Price,Sales_Unit_of_Measure';
+const ITEM_LIST_SELECT = "No,Description,Unit_Price,Sales_Unit_of_Measure";
 
 /**
  * Builds the ItemList endpoint URL with Company and $filter (and optional OData params)
  */
 function buildItemListEndpoint(
   filter: string,
-  options?: { top?: number; skip?: number; orderby?: string; select?: string }
+  options?: { top?: number; skip?: number; orderby?: string; select?: string },
 ): string {
   const params = new URLSearchParams();
-  params.set('$filter', filter);
-  if (options?.select) params.set('$select', options.select);
-  if (options?.orderby) params.set('$orderby', options.orderby);
-  if (options?.top != null) params.set('$top', String(options.top));
-  if (options?.skip != null) params.set('$skip', String(options.skip));
+  params.set("$filter", filter);
+  if (options?.select) params.set("$select", options.select);
+  if (options?.orderby) params.set("$orderby", options.orderby);
+  if (options?.top != null) params.set("$top", String(options.top));
+  if (options?.skip != null) params.set("$skip", String(options.skip));
   return `/ItemCard?Company=${encodeURIComponent(COMPANY)}&${params.toString()}`;
 }
 
 /**
  * Initial load - Get first batch of items from ItemList (optionally filtered by location)
  */
-export async function getItems(top: number = 20, locationCode?: string): Promise<Item[]> {
+export async function getItems(
+  top: number = 20,
+  locationCode?: string,
+): Promise<Item[]> {
   const filter = getBaseFilter(locationCode);
   const endpoint = buildItemListEndpoint(filter, {
     top,
-    orderby: 'No',
+    orderby: "No",
     select: ITEM_LIST_SELECT,
   });
   const response = await apiGet<ODataResponse<Item>>(endpoint);
@@ -89,12 +95,15 @@ export async function getItems(top: number = 20, locationCode?: string): Promise
  * Search items with query string (ItemList).
  * Makes 2 separate API calls (one for No, one for Description) and combines unique results.
  */
-export async function searchItems(query: string, locationCode?: string): Promise<Item[]> {
+export async function searchItems(
+  query: string,
+  locationCode?: string,
+): Promise<Item[]> {
   if (query.length < 2) {
     return [];
   }
 
-  const cacheKey = `search_${locationCode ?? 'none'}_${query.toLowerCase()}`;
+  const cacheKey = `search_${locationCode ?? "none"}_${query.toLowerCase()}`;
   if (searchCache.has(cacheKey)) {
     return searchCache.get(cacheKey)!;
   }
@@ -108,7 +117,7 @@ export async function searchItems(query: string, locationCode?: string): Promise
     (async () => {
       const endpoint = buildItemListEndpoint(filterByNo, {
         top: 30,
-        orderby: 'No',
+        orderby: "No",
         select: ITEM_LIST_SELECT,
       });
       const response = await apiGet<ODataResponse<Item>>(endpoint);
@@ -117,7 +126,7 @@ export async function searchItems(query: string, locationCode?: string): Promise
     (async () => {
       const endpoint = buildItemListEndpoint(filterByDescription, {
         top: 30,
-        orderby: 'No',
+        orderby: "No",
         select: ITEM_LIST_SELECT,
       });
       const response = await apiGet<ODataResponse<Item>>(endpoint);
@@ -144,8 +153,8 @@ export async function searchItems(query: string, locationCode?: string): Promise
  */
 export async function searchItemsByField(
   query: string,
-  field: 'No' | 'Name',
-  locationCode?: string
+  field: "No" | "Name",
+  locationCode?: string,
 ): Promise<Item[]> {
   if (query.length < 2) {
     return [];
@@ -153,12 +162,12 @@ export async function searchItemsByField(
 
   const baseFilter = getBaseFilter(locationCode);
   const escapedQuery = escapeODataValue(query);
-  const searchField = field === 'Name' ? 'Description' : field;
+  const searchField = field === "Name" ? "Description" : field;
   const filter = `(${baseFilter}) and contains(${searchField},'${escapedQuery}')`;
 
   const endpoint = buildItemListEndpoint(filter, {
     top: 30,
-    orderby: 'No',
+    orderby: "No",
     select: ITEM_LIST_SELECT,
   });
   const response = await apiGet<ODataResponse<Item>>(endpoint);
@@ -172,7 +181,7 @@ export async function getItemsPage(
   skip: number,
   search?: string,
   top: number = 30,
-  locationCode?: string
+  locationCode?: string,
 ): Promise<Item[]> {
   const baseFilter = getBaseFilter(locationCode);
 
@@ -180,7 +189,7 @@ export async function getItemsPage(
     const endpoint = buildItemListEndpoint(baseFilter, {
       top,
       skip,
-      orderby: 'No',
+      orderby: "No",
       select: ITEM_LIST_SELECT,
     });
     const response = await apiGet<ODataResponse<Item>>(endpoint);
@@ -196,7 +205,7 @@ export async function getItemsPage(
       const endpoint = buildItemListEndpoint(filterByNo, {
         top,
         skip,
-        orderby: 'No',
+        orderby: "No",
         select: ITEM_LIST_SELECT,
       });
       const response = await apiGet<ODataResponse<Item>>(endpoint);
@@ -206,7 +215,7 @@ export async function getItemsPage(
       const endpoint = buildItemListEndpoint(filterByDescription, {
         top,
         skip,
-        orderby: 'No',
+        orderby: "No",
         select: ITEM_LIST_SELECT,
       });
       const response = await apiGet<ODataResponse<Item>>(endpoint);
@@ -221,7 +230,9 @@ export async function getItemsPage(
       uniqueMap.set(item.No, item);
     }
   });
-  return Array.from(uniqueMap.values()).sort((a, b) => a.No.localeCompare(b.No));
+  return Array.from(uniqueMap.values()).sort((a, b) =>
+    a.No.localeCompare(b.No),
+  );
 }
 
 /**
@@ -252,13 +263,13 @@ export async function getItemByNo(itemNo: string): Promise<Item | null> {
 
   const baseFilter = getBaseFilter();
   const query = buildODataQuery({
-    $select: 'No,Description,GST_Group_Code,HSN_SAC_Code,Exempted,Sales_Unit_of_Measure',
+    $select:
+      "No,Description,GST_Group_Code,HSN_SAC_Code,Exempted,Sales_Unit_of_Measure",
     $filter: `No eq '${itemNo.replace(/'/g, "''")}' and ${baseFilter}`,
   });
 
   const endpoint = `/ItemCard?company='${encodeURIComponent(COMPANY)}'&${query}`;
   const response = await apiGet<ODataResponse<Item>>(endpoint);
-
 
   return response.value.length > 0 ? response.value[0] : null;
 }
@@ -295,4 +306,63 @@ export async function getItemsByNos(itemNos: string[]): Promise<Item[]> {
  */
 export function clearItemCache(): void {
   searchCache.clear();
+}
+
+// ─── Summary Table Helpers ───
+
+const SUMMARY_ITEM_SELECT =
+  "No,Description,Base_Unit_of_Measure,Inventory_Posting_Group";
+
+/**
+ * Batch fetch item details for the summary table.
+ * Fetches in chunks to avoid URL-length limits.
+ *
+ * @param itemNos - Array of unique item numbers to fetch
+ * @param chunkSize - How many items per request (default 30)
+ * @param concurrency - How many requests in parallel (default 5)
+ */
+export async function getItemDetailsForSummary(
+  itemNos: string[],
+  chunkSize = 30,
+  concurrency = 5,
+): Promise<Map<string, Item>> {
+  if (itemNos.length === 0) return new Map();
+
+  const result = new Map<string, Item>();
+
+  // Split into chunks
+  const chunks: string[][] = [];
+  for (let i = 0; i < itemNos.length; i += chunkSize) {
+    chunks.push(itemNos.slice(i, i + chunkSize));
+  }
+
+  // Process chunks with limited concurrency
+  for (let i = 0; i < chunks.length; i += concurrency) {
+    const batch = chunks.slice(i, i + concurrency);
+    const promises = batch.map(async (chunk) => {
+      const filterConditions = chunk.map(
+        (no) => `No eq '${escapeODataValue(no)}'`,
+      );
+      const filter = `(${filterConditions.join(" or ")})`;
+
+      const query = buildODataQuery({
+        $select: SUMMARY_ITEM_SELECT,
+        $filter: filter,
+        $top: chunk.length,
+      });
+
+      const endpoint = `/ItemCard?company='${encodeURIComponent(COMPANY)}'&${query}`;
+      const response = await apiGet<ODataResponse<Item>>(endpoint);
+      return response.value || [];
+    });
+
+    const results = await Promise.all(promises);
+    for (const items of results) {
+      for (const item of items) {
+        result.set(item.No, item);
+      }
+    }
+  }
+
+  return result;
 }

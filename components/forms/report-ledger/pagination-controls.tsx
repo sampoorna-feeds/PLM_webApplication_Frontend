@@ -1,7 +1,9 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -35,7 +37,7 @@ export function PaginationControls({
   const hasPrevPage = currentPage > 1;
 
   return (
-    <div className="flex items-center justify-between gap-4 pt-3">
+    <div className="flex items-center justify-between gap-4 pt-3 pb-4">
       <div className="flex items-center gap-4">
         <PageSizeSelector value={pageSize} onChange={onPageSizeChange} />
         <span className="text-muted-foreground text-sm">
@@ -96,31 +98,63 @@ function PageNavigator({
   hasNextPage,
   onPageChange,
 }: PageNavigatorProps) {
+  const [inputValue, setInputValue] = useState(currentPage.toString());
+
+  // Sync input with current page when it changes externally
+  useEffect(() => {
+    setInputValue(currentPage.toString());
+  }, [currentPage]);
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setInputValue(e.target.value);
+  };
+
+  const handleInputBlur = () => {
+    const page = parseInt(inputValue, 10);
+    if (!isNaN(page) && page >= 1 && page <= totalPages) {
+      onPageChange(page);
+    } else {
+      // Reset to current page if invalid
+      setInputValue(currentPage.toString());
+    }
+  };
+
+  const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      handleInputBlur();
+    }
+  };
+
   return (
     <div className="flex items-center gap-2">
-      <span className="text-muted-foreground text-sm">
-        Page {currentPage} of {totalPages}
-      </span>
-      <div className="flex items-center gap-1">
-        <Button
-          variant="outline"
-          size="icon"
-          className="h-8 w-8"
-          onClick={() => onPageChange(currentPage - 1)}
-          disabled={!hasPrevPage}
-        >
-          <ChevronLeftIcon className="h-4 w-4" />
-        </Button>
-        <Button
-          variant="outline"
-          size="icon"
-          className="h-8 w-8"
-          onClick={() => onPageChange(currentPage + 1)}
-          disabled={!hasNextPage}
-        >
-          <ChevronRightIcon className="h-4 w-4" />
-        </Button>
-      </div>
+      <span className="text-muted-foreground text-sm">Page</span>
+      <Input
+        type="number"
+        min={1}
+        max={totalPages}
+        value={inputValue}
+        onChange={handleInputChange}
+        onBlur={handleInputBlur}
+        onKeyDown={handleInputKeyDown}
+        className="h-9 w-16 text-center text-sm"
+      />
+      <span className="text-muted-foreground text-sm">/ {totalPages}</span>
+      <Button
+        variant="outline"
+        size="icon"
+        disabled={!hasPrevPage}
+        onClick={() => onPageChange(currentPage - 1)}
+      >
+        <ChevronLeftIcon className="size-4" />
+      </Button>
+      <Button
+        variant="outline"
+        size="icon"
+        disabled={!hasNextPage}
+        onClick={() => onPageChange(currentPage + 1)}
+      >
+        <ChevronRightIcon className="size-4" />
+      </Button>
     </div>
   );
 }

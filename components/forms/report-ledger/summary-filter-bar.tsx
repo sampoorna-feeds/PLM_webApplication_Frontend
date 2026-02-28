@@ -1,79 +1,46 @@
 "use client";
 
 import { useState } from "react";
-import { Search, X, Check, ChevronsUpDown } from "lucide-react";
+import { Search, X, ChevronsUpDown, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import {
-  SearchableSelect,
-  type SearchableSelectOption,
-} from "@/components/ui/searchable-select";
 import { DateInput } from "@/components/ui/date-input";
-import { ColumnVisibility } from "./column-visibility";
-import { DynamicFilterBuilder } from "./dynamic-filter-builder";
-import type { ReportLedgerFilters, FilterCondition } from "./types";
+import { Checkbox } from "@/components/ui/checkbox";
+import { cn } from "@/lib/utils";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Checkbox } from "@/components/ui/checkbox";
-import { cn } from "@/lib/utils";
-import { ExportProgressDialog } from "./export-progress-dialog";
-import { ALL_COLUMNS } from "./column-config";
-import { Download } from "lucide-react";
+import type { SummaryFilters } from "./use-inventory-summary";
 
-interface TableFilterBarProps {
-  filters: ReportLedgerFilters;
-  visibleColumns: string[];
-  locationOptions: SearchableSelectOption[];
-  itemOptions: SearchableSelectOption[];
-  currentFilterString: string;
+interface SummaryFilterBarProps {
+  filters: SummaryFilters;
+  locationOptions: { label: string; value: string }[];
+  isLoadingLocations: boolean;
   totalCount: number;
-  humanReadableFilters: string[];
-  isLoadingLocations?: boolean;
-  isLoadingItems?: boolean;
-  isLoadingMoreItems?: boolean;
-  hasMoreItems?: boolean;
-  onFiltersChange: (filters: Partial<ReportLedgerFilters>) => void;
+  isLoading: boolean;
+  loadingMessage: string;
+  onFiltersChange: (filters: Partial<SummaryFilters>) => void;
   onApplyFilters: () => void;
-  onApplyAdditionalFilters?: (filters: FilterCondition[]) => void;
   onClearFilters: () => void;
-  onColumnToggle: (columnId: string) => void;
-  onResetColumns: () => void;
-  onShowAllColumns: () => void;
-  onItemSearch?: (query: string) => void;
-  onLoadMoreItems?: () => void;
 }
 
-export function TableFilterBar({
+export function SummaryFilterBar({
   filters,
-  visibleColumns,
   locationOptions,
-  itemOptions,
-  currentFilterString,
+  isLoadingLocations,
   totalCount,
-  humanReadableFilters,
-  isLoadingLocations = false,
-  isLoadingItems = false,
-  isLoadingMoreItems = false,
-  hasMoreItems = false,
+  isLoading,
+  loadingMessage,
   onFiltersChange,
   onApplyFilters,
   onClearFilters,
-  onColumnToggle,
-  onResetColumns,
-  onShowAllColumns,
-  onItemSearch,
-  onLoadMoreItems,
-  onApplyAdditionalFilters,
-}: TableFilterBarProps) {
+}: SummaryFilterBarProps) {
   const [locPopoverOpen, setLocPopoverOpen] = useState(false);
-  const [exportDialogOpen, setExportDialogOpen] = useState(false);
 
   const hasActiveFilters =
     filters.locationCodes.length > 0 ||
-    filters.itemNo ||
     filters.postingDateFrom ||
     filters.postingDateTo;
 
@@ -109,26 +76,6 @@ export function TableFilterBar({
     onFiltersChange({ locationCodes: [] });
   };
 
-  const handleAddAdditionalFilter = (filter: FilterCondition) => {
-    const current = filters.additionalFilters || [];
-    const updated = [...current, filter];
-    if (onApplyAdditionalFilters) {
-      onApplyAdditionalFilters(updated);
-    } else {
-      onFiltersChange({ additionalFilters: updated });
-    }
-  };
-
-  const handleRemoveAdditionalFilter = (index: number) => {
-    const current = filters.additionalFilters || [];
-    const updated = current.filter((_, i) => i !== index);
-    if (onApplyAdditionalFilters) {
-      onApplyAdditionalFilters(updated);
-    } else {
-      onFiltersChange({ additionalFilters: updated });
-    }
-  };
-
   // Location trigger text — distinguish custom vs standard
   const locationTriggerText = (() => {
     if (isLoadingLocations) return "Loading...";
@@ -149,7 +96,7 @@ export function TableFilterBar({
   return (
     <div className="space-y-3 pb-3">
       {/* Filter Controls Grid */}
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
         {/* Location Code Multi-Select */}
         <div className="space-y-1.5">
           <Label className="text-xs font-medium">
@@ -219,7 +166,7 @@ export function TableFilterBar({
                   </div>
                 )}
               </div>
-              {/* Custom location code input */}
+              {/* Temporary: custom value input for testing */}
               <div className="border-t px-3 py-2">
                 <form
                   onSubmit={(e) => {
@@ -256,39 +203,13 @@ export function TableFilterBar({
           </Popover>
         </div>
 
-        {/* Item No Dropdown (Optional) */}
-        <div className="space-y-1.5">
-          <Label htmlFor="item-filter" className="text-xs font-medium">
-            Item No
-          </Label>
-          <SearchableSelect
-            value={filters.itemNo}
-            onValueChange={(value) => onFiltersChange({ itemNo: value })}
-            options={itemOptions}
-            placeholder={
-              filters.locationCodes.length > 0
-                ? "All items (optional)"
-                : "Select location first"
-            }
-            searchPlaceholder="Search items (min 2 chars)..."
-            emptyText="No items found"
-            isLoading={isLoadingItems}
-            isLoadingMore={isLoadingMoreItems}
-            onSearch={onItemSearch}
-            onLoadMore={onLoadMoreItems}
-            hasMore={hasMoreItems}
-            disabled={filters.locationCodes.length === 0}
-            allowCustomValue={true}
-          />
-        </div>
-
         {/* Posting Date From */}
         <div className="space-y-1.5">
-          <Label htmlFor="date-from-filter" className="text-xs font-medium">
+          <Label htmlFor="summary-date-from" className="text-xs font-medium">
             Posting Date From <span className="text-destructive">*</span>
           </Label>
           <DateInput
-            id="date-from-filter"
+            id="summary-date-from"
             value={filters.postingDateFrom}
             onChange={(value) => onFiltersChange({ postingDateFrom: value })}
             placeholder="DD/MM/YYYY"
@@ -298,11 +219,11 @@ export function TableFilterBar({
 
         {/* Posting Date To */}
         <div className="space-y-1.5">
-          <Label htmlFor="date-to-filter" className="text-xs font-medium">
+          <Label htmlFor="summary-date-to" className="text-xs font-medium">
             Posting Date To <span className="text-destructive">*</span>
           </Label>
           <DateInput
-            id="date-to-filter"
+            id="summary-date-to"
             value={filters.postingDateTo}
             onChange={(value) => onFiltersChange({ postingDateTo: value })}
             placeholder="DD/MM/YYYY"
@@ -313,20 +234,17 @@ export function TableFilterBar({
 
       {/* Action Buttons Row */}
       <div className="flex flex-wrap items-center gap-3">
-        {/* Apply Filters Button */}
+        {/* Apply Filters Button — always active */}
         <Button onClick={onApplyFilters} size="sm" className="gap-2">
-          <Search className="h-4 w-4" />
-          Search
+          {isLoading ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Search className="h-4 w-4" />
+          )}
+          {isLoading ? "Loading..." : "Search"}
         </Button>
 
-        {/* Dynamic Filters Builder */}
-        <DynamicFilterBuilder
-          filters={filters.additionalFilters || []}
-          onAddFilter={handleAddAdditionalFilter}
-          onRemoveFilter={handleRemoveAdditionalFilter}
-        />
-
-        {/* Clear Filters */}
+        {/* Reset Filters */}
         {hasActiveFilters && (
           <Button
             variant="ghost"
@@ -341,35 +259,14 @@ export function TableFilterBar({
 
         <div className="flex-1" />
 
-        {/* Export Button */}
-        <Button
-          variant="outline"
-          size="sm"
-          className="gap-2"
-          onClick={() => setExportDialogOpen(true)}
-        >
-          <Download className="h-4 w-4" />
-          Export
-        </Button>
-
-        {/* Column Visibility */}
-        <ColumnVisibility
-          visibleColumns={visibleColumns}
-          onColumnToggle={onColumnToggle}
-          onResetColumns={onResetColumns}
-          onShowAllColumns={onShowAllColumns}
-        />
+        {/* Loading / Count indicator */}
+        {isLoading && loadingMessage && (
+          <span className="text-muted-foreground flex items-center gap-1.5 text-xs">
+            <Loader2 className="h-3 w-3 animate-spin" />
+            {loadingMessage}
+          </span>
+        )}
       </div>
-
-      {/* Export Progress Dialog */}
-      <ExportProgressDialog
-        open={exportDialogOpen}
-        onOpenChange={setExportDialogOpen}
-        filterString={currentFilterString}
-        totalRecords={totalCount}
-        humanReadableFilters={humanReadableFilters}
-        visibleColumns={visibleColumns}
-      />
     </div>
   );
 }

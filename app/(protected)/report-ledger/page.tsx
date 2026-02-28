@@ -1,12 +1,15 @@
 "use client";
 
-import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ReportLedgerForm } from "@/components/forms/report-ledger/report-ledger-form";
-import { Construction } from "lucide-react";
+import { InventorySummaryForm } from "@/components/forms/report-ledger/inventory-summary-form";
+import useLocalState from "@/hooks/use-local-state";
 
 export default function ReportLedgerPage() {
-  const [activeTab, setActiveTab] = useState<"ledger" | "summary">("ledger");
+  const [activeTab, setActiveTab] = useLocalState<"ledger" | "summary">(
+    "report-ledger-active-tab",
+    "ledger",
+  );
 
   return (
     <div className="flex h-[calc(100vh-5rem)] max-h-[calc(100vh-5rem)] w-full">
@@ -37,18 +40,8 @@ export default function ReportLedgerPage() {
             <ReportLedgerForm />
           </TabsContent>
 
-          <TabsContent value="summary" className="flex-1 overflow-hidden p-4">
-            <div className="flex h-full flex-col items-center justify-center gap-4">
-              <div className="bg-muted rounded-full p-4">
-                <Construction className="text-muted-foreground h-10 w-10" />
-              </div>
-              <div className="text-center">
-                <h2 className="text-xl font-semibold">Coming Soon</h2>
-                <p className="text-muted-foreground mt-1 text-sm">
-                  The summary view is currently under development.
-                </p>
-              </div>
-            </div>
+          <TabsContent value="summary" className="flex-1 overflow-hidden px-4">
+            <InventorySummaryForm />
           </TabsContent>
         </Tabs>
       </div>

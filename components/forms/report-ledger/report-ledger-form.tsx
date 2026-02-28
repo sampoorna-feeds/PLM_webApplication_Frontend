@@ -46,7 +46,7 @@ export function ReportLedgerForm() {
   return (
     <div className="flex h-full w-full flex-col overflow-hidden">
       {/* Main content area */}
-      <div className="flex min-h-0 flex-1 flex-col space-y-3 overflow-auto">
+      <div className="flex min-h-0 flex-1 flex-col space-y-2 overflow-auto">
         {/* Filter Bar */}
         <div className="shrink-0">
           <TableFilterBar

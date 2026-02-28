@@ -368,7 +368,7 @@ function ItemLedgerRow({ entry, columns, serialNo }: ItemLedgerRowProps) {
 }
 
 function formatCellValue(value: unknown, column: ColumnConfig): string {
-  if (value === null || value === undefined) {
+  if (value === null || value === undefined || value === "") {
     return "-";
   }
 
@@ -378,7 +378,7 @@ function formatCellValue(value: unknown, column: ColumnConfig): string {
       if (typeof value === "string") {
         try {
           const date = new Date(value);
-          return date.toLocaleDateString();
+          return date.toLocaleDateString("en-IN");
         } catch {
           return value;
         }
@@ -387,7 +387,7 @@ function formatCellValue(value: unknown, column: ColumnConfig): string {
 
     case "number":
       if (typeof value === "number") {
-        return value.toLocaleString();
+        return value.toLocaleString("en-IN");
       }
       return String(value);
 

@@ -6,7 +6,6 @@ import { useAuth } from "@/lib/contexts/auth-context";
 import { getAllLOCsFromUserSetup } from "@/lib/api/services/dimension.service";
 import {
   getOpeningBalancePerItem,
-  getClosingBalancePerItem,
   getIncreasesPerItem,
   getDecreasesPerItem,
   type ItemMetrics,
@@ -130,32 +129,27 @@ export function useInventorySummary() {
     setCurrentPage(1);
 
     try {
-      // Step 1: Fetch all 4 stock data streams in parallel
-      const [openingMap, closingMap, increasesMap, decreasesMap] =
-        await Promise.all([
-          getOpeningBalancePerItem({
-            locationCodes: appliedFilters.locationCodes,
-            fromDate,
-          }),
-          getClosingBalancePerItem({
-            locationCodes: appliedFilters.locationCodes,
-            toDate,
-          }),
-          getIncreasesPerItem({
-            locationCodes: appliedFilters.locationCodes,
-            fromDate,
-            toDate,
-          }),
-          getDecreasesPerItem({
-            locationCodes: appliedFilters.locationCodes,
-            fromDate,
-            toDate,
-          }),
-        ]);
+      // Step 1: Fetch 3 data streams in parallel (closing is computed)
+      const [openingMap, increasesMap, decreasesMap] = await Promise.all([
+        getOpeningBalancePerItem({
+          locationCodes: appliedFilters.locationCodes,
+          fromDate,
+        }),
+        getIncreasesPerItem({
+          locationCodes: appliedFilters.locationCodes,
+          fromDate,
+          toDate,
+        }),
+        getDecreasesPerItem({
+          locationCodes: appliedFilters.locationCodes,
+          fromDate,
+          toDate,
+        }),
+      ]);
 
       // Step 2: Collect all unique item numbers
       const allItemNos = new Set<string>();
-      for (const map of [openingMap, closingMap, increasesMap, decreasesMap]) {
+      for (const map of [openingMap, increasesMap, decreasesMap]) {
         for (const key of map.keys()) {
           allItemNos.add(key);
         }
@@ -173,13 +167,12 @@ export function useInventorySummary() {
         Array.from(allItemNos),
       );
 
-      // Step 4: Merge into rows
+      // Step 4: Merge into rows — compute closing as Opening + Increases - Decreases
       const rows: SummaryRow[] = [];
 
       for (const itemNo of allItemNos) {
         const itemDetail = itemDetailsMap.get(itemNo);
         const opening = openingMap.get(itemNo) || { qty: 0, amount: 0 };
-        const closing = closingMap.get(itemNo) || { qty: 0, amount: 0 };
         const increases = increasesMap.get(itemNo) || { qty: 0, amount: 0 };
         const decreases = decreasesMap.get(itemNo) || { qty: 0, amount: 0 };
 
@@ -195,8 +188,8 @@ export function useInventorySummary() {
           increasesValue: increases.amount,
           decreasesQty: decreases.qty,
           decreasesValue: decreases.amount,
-          closingQty: closing.qty,
-          closingValue: closing.amount,
+          closingQty: opening.qty + increases.qty - decreases.qty,
+          closingValue: opening.amount + increases.amount - decreases.amount,
           costPostedToGL: "-",
         });
       }

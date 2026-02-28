@@ -1,18 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import { Search, X, Loader2, Check, ChevronsUpDown } from "lucide-react";
+import { Search, X, ChevronsUpDown, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { DateInput } from "@/components/ui/date-input";
+import { Checkbox } from "@/components/ui/checkbox";
+import { cn } from "@/lib/utils";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Input } from "@/components/ui/input";
 import type { SummaryFilters } from "./use-inventory-summary";
 
 interface SummaryFilterBarProps {
@@ -38,165 +37,235 @@ export function SummaryFilterBar({
   onApplyFilters,
   onClearFilters,
 }: SummaryFilterBarProps) {
-  const [locationSearch, setLocationSearch] = useState("");
+  const [locPopoverOpen, setLocPopoverOpen] = useState(false);
 
-  const hasRequiredFilters =
-    filters.locationCodes.length > 0 &&
-    filters.postingDateFrom &&
+  const hasActiveFilters =
+    filters.locationCodes.length > 0 ||
+    filters.postingDateFrom ||
     filters.postingDateTo;
 
-  const handleLocationToggle = (code: string) => {
+  // Location multi-select helpers
+  const knownCodes = new Set(locationOptions.map((opt) => opt.value));
+  const standardSelected = filters.locationCodes.filter((c) =>
+    knownCodes.has(c),
+  );
+  const customSelected = filters.locationCodes.filter(
+    (c) => !knownCodes.has(c),
+  );
+  const allSelected =
+    locationOptions.length > 0 &&
+    standardSelected.length === locationOptions.length;
+  const noneSelected = filters.locationCodes.length === 0;
+
+  const toggleLocation = (code: string) => {
     const current = filters.locationCodes;
-    const updated = current.includes(code)
+    const next = current.includes(code)
       ? current.filter((c) => c !== code)
       : [...current, code];
-    onFiltersChange({ locationCodes: updated });
+    onFiltersChange({ locationCodes: next });
   };
 
-  const handleSelectAllLocations = () => {
-    const allCodes = locationOptions.map((opt) => opt.value);
-    const allSelected = allCodes.length === filters.locationCodes.length;
-    onFiltersChange({ locationCodes: allSelected ? [] : allCodes });
+  const selectAllLocations = () => {
+    // Keep custom codes, add all standard ones
+    const allStandard = locationOptions.map((opt) => opt.value);
+    const merged = [...new Set([...customSelected, ...allStandard])];
+    onFiltersChange({ locationCodes: merged });
   };
 
-  const filteredLocationOptions = locationSearch
-    ? locationOptions.filter((opt) =>
-        opt.label.toLowerCase().includes(locationSearch.toLowerCase()),
-      )
-    : locationOptions;
+  const deselectAllLocations = () => {
+    onFiltersChange({ locationCodes: [] });
+  };
+
+  // Location trigger text — distinguish custom vs standard
+  const locationTriggerText = (() => {
+    if (isLoadingLocations) return "Loading...";
+    if (noneSelected) return "Select locations...";
+    const parts: string[] = [];
+    if (customSelected.length > 0)
+      parts.push(`${customSelected.length} custom`);
+    if (allSelected) {
+      parts.push(`all ${locationOptions.length} selected`);
+    } else {
+      parts.push(
+        `${standardSelected.length}/${locationOptions.length} selected`,
+      );
+    }
+    return parts.join(", ");
+  })();
 
   return (
-    <div className="bg-card rounded-lg border p-3">
-      <div className="flex flex-wrap items-center gap-2">
-        {/* Location Multi-Select */}
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-8 gap-1.5 text-xs"
-              disabled={isLoadingLocations}
-            >
-              {isLoadingLocations ? (
-                <Loader2 className="h-3 w-3 animate-spin" />
-              ) : (
-                <Search className="h-3 w-3" />
-              )}
-              Locations
-              {filters.locationCodes.length > 0 && (
-                <Badge
-                  variant="secondary"
-                  className="ml-1 h-4 rounded-full px-1.5 text-[10px]"
-                >
-                  {filters.locationCodes.length}
-                </Badge>
-              )}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-56 p-0" align="start">
-            <div className="border-b p-2">
-              <Input
-                placeholder="Search locations..."
-                value={locationSearch}
-                onChange={(e) => setLocationSearch(e.target.value)}
-                className="h-7 text-xs"
-              />
-            </div>
-            <div className="max-h-60 overflow-y-auto p-1">
-              {/* Select All */}
-              <div
-                className="hover:bg-muted flex w-full cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-xs"
-                onClick={handleSelectAllLocations}
+    <div className="space-y-3 pb-3">
+      {/* Filter Controls Grid */}
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
+        {/* Location Code Multi-Select */}
+        <div className="space-y-1.5">
+          <Label className="text-xs font-medium">
+            Location Code <span className="text-destructive">*</span>
+          </Label>
+          <Popover open={locPopoverOpen} onOpenChange={setLocPopoverOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                role="combobox"
+                aria-expanded={locPopoverOpen}
+                className={cn(
+                  "w-full justify-between font-normal",
+                  noneSelected && "text-muted-foreground",
+                )}
+                disabled={isLoadingLocations}
               >
-                <Checkbox
-                  checked={
-                    locationOptions.length > 0 &&
-                    filters.locationCodes.length === locationOptions.length
-                  }
-                  className="h-3.5 w-3.5"
-                />
-                <span className="font-medium">Select All</span>
-              </div>
-              {filteredLocationOptions.map((opt) => (
-                <div
-                  key={opt.value}
-                  className="hover:bg-muted flex w-full cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-xs"
-                  onClick={() => handleLocationToggle(opt.value)}
+                <span className="truncate">{locationTriggerText}</span>
+                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent
+              className="w-[--radix-popover-trigger-width] min-w-[240px] p-0"
+              align="start"
+            >
+              {/* Select All / Deselect All */}
+              <div className="flex items-center justify-between border-b px-3 py-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 text-xs"
+                  onClick={selectAllLocations}
                 >
-                  <Checkbox
-                    checked={filters.locationCodes.includes(opt.value)}
-                    className="h-3.5 w-3.5"
+                  Select All
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 text-xs"
+                  onClick={deselectAllLocations}
+                >
+                  Deselect All
+                </Button>
+              </div>
+              {/* Checkbox List */}
+              <div className="max-h-[200px] overflow-y-auto p-1">
+                {locationOptions.map((option) => {
+                  const isChecked = filters.locationCodes.includes(
+                    option.value,
+                  );
+                  return (
+                    <label
+                      key={option.value}
+                      className="hover:bg-accent flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-sm transition-colors"
+                    >
+                      <Checkbox
+                        checked={isChecked}
+                        onCheckedChange={() => toggleLocation(option.value)}
+                      />
+                      <span>{option.label}</span>
+                    </label>
+                  );
+                })}
+                {locationOptions.length === 0 && !isLoadingLocations && (
+                  <div className="text-muted-foreground py-4 text-center text-sm">
+                    No locations available
+                  </div>
+                )}
+              </div>
+              {/* Temporary: custom value input for testing */}
+              <div className="border-t px-3 py-2">
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    const input = (
+                      e.target as HTMLFormElement
+                    ).elements.namedItem("customLoc") as HTMLInputElement;
+                    const val = input.value.trim().toUpperCase();
+                    if (val && !filters.locationCodes.includes(val)) {
+                      onFiltersChange({
+                        locationCodes: [...filters.locationCodes, val],
+                      });
+                    }
+                    input.value = "";
+                  }}
+                  className="flex items-center gap-1.5"
+                >
+                  <input
+                    name="customLoc"
+                    placeholder="Custom code..."
+                    className="border-input bg-background h-7 flex-1 rounded border px-2 text-xs"
                   />
-                  {opt.label}
-                </div>
-              ))}
-            </div>
-          </PopoverContent>
-        </Popover>
+                  <Button
+                    type="submit"
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-xs"
+                  >
+                    Add
+                  </Button>
+                </form>
+              </div>
+            </PopoverContent>
+          </Popover>
+        </div>
 
-        {/* Date From */}
-        <div className="flex items-center gap-1">
-          <Label className="text-muted-foreground text-xs">From:</Label>
+        {/* Posting Date From */}
+        <div className="space-y-1.5">
+          <Label htmlFor="summary-date-from" className="text-xs font-medium">
+            Posting Date From <span className="text-destructive">*</span>
+          </Label>
           <DateInput
+            id="summary-date-from"
             value={filters.postingDateFrom}
-            onChange={(val) => onFiltersChange({ postingDateFrom: val })}
+            onChange={(value) => onFiltersChange({ postingDateFrom: value })}
             placeholder="DD/MM/YYYY"
-            className="h-8 w-32 text-xs"
+            className="h-9"
           />
         </div>
 
-        {/* Date To */}
-        <div className="flex items-center gap-1">
-          <Label className="text-muted-foreground text-xs">To:</Label>
+        {/* Posting Date To */}
+        <div className="space-y-1.5">
+          <Label htmlFor="summary-date-to" className="text-xs font-medium">
+            Posting Date To <span className="text-destructive">*</span>
+          </Label>
           <DateInput
+            id="summary-date-to"
             value={filters.postingDateTo}
-            onChange={(val) => onFiltersChange({ postingDateTo: val })}
+            onChange={(value) => onFiltersChange({ postingDateTo: value })}
             placeholder="DD/MM/YYYY"
-            className="h-8 w-32 text-xs"
+            className="h-9"
           />
         </div>
+      </div>
 
-        {/* Apply / Clear */}
-        <Button
-          size="sm"
-          className="h-8 text-xs"
-          onClick={onApplyFilters}
-          disabled={!hasRequiredFilters || isLoading}
-        >
+      {/* Action Buttons Row */}
+      <div className="flex flex-wrap items-center gap-3">
+        {/* Apply Filters Button — always active */}
+        <Button onClick={onApplyFilters} size="sm" className="gap-2">
           {isLoading ? (
-            <>
-              <Loader2 className="mr-1.5 h-3 w-3 animate-spin" />
-              Loading...
-            </>
+            <Loader2 className="h-4 w-4 animate-spin" />
           ) : (
-            "Apply"
+            <Search className="h-4 w-4" />
           )}
+          {isLoading ? "Loading..." : "Search"}
         </Button>
 
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-8 gap-1 text-xs"
-          onClick={onClearFilters}
-        >
-          <X className="h-3 w-3" />
-          Clear
-        </Button>
+        {/* Reset Filters */}
+        {hasActiveFilters && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onClearFilters}
+            className="gap-1"
+          >
+            <X className="h-4 w-4" />
+            Reset Filters
+          </Button>
+        )}
 
-        {/* Loading message / Results count */}
-        <div className="ml-auto flex items-center gap-2">
-          {isLoading && loadingMessage && (
-            <span className="text-muted-foreground flex items-center gap-1.5 text-xs">
-              <Loader2 className="h-3 w-3 animate-spin" />
-              {loadingMessage}
-            </span>
-          )}
-          {!isLoading && totalCount > 0 && (
-            <span className="text-muted-foreground text-xs">
-              {totalCount.toLocaleString()} items
-            </span>
-          )}
-        </div>
+        <div className="flex-1" />
+
+        {/* Loading / Count indicator */}
+        {isLoading && loadingMessage && (
+          <span className="text-muted-foreground flex items-center gap-1.5 text-xs">
+            <Loader2 className="h-3 w-3 animate-spin" />
+            {loadingMessage}
+          </span>
+        )}
       </div>
     </div>
   );

@@ -1,12 +1,15 @@
 "use client";
 
-import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ReportLedgerForm } from "@/components/forms/report-ledger/report-ledger-form";
 import { InventorySummaryForm } from "@/components/forms/report-ledger/inventory-summary-form";
+import useLocalState from "@/hooks/use-local-state";
 
 export default function ReportLedgerPage() {
-  const [activeTab, setActiveTab] = useState<"ledger" | "summary">("ledger");
+  const [activeTab, setActiveTab] = useLocalState<"ledger" | "summary">(
+    "report-ledger-active-tab",
+    "ledger",
+  );
 
   return (
     <div className="flex h-[calc(100vh-5rem)] max-h-[calc(100vh-5rem)] w-full">
@@ -37,7 +40,7 @@ export default function ReportLedgerPage() {
             <ReportLedgerForm />
           </TabsContent>
 
-          <TabsContent value="summary" className="flex-1 overflow-hidden p-4">
+          <TabsContent value="summary" className="flex-1 overflow-hidden px-4">
             <InventorySummaryForm />
           </TabsContent>
         </Tabs>

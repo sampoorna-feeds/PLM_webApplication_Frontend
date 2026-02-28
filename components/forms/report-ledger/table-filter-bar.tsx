@@ -65,9 +65,16 @@ export function TableFilterBar({
     filters.postingDateTo;
 
   // Location multi-select helpers
+  const knownCodes = new Set(locationOptions.map((opt) => opt.value));
+  const standardSelected = filters.locationCodes.filter((c) =>
+    knownCodes.has(c),
+  );
+  const customSelected = filters.locationCodes.filter(
+    (c) => !knownCodes.has(c),
+  );
   const allSelected =
     locationOptions.length > 0 &&
-    filters.locationCodes.length === locationOptions.length;
+    standardSelected.length === locationOptions.length;
   const noneSelected = filters.locationCodes.length === 0;
 
   const toggleLocation = (code: string) => {
@@ -79,23 +86,32 @@ export function TableFilterBar({
   };
 
   const selectAllLocations = () => {
-    onFiltersChange({
-      locationCodes: locationOptions.map((opt) => opt.value),
-    });
+    // Keep custom codes, add all standard ones
+    const allStandard = locationOptions.map((opt) => opt.value);
+    const merged = [...new Set([...customSelected, ...allStandard])];
+    onFiltersChange({ locationCodes: merged });
   };
 
   const deselectAllLocations = () => {
     onFiltersChange({ locationCodes: [] });
   };
 
-  // Location trigger text
-  const locationTriggerText = isLoadingLocations
-    ? "Loading..."
-    : noneSelected
-      ? "Select locations..."
-      : allSelected
-        ? `All locations (${locationOptions.length})`
-        : `${filters.locationCodes.length} of ${locationOptions.length} selected`;
+  // Location trigger text — distinguish custom vs standard
+  const locationTriggerText = (() => {
+    if (isLoadingLocations) return "Loading...";
+    if (noneSelected) return "Select locations...";
+    const parts: string[] = [];
+    if (customSelected.length > 0)
+      parts.push(`${customSelected.length} custom`);
+    if (allSelected) {
+      parts.push(`all ${locationOptions.length} selected`);
+    } else {
+      parts.push(
+        `${standardSelected.length}/${locationOptions.length} selected`,
+      );
+    }
+    return parts.join(", ");
+  })();
 
   return (
     <div className="space-y-3 pb-3">
@@ -169,6 +185,39 @@ export function TableFilterBar({
                     No locations available
                   </div>
                 )}
+              </div>
+              {/* Custom location code input */}
+              <div className="border-t px-3 py-2">
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    const input = (
+                      e.target as HTMLFormElement
+                    ).elements.namedItem("customLoc") as HTMLInputElement;
+                    const val = input.value.trim().toUpperCase();
+                    if (val && !filters.locationCodes.includes(val)) {
+                      onFiltersChange({
+                        locationCodes: [...filters.locationCodes, val],
+                      });
+                    }
+                    input.value = "";
+                  }}
+                  className="flex items-center gap-1.5"
+                >
+                  <input
+                    name="customLoc"
+                    placeholder="Custom code..."
+                    className="border-input bg-background h-7 flex-1 rounded border px-2 text-xs"
+                  />
+                  <Button
+                    type="submit"
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-xs"
+                  >
+                    Add
+                  </Button>
+                </form>
               </div>
             </PopoverContent>
           </Popover>

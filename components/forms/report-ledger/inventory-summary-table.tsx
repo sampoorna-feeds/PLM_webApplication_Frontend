@@ -78,7 +78,7 @@ export function InventorySummaryTable({
     return items;
   }, [paginatedRows]);
 
-  const TOTAL_COLUMNS = 12; // itemNo + description + uom + 2*opening + 2*increases + 2*decreases + 2*closing + costGL
+  const TOTAL_COLUMNS = 11; // itemNo + description + uom + 2*opening + 2*increases + 2*decreases + 2*closing
 
   return (
     <div className="bg-card flex h-full flex-1 flex-col overflow-hidden rounded-lg border">
@@ -129,12 +129,6 @@ export function InventorySummaryTable({
                 className="text-foreground h-10 border-l px-3 py-2 text-center align-middle text-xs font-bold whitespace-nowrap"
               >
                 {dateTo ? fmtDateHeader(dateTo) : "Closing"}
-              </th>
-              <th
-                rowSpan={2}
-                className="text-foreground h-10 min-w-[100px] border-l px-3 py-2 text-right align-middle text-xs font-bold whitespace-nowrap"
-              >
-                Cost Posted to G/L
               </th>
             </tr>
             {/* Sub header row: Quantity / Value for each pair */}
@@ -271,10 +265,6 @@ export function InventorySummaryTable({
                     </td>
                     <td className="px-3 py-2 text-right text-xs whitespace-nowrap tabular-nums">
                       {fmtNum(row.closingValue)}
-                    </td>
-                    {/* Cost Posted to G/L */}
-                    <td className="text-muted-foreground border-l px-3 py-2 text-right text-xs whitespace-nowrap">
-                      {row.costPostedToGL}
                     </td>
                   </tr>
                 );

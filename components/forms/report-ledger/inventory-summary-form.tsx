@@ -31,7 +31,7 @@ export function InventorySummaryForm() {
 
   return (
     <div className="flex h-full w-full flex-col overflow-hidden">
-      <div className="flex min-h-0 flex-1 flex-col space-y-3 overflow-auto">
+      <div className="flex min-h-0 flex-1 flex-col space-y-2 overflow-auto">
         {/* Filter Bar */}
         <div className="shrink-0">
           <SummaryFilterBar
@@ -60,20 +60,18 @@ export function InventorySummaryForm() {
           />
         </div>
 
-        {/* Pagination */}
-        {!isLoading && allRows.length > 0 && (
-          <div className="shrink-0">
-            <PaginationControls
-              pageSize={50}
-              currentPage={currentPage}
-              totalPages={totalPages}
-              totalCount={totalCount}
-              hasNextPage={currentPage < totalPages}
-              onPageSizeChange={() => {}}
-              onPageChange={handlePageChange}
-            />
-          </div>
-        )}
+        {/* Pagination - always visible */}
+        <div className="shrink-0">
+          <PaginationControls
+            pageSize={50}
+            currentPage={currentPage}
+            totalPages={totalPages}
+            totalCount={totalCount}
+            hasNextPage={currentPage < totalPages}
+            onPageSizeChange={() => {}}
+            onPageChange={handlePageChange}
+          />
+        </div>
       </div>
     </div>
   );

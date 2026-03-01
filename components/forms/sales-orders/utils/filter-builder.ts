@@ -11,7 +11,6 @@ export interface SalesOrderFilterParams {
   branchCodes?: string[];
   /** Status filter for tab (Open | Pending Approval | Released). Applied at API level. */
   statusFilter?: string;
-  searchQuery?: string;
   columnFilters?: Record<string, { value: string; valueTo?: string }>;
 }
 
@@ -119,8 +118,7 @@ function buildColumnFilter(
 export function buildSalesOrderFilterString(
   params: SalesOrderFilterParams,
 ): string | undefined {
-  const { branchCodes = [], statusFilter, searchQuery, columnFilters = {} } =
-    params;
+  const { branchCodes = [], statusFilter, columnFilters = {} } = params;
   const filterParts: string[] = [];
 
   // API-level branch filter (Shortcut_Dimension_2_Code = branch codes)
@@ -139,12 +137,6 @@ export function buildSalesOrderFilterString(
     filterParts.push(`Status eq '${escapeODataValue(statusFilter.trim())}'`);
   }
 
-  if (searchQuery?.trim()) {
-    const q = escapeODataValue(searchQuery.trim());
-    filterParts.push(
-      `(contains(No,'${q}') or contains(Sell_to_Customer_No,'${q}') or contains(Sell_to_Customer_Name,'${q}'))`,
-    );
-  }
 
   // Column filters (skip Shortcut_Dimension_2_Code and Status when applied at API level)
   Object.entries(columnFilters).forEach(([columnId, filter]) => {

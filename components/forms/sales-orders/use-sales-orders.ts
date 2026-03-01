@@ -6,6 +6,7 @@ import { useAuth } from "@/lib/contexts/auth-context";
 import { getAllBranchesFromUserSetup } from "@/lib/api/services/dimension.service";
 import {
   getSalesOrdersWithCount,
+  searchSalesOrders,
   type SalesOrder,
 } from "@/lib/api/services/sales-orders.service";
 import {
@@ -105,17 +106,23 @@ export function useSalesOrders(options: UseSalesOrdersOptions = {}) {
       const filter = buildSalesOrderFilterString({
         branchCodes: effectiveBranchCodes,
         statusFilter,
-        searchQuery,
         columnFilters,
       });
 
-      const result = await getSalesOrdersWithCount({
+      const commonParams = {
         $select: buildSelectQuery(visibleColumns),
         $filter: filter,
         $orderby: getOrderByString(),
         $top: pageSize,
         $skip: (currentPage - 1) * pageSize,
-      });
+      };
+
+      const result = searchQuery
+        ? await searchSalesOrders({
+            ...commonParams,
+            searchTerm: searchQuery,
+          })
+        : await getSalesOrdersWithCount(commonParams);
 
       setOrders(result.orders);
       setTotalCount(result.totalCount);

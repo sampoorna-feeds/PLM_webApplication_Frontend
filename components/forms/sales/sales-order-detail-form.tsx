@@ -39,6 +39,8 @@ import {
   type SalesOrder,
   type SalesLine,
   type Transporter,
+  type SalesShipment,
+  getSalesShipmentsByOrder,
 } from "@/lib/api/services/sales-orders.service";
 import { getItemsByNos, getItemStock } from "@/lib/api/services/item.service";
 import { validatePhone } from "@/lib/validations/shipto.validation";
@@ -122,6 +124,18 @@ export function SalesOrderDetailForm({
     grossWeight: "",
     tareWeight: "",
   });
+  // delivery challan popup state
+  const [isChallanOpen, setIsChallanOpen] = useState(false);
+  const [challanDate, setChallanDate] = useState(order?.Posting_Date || "");
+
+  useEffect(() => {
+    if (order?.Posting_Date) {
+      setChallanDate(order.Posting_Date);
+    }
+  }, [order]);
+  const [challanShipments, setChallanShipments] = useState<SalesShipment[]>([]);
+  const [isChallanLoading, setIsChallanLoading] = useState(false);
+
   const deletableLineNos = lines
     .map((l) => l.Line_No)
     .filter((lineNo): lineNo is number => typeof lineNo === "number");
@@ -289,6 +303,29 @@ export function SalesOrderDetailForm({
   const handleOpenPostDialog = () => {
     setPostOption(null);
     setIsPostDialogOpen(true);
+  };
+
+  const handleOpenChallan = () => {
+    setChallanDate(order?.Posting_Date || "");
+    setChallanShipments([]);
+    setIsChallanOpen(true);
+  };
+
+  const loadChallan = async () => {
+    if (!order?.No) return;
+    if (!challanDate) {
+      toast.error("Please choose a posting date.");
+      return;
+    }
+    setIsChallanLoading(true);
+    try {
+      const results = await getSalesShipmentsByOrder(order.No, challanDate);
+      setChallanShipments(results);
+    } catch (err) {
+      toast.error((err as ApiError).message ?? "Failed to fetch shipments.");
+    } finally {
+      setIsChallanLoading(false);
+    }
   };
 
   const handlePostOptionContinue = () => {
@@ -489,8 +526,7 @@ export function SalesOrderDetailForm({
             <Button
               variant="default"
               size="sm"
-              // no action yet; placeholder
-              onClick={() => {}}
+              onClick={handleOpenChallan}
               disabled={isActionLoading}
               className="h-8"
             >
@@ -1109,6 +1145,63 @@ export function SalesOrderDetailForm({
             </Button>
             <Button onClick={handlePostDetailsSubmit} disabled={isPostLoading}>
               {isPostLoading ? "Posting..." : "Post"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delivery challan popup */}
+      <Dialog open={isChallanOpen} onOpenChange={setIsChallanOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Delivery Challan</DialogTitle>
+            <DialogDescription>
+              Select posting date and load shipments for this order.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="space-y-1">
+              <Label>Posting Date</Label>
+              <input
+                type="date"
+                className="border-input h-9 w-full rounded-md border bg-transparent px-3 text-sm"
+                value={challanDate}
+                onChange={(e) => setChallanDate(e.target.value)}
+              />
+            </div>
+            <Button onClick={loadChallan} disabled={isChallanLoading || !challanDate}>
+              {isChallanLoading ? "Loading..." : "Load"}
+            </Button>
+            {challanShipments.length > 0 && (
+              <div className="overflow-x-auto rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="text-xs">No</TableHead>
+                      <TableHead className="text-xs">Posting Date</TableHead>
+                      <TableHead className="text-xs">Customer</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {challanShipments.map((s) => (
+                      <TableRow key={s.No}>
+                        <TableCell className="text-xs">{s.No}</TableCell>
+                        <TableCell className="text-xs">{formatDate(s.PostingDate)}</TableCell>
+                        <TableCell className="text-xs">
+                          {s.CustomerName || s.CustomerCode}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsChallanOpen(false)}>
+              Close
             </Button>
           </DialogFooter>
         </DialogContent>

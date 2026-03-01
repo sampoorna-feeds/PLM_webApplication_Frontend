@@ -41,6 +41,11 @@ export interface GetSalesOrdersParams {
   $count?: boolean;
 }
 
+export interface SearchSalesOrdersParams extends GetSalesOrdersParams {
+  /** term to search across multiple columns (No, Sell_to_Customer_No, Sell_to_Customer_Name) */
+  searchTerm?: string;
+}
+
 export interface PaginatedSalesOrdersResponse {
   orders: SalesOrder[];
   totalCount: number;
@@ -80,6 +85,56 @@ export async function getSalesOrdersWithCount(
     orders: response.value || [],
     totalCount: response["@odata.count"] ?? 0,
   };
+}
+
+/**
+ * Search sales orders across a few fields when the server can't handle OR.
+ * Combines results from three filtered queries and de‑dupes them client-side.
+ * Paging is applied after merging.
+ */
+export async function searchSalesOrders(
+  params: SearchSalesOrdersParams = {},
+): Promise<PaginatedSalesOrdersResponse> {
+  const { searchTerm, $top, $skip, ...rest } = params;
+  if (!searchTerm || searchTerm.trim() === "") {
+    return getSalesOrdersWithCount(rest as GetSalesOrdersParams);
+  }
+
+  const escaped = searchTerm.replace(/'/g, "''");
+  const fieldsToSearch = [
+    "No",
+    "Sell_to_Customer_No",
+    "Sell_to_Customer_Name",
+  ];
+
+  // perform one request per field
+  const responses = await Promise.all(
+    fieldsToSearch.map((field) => {
+      const filterPart = `contains(${field},'${escaped}')`;
+      const filter = rest.$filter ? `${rest.$filter} and ${filterPart}` : filterPart;
+      return getSalesOrdersWithCount({ ...rest, $filter: filter });
+    }),
+  );
+
+  const map: Record<string, SalesOrder> = {};
+  responses.forEach((res) => {
+    res.orders.forEach((o) => {
+      map[o.No] = o;
+    });
+  });
+
+  const allOrders = Object.values(map);
+  const total = allOrders.length;
+
+  // apply paging after merge
+  let paged = allOrders;
+  if ($skip !== undefined || $top !== undefined) {
+    const start = $skip || 0;
+    const end = $top != null ? start + $top : undefined;
+    paged = allOrders.slice(start, end);
+  }
+
+  return { orders: paged, totalCount: total };
 }
 
 /**
@@ -209,6 +264,39 @@ export interface Transporter {
   No: string;
   Name: string;
   [key: string]: unknown;
+}
+
+export interface SalesShipment {
+  "@odata.etag"?: string;
+  No: string;
+  Order_No_: string;
+  CustomerCode?: string;
+  CustomerName?: string;
+  PostingDate?: string;
+  SalespersonCode?: string;
+  TeamCode?: string;
+  OTP?: number;
+  OTPVarified?: boolean;
+  [key: string]: unknown;
+}
+
+/**
+ * Get sales shipment records for a specific order number.
+ */
+export async function getSalesShipmentsByOrder(
+  orderNo: string,
+  postingDate?: string,
+): Promise<SalesShipment[]> {
+  const escaped = orderNo.replace(/'/g, "''");
+  let filter = `Order_No_ eq '${escaped}'`;
+  if (postingDate) {
+    // expect yyyy-mm-dd format
+    filter += ` and PostingDate eq ${escapeODataValue(postingDate)}`;
+  }
+  const query = buildODataQuery({ $filter: filter });
+  const endpoint = `/SalesShipment?company='${encodeURIComponent(COMPANY)}'&${query}`;
+  const response = await apiGet<ODataResponse<SalesShipment>>(endpoint);
+  return response.value || [];
 }
 
 /**

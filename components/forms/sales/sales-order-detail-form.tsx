@@ -489,6 +489,18 @@ export function SalesOrderDetailForm({
             <Button
               variant="default"
               size="sm"
+              // no action yet; placeholder
+              onClick={() => {}}
+              disabled={isActionLoading}
+              className="h-8"
+            >
+              Delivery Challan
+            </Button>
+          )}
+          {isReleased && (
+            <Button
+              variant="default"
+              size="sm"
               onClick={handleOpenPostDialog}
               disabled={isActionLoading}
               className="h-8"

@@ -40,7 +40,7 @@ import {
   type SalesLine,
   type Transporter,
 } from "@/lib/api/services/sales-orders.service";
-import { getItemsByNos } from "@/lib/api/services/item.service";
+import { getItemsByNos, getItemStock } from "@/lib/api/services/item.service";
 import { validatePhone } from "@/lib/validations/shipto.validation";
 import { SearchableSelect } from "@/components/forms/shared/searchable-select";
 import { RequestFailedDialog } from "@/components/ui/request-failed-dialog";
@@ -89,6 +89,8 @@ export function SalesOrderDetailForm({
 
   const [order, setOrder] = useState<SalesOrder | null>(null);
   const [lines, setLines] = useState<SalesLine[]>([]);
+  // item -> available stock
+  const [lineStockMap, setLineStockMap] = useState<Record<string, number>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -138,9 +140,26 @@ export function SalesOrderDetailForm({
       getSalesOrderByNo(orderNo),
       getSalesOrderLines(orderNo),
     ])
-      .then(([header, lineItems]) => {
+      .then(async ([header, lineItems]) => {
         setOrder(header || null);
-        setLines(lineItems || []);
+        const linesData = lineItems || [];
+        setLines(linesData);
+        // fetch stock if we have location and lines
+        if (header?.Location_Code && linesData.length > 0) {
+          const itemNos = [...new Set(linesData.map((l) => String(l.No || "")))].filter(
+            (n) => n.trim() !== "",
+          );
+          const today = new Date().toISOString().split("T")[0];
+          try {
+            const stock = await getItemStock(itemNos, header.Location_Code, today);
+            setLineStockMap(stock);
+          } catch {
+            // ignore failure; stock will be empty
+            setLineStockMap({});
+          }
+        } else {
+          setLineStockMap({});
+        }
       })
       .catch((err) => {
         setError(err?.message || "Failed to load order");
@@ -635,6 +654,7 @@ export function SalesOrderDetailForm({
                 <TableHead className="w-24 text-xs">No</TableHead>
                 <TableHead className="min-w-[180px] text-xs">Description</TableHead>
                 <TableHead className="w-20 text-xs">UOM</TableHead>
+                <TableHead className="w-24 text-xs">Avail Stock</TableHead>
                 <TableHead className="w-24 text-right text-xs">Quantity</TableHead>
                 <TableHead className="w-24 text-right text-xs">Qty to Ship</TableHead>
                 <TableHead className="w-24 text-right text-xs">Qty Shipped</TableHead>
@@ -679,6 +699,9 @@ export function SalesOrderDetailForm({
                     </TableCell>
                     <TableCell className="text-xs">
                       {line.Unit_of_Measure_Code || line.Unit_of_Measure || "-"}
+                    </TableCell>
+                    <TableCell className="text-right text-xs">
+                      {line.No ? lineStockMap[String(line.No).trim()] ?? "-" : "-"}
                     </TableCell>
                     <TableCell className="text-right text-xs">
                       {line.Quantity != null ? line.Quantity : "-"}

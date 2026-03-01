@@ -29,6 +29,42 @@ export interface ItemUnitOfMeasure {
   Qty_per_Unit_of_Measure: number;
 }
 
+export interface ItemStock {
+  No: string;
+  Net_Change: number;
+}
+
+/**
+ * Fetch stock (Net_Change) for a set of items at a location as of a given date.
+ * The underlying API is ItemList with filters.
+ */
+export async function getItemStock(
+  itemNos: string[],
+  locationCode: string,
+  asOfDate: string,
+): Promise<Record<string, number>> {
+  if (itemNos.length === 0) return {};
+  // escape single quotes and build or filter
+  const escapedNos = itemNos.map((n) => `No eq '${escapeODataValue(n)}'`);
+  const filterParts = [
+    `(${escapedNos.join(" or ")})`,
+    `Location_Filter eq '${escapeODataValue(locationCode)}'`,
+    `Date_Filter le '${asOfDate}'`,
+  ];
+  const filter = filterParts.join(" and ");
+  const query = buildODataQuery({
+    $filter: filter,
+    $select: "No,Net_Change",
+  });
+  const endpoint = `/ItemList?company='${encodeURIComponent(COMPANY)}'&${query}`;
+  const response = await apiGet<ODataResponse<ItemStock>>(endpoint);
+  const map: Record<string, number> = {};
+  (response.value || []).forEach((rec) => {
+    map[rec.No] = rec.Net_Change;
+  });
+  return map;
+}
+
 const COMPANY =
   process.env.NEXT_PUBLIC_API_COMPANY || "Sampoorna Feeds Pvt. Ltd";
 

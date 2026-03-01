@@ -41,6 +41,7 @@ import {
   type Transporter,
 } from "@/lib/api/services/sales-orders.service";
 import { getItemsByNos } from "@/lib/api/services/item.service";
+import { validatePhone } from "@/lib/validations/shipto.validation";
 import { SearchableSelect } from "@/components/forms/shared/searchable-select";
 import { RequestFailedDialog } from "@/components/ui/request-failed-dialog";
 import { SalesItemTrackingDialog } from "@/components/forms/sales/sales-item-tracking-dialog";
@@ -111,6 +112,7 @@ export function SalesOrderDetailForm({
     transporterCode: "",
     transporterName: "",
     vehicleNumber: "",
+    driverPhone: "",
     lrRrNumber: "",
     lrRrDate: "",
     externalDocumentNo: "",
@@ -279,6 +281,7 @@ export function SalesOrderDetailForm({
       transporterCode: "",
       transporterName: "",
       vehicleNumber: "",
+      driverPhone: "",
       lrRrNumber: "",
       lrRrDate: "",
       externalDocumentNo: "",
@@ -302,12 +305,25 @@ export function SalesOrderDetailForm({
       return;
     }
 
+    if (isShipOption) {
+      const phoneError = validatePhone(postDetails.driverPhone || "");
+      if (!postDetails.driverPhone.trim()) {
+        toast.error("Driver phone number is required for shipping.");
+        return;
+      }
+      if (phoneError) {
+        toast.error(phoneError);
+        return;
+      }
+    }
+
     setIsPostLoading(true);
     try {
       const patchPayload: Record<string, unknown> = {
         Transporter_Code: postDetails.transporterCode || "",
         Transporter_Name: postDetails.transporterName || "",
         Vehicle_Number: postDetails.vehicleNumber || "",
+        Driver_Mobile_No: postDetails.driverPhone || "",
         LR_RR_Number: postDetails.lrRrNumber || "",
         LR_RR_Date: postDetails.lrRrDate || "",
         External_Document_No: postDetails.externalDocumentNo || "",
@@ -405,24 +421,29 @@ export function SalesOrderDetailForm({
       <div className="flex flex-col gap-6 px-6 py-4">
         {/* Action bar: Edit, Send/Cancel/Reopen */}
         <div className="flex flex-wrap items-center justify-end gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleEdit}
-            disabled={isReleased}
-            className="h-8"
-          >
-            Edit
-          </Button>
-          <Button
-            variant="destructive"
-            size="sm"
-            onClick={handleOpenDeleteDialog}
-            disabled={isActionLoading}
-            className="h-8"
-          >
-            Delete
-          </Button>
+          {/* hide edit/delete when pending approval or already released/approved */}
+          {!isPendingApproval && !isReleased && (
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleEdit}
+                disabled={isReleased}
+                className="h-8"
+              >
+                Edit
+              </Button>
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={handleOpenDeleteDialog}
+                disabled={isActionLoading}
+                className="h-8"
+              >
+                Delete
+              </Button>
+            </>
+          )}
           {isOpen && (
             <Button
               variant="default"
@@ -938,6 +959,18 @@ export function SalesOrderDetailForm({
                 value={postDetails.vehicleNumber}
                 onChange={(e) =>
                   setPostDetails((prev) => ({ ...prev, vehicleNumber: e.target.value }))
+                }
+              />
+            </div>
+
+            <div className="space-y-1">
+              <Label>Driver Phone Number {isShipOption ? "*" : ""}</Label>
+              <input
+                type="tel"
+                className="border-input h-9 w-full rounded-md border bg-transparent px-3 text-sm"
+                value={postDetails.driverPhone}
+                onChange={(e) =>
+                  setPostDetails((prev) => ({ ...prev, driverPhone: e.target.value }))
                 }
               />
             </div>

@@ -40,7 +40,9 @@ export function SalesOrderLineDialog({
   onAssignTracking,
 }: SalesOrderLineDialogProps) {
   const [description, setDescription] = useState("");
-  const [quantity, setQuantity] = useState<string>("");
+  const [quantity, setQuantity] = useState<string>(""); // readonly display only
+  const [qtyToShip, setQtyToShip] = useState<string>("");
+  const [qtyToInvoice, setQtyToInvoice] = useState<string>("");
   const [isSaving, setIsSaving] = useState(false);
   const [apiError, setApiError] = useState<ApiErrorState | null>(null);
 
@@ -48,6 +50,8 @@ export function SalesOrderLineDialog({
     if (!line) return;
     setDescription(line.Description || "");
     setQuantity(line.Quantity?.toString() || "");
+    setQtyToShip(line.Qty_to_Ship?.toString() || "");
+    setQtyToInvoice(line.Qty_to_Invoice?.toString() || "");
     // Keep existing location untouched (hidden in UI)
   }, [line]);
 
@@ -59,11 +63,23 @@ export function SalesOrderLineDialog({
       toast.error("Quantity cannot be negative");
       return;
     }
+    const shipVal = parseFloat(qtyToShip) || 0;
+    const invoiceVal = parseFloat(qtyToInvoice) || 0;
+    if (shipVal < 0) {
+      toast.error("Qty to ship cannot be negative");
+      return;
+    }
+    if (invoiceVal < 0) {
+      toast.error("Qty to invoice cannot be negative");
+      return;
+    }
     setIsSaving(true);
     try {
       await updateSalesLine(orderNo, line.Line_No, {
         Description: description.trim(),
-        Quantity: quantityValue,
+        // Quantity is kept for display only; do not include unless it matters
+        Qty_to_Ship: shipVal,
+        Qty_to_Invoice: invoiceVal,
       });
       toast.success("Line updated successfully");
       onSave();
@@ -112,22 +128,12 @@ export function SalesOrderLineDialog({
             </div>
 
             <div className="grid grid-cols-1 items-start gap-2 sm:grid-cols-4 sm:items-center sm:gap-4">
-              <Label htmlFor="quantity" className="text-left text-sm sm:text-right">
+              <Label className="text-left text-sm sm:text-right">
                 Quantity
               </Label>
-              <Input
-                id="quantity"
-                type="text"
-                inputMode="decimal"
-                value={quantity}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  if (val === "" || /^[0-9]*\.?[0-9]*$/.test(val)) {
-                    setQuantity(val);
-                  }
-                }}
-                className="col-span-3"
-              />
+              <div className="col-span-3 text-sm font-medium">
+                {quantity || "-"}
+              </div>
             </div>
 
             <div className="grid grid-cols-1 items-start gap-2 sm:grid-cols-4 sm:items-center sm:gap-4">
@@ -139,22 +145,59 @@ export function SalesOrderLineDialog({
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3 rounded-md border bg-muted/30 p-3 text-sm sm:grid-cols-4">
-              <div>
-                <span className="text-muted-foreground block text-xs">Qty to Ship</span>
-                <span className="font-medium">{line.Qty_to_Ship ?? "-"}</span>
+            <div className="grid grid-cols-1 items-start gap-2 sm:grid-cols-4 sm:items-center sm:gap-4">
+              <Label htmlFor="qtyShip" className="text-left text-sm sm:text-right">
+                Qty to Ship
+              </Label>
+              <Input
+                id="qtyShip"
+                type="text"
+                inputMode="decimal"
+                value={qtyToShip}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val === "" || /^[0-9]*\.?[0-9]*$/.test(val)) {
+                    setQtyToShip(val);
+                  }
+                }}
+                className="col-span-3"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 items-start gap-2 sm:grid-cols-4 sm:items-center sm:gap-4">
+              <Label className="text-muted-foreground text-left text-sm sm:text-right">
+                Qty Shipped
+              </Label>
+              <div className="col-span-3 text-sm font-medium">
+                {line.Quantity_Shipped ?? "-"}
               </div>
-              <div>
-                <span className="text-muted-foreground block text-xs">Qty Shipped</span>
-                <span className="font-medium">{line.Quantity_Shipped ?? "-"}</span>
-              </div>
-              <div>
-                <span className="text-muted-foreground block text-xs">Qty to Invoice</span>
-                <span className="font-medium">{line.Qty_to_Invoice ?? "-"}</span>
-              </div>
-              <div>
-                <span className="text-muted-foreground block text-xs">Qty Invoiced</span>
-                <span className="font-medium">{line.Quantity_Invoiced ?? "-"}</span>
+            </div>
+
+            <div className="grid grid-cols-1 items-start gap-2 sm:grid-cols-4 sm:items-center sm:gap-4">
+              <Label htmlFor="qtyInvoice" className="text-left text-sm sm:text-right">
+                Qty to Invoice
+              </Label>
+              <Input
+                id="qtyInvoice"
+                type="text"
+                inputMode="decimal"
+                value={qtyToInvoice}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val === "" || /^[0-9]*\.?[0-9]*$/.test(val)) {
+                    setQtyToInvoice(val);
+                  }
+                }}
+                className="col-span-3"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 items-start gap-2 sm:grid-cols-4 sm:items-center sm:gap-4">
+              <Label className="text-muted-foreground text-left text-sm sm:text-right">
+                Qty Invoiced
+              </Label>
+              <div className="col-span-3 text-sm font-medium">
+                {line.Quantity_Invoiced ?? "-"}
               </div>
             </div>
           </div>

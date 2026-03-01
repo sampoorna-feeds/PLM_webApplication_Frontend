@@ -211,6 +211,26 @@ export interface Transporter {
   [key: string]: unknown;
 }
 
+/**
+ * Remove properties whose value is `undefined`, `null` or an empty string.
+ * This is useful when constructing patch payloads where the API should only
+ * receive the fields that the user has actually entered.
+ */
+export function stripEmptyValues(
+  obj: Record<string, unknown>,
+): Record<string, unknown> {
+  return Object.entries(obj).reduce((acc, [key, value]) => {
+    if (
+      value !== undefined &&
+      value !== null &&
+      !(typeof value === "string" && value.trim() === "")
+    ) {
+      acc[key] = value;
+    }
+    return acc;
+  }, {} as Record<string, unknown>);
+}
+
 function escapeODataValue(value: string): string {
   return value.replace(/'/g, "''");
 }
@@ -297,7 +317,8 @@ export async function patchSalesOrderHeader(
 ): Promise<unknown> {
   const escapedNo = orderNo.replace(/'/g, "''");
   const endpoint = `/SalesOrder(Document_Type='Order',No='${encodeURIComponent(escapedNo)}')?company='${encodeURIComponent(COMPANY)}'`;
-  return apiPatch<unknown>(endpoint, body);
+  const payload = stripEmptyValues(body);
+  return apiPatch<unknown>(endpoint, payload);
 }
 
 /**
@@ -308,7 +329,7 @@ export async function postSalesOrder(
   docNo: string,
   defaultOption: "1" | "2" | "3",
 ): Promise<unknown> {
-  const endpoint = `/API_PostSalesOrder?company='${encodeURIComponent(COMPANY)}'`;
+  const endpoint = `/API_PostSales?company='${encodeURIComponent(COMPANY)}'`;
   return apiPost<unknown>(endpoint, { docNo, defaultOption });
 }
 
@@ -341,7 +362,8 @@ export async function updateSalesLine(
 ): Promise<unknown> {
   const escapedNo = documentNo.replace(/'/g, "''");
   const endpoint = `/SalesLine(Document_Type='Order',Document_No='${encodeURIComponent(escapedNo)}',Line_No=${lineNo})?company='${encodeURIComponent(COMPANY)}'`;
-  return apiPatch<unknown>(endpoint, body);
+  const payload = stripEmptyValues(body);
+  return apiPatch<unknown>(endpoint, payload);
 }
 
 // ============================================

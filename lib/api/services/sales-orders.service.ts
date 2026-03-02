@@ -294,7 +294,7 @@ export async function getSalesShipmentsByOrder(
     filter += ` and PostingDate eq ${escapeODataValue(postingDate)}`;
   }
   const query = buildODataQuery({ $filter: filter });
-  const endpoint = `/SalesShipment?company='${encodeURIComponent(COMPANY)}'&${query}`;
+  const endpoint = `/SalesShipment_?company='${encodeURIComponent(COMPANY)}'&${query}`;
   const response = await apiGet<ODataResponse<SalesShipment>>(endpoint);
   return response.value || [];
 }

@@ -378,9 +378,9 @@ export function SalesOrderDetailForm({
       const patchPayload: Record<string, unknown> = {
         Transporter_Code: postDetails.transporterCode || "",
         Transporter_Name: postDetails.transporterName || "",
-        Vehicle_Number: postDetails.vehicleNumber || "",
+        Vehicle_No: postDetails.vehicleNumber || "",
         Driver_Mobile_No: postDetails.driverPhone || "",
-        LR_RR_Number: postDetails.lrRrNumber || "",
+        LR_RR_No: postDetails.lrRrNumber || "",
         LR_RR_Date: postDetails.lrRrDate || "",
         External_Document_No: postDetails.externalDocumentNo || "",
         Distance_km: postDetails.distanceKm ? Number(postDetails.distanceKm) : 0,
@@ -393,7 +393,7 @@ export function SalesOrderDetailForm({
         patchPayload.Tier_Weight = postDetails.tareWeight
           ? Number(postDetails.tareWeight)
           : 0;
-        patchPayload.Net_Weight = netWeight;
+        // Net weight intentionally excluded from header patch payload
       }
 
       await patchSalesOrderHeader(orderNo, patchPayload);

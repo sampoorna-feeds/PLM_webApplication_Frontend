@@ -1013,7 +1013,7 @@ export async function createProductionJournal(
 export async function getProductionJournal(
   orderNo: string,
 ): Promise<ProductionJournalEntry[]> {
-  const filter = `Order_No_ eq '${orderNo}' and Journal_Template_Name eq 'PROD.ORDEA'`;
+  const filter = `Order_No eq '${orderNo}' and Journal_Template_Name eq 'PROD.ORDEA'`;
   const select =
     "Line_No,Entry_Type,Item_No_,Description,Quantity,Output_Quantity,Location_Code";
   const query = buildODataQuery({

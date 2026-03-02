@@ -362,6 +362,7 @@ export function SalesOrderDetailForm({
     }
 
     if (isShipOption) {
+      // driver phone validation already exists
       const phoneError = validatePhone(postDetails.driverPhone || "");
       if (!postDetails.driverPhone.trim()) {
         toast.error("Driver phone number is required for shipping.");
@@ -369,6 +370,16 @@ export function SalesOrderDetailForm({
       }
       if (phoneError) {
         toast.error(phoneError);
+        return;
+      }
+
+      // LR/RR details should also be mandatory for any shipping option
+      if (!postDetails.lrRrNumber.trim()) {
+        toast.error("LR/RR Number is required for shipping options.");
+        return;
+      }
+      if (!postDetails.lrRrDate) {
+        toast.error("LR/RR Date is required for shipping options.");
         return;
       }
     }
@@ -1024,7 +1035,7 @@ export function SalesOrderDetailForm({
             </div>
 
             <div className="space-y-1">
-              <Label>Vehicle Number</Label>
+              <Label>Vehicle Number {isShipOption ? "*" : ""}</Label>
               <input
                 className="border-input h-9 w-full rounded-md border bg-transparent px-3 text-sm"
                 value={postDetails.vehicleNumber}
@@ -1047,7 +1058,7 @@ export function SalesOrderDetailForm({
             </div>
 
             <div className="space-y-1">
-              <Label>LR/RR Number</Label>
+              <Label>LR/RR Number {isShipOption ? "*" : ""}</Label>
               <input
                 className="border-input h-9 w-full rounded-md border bg-transparent px-3 text-sm"
                 value={postDetails.lrRrNumber}
@@ -1058,7 +1069,7 @@ export function SalesOrderDetailForm({
             </div>
 
             <div className="space-y-1">
-              <Label>LR/RR Date</Label>
+              <Label>LR/RR Date {isShipOption ? "*" : ""}</Label>
               <input
                 type="date"
                 className="border-input h-9 w-full rounded-md border bg-transparent px-3 text-sm"
@@ -1180,17 +1191,19 @@ export function SalesOrderDetailForm({
                     <TableRow>
                       <TableHead className="text-xs">No</TableHead>
                       <TableHead className="text-xs">Posting Date</TableHead>
-                      <TableHead className="text-xs">Customer</TableHead>
+                      <TableHead className="text-xs">LR/RR No</TableHead>
+                      <TableHead className="text-xs">LR/RR Date</TableHead>
+                      
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {challanShipments.map((s) => (
                       <TableRow key={s.No}>
                         <TableCell className="text-xs">{s.No}</TableCell>
-                        <TableCell className="text-xs">{formatDate(s.PostingDate)}</TableCell>
-                        <TableCell className="text-xs">
-                          {s.CustomerName || s.CustomerCode}
-                        </TableCell>
+                        <TableCell className="text-xs">{formatDate(s.Posting_Date)}</TableCell>
+                        <TableCell className="text-xs">{s.LR_RR_No || ""}</TableCell>
+                        <TableCell className="text-xs">{formatDate(s.LR_RR_Date)}</TableCell>
+                        
                       </TableRow>
                     ))}
                   </TableBody>

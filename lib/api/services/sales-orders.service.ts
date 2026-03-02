@@ -269,14 +269,15 @@ export interface Transporter {
 export interface SalesShipment {
   "@odata.etag"?: string;
   No: string;
-  Order_No_: string;
-  CustomerCode?: string;
-  CustomerName?: string;
-  PostingDate?: string;
-  SalespersonCode?: string;
-  TeamCode?: string;
-  OTP?: number;
-  OTPVarified?: boolean;
+  Order_No: string;
+  Sell_to_Customer_No?: string;
+  Sell_to_Customer_Name?: string;
+  Transporter_Code?: string;
+  LR_RR_No?: string;
+  Vehicle_No?: string;
+  LR_RR_Date?: string;
+  Posting_Date?: string; // sometimes named this way in OData
+  Salesperson_Code?: string;
   [key: string]: unknown;
 }
 
@@ -288,12 +289,13 @@ export async function getSalesShipmentsByOrder(
   postingDate?: string,
 ): Promise<SalesShipment[]> {
   const escaped = orderNo.replace(/'/g, "''");
-  let filter = `Order_No_ eq '${escaped}'`;
+  let filter = `Order_No eq '${escaped}'`;
   if (postingDate) {
     // expect yyyy-mm-dd format
-    filter += ` and PostingDate eq ${escapeODataValue(postingDate)}`;
+    filter += ` and Posting_Date eq ${escapeODataValue(postingDate)}`;
   }
   const query = buildODataQuery({ $filter: filter });
+  // API uses SalesShipment_ entity set
   const endpoint = `/SalesShipment_?company='${encodeURIComponent(COMPANY)}'&${query}`;
   const response = await apiGet<ODataResponse<SalesShipment>>(endpoint);
   return response.value || [];

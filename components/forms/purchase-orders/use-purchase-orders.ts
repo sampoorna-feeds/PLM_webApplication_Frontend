@@ -132,8 +132,8 @@ export function usePurchaseOrders(options: UsePurchaseOrdersOptions = {}) {
       setOrders(result.orders);
       setTotalCount(result.totalCount);
     } catch (error) {
-      console.error("Error fetching sales orders:", error);
-      toast.error("Failed to load sales orders. Please try again.");
+      console.error("Error fetching purchase orders:", error);
+      toast.error("Failed to load purchase orders. Please try again.");
       setOrders([]);
       setTotalCount(0);
     } finally {

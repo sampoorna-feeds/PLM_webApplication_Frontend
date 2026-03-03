@@ -61,26 +61,13 @@ export const DEFAULT_COLUMNS: ColumnConfig[] = [
     defaultVisible: true,
     filterType: "date",
   },
-  {
-    id: "External_Document_No",
-    label: "External Doc No",
-    sortable: true,
-    defaultVisible: true,
-    filterType: "text",
-  },
+
   {
     id: "Status",
     label: "Status",
     sortable: true,
     defaultVisible: true,
     filterType: "enum",
-  },
-  {
-    id: "Amt_to_Vendor",
-    label: "Amount",
-    sortable: true,
-    defaultVisible: true,
-    filterType: "number",
   },
 ];
 

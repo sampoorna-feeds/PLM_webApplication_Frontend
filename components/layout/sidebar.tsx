@@ -52,37 +52,49 @@ import {
   User,
   KeyRound,
   ShoppingCart,
+  Package,
+  ReceiptText,
+  ArrowLeftRight,
+  CreditCard,
+  Receipt,
+  Factory,
+  BookOpenCheck,
+  Store,
 } from "lucide-react";
 
 const salesSubItems = [
-  { title: "Order", url: "/sales/order" },
-  { title: "Invoice", url: "/sales/invoice" },
-  { title: "Return Order", url: "/sales/return-order" },
-  { title: "Credit Memo", url: "/sales/credit-memo" },
+  { title: "Order", url: "/sales/order", icon: Package },
+  { title: "Invoice", url: "/sales/invoice", icon: ReceiptText },
+  { title: "Return Order", url: "/sales/return-order", icon: ArrowLeftRight },
+  { title: "Credit Memo", url: "/sales/credit-memo", icon: CreditCard },
 ];
 
 const purchaseSubItems = [
-  { title: "Order", url: "/purchase/order" },
-  { title: "Invoice", url: "/purchase/invoice" },
-  { title: "Return Order", url: "/purchase/return-order" },
-  { title: "Credit Memo", url: "/purchase/credit-memo" },
+  { title: "Order", url: "/purchase/order", icon: Package },
+  { title: "Invoice", url: "/purchase/invoice", icon: ReceiptText },
+  {
+    title: "Return Order",
+    url: "/purchase/return-order",
+    icon: ArrowLeftRight,
+  },
+  { title: "Credit Memo", url: "/purchase/credit-memo", icon: CreditCard },
 ];
 
 const formsItems = [
   {
     title: "Voucher",
     url: "/voucher-form",
-    icon: FileText,
+    icon: Receipt,
   },
   {
     title: "Production Order",
     url: "/production-orders",
-    icon: FileText,
+    icon: Factory,
   },
   {
     title: "Report Ledger",
     url: "/report-ledger",
-    icon: FileText,
+    icon: BookOpenCheck,
   },
 ];
 
@@ -176,7 +188,7 @@ export function AppSidebar({
                         isActive={pathname?.startsWith("/sales")}
                         className="w-full"
                       >
-                        <FileText />
+                        <Store />
                         <span>Sales</span>
                         <ChevronDown className="ml-auto size-4 group-data-[state=closed]/collapsible:-rotate-90 group-data-[state=open]/collapsible:rotate-0" />
                       </SidebarMenuButton>
@@ -190,7 +202,10 @@ export function AppSidebar({
                             asChild
                             isActive={pathname === item.url}
                           >
-                            <Link href={item.url}>{item.title}</Link>
+                            <Link href={item.url}>
+                              {item.icon && <item.icon />}
+                              <span>{item.title}</span>
+                            </Link>
                           </SidebarMenuSubButton>
                         </SidebarMenuSubItem>
                       ))}
@@ -221,7 +236,10 @@ export function AppSidebar({
                             asChild
                             isActive={pathname === item.url}
                           >
-                            <Link href={item.url}>{item.title}</Link>
+                            <Link href={item.url}>
+                              {item.icon && <item.icon />}
+                              <span>{item.title}</span>
+                            </Link>
                           </SidebarMenuSubButton>
                         </SidebarMenuSubItem>
                       ))}

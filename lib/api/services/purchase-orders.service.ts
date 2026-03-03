@@ -19,9 +19,10 @@ export interface PurchaseOrder {
   Order_Date?: string;
   Posting_Date?: string;
   Document_Date?: string;
-  External_Document_No?: string;
+  Vendor_Order_No?: string;
+  Vendor_Invoice_No?: string;
   Status?: string;
-  Amt_to_Vendor?: number;
+  // Amt_to_Vendor?: number; // Removed as it's not in OData payload
   Location_Code?: string;
   Invoice_Type?: string;
   Shortcut_Dimension_1_Code?: string;
@@ -58,7 +59,7 @@ export async function getPurchaseOrdersWithCount(
   params: GetPurchaseOrdersParams = {},
 ): Promise<PaginatedPurchaseOrdersResponse> {
   const {
-    $select = "No,Buy_from_Vendor_No,Buy_from_Vendor_Name,Order_Date,Posting_Date,Document_Date,External_Document_No,Status,Amt_to_Vendor",
+    $select = "No,Buy_from_Vendor_No,Buy_from_Vendor_Name,Order_Date,Posting_Date,Document_Date,Vendor_Order_No,Status",
     $filter,
     $orderby = "No desc",
     $top = 10,
@@ -101,17 +102,15 @@ export async function searchPurchaseOrders(
   }
 
   const escaped = searchTerm.replace(/'/g, "''");
-  const fieldsToSearch = [
-    "No",
-    "Buy_from_Vendor_No",
-    "Buy_from_Vendor_Name",
-  ];
+  const fieldsToSearch = ["No", "Buy_from_Vendor_No", "Buy_from_Vendor_Name"];
 
   // perform one request per field
   const responses = await Promise.all(
     fieldsToSearch.map((field) => {
       const filterPart = `contains(${field},'${escaped}')`;
-      const filter = rest.$filter ? `${rest.$filter} and ${filterPart}` : filterPart;
+      const filter = rest.$filter
+        ? `${rest.$filter} and ${filterPart}`
+        : filterPart;
       return getPurchaseOrdersWithCount({ ...rest, $filter: filter });
     }),
   );
@@ -221,7 +220,9 @@ export async function cancelApprovalRequest(
 /**
  * Reopen a purchase order
  */
-export async function reopenPurchaseOrder(purchaseOrderNo: string): Promise<unknown> {
+export async function reopenPurchaseOrder(
+  purchaseOrderNo: string,
+): Promise<unknown> {
   const endpoint = `/API_ReOpenPurchaseOrder?company='${encodeURIComponent(COMPANY)}'`;
   return apiPost<unknown>(endpoint, { purchaseOrderNo });
 }
@@ -309,16 +310,19 @@ export async function getPurchaseShipmentsByOrder(
 export function stripEmptyValues(
   obj: Record<string, unknown>,
 ): Record<string, unknown> {
-  return Object.entries(obj).reduce((acc, [key, value]) => {
-    if (
-      value !== undefined &&
-      value !== null &&
-      !(typeof value === "string" && value.trim() === "")
-    ) {
-      acc[key] = value;
-    }
-    return acc;
-  }, {} as Record<string, unknown>);
+  return Object.entries(obj).reduce(
+    (acc, [key, value]) => {
+      if (
+        value !== undefined &&
+        value !== null &&
+        !(typeof value === "string" && value.trim() === "")
+      ) {
+        acc[key] = value;
+      }
+      return acc;
+    },
+    {} as Record<string, unknown>,
+  );
 }
 
 function escapeODataValue(value: string): string {
@@ -544,7 +548,8 @@ export async function getPurchaseItemTrackingLines(
   ].join(" and ");
   const query = buildODataQuery({ $filter: filter });
   const endpoint = `/ItemTrackingLine?company='${encodeURIComponent(COMPANY)}'&${query}`;
-  const response = await apiGet<ODataResponse<PurchaseItemTrackingLine>>(endpoint);
+  const response =
+    await apiGet<ODataResponse<PurchaseItemTrackingLine>>(endpoint);
   return response.value || [];
 }
 

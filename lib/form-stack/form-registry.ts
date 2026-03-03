@@ -15,8 +15,12 @@ let SalesCreditMemoForm: FormComponent | null = null;
 let AddPincodeForm: FormComponent | null = null;
 let AddShipToForm: FormComponent | null = null;
 let ProductionOrderForm: FormComponent | null = null;
+let FinishedProductionOrderDetailForm: FormComponent | null = null;
 let ItemSelectorForm: FormComponent | null = null;
 let LineItemTabForm: FormComponent | null = null;
+
+let PurchaseOrderForm: FormComponent | null = null;
+let PurchaseOrderDetailForm: FormComponent | null = null;
 
 /**
  * Form registry mapping form types to components
@@ -34,18 +38,16 @@ export const formRegistry: Record<
   },
   "sales-order-detail": async () => {
     if (!SalesOrderDetailForm) {
-      const module = await import(
-        "@/components/forms/sales/sales-order-detail-form"
-      );
+      const module =
+        await import("@/components/forms/sales/sales-order-detail-form");
       SalesOrderDetailForm = module.SalesOrderDetailForm;
     }
     return { default: SalesOrderDetailForm! };
   },
   "sales-order-edit": async () => {
     if (!SalesOrderEditForm) {
-      const module = await import(
-        "@/components/forms/sales/sales-order-edit-form"
-      );
+      const module =
+        await import("@/components/forms/sales/sales-order-edit-form");
       SalesOrderEditForm = module.SalesOrderEditForm;
     }
     return { default: SalesOrderEditForm! };
@@ -96,6 +98,15 @@ export const formRegistry: Record<
     }
     return { default: ProductionOrderForm! };
   },
+  "finished-production-order-detail": async () => {
+    if (!FinishedProductionOrderDetailForm) {
+      const module =
+        await import("@/components/forms/production-orders/finished-production-order-detail-form");
+      FinishedProductionOrderDetailForm =
+        module.FinishedProductionOrderDetailForm;
+    }
+    return { default: FinishedProductionOrderDetailForm! };
+  },
   "item-selector": async () => {
     if (!ItemSelectorForm) {
       const module =
@@ -111,6 +122,22 @@ export const formRegistry: Record<
       LineItemTabForm = module.LineItemTabForm;
     }
     return { default: LineItemTabForm! };
+  },
+  "purchase-order": async () => {
+    if (!PurchaseOrderForm) {
+      const module =
+        await import("@/components/forms/purchase-orders/purchase-order-form");
+      PurchaseOrderForm = module.PurchaseOrderForm;
+    }
+    return { default: PurchaseOrderForm! };
+  },
+  "purchase-order-detail": async () => {
+    if (!PurchaseOrderDetailForm) {
+      const module =
+        await import("@/components/forms/purchase-orders/purchase-order-detail-form");
+      PurchaseOrderDetailForm = module.PurchaseOrderDetailForm;
+    }
+    return { default: PurchaseOrderDetailForm! };
   },
 };
 

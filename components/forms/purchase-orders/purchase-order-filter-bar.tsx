@@ -1,35 +1,23 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { PlusIcon, Search, X } from "lucide-react";
+import { Search, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { ColumnVisibility } from "./column-visibility";
-import { DynamicFilterBuilder } from "./dynamic-filter-builder";
-import type { FilterCondition } from "./types";
+import { PurchaseOrderColumnVisibility } from "./column-visibility";
 
-interface TableFilterBarProps {
-  // Basic filters
+interface PurchaseOrderFilterBarProps {
   searchQuery: string;
-  // Column visibility
   visibleColumns: string[];
-  // Column filters (for badge count)
   columnFilters: Record<string, { value: string; valueTo?: string }>;
-  // Handlers
   onSearch: (query: string) => void;
   onClearFilters: () => void;
   onColumnToggle: (columnId: string) => void;
   onResetColumns: () => void;
   onShowAllColumns: () => void;
-  // Optional: columns to exclude from visibility toggle
-  excludeColumns?: string[];
-  // Dynamic additional filters
-  additionalFilters?: FilterCondition[];
-  onAddAdditionalFilter?: (filter: FilterCondition) => void;
-  onRemoveAdditionalFilter?: (index: number) => void;
 }
 
-export function TableFilterBar({
+export function PurchaseOrderFilterBar({
   searchQuery,
   visibleColumns,
   columnFilters,
@@ -38,49 +26,34 @@ export function TableFilterBar({
   onColumnToggle,
   onResetColumns,
   onShowAllColumns,
-  excludeColumns,
-  additionalFilters = [],
-  onAddAdditionalFilter,
-  onRemoveAdditionalFilter,
-}: TableFilterBarProps) {
+}: PurchaseOrderFilterBarProps) {
   const [localSearch, setLocalSearch] = useState(searchQuery);
 
-  // Sync local search with external state
   useEffect(() => {
     setLocalSearch(searchQuery);
   }, [searchQuery]);
 
-  // Debounced search
   useEffect(() => {
     const timer = setTimeout(() => {
       if (localSearch !== searchQuery) {
         onSearch(localSearch);
       }
     }, 300);
-
     return () => clearTimeout(timer);
   }, [localSearch, searchQuery, onSearch]);
 
-  // Count active column filters
   const activeFilterCount = Object.entries(columnFilters).filter(
-    ([key, filter]) => {
-      // Skip checking for Status=Released vs default
-      return filter.value || filter.valueTo;
-    },
+    ([id, filter]) =>
+      id !== "Shortcut_Dimension_2_Code" && (filter.value || filter.valueTo),
   ).length;
-
-  const hasAdditionalFilters =
-    additionalFilters && additionalFilters.length > 0;
-  const hasActiveFilters =
-    searchQuery || activeFilterCount > 0 || hasAdditionalFilters;
+  const hasActiveFilters = !!searchQuery || activeFilterCount > 0;
 
   return (
-    <div className="flex flex-wrap items-center gap-3 pb-3">
-      {/* Search Input */}
-      <div className="relative max-w-sm min-w-50 flex-1">
+    <div className="flex flex-wrap items-center gap-2 pb-2">
+      <div className="relative max-w-sm min-w-[200px] flex-1">
         <Search className="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
         <Input
-          placeholder="Search by No, Description..."
+          placeholder="Search by Order No, Vendor..."
           value={localSearch}
           onChange={(e) => setLocalSearch(e.target.value)}
           className="pr-10 pl-10"
@@ -100,17 +73,6 @@ export function TableFilterBar({
 
       <div className="flex-1" />
 
-      {/* Dynamic Filters Builder */}
-      {onAddAdditionalFilter && onRemoveAdditionalFilter && (
-        <DynamicFilterBuilder
-          filters={additionalFilters}
-          onAddFilter={onAddAdditionalFilter}
-          onRemoveFilter={onRemoveAdditionalFilter}
-          excludeColumns={excludeColumns}
-        />
-      )}
-
-      {/* Clear Filters */}
       {hasActiveFilters && (
         <Button
           variant="ghost"
@@ -123,13 +85,11 @@ export function TableFilterBar({
         </Button>
       )}
 
-      {/* Column Visibility */}
-      <ColumnVisibility
+      <PurchaseOrderColumnVisibility
         visibleColumns={visibleColumns}
         onColumnToggle={onColumnToggle}
         onResetColumns={onResetColumns}
         onShowAllColumns={onShowAllColumns}
-        excludeColumns={excludeColumns}
       />
     </div>
   );

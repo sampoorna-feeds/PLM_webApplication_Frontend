@@ -77,6 +77,34 @@ export default function ProtectedLayout({
         { label: "Credit Memo", href: null },
       ];
     }
+    if (pathname === "/purchase/order") {
+      return [
+        { label: "Forms", href: "#" },
+        { label: "Purchase", href: "/purchase/order" },
+        { label: "Purchase Order", href: null },
+      ];
+    }
+    if (pathname === "/purchase/invoice") {
+      return [
+        { label: "Forms", href: "#" },
+        { label: "Purchase", href: "/purchase/order" },
+        { label: "Purchase Invoice", href: null },
+      ];
+    }
+    if (pathname === "/purchase/return-order") {
+      return [
+        { label: "Forms", href: "#" },
+        { label: "Purchase", href: "/purchase/order" },
+        { label: "Return Order", href: null },
+      ];
+    }
+    if (pathname === "/purchase/credit-memo") {
+      return [
+        { label: "Forms", href: "#" },
+        { label: "Purchase", href: "/purchase/order" },
+        { label: "Credit Memo", href: null },
+      ];
+    }
     if (pathname === "/production-orders") {
       return [
         { label: "Forms", href: "#" },
@@ -117,7 +145,8 @@ export default function ProtectedLayout({
     pathname !== "/production-orders" &&
     pathname !== "/report-ledger" &&
     pathname !== "/" &&
-    !pathname.includes("/sales");
+    !pathname.includes("/sales") &&
+    !pathname.includes("/purchase");
 
   const backLabel = "Return to Dashboard";
   const backHref = "/voucher-form";

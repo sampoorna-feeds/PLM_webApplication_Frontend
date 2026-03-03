@@ -221,6 +221,20 @@ export async function getProductionOrderByNo(
   return response.value?.[0] || null;
 }
 
+/**
+ * Get a single finished production order by No with ALL details (no $select)
+ */
+export async function getFinishedProductionOrderByNo(
+  orderNo: string,
+): Promise<ProductionOrder | null> {
+  const filter = `No eq '${orderNo}'`;
+  const query = buildODataQuery({ $filter: filter });
+  const endpoint = `/FinishedprodOrder?company='${encodeURIComponent(COMPANY)}'&${query}`;
+
+  const response = await apiGet<ODataResponse<ProductionOrder>>(endpoint);
+  return response.value?.[0] || null;
+}
+
 // ============================================
 // FINISHED PRODUCTION ORDERS API
 // ============================================

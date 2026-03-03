@@ -22,6 +22,7 @@ import type {
   ProductionOrderFormData,
   SourceType,
   BatchSize,
+  FilterCondition,
 } from "./types";
 import { EMPTY_FORM_DATA } from "./types";
 import {
@@ -67,6 +68,9 @@ export function useProductionOrders() {
   const [columnFilters, setColumnFilters] = useState<
     Record<string, { value: string; valueTo?: string }>
   >({});
+  const [additionalFilters, setAdditionalFilters] = useState<FilterCondition[]>(
+    [],
+  );
 
   // Column visibility state
   const [visibleColumns, setVisibleColumns] = useState<string[]>(() =>
@@ -121,16 +125,24 @@ export function useProductionOrders() {
   const buildFilterString = useCallback(
     (searchField?: "No" | "Search_Description") => {
       return buildODataFilter({
-        lobCodes,
+        lobCodes, // lobCodes is a separate state, not part of 'filters' object
         searchQuery: searchQuery.trim(),
         searchField,
-        dueDateFrom,
-        dueDateTo,
+        dueDateFrom: dueDateFrom,
+        dueDateTo: dueDateTo,
         columnFilters,
         excludeColumns: RELEASED_ORDERS_EXCLUDED_COLUMNS,
+        additionalFilters,
       });
     },
-    [lobCodes, searchQuery, dueDateFrom, dueDateTo, columnFilters],
+    [
+      lobCodes,
+      searchQuery,
+      dueDateFrom,
+      dueDateTo,
+      columnFilters,
+      additionalFilters,
+    ],
   );
 
   // Build orderby string for OData
@@ -314,6 +326,7 @@ export function useProductionOrders() {
     }
 
     setColumnFilters(defaultFilters);
+    setAdditionalFilters([]); // Clear additional filters
     // Reset to default sort: Last Modified Desc
     setSortColumn("Last_Date_Modified");
     setSortDirection("desc");
@@ -338,6 +351,16 @@ export function useProductionOrders() {
     },
     [],
   );
+
+  const handleAddAdditionalFilter = useCallback((filter: FilterCondition) => {
+    setAdditionalFilters((prev) => [...prev, filter]);
+    setCurrentPage(1);
+  }, []);
+
+  const handleRemoveAdditionalFilter = useCallback((index: number) => {
+    setAdditionalFilters((prev) => prev.filter((_, i) => i !== index));
+    setCurrentPage(1);
+  }, []);
 
   return {
     // Data
@@ -374,6 +397,10 @@ export function useProductionOrders() {
     onShowAllColumns: handleShowAllColumns,
     // Refresh
     refetch: fetchOrders,
+    // Additional Filters
+    additionalFilters,
+    handleAddAdditionalFilter,
+    handleRemoveAdditionalFilter,
     addOrder: useCallback((order: ProductionOrder) => {
       setOrders((prev) => [order, ...prev]);
       setTotalCount((prev) => prev + 1);

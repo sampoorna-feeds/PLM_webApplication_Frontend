@@ -24,17 +24,15 @@ interface DynamicFilterBuilderProps {
   filters: FilterCondition[];
   onAddFilter: (filter: FilterCondition) => void;
   onRemoveFilter: (index: number) => void;
+  /** Exclude specific columns from being selectable in the builder */
+  excludeColumns?: string[];
 }
-
-const EXCLUDED_FIELDS = ["Location_Code", "Item_No", "Posting_Date"];
-const AVAILABLE_COLUMNS = ALL_COLUMNS.filter(
-  (col) => !EXCLUDED_FIELDS.includes(col.id),
-).sort((a, b) => a.label.localeCompare(b.label));
 
 export function DynamicFilterBuilder({
   filters,
   onAddFilter,
   onRemoveFilter,
+  excludeColumns = [],
 }: DynamicFilterBuilderProps) {
   const [open, setOpen] = useState(false);
   const [selectedField, setSelectedField] = useState("");
@@ -43,17 +41,28 @@ export function DynamicFilterBuilder({
   const [value, setValue] = useState("");
   const [fieldSearch, setFieldSearch] = useState("");
 
+  // Only show columns that are not excluded and not the base dimension codes (LOB, Branch, etc. are handled by global tabs/filters usually)
+  const availableColumns = useMemo(() => {
+    return ALL_COLUMNS.filter(
+      (col) =>
+        !excludeColumns.includes(col.id) &&
+        !["Shortcut_Dimension_1_Code", "Shortcut_Dimension_2_Code"].includes(
+          col.id,
+        ),
+    ).sort((a, b) => a.label.localeCompare(b.label));
+  }, [excludeColumns]);
+
   // Filter columns by search query (matches label or id)
   const filteredColumns = useMemo(() => {
-    if (!fieldSearch.trim()) return AVAILABLE_COLUMNS;
+    if (!fieldSearch.trim()) return availableColumns;
     const q = fieldSearch.toLowerCase();
-    return AVAILABLE_COLUMNS.filter(
+    return availableColumns.filter(
       (col) =>
         col.label.toLowerCase().includes(q) || col.id.toLowerCase().includes(q),
     );
-  }, [fieldSearch]);
+  }, [fieldSearch, availableColumns]);
 
-  const selectedCol = AVAILABLE_COLUMNS.find((c) => c.id === selectedField);
+  const selectedCol = availableColumns.find((c) => c.id === selectedField);
 
   const handleAdd = () => {
     if (!selectedField || !value.trim()) return;
@@ -102,19 +111,27 @@ export function DynamicFilterBuilder({
 
   const renderValueInput = () => {
     if (!selectedCol) return null;
-    if (selectedCol.filterType === "boolean") {
-      return (
-        <Select value={value} onValueChange={setValue}>
-          <SelectTrigger>
-            <SelectValue placeholder="Select Yes/No" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="true">Yes</SelectItem>
-            <SelectItem value="false">No</SelectItem>
-          </SelectContent>
-        </Select>
-      );
+    if (
+      selectedCol.filterType === "boolean" ||
+      selectedCol.filterType === "enum"
+    ) {
+      // In a more complex version, "enum" would read options from col.filterOptions
+      // Here we just fall back to text if it's enum, or Yes/No for boolean
+      if (selectedCol.filterType === "boolean") {
+        return (
+          <Select value={value} onValueChange={setValue}>
+            <SelectTrigger>
+              <SelectValue placeholder="Select Yes/No" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="true">Yes</SelectItem>
+              <SelectItem value="false">No</SelectItem>
+            </SelectContent>
+          </Select>
+        );
+      }
     }
+
     return (
       <Input
         type={
@@ -176,11 +193,10 @@ export function DynamicFilterBuilder({
                       type="button"
                       onClick={() => {
                         setSelectedField(col.id);
-                        const colDef = AVAILABLE_COLUMNS.find(
-                          (c) => c.id === col.id,
-                        );
                         setOperator(
-                          colDef?.filterType === "text" ? "contains" : "eq",
+                          col.filterType === "text" || col.filterType === "enum"
+                            ? "contains"
+                            : "eq",
                         );
                         setValue("");
                         setFieldSearch("");
@@ -222,7 +238,7 @@ export function DynamicFilterBuilder({
         <div className="ml-2 flex flex-wrap items-center gap-2">
           {filters.map((f, i) => {
             const colLabel =
-              AVAILABLE_COLUMNS.find((c) => c.id === f.field)?.label || f.field;
+              availableColumns.find((c) => c.id === f.field)?.label || f.field;
             return (
               <div
                 key={i}

@@ -4,6 +4,22 @@ export type PageSize = 10 | 20 | 30 | 40 | 50;
 
 export type SheetMode = "view" | "edit" | "create";
 
+export interface FilterCondition {
+  field: string;
+  operator:
+    | "eq"
+    | "ne"
+    | "gt"
+    | "ge"
+    | "lt"
+    | "le"
+    | "contains"
+    | "startswith"
+    | "endswith";
+  value: string;
+  type: "text" | "number" | "boolean" | "date" | "enum";
+}
+
 export type SourceType = "Item" | "Family" | "Sales Header" | "";
 
 export type BatchSize = "0.8" | "1.0" | "1.5" | "2.0" | "";

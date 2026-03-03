@@ -12,6 +12,7 @@ import {
   ProductionOrder,
 } from "@/lib/api/services/production-orders.service";
 import type { PageSize } from "./types";
+import { type FilterCondition } from "./types";
 import {
   type SortDirection,
   loadVisibleColumns,
@@ -40,18 +41,21 @@ export function useFinishedProductionOrders() {
   const [totalCount, setTotalCount] = useState(0);
 
   // Sorting state
-  const [sortColumn, setSortColumn] = useState<string | null>(
-    "Last_Date_Modified",
-  );
+  const [sortColumn, setSortColumn] = useState<string | null>("Finished_Date");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
 
   // Filter state
   const [searchQuery, setSearchQuery] = useState("");
+  const [dueDateFrom, setDueDateFrom] = useState("");
+  const [dueDateTo, setDueDateTo] = useState("");
 
   // Column filters
   const [columnFilters, setColumnFilters] = useState<
     Record<string, { value: string; valueTo?: string }>
   >({});
+  const [additionalFilters, setAdditionalFilters] = useState<FilterCondition[]>(
+    [],
+  );
 
   // Column visibility state
   const [visibleColumns, setVisibleColumns] = useState<string[]>(() =>
@@ -103,18 +107,25 @@ export function useFinishedProductionOrders() {
   }, [userID]);
 
   // Build filter string for OData using the utility
-  const buildFilterString = useCallback(
-    (searchField?: "No" | "Search_Description") => {
-      return buildODataFilter({
-        lobCodes,
-        searchQuery: searchQuery.trim(),
-        searchField,
-        columnFilters,
-        excludeColumns: FINISHED_ORDERS_EXCLUDED_COLUMNS,
-      });
-    },
-    [lobCodes, searchQuery, columnFilters],
-  );
+  const buildFilterString = useCallback(() => {
+    return buildODataFilter({
+      lobCodes,
+      searchQuery: searchQuery.trim(),
+      searchField: "Search_Description",
+      dueDateFrom: dueDateFrom,
+      dueDateTo: dueDateTo,
+      columnFilters,
+      excludeColumns: FINISHED_ORDERS_EXCLUDED_COLUMNS,
+      additionalFilters,
+    });
+  }, [
+    lobCodes,
+    searchQuery,
+    dueDateFrom,
+    dueDateTo,
+    columnFilters,
+    additionalFilters,
+  ]);
 
   // Build orderby string for OData
   const getOrderByString = useCallback(() => {
@@ -132,7 +143,7 @@ export function useFinishedProductionOrders() {
           visibleColumns,
           FINISHED_ORDERS_EXCLUDED_COLUMNS,
         ),
-        $filter: buildFilterString("Search_Description"),
+        $filter: buildFilterString(),
         $orderby: getOrderByString(),
         $top: pageSize,
         $skip: (currentPage - 1) * pageSize,
@@ -169,9 +180,14 @@ export function useFinishedProductionOrders() {
     currentPage,
     visibleColumns,
     searchQuery,
+    dueDateFrom,
+    dueDateTo,
     sortColumn,
     sortDirection,
     columnFilters,
+    additionalFilters,
+    buildFilterString,
+    getOrderByString,
   ]);
 
   // Fetch orders when dependencies change
@@ -212,8 +228,16 @@ export function useFinishedProductionOrders() {
     setCurrentPage(1);
   }, []);
 
+  const handleDateFilter = useCallback((from: string, to: string) => {
+    setDueDateFrom(from);
+    setDueDateTo(to);
+    setCurrentPage(1);
+  }, []);
+
   const handleClearFilters = useCallback(() => {
     setSearchQuery("");
+    setDueDateFrom("");
+    setDueDateTo("");
     // Reset to all branches selected when clearing filters
     if (userBranchCodes.length > 0) {
       setColumnFilters({
@@ -222,6 +246,7 @@ export function useFinishedProductionOrders() {
     } else {
       setColumnFilters({});
     }
+    setAdditionalFilters([]);
     setCurrentPage(1);
   }, [userBranchCodes]);
 
@@ -254,18 +279,27 @@ export function useFinishedProductionOrders() {
   }, []);
 
   const handleResetColumns = useCallback(() => {
-    const defaultColumns = getDefaultVisibleColumns();
-    setVisibleColumns(defaultColumns);
-    saveVisibleColumns(defaultColumns);
+    const defaultVisible = getDefaultVisibleColumns();
+    setVisibleColumns(defaultVisible);
+    saveVisibleColumns(defaultVisible);
   }, []);
 
   const handleShowAllColumns = useCallback(() => {
-    const availableColumns = getAvailableColumns(
+    const allAvailable = getAvailableColumns(
       FINISHED_ORDERS_EXCLUDED_COLUMNS,
-    );
-    const allColumnIds = availableColumns.map((col) => col.id);
-    setVisibleColumns(allColumnIds);
-    saveVisibleColumns(allColumnIds);
+    ).map((c) => c.id);
+    setVisibleColumns(allAvailable);
+    saveVisibleColumns(allAvailable);
+  }, []);
+
+  const handleAddAdditionalFilter = useCallback((filter: FilterCondition) => {
+    setAdditionalFilters((prev) => [...prev, filter]);
+    setCurrentPage(1);
+  }, []);
+
+  const handleRemoveAdditionalFilter = useCallback((index: number) => {
+    setAdditionalFilters((prev) => prev.filter((_, i) => i !== index));
+    setCurrentPage(1);
   }, []);
 
   return {
@@ -284,15 +318,22 @@ export function useFinishedProductionOrders() {
     onSort: handleSort,
     // Filtering
     searchQuery,
-    onSearch: handleSearch,
-    onClearFilters: handleClearFilters,
+    dueDateFrom,
+    dueDateTo,
     columnFilters,
+    onSearch: handleSearch,
+    onDateFilter: handleDateFilter,
+    onClearFilters: handleClearFilters,
     onColumnFilter: handleColumnFilter,
     // Column visibility
     visibleColumns,
     onColumnToggle: handleColumnToggle,
     onResetColumns: handleResetColumns,
     onShowAllColumns: handleShowAllColumns,
+    // Additional Filters
+    additionalFilters,
+    handleAddAdditionalFilter,
+    handleRemoveAdditionalFilter,
     // Data
     branchOptions,
     userBranchCodes,

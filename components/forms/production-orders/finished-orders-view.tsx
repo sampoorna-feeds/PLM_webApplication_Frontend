@@ -11,6 +11,7 @@ import { PaginationControls } from "./pagination-controls";
 import { TableFilterBar } from "./table-filter-bar";
 import { ActiveFilters } from "./active-filters";
 import { FINISHED_ORDERS_EXCLUDED_COLUMNS } from "./column-config";
+import { useFormStackContext } from "@/lib/form-stack/form-stack-context";
 
 export function FinishedOrdersView() {
   const {
@@ -36,14 +37,22 @@ export function FinishedOrdersView() {
     onShowAllColumns,
     branchOptions,
     userBranchCodes,
+    additionalFilters,
+    handleAddAdditionalFilter,
+    handleRemoveAdditionalFilter,
   } = useFinishedProductionOrders();
+
+  const { openTab } = useFormStackContext();
 
   const hasNextPage = currentPage < totalPages;
 
-  // Finished orders are read-only, no action on row click
+  // Open a read-only detail view in FormStack
   const handleRowClick = (orderNo: string) => {
-    // Could potentially open a read-only view in the future
-    console.log("View finished order:", orderNo);
+    openTab("finished-production-order-detail", {
+      title: `Finished Order ${orderNo}`,
+      context: { orderNo },
+      autoCloseOnSuccess: false,
+    });
   };
 
   return (
@@ -71,6 +80,9 @@ export function FinishedOrdersView() {
             onResetColumns={onResetColumns}
             onShowAllColumns={onShowAllColumns}
             excludeColumns={FINISHED_ORDERS_EXCLUDED_COLUMNS}
+            additionalFilters={additionalFilters}
+            onAddAdditionalFilter={handleAddAdditionalFilter}
+            onRemoveAdditionalFilter={handleRemoveAdditionalFilter}
           />
         </div>
 

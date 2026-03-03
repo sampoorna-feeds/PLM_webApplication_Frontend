@@ -43,6 +43,9 @@ export function ReleasedOrdersView() {
     userBranchCodes,
     addOrder,
     refetch,
+    additionalFilters,
+    handleAddAdditionalFilter,
+    handleRemoveAdditionalFilter,
   } = useProductionOrders();
 
   const hasNextPage = currentPage < totalPages;
@@ -101,6 +104,9 @@ export function ReleasedOrdersView() {
             onResetColumns={onResetColumns}
             onShowAllColumns={onShowAllColumns}
             excludeColumns={RELEASED_ORDERS_EXCLUDED_COLUMNS}
+            additionalFilters={additionalFilters}
+            onAddAdditionalFilter={handleAddAdditionalFilter}
+            onRemoveAdditionalFilter={handleRemoveAdditionalFilter}
           />
         </div>
 

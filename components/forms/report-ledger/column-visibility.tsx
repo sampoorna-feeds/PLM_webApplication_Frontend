@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
-import { Settings2, RotateCcw } from "lucide-react";
+import { useState, useMemo } from "react";
+import { Settings2, RotateCcw, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
 import {
   Popover,
   PopoverContent,
@@ -30,10 +31,30 @@ export function ColumnVisibility({
   onShowAllColumns,
 }: ColumnVisibilityProps) {
   const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
 
   // Count visible columns
   const visibleCount = visibleColumns.length;
   const totalCount = DEFAULT_COLUMNS.length + OPTIONAL_COLUMNS.length;
+
+  // Filter columns by search
+  const filteredDefault = useMemo(() => {
+    if (!search.trim()) return DEFAULT_COLUMNS;
+    const q = search.toLowerCase();
+    return DEFAULT_COLUMNS.filter(
+      (col) =>
+        col.label.toLowerCase().includes(q) || col.id.toLowerCase().includes(q),
+    );
+  }, [search]);
+
+  const filteredOptional = useMemo(() => {
+    if (!search.trim()) return OPTIONAL_COLUMNS;
+    const q = search.toLowerCase();
+    return OPTIONAL_COLUMNS.filter(
+      (col) =>
+        col.label.toLowerCase().includes(q) || col.id.toLowerCase().includes(q),
+    );
+  }, [search]);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -43,7 +64,7 @@ export function ColumnVisibility({
           Columns ({visibleCount}/{totalCount})
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-56 p-0" align="end">
+      <PopoverContent className="w-64 p-0" align="end">
         <div className="border-b p-3">
           <div className="flex items-center justify-between">
             <span className="text-sm font-medium">Toggle Columns</span>
@@ -67,40 +88,62 @@ export function ColumnVisibility({
               </Button>
             </div>
           </div>
+          {/* Search bar */}
+          <div className="relative mt-2">
+            <Search className="text-muted-foreground absolute top-1/2 left-2 h-3.5 w-3.5 -translate-y-1/2" />
+            <Input
+              placeholder="Search columns..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="h-8 pl-7 text-sm"
+            />
+          </div>
         </div>
 
         <div className="max-h-80 overflow-y-auto p-2">
           {/* Default columns */}
-          <div className="mb-2">
-            <span className="text-muted-foreground px-2 text-xs">
-              Default Columns
-            </span>
-            {DEFAULT_COLUMNS.map((column) => (
-              <ColumnToggleItem
-                key={column.id}
-                column={column}
-                isChecked={visibleColumns.includes(column.id)}
-                onToggle={() => onColumnToggle(column.id)}
-              />
-            ))}
-          </div>
+          {filteredDefault.length > 0 && (
+            <div className="mb-2">
+              <span className="text-muted-foreground px-2 text-xs">
+                Default Columns
+              </span>
+              {filteredDefault.map((column) => (
+                <ColumnToggleItem
+                  key={column.id}
+                  column={column}
+                  isChecked={visibleColumns.includes(column.id)}
+                  onToggle={() => onColumnToggle(column.id)}
+                />
+              ))}
+            </div>
+          )}
 
-          <Separator className="my-2" />
+          {filteredDefault.length > 0 && filteredOptional.length > 0 && (
+            <Separator className="my-2" />
+          )}
 
           {/* Optional columns */}
-          <div>
-            <span className="text-muted-foreground px-2 text-xs">
-              Additional Columns
-            </span>
-            {OPTIONAL_COLUMNS.map((column) => (
-              <ColumnToggleItem
-                key={column.id}
-                column={column}
-                isChecked={visibleColumns.includes(column.id)}
-                onToggle={() => onColumnToggle(column.id)}
-              />
-            ))}
-          </div>
+          {filteredOptional.length > 0 && (
+            <div>
+              <span className="text-muted-foreground px-2 text-xs">
+                Additional Columns
+              </span>
+              {filteredOptional.map((column) => (
+                <ColumnToggleItem
+                  key={column.id}
+                  column={column}
+                  isChecked={visibleColumns.includes(column.id)}
+                  onToggle={() => onColumnToggle(column.id)}
+                />
+              ))}
+            </div>
+          )}
+
+          {filteredDefault.length === 0 && filteredOptional.length === 0 && (
+            <div className="text-muted-foreground py-4 text-center text-sm">
+              No columns match &quot;{search}&quot;
+            </div>
+          )}
         </div>
       </PopoverContent>
     </Popover>

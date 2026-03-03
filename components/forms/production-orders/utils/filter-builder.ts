@@ -5,6 +5,7 @@
 
 import type { ColumnConfig } from "../column-config";
 import { ALL_COLUMNS } from "../column-config";
+import type { FilterCondition } from "../types";
 
 export interface FilterParams {
   lobCodes: string[];
@@ -14,6 +15,7 @@ export interface FilterParams {
   dueDateTo?: string;
   columnFilters?: Record<string, { value: string; valueTo?: string }>;
   excludeColumns?: string[];
+  additionalFilters?: FilterCondition[];
 }
 
 /**
@@ -174,6 +176,7 @@ export function buildFilterString(params: FilterParams): string {
     dueDateTo,
     columnFilters = {},
     excludeColumns = [],
+    additionalFilters = [],
   } = params;
 
   const filterParts: string[] = [];
@@ -209,6 +212,53 @@ export function buildFilterString(params: FilterParams): string {
     const columnFilterParts = buildColumnFilter(column, filter);
     filterParts.push(...columnFilterParts);
   });
+
+  // Dynamic additional filters
+  if (additionalFilters && additionalFilters.length > 0) {
+    additionalFilters.forEach((filter) => {
+      // Skip columns not available in the current endpoint
+      if (excludeColumns.includes(filter.field)) return;
+
+      if (!filter.value && filter.type !== "boolean") return;
+
+      const isString =
+        filter.type === "text" ||
+        filter.type === "enum" ||
+        filter.type === "date";
+
+      const formattedValue = isString
+        ? `'${escapeODataValue(filter.value)}'`
+        : filter.value;
+
+      switch (filter.operator) {
+        case "eq":
+        case "ne":
+        case "gt":
+        case "ge":
+        case "lt":
+        case "le":
+          filterParts.push(
+            `${filter.field} ${filter.operator} ${formattedValue}`,
+          );
+          break;
+        case "contains":
+          filterParts.push(
+            `contains(${filter.field}, '${escapeODataValue(filter.value)}')`,
+          );
+          break;
+        case "startswith":
+          filterParts.push(
+            `startswith(${filter.field}, '${escapeODataValue(filter.value)}')`,
+          );
+          break;
+        case "endswith":
+          filterParts.push(
+            `endswith(${filter.field}, '${escapeODataValue(filter.value)}')`,
+          );
+          break;
+      }
+    });
+  }
 
   return filterParts.join(" and ");
 }

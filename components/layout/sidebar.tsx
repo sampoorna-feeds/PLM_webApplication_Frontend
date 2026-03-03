@@ -51,6 +51,7 @@ import {
   LogOut,
   User,
   KeyRound,
+  ShoppingCart,
 } from "lucide-react";
 
 const salesSubItems = [
@@ -58,6 +59,13 @@ const salesSubItems = [
   { title: "Invoice", url: "/sales/invoice" },
   { title: "Return Order", url: "/sales/return-order" },
   { title: "Credit Memo", url: "/sales/credit-memo" },
+];
+
+const purchaseSubItems = [
+  { title: "Order", url: "/purchase/order" },
+  { title: "Invoice", url: "/purchase/invoice" },
+  { title: "Return Order", url: "/purchase/return-order" },
+  { title: "Credit Memo", url: "/purchase/credit-memo" },
 ];
 
 const formsItems = [
@@ -177,6 +185,37 @@ export function AppSidebar({
                   <CollapsibleContent>
                     <SidebarMenuSub>
                       {salesSubItems.map((item) => (
+                        <SidebarMenuSubItem key={item.url}>
+                          <SidebarMenuSubButton
+                            asChild
+                            isActive={pathname === item.url}
+                          >
+                            <Link href={item.url}>{item.title}</Link>
+                          </SidebarMenuSubButton>
+                        </SidebarMenuSubItem>
+                      ))}
+                    </SidebarMenuSub>
+                  </CollapsibleContent>
+                </Collapsible>
+                <Collapsible
+                  defaultOpen={pathname?.startsWith("/purchase")}
+                  className="group/purchase"
+                >
+                  <SidebarMenuItem>
+                    <CollapsibleTrigger asChild>
+                      <SidebarMenuButton
+                        isActive={pathname?.startsWith("/purchase")}
+                        className="w-full"
+                      >
+                        <ShoppingCart />
+                        <span>Purchase</span>
+                        <ChevronDown className="ml-auto size-4 group-data-[state=closed]/purchase:-rotate-90 group-data-[state=open]/purchase:rotate-0" />
+                      </SidebarMenuButton>
+                    </CollapsibleTrigger>
+                  </SidebarMenuItem>
+                  <CollapsibleContent>
+                    <SidebarMenuSub>
+                      {purchaseSubItems.map((item) => (
                         <SidebarMenuSubItem key={item.url}>
                           <SidebarMenuSubButton
                             asChild

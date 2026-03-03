@@ -119,6 +119,7 @@ export function SalesOrderDetailForm({
     driverPhone: "",
     lrRrNumber: "",
     lrRrDate: "",
+    postingDate: "",
     externalDocumentNo: "",
     distanceKm: "",
     grossWeight: "",
@@ -302,6 +303,11 @@ export function SalesOrderDetailForm({
 
   const handleOpenPostDialog = () => {
     setPostOption(null);
+    // initialize postingDate from header
+    setPostDetails((prev) => ({
+      ...prev,
+      postingDate: order?.Posting_Date || "",
+    }));
     setIsPostDialogOpen(true);
   };
 
@@ -340,6 +346,7 @@ export function SalesOrderDetailForm({
       driverPhone: "",
       lrRrNumber: "",
       lrRrDate: "",
+      postingDate: order?.Posting_Date || "",
       externalDocumentNo: "",
       distanceKm: "",
       grossWeight: "",
@@ -393,6 +400,7 @@ export function SalesOrderDetailForm({
         Driver_Mobile_No: postDetails.driverPhone || "",
         LR_RR_No: postDetails.lrRrNumber || "",
         LR_RR_Date: postDetails.lrRrDate || "",
+        Posting_Date: postDetails.postingDate || "",
         External_Document_No: postDetails.externalDocumentNo || "",
         Distance_km: postDetails.distanceKm ? Number(postDetails.distanceKm) : 0,
       };
@@ -1041,6 +1049,18 @@ export function SalesOrderDetailForm({
                 value={postDetails.vehicleNumber}
                 onChange={(e) =>
                   setPostDetails((prev) => ({ ...prev, vehicleNumber: e.target.value }))
+                }
+              />
+            </div>
+
+            <div className="space-y-1">
+              <Label>Posting Date</Label>
+              <input
+                type="date"
+                className="border-input h-9 w-full rounded-md border bg-transparent px-3 text-sm"
+                value={postDetails.postingDate}
+                onChange={(e) =>
+                  setPostDetails((prev) => ({ ...prev, postingDate: e.target.value }))
                 }
               />
             </div>

@@ -68,7 +68,7 @@ export async function createPurchaseOrder(
 
     const payload = {
       Document_Type: "Order",
-      Sell_to_Customer_No: orderData.vendorNo,
+      Buy_from_Vendor_No: orderData.vendorNo,
       Ship_to_Code: orderData.shipToCode || "",
       Purchaseperson_Code: orderData.purchasePersonCode || "",
       Location_Code: orderData.locationCode || orderData.loc || "",
@@ -91,7 +91,7 @@ export async function createPurchaseOrder(
       return { orderId: "", orderNo: "" };
     }
 
-    // API returns document number as "No" (e.g. "SO/2526/080184")
+    // API returns document number as "No" (e.g. "PO/2526/080184")
     const orderNo = response.No ?? response.orderNo ?? "";
     const orderId = response.orderId ?? orderNo;
 

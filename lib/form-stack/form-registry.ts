@@ -21,6 +21,10 @@ let LineItemTabForm: FormComponent | null = null;
 
 let PurchaseOrderForm: FormComponent | null = null;
 let PurchaseOrderDetailForm: FormComponent | null = null;
+let PurchaseOrderEditForm: FormComponent | null = null;
+let PurchaseInvoiceForm: FormComponent | null = null;
+let PurchaseReturnOrderForm: FormComponent | null = null;
+let PurchaseCreditMemoForm: FormComponent | null = null;
 
 /**
  * Form registry mapping form types to components
@@ -126,7 +130,7 @@ export const formRegistry: Record<
   "purchase-order": async () => {
     if (!PurchaseOrderForm) {
       const module =
-        await import("@/components/forms/purchase-orders/purchase-order-form");
+        await import("@/components/forms/purchase/purchase-order-form");
       PurchaseOrderForm = module.PurchaseOrderForm;
     }
     return { default: PurchaseOrderForm! };
@@ -134,10 +138,42 @@ export const formRegistry: Record<
   "purchase-order-detail": async () => {
     if (!PurchaseOrderDetailForm) {
       const module =
-        await import("@/components/forms/purchase-orders/purchase-order-detail-form");
+        await import("@/components/forms/purchase/purchase-order-detail-form");
       PurchaseOrderDetailForm = module.PurchaseOrderDetailForm;
     }
     return { default: PurchaseOrderDetailForm! };
+  },
+  "purchase-order-edit": async () => {
+    if (!PurchaseOrderEditForm) {
+      const module =
+        await import("@/components/forms/purchase/purchase-order-edit-form");
+      PurchaseOrderEditForm = module.PurchaseOrderEditForm;
+    }
+    return { default: PurchaseOrderEditForm! };
+  },
+  "purchase-invoice": async () => {
+    if (!PurchaseInvoiceForm) {
+      const module =
+        await import("@/components/forms/purchase/purchase-invoice-form");
+      PurchaseInvoiceForm = module.PurchaseInvoiceForm;
+    }
+    return { default: PurchaseInvoiceForm! };
+  },
+  "purchase-return-order": async () => {
+    if (!PurchaseReturnOrderForm) {
+      const module =
+        await import("@/components/forms/purchase/purchase-return-order-form");
+      PurchaseReturnOrderForm = module.PurchaseReturnOrderForm;
+    }
+    return { default: PurchaseReturnOrderForm! };
+  },
+  "purchase-credit-memo": async () => {
+    if (!PurchaseCreditMemoForm) {
+      const module =
+        await import("@/components/forms/purchase/purchase-credit-memo-form");
+      PurchaseCreditMemoForm = module.PurchaseCreditMemoForm;
+    }
+    return { default: PurchaseCreditMemoForm! };
   },
 };
 

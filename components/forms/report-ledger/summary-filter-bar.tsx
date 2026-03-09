@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Search, X, ChevronsUpDown, Loader2 } from "lucide-react";
+import { Search, X, ChevronsUpDown, Loader2, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { DateInput } from "@/components/ui/date-input";
@@ -12,37 +12,55 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import type { SummaryFilters } from "./use-inventory-summary";
+import { DynamicFilterBuilder } from "./dynamic-filter-builder";
+import type { FilterCondition } from "./types";
 
 interface SummaryFilterBarProps {
   filters: SummaryFilters;
   locationOptions: { label: string; value: string }[];
+  itemOptions: { label: string; value: string; description?: string }[];
   isLoadingLocations: boolean;
+  isLoadingItems: boolean;
+  isLoadingMoreItems: boolean;
+  hasMoreItems: boolean;
   totalCount: number;
   isLoading: boolean;
   loadingMessage: string;
   onFiltersChange: (filters: Partial<SummaryFilters>) => void;
+  onItemSearch: (query: string) => void;
+  onLoadMoreItems: () => void;
   onApplyFilters: () => void;
   onClearFilters: () => void;
+  onExport: () => void;
 }
 
 export function SummaryFilterBar({
   filters,
   locationOptions,
+  itemOptions,
   isLoadingLocations,
+  isLoadingItems,
+  isLoadingMoreItems,
+  hasMoreItems,
   totalCount,
   isLoading,
   loadingMessage,
   onFiltersChange,
+  onItemSearch,
+  onLoadMoreItems,
   onApplyFilters,
   onClearFilters,
+  onExport,
 }: SummaryFilterBarProps) {
   const [locPopoverOpen, setLocPopoverOpen] = useState(false);
 
   const hasActiveFilters =
     filters.locationCodes.length > 0 ||
     filters.postingDateFrom ||
-    filters.postingDateTo;
+    filters.postingDateTo ||
+    (filters.additionalFilters && filters.additionalFilters.length > 0);
 
   // Location multi-select helpers
   const knownCodes = new Set(locationOptions.map((opt) => opt.value));
@@ -76,6 +94,18 @@ export function SummaryFilterBar({
     onFiltersChange({ locationCodes: [] });
   };
 
+  const handleAddAdditionalFilter = (filter: FilterCondition) => {
+    const current = filters.additionalFilters || [];
+    onFiltersChange({ additionalFilters: [...current, filter] });
+  };
+
+  const handleRemoveAdditionalFilter = (index: number) => {
+    const current = filters.additionalFilters || [];
+    onFiltersChange({
+      additionalFilters: current.filter((_, i) => i !== index),
+    });
+  };
+
   // Location trigger text — distinguish custom vs standard
   const locationTriggerText = (() => {
     if (isLoadingLocations) return "Loading...";
@@ -95,8 +125,7 @@ export function SummaryFilterBar({
 
   return (
     <div className="space-y-3 pb-3">
-      {/* Filter Controls Grid */}
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4">
         {/* Location Code Multi-Select */}
         <div className="space-y-1.5">
           <Label className="text-xs font-medium">
@@ -203,6 +232,36 @@ export function SummaryFilterBar({
           </Popover>
         </div>
 
+        {/* Item No (Main Filter) */}
+        <div className="space-y-1.5">
+          <Label htmlFor="summary-item-no" className="text-xs font-medium">
+            Item No
+          </Label>
+          <SearchableSelect
+            options={itemOptions}
+            value={filters.itemNo}
+            onValueChange={(val: string) => onFiltersChange({ itemNo: val })}
+            onSearch={onItemSearch}
+            isLoading={isLoadingItems}
+            isLoadingMore={isLoadingMoreItems}
+            hasMore={hasMoreItems}
+            onLoadMore={onLoadMoreItems}
+            placeholder={
+              filters.locationCodes.length === 0
+                ? "Select a location first..."
+                : "Search Item No..."
+            }
+            searchPlaceholder="Type to search items..."
+            emptyText={
+              filters.locationCodes.length === 0
+                ? "Please select a location above to see available items."
+                : "No items found."
+            }
+            disabled={filters.locationCodes.length === 0}
+            className="h-9 w-full"
+          />
+        </div>
+
         {/* Posting Date From */}
         <div className="space-y-1.5">
           <Label htmlFor="summary-date-from" className="text-xs font-medium">
@@ -233,7 +292,7 @@ export function SummaryFilterBar({
       </div>
 
       {/* Action Buttons Row */}
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3 pt-2">
         {/* Apply Filters Button — always active */}
         <Button onClick={onApplyFilters} size="sm" className="gap-2">
           {isLoading ? (
@@ -243,6 +302,15 @@ export function SummaryFilterBar({
           )}
           {isLoading ? "Loading..." : "Search"}
         </Button>
+
+        {/* Dynamic Filters Builder */}
+        <DynamicFilterBuilder
+          filters={filters.additionalFilters || []}
+          onAddFilter={handleAddAdditionalFilter}
+          onRemoveFilter={handleRemoveAdditionalFilter}
+          excludedFields={["Item_No", "Location_Code", "Posting_Date"]}
+          topFields={[]}
+        />
 
         {/* Reset Filters */}
         {hasActiveFilters && (
@@ -258,6 +326,18 @@ export function SummaryFilterBar({
         )}
 
         <div className="flex-1" />
+
+        {/* Export Button */}
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={onExport}
+          disabled={isLoading || totalCount === 0}
+          className="gap-2"
+        >
+          <Download className="h-4 w-4" />
+          Export
+        </Button>
 
         {/* Loading / Count indicator */}
         {isLoading && loadingMessage && (

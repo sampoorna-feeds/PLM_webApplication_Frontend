@@ -347,6 +347,7 @@ export function TableFilterBar({
           size="sm"
           className="gap-2"
           onClick={() => setExportDialogOpen(true)}
+          disabled={totalCount === 0}
         >
           <Download className="h-4 w-4" />
           Export

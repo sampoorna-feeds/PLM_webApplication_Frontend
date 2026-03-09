@@ -11,7 +11,11 @@ export function InventorySummaryForm() {
     filters,
     appliedFilters,
     locationOptions,
+    itemOptions,
     isLoadingLocations,
+    isLoadingItems,
+    isLoadingMoreItems,
+    hasMoreItems,
     // Data
     allRows,
     grouped,
@@ -27,6 +31,9 @@ export function InventorySummaryForm() {
     handleApplyFilters,
     handleClearFilters,
     handlePageChange,
+    onItemSearch,
+    onLoadMoreItems,
+    handleExport,
   } = useInventorySummary();
 
   return (
@@ -37,13 +44,20 @@ export function InventorySummaryForm() {
           <SummaryFilterBar
             filters={filters}
             locationOptions={locationOptions}
+            itemOptions={itemOptions}
             isLoadingLocations={isLoadingLocations}
+            isLoadingItems={isLoadingItems}
+            isLoadingMoreItems={isLoadingMoreItems}
+            hasMoreItems={hasMoreItems}
             totalCount={totalCount}
             isLoading={isLoading}
             loadingMessage={loadingMessage}
             onFiltersChange={handleFiltersChange}
+            onItemSearch={onItemSearch}
+            onLoadMoreItems={onLoadMoreItems}
             onApplyFilters={handleApplyFilters}
             onClearFilters={handleClearFilters}
+            onExport={handleExport}
           />
         </div>
 

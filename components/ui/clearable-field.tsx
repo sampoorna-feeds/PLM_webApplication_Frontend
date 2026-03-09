@@ -30,12 +30,7 @@ export function ClearableField({
   const hasValue = value !== undefined && value !== null && value !== "";
 
   return (
-    <div
-      className={cn(
-        "group/clearable flex items-center gap-1",
-        className,
-      )}
-    >
+    <div className={cn("group/clearable flex items-center gap-1", className)}>
       <div className="min-w-0 flex-1">{children}</div>
       <button
         type="button"
@@ -46,9 +41,11 @@ export function ClearableField({
         }}
         disabled={disabled || !hasValue}
         className={cn(
-          "text-muted-foreground hover:text-foreground flex h-7 w-7 shrink-0 items-center justify-center rounded transition-colors hover:bg-muted/80 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1 disabled:pointer-events-none disabled:opacity-50",
+          "text-muted-foreground hover:text-foreground hover:bg-muted/80 focus:ring-ring flex h-7 w-7 shrink-0 items-center justify-center rounded transition-colors focus:ring-2 focus:ring-offset-1 focus:outline-none disabled:pointer-events-none disabled:opacity-50",
           !hasValue && "invisible w-0 p-0",
-          hasValue && showOnHoverOnly && "opacity-0 group-hover/clearable:opacity-100",
+          hasValue &&
+            showOnHoverOnly &&
+            "opacity-0 group-hover/clearable:opacity-100",
           hasValue && !showOnHoverOnly && "opacity-100",
         )}
         aria-label="Clear selection"

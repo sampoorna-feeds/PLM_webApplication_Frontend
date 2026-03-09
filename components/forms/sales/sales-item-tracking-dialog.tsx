@@ -70,7 +70,9 @@ export function SalesItemTrackingDialog({
   const [isSaving, setIsSaving] = useState(false);
   const [availableLots, setAvailableLots] = useState<LotAvailability[]>([]);
   const [isLoadingLots, setIsLoadingLots] = useState(false);
-  const [trackingLines, setTrackingLines] = useState<SalesItemTrackingLine[]>([]);
+  const [trackingLines, setTrackingLines] = useState<SalesItemTrackingLine[]>(
+    [],
+  );
   const [isLoadingTrackingLines, setIsLoadingTrackingLines] = useState(false);
   const [apiError, setApiError] = useState<ApiErrorState | null>(null);
 
@@ -85,7 +87,7 @@ export function SalesItemTrackingDialog({
   const itemNo = line?.No ?? "";
   const lineNo = line?.Line_No ?? 0;
   const remainingQuantity = useMemo(
-    () => (line?.Quantity ?? 0),
+    () => line?.Quantity ?? 0,
     [line?.Quantity],
   );
   const assignedQuantity = useMemo(() => {
@@ -358,8 +360,9 @@ export function SalesItemTrackingDialog({
                   <div className="rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800">
                     <p className="font-medium">Editing Tracking Line</p>
                     <p className="mt-1 text-xs">
-                      Modifying Entry #{editingLine.Entry_No}. Click &quot;Cancel
-                      Edit&quot; to create a new tracking line instead.
+                      Modifying Entry #{editingLine.Entry_No}. Click
+                      &quot;Cancel Edit&quot; to create a new tracking line
+                      instead.
                     </p>
                   </div>
                 )}
@@ -478,12 +481,16 @@ export function SalesItemTrackingDialog({
                         <TableHead className="h-8">Item No.</TableHead>
                         <TableHead className="h-8">Lot No.</TableHead>
                         <TableHead className="h-8">Location</TableHead>
-                        <TableHead className="h-8 text-right">Quantity</TableHead>
+                        <TableHead className="h-8 text-right">
+                          Quantity
+                        </TableHead>
                         <TableHead className="h-8 text-right">
                           Qty to Handle
                         </TableHead>
                         <TableHead className="h-8">Expiration</TableHead>
-                        <TableHead className="h-8 text-center">Actions</TableHead>
+                        <TableHead className="h-8 text-center">
+                          Actions
+                        </TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -589,9 +596,7 @@ export function SalesItemTrackingDialog({
                   : undefined
               }
             >
-              {isSaving && (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              )}
+              {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {editingLine ? "Update" : "Assign"}
             </Button>
           </DialogFooter>

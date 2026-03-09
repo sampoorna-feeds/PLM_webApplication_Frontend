@@ -28,16 +28,14 @@ export interface SalesOrderLineItem {
   description: string;
   uom?: string;
   quantity: number;
-  mrp?: number;
   price?: number;
   unitPrice: number;
-  totalMRP: number;
   discount: number;
   amount: number;
   exempted?: boolean;
   gstGroupCode?: string;
   hsnSacCode?: string;
-  tcsGroupCode?: string;
+  tdsGroupCode?: string;
 }
 
 export interface CreateSalesOrderResponse {

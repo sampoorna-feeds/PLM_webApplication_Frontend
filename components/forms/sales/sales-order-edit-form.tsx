@@ -44,13 +44,12 @@ function salesLineToLineItem(line: SalesLine, _orderNo: string): LineItem {
     lineNo: lineNo > 0 ? lineNo : undefined,
     type: (line.Type as "Item" | "G/L Account") || "Item",
     no: line.No ?? "",
-    description: [line.Description, line.Description_2].filter(Boolean).join(" ") || "",
+    description:
+      [line.Description, line.Description_2].filter(Boolean).join(" ") || "",
     uom: line.Unit_of_Measure_Code ?? line.Unit_of_Measure ?? "",
     quantity: line.Quantity ?? 0,
-    mrp: line.MRP_Price,
     price: line.Unit_Price,
     unitPrice: line.Unit_Price ?? 0,
-    totalMRP: line.Total_MRP ?? 0,
     discount: line.Line_Discount_Amount ?? line.Line_Discount_Percent ?? 0,
     amount: line.Line_Amount ?? line.Amt_to_Customer ?? 0,
     exempted: line.Exempted,
@@ -79,11 +78,11 @@ export function SalesOrderEditForm({
   const orderNo = context?.orderNo as string | undefined;
   const onUpdated = context?.onUpdated as (() => void) | undefined;
 
-  const [order, setOrder] = useState<SalesOrder | null>(() =>
-    (initialFormData?.order as SalesOrder) ?? null,
+  const [order, setOrder] = useState<SalesOrder | null>(
+    () => (initialFormData?.order as SalesOrder) ?? null,
   );
-  const [isLoading, setIsLoading] = useState(() =>
-    !initialFormData?.[PERSIST_KEY] || !initialFormData?.order,
+  const [isLoading, setIsLoading] = useState(
+    () => !initialFormData?.[PERSIST_KEY] || !initialFormData?.order,
   );
   const [error, setError] = useState<string | null>(null);
   const [updateError, setUpdateError] = useState<string | null>(null);
@@ -168,10 +167,7 @@ export function SalesOrderEditForm({
     let cancelled = false;
     setIsLoading(true);
     setError(null);
-    Promise.all([
-      getSalesOrderByNo(orderNo),
-      getSalesOrderLines(orderNo),
-    ])
+    Promise.all([getSalesOrderByNo(orderNo), getSalesOrderLines(orderNo)])
       .then(([header, lines]) => {
         if (cancelled) return;
         const ord = header || null;
@@ -222,7 +218,14 @@ export function SalesOrderEditForm({
         });
       }
     },
-    [order, originalItems, orderItems, itemsToDelete, itemsToUpdate, persistState],
+    [
+      order,
+      originalItems,
+      orderItems,
+      itemsToDelete,
+      itemsToUpdate,
+      persistState,
+    ],
   );
 
   const handleAddLineItem = useCallback(() => {
@@ -316,13 +319,22 @@ export function SalesOrderEditForm({
           openedFromParent: true,
           onSave: (updated: LineItem) => {
             const hadLineNo = lineItem.lineNo != null && lineItem.lineNo > 0;
-            const merged = { ...updated, id: lineItem.id, lineNo: lineItem.lineNo };
+            const merged = {
+              ...updated,
+              id: lineItem.id,
+              lineNo: lineItem.lineNo,
+            };
             const next = orderItems.map((item) =>
               item.id === lineItem.id ? merged : item,
             );
             const nextUpdates =
               hadLineNo && lineItem.lineNo != null
-                ? [...itemsToUpdate.filter((x) => x.lineNo !== lineItem.lineNo), merged]
+                ? [
+                    ...itemsToUpdate.filter(
+                      (x) => x.lineNo !== lineItem.lineNo,
+                    ),
+                    merged,
+                  ]
                 : itemsToUpdate;
             persistState({
               order,
@@ -429,7 +441,10 @@ export function SalesOrderEditForm({
       );
       const nextUpdates =
         lineItem.lineNo != null && lineItem.lineNo > 0
-          ? [...itemsToUpdate.filter((x) => x.lineNo !== lineItem.lineNo), lineItem]
+          ? [
+              ...itemsToUpdate.filter((x) => x.lineNo !== lineItem.lineNo),
+              lineItem,
+            ]
           : itemsToUpdate;
       setOrderItems(nextOrderItems);
       setItemsToUpdate(nextUpdates);
@@ -528,7 +543,9 @@ export function SalesOrderEditForm({
   }
 
   const shipToChanged = shipToCode !== originalShipToCode;
-  const addCount = orderItems.filter((i) => i.lineNo == null || i.lineNo <= 0).length;
+  const addCount = orderItems.filter(
+    (i) => i.lineNo == null || i.lineNo <= 0,
+  ).length;
   const deleteCount = itemsToDelete.length;
   const updateCount = itemsToUpdate.length;
   const hasChanges =
@@ -551,21 +568,31 @@ export function SalesOrderEditForm({
             <div className="bg-muted/30 rounded-lg p-4">
               <div className="mb-4 grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
                 <div>
-                  <span className="text-muted-foreground block text-xs">Order No</span>
+                  <span className="text-muted-foreground block text-xs">
+                    Order No
+                  </span>
                   <span className="font-medium">{order.No}</span>
                 </div>
                 <div>
-                  <span className="text-muted-foreground block text-xs">Customer</span>
+                  <span className="text-muted-foreground block text-xs">
+                    Customer
+                  </span>
                   <span className="font-medium">
                     {order.Sell_to_Customer_Name || order.Sell_to_Customer_No}
                   </span>
                 </div>
                 <div>
-                  <span className="text-muted-foreground block text-xs">Order Date</span>
-                  <span className="font-medium">{formatDate(order.Order_Date)}</span>
+                  <span className="text-muted-foreground block text-xs">
+                    Order Date
+                  </span>
+                  <span className="font-medium">
+                    {formatDate(order.Order_Date)}
+                  </span>
                 </div>
                 <div>
-                  <span className="text-muted-foreground block text-xs">Status</span>
+                  <span className="text-muted-foreground block text-xs">
+                    Status
+                  </span>
                   <span className="font-medium">{order.Status ?? "-"}</span>
                 </div>
               </div>
@@ -587,7 +614,9 @@ export function SalesOrderEditForm({
           {/* Middle: Line items list with add / edit */}
           <section className="mb-6">
             <div className="mb-3 flex items-center justify-between">
-              <h3 className="text-foreground text-sm font-semibold">Line items</h3>
+              <h3 className="text-foreground text-sm font-semibold">
+                Line items
+              </h3>
               <Button onClick={handleAddLineItem} size="sm" className="h-8">
                 <Plus className="mr-1.5 h-3.5 w-3.5" />
                 Add item
@@ -616,8 +645,8 @@ export function SalesOrderEditForm({
         </div>
 
         {/* Bottom: Changes notification + Update */}
-        <div className="border-t bg-muted/30 px-4 py-3">
-          <div className="mb-3 rounded-md border bg-background p-3">
+        <div className="bg-muted/30 border-t px-4 py-3">
+          <div className="bg-background mb-3 rounded-md border p-3">
             <div className="text-foreground mb-1.5 text-xs font-semibold">
               Changes
             </div>
@@ -629,7 +658,9 @@ export function SalesOrderEditForm({
                 {updateCount > 0 && <li>{updateCount} item(s) updated</li>}
               </ul>
             ) : (
-              <p className="text-muted-foreground text-xs">No changes to save.</p>
+              <p className="text-muted-foreground text-xs">
+                No changes to save.
+              </p>
             )}
           </div>
           <div className="flex justify-end">

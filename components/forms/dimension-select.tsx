@@ -390,7 +390,7 @@ export function DimensionSelect({
         </Button>
       </PopoverTrigger>
       <PopoverContent
-        className="flex w-auto max-w-[500px] min-w-[280px] max-h-[var(--radix-popover-content-available-height,80vh)] min-h-0 flex-col overflow-hidden p-0"
+        className="flex max-h-[var(--radix-popover-content-available-height,80vh)] min-h-0 w-auto max-w-[500px] min-w-[280px] flex-col overflow-hidden p-0"
         align="start"
         style={{ width: calculateDropdownWidth() }}
         onOpenAutoFocus={(e) => {
@@ -403,87 +403,87 @@ export function DimensionSelect({
         }}
       >
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-        {supportsSearch && (
-          <div className="flex-shrink-0 border-b p-2">
-            <Input
-              placeholder="Search by Code or Name..."
-              value={searchQuery}
-              onChange={(e) => {
-                const query = e.target.value;
-                setSearchQuery(query);
-                performSearch(query);
-              }}
-              className="h-8 text-sm"
-              autoFocus
-            />
-          </div>
-        )}
-        <div
-          ref={listRef}
-          className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto"
-          onScroll={(e) => {
-            if (!supportsSearch) return;
-            const target = e.currentTarget;
-            if (
-              target.scrollHeight - target.scrollTop <=
-                target.clientHeight * 1.5 &&
-              hasMore &&
-              !isLoading
-            ) {
-              loadMore();
-            }
-          }}
-        >
-          {isLoading && items.length === 0 ? (
-            <div className="flex items-center justify-center p-4">
-              <Loader2 className="h-4 w-4 animate-spin" />
+          {supportsSearch && (
+            <div className="flex-shrink-0 border-b p-2">
+              <Input
+                placeholder="Search by Code or Name..."
+                value={searchQuery}
+                onChange={(e) => {
+                  const query = e.target.value;
+                  setSearchQuery(query);
+                  performSearch(query);
+                }}
+                className="h-8 text-sm"
+                autoFocus
+              />
             </div>
-          ) : items.length === 0 ? (
-            <div className="text-muted-foreground p-4 text-center text-sm">
-              {supportsSearch && searchQuery.length < MIN_SEARCH_LENGTH
-                ? `Type at least ${MIN_SEARCH_LENGTH} characters to search`
-                : "No items found"}
-            </div>
-          ) : (
-            <>
-              {items.map((item) => (
-                <div
-                  key={item.Code}
-                  className={cn(
-                    "hover:bg-muted/50 relative flex cursor-default items-start rounded-sm px-2 py-2 text-sm outline-none select-none",
-                    value === item.Code && "bg-muted",
-                  )}
-                  onClick={() => {
-                    onChange(item.Code);
-                    setIsOpen(false);
-                  }}
-                >
-                  <CheckIcon
-                    className={cn(
-                      "mt-0.5 mr-2 h-4 w-4 shrink-0",
-                      value === item.Code ? "opacity-100" : "opacity-0",
-                    )}
-                  />
-                  <div className="min-w-0 flex-1">
-                    <div className="text-foreground font-medium">
-                      {item.Code}
-                    </div>
-                    {item.Name && (
-                      <div className="text-muted-foreground mt-0.5 text-xs break-words">
-                        {item.Name}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
-              {isLoading && items.length > 0 && (
-                <div className="flex items-center justify-center p-2">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                </div>
-              )}
-            </>
           )}
-        </div>
+          <div
+            ref={listRef}
+            className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto"
+            onScroll={(e) => {
+              if (!supportsSearch) return;
+              const target = e.currentTarget;
+              if (
+                target.scrollHeight - target.scrollTop <=
+                  target.clientHeight * 1.5 &&
+                hasMore &&
+                !isLoading
+              ) {
+                loadMore();
+              }
+            }}
+          >
+            {isLoading && items.length === 0 ? (
+              <div className="flex items-center justify-center p-4">
+                <Loader2 className="h-4 w-4 animate-spin" />
+              </div>
+            ) : items.length === 0 ? (
+              <div className="text-muted-foreground p-4 text-center text-sm">
+                {supportsSearch && searchQuery.length < MIN_SEARCH_LENGTH
+                  ? `Type at least ${MIN_SEARCH_LENGTH} characters to search`
+                  : "No items found"}
+              </div>
+            ) : (
+              <>
+                {items.map((item) => (
+                  <div
+                    key={item.Code}
+                    className={cn(
+                      "hover:bg-muted/50 relative flex cursor-default items-start rounded-sm px-2 py-2 text-sm outline-none select-none",
+                      value === item.Code && "bg-muted",
+                    )}
+                    onClick={() => {
+                      onChange(item.Code);
+                      setIsOpen(false);
+                    }}
+                  >
+                    <CheckIcon
+                      className={cn(
+                        "mt-0.5 mr-2 h-4 w-4 shrink-0",
+                        value === item.Code ? "opacity-100" : "opacity-0",
+                      )}
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="text-foreground font-medium">
+                        {item.Code}
+                      </div>
+                      {item.Name && (
+                        <div className="text-muted-foreground mt-0.5 text-xs break-words">
+                          {item.Name}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+                {isLoading && items.length > 0 && (
+                  <div className="flex items-center justify-center p-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  </div>
+                )}
+              </>
+            )}
+          </div>
         </div>
       </PopoverContent>
     </Popover>

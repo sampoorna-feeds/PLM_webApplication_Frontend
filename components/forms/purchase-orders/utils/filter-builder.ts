@@ -5,6 +5,7 @@
 
 import type { ColumnConfig } from "../column-config";
 import { ALL_COLUMNS } from "../column-config";
+import type { FilterCondition } from "../types";
 
 export interface PurchaseOrderFilterParams {
   /** Branch codes to filter by at API level (Shortcut_Dimension_2_Code). Required for listing only user's orders. */
@@ -12,6 +13,8 @@ export interface PurchaseOrderFilterParams {
   /** Status filter for tab (Open | Pending Approval | Released). Applied at API level. */
   statusFilter?: string;
   columnFilters?: Record<string, { value: string; valueTo?: string }>;
+  /** Additional dynamic filters from the DynamicFilterBuilder */
+  additionalFilters?: FilterCondition[];
 }
 
 function escapeODataValue(value: string): string {
@@ -118,7 +121,12 @@ function buildColumnFilter(
 export function buildPurchaseOrderFilterString(
   params: PurchaseOrderFilterParams,
 ): string | undefined {
-  const { branchCodes = [], statusFilter, columnFilters = {} } = params;
+  const {
+    branchCodes = [],
+    statusFilter,
+    columnFilters = {},
+    additionalFilters = [],
+  } = params;
   const filterParts: string[] = [];
 
   // API-level branch filter (Shortcut_Dimension_2_Code = branch codes)
@@ -147,6 +155,36 @@ export function buildPurchaseOrderFilterString(
     if (!column) return;
     const parts = buildColumnFilter(column, filter);
     filterParts.push(...parts);
+  });
+
+  // Additional dynamic filters from DynamicFilterBuilder
+  additionalFilters.forEach((f) => {
+    const escaped = escapeODataValue(f.value);
+    switch (f.operator) {
+      case "contains":
+        filterParts.push(`contains(${f.field},'${escaped}')`);
+        break;
+      case "startswith":
+        filterParts.push(`startswith(${f.field},'${escaped}')`);
+        break;
+      case "endswith":
+        filterParts.push(`endswith(${f.field},'${escaped}')`);
+        break;
+      case "eq":
+      case "ne":
+      case "gt":
+      case "ge":
+      case "lt":
+      case "le":
+        if (f.type === "number") {
+          filterParts.push(`${f.field} ${f.operator} ${f.value}`);
+        } else if (f.type === "date") {
+          filterParts.push(`${f.field} ${f.operator} ${f.value}`);
+        } else {
+          filterParts.push(`${f.field} ${f.operator} '${escaped}'`);
+        }
+        break;
+    }
   });
 
   if (filterParts.length === 0) return undefined;

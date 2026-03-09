@@ -7,13 +7,16 @@ import {
   Dialog,
   DialogContent,
   DialogFooter,
-  DialogHeader, 
+  DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { updateSalesLine, type SalesLine } from "@/lib/api/services/sales-orders.service";
+import {
+  updateSalesLine,
+  type SalesLine,
+} from "@/lib/api/services/sales-orders.service";
 import {
   ApiErrorDialog,
   extractApiError,
@@ -112,11 +115,16 @@ export function SalesOrderLineDialog({
               <Label className="text-muted-foreground text-left text-sm sm:text-right">
                 Item No.
               </Label>
-              <div className="col-span-3 text-sm font-medium">{line.No || "-"}</div>
+              <div className="col-span-3 text-sm font-medium">
+                {line.No || "-"}
+              </div>
             </div>
 
             <div className="grid grid-cols-1 items-start gap-2 sm:grid-cols-4 sm:items-center sm:gap-4">
-              <Label htmlFor="description" className="text-left text-sm sm:text-right">
+              <Label
+                htmlFor="description"
+                className="text-left text-sm sm:text-right"
+              >
                 Description
               </Label>
               <Input
@@ -146,7 +154,10 @@ export function SalesOrderLineDialog({
             </div>
 
             <div className="grid grid-cols-1 items-start gap-2 sm:grid-cols-4 sm:items-center sm:gap-4">
-              <Label htmlFor="qtyShip" className="text-left text-sm sm:text-right">
+              <Label
+                htmlFor="qtyShip"
+                className="text-left text-sm sm:text-right"
+              >
                 Qty to Ship
               </Label>
               <Input
@@ -174,7 +185,10 @@ export function SalesOrderLineDialog({
             </div>
 
             <div className="grid grid-cols-1 items-start gap-2 sm:grid-cols-4 sm:items-center sm:gap-4">
-              <Label htmlFor="qtyInvoice" className="text-left text-sm sm:text-right">
+              <Label
+                htmlFor="qtyInvoice"
+                className="text-left text-sm sm:text-right"
+              >
                 Qty to Invoice
               </Label>
               <Input

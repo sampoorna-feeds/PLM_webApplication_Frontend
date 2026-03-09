@@ -39,9 +39,7 @@ export function SalesOrderPaginationControls({
     <div className="flex items-center justify-between gap-4 pt-3">
       <div className="flex items-center gap-4">
         <div className="flex items-center gap-2">
-          <span className="text-muted-foreground text-sm">
-            Rows per page:
-          </span>
+          <span className="text-muted-foreground text-sm">Rows per page:</span>
           <Select
             value={pageSize.toString()}
             onValueChange={(val) => onPageSizeChange(Number(val))}
@@ -97,11 +95,7 @@ interface PageInputProps {
   onPageChange: (page: number) => void;
 }
 
-function PageInput({
-  currentPage,
-  totalPages,
-  onPageChange,
-}: PageInputProps) {
+function PageInput({ currentPage, totalPages, onPageChange }: PageInputProps) {
   const [inputValue, setInputValue] = useState(currentPage.toString());
 
   useEffect(() => {

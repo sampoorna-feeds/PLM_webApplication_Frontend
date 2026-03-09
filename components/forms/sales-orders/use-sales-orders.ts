@@ -69,7 +69,10 @@ export function useSalesOrders(options: UseSalesOrdersOptions = {}) {
           setColumnFilters((prev) =>
             prev.Shortcut_Dimension_2_Code !== undefined
               ? prev
-              : { ...prev, Shortcut_Dimension_2_Code: { value: bCodes.join(",") } },
+              : {
+                  ...prev,
+                  Shortcut_Dimension_2_Code: { value: bCodes.join(",") },
+                },
           );
         }
       } catch (error) {
@@ -88,10 +91,12 @@ export function useSalesOrders(options: UseSalesOrdersOptions = {}) {
   }, [sortColumn, sortDirection]);
 
   const fetchOrders = useCallback(async () => {
-    const branchFilterValue =
-      columnFilters["Shortcut_Dimension_2_Code"]?.value;
+    const branchFilterValue = columnFilters["Shortcut_Dimension_2_Code"]?.value;
     const effectiveBranchCodes = branchFilterValue
-      ? branchFilterValue.split(",").map((c) => c.trim()).filter(Boolean)
+      ? branchFilterValue
+          .split(",")
+          .map((c) => c.trim())
+          .filter(Boolean)
       : userBranchCodes;
 
     if (effectiveBranchCodes.length === 0) {

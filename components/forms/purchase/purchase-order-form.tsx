@@ -22,6 +22,8 @@ import {
 } from "@/components/ui/select";
 import { CascadingDimensionSelect } from "@/components/forms/cascading-dimension-select";
 import { VendorSelect, type PurchaseVendor } from "./vendor-select";
+import { BrokerSelect } from "./broker-select";
+import { OrderAddressSelect } from "./order-address-select";
 import { SalesPersonSelect } from "@/components/forms/sales/sales-person-select";
 import { useFormStack } from "@/lib/form-stack/use-form-stack";
 import { useFormStackContext } from "@/lib/form-stack/form-stack-context";
@@ -38,6 +40,7 @@ import {
   type PurchaseOrderData,
   type PurchaseOrderLineItem,
 } from "@/lib/api/services/purchase-order.service";
+import { getVendorDetails } from "@/lib/api/services/vendor.service";
 
 export interface PurchaseOrderFormContentProps {
   /** Called when order is successfully placed */
@@ -84,10 +87,27 @@ export function PurchaseOrderFormContent({
     externalDocumentNo: "",
     vendorInvoiceNo: "",
     status: "",
-    invoiceType: "Bill of supply",
+    invoiceType: "",
     lob: "",
     branch: "",
     loc: "",
+    // New fields
+    poType: "Goods",
+    serviceType: "",
+    vendorGstRegNo: "",
+    vendorPanNo: "",
+    brokerNo: "",
+    brokerName: "",
+    brokerageRate: "",
+    orderAddressCode: "",
+    rateBasis: "",
+    termCode: "",
+    mandiName: "",
+    paymentTermCode: "",
+    dueDateCalculation: "",
+    creditorType: "",
+    qcType: "",
+    dueDate: "",
     ...initialFormData,
   });
 
@@ -170,18 +190,36 @@ export function PurchaseOrderFormContent({
     setFormData(newData);
   };
 
-  // Vendor change handler
-  const handleVendorChange = (vendorNo: string, vendor?: PurchaseVendor) => {
+  // Vendor change handler — also fetches GST / PAN and resets order address
+  const handleVendorChange = async (
+    vendorNo: string,
+    vendor?: PurchaseVendor,
+  ) => {
     const newData = {
       ...formData,
       vendorNo,
       vendorName: vendor?.Name || "",
       locationCode: "",
+      vendorGstRegNo: "",
+      vendorPanNo: "",
+      orderAddressCode: "",
     };
     setFormData(newData);
+
+    // Fetch vendor details (GST, PAN)
+    if (vendorNo) {
+      const details = await getVendorDetails(vendorNo);
+      if (details) {
+        setFormData((prev) => ({
+          ...prev,
+          vendorGstRegNo: details.GST_Registration_No || "",
+          vendorPanNo: details.P_A_N_No || "",
+        }));
+      }
+    }
   };
 
-  // Step 1 validation - all key fields mandatory except External Document No. and Vendor Invoice No. (optional).
+  // Step 1 validation - all key fields mandatory except External Document No. and Vendor Invoice No. (optional). Invoice Type is now optional.
   const isStep1Valid = (): boolean => {
     return !!(
       formData.lob &&
@@ -193,7 +231,7 @@ export function PurchaseOrderFormContent({
       formData.postingDate &&
       formData.documentDate &&
       formData.orderDate &&
-      formData.invoiceType
+      formData.poType
     );
   };
 
@@ -330,16 +368,14 @@ export function PurchaseOrderFormContent({
         description: item.description,
         uom: item.uom,
         quantity: item.quantity,
-        mrp: item.mrp,
         price: item.price,
         unitPrice: item.unitPrice,
-        totalMRP: item.totalMRP,
         discount: item.discount,
         amount: item.amount,
         exempted: item.exempted,
         gstGroupCode: item.gstGroupCode,
         hsnSacCode: item.hsnSacCode,
-        tcsGroupCode: item.tcsGroupCode,
+        tdsGroupCode: item.tdsGroupCode,
       }));
 
       const locationCode = formData.locationCode || formData.loc || "";
@@ -366,207 +402,541 @@ export function PurchaseOrderFormContent({
   const fieldClass = "min-w-0 space-y-1";
   const labelClass = "text-muted-foreground block text-xs font-medium";
   const renderStep1 = () => (
-    <div className="space-y-4">
-      {/* Top: LOB | Branch | LOC | Invoice Type */}
-      <div className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 lg:grid-cols-4">
-        <div className={fieldClass}>
-          <label className={labelClass}>LOB</label>
-          <ClearableField
-            value={formData.lob}
-            onClear={() => handleInputChange("lob", "")}
-          >
-            <CascadingDimensionSelect
-              dimensionType="LOB"
-              value={formData.lob}
-              onChange={(value) => handleInputChange("lob", value)}
-              placeholder="Select LOB"
-              userId={userId}
-              compactWhenSingle
-            />
-          </ClearableField>
-        </div>
-        <div className={fieldClass}>
-          <label className={labelClass}>Branch</label>
-          <ClearableField
-            value={formData.branch}
-            onClear={() => handleInputChange("branch", "")}
-          >
-            <CascadingDimensionSelect
-              dimensionType="BRANCH"
-              value={formData.branch}
-              onChange={(value) => handleInputChange("branch", value)}
-              placeholder="Select Branch"
-              lobValue={formData.lob}
-              userId={userId}
-              compactWhenSingle
-            />
-          </ClearableField>
-        </div>
-        <div className={fieldClass}>
-          <label className={labelClass}>LOC</label>
-          <ClearableField
-            value={formData.loc}
-            onClear={() => handleInputChange("loc", "")}
-          >
-            <CascadingDimensionSelect
-              dimensionType="LOC"
-              value={formData.loc}
-              onChange={(value) => handleInputChange("loc", value)}
-              placeholder="Select LOC"
-              lobValue={formData.lob}
-              branchValue={formData.branch}
-              userId={userId}
-              compactWhenSingle
-            />
-          </ClearableField>
-        </div>
-        <div className={fieldClass}>
-          <label className={labelClass}>Invoice Type</label>
-          <ClearableField
-            value={formData.invoiceType}
-            onClear={() => handleInputChange("invoiceType", "Bill of supply")}
-          >
+    <div className="space-y-6">
+      {/* 1. Order Details */}
+      <section className="space-y-3">
+        <h3 className="border-b pb-1 text-sm font-semibold">Order Details</h3>
+        <div className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className={fieldClass}>
+            <label className={labelClass}>PO Type</label>
             <Select
-              value={formData.invoiceType}
-              onValueChange={(value) => handleInputChange("invoiceType", value)}
+              value={formData.poType}
+              onValueChange={(value) => handleInputChange("poType", value)}
             >
-              <SelectTrigger className="h-9">
+              <SelectTrigger className="h-8 text-sm">
                 <SelectValue placeholder="Select" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="Bill of supply">Bill of supply</SelectItem>
-                <SelectItem value="Export">Export</SelectItem>
-                <SelectItem value="Supplementary">Supplementary</SelectItem>
-                <SelectItem value="Debit Note">Debit Note</SelectItem>
-                <SelectItem value="Non-GST">Non-GST</SelectItem>
-                <SelectItem value="Taxable">Taxable</SelectItem>
+                <SelectItem value="Goods">Goods</SelectItem>
+                <SelectItem value="Service">Service</SelectItem>
               </SelectContent>
             </Select>
-          </ClearableField>
-        </div>
-      </div>
-      {/* Vendor | Location | Purchaser */}
-      <div className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 lg:grid-cols-3">
-        <div className={fieldClass}>
-          <label className={labelClass}>Vendor</label>
-          <ClearableField
-            value={formData.vendorNo}
-            onClear={() => handleVendorChange("", undefined)}
-          >
-            <VendorSelect
-              value={formData.vendorNo}
-              onChange={handleVendorChange}
-              placeholder="Select"
-            />
-          </ClearableField>
-          {formData.vendorName && (
-            <p className="mt-1 pl-1 text-[10px] font-medium text-green-600">
-              {formData.vendorName}
-            </p>
+          </div>
+          {formData.poType === "Service" && (
+            <div className={fieldClass}>
+              <label className={labelClass}>Service Type</label>
+              <ClearableField
+                value={formData.serviceType}
+                onClear={() => handleInputChange("serviceType", "")}
+              >
+                <Input
+                  value={formData.serviceType}
+                  onChange={(e) =>
+                    handleInputChange("serviceType", e.target.value)
+                  }
+                  className="h-8"
+                  placeholder="Service type"
+                />
+              </ClearableField>
+            </div>
           )}
+          <div className={fieldClass}>
+            <label className={labelClass}>Invoice Type</label>
+            <ClearableField
+              value={formData.invoiceType}
+              onClear={() => handleInputChange("invoiceType", "")}
+            >
+              <Select
+                value={formData.invoiceType || ""}
+                onValueChange={(value) =>
+                  handleInputChange("invoiceType", value)
+                }
+              >
+                <SelectTrigger className="h-8 text-sm">
+                  <SelectValue placeholder="Select / None" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Bill of supply">Bill of supply</SelectItem>
+                  <SelectItem value="Export">Export</SelectItem>
+                  <SelectItem value="Supplementary">Supplementary</SelectItem>
+                  <SelectItem value="Debit Note">Debit Note</SelectItem>
+                  <SelectItem value="Non-GST">Non-GST</SelectItem>
+                  <SelectItem value="Taxable">Taxable</SelectItem>
+                </SelectContent>
+              </Select>
+            </ClearableField>
+          </div>
+          <div className={fieldClass}>
+            <label className={labelClass}>Status</label>
+            <Select
+              value={formData.status}
+              onValueChange={(value) => handleInputChange("status", value)}
+            >
+              <SelectTrigger className="h-8 text-sm">
+                <SelectValue placeholder="Select" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Open">Open</SelectItem>
+                <SelectItem value="Released">Released</SelectItem>
+                <SelectItem value="Pending Approval">
+                  Pending Approval
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
-        <div className={fieldClass}>
-          <label className={labelClass}>Location</label>
-          <Input
-            value={formData.locationCode || formData.loc || ""}
-            disabled
-            className="bg-muted h-8"
-            readOnly
-          />
+      </section>
+
+      {/* 2. Dimensions */}
+      <section className="space-y-3">
+        <h3 className="border-b pb-1 text-sm font-semibold">Dimensions</h3>
+        <div className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className={fieldClass}>
+            <label className={labelClass}>LOB</label>
+            <ClearableField
+              value={formData.lob}
+              onClear={() => handleInputChange("lob", "")}
+            >
+              <CascadingDimensionSelect
+                dimensionType="LOB"
+                value={formData.lob}
+                onChange={(value) => handleInputChange("lob", value)}
+                placeholder="Select LOB"
+                userId={userId}
+                compactWhenSingle
+              />
+            </ClearableField>
+          </div>
+          <div className={fieldClass}>
+            <label className={labelClass}>Branch</label>
+            <ClearableField
+              value={formData.branch}
+              onClear={() => handleInputChange("branch", "")}
+            >
+              <CascadingDimensionSelect
+                dimensionType="BRANCH"
+                value={formData.branch}
+                onChange={(value) => handleInputChange("branch", value)}
+                placeholder="Select Branch"
+                lobValue={formData.lob}
+                userId={userId}
+                compactWhenSingle
+              />
+            </ClearableField>
+          </div>
+          <div className={fieldClass}>
+            <label className={labelClass}>LOC</label>
+            <ClearableField
+              value={formData.loc}
+              onClear={() => handleInputChange("loc", "")}
+            >
+              <CascadingDimensionSelect
+                dimensionType="LOC"
+                value={formData.loc}
+                onChange={(value) => handleInputChange("loc", value)}
+                placeholder="Select LOC"
+                lobValue={formData.lob}
+                branchValue={formData.branch}
+                userId={userId}
+                compactWhenSingle
+              />
+            </ClearableField>
+          </div>
+          <div className={fieldClass}>
+            <label className={labelClass}>Location</label>
+            <Input
+              value={formData.locationCode || formData.loc || ""}
+              disabled
+              className="bg-muted h-8"
+              readOnly
+            />
+            {/* Show Location Name if we have one. We don't have location name in the form data by default, 
+                but we can show loc name if LOC dimension returns it, 
+                or we can just show the code for now if name is not fetched */}
+            {formData.locationCode && (
+              <p className="text-muted-foreground mt-0.5 overflow-hidden pl-1 text-[10px] text-ellipsis whitespace-nowrap">
+                {formData.locationCode} Location
+              </p>
+            )}
+          </div>
         </div>
-        <div className={fieldClass}>
-          <label className={labelClass}>Purchaser</label>
-          <ClearableField
-            value={formData.purchasePersonCode}
-            onClear={() =>
-              setFormData((prev) => ({
-                ...prev,
-                purchasePersonCode: "",
-                purchasePersonName: "",
-              }))
-            }
-          >
-            <SalesPersonSelect
-              value={formData.purchasePersonCode}
-              onChange={(value, salesPerson) =>
+      </section>
+
+      {/* 3. Vendor & Broker */}
+      <section className="space-y-3">
+        <h3 className="border-b pb-1 text-sm font-semibold">Vendor & Broker</h3>
+        <div className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className={fieldClass}>
+            <label className={labelClass}>Vendor</label>
+            <ClearableField
+              value={formData.vendorNo}
+              onClear={() => handleVendorChange("", undefined)}
+            >
+              <VendorSelect
+                value={formData.vendorNo}
+                onChange={handleVendorChange}
+                placeholder="Select Vendor"
+              />
+            </ClearableField>
+            {formData.vendorName && (
+              <p className="mt-1 truncate pl-1 text-[10px] font-medium text-green-600">
+                {formData.vendorName}
+              </p>
+            )}
+          </div>
+          <div className={fieldClass}>
+            <label className={labelClass}>Vendor GST Reg No.</label>
+            <Input
+              value={formData.vendorGstRegNo}
+              disabled
+              className="bg-muted h-8"
+              placeholder="Auto-filled"
+              readOnly
+            />
+          </div>
+          <div className={fieldClass}>
+            <label className={labelClass}>Vendor PAN No.</label>
+            <Input
+              value={formData.vendorPanNo}
+              disabled
+              className="bg-muted h-8"
+              placeholder="Auto-filled"
+              readOnly
+            />
+          </div>
+
+          <div className={fieldClass}>
+            <label className={labelClass}>Broker</label>
+            <ClearableField
+              value={formData.brokerNo}
+              onClear={() =>
                 setFormData((prev) => ({
                   ...prev,
-                  purchasePersonCode: value,
-                  purchasePersonName: salesPerson?.Name || "",
+                  brokerNo: "",
+                  brokerName: "",
                 }))
               }
-              placeholder="Select"
-            />
-          </ClearableField>
-          {formData.purchasePersonName && (
-            <p className="mt-1 pl-1 text-[10px] font-medium text-green-600">
-              {formData.purchasePersonName}
-            </p>
-          )}
+            >
+              <BrokerSelect
+                value={formData.brokerNo}
+                onChange={(code, broker) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    brokerNo: code,
+                    brokerName: broker?.Name || "",
+                  }))
+                }
+              />
+            </ClearableField>
+            {formData.brokerName && (
+              <p className="mt-1 truncate pl-1 text-[10px] font-medium text-green-600">
+                {formData.brokerName}
+              </p>
+            )}
+          </div>
+          <div className={fieldClass}>
+            <label className={labelClass}>Brokerage Rate</label>
+            <ClearableField
+              value={formData.brokerageRate}
+              onClear={() => handleInputChange("brokerageRate", "")}
+            >
+              <Input
+                type="number"
+                step="0.01"
+                min="0"
+                value={formData.brokerageRate}
+                onChange={(e) =>
+                  handleInputChange("brokerageRate", e.target.value)
+                }
+                className="h-8"
+                placeholder="0.00"
+              />
+            </ClearableField>
+          </div>
         </div>
-      </div>
-      {/* Dates */}
-      <div className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2">
-        <div className={fieldClass}>
-          <label className={labelClass}>Posting Date</label>
-          <ClearableField
-            value={formData.postingDate}
-            onClear={() => handleInputChange("postingDate", "")}
+      </section>
+
+      {/* 4. Order Address */}
+      <section className="space-y-3">
+        <h3 className="border-b pb-1 text-sm font-semibold">Order Address</h3>
+        <div className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div
+            className={`${fieldClass} col-span-1 max-w-md sm:col-span-2 lg:col-span-3`}
           >
-            <Input
-              type="date"
+            <label className={labelClass}>Order Address Select</label>
+            <OrderAddressSelect
+              vendorNo={formData.vendorNo}
+              value={formData.orderAddressCode}
+              onChange={(code, addr) =>
+                setFormData((prev) => ({
+                  ...prev,
+                  orderAddressCode: code,
+                  orderAddressName: addr?.Name || "",
+                }))
+              }
+              disabled={!formData.vendorNo}
+            />
+          </div>
+        </div>
+      </section>
+
+      {/* 5. Dates */}
+      <section className="space-y-3">
+        <h3 className="border-b pb-1 text-sm font-semibold">Dates</h3>
+        <div className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className={fieldClass}>
+            <label className={labelClass}>Posting Date</label>
+            <ClearableField
               value={formData.postingDate}
-              onChange={(e) => handleInputChange("postingDate", e.target.value)}
-              className="h-8"
-              onFocus={(e) => e.stopPropagation()}
-            />
-          </ClearableField>
-        </div>
-        <div className={fieldClass}>
-          <label className={labelClass}>Document Date</label>
-          <ClearableField
-            value={formData.documentDate}
-            onClear={() => handleInputChange("documentDate", "")}
-          >
+              onClear={() => handleInputChange("postingDate", "")}
+            >
+              <Input
+                type="date"
+                value={formData.postingDate}
+                onChange={(e) =>
+                  handleInputChange("postingDate", e.target.value)
+                }
+                className="h-8"
+              />
+            </ClearableField>
+          </div>
+          <div className={fieldClass}>
+            <label className={labelClass}>Document Date</label>
+            <ClearableField
+              value={formData.documentDate}
+              onClear={() => handleInputChange("documentDate", "")}
+            >
+              <Input
+                type="date"
+                value={formData.documentDate}
+                onChange={(e) =>
+                  handleInputChange("documentDate", e.target.value)
+                }
+                className="h-8"
+              />
+            </ClearableField>
+          </div>
+          <div className={fieldClass}>
+            <label className={labelClass}>Order Date</label>
             <Input
               type="date"
-              value={formData.documentDate}
-              onChange={(e) =>
-                handleInputChange("documentDate", e.target.value)
-              }
-              className="h-8"
-              onFocus={(e) => e.stopPropagation()}
+              value={formData.orderDate}
+              onChange={(e) => handleInputChange("orderDate", e.target.value)}
+              disabled
+              className="bg-muted h-8"
             />
-          </ClearableField>
+          </div>
+          <div className={fieldClass}>
+            <label className={labelClass}>Due Date</label>
+            <ClearableField
+              value={formData.dueDate}
+              onClear={() => handleInputChange("dueDate", "")}
+            >
+              <Input
+                type="date"
+                value={formData.dueDate}
+                onChange={(e) => handleInputChange("dueDate", e.target.value)}
+                className="h-8"
+              />
+            </ClearableField>
+          </div>
         </div>
-        <div className={fieldClass}>
-          <label className={labelClass}>Order Date</label>
-          <Input
-            type="date"
-            value={formData.orderDate}
-            onChange={(e) => handleInputChange("orderDate", e.target.value)}
-            disabled
-            className="bg-muted h-8"
-          />
+      </section>
+
+      {/* 6. Additional Configurations */}
+      <section className="space-y-3">
+        <h3 className="border-b pb-1 text-sm font-semibold">
+          Additional Configuration
+        </h3>
+        <div className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className={fieldClass}>
+            <label className={labelClass}>Rate Basis</label>
+            <Select
+              value={formData.rateBasis}
+              onValueChange={(value) => handleInputChange("rateBasis", value)}
+            >
+              <SelectTrigger className="h-8 text-sm">
+                <SelectValue placeholder="Select" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Fixed">Fixed</SelectItem>
+                <SelectItem value="Percentage">Percentage</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className={fieldClass}>
+            <label className={labelClass}>Due Date Calculation</label>
+            <Select
+              value={formData.dueDateCalculation}
+              onValueChange={(value) =>
+                handleInputChange("dueDateCalculation", value)
+              }
+            >
+              <SelectTrigger className="h-8 text-sm">
+                <SelectValue placeholder="Select" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Net 30">Net 30</SelectItem>
+                <SelectItem value="Net 60">Net 60</SelectItem>
+                <SelectItem value="Net 90">Net 90</SelectItem>
+                <SelectItem value="Due on Receipt">Due on Receipt</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className={fieldClass}>
+            <label className={labelClass}>Creditor Type</label>
+            <Select
+              value={formData.creditorType}
+              onValueChange={(value) =>
+                handleInputChange("creditorType", value)
+              }
+            >
+              <SelectTrigger className="h-8 text-sm">
+                <SelectValue placeholder="Select" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Registered">Registered</SelectItem>
+                <SelectItem value="Unregistered">Unregistered</SelectItem>
+                <SelectItem value="Composite">Composite</SelectItem>
+                <SelectItem value="Import">Import</SelectItem>
+                <SelectItem value="SEZ">SEZ</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className={fieldClass}>
+            <label className={labelClass}>QC Type</label>
+            <Select
+              value={formData.qcType}
+              onValueChange={(value) => handleInputChange("qcType", value)}
+            >
+              <SelectTrigger className="h-8 text-sm">
+                <SelectValue placeholder="Select" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="None">None</SelectItem>
+                <SelectItem value="Incoming">Incoming</SelectItem>
+                <SelectItem value="Outgoing">Outgoing</SelectItem>
+                <SelectItem value="Both">Both</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className={fieldClass}>
+            <label className={labelClass}>Term Code</label>
+            <ClearableField
+              value={formData.termCode}
+              onClear={() => handleInputChange("termCode", "")}
+            >
+              <Input
+                value={formData.termCode}
+                onChange={(e) => handleInputChange("termCode", e.target.value)}
+                className="h-8"
+                placeholder="Enter term code"
+              />
+            </ClearableField>
+          </div>
+          <div className={fieldClass}>
+            <label className={labelClass}>Mandi Name</label>
+            <ClearableField
+              value={formData.mandiName}
+              onClear={() => handleInputChange("mandiName", "")}
+            >
+              <Input
+                value={formData.mandiName}
+                onChange={(e) => handleInputChange("mandiName", e.target.value)}
+                className="h-8"
+                placeholder="Enter mandi name"
+              />
+            </ClearableField>
+          </div>
+          <div className={fieldClass}>
+            <label className={labelClass}>Payment Term Code</label>
+            <ClearableField
+              value={formData.paymentTermCode}
+              onClear={() => handleInputChange("paymentTermCode", "")}
+            >
+              <Input
+                value={formData.paymentTermCode}
+                onChange={(e) =>
+                  handleInputChange("paymentTermCode", e.target.value)
+                }
+                className="h-8"
+                placeholder="Enter payment term code"
+              />
+            </ClearableField>
+          </div>
         </div>
-        <div className={fieldClass}>
-          <label className={labelClass}>External Doc No.</label>
-          <ClearableField
-            value={formData.externalDocumentNo}
-            onClear={() => handleInputChange("externalDocumentNo", "")}
-          >
-            <Input
+      </section>
+
+      {/* 7. Optional Details */}
+      <section className="space-y-3">
+        <h3 className="border-b pb-1 text-sm font-semibold">
+          Optional Details
+        </h3>
+        <div className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className={fieldClass}>
+            <label className={labelClass}>External Doc No.</label>
+            <ClearableField
               value={formData.externalDocumentNo}
-              onChange={(e) =>
-                handleInputChange("externalDocumentNo", e.target.value)
+              onClear={() => handleInputChange("externalDocumentNo", "")}
+            >
+              <Input
+                value={formData.externalDocumentNo}
+                onChange={(e) =>
+                  handleInputChange("externalDocumentNo", e.target.value)
+                }
+                placeholder="Optional"
+                className="h-8"
+              />
+            </ClearableField>
+          </div>
+          <div className={fieldClass}>
+            <label className={labelClass}>Vendor Invoice No.</label>
+            <ClearableField
+              value={formData.vendorInvoiceNo}
+              onClear={() => handleInputChange("vendorInvoiceNo", "")}
+            >
+              <Input
+                value={formData.vendorInvoiceNo}
+                onChange={(e) =>
+                  handleInputChange("vendorInvoiceNo", e.target.value)
+                }
+                placeholder="Optional"
+                className="h-8"
+              />
+            </ClearableField>
+          </div>
+          <div className={fieldClass}>
+            <label className={labelClass}>Purchaser</label>
+            <ClearableField
+              value={formData.purchasePersonCode}
+              onClear={() =>
+                setFormData((prev) => ({
+                  ...prev,
+                  purchasePersonCode: "",
+                  purchasePersonName: "",
+                }))
               }
-              placeholder="Optional"
-              className="h-8"
-              onFocus={(e) => e.stopPropagation()}
-            />
-          </ClearableField>
+            >
+              <SalesPersonSelect
+                value={formData.purchasePersonCode}
+                onChange={(value, salesPerson) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    purchasePersonCode: value,
+                    purchasePersonName: salesPerson?.Name || "",
+                  }))
+                }
+                placeholder="Select Purchaser"
+              />
+            </ClearableField>
+            {formData.purchasePersonName && (
+              <p className="mt-1 truncate pl-1 text-[10px] font-medium text-green-600">
+                {formData.purchasePersonName}
+              </p>
+            )}
+          </div>
         </div>
-      </div>
+      </section>
     </div>
   );
 

@@ -80,7 +80,12 @@ function LineItemsTableComponent({
   }, []);
 
   const handleCellClick = useCallback(
-    (e: React.MouseEvent, itemId: string, field: keyof LineItem, currentValue: any) => {
+    (
+      e: React.MouseEvent,
+      itemId: string,
+      field: keyof LineItem,
+      currentValue: any,
+    ) => {
       if (onRowClick) {
         e.stopPropagation();
         const item = lineItems.find((li) => li.id === itemId);
@@ -110,9 +115,7 @@ function LineItemsTableComponent({
       editingCell.field === "quantity" ||
       editingCell.field === "unitPrice" ||
       editingCell.field === "discount" ||
-      editingCell.field === "mrp" ||
       editingCell.field === "price" ||
-      editingCell.field === "totalMRP" ||
       editingCell.field === "amount"
     ) {
       newValue = parseFloat(editValue) || 0;
@@ -130,8 +133,8 @@ function LineItemsTableComponent({
       editingCell.field === "unitPrice" ||
       editingCell.field === "discount"
     ) {
-      updatedItem.totalMRP = updatedItem.unitPrice * updatedItem.quantity;
-      updatedItem.amount = updatedItem.totalMRP - updatedItem.discount;
+      updatedItem.amount =
+        updatedItem.unitPrice * updatedItem.quantity - updatedItem.discount;
     }
 
     onUpdate(updatedItem);
@@ -168,16 +171,14 @@ function LineItemsTableComponent({
               <TableHead className="min-w-[200px]">Description</TableHead>
               <TableHead className="w-[100px]">UOM</TableHead>
               <TableHead className="w-[100px]">Quantity</TableHead>
-              <TableHead className="w-[100px]">MRP</TableHead>
               <TableHead className="w-[100px]">Price</TableHead>
               <TableHead className="w-[100px]">Unit Price</TableHead>
-              <TableHead className="w-[100px]">Total MRP</TableHead>
               <TableHead className="w-[100px]">Discount</TableHead>
               <TableHead className="w-[100px]">Amount</TableHead>
               <TableHead className="w-[100px]">Exempted</TableHead>
               <TableHead className="w-[120px]">GST Group Code</TableHead>
               <TableHead className="w-[120px]">HSN/SAC Code</TableHead>
-              <TableHead className="w-[120px]">TCS Group Code</TableHead>
+              <TableHead className="w-[120px]">TDS Group Code</TableHead>
               {showRowActions && (
                 <TableHead className="w-[90px] text-right">Actions</TableHead>
               )}
@@ -207,200 +208,174 @@ function LineItemsTableComponent({
                       : undefined
                   }
                 >
-                      <TableCell className="font-medium">{item.type}</TableCell>
-                      <TableCell>{item.no}</TableCell>
-                      <TableCell className="max-w-[200px] truncate">
-                        {item.description}
-                      </TableCell>
-                      <TableCell>{item.uom || "-"}</TableCell>
-                      <TableCell
-                        className={cn(
-                          editable && !onRowClick && "hover:bg-muted cursor-pointer",
-                          isEditing &&
-                            editingCell?.field === "quantity" &&
-                            "p-0",
-                        )}
-                        onClick={(e) =>
-                          handleCellClick(e, item.id, "quantity", item.quantity)
-                        }
-                      >
-                        {isEditing && editingCell?.field === "quantity" ? (
-                          <Input
-                            type="number"
-                            step="0.01"
-                            value={editValue}
-                            onChange={(e) => setEditValue(e.target.value)}
-                            onBlur={handleCellBlur}
-                            onKeyDown={handleCellKeyDown}
-                            onFocus={(e) => {
+                  <TableCell className="font-medium">{item.type}</TableCell>
+                  <TableCell>{item.no}</TableCell>
+                  <TableCell className="max-w-[200px] truncate">
+                    {item.description}
+                  </TableCell>
+                  <TableCell>{item.uom || "-"}</TableCell>
+                  <TableCell
+                    className={cn(
+                      editable &&
+                        !onRowClick &&
+                        "hover:bg-muted cursor-pointer",
+                      isEditing && editingCell?.field === "quantity" && "p-0",
+                    )}
+                    onClick={(e) =>
+                      handleCellClick(e, item.id, "quantity", item.quantity)
+                    }
+                  >
+                    {isEditing && editingCell?.field === "quantity" ? (
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={editValue}
+                        onChange={(e) => setEditValue(e.target.value)}
+                        onBlur={handleCellBlur}
+                        onKeyDown={handleCellKeyDown}
+                        onFocus={(e) => {
+                          e.stopPropagation();
+                        }}
+                        className="h-8 border-0 focus-visible:ring-1"
+                        autoFocus={false}
+                      />
+                    ) : (
+                      item.quantity
+                    )}
+                  </TableCell>
+
+                  <TableCell
+                    className={cn(
+                      editable &&
+                        !onRowClick &&
+                        "hover:bg-muted cursor-pointer",
+                      isEditing && editingCell?.field === "price" && "p-0",
+                    )}
+                    onClick={(e) =>
+                      handleCellClick(e, item.id, "price", item.price)
+                    }
+                  >
+                    {isEditing && editingCell?.field === "price" ? (
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={editValue}
+                        onChange={(e) => setEditValue(e.target.value)}
+                        onBlur={handleCellBlur}
+                        onKeyDown={handleCellKeyDown}
+                        onFocus={(e) => {
+                          e.stopPropagation();
+                        }}
+                        className="h-8 border-0 focus-visible:ring-1"
+                        autoFocus={false}
+                      />
+                    ) : (
+                      item.price || "-"
+                    )}
+                  </TableCell>
+                  <TableCell
+                    className={cn(
+                      editable &&
+                        !onRowClick &&
+                        "hover:bg-muted cursor-pointer",
+                      isEditing && editingCell?.field === "unitPrice" && "p-0",
+                    )}
+                    onClick={(e) =>
+                      handleCellClick(e, item.id, "unitPrice", item.unitPrice)
+                    }
+                  >
+                    {isEditing && editingCell?.field === "unitPrice" ? (
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={editValue}
+                        onChange={(e) => setEditValue(e.target.value)}
+                        onBlur={handleCellBlur}
+                        onKeyDown={handleCellKeyDown}
+                        onFocus={(e) => {
+                          e.stopPropagation();
+                        }}
+                        className="h-8 border-0 focus-visible:ring-1"
+                        autoFocus={false}
+                      />
+                    ) : (
+                      item.unitPrice.toFixed(2)
+                    )}
+                  </TableCell>
+
+                  <TableCell
+                    className={cn(
+                      editable &&
+                        !onRowClick &&
+                        "hover:bg-muted cursor-pointer",
+                      isEditing && editingCell?.field === "discount" && "p-0",
+                    )}
+                    onClick={(e) =>
+                      handleCellClick(e, item.id, "discount", item.discount)
+                    }
+                  >
+                    {isEditing && editingCell?.field === "discount" ? (
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={editValue}
+                        onChange={(e) => setEditValue(e.target.value)}
+                        onBlur={handleCellBlur}
+                        onKeyDown={handleCellKeyDown}
+                        onFocus={(e) => {
+                          e.stopPropagation();
+                        }}
+                        className="h-8 border-0 focus-visible:ring-1"
+                        autoFocus={false}
+                      />
+                    ) : (
+                      item.discount.toFixed(2)
+                    )}
+                  </TableCell>
+                  <TableCell className="font-medium">
+                    {item.amount.toFixed(2)}
+                  </TableCell>
+                  <TableCell>{item.exempted ? "Yes" : "No"}</TableCell>
+                  <TableCell>{item.gstGroupCode || "-"}</TableCell>
+                  <TableCell>{item.hsnSacCode || "-"}</TableCell>
+                  <TableCell>{item.tdsGroupCode || "-"}</TableCell>
+                  {showRowActions && (
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        {onEdit && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="text-muted-foreground hover:text-foreground h-8 w-8"
+                            onClick={(e) => {
                               e.stopPropagation();
+                              onEdit(item);
                             }}
-                            className="h-8 border-0 focus-visible:ring-1"
-                            autoFocus={false}
-                          />
-                        ) : (
-                          item.quantity
+                            aria-label="Edit"
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
                         )}
-                      </TableCell>
-                      <TableCell
-                        className={cn(
-                          editable && !onRowClick && "hover:bg-muted cursor-pointer",
-                          isEditing && editingCell?.field === "mrp" && "p-0",
-                        )}
-                        onClick={(e) =>
-                          handleCellClick(e, item.id, "mrp", item.mrp)
-                        }
-                      >
-                        {isEditing && editingCell?.field === "mrp" ? (
-                          <Input
-                            type="number"
-                            step="0.01"
-                            value={editValue}
-                            onChange={(e) => setEditValue(e.target.value)}
-                            onBlur={handleCellBlur}
-                            onKeyDown={handleCellKeyDown}
-                            onFocus={(e) => {
+                        {onRemove && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="text-muted-foreground hover:text-destructive h-8 w-8"
+                            onClick={(e) => {
                               e.stopPropagation();
+                              handleRemoveClick(item.id);
                             }}
-                            className="h-8 border-0 focus-visible:ring-1"
-                            autoFocus={false}
-                          />
-                        ) : (
-                          item.mrp || "-"
+                            aria-label="Delete"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
                         )}
-                      </TableCell>
-                      <TableCell
-                        className={cn(
-                          editable && !onRowClick && "hover:bg-muted cursor-pointer",
-                          isEditing && editingCell?.field === "price" && "p-0",
-                        )}
-                        onClick={(e) =>
-                          handleCellClick(e, item.id, "price", item.price)
-                        }
-                      >
-                        {isEditing && editingCell?.field === "price" ? (
-                          <Input
-                            type="number"
-                            step="0.01"
-                            value={editValue}
-                            onChange={(e) => setEditValue(e.target.value)}
-                            onBlur={handleCellBlur}
-                            onKeyDown={handleCellKeyDown}
-                            onFocus={(e) => {
-                              e.stopPropagation();
-                            }}
-                            className="h-8 border-0 focus-visible:ring-1"
-                            autoFocus={false}
-                          />
-                        ) : (
-                          item.price || "-"
-                        )}
-                      </TableCell>
-                      <TableCell
-                        className={cn(
-                          editable && !onRowClick && "hover:bg-muted cursor-pointer",
-                          isEditing &&
-                            editingCell?.field === "unitPrice" &&
-                            "p-0",
-                        )}
-                        onClick={(e) =>
-                          handleCellClick(e, item.id, "unitPrice", item.unitPrice)
-                        }
-                      >
-                        {isEditing && editingCell?.field === "unitPrice" ? (
-                          <Input
-                            type="number"
-                            step="0.01"
-                            value={editValue}
-                            onChange={(e) => setEditValue(e.target.value)}
-                            onBlur={handleCellBlur}
-                            onKeyDown={handleCellKeyDown}
-                            onFocus={(e) => {
-                              e.stopPropagation();
-                            }}
-                            className="h-8 border-0 focus-visible:ring-1"
-                            autoFocus={false}
-                          />
-                        ) : (
-                          item.unitPrice.toFixed(2)
-                        )}
-                      </TableCell>
-                      <TableCell className="font-medium">
-                        {item.totalMRP.toFixed(2)}
-                      </TableCell>
-                      <TableCell
-                        className={cn(
-                          editable && !onRowClick && "hover:bg-muted cursor-pointer",
-                          isEditing &&
-                            editingCell?.field === "discount" &&
-                            "p-0",
-                        )}
-                        onClick={(e) =>
-                          handleCellClick(e, item.id, "discount", item.discount)
-                        }
-                      >
-                        {isEditing && editingCell?.field === "discount" ? (
-                          <Input
-                            type="number"
-                            step="0.01"
-                            value={editValue}
-                            onChange={(e) => setEditValue(e.target.value)}
-                            onBlur={handleCellBlur}
-                            onKeyDown={handleCellKeyDown}
-                            onFocus={(e) => {
-                              e.stopPropagation();
-                            }}
-                            className="h-8 border-0 focus-visible:ring-1"
-                            autoFocus={false}
-                          />
-                        ) : (
-                          item.discount.toFixed(2)
-                        )}
-                      </TableCell>
-                      <TableCell className="font-medium">
-                        {item.amount.toFixed(2)}
-                      </TableCell>
-                      <TableCell>{item.exempted ? "Yes" : "No"}</TableCell>
-                      <TableCell>{item.gstGroupCode || "-"}</TableCell>
-                      <TableCell>{item.hsnSacCode || "-"}</TableCell>
-                      <TableCell>{item.tcsGroupCode || "-"}</TableCell>
-                      {showRowActions && (
-                        <TableCell className="text-right">
-                          <div className="flex items-center justify-end gap-1">
-                            {onEdit && (
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  onEdit(item);
-                                }}
-                                aria-label="Edit"
-                              >
-                                <Pencil className="h-4 w-4" />
-                              </Button>
-                            )}
-                            {onRemove && (
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleRemoveClick(item.id);
-                                }}
-                                aria-label="Delete"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            )}
-                          </div>
-                        </TableCell>
-                      )}
-                    </TableRow>
+                      </div>
+                    </TableCell>
+                  )}
+                </TableRow>
               );
               return showRowActions ? (
                 <ContextMenu key={item.id}>
@@ -439,8 +414,8 @@ function LineItemsTableComponent({
             <AlertDialogHeader>
               <AlertDialogTitle>Remove Line Item</AlertDialogTitle>
               <AlertDialogDescription>
-                Are you sure you want to remove this line item? This action cannot
-                be undone.
+                Are you sure you want to remove this line item? This action
+                cannot be undone.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>

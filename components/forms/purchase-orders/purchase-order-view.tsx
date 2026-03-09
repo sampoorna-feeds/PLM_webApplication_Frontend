@@ -40,6 +40,7 @@ export function PurchaseOrderView({
     sortDirection,
     searchQuery,
     columnFilters,
+    additionalFilters,
     visibleColumns,
     onPageSizeChange,
     onPageChange,
@@ -49,6 +50,8 @@ export function PurchaseOrderView({
     onColumnToggle,
     onResetColumns,
     onShowAllColumns,
+    onAddAdditionalFilter,
+    onRemoveAdditionalFilter,
     onClearFilters,
   } = usePurchaseOrders({ statusFilter });
 
@@ -83,11 +86,14 @@ export function PurchaseOrderView({
           searchQuery={searchQuery}
           visibleColumns={visibleColumns}
           columnFilters={columnFilters}
+          additionalFilters={additionalFilters}
           onSearch={onSearch}
           onClearFilters={onClearFilters}
           onColumnToggle={onColumnToggle}
           onResetColumns={onResetColumns}
           onShowAllColumns={onShowAllColumns}
+          onAddAdditionalFilter={onAddAdditionalFilter}
+          onRemoveAdditionalFilter={onRemoveAdditionalFilter}
         />
         <PurchaseOrderActiveFilters
           searchQuery={searchQuery}

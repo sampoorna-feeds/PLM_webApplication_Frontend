@@ -124,10 +124,7 @@ function SalesCreditMemoPageContent() {
                 </TableHeader>
                 <TableBody>
                   {dummySalesCreditMemoData.map((creditMemo) => (
-                    <TableRow
-                      key={creditMemo.id}
-                      className="hover:bg-muted/50"
-                    >
+                    <TableRow key={creditMemo.id} className="hover:bg-muted/50">
                       <TableCell className="px-3 py-3 text-xs">
                         {creditMemo.creditMemoNo}
                       </TableCell>

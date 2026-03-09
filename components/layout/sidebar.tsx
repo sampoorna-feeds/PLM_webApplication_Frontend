@@ -96,6 +96,11 @@ const formsItems = [
     url: "/report-ledger",
     icon: BookOpenCheck,
   },
+  {
+    title: "Transfer Order",
+    url: "/transfer-orders",
+    icon: Package,
+  },
 ];
 
 const settingsItems = [

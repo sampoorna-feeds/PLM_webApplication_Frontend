@@ -8,21 +8,18 @@ const COMPANY =
 export interface TransferOrder {
   No: string;
   Transfer_from_Code?: string;
-  Transfer_from_Name?: string;
   Transfer_to_Code?: string;
-  Transfer_to_Name?: string;
-  External_Document_No?: string;
   In_Transit_Code?: string;
-  Posting_Date?: string;
   Status?: string;
-  Vehicle_No?: string;
-  LR_RR_No?: string;
-  LR_RR_Date?: string;
-  Distance_Km?: number;
-  Freight_Value?: number;
-  Transporter_Code?: string;
-  Transporter_Name?: string;
-  Mode_of_Transport?: string;
+  Assigned_User_ID?: string;
+  Direct_Transfer?: boolean;
+  Shortcut_Dimension_1_Code?: string;
+  Shortcut_Dimension_2_Code?: string;
+  Shipment_Date?: string;
+  Shipment_Method_Code?: string;
+  Shipping_Agent_Code?: string;
+  Shipping_Advice?: string;
+  Receipt_Date?: string;
   "@odata.etag"?: string;
   [key: string]: unknown;
 }
@@ -49,7 +46,7 @@ export async function getTransferOrdersWithCount(
   params: GetTransferOrdersParams = {},
 ): Promise<PaginatedTransferOrdersResponse> {
   const {
-    $select = "No,Transfer_from_Code,Transfer_from_Name,Transfer_to_Code,Transfer_to_Name,Posting_Date,Status",
+    $select = "No,Transfer_from_Code,Transfer_to_Code,In_Transit_Code,Status,Shipment_Date,Receipt_Date,Shortcut_Dimension_1_Code,Shortcut_Dimension_2_Code",
     $filter,
     $orderby = "No desc",
     $top = 10,
@@ -89,9 +86,9 @@ export async function searchTransferOrders(
   const fieldsToSearch = [
     "No",
     "Transfer_from_Code",
-    "Transfer_from_Name",
     "Transfer_to_Code",
-    "Transfer_to_Name",
+    "Shortcut_Dimension_1_Code",
+    "Shortcut_Dimension_2_Code",
   ];
 
   const responses = await Promise.all(

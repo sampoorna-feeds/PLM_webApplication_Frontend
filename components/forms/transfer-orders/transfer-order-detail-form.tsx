@@ -101,21 +101,18 @@ export function TransferOrderDetailForm({
           <div className="grid grid-cols-2 gap-x-8 gap-y-6 md:grid-cols-4">
             <SummaryField label="Transfer order No." value={order.No} />
             <SummaryField label="Transfer-from Code" value={order.Transfer_from_Code} />
-            <SummaryField label="Transfer-from Name" value={order.Transfer_from_Name} />
             <SummaryField label="Transfer-to Code" value={order.Transfer_to_Code} />
-            <SummaryField label="Transfer-to Name" value={order.Transfer_to_Name} />
-            <SummaryField label="External Document No." value={order.External_Document_No} />
             <SummaryField label="In-Transit Code" value={order.In_Transit_Code} />
-            <SummaryField label="Posting Date" value={formatDate(order.Posting_Date)} />
             <SummaryField label="Status" value={order.Status} />
-            <SummaryField label="Vehicle No." value={order.Vehicle_No} />
-            <SummaryField label="LR/RR No." value={order.LR_RR_No} />
-            <SummaryField label="LR/RR Date" value={formatDate(order.LR_RR_Date)} />
-            <SummaryField label="Distance (Km)" value={order.Distance_Km} />
-            <SummaryField label="Freight Value" value={order.Freight_Value} />
-            <SummaryField label="Transporter Code" value={order.Transporter_Code} />
-            <SummaryField label="Transporter Name" value={order.Transporter_Name} />
-            <SummaryField label="Mode of Transport" value={order.Mode_of_Transport} />
+            <SummaryField label="LOB" value={order.Shortcut_Dimension_1_Code} />
+            <SummaryField label="Branch" value={order.Shortcut_Dimension_2_Code} />
+            <SummaryField label="Shipment Date" value={formatDate(order.Shipment_Date)} />
+            <SummaryField label="Receipt Date" value={formatDate(order.Receipt_Date)} />
+            <SummaryField label="Assigned User" value={order.Assigned_User_ID} />
+            <SummaryField label="Direct Transfer" value={order.Direct_Transfer} />
+            <SummaryField label="Shipping Advice" value={order.Shipping_Advice} />
+            <SummaryField label="Shipping Agent Code" value={order.Shipping_Agent_Code} />
+            <SummaryField label="Shipment Method Code" value={order.Shipment_Method_Code} />
           </div>
         </div>
 

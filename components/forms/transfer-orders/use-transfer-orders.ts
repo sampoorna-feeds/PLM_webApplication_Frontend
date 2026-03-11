@@ -99,13 +99,6 @@ export function useTransferOrders(options: UseTransferOrdersOptions = {}) {
           .filter(Boolean)
       : userBranchCodes;
 
-    if (effectiveBranchCodes.length === 0) {
-      setOrders([]);
-      setTotalCount(0);
-      setIsLoading(false);
-      return;
-    }
-
     setIsLoading(true);
     try {
       const filter = buildTransferOrderFilterString({

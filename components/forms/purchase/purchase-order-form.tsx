@@ -41,6 +41,12 @@ import {
   type PurchaseOrderLineItem,
 } from "@/lib/api/services/purchase-order.service";
 import { getVendorDetails } from "@/lib/api/services/vendor.service";
+import {
+  purchaseDropdownsService,
+  type TermAndCondition,
+  type MandiMaster,
+  type PaymentTerm,
+} from "@/lib/api/services/purchase-dropdowns.service";
 
 export interface PurchaseOrderFormContentProps {
   /** Called when order is successfully placed */
@@ -86,7 +92,6 @@ export function PurchaseOrderFormContent({
     orderDate: "",
     externalDocumentNo: "",
     vendorInvoiceNo: "",
-    status: "",
     invoiceType: "",
     lob: "",
     branch: "",
@@ -117,6 +122,25 @@ export function PurchaseOrderFormContent({
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [placeOrderError, setPlaceOrderError] = useState<string | null>(null);
+
+  const [termList, setTermList] = useState<TermAndCondition[]>([]);
+  const [mandiList, setMandiList] = useState<MandiMaster[]>([]);
+  const [paymentTermList, setPaymentTermList] = useState<PaymentTerm[]>([]);
+
+  useEffect(() => {
+    purchaseDropdownsService
+      .getTermsAndConditions()
+      .then(setTermList)
+      .catch((err) => console.error("Error fetching terms:", err));
+    purchaseDropdownsService
+      .getMandiMasters()
+      .then(setMandiList)
+      .catch((err) => console.error("Error fetching mandis:", err));
+    purchaseDropdownsService
+      .getPaymentTerms()
+      .then(setPaymentTermList)
+      .catch((err) => console.error("Error fetching payment terms:", err));
+  }, []);
   const [currentStep, setCurrentStep] = useState<Step>(
     (typeof initialFormData?.currentStep === "number" &&
     initialFormData.currentStep >= 1 &&
@@ -429,14 +453,23 @@ export function PurchaseOrderFormContent({
                 value={formData.serviceType}
                 onClear={() => handleInputChange("serviceType", "")}
               >
-                <Input
-                  value={formData.serviceType}
-                  onChange={(e) =>
-                    handleInputChange("serviceType", e.target.value)
+                <Select
+                  value={formData.serviceType || ""}
+                  onValueChange={(value) =>
+                    handleInputChange(
+                      "serviceType",
+                      value === "none" ? "" : value
+                    )
                   }
-                  className="h-8"
-                  placeholder="Service type"
-                />
+                >
+                  <SelectTrigger className="h-8 text-sm">
+                    <SelectValue placeholder="Select" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">None</SelectItem>
+                    <SelectItem value="Logistics">Logistics</SelectItem>
+                  </SelectContent>
+                </Select>
               </ClearableField>
             </div>
           )}
@@ -467,22 +500,20 @@ export function PurchaseOrderFormContent({
             </ClearableField>
           </div>
           <div className={fieldClass}>
-            <label className={labelClass}>Status</label>
-            <Select
-              value={formData.status}
-              onValueChange={(value) => handleInputChange("status", value)}
+            <label className={labelClass}>Purchaser Code</label>
+            <ClearableField
+              value={formData.purchasePersonCode}
+              onClear={() => handleInputChange("purchasePersonCode", "")}
             >
-              <SelectTrigger className="h-8 text-sm">
-                <SelectValue placeholder="Select" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Open">Open</SelectItem>
-                <SelectItem value="Released">Released</SelectItem>
-                <SelectItem value="Pending Approval">
-                  Pending Approval
-                </SelectItem>
-              </SelectContent>
-            </Select>
+              <SalesPersonSelect
+                value={formData.purchasePersonCode || ""}
+                onChange={(val, sp) => {
+                  handleInputChange("purchasePersonCode", val);
+                  handleInputChange("purchasePersonName", sp?.Name || "");
+                }}
+                placeholder="Select Purchaser"
+              />
+            </ClearableField>
           </div>
         </div>
       </section>
@@ -606,7 +637,7 @@ export function PurchaseOrderFormContent({
           </div>
 
           <div className={fieldClass}>
-            <label className={labelClass}>Broker</label>
+            <label className={labelClass}>Brokerage Code</label>
             <ClearableField
               value={formData.brokerNo}
               onClear={() =>
@@ -759,8 +790,11 @@ export function PurchaseOrderFormContent({
                 <SelectValue placeholder="Select" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="Fixed">Fixed</SelectItem>
-                <SelectItem value="Percentage">Percentage</SelectItem>
+                <SelectItem value="EX">EX</SelectItem>
+                <SelectItem value="FOR">FOR</SelectItem>
+                <SelectItem value="CIF">CIF</SelectItem>
+                <SelectItem value="FOB">FOB</SelectItem>
+                <SelectItem value="N/A">N/A</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -776,10 +810,8 @@ export function PurchaseOrderFormContent({
                 <SelectValue placeholder="Select" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="Net 30">Net 30</SelectItem>
-                <SelectItem value="Net 60">Net 60</SelectItem>
-                <SelectItem value="Net 90">Net 90</SelectItem>
-                <SelectItem value="Due on Receipt">Due on Receipt</SelectItem>
+                <SelectItem value="Posting Date">Posting Date</SelectItem>
+                <SelectItem value="Document Date">Document Date</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -795,11 +827,11 @@ export function PurchaseOrderFormContent({
                 <SelectValue placeholder="Select" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="Registered">Registered</SelectItem>
-                <SelectItem value="Unregistered">Unregistered</SelectItem>
-                <SelectItem value="Composite">Composite</SelectItem>
-                <SelectItem value="Import">Import</SelectItem>
-                <SelectItem value="SEZ">SEZ</SelectItem>
+                <SelectItem value="EX">EX</SelectItem>
+                <SelectItem value="FOR">FOR</SelectItem>
+                <SelectItem value="CIF">CIF</SelectItem>
+                <SelectItem value="FOB">FOB</SelectItem>
+                <SelectItem value="N/A">N/A</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -822,47 +854,59 @@ export function PurchaseOrderFormContent({
           </div>
           <div className={fieldClass}>
             <label className={labelClass}>Term Code</label>
-            <ClearableField
+            <Select
               value={formData.termCode}
-              onClear={() => handleInputChange("termCode", "")}
+              onValueChange={(value) => handleInputChange("termCode", value)}
             >
-              <Input
-                value={formData.termCode}
-                onChange={(e) => handleInputChange("termCode", e.target.value)}
-                className="h-8"
-                placeholder="Enter term code"
-              />
-            </ClearableField>
+              <SelectTrigger className="h-8 text-sm">
+                <SelectValue placeholder="Select term code" />
+              </SelectTrigger>
+              <SelectContent>
+                {termList.map((t) => (
+                  <SelectItem key={t.Terms} value={t.Terms}>
+                    {t.Terms} - {t.Conditions}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div className={fieldClass}>
             <label className={labelClass}>Mandi Name</label>
-            <ClearableField
+            <Select
               value={formData.mandiName}
-              onClear={() => handleInputChange("mandiName", "")}
+              onValueChange={(value) => handleInputChange("mandiName", value)}
             >
-              <Input
-                value={formData.mandiName}
-                onChange={(e) => handleInputChange("mandiName", e.target.value)}
-                className="h-8"
-                placeholder="Enter mandi name"
-              />
-            </ClearableField>
+              <SelectTrigger className="h-8 text-sm">
+                <SelectValue placeholder="Select mandi name" />
+              </SelectTrigger>
+              <SelectContent>
+                {mandiList.map((m) => (
+                  <SelectItem key={m.Code} value={m.Code}>
+                    {m.Code} - {m.Description}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div className={fieldClass}>
             <label className={labelClass}>Payment Term Code</label>
-            <ClearableField
+            <Select
               value={formData.paymentTermCode}
-              onClear={() => handleInputChange("paymentTermCode", "")}
+              onValueChange={(value) =>
+                handleInputChange("paymentTermCode", value)
+              }
             >
-              <Input
-                value={formData.paymentTermCode}
-                onChange={(e) =>
-                  handleInputChange("paymentTermCode", e.target.value)
-                }
-                className="h-8"
-                placeholder="Enter payment term code"
-              />
-            </ClearableField>
+              <SelectTrigger className="h-8 text-sm">
+                <SelectValue placeholder="Select payment term code" />
+              </SelectTrigger>
+              <SelectContent>
+                {paymentTermList.map((p) => (
+                  <SelectItem key={p.Code} value={p.Code}>
+                    {p.Code} - {p.Description}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </div>
       </section>

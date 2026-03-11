@@ -81,6 +81,12 @@ export function PurchaseOrderFilterBar({
           )}
         </div>
 
+        <DynamicFilterBuilder
+          filters={additionalFilters}
+          onAddFilter={onAddAdditionalFilter}
+          onRemoveFilter={onRemoveAdditionalFilter}
+        />
+
         <div className="flex-1" />
 
         {hasActiveFilters && (
@@ -102,13 +108,6 @@ export function PurchaseOrderFilterBar({
           onShowAllColumns={onShowAllColumns}
         />
       </div>
-
-      {/* Additional dynamic filters */}
-      <DynamicFilterBuilder
-        filters={additionalFilters}
-        onAddFilter={onAddAdditionalFilter}
-        onRemoveFilter={onRemoveAdditionalFilter}
-      />
     </div>
   );
 }

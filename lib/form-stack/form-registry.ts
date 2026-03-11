@@ -26,6 +26,8 @@ let PurchaseInvoiceForm: FormComponent | null = null;
 let PurchaseReturnOrderForm: FormComponent | null = null;
 let PurchaseCreditMemoForm: FormComponent | null = null;
 
+let TransferOrderDetailForm: FormComponent | null = null;
+
 /**
  * Form registry mapping form types to components
  */
@@ -174,6 +176,14 @@ export const formRegistry: Record<
       PurchaseCreditMemoForm = module.PurchaseCreditMemoForm;
     }
     return { default: PurchaseCreditMemoForm! };
+  },
+  "transfer-order-detail": async () => {
+    if (!TransferOrderDetailForm) {
+      const module =
+        await import("@/components/forms/transfer-orders/transfer-order-detail-form");
+      TransferOrderDetailForm = module.TransferOrderDetailForm;
+    }
+    return { default: TransferOrderDetailForm! };
   },
 };
 

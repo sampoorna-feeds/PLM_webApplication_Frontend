@@ -8,21 +8,18 @@ const COMPANY =
 export interface TransferOrder {
   No: string;
   Transfer_from_Code?: string;
-  Transfer_from_Name?: string;
   Transfer_to_Code?: string;
-  Transfer_to_Name?: string;
-  External_Document_No?: string;
   In_Transit_Code?: string;
-  Posting_Date?: string;
   Status?: string;
-  Vehicle_No?: string;
-  LR_RR_No?: string;
-  LR_RR_Date?: string;
-  Distance_Km?: number;
-  Freight_Value?: number;
-  Transporter_Code?: string;
-  Transporter_Name?: string;
-  Mode_of_Transport?: string;
+  Assigned_User_ID?: string;
+  Direct_Transfer?: boolean;
+  Shortcut_Dimension_1_Code?: string;
+  Shortcut_Dimension_2_Code?: string;
+  Shipment_Date?: string;
+  Shipment_Method_Code?: string;
+  Shipping_Agent_Code?: string;
+  Shipping_Advice?: string;
+  Receipt_Date?: string;
   "@odata.etag"?: string;
   [key: string]: unknown;
 }
@@ -49,7 +46,7 @@ export async function getTransferOrdersWithCount(
   params: GetTransferOrdersParams = {},
 ): Promise<PaginatedTransferOrdersResponse> {
   const {
-    $select = "No,Transfer_from_Code,Transfer_from_Name,Transfer_to_Code,Transfer_to_Name,Posting_Date,Status",
+    $select = "No,Transfer_from_Code,Transfer_to_Code,In_Transit_Code,Status,Shipment_Date,Receipt_Date,Shortcut_Dimension_1_Code,Shortcut_Dimension_2_Code",
     $filter,
     $orderby = "No desc",
     $top = 10,
@@ -89,9 +86,9 @@ export async function searchTransferOrders(
   const fieldsToSearch = [
     "No",
     "Transfer_from_Code",
-    "Transfer_from_Name",
     "Transfer_to_Code",
-    "Transfer_to_Name",
+    "Shortcut_Dimension_1_Code",
+    "Shortcut_Dimension_2_Code",
   ];
 
   const responses = await Promise.all(
@@ -140,17 +137,57 @@ export interface TransferLine {
   Document_No: string;
   Line_No: number;
   Item_No?: string;
+  Exempted?: boolean;
+  Breed_Code?: string;
+  RPO_Created?: boolean;
+  Chicks_Item?: boolean;
+  Alternate_Quantity?: number;
+  Alternate_UOM?: string;
+  Weak_Bird_Quantity?: number;
+  Transit_Mortality_Quantity?: number;
+  Flock_No?: string;
+  Item_Type?: string;
+  Flock_Description?: string;
+  Location_State_code?: string;
+  Total_Taxable_Value?: number;
+  New_LOB?: string;
+  New_Branch?: string;
+  New_Dimension_Set_ID?: number;
+  Shortcut_Dimension_3_Code?: string;
+  Variant_Code?: string;
+  Planning_Flexibility?: string;
   Description?: string;
-  Appl_to_Item_Entry?: string;
+  Description_2?: string;
+  Transfer_from_Bin_Code?: string;
+  Transfer_To_Bin_Code?: string;
   Quantity?: number;
-  Transfer_Price?: number;
   Amount?: number;
+  Transfer_Price?: number;
+  GST_Credit?: string;
+  Reserved_Quantity_Inbnd?: number;
+  Reserved_Quantity_Shipped?: number;
+  Reserved_Quantity_Outbnd?: number;
+  Unit_of_Measure_Code?: string;
+  Unit_of_Measure?: string;
   Qty_to_Ship?: number;
   Quantity_Shipped?: number;
   Qty_to_Receive?: number;
   Quantity_Received?: number;
+  Shipment_Date?: string;
+  Receipt_Date?: string;
+  Custom_Duty_Amount?: number;
+  GST_Assessable_Value?: number;
   GST_Group_Code?: string;
   HSN_SAC_Code?: string;
+  GST_Add_on_Inventory?: string;
+  Shipping_Agent_Code?: string;
+  Shipping_Agent_Service_Code?: string;
+  Shipping_Time?: string;
+  Outbound_Whse_Handling_Time?: string;
+  Inbound_Whse_Handling_Time?: string;
+  Appl_to_Item_Entry?: number;
+  Shortcut_Dimension_1_Code?: string;
+  Shortcut_Dimension_2_Code?: string;
   [key: string]: unknown;
 }
 

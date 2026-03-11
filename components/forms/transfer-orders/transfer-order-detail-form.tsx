@@ -131,22 +131,23 @@ export function TransferOrderDetailForm({
                 <tr>
                   <th className="px-4 py-3 text-left font-medium text-muted-foreground">Item No.</th>
                   <th className="px-4 py-3 text-left font-medium text-muted-foreground">Description</th>
-                  <th className="px-4 py-3 text-right font-medium text-muted-foreground whitespace-nowrap">Appl.-to Item Entry</th>
                   <th className="px-4 py-3 text-right font-medium text-muted-foreground">Quantity</th>
+                  <th className="px-4 py-3 text-left font-medium text-muted-foreground">UOM</th>
                   <th className="px-4 py-3 text-right font-medium text-muted-foreground whitespace-nowrap">Transfer Price</th>
                   <th className="px-4 py-3 text-right font-medium text-muted-foreground">Amount</th>
                   <th className="px-4 py-3 text-right font-medium text-muted-foreground whitespace-nowrap">Qty. to Ship</th>
-                  <th className="px-4 py-3 text-right font-medium text-muted-foreground whitespace-nowrap">Quantity Shipped</th>
+                  <th className="px-4 py-3 text-right font-medium text-muted-foreground whitespace-nowrap">Qty. Shipped</th>
                   <th className="px-4 py-3 text-right font-medium text-muted-foreground whitespace-nowrap">Qty. to Receive</th>
-                  <th className="px-4 py-3 text-right font-medium text-muted-foreground whitespace-nowrap">Quantity Received</th>
-                  <th className="px-4 py-3 text-left font-medium text-muted-foreground whitespace-nowrap">GST Group Code</th>
-                  <th className="px-4 py-3 text-left font-medium text-muted-foreground whitespace-nowrap">HSN/SAC Code</th>
+                  <th className="px-4 py-3 text-right font-medium text-muted-foreground whitespace-nowrap">Qty. Received</th>
+                  <th className="px-4 py-3 text-right font-medium text-muted-foreground whitespace-nowrap">Appl.-to Entry</th>
+                  <th className="px-4 py-3 text-left font-medium text-muted-foreground whitespace-nowrap">GST Group</th>
+                  <th className="px-4 py-3 text-left font-medium text-muted-foreground whitespace-nowrap">HSN/SAC</th>
                 </tr>
               </thead>
               <tbody>
                 {lines.length === 0 ? (
                   <tr>
-                    <td colSpan={12} className="p-4 text-center text-muted-foreground">
+                    <td colSpan={13} className="p-4 text-center text-muted-foreground">
                       No line items found.
                     </td>
                   </tr>
@@ -156,16 +157,17 @@ export function TransferOrderDetailForm({
                       key={index}
                       className="border-t transition-colors hover:bg-muted/50"
                     >
-                      <td className="px-4 py-3">{line.Item_No || "-"}</td>
+                      <td className="px-4 py-3 font-medium">{line.Item_No || "-"}</td>
                       <td className="px-4 py-3">{line.Description || "-"}</td>
+                      <td className="px-4 py-3 text-right font-medium">{line.Quantity?.toLocaleString() || 0}</td>
+                      <td className="px-4 py-3">{line.Unit_of_Measure_Code || "-"}</td>
+                      <td className="px-4 py-3 text-right">{line.Transfer_Price != null ? line.Transfer_Price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 5 }) : "-"}</td>
+                      <td className="px-4 py-3 text-right font-medium">{line.Amount != null ? line.Amount.toLocaleString(undefined, { minimumFractionDigits: 2 }) : "-"}</td>
+                      <td className="px-4 py-3 text-right">{line.Qty_to_Ship?.toLocaleString() || 0}</td>
+                      <td className="px-4 py-3 text-right">{line.Quantity_Shipped?.toLocaleString() || 0}</td>
+                      <td className="px-4 py-3 text-right">{line.Qty_to_Receive?.toLocaleString() || 0}</td>
+                      <td className="px-4 py-3 text-right">{line.Quantity_Received?.toLocaleString() || 0}</td>
                       <td className="px-4 py-3 text-right">{line.Appl_to_Item_Entry || "-"}</td>
-                      <td className="px-4 py-3 text-right">{line.Quantity || 0}</td>
-                      <td className="px-4 py-3 text-right">{line.Transfer_Price != null ? line.Transfer_Price.toLocaleString() : "-"}</td>
-                      <td className="px-4 py-3 text-right">{line.Amount != null ? line.Amount.toLocaleString() : "-"}</td>
-                      <td className="px-4 py-3 text-right">{line.Qty_to_Ship || 0}</td>
-                      <td className="px-4 py-3 text-right">{line.Quantity_Shipped || 0}</td>
-                      <td className="px-4 py-3 text-right">{line.Qty_to_Receive || 0}</td>
-                      <td className="px-4 py-3 text-right">{line.Quantity_Received || 0}</td>
                       <td className="px-4 py-3">{line.GST_Group_Code || "-"}</td>
                       <td className="px-4 py-3">{line.HSN_SAC_Code || "-"}</td>
                     </tr>

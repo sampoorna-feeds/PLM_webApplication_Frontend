@@ -93,9 +93,15 @@ export function TransferOrderForm({
         ]);
         setLobs(lobData);
         setLocations(locationData);
-      } catch (error) {
-        console.error("Error loading initial data:", error);
-        toast.error("Failed to load dimensions/locations");
+      } catch (error: any) {
+        console.error("Error loading initial data detail:", {
+          message: error?.message,
+          status: error?.status,
+          code: error?.code,
+          error: error
+        });
+        const errorMessage = error?.message || "Failed to load dimensions/locations";
+        toast.error(errorMessage);
       } finally {
         setIsLoadingDimensions(false);
       }

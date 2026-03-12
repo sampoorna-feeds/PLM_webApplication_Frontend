@@ -28,10 +28,12 @@ function TransferOrderPageContent() {
     openTab("transfer-order", {
       title: "Create Transfer Order",
       context: {
+        openedFromParent: true,
         onOrderCreated: () => {
           refetchRef.current?.();
         },
       },
+      autoCloseOnSuccess: true,
     });
   };
 

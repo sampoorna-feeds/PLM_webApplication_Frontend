@@ -315,7 +315,7 @@ export async function getLocationCodes(
   }
 
   const query = buildODataQuery(queryParams);
-  const endpoint = `/Location?company='${encodeURIComponent(COMPANY)}'&${query}`;
+  const endpoint = `/LocationList?company='${encodeURIComponent(COMPANY)}'&${query}`;
 
   const response = await apiGet<ODataResponse<LocationCode>>(endpoint);
   return response.value || [];
@@ -331,7 +331,7 @@ export async function getAllLocationCodes(): Promise<LocationCode[]> {
     $top: 100,
   });
 
-  const endpoint = `/Location?company='${encodeURIComponent(COMPANY)}'&${query}`;
+  const endpoint = `/LocationList?company='${encodeURIComponent(COMPANY)}'&${query}`;
 
   const response = await apiGet<ODataResponse<LocationCode>>(endpoint);
   return response.value || [];

@@ -117,6 +117,9 @@ export async function createPurchaseOrder(
       Due_Date: orderData.dueDate || "",
     };
 
+    console.log("[PO Create] Endpoint:", endpoint);
+    console.log("[PO Create] Payload:", JSON.stringify(payload, null, 2));
+
     const response = await apiPost<CreatePurchaseOrderApiResponse>(
       endpoint,
       payload,

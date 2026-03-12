@@ -30,18 +30,21 @@ import { useFormStackContext } from "@/lib/form-stack/form-stack-context";
 import { getAuthCredentials } from "@/lib/auth/storage";
 import type { LineItem } from "@/components/forms/sales/line-item-form";
 import { LineItemsTable } from "@/components/forms/sales/line-items-table";
-import { Plus, ChevronLeft, ChevronRight } from "lucide-react";
+import {
+  Plus,
+  ChevronLeft,
+  ChevronRight,
+  ChevronDownIcon,
+  CheckIcon,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ClearableField } from "@/components/ui/clearable-field";
 import { RequestFailedDialog } from "@/components/ui/request-failed-dialog";
 import {
-  Combobox,
-  ComboboxContent,
-  ComboboxEmpty,
-  ComboboxInput,
-  ComboboxItem,
-  ComboboxList,
-} from "@/components/ui/combobox";
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import {
   createPurchaseOrder,
   addPurchaseOrderLineItems,
@@ -55,6 +58,123 @@ import {
   type MandiMaster,
   type PaymentTerm,
 } from "@/lib/api/services/purchase-dropdowns.service";
+
+const CREDITOR_TYPE_OPTIONS = [
+  "SOYA CREDITORS",
+  "OTHER GRAIN CREDITORS",
+  "MEDICINE CREDITORS",
+  "CAPEX CREDITORS",
+  "SERVICE CREDITORS",
+  "IMPORT CREDITORS",
+  "MISCELLANEOUS CREDITORS",
+  "Maize Creditors",
+  "BAJRA Creditors",
+  "Wheat Creditors",
+  "Mustard DOC Creditors",
+  "D.D.G.S Creditors",
+  "DEOILED RICE BRAN Creditors",
+  "Birds Creditor",
+  "Chicks Creditor",
+  "Gen Item",
+  "Hatching Egg Outside",
+  "Premix",
+  "Rice Bran Oil",
+  "Rice Bran Polish",
+  "Rice Kanni",
+  "Lime Stone Power",
+  "Gaur Meal",
+  "Chicken Waste Meal",
+  "P.P Bags",
+  "Other",
+  "ANIMAL FEED SUPLEMENT",
+].map((v) => ({ value: v, label: v }));
+
+/** Popover-based searchable select (mirrors VendorSelect / BrokerSelect pattern) */
+function SearchableSelect({
+  value,
+  onChange,
+  options,
+  placeholder = "Select",
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  options: { value: string; label: string }[];
+  placeholder?: string;
+}) {
+  const [open, setOpen] = React.useState(false);
+  const [search, setSearch] = React.useState("");
+
+  const filtered = search
+    ? options.filter((o) =>
+        o.label.toLowerCase().includes(search.toLowerCase()),
+      )
+    : options;
+
+  const selectedLabel = options.find((o) => o.value === value)?.label;
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          role="combobox"
+          className={cn(
+            "h-8 w-full justify-between text-sm font-normal",
+            !value && "text-muted-foreground",
+          )}
+        >
+          <span className="truncate">{selectedLabel || placeholder}</span>
+          <ChevronDownIcon className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent
+        className="flex max-h-(--radix-popover-content-available-height,80vh) min-h-0 w-(--radix-popover-trigger-width) min-w-55 flex-col overflow-hidden p-0"
+        align="start"
+        collisionPadding={8}
+        onOpenAutoFocus={(e) => e.preventDefault()}
+      >
+        <div className="border-b p-2">
+          <Input
+            placeholder="Search..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="h-8"
+            autoFocus
+          />
+        </div>
+        <div className="max-h-60 overflow-y-auto p-1">
+          {filtered.length === 0 && (
+            <p className="text-muted-foreground py-2 text-center text-sm">
+              No results found.
+            </p>
+          )}
+          {filtered.map((opt) => (
+            <button
+              key={opt.value}
+              type="button"
+              className={cn(
+                "hover:bg-accent hover:text-accent-foreground relative flex w-full cursor-default items-center rounded-sm py-1.5 pr-8 pl-2 text-sm outline-none select-none",
+                value === opt.value && "bg-accent text-accent-foreground",
+              )}
+              onClick={() => {
+                onChange(opt.value);
+                setOpen(false);
+                setSearch("");
+              }}
+            >
+              <span className="truncate">{opt.label}</span>
+              {value === opt.value && (
+                <span className="absolute right-2 flex h-4 w-4 items-center justify-center">
+                  <CheckIcon className="h-4 w-4" />
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
 
 export interface PurchaseOrderFormContentProps {
   /** Called when order is successfully placed */
@@ -116,7 +236,7 @@ export function PurchaseOrderFormContent({
     termCode: "",
     mandiName: "",
     paymentTermCode: "",
-    dueDateCalculation: "",
+    dueDateCalculation: "Posting Date",
     creditorType: "",
     qcType: "",
     dueDate: "",
@@ -398,7 +518,7 @@ export function PurchaseOrderFormContent({
         paymentTermCode: formData.paymentTermCode,
         dueDateCalculation: formData.dueDateCalculation,
         creditorType: formData.creditorType,
-        qcType: formData.qcType,
+        qcType: formData.qcType === "_none" ? "" : formData.qcType,
         dueDate: formData.dueDate,
       };
 
@@ -429,13 +549,16 @@ export function PurchaseOrderFormContent({
       await addPurchaseOrderLineItems(orderId, lineItemsData, locationCode);
       onSuccess(orderResponse.orderNo || orderId);
     } catch (error) {
-      console.error("Error placing purchase order:", error);
+      console.error(
+        "Error placing purchase order:",
+        JSON.stringify(error, null, 2),
+      );
+      const errObj = error as Record<string, unknown>;
       const message =
-        error &&
-        typeof error === "object" &&
-        "message" in error &&
-        typeof (error as { message: unknown }).message === "string"
-          ? (error as { message: string }).message
+        errObj && typeof errObj.message === "string"
+          ? typeof errObj.details === "string"
+            ? `${errObj.message}\n${errObj.details}`
+            : errObj.message
           : error instanceof Error
             ? error.message
             : "Failed to place order. Please try again.";
@@ -864,23 +987,12 @@ export function PurchaseOrderFormContent({
           </div>
           <div className={fieldClass}>
             <label className={labelClass}>Creditor Type</label>
-            <Select
+            <SearchableSelect
               value={formData.creditorType}
-              onValueChange={(value) =>
-                handleInputChange("creditorType", value)
-              }
-            >
-              <SelectTrigger className="h-8 text-sm">
-                <SelectValue placeholder="Select" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="EX">EX</SelectItem>
-                <SelectItem value="FOR">FOR</SelectItem>
-                <SelectItem value="CIF">CIF</SelectItem>
-                <SelectItem value="FOB">FOB</SelectItem>
-                <SelectItem value="N/A">N/A</SelectItem>
-              </SelectContent>
-            </Select>
+              onChange={(value) => handleInputChange("creditorType", value)}
+              options={CREDITOR_TYPE_OPTIONS}
+              placeholder="Select creditor type"
+            />
           </div>
           <div className={fieldClass}>
             <label className={labelClass}>QC Type</label>
@@ -892,73 +1004,49 @@ export function PurchaseOrderFormContent({
                 <SelectValue placeholder="Select" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="None">None</SelectItem>
-                <SelectItem value="Incoming">Incoming</SelectItem>
-                <SelectItem value="Outgoing">Outgoing</SelectItem>
-                <SelectItem value="Both">Both</SelectItem>
+                <SelectItem value="_none">None</SelectItem>
+                <SelectItem value="Ex Passing">Ex Passing</SelectItem>
               </SelectContent>
             </Select>
           </div>
           <div className={fieldClass}>
             <label className={labelClass}>Term Code</label>
-            <Combobox
-              value={formData.termCode || null}
-              onValueChange={(value) => handleInputChange("termCode", value ?? "")}
-            >
-              <ComboboxInput placeholder="Search term code..." showClear className="h-8 text-sm w-full" />
-              <ComboboxContent>
-                <ComboboxList>
-                  {termList.map((t) => (
-                    <ComboboxItem key={t.Terms} value={t.Terms}>
-                      {t.Terms} - {t.Conditions}
-                    </ComboboxItem>
-                  ))}
-                </ComboboxList>
-                <ComboboxEmpty>No results found.</ComboboxEmpty>
-              </ComboboxContent>
-            </Combobox>
+            <SearchableSelect
+              value={formData.termCode}
+              onChange={(value) => handleInputChange("termCode", value)}
+              options={termList.map((t) => ({
+                value: t.Terms,
+                label: `${t.Terms} - ${t.Conditions}`,
+              }))}
+              placeholder="Select term code"
+            />
           </div>
           <div className={fieldClass}>
             <label className={labelClass}>Mandi Name</label>
-            <Combobox
-              value={formData.mandiName || null}
-              onValueChange={(value) => handleInputChange("mandiName", value ?? "")}
-            >
-              <ComboboxInput placeholder="Search mandi name..." showClear className="h-8 text-sm w-full" />
-              <ComboboxContent>
-                <ComboboxList>
-                  {mandiList.map((m) => (
-                    <ComboboxItem key={m.Code} value={m.Code}>
-                      {m.Code} - {m.Description}
-                    </ComboboxItem>
-                  ))}
-                </ComboboxList>
-                <ComboboxEmpty>No results found.</ComboboxEmpty>
-              </ComboboxContent>
-            </Combobox>
+            <SearchableSelect
+              value={formData.mandiName}
+              onChange={(value) => handleInputChange("mandiName", value)}
+              options={mandiList.map((m) => ({
+                value: m.Code,
+                label: `${m.Code} - ${m.Description}`,
+              }))}
+              placeholder="Select mandi name"
+            />
           </div>
           <div className={fieldClass}>
             <label className={labelClass}>Payment Term Code</label>
-            <Combobox
-              value={formData.paymentTermCode || null}
-              onValueChange={(value) => handleInputChange("paymentTermCode", value ?? "")}
-            >
-              <ComboboxInput placeholder="Search payment term..." showClear className="h-8 text-sm w-full" />
-              <ComboboxContent>
-                <ComboboxList>
-                  {paymentTermList.map((p) => (
-                    <ComboboxItem key={p.Code} value={p.Code}>
-                      {p.Code} - {p.Description}
-                    </ComboboxItem>
-                  ))}
-                </ComboboxList>
-                <ComboboxEmpty>No results found.</ComboboxEmpty>
-              </ComboboxContent>
-            </Combobox>
+            <SearchableSelect
+              value={formData.paymentTermCode}
+              onChange={(value) => handleInputChange("paymentTermCode", value)}
+              options={paymentTermList.map((p) => ({
+                value: p.Code,
+                label: `${p.Code} - ${p.Description}`,
+              }))}
+              placeholder="Select payment term"
+            />
           </div>
         </div>
       </section>
-
     </div>
   );
 

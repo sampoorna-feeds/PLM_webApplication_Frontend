@@ -35,6 +35,14 @@ import { cn } from "@/lib/utils";
 import { ClearableField } from "@/components/ui/clearable-field";
 import { RequestFailedDialog } from "@/components/ui/request-failed-dialog";
 import {
+  Combobox,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxInput,
+  ComboboxItem,
+  ComboboxList,
+} from "@/components/ui/combobox";
+import {
   createPurchaseOrder,
   addPurchaseOrderLineItems,
   type PurchaseOrderData,
@@ -90,7 +98,6 @@ export function PurchaseOrderFormContent({
     postingDate: "",
     documentDate: "",
     orderDate: "",
-    externalDocumentNo: "",
     vendorInvoiceNo: "",
     invoiceType: "",
     lob: "",
@@ -372,11 +379,27 @@ export function PurchaseOrderFormContent({
         postingDate: formData.postingDate,
         documentDate: formData.documentDate,
         orderDate: formData.orderDate,
-        externalDocumentNo: formData.externalDocumentNo,
+        vendorInvoiceNo: formData.vendorInvoiceNo,
         invoiceType: formData.invoiceType,
         lob: formData.lob,
         branch: formData.branch,
         loc: formData.loc,
+        poType: formData.poType,
+        serviceType: formData.serviceType,
+        vendorGstRegNo: formData.vendorGstRegNo,
+        vendorPanNo: formData.vendorPanNo,
+        brokerNo: formData.brokerNo,
+        brokerName: formData.brokerName,
+        brokerageRate: formData.brokerageRate,
+        orderAddressCode: formData.orderAddressCode,
+        rateBasis: formData.rateBasis,
+        termCode: formData.termCode,
+        mandiName: formData.mandiName,
+        paymentTermCode: formData.paymentTermCode,
+        dueDateCalculation: formData.dueDateCalculation,
+        creditorType: formData.creditorType,
+        qcType: formData.qcType,
+        dueDate: formData.dueDate,
       };
 
       const orderResponse = await createPurchaseOrder(orderData);
@@ -458,7 +481,7 @@ export function PurchaseOrderFormContent({
                   onValueChange={(value) =>
                     handleInputChange(
                       "serviceType",
-                      value === "none" ? "" : value
+                      value === "none" ? "" : value,
                     )
                   }
                 >
@@ -508,12 +531,20 @@ export function PurchaseOrderFormContent({
               <SalesPersonSelect
                 value={formData.purchasePersonCode || ""}
                 onChange={(val, sp) => {
-                  handleInputChange("purchasePersonCode", val);
-                  handleInputChange("purchasePersonName", sp?.Name || "");
+                  setFormData((prev) => ({
+                    ...prev,
+                    purchasePersonCode: val,
+                    purchasePersonName: sp?.Name || "",
+                  }));
                 }}
                 placeholder="Select Purchaser"
               />
             </ClearableField>
+            {formData.purchasePersonName && (
+              <p className="mt-1 truncate pl-1 text-[10px] font-medium text-green-600">
+                {formData.purchasePersonName}
+              </p>
+            )}
           </div>
         </div>
       </section>
@@ -634,6 +665,22 @@ export function PurchaseOrderFormContent({
               placeholder="Auto-filled"
               readOnly
             />
+          </div>
+          <div className={fieldClass}>
+            <label className={labelClass}>Vendor Invoice No.</label>
+            <ClearableField
+              value={formData.vendorInvoiceNo}
+              onClear={() => handleInputChange("vendorInvoiceNo", "")}
+            >
+              <Input
+                value={formData.vendorInvoiceNo}
+                onChange={(e) =>
+                  handleInputChange("vendorInvoiceNo", e.target.value)
+                }
+                placeholder="Optional"
+                className="h-8"
+              />
+            </ClearableField>
           </div>
 
           <div className={fieldClass}>
@@ -854,133 +901,64 @@ export function PurchaseOrderFormContent({
           </div>
           <div className={fieldClass}>
             <label className={labelClass}>Term Code</label>
-            <Select
-              value={formData.termCode}
-              onValueChange={(value) => handleInputChange("termCode", value)}
+            <Combobox
+              value={formData.termCode || null}
+              onValueChange={(value) => handleInputChange("termCode", value ?? "")}
             >
-              <SelectTrigger className="h-8 text-sm">
-                <SelectValue placeholder="Select term code" />
-              </SelectTrigger>
-              <SelectContent>
-                {termList.map((t) => (
-                  <SelectItem key={t.Terms} value={t.Terms}>
-                    {t.Terms} - {t.Conditions}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              <ComboboxInput placeholder="Search term code..." showClear className="h-8 text-sm w-full" />
+              <ComboboxContent>
+                <ComboboxList>
+                  {termList.map((t) => (
+                    <ComboboxItem key={t.Terms} value={t.Terms}>
+                      {t.Terms} - {t.Conditions}
+                    </ComboboxItem>
+                  ))}
+                </ComboboxList>
+                <ComboboxEmpty>No results found.</ComboboxEmpty>
+              </ComboboxContent>
+            </Combobox>
           </div>
           <div className={fieldClass}>
             <label className={labelClass}>Mandi Name</label>
-            <Select
-              value={formData.mandiName}
-              onValueChange={(value) => handleInputChange("mandiName", value)}
+            <Combobox
+              value={formData.mandiName || null}
+              onValueChange={(value) => handleInputChange("mandiName", value ?? "")}
             >
-              <SelectTrigger className="h-8 text-sm">
-                <SelectValue placeholder="Select mandi name" />
-              </SelectTrigger>
-              <SelectContent>
-                {mandiList.map((m) => (
-                  <SelectItem key={m.Code} value={m.Code}>
-                    {m.Code} - {m.Description}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              <ComboboxInput placeholder="Search mandi name..." showClear className="h-8 text-sm w-full" />
+              <ComboboxContent>
+                <ComboboxList>
+                  {mandiList.map((m) => (
+                    <ComboboxItem key={m.Code} value={m.Code}>
+                      {m.Code} - {m.Description}
+                    </ComboboxItem>
+                  ))}
+                </ComboboxList>
+                <ComboboxEmpty>No results found.</ComboboxEmpty>
+              </ComboboxContent>
+            </Combobox>
           </div>
           <div className={fieldClass}>
             <label className={labelClass}>Payment Term Code</label>
-            <Select
-              value={formData.paymentTermCode}
-              onValueChange={(value) =>
-                handleInputChange("paymentTermCode", value)
-              }
+            <Combobox
+              value={formData.paymentTermCode || null}
+              onValueChange={(value) => handleInputChange("paymentTermCode", value ?? "")}
             >
-              <SelectTrigger className="h-8 text-sm">
-                <SelectValue placeholder="Select payment term code" />
-              </SelectTrigger>
-              <SelectContent>
-                {paymentTermList.map((p) => (
-                  <SelectItem key={p.Code} value={p.Code}>
-                    {p.Code} - {p.Description}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              <ComboboxInput placeholder="Search payment term..." showClear className="h-8 text-sm w-full" />
+              <ComboboxContent>
+                <ComboboxList>
+                  {paymentTermList.map((p) => (
+                    <ComboboxItem key={p.Code} value={p.Code}>
+                      {p.Code} - {p.Description}
+                    </ComboboxItem>
+                  ))}
+                </ComboboxList>
+                <ComboboxEmpty>No results found.</ComboboxEmpty>
+              </ComboboxContent>
+            </Combobox>
           </div>
         </div>
       </section>
 
-      {/* 7. Optional Details */}
-      <section className="space-y-3">
-        <h3 className="border-b pb-1 text-sm font-semibold">
-          Optional Details
-        </h3>
-        <div className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 lg:grid-cols-4">
-          <div className={fieldClass}>
-            <label className={labelClass}>External Doc No.</label>
-            <ClearableField
-              value={formData.externalDocumentNo}
-              onClear={() => handleInputChange("externalDocumentNo", "")}
-            >
-              <Input
-                value={formData.externalDocumentNo}
-                onChange={(e) =>
-                  handleInputChange("externalDocumentNo", e.target.value)
-                }
-                placeholder="Optional"
-                className="h-8"
-              />
-            </ClearableField>
-          </div>
-          <div className={fieldClass}>
-            <label className={labelClass}>Vendor Invoice No.</label>
-            <ClearableField
-              value={formData.vendorInvoiceNo}
-              onClear={() => handleInputChange("vendorInvoiceNo", "")}
-            >
-              <Input
-                value={formData.vendorInvoiceNo}
-                onChange={(e) =>
-                  handleInputChange("vendorInvoiceNo", e.target.value)
-                }
-                placeholder="Optional"
-                className="h-8"
-              />
-            </ClearableField>
-          </div>
-          <div className={fieldClass}>
-            <label className={labelClass}>Purchaser</label>
-            <ClearableField
-              value={formData.purchasePersonCode}
-              onClear={() =>
-                setFormData((prev) => ({
-                  ...prev,
-                  purchasePersonCode: "",
-                  purchasePersonName: "",
-                }))
-              }
-            >
-              <SalesPersonSelect
-                value={formData.purchasePersonCode}
-                onChange={(value, salesPerson) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    purchasePersonCode: value,
-                    purchasePersonName: salesPerson?.Name || "",
-                  }))
-                }
-                placeholder="Select Purchaser"
-              />
-            </ClearableField>
-            {formData.purchasePersonName && (
-              <p className="mt-1 truncate pl-1 text-[10px] font-medium text-green-600">
-                {formData.purchasePersonName}
-              </p>
-            )}
-          </div>
-        </div>
-      </section>
     </div>
   );
 

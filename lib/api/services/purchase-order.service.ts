@@ -16,10 +16,28 @@ export interface PurchaseOrderData {
   documentDate: string;
   orderDate: string;
   externalDocumentNo?: string;
+  vendorInvoiceNo?: string;
   invoiceType?: string;
   lob?: string;
   branch?: string;
   loc?: string;
+  // New fields
+  poType?: string;
+  serviceType?: string;
+  vendorGstRegNo?: string;
+  vendorPanNo?: string;
+  brokerNo?: string;
+  brokerName?: string;
+  brokerageRate?: string | number;
+  orderAddressCode?: string;
+  rateBasis?: string;
+  termCode?: string;
+  mandiName?: string;
+  paymentTermCode?: string;
+  dueDateCalculation?: string;
+  creditorType?: string;
+  qcType?: string;
+  dueDate?: string;
 }
 
 export interface PurchaseOrderLineItem {
@@ -64,7 +82,7 @@ export async function createPurchaseOrder(
   try {
     const endpoint = `/PurchaseOrder?company='${encodeURIComponent(COMPANY)}'`;
 
-    const payload = {
+    const payload: Record<string, unknown> = {
       Document_Type: "Order",
       Buy_from_Vendor_No: orderData.vendorNo,
       Ship_to_Code: orderData.shipToCode || "",
@@ -74,10 +92,29 @@ export async function createPurchaseOrder(
       Document_Date: orderData.documentDate,
       Order_Date: orderData.orderDate,
       External_Document_No: orderData.externalDocumentNo || "",
-      Invoice_Type: orderData.invoiceType || "Bill of supply",
+      Vendor_Invoice_No: orderData.vendorInvoiceNo || "",
+      Invoice_Type: orderData.invoiceType || "",
       Shortcut_Dimension_1_Code: orderData.lob || "",
       Shortcut_Dimension_2_Code: orderData.branch || "",
       Shortcut_Dimension_3_Code: orderData.loc || "",
+      PO_Type: orderData.poType || "",
+      Service_Type: orderData.serviceType || "",
+      Vendor_GST_Reg_No: orderData.vendorGstRegNo || "",
+      Vendor_PAN_No: orderData.vendorPanNo || "",
+      Broker_No: orderData.brokerNo || "",
+      Broker_Name: orderData.brokerName || "",
+      Brokerage_Rate: orderData.brokerageRate
+        ? Number(orderData.brokerageRate)
+        : 0,
+      Order_Address_Code: orderData.orderAddressCode || "",
+      Rate_Basis: orderData.rateBasis || "",
+      Term_Code: orderData.termCode || "",
+      Mandi_Name: orderData.mandiName || "",
+      Payment_Term_Code: orderData.paymentTermCode || "",
+      Due_Date_Calculation: orderData.dueDateCalculation || "",
+      Creditor_Type: orderData.creditorType || "",
+      QC_Type: orderData.qcType || "",
+      Due_Date: orderData.dueDate || "",
     };
 
     const response = await apiPost<CreatePurchaseOrderApiResponse>(

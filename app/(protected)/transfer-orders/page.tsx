@@ -1,11 +1,14 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { Plus } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import {
   FormStackProvider,
   FormStackPanel,
   MiniAccessPanel,
 } from "@/components/form-stack";
+import { useFormStackContext } from "@/lib/form-stack/form-stack-context";
 import { TransferOrderView } from "@/components/forms/transfer-orders";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -17,8 +20,20 @@ const TAB_STATUS_MAP: Record<TransferOrderTab, "Open" | "Released"> = {
 };
 
 function TransferOrderPageContent() {
+  const { openTab } = useFormStackContext();
   const refetchRef = useRef<(() => void) | null>(null);
   const [activeTab, setActiveTab] = useState<TransferOrderTab>("open");
+
+  const handleCreateOrder = () => {
+    openTab("transfer-order", {
+      title: "Create Transfer Order",
+      context: {
+        onOrderCreated: () => {
+          refetchRef.current?.();
+        },
+      },
+    });
+  };
 
   return (
     <div className="flex h-[calc(100vh-5rem)] max-h-[calc(100vh-5rem)] w-full">
@@ -38,10 +53,16 @@ function TransferOrderPageContent() {
                   Manage and track transfer orders
                 </p>
               </div>
-              <TabsList className="grid w-fit grid-cols-2">
-                <TabsTrigger value="open">Open</TabsTrigger>
-                <TabsTrigger value="released">Released</TabsTrigger>
-              </TabsList>
+              <div className="flex items-center gap-4">
+                <TabsList className="grid w-fit grid-cols-2">
+                  <TabsTrigger value="open">Open</TabsTrigger>
+                  <TabsTrigger value="released">Released</TabsTrigger>
+                </TabsList>
+                <Button onClick={handleCreateOrder} size="sm">
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add Order
+                </Button>
+              </div>
             </div>
           </div>
 

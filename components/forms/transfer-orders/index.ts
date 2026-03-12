@@ -6,4 +6,5 @@ export { TransferOrderPaginationControls } from "./pagination-controls";
 export { TransferOrderView } from "./transfer-order-view";
 export { useTransferOrders } from "./use-transfer-orders";
 export { TransferOrderDetailForm } from "./transfer-order-detail-form";
+export { TransferOrderForm } from "./transfer-order-form";
 export * from "./column-config";

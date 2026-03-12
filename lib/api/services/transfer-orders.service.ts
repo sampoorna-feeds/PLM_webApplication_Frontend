@@ -1,4 +1,4 @@
-import { apiGet } from "../client";
+import { apiGet, apiPost } from "../client";
 import { buildODataQuery } from "../endpoints";
 import type { ODataResponse } from "../types";
 
@@ -131,6 +131,16 @@ export async function getTransferOrderByNo(
   const response = await apiGet<ODataResponse<TransferOrder>>(endpoint);
   const value = response.value;
   return value && value.length > 0 ? value[0] : null;
+}
+
+/**
+ * Create a new transfer order (header)
+ */
+export async function createTransferOrder(
+  data: Partial<TransferOrder>,
+): Promise<TransferOrder> {
+  const endpoint = `/TransferHeader?company='${encodeURIComponent(COMPANY)}'`;
+  return apiPost<TransferOrder>(endpoint, data);
 }
 
 export interface TransferLine {

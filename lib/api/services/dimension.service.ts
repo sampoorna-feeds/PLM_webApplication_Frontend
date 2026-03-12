@@ -323,13 +323,23 @@ export async function getWebUserSetup(userId: string): Promise<WebUserSetup[]> {
   const query = `$filter=${encodeURIComponent(filter)}`;
   const endpoint = `/WebUserSetup?company='${encodeURIComponent(COMPANY)}'&${query}`;
 
-  const response = await apiGet<ODataResponse<WebUserSetup>>(endpoint);
-  const data = response.value || [];
+  try {
+    const response = await apiGet<ODataResponse<WebUserSetup>>(endpoint);
+    const data = response.value || [];
 
-  // Cache the result
-  webUserSetupCache.set(userId, { data, timestamp: Date.now() });
+    // Cache the result
+    webUserSetupCache.set(userId, { data, timestamp: Date.now() });
 
-  return data;
+    return data;
+  } catch (error: any) {
+    if (error?.status === 404) {
+      console.warn(
+        "WebUserSetup endpoint not found (404). Returning empty setup.",
+      );
+      return [];
+    }
+    throw error;
+  }
 }
 
 /**

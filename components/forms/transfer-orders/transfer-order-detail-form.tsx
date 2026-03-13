@@ -100,8 +100,8 @@ export function TransferOrderDetailForm({
           </h2>
           <div className="grid grid-cols-2 gap-x-8 gap-y-6 md:grid-cols-4">
             <SummaryField label="Transfer order No." value={order.No} />
-            <SummaryField label="Transfer-from Code" value={order.Transfer_from_Code} />
-            <SummaryField label="Transfer-to Code" value={order.Transfer_to_Code} />
+            <SummaryField label="Transfer-from Code" value={order.Transfer_From_Code} />
+            <SummaryField label="Transfer-to Code" value={order.Transfer_To_Code} />
             <SummaryField label="In-Transit Code" value={order.In_Transit_Code} />
             <SummaryField label="Status" value={order.Status} />
             <SummaryField label="LOB" value={order.Shortcut_Dimension_1_Code} />

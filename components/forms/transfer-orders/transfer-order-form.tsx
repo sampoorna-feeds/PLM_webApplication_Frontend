@@ -31,6 +31,7 @@ import {
 } from "@/lib/api/services/production-order-data.service";
 import {
   createTransferOrder,
+  patchTransferOrder,
   getTransferOrderByNo,
   getTransferOrderLines,
   deleteTransferLine,
@@ -64,8 +65,8 @@ export function TransferOrderForm({
   // Form state
   const [formState, setFormState] = useState<Partial<TransferOrder>>({
     No: "",
-    Transfer_from_Code: "",
-    Transfer_to_Code: "",
+    Transfer_From_Code: "",
+    Transfer_To_Code: "",
     In_Transit_Code: "IN-TRANSIT",
     Status: "Open",
     Assigned_User_ID: "",
@@ -79,6 +80,8 @@ export function TransferOrderForm({
     Shipping_Advice: "Partial",
     ...initialFormData,
   });
+
+  const [originalState, setOriginalState] = useState<Partial<TransferOrder>>({});
 
   // Lines state
   const [lines, setLines] = useState<TransferLine[]>([]);
@@ -110,6 +113,7 @@ export function TransferOrderForm({
       const order = await getTransferOrderByNo(no);
       if (order) {
         setFormState(order);
+        setOriginalState(order);
         setIsLoadingLines(true);
         const linesData = await getTransferOrderLines(no);
         setLines(linesData);
@@ -216,7 +220,7 @@ export function TransferOrderForm({
   const handleCreateHeader = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formState.Transfer_from_Code || !formState.Transfer_to_Code || !formState.Shortcut_Dimension_1_Code || !formState.Shortcut_Dimension_2_Code) {
+    if (!formState.Transfer_From_Code || !formState.Transfer_To_Code || !formState.Shortcut_Dimension_1_Code || !formState.Shortcut_Dimension_2_Code) {
       toast.error("Please fill in all required fields");
       return;
     }
@@ -241,6 +245,7 @@ export function TransferOrderForm({
       
       // Update local state to newly created order
       setFormState(response);
+      setOriginalState(response);
       setLocalMode("edit");
       
       // Notify parent
@@ -263,6 +268,39 @@ export function TransferOrderForm({
       });
       const errorMessage = error?.message || "Failed to create transfer order";
       toast.error(errorMessage);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleUpdateHeader = async () => {
+    if (!formState.No) return;
+    
+    // Calculate diff
+    const diff: Partial<TransferOrder> = {};
+    Object.keys(formState).forEach((key) => {
+      const k = key as keyof TransferOrder;
+      if (formState[k] !== originalState[k]) {
+        (diff as any)[k] = formState[k];
+      }
+    });
+
+    if (Object.keys(diff).length === 0) {
+      toast.info("No changes to update");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      await patchTransferOrder(formState.No, diff);
+      toast.success("Transfer Order header updated");
+      updateTab({ isSaved: true });
+      
+      // Refetch to get latest data (ETags etc)
+      fetchOrderData(formState.No);
+    } catch (error: any) {
+      console.error("Error updating transfer order:", error);
+      toast.error(error.message || "Failed to update transfer order");
     } finally {
       setIsSubmitting(false);
     }
@@ -317,7 +355,7 @@ export function TransferOrderForm({
                 <Select
                   value={formState.Shortcut_Dimension_1_Code}
                   onValueChange={(v) => handleChange("Shortcut_Dimension_1_Code", v)}
-                  disabled={!!formState.No}
+                  disabled={formState.Status === "Released"}
                 >
                   <SelectTrigger className="bg-background">
                     <SelectValue placeholder="Select LOB" />
@@ -337,7 +375,7 @@ export function TransferOrderForm({
                 <Select
                   value={formState.Shortcut_Dimension_2_Code}
                   onValueChange={(v) => handleChange("Shortcut_Dimension_2_Code", v)}
-                  disabled={!formState.Shortcut_Dimension_1_Code || !!formState.No}
+                  disabled={!formState.Shortcut_Dimension_1_Code || formState.Status === "Released"}
                 >
                   <SelectTrigger className="bg-background">
                     <SelectValue placeholder="Select Branch" />
@@ -364,10 +402,10 @@ export function TransferOrderForm({
                 <FieldTitle required>Transfer From</FieldTitle>
                 <SearchableSelect
                   options={locations.map(l => ({ value: l.Code, label: `${l.Code} - ${l.Name || ""}` }))}
-                  value={formState.Transfer_from_Code}
-                  onValueChange={(v) => handleChange("Transfer_from_Code", v)}
+                  value={formState.Transfer_From_Code}
+                  onValueChange={(v) => handleChange("Transfer_From_Code", v)}
                   placeholder="Select Source Location"
-                  disabled={!!formState.No}
+                  disabled={formState.Status === "Released"}
                 />
               </div>
 
@@ -375,10 +413,10 @@ export function TransferOrderForm({
                 <FieldTitle required>Transfer To</FieldTitle>
                 <SearchableSelect
                   options={locations.map(l => ({ value: l.Code, label: `${l.Code} - ${l.Name || ""}` }))}
-                  value={formState.Transfer_to_Code}
-                  onValueChange={(v) => handleChange("Transfer_to_Code", v)}
+                  value={formState.Transfer_To_Code}
+                  onValueChange={(v) => handleChange("Transfer_To_Code", v)}
                   placeholder="Select Destination Location"
-                  disabled={!!formState.No}
+                  disabled={formState.Status === "Released"}
                 />
               </div>
 
@@ -387,7 +425,7 @@ export function TransferOrderForm({
                 <Input
                   value={formState.In_Transit_Code}
                   onChange={(e) => handleChange("In_Transit_Code", e.target.value)}
-                  disabled={!!formState.No}
+                  disabled={formState.Status === "Released"}
                   className="bg-background"
                 />
               </div>
@@ -407,7 +445,7 @@ export function TransferOrderForm({
                     type="date"
                     value={formState.Shipment_Date ? formState.Shipment_Date.split("T")[0] : ""}
                     onChange={(e) => handleChange("Shipment_Date", e.target.value)}
-                    disabled={!!formState.No}
+                    disabled={formState.Status === "Released"}
                     className="bg-background"
                   />
                 </div>
@@ -417,7 +455,7 @@ export function TransferOrderForm({
                     type="date"
                     value={formState.Receipt_Date ? formState.Receipt_Date.split("T")[0] : ""}
                     onChange={(e) => handleChange("Receipt_Date", e.target.value)}
-                    disabled={!!formState.No}
+                    disabled={formState.Status === "Released"}
                     className="bg-background"
                   />
                 </div>
@@ -428,7 +466,7 @@ export function TransferOrderForm({
                 <Select
                   value={formState.Shipping_Advice}
                   onValueChange={(v) => handleChange("Shipping_Advice", v)}
-                  disabled={!!formState.No}
+                  disabled={formState.Status === "Released"}
                 >
                   <SelectTrigger className="bg-background">
                     <SelectValue />
@@ -466,6 +504,21 @@ export function TransferOrderForm({
               </div>
             </div>
           </div>
+
+          {formState.No && formState.Status !== "Released" && (
+            <div className="flex justify-end pt-4">
+              <Button onClick={handleUpdateHeader} variant="secondary" size="lg" disabled={isSubmitting} className="px-8 font-bold shadow-md transition-all hover:scale-105 active:scale-95">
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                    Updating Header...
+                  </>
+                ) : (
+                  "Update Header Information"
+                )}
+              </Button>
+            </div>
+          )}
 
           {!formState.No && (
             <div className="flex justify-end pt-4">

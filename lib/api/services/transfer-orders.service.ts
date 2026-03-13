@@ -7,8 +7,8 @@ const COMPANY =
 
 export interface TransferOrder {
   No: string;
-  Transfer_from_Code?: string;
-  Transfer_to_Code?: string;
+  Transfer_From_Code?: string;
+  Transfer_To_Code?: string;
   In_Transit_Code?: string;
   Status?: string;
   Assigned_User_ID?: string;
@@ -46,7 +46,7 @@ export async function getTransferOrdersWithCount(
   params: GetTransferOrdersParams = {},
 ): Promise<PaginatedTransferOrdersResponse> {
   const {
-    $select = "No,Transfer_from_Code,Transfer_to_Code,In_Transit_Code,Status,Shipment_Date,Receipt_Date,Shortcut_Dimension_1_Code,Shortcut_Dimension_2_Code",
+    $select = "No,Transfer_From_Code,Transfer_To_Code,In_Transit_Code,Status,Shipment_Date,Receipt_Date,Shortcut_Dimension_1_Code,Shortcut_Dimension_2_Code",
     $filter,
     $orderby = "No desc",
     $top = 10,
@@ -85,8 +85,8 @@ export async function searchTransferOrders(
   const escaped = searchTerm.replace(/'/g, "''");
   const fieldsToSearch = [
     "No",
-    "Transfer_from_Code",
-    "Transfer_to_Code",
+    "Transfer_From_Code",
+    "Transfer_To_Code",
     "Shortcut_Dimension_1_Code",
     "Shortcut_Dimension_2_Code",
   ];
@@ -148,6 +148,25 @@ export async function createTransferOrder(
   return apiPost<TransferOrder>(endpoint, data);
 }
 
+/**
+ * Update an existing transfer order header
+ */
+export async function patchTransferOrder(
+  orderNo: string,
+  data: Partial<TransferOrder>,
+): Promise<void> {
+  const encodedCompany = encodeURIComponent(COMPANY);
+  const encodedNo = encodeURIComponent(orderNo);
+  const endpoint = `/company('${encodedCompany}')/TransferHeader(No='${encodedNo}')`;
+
+  const payload = stripEmptyValues(data as Record<string, unknown>);
+  // Remove Business Central system fields if present
+  delete payload["@odata.etag"];
+  delete payload.No; // Primary key cannot be patched
+
+  return apiPatch<void>(endpoint, payload);
+}
+
 export interface TransferLine {
   Document_No: string;
   Line_No: number;
@@ -173,7 +192,7 @@ export interface TransferLine {
   Planning_Flexibility?: string;
   Description?: string;
   Description_2?: string;
-  Transfer_from_Bin_Code?: string;
+  Transfer_From_Bin_Code?: string;
   Transfer_To_Bin_Code?: string;
   Quantity?: number;
   Amount?: number;

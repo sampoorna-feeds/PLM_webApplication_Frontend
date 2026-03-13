@@ -89,10 +89,9 @@ export function TransferOrderView({
           currentPage={currentPage}
           columnFilters={columnFilters}
           onRowClick={(orderNo) => {
-            openTab("transfer-order-detail", {
+            openTab("transfer-order", {
               title: `Order ${orderNo}`,
-              context: { orderNo, refetch },
-              autoCloseOnSuccess: false,
+              context: { orderNo, mode: "view" },
             });
           }}
           onSort={onSort}

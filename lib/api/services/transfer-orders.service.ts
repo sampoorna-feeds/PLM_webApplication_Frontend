@@ -1,4 +1,4 @@
-import { apiGet } from "../client";
+import { apiGet, apiPost, apiPatch, apiDelete } from "../client";
 import { buildODataQuery } from "../endpoints";
 import type { ODataResponse } from "../types";
 
@@ -64,7 +64,7 @@ export async function getTransferOrdersWithCount(
   if ($skip !== undefined) queryParams.$skip = $skip;
 
   const query = buildODataQuery(queryParams as any);
-  // Assuming the entity is named TransferHeader
+  // Using TransferHeader for GET as it exists.
   const endpoint = `/TransferHeader?company='${encodeURIComponent(COMPANY)}'&${query}`;
   const response = await apiGet<ODataResponse<TransferOrder>>(endpoint);
 
@@ -131,6 +131,21 @@ export async function getTransferOrderByNo(
   const response = await apiGet<ODataResponse<TransferOrder>>(endpoint);
   const value = response.value;
   return value && value.length > 0 ? value[0] : null;
+}
+
+/**
+ * Create a new transfer order (header)
+ */
+/**
+ * Create a new transfer order (header)
+ */
+export async function createTransferOrder(
+  data: Partial<TransferOrder>,
+): Promise<TransferOrder> {
+  // Using the path-based company format as requested by user
+  const encodedCompany = encodeURIComponent(COMPANY);
+  const endpoint = `/company('${encodedCompany}')/TransferHeader`;
+  return apiPost<TransferOrder>(endpoint, data);
 }
 
 export interface TransferLine {
@@ -201,4 +216,37 @@ export async function getTransferOrderLines(
 
   const response = await apiGet<ODataResponse<TransferLine>>(endpoint);
   return response.value || [];
+}
+
+/**
+ * Create a new transfer line
+ */
+export async function createTransferLine(
+  data: Partial<TransferLine>,
+): Promise<TransferLine> {
+  const endpoint = `/TransferLine?company='${encodeURIComponent(COMPANY)}'`;
+  return apiPost<TransferLine>(endpoint, data);
+}
+
+/**
+ * Update an existing transfer line
+ */
+export async function updateTransferLine(
+  documentNo: string,
+  lineNo: number,
+  data: Partial<TransferLine>,
+): Promise<TransferLine> {
+  const endpoint = `/TransferLine(Document_No='${encodeURIComponent(documentNo)}',Line_No=${lineNo})?company='${encodeURIComponent(COMPANY)}'`;
+  return apiPatch<TransferLine>(endpoint, data);
+}
+
+/**
+ * Delete a transfer line
+ */
+export async function deleteTransferLine(
+  documentNo: string,
+  lineNo: number,
+): Promise<void> {
+  const endpoint = `/TransferLine(Document_No='${encodeURIComponent(documentNo)}',Line_No=${lineNo})?company='${encodeURIComponent(COMPANY)}'`;
+  return apiDelete(endpoint);
 }

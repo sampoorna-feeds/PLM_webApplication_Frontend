@@ -185,6 +185,11 @@ export const formRegistry: Record<
     }
     return { default: TransferOrderDetailForm! };
   },
+  "transfer-order": async () => {
+    const module =
+      await import("@/components/forms/transfer-orders/transfer-order-form");
+    return { default: module.TransferOrderForm };
+  },
 };
 
 /**

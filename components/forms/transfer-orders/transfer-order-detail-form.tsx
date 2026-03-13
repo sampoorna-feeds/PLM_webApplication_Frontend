@@ -95,24 +95,45 @@ export function TransferOrderDetailForm({
       <div className="flex flex-col gap-8 p-6 pb-20">
         {/* Header Section */}
         <div>
-          <h2 className="mb-4 text-base font-semibold uppercase tracking-wider text-muted-foreground">
-            Order Summary
+          <h2 className="mb-4 text-base font-semibold uppercase tracking-wider text-muted-foreground border-b pb-1">
+            General Information
           </h2>
-          <div className="grid grid-cols-2 gap-x-8 gap-y-6 md:grid-cols-4">
+          <div className="grid grid-cols-2 gap-x-8 gap-y-6 md:grid-cols-4 lg:grid-cols-6">
             <SummaryField label="Transfer order No." value={order.No} />
-            <SummaryField label="Transfer-from Code" value={order.Transfer_from_Code} />
-            <SummaryField label="Transfer-to Code" value={order.Transfer_to_Code} />
-            <SummaryField label="In-Transit Code" value={order.In_Transit_Code} />
             <SummaryField label="Status" value={order.Status} />
+            <SummaryField label="Posting Date" value={formatDate(order.Posting_Date)} />
+            <SummaryField label="External Doc No." value={order.External_Document_No} />
             <SummaryField label="LOB" value={order.Shortcut_Dimension_1_Code} />
             <SummaryField label="Branch" value={order.Shortcut_Dimension_2_Code} />
-            <SummaryField label="Shipment Date" value={formatDate(order.Shipment_Date)} />
-            <SummaryField label="Receipt Date" value={formatDate(order.Receipt_Date)} />
-            <SummaryField label="Assigned User" value={order.Assigned_User_ID} />
-            <SummaryField label="Direct Transfer" value={order.Direct_Transfer} />
-            <SummaryField label="Shipping Advice" value={order.Shipping_Advice} />
-            <SummaryField label="Shipping Agent Code" value={order.Shipping_Agent_Code} />
-            <SummaryField label="Shipment Method Code" value={order.Shipment_Method_Code} />
+          </div>
+        </div>
+
+        <div>
+          <h2 className="mb-4 text-base font-semibold uppercase tracking-wider text-muted-foreground border-b pb-1">
+            Transfer Locations
+          </h2>
+          <div className="grid grid-cols-2 gap-x-8 gap-y-6 md:grid-cols-4">
+            <SummaryField label="Transfer-from Code" value={order.Transfer_From_Code} />
+            <SummaryField label="Transfer-from Name" value={order.Transfer_From_Name} />
+            <SummaryField label="Transfer-to Code" value={order.Transfer_To_Code} />
+            <SummaryField label="Transfer-to Name" value={order.Transfer_To_Name} />
+            <SummaryField label="In-Transit Code" value={order.In_Transit_Code} />
+          </div>
+        </div>
+
+        <div>
+          <h2 className="mb-4 text-base font-semibold uppercase tracking-wider text-muted-foreground border-b pb-1">
+            Transport & Logistics
+          </h2>
+          <div className="grid grid-cols-2 gap-x-8 gap-y-6 md:grid-cols-4 lg:grid-cols-5">
+            <SummaryField label="Vehicle No." value={order.Vehicle_No} />
+            <SummaryField label="LR/RR No." value={order.LR_RR_No} />
+            <SummaryField label="LR/RR Date" value={formatDate(order.LR_RR_Date)} />
+            <SummaryField label="Distance (Km)" value={order.Distance_Km} />
+            <SummaryField label="Freight Value" value={order.Freight_Value} />
+            <SummaryField label="Transporter Code" value={order.Transporter_Code} />
+            <SummaryField label="Transporter Name" value={order.Transporter_Name} />
+            <SummaryField label="Mode of Transport" value={order.Mode_of_Transport} />
           </div>
         </div>
 
@@ -128,18 +149,17 @@ export function TransferOrderDetailForm({
           <div className="overflow-x-auto rounded-md border">
             <table className="w-full text-sm">
               <thead className="bg-muted bg-opacity-50">
-                <tr>
+                <tr className="whitespace-nowrap">
                   <th className="px-4 py-3 text-left font-medium text-muted-foreground">Item No.</th>
                   <th className="px-4 py-3 text-left font-medium text-muted-foreground">Description</th>
+                  <th className="px-4 py-3 text-left font-medium text-muted-foreground">Appl.-to Entry</th>
                   <th className="px-4 py-3 text-right font-medium text-muted-foreground">Quantity</th>
-                  <th className="px-4 py-3 text-left font-medium text-muted-foreground">UOM</th>
                   <th className="px-4 py-3 text-right font-medium text-muted-foreground whitespace-nowrap">Transfer Price</th>
                   <th className="px-4 py-3 text-right font-medium text-muted-foreground">Amount</th>
                   <th className="px-4 py-3 text-right font-medium text-muted-foreground whitespace-nowrap">Qty. to Ship</th>
                   <th className="px-4 py-3 text-right font-medium text-muted-foreground whitespace-nowrap">Qty. Shipped</th>
                   <th className="px-4 py-3 text-right font-medium text-muted-foreground whitespace-nowrap">Qty. to Receive</th>
                   <th className="px-4 py-3 text-right font-medium text-muted-foreground whitespace-nowrap">Qty. Received</th>
-                  <th className="px-4 py-3 text-right font-medium text-muted-foreground whitespace-nowrap">Appl.-to Entry</th>
                   <th className="px-4 py-3 text-left font-medium text-muted-foreground whitespace-nowrap">GST Group</th>
                   <th className="px-4 py-3 text-left font-medium text-muted-foreground whitespace-nowrap">HSN/SAC</th>
                 </tr>
@@ -147,7 +167,7 @@ export function TransferOrderDetailForm({
               <tbody>
                 {lines.length === 0 ? (
                   <tr>
-                    <td colSpan={13} className="p-4 text-center text-muted-foreground">
+                    <td colSpan={12} className="p-4 text-center text-muted-foreground">
                       No line items found.
                     </td>
                   </tr>
@@ -155,19 +175,18 @@ export function TransferOrderDetailForm({
                   lines.map((line, index) => (
                     <tr
                       key={index}
-                      className="border-t transition-colors hover:bg-muted/50"
+                      className="border-t transition-colors hover:bg-muted/50 whitespace-nowrap"
                     >
                       <td className="px-4 py-3 font-medium">{line.Item_No || "-"}</td>
                       <td className="px-4 py-3">{line.Description || "-"}</td>
+                      <td className="px-4 py-3">{line.Appl_to_Item_Entry || "-"}</td>
                       <td className="px-4 py-3 text-right font-medium">{line.Quantity?.toLocaleString() || 0}</td>
-                      <td className="px-4 py-3">{line.Unit_of_Measure_Code || "-"}</td>
-                      <td className="px-4 py-3 text-right">{line.Transfer_Price != null ? line.Transfer_Price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 5 }) : "-"}</td>
+                      <td className="px-4 py-3 text-right">{line.Transfer_Price != null ? line.Transfer_Price.toLocaleString(undefined, { minimumFractionDigits: 2 }) : "-"}</td>
                       <td className="px-4 py-3 text-right font-medium">{line.Amount != null ? line.Amount.toLocaleString(undefined, { minimumFractionDigits: 2 }) : "-"}</td>
                       <td className="px-4 py-3 text-right">{line.Qty_to_Ship?.toLocaleString() || 0}</td>
                       <td className="px-4 py-3 text-right">{line.Quantity_Shipped?.toLocaleString() || 0}</td>
                       <td className="px-4 py-3 text-right">{line.Qty_to_Receive?.toLocaleString() || 0}</td>
                       <td className="px-4 py-3 text-right">{line.Quantity_Received?.toLocaleString() || 0}</td>
-                      <td className="px-4 py-3 text-right">{line.Appl_to_Item_Entry || "-"}</td>
                       <td className="px-4 py-3">{line.GST_Group_Code || "-"}</td>
                       <td className="px-4 py-3">{line.HSN_SAC_Code || "-"}</td>
                     </tr>

@@ -51,22 +51,28 @@ export function TransferOrderLinesTable({
     <div className="rounded-md border overflow-hidden">
       <Table>
         <TableHeader>
-          <TableRow className="bg-muted hover:bg-muted">
+          <TableRow className="bg-muted hover:bg-muted whitespace-nowrap">
             <TableHead className="w-16">No.</TableHead>
-            <TableHead className="w-30">Item No.</TableHead>
+            <TableHead>Item No.</TableHead>
             <TableHead>Description</TableHead>
-            <TableHead className="w-20">UOM</TableHead>
-            <TableHead className="w-25 text-right">Quantity</TableHead>
-            <TableHead className="w-25 text-right">Price</TableHead>
-            <TableHead className="w-25 text-right">Amount</TableHead>
-            {!isReadOnly && <TableHead className="w-20 text-right pr-4">Actions</TableHead>}
+            <TableHead>Appl.-to Item Entry</TableHead>
+            <TableHead className="text-right">Quantity</TableHead>
+            <TableHead className="text-right">Transfer Price</TableHead>
+            <TableHead className="text-right">Amount</TableHead>
+            <TableHead className="text-right">Qty. to Ship</TableHead>
+            <TableHead className="text-right">Quantity Shipped</TableHead>
+            <TableHead className="text-right">Qty. to Receive</TableHead>
+            <TableHead className="text-right">Quantity Received</TableHead>
+            <TableHead>GST Group Code</TableHead>
+            <TableHead>HSN/SAC Code</TableHead>
+            {!isReadOnly && <TableHead className="w-20 text-right pr-4 sticky right-0 bg-muted">Actions</TableHead>}
           </TableRow>
         </TableHeader>
         <TableBody>
           {lines.map((line) => (
             <TableRow
               key={`${line.Document_No}-${line.Line_No}`}
-              className="hover:bg-muted/30 transition-colors"
+              className="hover:bg-muted/30 transition-colors whitespace-nowrap"
             >
               <TableCell className="font-medium text-muted-foreground">
                 {line.Line_No}
@@ -77,18 +83,38 @@ export function TransferOrderLinesTable({
               <TableCell className="max-w-[200px] truncate">
                 {line.Description || "-"}
               </TableCell>
-              <TableCell>{line.Unit_of_Measure_Code || "-"}</TableCell>
+              <TableCell>
+                {line.Appl_to_Item_Entry || "-"}
+              </TableCell>
               <TableCell className="text-right font-medium">
                 {line.Quantity?.toLocaleString() ?? "0"}
               </TableCell>
               <TableCell className="text-right">
-                {line.Transfer_Price != null ? line.Transfer_Price.toLocaleString() : "0.00"}
+                {line.Transfer_Price != null ? line.Transfer_Price.toLocaleString(undefined, { minimumFractionDigits: 2 }) : "0.00"}
               </TableCell>
               <TableCell className="text-right font-bold text-primary">
-                {line.Amount != null ? line.Amount.toLocaleString() : "0.00"}
+                {line.Amount != null ? line.Amount.toLocaleString(undefined, { minimumFractionDigits: 2 }) : "0.00"}
+              </TableCell>
+              <TableCell className="text-right">
+                {line.Qty_to_Ship?.toLocaleString() ?? "0"}
+              </TableCell>
+              <TableCell className="text-right">
+                {line.Quantity_Shipped?.toLocaleString() ?? "0"}
+              </TableCell>
+              <TableCell className="text-right">
+                {line.Qty_to_Receive?.toLocaleString() ?? "0"}
+              </TableCell>
+              <TableCell className="text-right">
+                {line.Quantity_Received?.toLocaleString() ?? "0"}
+              </TableCell>
+              <TableCell>
+                {line.GST_Group_Code || "-"}
+              </TableCell>
+              <TableCell>
+                {line.HSN_SAC_Code || "-"}
               </TableCell>
               {!isReadOnly && (
-                <TableCell className="text-right pr-4">
+                <TableCell className="text-right pr-4 sticky right-0 bg-background/80 backdrop-blur-sm">
                   <div className="flex justify-end gap-1">
                     <Button
                       variant="ghost"

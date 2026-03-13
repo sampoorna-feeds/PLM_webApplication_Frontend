@@ -7,19 +7,31 @@ const COMPANY =
 
 export interface TransferOrder {
   No: string;
-  Transfer_from_Code?: string;
-  Transfer_to_Code?: string;
+  Transfer_From_Code?: string;
+  Transfer_From_Name?: string;
+  Transfer_To_Code?: string;
+  Transfer_To_Name?: string;
+  External_Document_No?: string;
   In_Transit_Code?: string;
   Status?: string;
   Assigned_User_ID?: string;
   Direct_Transfer?: boolean;
   Shortcut_Dimension_1_Code?: string;
   Shortcut_Dimension_2_Code?: string;
+  Posting_Date?: string;
   Shipment_Date?: string;
   Shipment_Method_Code?: string;
   Shipping_Agent_Code?: string;
   Shipping_Advice?: string;
   Receipt_Date?: string;
+  Vehicle_No?: string;
+  LR_RR_No?: string;
+  LR_RR_Date?: string;
+  Distance_Km?: number;
+  Freight_Value?: number;
+  Transporter_Code?: string;
+  Transporter_Name?: string;
+  Mode_of_Transport?: string;
   "@odata.etag"?: string;
   [key: string]: unknown;
 }
@@ -46,7 +58,7 @@ export async function getTransferOrdersWithCount(
   params: GetTransferOrdersParams = {},
 ): Promise<PaginatedTransferOrdersResponse> {
   const {
-    $select = "No,Transfer_from_Code,Transfer_to_Code,In_Transit_Code,Status,Shipment_Date,Receipt_Date,Shortcut_Dimension_1_Code,Shortcut_Dimension_2_Code",
+    $select = "No,Transfer_From_Code,Transfer_To_Code,In_Transit_Code,Status,Shipment_Date,Receipt_Date,Shortcut_Dimension_1_Code,Shortcut_Dimension_2_Code",
     $filter,
     $orderby = "No desc",
     $top = 10,
@@ -85,8 +97,8 @@ export async function searchTransferOrders(
   const escaped = searchTerm.replace(/'/g, "''");
   const fieldsToSearch = [
     "No",
-    "Transfer_from_Code",
-    "Transfer_to_Code",
+    "Transfer_From_Code",
+    "Transfer_To_Code",
     "Shortcut_Dimension_1_Code",
     "Shortcut_Dimension_2_Code",
   ];
@@ -148,6 +160,25 @@ export async function createTransferOrder(
   return apiPost<TransferOrder>(endpoint, data);
 }
 
+/**
+ * Update an existing transfer order header
+ */
+export async function patchTransferOrder(
+  orderNo: string,
+  data: Partial<TransferOrder>,
+): Promise<void> {
+  const encodedCompany = encodeURIComponent(COMPANY);
+  const encodedNo = encodeURIComponent(orderNo);
+  const endpoint = `/company('${encodedCompany}')/TransferHeader(No='${encodedNo}')`;
+
+  const payload = stripEmptyValues(data as Record<string, unknown>);
+  // Remove Business Central system fields if present
+  delete payload["@odata.etag"];
+  delete payload.No; // Primary key cannot be patched
+
+  return apiPatch<void>(endpoint, payload);
+}
+
 export interface TransferLine {
   Document_No: string;
   Line_No: number;
@@ -173,7 +204,7 @@ export interface TransferLine {
   Planning_Flexibility?: string;
   Description?: string;
   Description_2?: string;
-  Transfer_from_Bin_Code?: string;
+  Transfer_From_Bin_Code?: string;
   Transfer_To_Bin_Code?: string;
   Quantity?: number;
   Amount?: number;
@@ -219,13 +250,16 @@ export async function getTransferOrderLines(
 }
 
 /**
- * Create a new transfer line
+ * Create a new transfer order line
  */
 export async function createTransferLine(
   data: Partial<TransferLine>,
 ): Promise<TransferLine> {
   const endpoint = `/TransferLine?company='${encodeURIComponent(COMPANY)}'`;
-  return apiPost<TransferLine>(endpoint, data);
+
+  const payload = stripEmptyValues(data as Record<string, unknown>);
+
+  return apiPost<TransferLine>(endpoint, payload);
 }
 
 /**
@@ -237,7 +271,29 @@ export async function updateTransferLine(
   data: Partial<TransferLine>,
 ): Promise<TransferLine> {
   const endpoint = `/TransferLine(Document_No='${encodeURIComponent(documentNo)}',Line_No=${lineNo})?company='${encodeURIComponent(COMPANY)}'`;
-  return apiPatch<TransferLine>(endpoint, data);
+  const payload = stripEmptyValues(data as Record<string, unknown>);
+  return apiPatch<TransferLine>(endpoint, payload);
+}
+
+/**
+ * Remove properties whose value is `undefined`, `null` or an empty string.
+ */
+export function stripEmptyValues(
+  obj: Record<string, unknown>,
+): Record<string, unknown> {
+  return Object.entries(obj).reduce(
+    (acc, [key, value]) => {
+      if (
+        value !== undefined &&
+        value !== null &&
+        !(typeof value === "string" && value.trim() === "")
+      ) {
+        acc[key] = value;
+      }
+      return acc;
+    },
+    {} as Record<string, unknown>,
+  );
 }
 
 /**

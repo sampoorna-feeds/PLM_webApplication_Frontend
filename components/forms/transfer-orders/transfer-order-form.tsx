@@ -16,6 +16,7 @@ import {
 import {
   SearchableSelect,
 } from "@/components/ui/searchable-select";
+import { ClearableField } from "@/components/ui/clearable-field";
 import { useFormStack } from "@/lib/form-stack/use-form-stack";
 import { getAuthCredentials } from "@/lib/auth/storage";
 import {
@@ -31,6 +32,7 @@ import {
 } from "@/lib/api/services/production-order-data.service";
 import {
   createTransferOrder,
+  patchTransferOrder,
   getTransferOrderByNo,
   getTransferOrderLines,
   deleteTransferLine,
@@ -64,10 +66,22 @@ export function TransferOrderForm({
   // Form state
   const [formState, setFormState] = useState<Partial<TransferOrder>>({
     No: "",
-    Transfer_from_Code: "",
-    Transfer_to_Code: "",
+    Transfer_From_Code: "",
+    Transfer_From_Name: "",
+    Transfer_To_Code: "",
+    Transfer_To_Name: "",
+    External_Document_No: "",
     In_Transit_Code: "IN-TRANSIT",
+    Posting_Date: new Date().toISOString().split("T")[0],
     Status: "Open",
+    Vehicle_No: "",
+    LR_RR_No: "",
+    LR_RR_Date: "",
+    Distance_Km: 0,
+    Freight_Value: 0,
+    Transporter_Code: "",
+    Transporter_Name: "",
+    Mode_of_Transport: "",
     Assigned_User_ID: "",
     Direct_Transfer: false,
     Shortcut_Dimension_1_Code: "", // LOB
@@ -79,6 +93,8 @@ export function TransferOrderForm({
     Shipping_Advice: "Partial",
     ...initialFormData,
   });
+
+  const [originalState, setOriginalState] = useState<Partial<TransferOrder>>({});
 
   // Lines state
   const [lines, setLines] = useState<TransferLine[]>([]);
@@ -110,6 +126,7 @@ export function TransferOrderForm({
       const order = await getTransferOrderByNo(no);
       if (order) {
         setFormState(order);
+        setOriginalState(order);
         setIsLoadingLines(true);
         const linesData = await getTransferOrderLines(no);
         setLines(linesData);
@@ -136,7 +153,22 @@ export function TransferOrderForm({
     }
   }, [orderNo, fetchOrderData, registerRefresh]);
 
-  // Load LOBs and Locations on mount
+  // Resolve Location Names when locations or formState codes change
+  useEffect(() => {
+    if (locations.length > 0) {
+      const fromLoc = locations.find(l => l.Code === formState.Transfer_From_Code);
+      const toLoc = locations.find(l => l.Code === formState.Transfer_To_Code);
+      
+      if (fromLoc?.Name || toLoc?.Name) {
+        setFormState(prev => ({
+          ...prev,
+          Transfer_From_Name: fromLoc?.Name || prev.Transfer_From_Name,
+          Transfer_To_Name: toLoc?.Name || prev.Transfer_To_Name
+        }));
+      }
+    }
+  }, [locations, formState.Transfer_From_Code, formState.Transfer_To_Code]);
+
   useEffect(() => {
     const loadInitialData = async () => {
       // Need user ID for LOBs
@@ -163,6 +195,11 @@ export function TransferOrderForm({
 
         setLobs(lobData);
         setLocations(locationData);
+        
+        // Auto-select LOB if only one exists and not currently set (only for new orders)
+        if (!formState.No && lobData.length === 1 && !formState.Shortcut_Dimension_1_Code) {
+          setFormState(prev => ({ ...prev, Shortcut_Dimension_1_Code: lobData[0].Code }));
+        }
       } catch (error: any) {
         console.error("Error loading initial data detail:", error);
       } finally {
@@ -200,6 +237,11 @@ export function TransferOrderForm({
         }
 
         setBranches(branchData);
+        
+        // Auto-select Branch if only one exists and not currently set (only for new orders)
+        if (!formState.No && branchData.length === 1 && !formState.Shortcut_Dimension_2_Code) {
+          setFormState(prev => ({ ...prev, Shortcut_Dimension_2_Code: branchData[0].Code }));
+        }
       } catch (error) {
         console.error("Error loading branches:", error);
       }
@@ -216,18 +258,29 @@ export function TransferOrderForm({
   const handleCreateHeader = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formState.Transfer_from_Code || !formState.Transfer_to_Code || !formState.Shortcut_Dimension_1_Code || !formState.Shortcut_Dimension_2_Code) {
+    if (!formState.Transfer_From_Code || !formState.Transfer_To_Code || !formState.Shortcut_Dimension_1_Code || !formState.Shortcut_Dimension_2_Code) {
       toast.error("Please fill in all required fields");
       return;
     }
 
     setIsSubmitting(true);
     try {
-      // Sanitize data - remove empty strings and internal fields
-      const payload = { ...formState };
-      if (!payload.No) delete payload.No;
+      // Only send fields explicitly requested or required for system
+      const payload: Partial<TransferOrder> = {
+        Transfer_From_Code: formState.Transfer_From_Code,
+        Transfer_To_Code: formState.Transfer_To_Code,
+        Shortcut_Dimension_1_Code: formState.Shortcut_Dimension_1_Code,
+        Shortcut_Dimension_2_Code: formState.Shortcut_Dimension_2_Code,
+        In_Transit_Code: formState.In_Transit_Code,
+        Assigned_User_ID: formState.Assigned_User_ID,
+        Shipment_Date: formState.Shipment_Date,
+        Receipt_Date: formState.Receipt_Date,
+        Shipping_Advice: formState.Shipping_Advice,
+        Transporter_Code: formState.Transporter_Code,
+        Transporter_Name: formState.Transporter_Name,
+      };
       
-      // Remove any fields that are empty strings but might be expected to be null or omitted
+      // Clean empty strings
       Object.keys(payload).forEach(key => {
         if ((payload as any)[key] === "") {
           delete (payload as any)[key];
@@ -241,6 +294,7 @@ export function TransferOrderForm({
       
       // Update local state to newly created order
       setFormState(response);
+      setOriginalState(response);
       setLocalMode("edit");
       
       // Notify parent
@@ -254,15 +308,45 @@ export function TransferOrderForm({
       });
 
     } catch (error: any) {
-      console.error("Error creating transfer order detail:", {
-        message: error?.message,
-        status: error?.status,
-        code: error?.code,
-        details: error?.details,
-        raw: error
-      });
+      console.error("Error creating transfer order:", error);
       const errorMessage = error?.message || "Failed to create transfer order";
       toast.error(errorMessage);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleUpdateHeader = async () => {
+    if (!formState.No) return;
+    
+    // Calculate diff for allowed fields only
+    const allowedToUpdate = [
+      "Transporter_Code",
+      "Transporter_Name"
+    ];
+
+    const diff: Partial<TransferOrder> = {};
+    allowedToUpdate.forEach((k) => {
+      const key = k as keyof TransferOrder;
+      if (formState[key] !== originalState[key]) {
+        (diff as any)[key] = formState[key] || "";
+      }
+    });
+
+    if (Object.keys(diff).length === 0) {
+      toast.info("No changes to update");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      await patchTransferOrder(formState.No, diff);
+      toast.success("Transfer Order updated");
+      updateTab({ isSaved: true });
+      fetchOrderData(formState.No);
+    } catch (error: any) {
+      console.error("Error updating transfer order:", error);
+      toast.error(error.message || "Failed to update transfer order");
     } finally {
       setIsSubmitting(false);
     }
@@ -282,213 +366,215 @@ export function TransferOrderForm({
     }
   };
 
+  const fieldClass = "min-w-0 space-y-1 text-left";
+  const labelClass = "text-muted-foreground block text-xs font-medium";
+
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center h-full p-12 space-y-4">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <p className="text-muted-foreground animate-pulse">Loading order details...</p>
+        <p className="text-muted-foreground animate-pulse font-medium">Loading transfer order...</p>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col h-full bg-background">
+    <div className="flex h-full flex-col bg-background">
       <div className="flex-1 overflow-y-auto p-6 space-y-8">
         <section className="space-y-6">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold tracking-tight">General Information</h2>
-            {formState.No && (
-              <span className="bg-primary/10 text-primary px-3 py-1 rounded-full text-sm font-bold border border-primary/20">
-                # {formState.No}
-              </span>
-            )}
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            {/* Dimensions */}
-            <div className="space-y-4 border p-5 rounded-xl bg-muted/5 shadow-sm">
-              <h3 className="font-semibold text-xs text-muted-foreground uppercase tracking-wider flex items-center gap-2">
-                <div className="h-1.5 w-1.5 rounded-full bg-primary" />
-                Dimensions
-              </h3>
-              
-              <div className="space-y-2">
-                <FieldTitle required>LOB (Dimension 1)</FieldTitle>
-                <Select
-                  value={formState.Shortcut_Dimension_1_Code}
-                  onValueChange={(v) => handleChange("Shortcut_Dimension_1_Code", v)}
-                  disabled={!!formState.No}
-                >
-                  <SelectTrigger className="bg-background">
-                    <SelectValue placeholder="Select LOB" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {lobs.map((lob) => (
-                      <SelectItem key={lob.Code} value={lob.Code}>
-                        {lob.Code}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <FieldTitle required>Branch (Dimension 2)</FieldTitle>
-                <Select
-                  value={formState.Shortcut_Dimension_2_Code}
-                  onValueChange={(v) => handleChange("Shortcut_Dimension_2_Code", v)}
-                  disabled={!formState.Shortcut_Dimension_1_Code || !!formState.No}
-                >
-                  <SelectTrigger className="bg-background">
-                    <SelectValue placeholder="Select Branch" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {branches.map((branch) => (
-                      <SelectItem key={branch.Code} value={branch.Code}>
-                        {branch.Code}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            {/* Transfer Info */}
-            <div className="space-y-4 border p-5 rounded-xl bg-muted/5 shadow-sm">
-              <h3 className="font-semibold text-xs text-muted-foreground uppercase tracking-wider flex items-center gap-2">
-                <div className="h-1.5 w-1.5 rounded-full bg-primary" />
-                Transfer Details
-              </h3>
-              
-              <div className="space-y-2">
-                <FieldTitle required>Transfer From</FieldTitle>
-                <SearchableSelect
-                  options={locations.map(l => ({ value: l.Code, label: `${l.Code} - ${l.Name || ""}` }))}
-                  value={formState.Transfer_from_Code}
-                  onValueChange={(v) => handleChange("Transfer_from_Code", v)}
-                  placeholder="Select Source Location"
-                  disabled={!!formState.No}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <FieldTitle required>Transfer To</FieldTitle>
-                <SearchableSelect
-                  options={locations.map(l => ({ value: l.Code, label: `${l.Code} - ${l.Name || ""}` }))}
-                  value={formState.Transfer_to_Code}
-                  onValueChange={(v) => handleChange("Transfer_to_Code", v)}
-                  placeholder="Select Destination Location"
-                  disabled={!!formState.No}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <FieldTitle>In Transit Code</FieldTitle>
-                <Input
-                  value={formState.In_Transit_Code}
-                  onChange={(e) => handleChange("In_Transit_Code", e.target.value)}
-                  disabled={!!formState.No}
-                  className="bg-background"
-                />
-              </div>
-            </div>
-
-            {/* Dates & Status */}
-            <div className="space-y-4 border p-5 rounded-xl bg-muted/5 shadow-sm">
-              <h3 className="font-semibold text-xs text-muted-foreground uppercase tracking-wider flex items-center gap-2">
-                <div className="h-1.5 w-1.5 rounded-full bg-primary" />
-                Dates & Shipping
-              </h3>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <FieldTitle>Shipment Date</FieldTitle>
-                  <Input
-                    type="date"
-                    value={formState.Shipment_Date ? formState.Shipment_Date.split("T")[0] : ""}
-                    onChange={(e) => handleChange("Shipment_Date", e.target.value)}
-                    disabled={!!formState.No}
-                    className="bg-background"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <FieldTitle>Receipt Date</FieldTitle>
-                  <Input
-                    type="date"
-                    value={formState.Receipt_Date ? formState.Receipt_Date.split("T")[0] : ""}
-                    onChange={(e) => handleChange("Receipt_Date", e.target.value)}
-                    disabled={!!formState.No}
-                    className="bg-background"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <FieldTitle>Shipping Advice</FieldTitle>
-                <Select
-                  value={formState.Shipping_Advice}
-                  onValueChange={(v) => handleChange("Shipping_Advice", v)}
-                  disabled={!!formState.No}
-                >
-                  <SelectTrigger className="bg-background">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Partial">Partial</SelectItem>
-                    <SelectItem value="Complete">Complete</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            {/* System Info */}
-            <div className="space-y-4 border p-5 rounded-xl bg-muted/5 shadow-sm">
-              <h3 className="font-semibold text-xs text-muted-foreground uppercase tracking-wider flex items-center gap-2">
-                <div className="h-1.5 w-1.5 rounded-full bg-primary" />
-                Tracking Info
-              </h3>
-              
-              <div className="space-y-2">
-                <FieldTitle>Status</FieldTitle>
-                <div className="bg-muted px-3 py-2 rounded-md text-sm font-medium border">
-                  {formState.Status || "Open"}
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <FieldTitle>Assigned User ID</FieldTitle>
-                <Input
-                  value={formState.Assigned_User_ID}
-                  onChange={(e) => handleChange("Assigned_User_ID", e.target.value)}
-                  readOnly
-                  className="bg-muted"
-                />
+          <div className="flex items-center justify-between border-b pb-2">
+            <h2 className="text-xl font-bold tracking-tight">New Transfer Order</h2>
+            <div className="flex items-center gap-4">
+              {formState.No && (
+                 <span className="bg-primary/10 text-primary px-3 py-1 rounded-full text-sm font-bold border border-primary/20">
+                  # {formState.No}
+                </span>
+              )}
+              <div className="flex gap-2">
+                 <Button variant="outline" size="sm" onClick={() => handleSuccess()} type="button">
+                    Close
+                  </Button>
+                  {!formState.No ? (
+                    <Button onClick={handleCreateHeader} size="sm" disabled={isSubmitting} className="font-bold shadow-lg shadow-primary/20 transition-all hover:scale-105 active:scale-95">
+                      {isSubmitting ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Creating...
+                        </>
+                      ) : (
+                        "Create Transfer Order"
+                      )}
+                    </Button>
+                  ) : (
+                    formState.Status !== "Released" && (
+                      <Button onClick={handleUpdateHeader} variant="default" size="sm" disabled={isSubmitting} className="font-bold shadow-md transition-all hover:scale-105 active:scale-95">
+                        {isSubmitting ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Updating...
+                          </>
+                        ) : (
+                          "Update Header"
+                        )}
+                      </Button>
+                    )
+                  )}
               </div>
             </div>
           </div>
 
-          {!formState.No && (
-            <div className="flex justify-end pt-4">
-              <Button onClick={handleCreateHeader} size="lg" disabled={isSubmitting} className="px-8 font-bold shadow-lg shadow-primary/20 transition-all hover:scale-105 active:scale-95">
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                    Creating Header...
-                  </>
-                ) : (
-                  "Initiate Transfer Order"
-                )}
-              </Button>
-            </div>
-          )}
+          <div className={cn("space-y-8", formState.No && "opacity-90")}>
+            {/* 1. Header Details */}
+            <section className="space-y-4">
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Order Details</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-4">
+                <div className={fieldClass}>
+                  <label className={labelClass}>No.</label>
+                  <Input value={formState.No} readOnly disabled className="h-8 bg-muted" placeholder="Auto-generated" />
+                </div>
+                <div className={fieldClass}>
+                  <label className={labelClass}>Status</label>
+                  <Input value={formState.Status} readOnly disabled className="h-8 bg-muted" />
+                </div>
+                <div className={fieldClass}>
+                  <label className={labelClass}>Posting Date</label>
+                  <Input value={formState.Posting_Date ? formState.Posting_Date.split("T")[0] : ""} readOnly disabled className="h-8 bg-muted" />
+                </div>
+                <div className={fieldClass}>
+                  <label className={labelClass}>External Document No.</label>
+                  <Input value={formState.External_Document_No || ""} readOnly disabled className="h-8 bg-muted" />
+                </div>
+              </div>
+            </section>
+
+            {/* 2. Dimensions */}
+            <section className="space-y-4">
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Dimensions</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-4">
+                <div className={fieldClass}>
+                  <label className={labelClass}>LOB</label>
+                  <Input value={formState.Shortcut_Dimension_1_Code || ""} readOnly disabled className="h-8 bg-muted" />
+                </div>
+                <div className={fieldClass}>
+                  <label className={labelClass}>Branch</label>
+                  <Input value={formState.Shortcut_Dimension_2_Code || ""} readOnly disabled className="h-8 bg-muted" />
+                </div>
+                <div className={fieldClass}>
+                    <label className={labelClass}>In-Transit Code</label>
+                    <Input
+                      value={formState.In_Transit_Code}
+                      readOnly
+                      disabled
+                      className="h-8 bg-muted"
+                    />
+                </div>
+              </div>
+            </section>
+
+            {/* 3. Transfer Locations */}
+            <section className="space-y-4">
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Transfer Locations</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
+                <div className={fieldClass}>
+                  <label className={labelClass}>Transfer-from Code (Required)</label>
+                  <SearchableSelect
+                    options={locations.map(l => ({ value: l.Code, label: `${l.Code} - ${l.Name || ""}` }))}
+                    value={formState.Transfer_From_Code}
+                    onValueChange={(v) => {
+                      const loc = locations.find(l => l.Code === v);
+                      setFormState(prev => ({ ...prev, Transfer_From_Code: v, Transfer_From_Name: loc?.Name || "" }));
+                      updateTab({ isSaved: false });
+                    }}
+                    placeholder="Select Source Location"
+                    disabled={formState.Status === "Released" || !!formState.No}
+                  />
+                  {formState.Transfer_From_Name && (
+                    <p className="mt-1 truncate pl-1 text-[10px] font-medium text-primary">
+                      {formState.Transfer_From_Name}
+                    </p>
+                  )}
+                </div>
+                <div className={fieldClass}>
+                  <label className={labelClass}>Transfer-to Code (Required)</label>
+                  <SearchableSelect
+                    options={locations.map(l => ({ value: l.Code, label: `${l.Code} - ${l.Name || ""}` }))}
+                    value={formState.Transfer_To_Code}
+                    onValueChange={(v) => {
+                      const loc = locations.find(l => l.Code === v);
+                      setFormState(prev => ({ ...prev, Transfer_To_Code: v, Transfer_To_Name: loc?.Name || "" }));
+                      updateTab({ isSaved: false });
+                    }}
+                    placeholder="Select Destination Location"
+                    disabled={formState.Status === "Released" || !!formState.No}
+                  />
+                  {formState.Transfer_To_Name && (
+                    <p className="mt-1 truncate pl-1 text-[10px] font-medium text-primary">
+                      {formState.Transfer_To_Name}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </section>
+
+            {/* 4. Transport & Logistics */}
+            <section className="space-y-4">
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Transport & Logistics</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-4">
+                <div className={fieldClass}>
+                  <label className={labelClass}>Vehicle No.</label>
+                  <Input value={formState.Vehicle_No || ""} readOnly disabled className="h-8 bg-muted" />
+                </div>
+                <div className={fieldClass}>
+                  <label className={labelClass}>LR/RR No.</label>
+                  <Input value={formState.LR_RR_No || ""} readOnly disabled className="h-8 bg-muted" />
+                </div>
+                <div className={fieldClass}>
+                  <label className={labelClass}>LR/RR Date</label>
+                  <Input value={formState.LR_RR_Date ? formState.LR_RR_Date.split("T")[0] : ""} readOnly disabled className="h-8 bg-muted" />
+                </div>
+                <div className={fieldClass}>
+                  <label className={labelClass}>Mode of Transport</label>
+                  <Input value={formState.Mode_of_Transport || ""} readOnly disabled className="h-8 bg-muted" />
+                </div>
+                <div className={fieldClass}>
+                  <label className={labelClass}>Distance (Km)</label>
+                  <Input value={formState.Distance_Km || 0} readOnly disabled className="h-8 bg-muted text-right" />
+                </div>
+                <div className={fieldClass}>
+                  <label className={labelClass}>Freight Value</label>
+                  <Input value={formState.Freight_Value || 0} readOnly disabled className="h-8 bg-muted text-right" />
+                </div>
+                <div className={fieldClass}>
+                  <label className={labelClass}>Transporter Code (Optional)</label>
+                  <Input 
+                    value={formState.Transporter_Code || ""} 
+                    onChange={(e) => handleChange("Transporter_Code", e.target.value)}
+                    disabled={formState.Status === "Released"}
+                    className="h-8" 
+                    placeholder="Enter Code"
+                  />
+                </div>
+                <div className={fieldClass}>
+                  <label className={labelClass}>Transporter Name (Optional)</label>
+                  <Input 
+                    value={formState.Transporter_Name || ""} 
+                    onChange={(e) => handleChange("Transporter_Name", e.target.value)}
+                    disabled={formState.Status === "Released"}
+                    className="h-8" 
+                    placeholder="Enter Name"
+                  />
+                </div>
+              </div>
+            </section>
+          </div>
         </section>
 
         {formState.No && (
-          <section className="space-y-4 pt-4 border-t animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <section className="space-y-4 pt-6 mt-8 border-t animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-xl font-bold tracking-tight">Line Items</h2>
-                <p className="text-sm text-muted-foreground">Manage products in this transfer</p>
+                <p className="text-sm text-muted-foreground text-left">Manage products in this transfer</p>
               </div>
               <div className="flex gap-2">
                  <Button 
@@ -508,6 +594,7 @@ export function TransferOrderForm({
                     setIsLineDialogOpen(true);
                   }}
                   className="h-9 px-3"
+                  disabled={formState.Status === "Released"}
                 >
                   <Plus className="h-4 w-4 mr-2" />
                   Add Product
@@ -531,14 +618,11 @@ export function TransferOrderForm({
 
       <div className="border-t p-4 px-6 flex justify-between items-center bg-muted/20 backdrop-blur-md sticky bottom-0 z-10">
         <div className="text-xs text-muted-foreground">
-          {formState.No ? `Editing order ${formState.No}` : "New Transfer Order Entry"}
+          {formState.No ? `Editing order ${formState.No}` : "Create the header first to enable line items."}
         </div>
         <div className="flex gap-3">
-          <Button variant="ghost" onClick={() => handleSuccess()} type="button">
-            Close
-          </Button>
           {formState.No && (
-             <Button variant="default" onClick={() => handleSuccess()}>
+             <Button variant="default" onClick={() => handleSuccess()} className="px-8">
                 Done
              </Button>
           )}

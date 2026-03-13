@@ -71,6 +71,7 @@ export function TransferOrderLineDialog({
     Shortcut_Dimension_3_Code: "", // Usually the location?
     Shipment_Date: defaultDimensions.Shipment_Date,
     Receipt_Date: defaultDimensions.Receipt_Date,
+    Appl_to_Item_Entry: 0,
   });
 
   useEffect(() => {
@@ -92,6 +93,7 @@ export function TransferOrderLineDialog({
         Shortcut_Dimension_3_Code: "",
         Shipment_Date: defaultDimensions.Shipment_Date,
         Receipt_Date: defaultDimensions.Receipt_Date,
+        Appl_to_Item_Entry: 0,
       });
     }
   }, [line, documentNo, defaultDimensions, isOpen]);
@@ -224,7 +226,6 @@ export function TransferOrderLineDialog({
               onChange={(e) => handleChange("Transfer_Price", Number(e.target.value))}
             />
           </div>
-
           <div className="space-y-2">
             <FieldTitle>Amount</FieldTitle>
             <Input
@@ -232,6 +233,15 @@ export function TransferOrderLineDialog({
               value={formData.Amount}
               readOnly
               className="bg-muted font-bold"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <FieldTitle>Appl.-to Item Entry</FieldTitle>
+            <Input
+              type="number"
+              value={formData.Appl_to_Item_Entry || ""}
+              onChange={(e) => handleChange("Appl_to_Item_Entry", Number(e.target.value))}
             />
           </div>
         </div>

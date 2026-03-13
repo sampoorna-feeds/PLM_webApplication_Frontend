@@ -117,12 +117,22 @@ export async function createPurchaseOrder(
       Due_Date: orderData.dueDate || "",
     };
 
+    // Remove empty/null/undefined fields — backend rejects optional fields sent as empty strings
+    const filteredPayload = Object.fromEntries(
+      Object.entries(payload).filter(
+        ([, v]) => v !== "" && v !== null && v !== undefined,
+      ),
+    );
+
     console.log("[PO Create] Endpoint:", endpoint);
-    console.log("[PO Create] Payload:", JSON.stringify(payload, null, 2));
+    console.log(
+      "[PO Create] Payload:",
+      JSON.stringify(filteredPayload, null, 2),
+    );
 
     const response = await apiPost<CreatePurchaseOrderApiResponse>(
       endpoint,
-      payload,
+      filteredPayload,
     );
 
     if (!response) {

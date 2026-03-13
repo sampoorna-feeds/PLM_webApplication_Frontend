@@ -13,5 +13,4 @@ export * from "./tds.service";
 export * from "./sales-order.service";
 export * from "./sales-person.service";
 export * from "./production-orders.service";
-export * from "./sales-orders.service";
 export * from "./transfer-orders.service";

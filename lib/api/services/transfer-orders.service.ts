@@ -219,13 +219,22 @@ export async function getTransferOrderLines(
 }
 
 /**
- * Create a new transfer line
+ * Create a new transfer order line
  */
 export async function createTransferLine(
   data: Partial<TransferLine>,
 ): Promise<TransferLine> {
-  const endpoint = `/TransferLine?company='${encodeURIComponent(COMPANY)}'`;
-  return apiPost<TransferLine>(endpoint, data);
+  const query = `$top=10`;
+  const endpoint = `/TransferLine?company='${encodeURIComponent(COMPANY)}'&${query}`;
+
+  // For debugging purposes, only send these 3 fields currently
+  const payload = {
+    Document_No: data.Document_No,
+    Item_No: data.Item_No,
+    Quantity: data.Quantity,
+  };
+
+  return apiPost<TransferLine>(endpoint, payload);
 }
 
 /**
@@ -237,7 +246,29 @@ export async function updateTransferLine(
   data: Partial<TransferLine>,
 ): Promise<TransferLine> {
   const endpoint = `/TransferLine(Document_No='${encodeURIComponent(documentNo)}',Line_No=${lineNo})?company='${encodeURIComponent(COMPANY)}'`;
-  return apiPatch<TransferLine>(endpoint, data);
+  const payload = stripEmptyValues(data as Record<string, unknown>);
+  return apiPatch<TransferLine>(endpoint, payload);
+}
+
+/**
+ * Remove properties whose value is `undefined`, `null` or an empty string.
+ */
+export function stripEmptyValues(
+  obj: Record<string, unknown>,
+): Record<string, unknown> {
+  return Object.entries(obj).reduce(
+    (acc, [key, value]) => {
+      if (
+        value !== undefined &&
+        value !== null &&
+        !(typeof value === "string" && value.trim() === "")
+      ) {
+        acc[key] = value;
+      }
+      return acc;
+    },
+    {} as Record<string, unknown>,
+  );
 }
 
 /**

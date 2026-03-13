@@ -195,6 +195,11 @@ export function TransferOrderForm({
 
         setLobs(lobData);
         setLocations(locationData);
+        
+        // Auto-select LOB if only one exists and not currently set (only for new orders)
+        if (!formState.No && lobData.length === 1 && !formState.Shortcut_Dimension_1_Code) {
+          setFormState(prev => ({ ...prev, Shortcut_Dimension_1_Code: lobData[0].Code }));
+        }
       } catch (error: any) {
         console.error("Error loading initial data detail:", error);
       } finally {
@@ -232,6 +237,11 @@ export function TransferOrderForm({
         }
 
         setBranches(branchData);
+        
+        // Auto-select Branch if only one exists and not currently set (only for new orders)
+        if (!formState.No && branchData.length === 1 && !formState.Shortcut_Dimension_2_Code) {
+          setFormState(prev => ({ ...prev, Shortcut_Dimension_2_Code: branchData[0].Code }));
+        }
       } catch (error) {
         console.error("Error loading branches:", error);
       }
@@ -443,41 +453,11 @@ export function TransferOrderForm({
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-4">
                 <div className={fieldClass}>
                   <label className={labelClass}>LOB</label>
-                  <Select
-                    value={formState.Shortcut_Dimension_1_Code}
-                    onValueChange={(v) => handleChange("Shortcut_Dimension_1_Code", v)}
-                    disabled={formState.Status === "Released" || !!formState.No}
-                  >
-                    <SelectTrigger className="h-8">
-                      <SelectValue placeholder="Select LOB" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {lobs.map((lob) => (
-                        <SelectItem key={lob.Code} value={lob.Code}>
-                          {lob.Code}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Input value={formState.Shortcut_Dimension_1_Code || ""} readOnly disabled className="h-8 bg-muted" />
                 </div>
                 <div className={fieldClass}>
                   <label className={labelClass}>Branch</label>
-                  <Select
-                    value={formState.Shortcut_Dimension_2_Code}
-                    onValueChange={(v) => handleChange("Shortcut_Dimension_2_Code", v)}
-                    disabled={!formState.Shortcut_Dimension_1_Code || formState.Status === "Released" || !!formState.No}
-                  >
-                    <SelectTrigger className="h-8">
-                      <SelectValue placeholder="Select Branch" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {branches.map((branch) => (
-                        <SelectItem key={branch.Code} value={branch.Code}>
-                          {branch.Code}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Input value={formState.Shortcut_Dimension_2_Code || ""} readOnly disabled className="h-8 bg-muted" />
                 </div>
                 <div className={fieldClass}>
                     <label className={labelClass}>In-Transit Code</label>

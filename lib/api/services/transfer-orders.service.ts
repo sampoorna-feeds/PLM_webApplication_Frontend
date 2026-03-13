@@ -8,18 +8,30 @@ const COMPANY =
 export interface TransferOrder {
   No: string;
   Transfer_From_Code?: string;
+  Transfer_From_Name?: string;
   Transfer_To_Code?: string;
+  Transfer_To_Name?: string;
+  External_Document_No?: string;
   In_Transit_Code?: string;
   Status?: string;
   Assigned_User_ID?: string;
   Direct_Transfer?: boolean;
   Shortcut_Dimension_1_Code?: string;
   Shortcut_Dimension_2_Code?: string;
+  Posting_Date?: string;
   Shipment_Date?: string;
   Shipment_Method_Code?: string;
   Shipping_Agent_Code?: string;
   Shipping_Advice?: string;
   Receipt_Date?: string;
+  Vehicle_No?: string;
+  LR_RR_No?: string;
+  LR_RR_Date?: string;
+  Distance_Km?: number;
+  Freight_Value?: number;
+  Transporter_Code?: string;
+  Transporter_Name?: string;
+  Mode_of_Transport?: string;
   "@odata.etag"?: string;
   [key: string]: unknown;
 }
@@ -243,15 +255,9 @@ export async function getTransferOrderLines(
 export async function createTransferLine(
   data: Partial<TransferLine>,
 ): Promise<TransferLine> {
-  const query = `$top=10`;
-  const endpoint = `/TransferLine?company='${encodeURIComponent(COMPANY)}'&${query}`;
+  const endpoint = `/TransferLine?company='${encodeURIComponent(COMPANY)}'`;
 
-  // For debugging purposes, only send these 3 fields currently
-  const payload = {
-    Document_No: data.Document_No,
-    Item_No: data.Item_No,
-    Quantity: data.Quantity,
-  };
+  const payload = stripEmptyValues(data as Record<string, unknown>);
 
   return apiPost<TransferLine>(endpoint, payload);
 }

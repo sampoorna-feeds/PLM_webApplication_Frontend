@@ -223,7 +223,11 @@ export function SalesOrderColumnFilter({
       >
         {renderFilterContent()}
         <div className="mt-3 flex gap-2">
-          <Button size="sm" className="h-7 flex-1 text-xs" onClick={handleApply}>
+          <Button
+            size="sm"
+            className="h-7 flex-1 text-xs"
+            onClick={handleApply}
+          >
             Apply
           </Button>
           {hasFilter && (

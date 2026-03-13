@@ -283,9 +283,7 @@ function SalesFormContent() {
       context: {
         openedFromParent: true,
         onOrderPlaced:
-          type === "order"
-            ? () => salesOrderRefetchRef.current?.()
-            : undefined,
+          type === "order" ? () => salesOrderRefetchRef.current?.() : undefined,
       },
       autoCloseOnSuccess: true,
     });

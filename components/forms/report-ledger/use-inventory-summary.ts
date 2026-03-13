@@ -11,7 +11,12 @@ import {
   type ItemMetrics,
 } from "@/lib/api/services/inventory.service";
 import { getItemDetailsForSummary } from "@/lib/api/services/item.service";
+import { getItems } from "@/lib/api/services/production-order-data.service";
 import type { Item } from "@/lib/api/services/item.service";
+import { exportSummaryToExcel } from "@/lib/utils/export";
+import type { FilterCondition } from "./types";
+
+const ITEM_PAGE_SIZE = 50;
 
 // ─── Types ───
 
@@ -40,6 +45,8 @@ export interface SummaryFilters {
   locationCodes: string[];
   postingDateFrom: string;
   postingDateTo: string;
+  itemNo: string;
+  additionalFilters?: FilterCondition[];
 }
 
 type LoadingPhase =
@@ -53,6 +60,8 @@ const EMPTY_SUMMARY_FILTERS: SummaryFilters = {
   locationCodes: [],
   postingDateFrom: "",
   postingDateTo: "",
+  itemNo: "",
+  additionalFilters: [],
 };
 
 const PAGE_SIZE = 50;
@@ -74,6 +83,16 @@ export function useInventorySummary() {
   >([]);
   const [isLoadingLocations, setIsLoadingLocations] = useState(false);
   const [allLocationCodes, setAllLocationCodes] = useState<string[]>([]);
+
+  // Item dropdown state
+  const [itemOptions, setItemOptions] = useState<
+    { label: string; value: string; description?: string }[]
+  >([]);
+  const [isLoadingItems, setIsLoadingItems] = useState(false);
+  const [itemSearchQuery, setItemSearchQuery] = useState("");
+  const [itemPage, setItemPage] = useState(1);
+  const [hasMoreItems, setHasMoreItems] = useState(false);
+  const [isLoadingMoreItems, setIsLoadingMoreItems] = useState(false);
 
   // Data
   const [allRows, setAllRows] = useState<SummaryRow[]>([]);
@@ -109,6 +128,60 @@ export function useInventorySummary() {
     loadLocations();
   }, [userID]);
 
+  // ─── Load items ───
+  useEffect(() => {
+    if (filters.locationCodes.length === 0) {
+      setItemOptions([]);
+      setHasMoreItems(false);
+      return;
+    }
+
+    const loadItems = async () => {
+      const isLoadMore = itemPage > 1;
+
+      if (isLoadMore) {
+        setIsLoadingMoreItems(true);
+      } else {
+        setIsLoadingItems(true);
+      }
+
+      try {
+        const skip = (itemPage - 1) * ITEM_PAGE_SIZE;
+        const items = await getItems(
+          itemSearchQuery || undefined,
+          undefined,
+          skip,
+          ITEM_PAGE_SIZE,
+        );
+
+        setHasMoreItems(items.length === ITEM_PAGE_SIZE);
+
+        const formattedOptions = items.map((item) => ({
+          label: `${item.No} - ${item.Description}`,
+          value: item.No,
+          description: item.Description,
+        }));
+
+        if (isLoadMore) {
+          setItemOptions((prev) => [...prev, ...formattedOptions]);
+        } else {
+          setItemOptions(formattedOptions);
+        }
+      } catch (error) {
+        console.error("Error loading items:", error);
+        if (!isLoadMore) {
+          toast.error("Failed to load item options");
+          setItemOptions([]);
+        }
+      } finally {
+        setIsLoadingItems(false);
+        setIsLoadingMoreItems(false);
+      }
+    };
+
+    loadItems();
+  }, [filters.locationCodes, itemSearchQuery, itemPage]);
+
   // ─── Fetch summary data ───
 
   const fetchSummaryData = useCallback(async () => {
@@ -134,16 +207,19 @@ export function useInventorySummary() {
         getOpeningBalancePerItem({
           locationCodes: appliedFilters.locationCodes,
           fromDate,
+          itemNo: appliedFilters.itemNo || undefined,
         }),
         getIncreasesPerItem({
           locationCodes: appliedFilters.locationCodes,
           fromDate,
           toDate,
+          itemNo: appliedFilters.itemNo || undefined,
         }),
         getDecreasesPerItem({
           locationCodes: appliedFilters.locationCodes,
           fromDate,
           toDate,
+          itemNo: appliedFilters.itemNo || undefined,
         }),
       ]);
 
@@ -225,11 +301,130 @@ export function useInventorySummary() {
 
   // ─── Grouped data with pagination ───
 
+  // Flat paginated view (pagination operates on rows, not groups)
+  const paginatedRows = useMemo(() => {
+    let filteredRows = allRows;
+    if (
+      appliedFilters.additionalFilters &&
+      appliedFilters.additionalFilters.length > 0
+    ) {
+      filteredRows = allRows.filter((row) => {
+        return appliedFilters.additionalFilters!.every((cond) => {
+          // Map condition onto row properties based on id or label
+          // E.g. Item_No -> itemNo, Quantity -> closingQty, basically we might need a mapping since SummaryRow doesn't have exact column names.
+
+          let val: any = undefined;
+
+          switch (cond.field) {
+            case "Item_No":
+              val = row.itemNo;
+              break;
+            case "Description":
+              val = row.description;
+              break;
+            case "Unit_of_Measure_Code":
+              val = row.baseUoM;
+              break;
+            // The row doesn't have all columns from ALL_COLUMNS, some of them are summary fields.
+            // Let's fallback or parse depending on what we have.
+            default:
+              // For summary row, we mainly have: itemNo, description, baseUoM, inventoryPostingGroup
+              break;
+          }
+
+          // If the field isn't mapped, we can't really filter it efficiently here (e.g. dimensions that aren't fetched).
+          // But Item_No, Description, inventoryPostingGroup are here.
+          if (val === undefined) return true; // skip condition if field not found
+
+          const conditionVal = String(cond.value).toLowerCase();
+          const rowValStr = String(val).toLowerCase();
+
+          switch (cond.operator) {
+            case "eq":
+              return rowValStr === conditionVal;
+            case "ne":
+              return rowValStr !== conditionVal;
+            case "contains":
+              return rowValStr.includes(conditionVal);
+            case "startswith":
+              return rowValStr.startsWith(conditionVal);
+            case "endswith":
+              return rowValStr.endsWith(conditionVal);
+            case "gt":
+              return Number(val) > Number(cond.value);
+            case "ge":
+              return Number(val) >= Number(cond.value);
+            case "lt":
+              return Number(val) < Number(cond.value);
+            case "le":
+              return Number(val) <= Number(cond.value);
+            default:
+              return true;
+          }
+        });
+      });
+    }
+
+    const start = (currentPage - 1) * PAGE_SIZE;
+    return filteredRows.slice(start, start + PAGE_SIZE);
+  }, [allRows, currentPage, appliedFilters.additionalFilters]);
+
+  // Updating grouped items calculation as well
   const grouped = useMemo<SummaryGroup[]>(() => {
-    if (allRows.length === 0) return [];
+    let filteredRows = allRows;
+    if (
+      appliedFilters.additionalFilters &&
+      appliedFilters.additionalFilters.length > 0
+    ) {
+      filteredRows = allRows.filter((row) => {
+        return appliedFilters.additionalFilters!.every((cond) => {
+          let val: any = undefined;
+          switch (cond.field) {
+            case "Item_No":
+              val = row.itemNo;
+              break;
+            case "Description":
+              val = row.description;
+              break;
+            case "Unit_of_Measure_Code":
+              val = row.baseUoM;
+              break;
+          }
+          if (val === undefined) return true;
+
+          const conditionVal = String(cond.value).toLowerCase();
+          const rowValStr = String(val).toLowerCase();
+
+          switch (cond.operator) {
+            case "eq":
+              return rowValStr === conditionVal;
+            case "ne":
+              return rowValStr !== conditionVal;
+            case "contains":
+              return rowValStr.includes(conditionVal);
+            case "startswith":
+              return rowValStr.startsWith(conditionVal);
+            case "endswith":
+              return rowValStr.endsWith(conditionVal);
+            case "gt":
+              return Number(val) > Number(cond.value);
+            case "ge":
+              return Number(val) >= Number(cond.value);
+            case "lt":
+              return Number(val) < Number(cond.value);
+            case "le":
+              return Number(val) <= Number(cond.value);
+            default:
+              return true;
+          }
+        });
+      });
+    }
+
+    if (filteredRows.length === 0) return [];
 
     const groupMap = new Map<string, SummaryRow[]>();
-    for (const row of allRows) {
+    for (const row of filteredRows) {
       const group = row.inventoryPostingGroup;
       if (!groupMap.has(group)) {
         groupMap.set(group, []);
@@ -240,24 +435,81 @@ export function useInventorySummary() {
     return Array.from(groupMap.entries())
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([groupName, rows]) => ({ groupName, rows }));
-  }, [allRows]);
+  }, [allRows, appliedFilters.additionalFilters]);
 
-  // Flat paginated view (pagination operates on rows, not groups)
-  const paginatedRows = useMemo(() => {
-    const start = (currentPage - 1) * PAGE_SIZE;
-    return allRows.slice(start, start + PAGE_SIZE);
-  }, [allRows, currentPage]);
+  const totalPages = useMemo(() => {
+    let filteredRows = allRows;
+    if (
+      appliedFilters.additionalFilters &&
+      appliedFilters.additionalFilters.length > 0
+    ) {
+      filteredRows = allRows.filter((row) => {
+        return appliedFilters.additionalFilters!.every((cond) => {
+          let val: any = undefined;
+          switch (cond.field) {
+            case "Item_No":
+              val = row.itemNo;
+              break;
+            case "Description":
+              val = row.description;
+              break;
+            case "Unit_of_Measure_Code":
+              val = row.baseUoM;
+              break;
+          }
+          if (val === undefined) return true;
 
-  const totalPages = useMemo(
-    () => Math.max(1, Math.ceil(allRows.length / PAGE_SIZE)),
-    [allRows],
-  );
+          const conditionVal = String(cond.value).toLowerCase();
+          const rowValStr = String(val).toLowerCase();
+
+          switch (cond.operator) {
+            case "eq":
+              return rowValStr === conditionVal;
+            case "ne":
+              return rowValStr !== conditionVal;
+            case "contains":
+              return rowValStr.includes(conditionVal);
+            case "startswith":
+              return rowValStr.startsWith(conditionVal);
+            case "endswith":
+              return rowValStr.endsWith(conditionVal);
+            case "gt":
+              return Number(val) > Number(cond.value);
+            case "ge":
+              return Number(val) >= Number(cond.value);
+            case "lt":
+              return Number(val) < Number(cond.value);
+            case "le":
+              return Number(val) <= Number(cond.value);
+            default:
+              return true;
+          }
+        });
+      });
+    }
+    return Math.max(1, Math.ceil(filteredRows.length / PAGE_SIZE));
+  }, [allRows, appliedFilters.additionalFilters]);
 
   // ─── Actions ───
 
   const handleFiltersChange = useCallback(
     (newFilters: Partial<SummaryFilters>) => {
-      setFilters((prev) => ({ ...prev, ...newFilters }));
+      setFilters((prev) => {
+        const next = { ...prev, ...newFilters };
+        // If locations changed, reset item selection
+        if (
+          "locationCodes" in newFilters &&
+          JSON.stringify(newFilters.locationCodes) !==
+            JSON.stringify(prev.locationCodes)
+        ) {
+          next.itemNo = "";
+          setItemSearchQuery("");
+          setItemPage(1);
+          setItemOptions([]);
+          setHasMoreItems(false);
+        }
+        return next;
+      });
     },
     [],
   );
@@ -293,11 +545,65 @@ export function useInventorySummary() {
     setAllRows([]);
     setCurrentPage(1);
     setLoadingPhase("idle");
+    setItemSearchQuery("");
+    setItemPage(1);
+    setItemOptions([]);
+    setHasMoreItems(false);
   }, [allLocationCodes]);
 
   const handlePageChange = useCallback((page: number) => {
     setCurrentPage(page);
   }, []);
+
+  const handleItemSearch = useCallback((query: string) => {
+    setItemSearchQuery(query);
+    setItemPage(1);
+  }, []);
+
+  const handleLoadMoreItems = useCallback(() => {
+    if (!hasMoreItems || isLoadingMoreItems) return;
+    setItemPage((prev) => prev + 1);
+  }, [hasMoreItems, isLoadingMoreItems]);
+
+  const handleExport = useCallback(() => {
+    if (allRows.length === 0) {
+      toast.error("No summary data to export.");
+      return;
+    }
+
+    const humanReadableFilters: string[] = [];
+    if (appliedFilters.locationCodes.length > 0) {
+      humanReadableFilters.push(
+        `Locations: ${appliedFilters.locationCodes.join(", ")}`,
+      );
+    }
+    if (appliedFilters.itemNo) {
+      humanReadableFilters.push(`Item No: ${appliedFilters.itemNo}`);
+    }
+    if (appliedFilters.postingDateFrom && appliedFilters.postingDateTo) {
+      humanReadableFilters.push(
+        `Date Range: ${appliedFilters.postingDateFrom} to ${appliedFilters.postingDateTo}`,
+      );
+    }
+    if (
+      appliedFilters.additionalFilters &&
+      appliedFilters.additionalFilters.length > 0
+    ) {
+      appliedFilters.additionalFilters.forEach((filter) => {
+        humanReadableFilters.push(
+          `${filter.field} ${filter.operator} ${filter.value}`,
+        );
+      });
+    }
+
+    exportSummaryToExcel(
+      allRows,
+      humanReadableFilters,
+      appliedFilters.postingDateFrom,
+      appliedFilters.postingDateTo,
+    );
+    toast.success(`Successfully exported ${allRows.length} summary rows.`);
+  }, [allRows, appliedFilters]);
 
   const isLoading =
     loadingPhase === "fetching-stock" || loadingPhase === "enriching-items";
@@ -314,7 +620,11 @@ export function useInventorySummary() {
     filters,
     appliedFilters,
     locationOptions,
+    itemOptions,
     isLoadingLocations,
+    isLoadingItems,
+    isLoadingMoreItems,
+    hasMoreItems,
     // Data
     allRows,
     grouped,
@@ -331,6 +641,9 @@ export function useInventorySummary() {
     handleApplyFilters,
     handleClearFilters,
     handlePageChange,
+    onItemSearch: handleItemSearch,
+    onLoadMoreItems: handleLoadMoreItems,
+    handleExport,
     refetch: fetchSummaryData,
   };
 }

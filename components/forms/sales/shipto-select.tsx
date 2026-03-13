@@ -226,7 +226,7 @@ export function ShipToSelect({
         </Button>
       </PopoverTrigger>
       <PopoverContent
-        className="flex w-[var(--radix-popover-trigger-width)] min-w-[320px] max-w-[calc(100vw-2rem)] max-h-[var(--radix-popover-content-available-height,80vh)] min-h-0 flex-col overflow-hidden p-0"
+        className="flex max-h-[var(--radix-popover-content-available-height,80vh)] min-h-0 w-[var(--radix-popover-trigger-width)] max-w-[calc(100vw-2rem)] min-w-[320px] flex-col overflow-hidden p-0"
         align="start"
         collisionPadding={8}
         onOpenAutoFocus={(e) => {
@@ -240,83 +240,83 @@ export function ShipToSelect({
       >
         {/* Header with Add New button */}
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-        {customerNo && formStackContext && (
-          <div className="flex flex-shrink-0 items-center justify-between border-b p-2">
-            <span className="text-sm font-medium">Ship-To Addresses</span>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleAddNew}
-              className="h-7 px-2 text-xs"
-            >
-              <Plus className="mr-1 h-3 w-3" />
-              Add New
-            </Button>
-          </div>
-        )}
-        <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto">
-          {isLoading ? (
-            <div className="flex items-center justify-center p-4">
-              <Loader2 className="h-4 w-4 animate-spin" />
+          {customerNo && formStackContext && (
+            <div className="flex flex-shrink-0 items-center justify-between border-b p-2">
+              <span className="text-sm font-medium">Ship-To Addresses</span>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleAddNew}
+                className="h-7 px-2 text-xs"
+              >
+                <Plus className="mr-1 h-3 w-3" />
+                Add New
+              </Button>
             </div>
-          ) : items.length === 0 ? (
-            <div className="text-muted-foreground p-4 text-center text-sm">
-              {!customerNo
-                ? "Select a customer first"
-                : "No ship-to addresses found"}
-            </div>
-          ) : (
-            <>
-              {items.map((item) => (
-                <div
-                  key={item.Code}
-                  className={cn(
-                    "group hover:bg-muted/50 relative flex cursor-default items-start rounded-sm px-2 py-2 text-sm outline-none select-none",
-                    value === item.Code && "bg-muted",
-                  )}
-                >
-                  <div
-                    className="flex flex-1 items-start"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      onChange(item.Code, item);
-                      setIsOpen(false);
-                    }}
-                  >
-                    <CheckIcon
-                      className={cn(
-                        "mt-0.5 mr-2 h-4 w-4 shrink-0",
-                        value === item.Code ? "opacity-100" : "opacity-0",
-                      )}
-                    />
-                    <div className="min-w-0 flex-1">
-                      <div className="text-foreground font-medium break-words">
-                        {item.Code} - {item.Name}
-                      </div>
-                      {item.Location_Code && (
-                        <div className="text-muted-foreground mt-0.5 text-xs break-words">
-                          Location: {item.Location_Code}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  {formStackContext && (
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      className="h-6 w-6 opacity-0 transition-opacity group-hover:opacity-100"
-                      onClick={(e) => handleEdit(item, e)}
-                      title="Edit ship-to address"
-                    >
-                      <Pencil className="h-3 w-3" />
-                    </Button>
-                  )}
-                </div>
-              ))}
-            </>
           )}
-        </div>
+          <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto">
+            {isLoading ? (
+              <div className="flex items-center justify-center p-4">
+                <Loader2 className="h-4 w-4 animate-spin" />
+              </div>
+            ) : items.length === 0 ? (
+              <div className="text-muted-foreground p-4 text-center text-sm">
+                {!customerNo
+                  ? "Select a customer first"
+                  : "No ship-to addresses found"}
+              </div>
+            ) : (
+              <>
+                {items.map((item) => (
+                  <div
+                    key={item.Code}
+                    className={cn(
+                      "group hover:bg-muted/50 relative flex cursor-default items-start rounded-sm px-2 py-2 text-sm outline-none select-none",
+                      value === item.Code && "bg-muted",
+                    )}
+                  >
+                    <div
+                      className="flex flex-1 items-start"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        onChange(item.Code, item);
+                        setIsOpen(false);
+                      }}
+                    >
+                      <CheckIcon
+                        className={cn(
+                          "mt-0.5 mr-2 h-4 w-4 shrink-0",
+                          value === item.Code ? "opacity-100" : "opacity-0",
+                        )}
+                      />
+                      <div className="min-w-0 flex-1">
+                        <div className="text-foreground font-medium break-words">
+                          {item.Code} - {item.Name}
+                        </div>
+                        {item.Location_Code && (
+                          <div className="text-muted-foreground mt-0.5 text-xs break-words">
+                            Location: {item.Location_Code}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    {formStackContext && (
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        className="h-6 w-6 opacity-0 transition-opacity group-hover:opacity-100"
+                        onClick={(e) => handleEdit(item, e)}
+                        title="Edit ship-to address"
+                      >
+                        <Pencil className="h-3 w-3" />
+                      </Button>
+                    )}
+                  </div>
+                ))}
+              </>
+            )}
+          </div>
         </div>
       </PopoverContent>
     </Popover>

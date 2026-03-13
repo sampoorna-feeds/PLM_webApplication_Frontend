@@ -29,6 +29,22 @@ export interface PurchaseOrder {
   Shortcut_Dimension_2_Code?: string;
   Shortcut_Dimension_3_Code?: string;
   Purchaseperson_Code?: string;
+  PO_Type?: string;
+  Service_Type?: string;
+  Vendor_GST_Reg_No?: string;
+  Vendor_PAN_No?: string;
+  Order_Address_Code?: string;
+  Broker_No?: string;
+  Broker_Name?: string;
+  Brokerage_Rate?: number;
+  Rate_Basis?: string;
+  Term_Code?: string;
+  Mandi_Name?: string;
+  Payment_Term_Code?: string;
+  Due_Date_Calculation?: string;
+  Creditor_Type?: string;
+  QC_Type?: string;
+  Due_Date?: string;
   "@odata.etag"?: string;
   [key: string]: unknown;
 }
@@ -170,8 +186,6 @@ export interface PurchaseLine {
   Line_Discount_Amount?: number;
   Line_Discount_Percent?: number;
   Amt_to_Vendor?: number;
-  MRP_Price?: number;
-  Total_MRP?: number;
   GST_Group_Code?: string;
   HSN_SAC_Code?: string;
   FOC?: boolean;
@@ -180,6 +194,8 @@ export interface PurchaseLine {
   Shortcut_Dimension_1_Code?: string;
   Shortcut_Dimension_2_Code?: string;
   ShortcutDimCode3?: string;
+  TDS_Group_Code?: string;
+  TDS_Section_Code?: string;
   [key: string]: unknown;
 }
 

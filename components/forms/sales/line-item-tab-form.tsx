@@ -14,11 +14,11 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
-import { FieldTitle } from '@/components/ui/field';
-import { ClearableField } from '@/components/ui/clearable-field';
-import { SearchableSelect } from '@/components/forms/shared/searchable-select';
-import { useFormStackContext } from '@/lib/form-stack/form-stack-context';
+} from "@/components/ui/select";
+import { FieldTitle } from "@/components/ui/field";
+import { ClearableField } from "@/components/ui/clearable-field";
+import { SearchableSelect } from "@/components/forms/shared/searchable-select";
+import { useFormStackContext } from "@/lib/form-stack/form-stack-context";
 import {
   getItems,
   searchItems,
@@ -34,10 +34,16 @@ import {
   searchGLAccounts,
   getGLAccountsPage,
   type GLPostingAccount,
-} from '@/lib/api/services/gl-account.service';
-import { getTCSGroupCodes, type TCSGroupCode } from '@/lib/api/services/tcs.service';
-import { getSalesPrice, type SalesPriceResponse } from '@/lib/api/services/sales-price.service';
-import type { LineItem } from './line-item-form';
+} from "@/lib/api/services/gl-account.service";
+import {
+  getTDSGroupCodes,
+  type TDSGroupCode,
+} from "@/lib/api/services/tds.service";
+import {
+  getSalesPrice,
+  type SalesPriceResponse,
+} from "@/lib/api/services/sales-price.service";
+import type { LineItem } from "./line-item-form";
 
 interface LineItemTabFormProps {
   tabId: string;
@@ -78,37 +84,36 @@ export function LineItemTabForm({
     description: lineItem?.description || "",
     uom: lineItem?.uom || "",
     quantity: lineItem?.quantity || 0,
-    mrp: lineItem?.mrp || 0,
     price: lineItem?.price || 0,
     unitPrice: lineItem?.unitPrice || 0,
     discount: lineItem?.discount || 0,
     exempted: lineItem?.exempted || false,
     gstGroupCode: lineItem?.gstGroupCode || "",
     hsnSacCode: lineItem?.hsnSacCode || "",
-    tcsGroupCode: lineItem?.tcsGroupCode || "",
+    tdsGroupCode: lineItem?.tdsGroupCode || "",
   }));
 
   const [uomOptions, setUomOptions] = useState<ItemUnitOfMeasure[]>([]);
-  const [tcsOptions, setTcsOptions] = useState<TCSGroupCode[]>([]);
+  const [tdsOptions, setTdsOptions] = useState<TDSGroupCode[]>([]);
   const [isLoadingUOM, setIsLoadingUOM] = useState(false);
   const [hasSalesPrice, setHasSalesPrice] = useState<boolean | null>(null);
 
-  // Load TCS options based on selected customer number (skip in edit mode - TCS field hidden)
+  // Load TDS options based on selected customer number (skip in edit mode - TDS field hidden)
   useEffect(() => {
     if (lineItem) {
-      setTcsOptions([]);
+      setTdsOptions([]);
       return;
     }
     if (!customerNo) {
-      setTcsOptions([]);
+      setTdsOptions([]);
       return;
     }
 
-    getTCSGroupCodes(customerNo)
-      .then(setTcsOptions)
+    getTDSGroupCodes(customerNo)
+      .then(setTdsOptions)
       .catch((error) => {
-        console.error("Error loading TCS Group Codes:", error);
-        setTcsOptions([]);
+        console.error("Error loading TDS Group Codes:", error);
+        setTdsOptions([]);
       });
   }, [customerNo, lineItem]);
 
@@ -139,13 +144,12 @@ export function LineItemTabForm({
   }, [formState.type, formState.no, lineItem]);
 
   // Calculate derived values using useMemo
-  const { totalMRP, amount } = useMemo(() => {
+  const { amount } = useMemo(() => {
     const quantity = formState.quantity || 0;
     const unitPrice = formState.unitPrice || 0;
     const discount = formState.discount || 0;
 
     return {
-      totalMRP: unitPrice * quantity,
       amount: unitPrice * quantity - discount,
     };
   }, [formState.quantity, formState.unitPrice, formState.discount]);
@@ -193,7 +197,6 @@ export function LineItemTabForm({
         no: "",
         description: "",
         uom: "",
-        mrp: 0,
         price: 0,
         unitPrice: 0,
       }));
@@ -207,30 +210,31 @@ export function LineItemTabForm({
       no: item.No,
       description: item.Description,
       uom: item.Sales_Unit_of_Measure || prev.uom,
-      mrp: unitPrice,
       price: unitPrice,
       unitPrice,
     }));
 
-    getItemByNo(item.No).then((cardItem) => {
-      if (cardItem) {
-        setFormState((prev) => ({
-          ...prev,
-          exempted: cardItem.Exempted ?? false,
-          gstGroupCode: cardItem.GST_Group_Code ?? '',
-          hsnSacCode: cardItem.HSN_SAC_Code ?? '',
-          uom: cardItem.Sales_Unit_of_Measure || prev.uom,
-        }));
-      }
-    }).catch((err) => {
-      console.error('Error loading item card details:', err);
-    });
+    getItemByNo(item.No)
+      .then((cardItem) => {
+        if (cardItem) {
+          setFormState((prev) => ({
+            ...prev,
+            exempted: cardItem.Exempted ?? false,
+            gstGroupCode: cardItem.GST_Group_Code ?? "",
+            hsnSacCode: cardItem.HSN_SAC_Code ?? "",
+            uom: cardItem.Sales_Unit_of_Measure || prev.uom,
+          }));
+        }
+      })
+      .catch((err) => {
+        console.error("Error loading item card details:", err);
+      });
   }, []);
 
   // Fetch sales price once we know item, UOM, location, and customer price group
   useEffect(() => {
     if (
-      formState.type !== 'Item' ||
+      formState.type !== "Item" ||
       !formState.no ||
       !formState.uom ||
       !locationCode ||
@@ -241,10 +245,10 @@ export function LineItemTabForm({
     }
 
     const today = new Date();
-    const orderDate = today.toISOString().split('T')[0]; // YYYY-MM-DD
+    const orderDate = today.toISOString().split("T")[0]; // YYYY-MM-DD
 
     getSalesPrice({
-      salesType: '1',
+      salesType: "1",
       salesCode: customerPriceGroup,
       itemNo: formState.no,
       location: locationCode,
@@ -252,10 +256,9 @@ export function LineItemTabForm({
       orderDate,
     })
       .then((price: SalesPriceResponse | null) => {
-        if (price && (price.Unit_Price != null || price.MRP != null)) {
+        if (price && price.Unit_Price != null) {
           setFormState((prev) => ({
             ...prev,
-            mrp: price.MRP ?? prev.mrp,
             price: price.Unit_Price ?? prev.price,
             unitPrice: price.Unit_Price ?? prev.unitPrice,
           }));
@@ -265,10 +268,16 @@ export function LineItemTabForm({
         }
       })
       .catch((err) => {
-        console.error('Error fetching sales price:', err);
+        console.error("Error fetching sales price:", err);
         setHasSalesPrice(false);
       });
-  }, [formState.type, formState.no, formState.uom, locationCode, customerPriceGroup]);
+  }, [
+    formState.type,
+    formState.no,
+    formState.uom,
+    locationCode,
+    customerPriceGroup,
+  ]);
 
   const handleFieldChange = useCallback((field: keyof LineItem, value: any) => {
     setFormState((prev) => ({ ...prev, [field]: value }));
@@ -316,16 +325,14 @@ export function LineItemTabForm({
         description: formState.description,
         uom: formState.uom,
         quantity: formState.quantity,
-        mrp: formState.mrp,
         price: formState.price,
         unitPrice: formState.unitPrice || 0,
-        totalMRP,
         discount: formState.discount || 0,
         amount,
         exempted: formState.exempted,
         gstGroupCode: formState.gstGroupCode,
         hsnSacCode: formState.hsnSacCode,
-        tcsGroupCode: formState.tcsGroupCode,
+        tdsGroupCode: formState.tdsGroupCode,
       };
 
       if (context?.onSave) {
@@ -340,7 +347,7 @@ export function LineItemTabForm({
         closeTab(tabId);
       }
     },
-    [formState, totalMRP, amount, lineItem?.id, context, closeTab, switchTab, tabId],
+    [formState, amount, lineItem?.id, context, closeTab, switchTab, tabId],
   );
 
   const handleCancel = useCallback(() => {
@@ -357,20 +364,62 @@ export function LineItemTabForm({
       <div className="flex h-full flex-col">
         <div className="flex-1 space-y-3 overflow-y-auto p-6">
           <div className="text-muted-foreground grid grid-cols-2 gap-x-4 gap-y-2 text-sm sm:grid-cols-3">
-            <div><span className="block text-xs">Type</span><span className="font-medium text-foreground">{formState.type || "-"}</span></div>
-            <div><span className="block text-xs">No</span><span className="font-medium text-foreground">{formState.no || "-"}</span></div>
-            <div><span className="block text-xs">Description</span><span className="font-medium text-foreground max-w-[200px] truncate">{formState.description || "-"}</span></div>
-            <div><span className="block text-xs">UOM</span><span className="font-medium text-foreground">{formState.uom || "-"}</span></div>
-            <div><span className="block text-xs">Quantity</span><span className="font-medium text-foreground">{formState.quantity ?? "-"}</span></div>
-            <div><span className="block text-xs">Unit Price</span><span className="font-medium text-foreground">{formState.unitPrice ?? "-"}</span></div>
-            <div><span className="block text-xs">Discount</span><span className="font-medium text-foreground">{formState.discount ?? "-"}</span></div>
-            <div><span className="block text-xs">Amount</span><span className="font-medium text-foreground">{amount}</span></div>
+            <div>
+              <span className="block text-xs">Type</span>
+              <span className="text-foreground font-medium">
+                {formState.type || "-"}
+              </span>
+            </div>
+            <div>
+              <span className="block text-xs">No</span>
+              <span className="text-foreground font-medium">
+                {formState.no || "-"}
+              </span>
+            </div>
+            <div>
+              <span className="block text-xs">Description</span>
+              <span className="text-foreground max-w-[200px] truncate font-medium">
+                {formState.description || "-"}
+              </span>
+            </div>
+            <div>
+              <span className="block text-xs">UOM</span>
+              <span className="text-foreground font-medium">
+                {formState.uom || "-"}
+              </span>
+            </div>
+            <div>
+              <span className="block text-xs">Quantity</span>
+              <span className="text-foreground font-medium">
+                {formState.quantity ?? "-"}
+              </span>
+            </div>
+            <div>
+              <span className="block text-xs">Unit Price</span>
+              <span className="text-foreground font-medium">
+                {formState.unitPrice ?? "-"}
+              </span>
+            </div>
+            <div>
+              <span className="block text-xs">Discount</span>
+              <span className="text-foreground font-medium">
+                {formState.discount ?? "-"}
+              </span>
+            </div>
+            <div>
+              <span className="block text-xs">Amount</span>
+              <span className="text-foreground font-medium">{amount}</span>
+            </div>
           </div>
         </div>
         <div className="bg-background flex justify-end gap-3 border-t p-4">
-          <Button type="button" variant="outline" onClick={handleCancel}>Close</Button>
+          <Button type="button" variant="outline" onClick={handleCancel}>
+            Close
+          </Button>
           {context?.onEdit && (
-            <Button type="button" onClick={handleViewEdit}>Edit</Button>
+            <Button type="button" onClick={handleViewEdit}>
+              Edit
+            </Button>
           )}
         </div>
       </div>
@@ -379,276 +428,265 @@ export function LineItemTabForm({
 
   return (
     <div className="flex h-full flex-col">
-      <form
-        onSubmit={handleSubmit}
-        className="flex-1 overflow-y-auto p-3"
-      >
+      <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-3">
         <div className="mx-auto w-full max-w-5xl space-y-4">
-        {/* Basic Information Section */}
-        <div className="space-y-2">
-          <div className="grid grid-cols-1 gap-2 md:grid-cols-12">
-            {/* Type */}
-            <div className="space-y-1 md:col-span-2">
-              <FieldTitle>Type</FieldTitle>
-              <ClearableField
-                value={formState.type}
-                onClear={() => handleTypeChange("Item")}
-              >
-              <Select value={formState.type} onValueChange={handleTypeChange}>
-                <SelectTrigger className="h-8">
-                  <SelectValue placeholder="Select type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="G/L Account">G/L Account</SelectItem>
-                  <SelectItem value="Item">Item</SelectItem>
-                </SelectContent>
-              </Select>
-              </ClearableField>
-            </div>
-
-            {/* Select Item */}
-            <div className="space-y-1 md:col-span-5">
-              <FieldTitle>Select Item</FieldTitle>
-              {formState.type === 'G/L Account' ? (
+          {/* Basic Information Section */}
+          <div className="space-y-2">
+            <div className="grid grid-cols-1 gap-2 md:grid-cols-12">
+              {/* Type */}
+              <div className="space-y-1 md:col-span-2">
+                <FieldTitle>Type</FieldTitle>
                 <ClearableField
-                  value={formState.no}
-                  onClear={() => handleGLAccountChange("", undefined)}
+                  value={formState.type}
+                  onClear={() => handleTypeChange("Item")}
                 >
-                <SearchableSelect<GLPostingAccount>
-                  value={formState.no || ""}
-                  onChange={handleGLAccountChange}
-                  placeholder="Select GL Account"
-                  loadInitial={() => getGLAccounts(20)}
-                  searchItems={searchGLAccounts}
-                  loadMore={(skip, search) => getGLAccountsPage(skip, search)}
-                  getDisplayValue={(item) => `${item.No} - ${item.Name}`}
-                  getItemValue={(item) => item.No}
-                  supportsDualSearch={true}
-                  searchByField={async (query, field) => {
-                    const results = await searchGLAccounts(query);
-                    if (field === "No") {
-                      return results.filter((acc) =>
-                        acc.No.toLowerCase().includes(query.toLowerCase()),
-                      );
-                    }
-                    return results.filter((acc) =>
-                      acc.Name.toLowerCase().includes(query.toLowerCase()),
-                    );
-                  }}
-                />
-                </ClearableField>
-              ) : (
-                <ClearableField
-                  value={formState.no}
-                  onClear={() => handleItemChange("", undefined)}
-                >
-                <SearchableSelect<Item>
-                  value={formState.no || ""}
-                  onChange={handleItemChange}
-                  placeholder="Select Item"
-                  loadInitial={() => getItems(20, locationCode)}
-                  searchItems={(q) => searchItems(q, locationCode)}
-                  loadMore={(skip, search) => getItemsPage(skip, search, 20, locationCode)}
-                  getDisplayValue={(item) => `${item.No} - ${item.Description}`}
-                  getItemValue={(item) => item.No}
-                  supportsDualSearch={true}
-                  searchByField={(q, field) => searchItemsByField(q, field, locationCode)}
-                />
-                </ClearableField>
-              )}
-              {formState.description && (
-                <p className="mt-1 pl-1 text-[10px] font-medium text-green-600">
-                  {formState.description}
-                </p>
-              )}
-            </div>
-            {/* UOM (only for Item) */}
-            {isItemType && (
-            <div className="space-y-1 md:col-span-2">
-              <FieldTitle>UOM</FieldTitle>
-              <ClearableField
-                value={formState.uom}
-                onClear={() => handleFieldChange("uom", "")}
-              >
-              <Select
-                value={formState.uom || ""}
-                onValueChange={(value) => handleFieldChange("uom", value)}
-                disabled={isLoadingUOM || uomOptions.length === 0}
-              >
-                <SelectTrigger className="h-8">
-                  <SelectValue
-                    placeholder={isLoadingUOM ? "Loading..." : "Select UOM"}
-                  />
-                </SelectTrigger>
-                <SelectContent>
-                  {uomOptions.map((uom) => (
-                    <SelectItem key={uom.Code} value={uom.Code}>
-                      {uom.Code}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              </ClearableField>
-            </div>
-            )}
-
-            {/* TCS Group Code - hidden in edit mode (data not available from API) */}
-            {!lineItem && (
-              <div className="space-y-1 md:col-span-3">
-                <FieldTitle>TCS Group Code</FieldTitle>
-                {tcsOptions.length > 0 ? (
                   <Select
-                    value={formState.tcsGroupCode || ""}
-                    onValueChange={(value) =>
-                      handleFieldChange("tcsGroupCode", value)
-                    }
+                    value={formState.type}
+                    onValueChange={handleTypeChange}
                   >
                     <SelectTrigger className="h-8">
-                      <SelectValue placeholder="Select TCS Group Code" />
+                      <SelectValue placeholder="Select type" />
                     </SelectTrigger>
                     <SelectContent>
-                      {tcsOptions.map((tcs) => (
-                        <SelectItem
-                          key={tcs.TCS_Nature_of_Collection}
-                          value={tcs.TCS_Nature_of_Collection}
-                        >
-                          {tcs.TCS_Nature_of_Collection}
-                        </SelectItem>
-                      ))}
+                      <SelectItem value="G/L Account">G/L Account</SelectItem>
+                      <SelectItem value="Item">Item</SelectItem>
                     </SelectContent>
                   </Select>
+                </ClearableField>
+              </div>
+
+              {/* Select Item */}
+              <div className="space-y-1 md:col-span-5">
+                <FieldTitle>Select Item</FieldTitle>
+                {formState.type === "G/L Account" ? (
+                  <ClearableField
+                    value={formState.no}
+                    onClear={() => handleGLAccountChange("", undefined)}
+                  >
+                    <SearchableSelect<GLPostingAccount>
+                      value={formState.no || ""}
+                      onChange={handleGLAccountChange}
+                      placeholder="Select GL Account"
+                      loadInitial={() => getGLAccounts(20)}
+                      searchItems={searchGLAccounts}
+                      loadMore={(skip, search) =>
+                        getGLAccountsPage(skip, search)
+                      }
+                      getDisplayValue={(item) => `${item.No} - ${item.Name}`}
+                      getItemValue={(item) => item.No}
+                      supportsDualSearch={true}
+                      searchByField={async (query, field) => {
+                        const results = await searchGLAccounts(query);
+                        if (field === "No") {
+                          return results.filter((acc) =>
+                            acc.No.toLowerCase().includes(query.toLowerCase()),
+                          );
+                        }
+                        return results.filter((acc) =>
+                          acc.Name.toLowerCase().includes(query.toLowerCase()),
+                        );
+                      }}
+                    />
+                  </ClearableField>
                 ) : (
-                  <Input
-                    value="Not available"
-                    disabled
-                    className="h-8 bg-muted"
-                    readOnly
-                  />
+                  <ClearableField
+                    value={formState.no}
+                    onClear={() => handleItemChange("", undefined)}
+                  >
+                    <SearchableSelect<Item>
+                      value={formState.no || ""}
+                      onChange={handleItemChange}
+                      placeholder="Select Item"
+                      loadInitial={() => getItems(20, locationCode)}
+                      searchItems={(q) => searchItems(q, locationCode)}
+                      loadMore={(skip, search) =>
+                        getItemsPage(skip, search, 20, locationCode)
+                      }
+                      getDisplayValue={(item) =>
+                        `${item.No} - ${item.Description}`
+                      }
+                      getItemValue={(item) => item.No}
+                      supportsDualSearch={true}
+                      searchByField={(q, field) =>
+                        searchItemsByField(q, field, locationCode)
+                      }
+                    />
+                  </ClearableField>
+                )}
+                {formState.description && (
+                  <p className="mt-1 pl-1 text-[10px] font-medium text-green-600">
+                    {formState.description}
+                  </p>
                 )}
               </div>
-            )}
-          </div>
-        </div>
+              {/* UOM (only for Item) */}
+              {isItemType && (
+                <div className="space-y-1 md:col-span-2">
+                  <FieldTitle>UOM</FieldTitle>
+                  <ClearableField
+                    value={formState.uom}
+                    onClear={() => handleFieldChange("uom", "")}
+                  >
+                    <Select
+                      value={formState.uom || ""}
+                      onValueChange={(value) => handleFieldChange("uom", value)}
+                      disabled={isLoadingUOM || uomOptions.length === 0}
+                    >
+                      <SelectTrigger className="h-8">
+                        <SelectValue
+                          placeholder={
+                            isLoadingUOM ? "Loading..." : "Select UOM"
+                          }
+                        />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {uomOptions.map((uom) => (
+                          <SelectItem key={uom.Code} value={uom.Code}>
+                            {uom.Code}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </ClearableField>
+                </div>
+              )}
 
-        {/* Pricing Section - Price field hidden in Add line item form */}
-        <div className="space-y-2 border-t pt-2">
-          <h3 className="text-foreground text-xs font-medium">Pricing</h3>
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 md:grid-cols-6">
-            <div className="space-y-1 md:col-span-2">
-              <FieldTitle>Quantity</FieldTitle>
-              <Input
-                type="text"
-                inputMode="decimal"
-                value={formatNumericValue(formState.quantity)}
-                onChange={(e) =>
-                  handleNumericChange("quantity", e.target.value)
-                }
-                onWheel={(e) => e.currentTarget.blur()}
-                placeholder="0.00"
-                className="h-8 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-              />
-            </div>
-            <div className="space-y-1 md:col-span-2">
-              <FieldTitle>MRP</FieldTitle>
-              <Input
-                type="text"
-                inputMode="decimal"
-                value={formatNumericValue(formState.mrp)}
-                onChange={(e) => handleNumericChange("mrp", e.target.value)}
-                onWheel={(e) => e.currentTarget.blur()}
-                placeholder="0.00"
-                className="h-8 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-              />
-            </div>
-            <div className="space-y-1 md:col-span-2">
-              <FieldTitle>Unit Price</FieldTitle>
-              <Input
-                type="text"
-                inputMode="decimal"
-                value={formatNumericValue(formState.unitPrice)}
-                onChange={(e) =>
-                  handleNumericChange("unitPrice", e.target.value)
-                }
-                onWheel={(e) => e.currentTarget.blur()}
-                placeholder="0.00"
-                className="h-8 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-              />
-            </div>
-            <div className="space-y-1 md:col-span-2">
-              <FieldTitle>Total MRP</FieldTitle>
-              <Input
-                type="text"
-                value={totalMRP > 0 ? totalMRP.toFixed(2) : ""}
-                disabled
-                className="h-8 bg-muted"
-                readOnly
-              />
-            </div>
-            <div className="space-y-1 md:col-span-2">
-              <FieldTitle>Discount</FieldTitle>
-              <Input
-                type="text"
-                inputMode="decimal"
-                value={formatNumericValue(formState.discount)}
-                onChange={(e) =>
-                  handleNumericChange("discount", e.target.value)
-                }
-                onWheel={(e) => e.currentTarget.blur()}
-                placeholder="0.00"
-                className="h-8 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-              />
-            </div>
-            <div className="space-y-1 md:col-span-2">
-              <FieldTitle>Amount</FieldTitle>
-              <Input
-                type="text"
-                value={amount > 0 ? amount.toFixed(2) : ""}
-                disabled
-                className="h-8 bg-muted font-medium"
-                readOnly
-              />
+              {/* TDS Group Code - hidden in edit mode (data not available from API) */}
+              {!lineItem && (
+                <div className="space-y-1 md:col-span-3">
+                  <FieldTitle>TDS Group Code</FieldTitle>
+                  {tdsOptions.length > 0 ? (
+                    <Select
+                      value={formState.tdsGroupCode || ""}
+                      onValueChange={(value) =>
+                        handleFieldChange("tdsGroupCode", value)
+                      }
+                    >
+                      <SelectTrigger className="h-8">
+                        <SelectValue placeholder="Select TDS Group Code" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {tdsOptions.map((tds) => (
+                          <SelectItem
+                            key={tds.TDS_Nature_of_Collection}
+                            value={tds.TDS_Nature_of_Collection}
+                          >
+                            {tds.TDS_Nature_of_Collection}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <Input
+                      value="Not available"
+                      disabled
+                      className="bg-muted h-8"
+                      readOnly
+                    />
+                  )}
+                </div>
+              )}
             </div>
           </div>
-        </div>
 
-        {/* Item Details Section (only for Item type) */}
-        {isItemType && (
+          {/* Pricing Section - Price field hidden in Add line item form */}
           <div className="space-y-2 border-t pt-2">
-            <h3 className="text-foreground text-xs font-medium">
-              Item Details
-            </h3>
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 md:grid-cols-3">
-              <div className="space-y-1">
-                <FieldTitle>Exempted</FieldTitle>
+            <h3 className="text-foreground text-xs font-medium">Pricing</h3>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 md:grid-cols-6">
+              <div className="space-y-1 md:col-span-2">
+                <FieldTitle>Quantity</FieldTitle>
                 <Input
-                  value={formState.exempted ? "Yes" : "No"}
-                  disabled
-                  className="h-8 bg-muted"
-                  readOnly
+                  type="text"
+                  inputMode="decimal"
+                  value={formatNumericValue(formState.quantity)}
+                  onChange={(e) =>
+                    handleNumericChange("quantity", e.target.value)
+                  }
+                  onWheel={(e) => e.currentTarget.blur()}
+                  placeholder="0.00"
+                  className="h-8 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                 />
               </div>
-              <div className="space-y-1">
-                <FieldTitle>GST Group Code</FieldTitle>
+
+              <div className="space-y-1 md:col-span-2">
+                <FieldTitle>Unit Price</FieldTitle>
                 <Input
-                  value={formState.gstGroupCode || ""}
-                  disabled
-                  className="h-8 bg-muted"
-                  readOnly
+                  type="text"
+                  inputMode="decimal"
+                  value={formatNumericValue(formState.unitPrice)}
+                  onChange={(e) =>
+                    handleNumericChange("unitPrice", e.target.value)
+                  }
+                  onWheel={(e) => e.currentTarget.blur()}
+                  placeholder="0.00"
+                  className="h-8 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                 />
               </div>
-              <div className="space-y-1">
-                <FieldTitle>HSN/SAC Code</FieldTitle>
+
+              <div className="space-y-1 md:col-span-2">
+                <FieldTitle>Discount</FieldTitle>
                 <Input
-                  value={formState.hsnSacCode || ""}
+                  type="text"
+                  inputMode="decimal"
+                  value={formatNumericValue(formState.discount)}
+                  onChange={(e) =>
+                    handleNumericChange("discount", e.target.value)
+                  }
+                  onWheel={(e) => e.currentTarget.blur()}
+                  placeholder="0.00"
+                  className="h-8 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                />
+              </div>
+              <div className="space-y-1 md:col-span-2">
+                <FieldTitle>Amount</FieldTitle>
+                <Input
+                  type="text"
+                  value={amount > 0 ? amount.toFixed(2) : ""}
                   disabled
-                  className="h-8 bg-muted"
+                  className="bg-muted h-8 font-medium"
                   readOnly
                 />
               </div>
             </div>
           </div>
-        )}
 
+          {/* Item Details Section (only for Item type) */}
+          {isItemType && (
+            <div className="space-y-2 border-t pt-2">
+              <h3 className="text-foreground text-xs font-medium">
+                Item Details
+              </h3>
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 md:grid-cols-3">
+                <div className="space-y-1">
+                  <FieldTitle>Exempted</FieldTitle>
+                  <Input
+                    value={formState.exempted ? "Yes" : "No"}
+                    disabled
+                    className="bg-muted h-8"
+                    readOnly
+                  />
+                </div>
+                <div className="space-y-1">
+                  <FieldTitle>GST Group Code</FieldTitle>
+                  <Input
+                    value={formState.gstGroupCode || ""}
+                    disabled
+                    className="bg-muted h-8"
+                    readOnly
+                  />
+                </div>
+                <div className="space-y-1">
+                  <FieldTitle>HSN/SAC Code</FieldTitle>
+                  <Input
+                    value={formState.hsnSacCode || ""}
+                    disabled
+                    className="bg-muted h-8"
+                    readOnly
+                  />
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </form>
 

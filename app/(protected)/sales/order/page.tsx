@@ -12,7 +12,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 type SalesOrderTab = "open" | "pending" | "approved";
 
-const TAB_STATUS_MAP: Record<SalesOrderTab, "Open" | "Pending Approval" | "Released"> = {
+const TAB_STATUS_MAP: Record<
+  SalesOrderTab,
+  "Open" | "Pending Approval" | "Released"
+> = {
   open: "Open",
   pending: "Pending Approval",
   approved: "Released",

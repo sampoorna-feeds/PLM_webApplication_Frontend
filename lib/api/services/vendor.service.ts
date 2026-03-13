@@ -196,3 +196,98 @@ export async function getVendorsPage(
 export function clearVendorCache(): void {
   searchCache.clear();
 }
+
+// ---- Extended vendor types & functions for Purchase Order form ----
+
+export interface VendorDetail extends Vendor {
+  GST_Registration_No: string;
+  P_A_N_No: string;
+  [key: string]: any;
+}
+
+export interface Broker {
+  No: string;
+  Name: string;
+}
+
+/**
+ * Get vendor details including GST and PAN fields
+ */
+export async function getVendorDetails(
+  vendorNo: string,
+): Promise<VendorDetail | null> {
+  try {
+    const escapedNo = escapeODataValue(vendorNo);
+    const endpoint = `/VendorCard(No='${escapedNo}')?company='${encodeURIComponent(COMPANY)}'&$select=No,Name,GST_Registration_No,P_A_N_No`;
+    const response = await apiGet<VendorDetail>(endpoint);
+    return response;
+  } catch (error) {
+    console.error("Error fetching vendor details:", error);
+    return null;
+  }
+}
+
+/**
+ * Get initial brokers (Vendors with Broker eq true)
+ */
+export async function getBrokers(): Promise<Broker[]> {
+  const brokerFilter = `Responsibility_Center in ('','FEED','CATTLE','SWINE') and Blocked eq ' ' and Broker eq true`;
+  const query = buildODataQuery({
+    $select: "No,Name",
+    $filter: brokerFilter,
+    $orderby: "No",
+    $top: 30,
+  });
+
+  const endpoint = `/VendorCard?company='${encodeURIComponent(COMPANY)}'&${query}`;
+  const response = await apiGet<ODataResponse<Broker>>(endpoint);
+  return response.value;
+}
+
+/**
+ * Search brokers by No or Name
+ */
+export async function searchBrokers(query: string): Promise<Broker[]> {
+  if (query.length < 2) return [];
+
+  const brokerFilter = `Responsibility_Center in ('','FEED','CATTLE','SWINE') and Blocked eq ' ' and Broker eq true`;
+  const escapedQuery = escapeODataValue(query);
+
+  const [resultsByNo, resultsByName] = await Promise.all([
+    (async () => {
+      const filterByNo = `(${brokerFilter}) and contains(No,'${escapedQuery}')`;
+      const odataQuery = buildODataQuery({
+        $select: "No,Name",
+        $filter: filterByNo,
+        $orderby: "No",
+        $top: 30,
+      });
+      const endpoint = `/VendorCard?company='${encodeURIComponent(COMPANY)}'&${odataQuery}`;
+      const response = await apiGet<ODataResponse<Broker>>(endpoint);
+      return response.value;
+    })(),
+    (async () => {
+      const filterByName = `(${brokerFilter}) and contains(Name,'${escapedQuery}')`;
+      const odataQuery = buildODataQuery({
+        $select: "No,Name",
+        $filter: filterByName,
+        $orderby: "No",
+        $top: 30,
+      });
+      const endpoint = `/VendorCard?company='${encodeURIComponent(COMPANY)}'&${odataQuery}`;
+      const response = await apiGet<ODataResponse<Broker>>(endpoint);
+      return response.value;
+    })(),
+  ]);
+
+  const combined = [...resultsByNo, ...resultsByName];
+  const uniqueMap = new Map<string, Broker>();
+  combined.forEach((broker) => {
+    if (!uniqueMap.has(broker.No)) {
+      uniqueMap.set(broker.No, broker);
+    }
+  });
+  return Array.from(uniqueMap.values()).sort((a, b) =>
+    a.No.localeCompare(b.No),
+  );
+}

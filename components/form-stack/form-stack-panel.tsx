@@ -127,7 +127,11 @@ export function FormStackPanel() {
                 currentTab?.formType === "sales-order-edit" ||
                 currentTab?.formType === "finished-production-order-detail"
               ? "w-screen md:w-[60vw]"
-              : "w-screen md:w-[65vw] lg:w-[48vw]",
+              : currentTab?.formType === "purchase-order" ||
+                  currentTab?.formType === "purchase-order-detail" ||
+                  currentTab?.formType === "purchase-order-edit"
+                ? "w-screen lg:w-[70vw]"
+                : "w-screen md:w-[65vw] lg:w-[48vw]",
         )}
       >
         {/* Tabs - Always show at top */}

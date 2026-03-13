@@ -52,13 +52,33 @@ export async function apiRequest<T>(
   const url = `${API_BASE_URL}${cleanEndpoint}`;
 
   try {
-    const response = await fetch(url, {
+    let response = await fetch(url, {
       ...options,
       headers: {
         ...createAuthHeaders(),
         ...options.headers,
       },
     });
+
+    // Handle redirect body-stripping: 301/302 redirects convert POST→GET, losing the body.
+    // If a mutation request was redirected and failed, retry to the final URL with original method/body.
+    if (
+      response.redirected &&
+      !response.ok &&
+      options.method &&
+      ["POST", "PATCH", "PUT", "DELETE"].includes(options.method.toUpperCase())
+    ) {
+      console.warn(
+        `[API] ${options.method} was redirected (${url} → ${response.url}), retrying with body...`,
+      );
+      response = await fetch(response.url, {
+        ...options,
+        headers: {
+          ...createAuthHeaders(),
+          ...options.headers,
+        },
+      });
+    }
 
     if (!response.ok) {
       // Try to extract detailed error message from response

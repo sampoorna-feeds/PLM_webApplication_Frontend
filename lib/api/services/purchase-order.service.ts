@@ -16,10 +16,28 @@ export interface PurchaseOrderData {
   documentDate: string;
   orderDate: string;
   externalDocumentNo?: string;
+  vendorInvoiceNo?: string;
   invoiceType?: string;
   lob?: string;
   branch?: string;
   loc?: string;
+  // New fields
+  poType?: string;
+  serviceType?: string;
+  vendorGstRegNo?: string;
+  vendorPanNo?: string;
+  brokerNo?: string;
+  brokerName?: string;
+  brokerageRate?: string | number;
+  orderAddressCode?: string;
+  rateBasis?: string;
+  termCode?: string;
+  mandiName?: string;
+  paymentTermCode?: string;
+  dueDateCalculation?: string;
+  creditorType?: string;
+  qcType?: string;
+  dueDate?: string;
 }
 
 export interface PurchaseOrderLineItem {
@@ -28,16 +46,14 @@ export interface PurchaseOrderLineItem {
   description: string;
   uom?: string;
   quantity: number;
-  mrp?: number;
   price?: number;
   unitPrice: number;
-  totalMRP: number;
   discount: number;
   amount: number;
   exempted?: boolean;
   gstGroupCode?: string;
   hsnSacCode?: string;
-  tcsGroupCode?: string;
+  tdsGroupCode?: string;
 }
 
 export interface CreatePurchaseOrderResponse {
@@ -66,7 +82,7 @@ export async function createPurchaseOrder(
   try {
     const endpoint = `/PurchaseOrder?company='${encodeURIComponent(COMPANY)}'`;
 
-    const payload = {
+    const payload: Record<string, unknown> = {
       Document_Type: "Order",
       Buy_from_Vendor_No: orderData.vendorNo,
       Ship_to_Code: orderData.shipToCode || "",
@@ -76,15 +92,47 @@ export async function createPurchaseOrder(
       Document_Date: orderData.documentDate,
       Order_Date: orderData.orderDate,
       External_Document_No: orderData.externalDocumentNo || "",
-      Invoice_Type: orderData.invoiceType || "Bill of supply",
+      Vendor_Invoice_No: orderData.vendorInvoiceNo || "",
+      Invoice_Type: orderData.invoiceType || "",
       Shortcut_Dimension_1_Code: orderData.lob || "",
       Shortcut_Dimension_2_Code: orderData.branch || "",
       Shortcut_Dimension_3_Code: orderData.loc || "",
+      PO_Type: orderData.poType || "",
+      Service_Type: orderData.serviceType || "",
+      Vendor_GST_Reg_No: orderData.vendorGstRegNo || "",
+      Vendor_PAN_No: orderData.vendorPanNo || "",
+      Broker_No: orderData.brokerNo || "",
+      Broker_Name: orderData.brokerName || "",
+      Brokerage_Rate: orderData.brokerageRate
+        ? Number(orderData.brokerageRate)
+        : 0,
+      Order_Address_Code: orderData.orderAddressCode || "",
+      Rate_Basis: orderData.rateBasis || "",
+      Term_Code: orderData.termCode || "",
+      Mandi_Name: orderData.mandiName || "",
+      Payment_Term_Code: orderData.paymentTermCode || "",
+      Due_Date_Calculation: orderData.dueDateCalculation || "",
+      Creditor_Type: orderData.creditorType || "",
+      QC_Type: orderData.qcType || "",
+      Due_Date: orderData.dueDate || "",
     };
+
+    // Remove empty/null/undefined fields — backend rejects optional fields sent as empty strings
+    const filteredPayload = Object.fromEntries(
+      Object.entries(payload).filter(
+        ([, v]) => v !== "" && v !== null && v !== undefined,
+      ),
+    );
+
+    console.log("[PO Create] Endpoint:", endpoint);
+    console.log(
+      "[PO Create] Payload:",
+      JSON.stringify(filteredPayload, null, 2),
+    );
 
     const response = await apiPost<CreatePurchaseOrderApiResponse>(
       endpoint,
-      payload,
+      filteredPayload,
     );
 
     if (!response) {

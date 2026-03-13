@@ -650,6 +650,46 @@ export function PurchaseOrderDetailForm({
                 <span className="font-medium">{order.Invoice_Type}</span>
               </div>
             )}
+            {order.PO_Type && (
+              <div>
+                <span className="text-muted-foreground block text-xs">
+                  PO Type
+                </span>
+                <span className="font-medium">{order.PO_Type}</span>
+              </div>
+            )}
+            {order.Service_Type && (
+              <div>
+                <span className="text-muted-foreground block text-xs">
+                  Service Type
+                </span>
+                <span className="font-medium">{order.Service_Type}</span>
+              </div>
+            )}
+            {order.Order_Address_Code && (
+              <div>
+                <span className="text-muted-foreground block text-xs">
+                  Order Address Code
+                </span>
+                <span className="font-medium">{order.Order_Address_Code}</span>
+              </div>
+            )}
+            {order.Vendor_GST_Reg_No && (
+              <div>
+                <span className="text-muted-foreground block text-xs">
+                  Vendor GST
+                </span>
+                <span className="font-medium">{order.Vendor_GST_Reg_No}</span>
+              </div>
+            )}
+            {order.Vendor_PAN_No && (
+              <div>
+                <span className="text-muted-foreground block text-xs">
+                  Vendor PAN
+                </span>
+                <span className="font-medium">{order.Vendor_PAN_No}</span>
+              </div>
+            )}
             {order.Location_Code && (
               <div>
                 <span className="text-muted-foreground block text-xs">
@@ -681,6 +721,82 @@ export function PurchaseOrderDetailForm({
                 <span className="text-muted-foreground block text-xs">LOC</span>
                 <span className="font-medium">
                   {order.Shortcut_Dimension_3_Code}
+                </span>
+              </div>
+            )}
+            {order.Broker_Name && (
+              <div>
+                <span className="text-muted-foreground block text-xs">
+                  Broker
+                </span>
+                <span className="font-medium">{order.Broker_Name}</span>
+              </div>
+            )}
+            {order.Brokerage_Rate != null && (
+              <div>
+                <span className="text-muted-foreground block text-xs">
+                  Brokerage Rate
+                </span>
+                <span className="font-medium">{order.Brokerage_Rate}</span>
+              </div>
+            )}
+            {order.Rate_Basis && (
+              <div>
+                <span className="text-muted-foreground block text-xs">
+                  Rate Basis
+                </span>
+                <span className="font-medium">{order.Rate_Basis}</span>
+              </div>
+            )}
+            {order.Term_Code && (
+              <div>
+                <span className="text-muted-foreground block text-xs">
+                  Term Code
+                </span>
+                <span className="font-medium">{order.Term_Code}</span>
+              </div>
+            )}
+            {order.Payment_Term_Code && (
+              <div>
+                <span className="text-muted-foreground block text-xs">
+                  Payment Term
+                </span>
+                <span className="font-medium">{order.Payment_Term_Code}</span>
+              </div>
+            )}
+            {order.Due_Date_Calculation && (
+              <div>
+                <span className="text-muted-foreground block text-xs">
+                  Due Date Calc
+                </span>
+                <span className="font-medium">
+                  {order.Due_Date_Calculation}
+                </span>
+              </div>
+            )}
+            {order.Creditor_Type && (
+              <div>
+                <span className="text-muted-foreground block text-xs">
+                  Creditor Type
+                </span>
+                <span className="font-medium">{order.Creditor_Type}</span>
+              </div>
+            )}
+            {order.QC_Type && (
+              <div>
+                <span className="text-muted-foreground block text-xs">
+                  QC Type
+                </span>
+                <span className="font-medium">{order.QC_Type}</span>
+              </div>
+            )}
+            {order.Due_Date && (
+              <div>
+                <span className="text-muted-foreground block text-xs">
+                  Due Date
+                </span>
+                <span className="font-medium">
+                  {formatDate(order.Due_Date)}
                 </span>
               </div>
             )}

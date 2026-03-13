@@ -3,9 +3,10 @@
  * Handles fetching final sales prices for items via Barcode_Web_Services_SalesPriceAPI
  */
 
-import { apiPost } from '../client';
+import { apiPost } from "../client";
 
-const COMPANY = process.env.NEXT_PUBLIC_API_COMPANY || 'Sampoorna Feeds Pvt. Ltd';
+const COMPANY =
+  process.env.NEXT_PUBLIC_API_COMPANY || "Sampoorna Feeds Pvt. Ltd";
 
 export interface SalesPriceResponse {
   Unit_Price?: number;
@@ -48,10 +49,10 @@ export interface GetSalesPriceParams {
  * }
  */
 export async function getSalesPrice(
-  params: GetSalesPriceParams
+  params: GetSalesPriceParams,
 ): Promise<SalesPriceResponse | null> {
   const {
-    salesType = '1',
+    salesType = "1",
     salesCode,
     itemNo,
     location,
@@ -64,7 +65,7 @@ export async function getSalesPrice(
   }
 
   const today = new Date();
-  const defaultOrderDate = today.toISOString().split('T')[0]; // YYYY-MM-DD
+  const defaultOrderDate = today.toISOString().split("T")[0]; // YYYY-MM-DD
 
   const body = {
     salesType: String(salesType),
@@ -76,24 +77,23 @@ export async function getSalesPrice(
   };
 
   const endpoint = `/Barcode_Web_Services_SalesPriceAPI?Company=${encodeURIComponent(
-    COMPANY
+    COMPANY,
   )}`;
 
   const outer = await apiPost<RawSalesPriceOuter>(endpoint, body);
 
-  if (!outer || typeof outer.value !== 'string') {
+  if (!outer || typeof outer.value !== "string") {
     return null;
   }
 
   try {
     const parsed = JSON.parse(outer.value);
-    if (parsed && typeof parsed === 'object' && parsed.Response) {
+    if (parsed && typeof parsed === "object" && parsed.Response) {
       return parsed.Response as SalesPriceResponse;
     }
   } catch (error) {
-    console.error('Error parsing sales price response:', error);
+    console.error("Error parsing sales price response:", error);
   }
 
   return null;
 }
-

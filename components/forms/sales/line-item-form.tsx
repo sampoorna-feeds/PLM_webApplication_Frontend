@@ -27,9 +27,9 @@ import {
 } from "@/lib/api/services/item.service";
 import { type GLPostingAccount } from "@/lib/api/services/gl-account.service";
 import {
-  getTCSGroupCodes,
-  type TCSGroupCode,
-} from "@/lib/api/services/tcs.service";
+  getTDSGroupCodes,
+  type TDSGroupCode,
+} from "@/lib/api/services/tds.service";
 import { useAuth } from "@/lib/contexts/auth-context";
 
 export interface LineItem {
@@ -41,16 +41,14 @@ export interface LineItem {
   description: string;
   uom?: string;
   quantity: number;
-  mrp?: number;
   price?: number;
   unitPrice: number;
-  totalMRP: number;
   discount: number;
   amount: number;
   exempted?: boolean;
   gstGroupCode?: string;
   hsnSacCode?: string;
-  tcsGroupCode?: string;
+  tdsGroupCode?: string;
 }
 
 interface LineItemFormProps {
@@ -61,7 +59,13 @@ interface LineItemFormProps {
   onCancel: () => void;
 }
 
-function LineItemFormComponent({ lineItem, customerNo, locationCode, onSubmit, onCancel }: LineItemFormProps) {
+function LineItemFormComponent({
+  lineItem,
+  customerNo,
+  locationCode,
+  onSubmit,
+  onCancel,
+}: LineItemFormProps) {
   const { openTab } = useFormStackContext();
   const { username } = useAuth();
 
@@ -69,35 +73,34 @@ function LineItemFormComponent({ lineItem, customerNo, locationCode, onSubmit, o
   const [formData, setFormData] = useState<Partial<LineItem>>(() => ({
     type: lineItem?.type || "Item",
     no: lineItem?.no || "",
-    description: lineItem?.description || "",
-    uom: lineItem?.uom || "",
+    description: lineItem?.description || "", // Restored
+    uom: lineItem?.uom || "", // Restored
     quantity: lineItem?.quantity || 0,
-    mrp: lineItem?.mrp || 0,
     price: lineItem?.price || 0,
     unitPrice: lineItem?.unitPrice || 0,
     discount: lineItem?.discount || 0,
     exempted: lineItem?.exempted || false,
     gstGroupCode: lineItem?.gstGroupCode || "",
     hsnSacCode: lineItem?.hsnSacCode || "",
-    tcsGroupCode: lineItem?.tcsGroupCode || "",
+    tdsGroupCode: lineItem?.tdsGroupCode || "",
   }));
 
   const [uomOptions, setUomOptions] = useState<ItemUnitOfMeasure[]>([]);
-  const [tcsOptions, setTcsOptions] = useState<TCSGroupCode[]>([]);
+  const [tdsOptions, setTdsOptions] = useState<TDSGroupCode[]>([]);
   const [isLoadingUOM, setIsLoadingUOM] = useState(false);
 
-  // Load TCS options using logged-in user's username
+  // Load TDS options using logged-in user's username
   useEffect(() => {
     if (!username) {
-      setTcsOptions([]);
+      setTdsOptions([]);
       return;
     }
 
-    getTCSGroupCodes(username)
-      .then(setTcsOptions)
+    getTDSGroupCodes(username)
+      .then(setTdsOptions)
       .catch((error) => {
-        console.error("Error loading TCS Group Codes:", error);
-        setTcsOptions([]);
+        console.error("Error loading TDS Group Codes:", error);
+        setTdsOptions([]);
       });
   }, [username]);
 
@@ -128,13 +131,12 @@ function LineItemFormComponent({ lineItem, customerNo, locationCode, onSubmit, o
   }, [formData.type, formData.no, lineItem]);
 
   // Calculate derived values using useMemo (no re-renders needed)
-  const { totalMRP, amount } = useMemo(() => {
+  const { amount } = useMemo(() => {
     const quantity = formData.quantity || 0;
     const unitPrice = formData.unitPrice || 0;
     const discount = formData.discount || 0;
 
     return {
-      totalMRP: unitPrice * quantity,
       amount: unitPrice * quantity - discount,
     };
   }, [formData.quantity, formData.unitPrice, formData.discount]);
@@ -161,21 +163,22 @@ function LineItemFormComponent({ lineItem, customerNo, locationCode, onSubmit, o
     openTab("item-selector", {
       title: `Select ${formData.type || "Item"}`,
       formData: {
-        type: formData.type || 'Item',
+        type: formData.type || "Item",
         filterParams: { locationCode },
       },
       context: {
         openedFromParent: true,
-        onSelect: (item: Item | GLPostingAccount, type: 'Item' | 'G/L Account') => {
-          if (type === 'Item') {
+        onSelect: (
+          item: Item | GLPostingAccount,
+          type: "Item" | "G/L Account",
+        ) => {
+          if (type === "Item") {
             const listItem = item as Item;
             const unitPrice = Number(listItem.Unit_Price ?? 0);
             setFormData((prev) => ({
               ...prev,
-              no: listItem.No,
               description: listItem.Description,
               uom: listItem.Sales_Unit_of_Measure || prev.uom,
-              mrp: unitPrice,
               price: unitPrice,
               unitPrice,
             }));
@@ -185,13 +188,15 @@ function LineItemFormComponent({ lineItem, customerNo, locationCode, onSubmit, o
                   setFormData((prev) => ({
                     ...prev,
                     exempted: cardItem.Exempted ?? false,
-                    gstGroupCode: cardItem.GST_Group_Code ?? '',
-                    hsnSacCode: cardItem.HSN_SAC_Code ?? '',
+                    gstGroupCode: cardItem.GST_Group_Code ?? "",
+                    hsnSacCode: cardItem.HSN_SAC_Code ?? "",
                     uom: cardItem.Sales_Unit_of_Measure || prev.uom,
                   }));
                 }
               })
-              .catch((err) => console.error('Error loading item card details:', err));
+              .catch((err) =>
+                console.error("Error loading item card details:", err),
+              );
           } else {
             const accountData = item as GLPostingAccount;
             setFormData((prev) => ({
@@ -252,21 +257,19 @@ function LineItemFormComponent({ lineItem, customerNo, locationCode, onSubmit, o
         description: formData.description,
         uom: formData.uom,
         quantity: formData.quantity,
-        mrp: formData.mrp,
         price: formData.price,
         unitPrice: formData.unitPrice || 0,
-        totalMRP,
         discount: formData.discount || 0,
         amount,
         exempted: formData.exempted,
         gstGroupCode: formData.gstGroupCode,
         hsnSacCode: formData.hsnSacCode,
-        tcsGroupCode: formData.tcsGroupCode,
+        tdsGroupCode: formData.tdsGroupCode,
       };
 
       onSubmit(newLineItem);
     },
-    [formData, totalMRP, amount, lineItem?.id, onSubmit],
+    [formData, amount, lineItem?.id, onSubmit],
   );
 
   return (
@@ -281,15 +284,15 @@ function LineItemFormComponent({ lineItem, customerNo, locationCode, onSubmit, o
               value={formData.type}
               onClear={() => handleTypeChange("Item")}
             >
-            <Select value={formData.type} onValueChange={handleTypeChange}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="G/L Account">G/L Account</SelectItem>
-                <SelectItem value="Item">Item</SelectItem>
-              </SelectContent>
-            </Select>
+              <Select value={formData.type} onValueChange={handleTypeChange}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="G/L Account">G/L Account</SelectItem>
+                  <SelectItem value="Item">Item</SelectItem>
+                </SelectContent>
+              </Select>
             </ClearableField>
           </div>
 
@@ -299,34 +302,33 @@ function LineItemFormComponent({ lineItem, customerNo, locationCode, onSubmit, o
             <ClearableField
               value={formData.no}
               onClear={() =>
-              setFormData((prev) => ({
-                ...prev,
-                no: "",
-                description: "",
-                uom: "",
-                mrp: 0,
-                price: 0,
-                unitPrice: 0,
-              }))
-            }
+                setFormData((prev) => ({
+                  ...prev,
+                  no: "",
+                  description: "",
+                  uom: "",
+                  price: 0,
+                  unitPrice: 0,
+                }))
+              }
             >
-            <div className="flex gap-2">
-              <Input
-                value={formData.no || ""}
-                placeholder={`Select ${formData.type || "Item"}`}
-                readOnly
-                className="bg-muted cursor-pointer"
-                onClick={handleOpenItemSelector}
-              />
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleOpenItemSelector}
-                className="shrink-0"
-              >
-                <Search className="h-4 w-4" />
-              </Button>
-            </div>
+              <div className="flex gap-2">
+                <Input
+                  value={formData.no || ""}
+                  placeholder={`Select ${formData.type || "Item"}`}
+                  readOnly
+                  className="bg-muted cursor-pointer"
+                  onClick={handleOpenItemSelector}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleOpenItemSelector}
+                  className="shrink-0"
+                >
+                  <Search className="h-4 w-4" />
+                </Button>
+              </div>
             </ClearableField>
             {formData.description && (
               <p className="mt-1 pl-1 text-[10px] font-medium text-green-600">
@@ -344,24 +346,24 @@ function LineItemFormComponent({ lineItem, customerNo, locationCode, onSubmit, o
               value={formData.uom}
               onClear={() => handleFieldChange("uom", "")}
             >
-            <Select
-              value={formData.uom || ""}
-              onValueChange={(value) => handleFieldChange("uom", value)}
-              disabled={isLoadingUOM || uomOptions.length === 0}
-            >
-              <SelectTrigger>
-                <SelectValue
-                  placeholder={isLoadingUOM ? "Loading..." : "Select UOM"}
-                />
-              </SelectTrigger>
-              <SelectContent>
-                {uomOptions.map((uom) => (
-                  <SelectItem key={uom.Code} value={uom.Code}>
-                    {uom.Code}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              <Select
+                value={formData.uom || ""}
+                onValueChange={(value) => handleFieldChange("uom", value)}
+                disabled={isLoadingUOM || uomOptions.length === 0}
+              >
+                <SelectTrigger>
+                  <SelectValue
+                    placeholder={isLoadingUOM ? "Loading..." : "Select UOM"}
+                  />
+                </SelectTrigger>
+                <SelectContent>
+                  {uomOptions.map((uom) => (
+                    <SelectItem key={uom.Code} value={uom.Code}>
+                      {uom.Code}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </ClearableField>
           </div>
         )}
@@ -383,18 +385,7 @@ function LineItemFormComponent({ lineItem, customerNo, locationCode, onSubmit, o
               className="[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
             />
           </div>
-          <div className="space-y-2">
-            <FieldTitle>MRP</FieldTitle>
-            <Input
-              type="text"
-              inputMode="decimal"
-              value={formatNumericValue(formData.mrp)}
-              onChange={(e) => handleNumericChange("mrp", e.target.value)}
-              onWheel={(e) => e.currentTarget.blur()}
-              placeholder="0.00"
-              className="[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-            />
-          </div>
+
           <div className="space-y-2">
             <FieldTitle>Price</FieldTitle>
             <Input
@@ -422,16 +413,7 @@ function LineItemFormComponent({ lineItem, customerNo, locationCode, onSubmit, o
               className="[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
             />
           </div>
-          <div className="space-y-2">
-            <FieldTitle>Total MRP</FieldTitle>
-            <Input
-              type="text"
-              value={totalMRP > 0 ? totalMRP.toFixed(2) : ""}
-              disabled
-              className="bg-muted"
-              readOnly
-            />
-          </div>
+
           <div className="space-y-2">
             <FieldTitle>Discount</FieldTitle>
             <Input
@@ -494,24 +476,24 @@ function LineItemFormComponent({ lineItem, customerNo, locationCode, onSubmit, o
         </div>
       )}
 
-      {/* TCS Group Code */}
+      {/* TDS Group Code */}
       <div className="space-y-2 border-t pt-4">
-        <FieldTitle>TCS Group Code</FieldTitle>
-        {tcsOptions.length > 0 ? (
+        <FieldTitle>TDS Group Code</FieldTitle>
+        {tdsOptions.length > 0 ? (
           <Select
-            value={formData.tcsGroupCode || ""}
-            onValueChange={(value) => handleFieldChange("tcsGroupCode", value)}
+            value={formData.tdsGroupCode || ""}
+            onValueChange={(value) => handleFieldChange("tdsGroupCode", value)}
           >
             <SelectTrigger>
-              <SelectValue placeholder="Select TCS Group Code" />
+              <SelectValue placeholder="Select TDS Group Code" />
             </SelectTrigger>
             <SelectContent>
-              {tcsOptions.map((tcs) => (
+              {tdsOptions.map((tds) => (
                 <SelectItem
-                  key={tcs.TCS_Nature_of_Collection}
-                  value={tcs.TCS_Nature_of_Collection}
+                  key={tds.TDS_Nature_of_Collection}
+                  value={tds.TDS_Nature_of_Collection}
                 >
-                  {tcs.TCS_Nature_of_Collection}
+                  {tds.TDS_Nature_of_Collection}
                 </SelectItem>
               ))}
             </SelectContent>

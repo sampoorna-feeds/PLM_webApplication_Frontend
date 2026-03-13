@@ -50,15 +50,14 @@ function purchaseLineToLineItem(
       [line.Description, line.Description_2].filter(Boolean).join(" ") || "",
     uom: line.Unit_of_Measure_Code ?? line.Unit_of_Measure ?? "",
     quantity: line.Quantity ?? 0,
-    mrp: line.MRP_Price,
     price: line.Unit_Price,
     unitPrice: line.Unit_Price ?? 0,
-    totalMRP: line.Total_MRP ?? 0,
     discount: line.Line_Discount_Amount ?? line.Line_Discount_Percent ?? 0,
     amount: line.Line_Amount ?? 0,
     exempted: line.Exempted,
     gstGroupCode: line.GST_Group_Code,
     hsnSacCode: line.HSN_SAC_Code,
+    tdsGroupCode: line.TDS_Group_Code || line.TDS_Section_Code || undefined,
   };
 }
 

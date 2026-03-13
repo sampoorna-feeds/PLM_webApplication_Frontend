@@ -89,14 +89,17 @@ async function groupByItemFromILE(
 export async function getOpeningBalancePerItem({
   locationCodes,
   fromDate,
+  itemNo,
 }: {
   locationCodes: string[];
   fromDate: Date;
+  itemNo?: string;
 }): Promise<Map<string, ItemMetrics>> {
   const dateStr = fromDate.toISOString().split("T")[0];
   const filter = buildFilter(
     wrapLocFilter(buildILELocationFilter(locationCodes)),
     `Posting_Date le ${dateStr}`,
+    itemNo ? `Item_No eq '${itemNo}'` : "",
   );
   return groupByItemFromILE(filter);
 }
@@ -109,10 +112,12 @@ export async function getIncreasesPerItem({
   locationCodes,
   fromDate,
   toDate,
+  itemNo,
 }: {
   locationCodes: string[];
   fromDate: Date;
   toDate: Date;
+  itemNo?: string;
 }): Promise<Map<string, ItemMetrics>> {
   const dayAfterFrom = new Date(fromDate);
   dayAfterFrom.setDate(dayAfterFrom.getDate() + 1);
@@ -123,6 +128,7 @@ export async function getIncreasesPerItem({
     wrapLocFilter(buildILELocationFilter(locationCodes)),
     `Posting_Date ge ${fromStr}`,
     `Posting_Date le ${toStr}`,
+    itemNo ? `Item_No eq '${itemNo}'` : "",
   );
   return groupByItemFromILE(filter);
 }
@@ -137,10 +143,12 @@ export async function getDecreasesPerItem({
   locationCodes,
   fromDate,
   toDate,
+  itemNo,
 }: {
   locationCodes: string[];
   fromDate: Date;
   toDate: Date;
+  itemNo?: string;
 }): Promise<Map<string, ItemMetrics>> {
   const dayAfterFrom = new Date(fromDate);
   dayAfterFrom.setDate(dayAfterFrom.getDate() + 1);
@@ -151,6 +159,7 @@ export async function getDecreasesPerItem({
     wrapLocFilter(buildILELocationFilter(locationCodes)),
     `Posting_Date ge ${fromStr}`,
     `Posting_Date le ${toStr}`,
+    itemNo ? `Item_No eq '${itemNo}'` : "",
   );
   const map = await groupByItemFromILE(filter);
   // Convert negative values to positive for display

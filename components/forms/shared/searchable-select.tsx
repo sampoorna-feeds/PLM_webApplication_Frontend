@@ -282,7 +282,7 @@ export function SearchableSelect<T extends SearchableItem>({
         </Button>
       </PopoverTrigger>
       <PopoverContent
-        className="flex w-[var(--radix-popover-trigger-width)] min-w-[320px] max-w-[calc(100vw-2rem)] max-h-[var(--radix-popover-content-available-height,80vh)] min-h-0 flex-col overflow-hidden p-0"
+        className="flex max-h-[var(--radix-popover-content-available-height,80vh)] min-h-0 w-[var(--radix-popover-trigger-width)] max-w-[calc(100vw-2rem)] min-w-[320px] flex-col overflow-hidden p-0"
         align="start"
         collisionPadding={8}
         onOpenAutoFocus={(e) => {

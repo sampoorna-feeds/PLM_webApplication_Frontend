@@ -127,12 +127,7 @@ export function CascadingDimensionSelect({
 
   // Auto-select when single option and compactWhenSingle
   useEffect(() => {
-    if (
-      compactWhenSingle &&
-      items.length === 1 &&
-      !value &&
-      items[0]?.Code
-    ) {
+    if (compactWhenSingle && items.length === 1 && !value && items[0]?.Code) {
       onChange(items[0].Code);
     }
   }, [compactWhenSingle, items, value, onChange]);
@@ -242,12 +237,7 @@ export function CascadingDimensionSelect({
 
   if (showAsLabel) {
     return (
-      <span
-        className={cn(
-          "text-foreground inline text-sm",
-          className,
-        )}
-      >
+      <span className={cn("text-foreground inline text-sm", className)}>
         {items[0].Name ? `${items[0].Code} - ${items[0].Name}` : items[0].Code}
       </span>
     );
@@ -283,7 +273,7 @@ export function CascadingDimensionSelect({
         </Button>
       </PopoverTrigger>
       <PopoverContent
-        className="flex w-[var(--radix-popover-trigger-width)] min-w-[320px] max-w-[calc(100vw-2rem)] max-h-[var(--radix-popover-content-available-height,80vh)] min-h-0 flex-col overflow-hidden p-0"
+        className="flex max-h-[var(--radix-popover-content-available-height,80vh)] min-h-0 w-[var(--radix-popover-trigger-width)] max-w-[calc(100vw-2rem)] min-w-[320px] flex-col overflow-hidden p-0"
         align="start"
         collisionPadding={8}
         onOpenAutoFocus={(e) => {
@@ -296,79 +286,79 @@ export function CascadingDimensionSelect({
         }}
       >
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-        <div className="flex-shrink-0 border-b p-2">
-          <Input
-            placeholder="Search by Code or Name..."
-            value={searchQuery}
-            onChange={(e) => {
-              const query = e.target.value;
-              setSearchQuery(query);
-              performSearch(query);
-            }}
-            className="h-8 text-sm"
-            autoFocus
-          />
-        </div>
-        <div
-          ref={listRef}
-          className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto"
-        >
-          {isLoading && items.length === 0 ? (
-            <div className="flex items-center justify-center p-4">
-              <Loader2 className="h-4 w-4 animate-spin" />
-            </div>
-          ) : filteredItems.length === 0 ? (
-            <div className="text-muted-foreground p-4 text-center text-sm">
-              {isFieldDisabled
-                ? dimensionType === "BRANCH"
-                  ? "Select LOB first"
-                  : "Select Branch first"
-                : searchQuery.length < MIN_SEARCH_LENGTH && items.length === 0
-                  ? `No ${dimensionType} found. Please contact IT.`
-                  : searchQuery.length < MIN_SEARCH_LENGTH
-                    ? `Type at least ${MIN_SEARCH_LENGTH} characters to search`
-                    : "No items found"}
-            </div>
-          ) : (
-            <>
-              {filteredItems.map((item) => (
-                <div
-                  key={item.Code}
-                  className={cn(
-                    "hover:bg-muted/50 relative flex cursor-default items-start rounded-sm px-2 py-2 text-sm outline-none select-none",
-                    value === item.Code && "bg-muted",
-                  )}
-                  onClick={() => {
-                    onChange(item.Code);
-                    setIsOpen(false);
-                  }}
-                >
-                  <CheckIcon
+          <div className="flex-shrink-0 border-b p-2">
+            <Input
+              placeholder="Search by Code or Name..."
+              value={searchQuery}
+              onChange={(e) => {
+                const query = e.target.value;
+                setSearchQuery(query);
+                performSearch(query);
+              }}
+              className="h-8 text-sm"
+              autoFocus
+            />
+          </div>
+          <div
+            ref={listRef}
+            className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto"
+          >
+            {isLoading && items.length === 0 ? (
+              <div className="flex items-center justify-center p-4">
+                <Loader2 className="h-4 w-4 animate-spin" />
+              </div>
+            ) : filteredItems.length === 0 ? (
+              <div className="text-muted-foreground p-4 text-center text-sm">
+                {isFieldDisabled
+                  ? dimensionType === "BRANCH"
+                    ? "Select LOB first"
+                    : "Select Branch first"
+                  : searchQuery.length < MIN_SEARCH_LENGTH && items.length === 0
+                    ? `No ${dimensionType} found. Please contact IT.`
+                    : searchQuery.length < MIN_SEARCH_LENGTH
+                      ? `Type at least ${MIN_SEARCH_LENGTH} characters to search`
+                      : "No items found"}
+              </div>
+            ) : (
+              <>
+                {filteredItems.map((item) => (
+                  <div
+                    key={item.Code}
                     className={cn(
-                      "mt-0.5 mr-2 h-4 w-4 shrink-0",
-                      value === item.Code ? "opacity-100" : "opacity-0",
+                      "hover:bg-muted/50 relative flex cursor-default items-start rounded-sm px-2 py-2 text-sm outline-none select-none",
+                      value === item.Code && "bg-muted",
                     )}
-                  />
-                  <div className="min-w-0 flex-1">
-                    <div className="text-foreground font-medium break-words">
-                      {item.Code}
-                    </div>
-                    {item.Name && (
-                      <div className="text-muted-foreground mt-0.5 text-xs break-words">
-                        {item.Name}
+                    onClick={() => {
+                      onChange(item.Code);
+                      setIsOpen(false);
+                    }}
+                  >
+                    <CheckIcon
+                      className={cn(
+                        "mt-0.5 mr-2 h-4 w-4 shrink-0",
+                        value === item.Code ? "opacity-100" : "opacity-0",
+                      )}
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="text-foreground font-medium break-words">
+                        {item.Code}
                       </div>
-                    )}
+                      {item.Name && (
+                        <div className="text-muted-foreground mt-0.5 text-xs break-words">
+                          {item.Name}
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
-              {isLoading && filteredItems.length > 0 && (
-                <div className="flex items-center justify-center p-2">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                </div>
-              )}
-            </>
-          )}
-        </div>
+                ))}
+                {isLoading && filteredItems.length > 0 && (
+                  <div className="flex items-center justify-center p-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  </div>
+                )}
+              </>
+            )}
+          </div>
         </div>
       </PopoverContent>
     </Popover>

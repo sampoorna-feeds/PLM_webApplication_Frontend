@@ -95,11 +95,7 @@ export function SalesPersonSelect({
 
         setIsLoading(true);
         try {
-          const result = await searchSalesPersons(
-            query,
-            PAGE_SIZE,
-            0,
-          );
+          const result = await searchSalesPersons(query, PAGE_SIZE, 0);
 
           if (controller.signal.aborted) return;
 
@@ -127,9 +123,10 @@ export function SalesPersonSelect({
 
     setIsLoading(true);
     try {
-      const newItems = searchQuery.length >= MIN_SEARCH_LENGTH
-        ? await searchSalesPersons(searchQuery, PAGE_SIZE, skip)
-        : await getSalesPersons(PAGE_SIZE, skip);
+      const newItems =
+        searchQuery.length >= MIN_SEARCH_LENGTH
+          ? await searchSalesPersons(searchQuery, PAGE_SIZE, skip)
+          : await getSalesPersons(PAGE_SIZE, skip);
 
       if (newItems.length > 0) {
         setItems((prev) => {
@@ -225,75 +222,75 @@ export function SalesPersonSelect({
         </Button>
       </PopoverTrigger>
       <PopoverContent
-        className="flex w-[var(--radix-popover-trigger-width)] min-w-[320px] max-w-[calc(100vw-2rem)] max-h-[var(--radix-popover-content-available-height,80vh)] min-h-0 flex-col overflow-hidden p-0"
+        className="flex max-h-[var(--radix-popover-content-available-height,80vh)] min-h-0 w-[var(--radix-popover-trigger-width)] max-w-[calc(100vw-2rem)] min-w-[320px] flex-col overflow-hidden p-0"
         align="start"
         collisionPadding={8}
         onOpenAutoFocus={(e) => e.preventDefault()}
         onCloseAutoFocus={(e) => e.preventDefault()}
       >
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-        <div className="flex-shrink-0 border-b p-2">
-          <Input
-            placeholder="Search by Code or Name..."
-            value={searchQuery}
-            onChange={(e) => {
-              const query = e.target.value;
-              setSearchQuery(query);
-              performSearch(query);
-            }}
-            className="h-8 text-sm"
-            autoFocus={false}
-          />
-        </div>
-        <div
-          ref={listRef}
-          className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto"
-        >
-          {isLoading && items.length === 0 ? (
-            <div className="flex items-center justify-center p-4">
-              <Loader2 className="h-4 w-4 animate-spin" />
-            </div>
-          ) : filteredItems.length === 0 ? (
-            <div className="text-muted-foreground p-4 text-center text-sm">
-              {searchQuery.length < MIN_SEARCH_LENGTH
-                ? `Type at least ${MIN_SEARCH_LENGTH} characters to search`
-                : "No sales persons found"}
-            </div>
-          ) : (
-            <>
-              {filteredItems.map((item) => (
-                <div
-                  key={item.Code}
-                  className={cn(
-                    "hover:bg-muted/50 relative flex cursor-default items-center rounded-sm px-2 py-2 text-sm outline-none select-none",
-                    value === item.Code && "bg-muted",
-                  )}
-                  onClick={() => {
-                    onChange(item.Code, item);
-                    setIsOpen(false);
-                  }}
-                >
-                  <CheckIcon
+          <div className="flex-shrink-0 border-b p-2">
+            <Input
+              placeholder="Search by Code or Name..."
+              value={searchQuery}
+              onChange={(e) => {
+                const query = e.target.value;
+                setSearchQuery(query);
+                performSearch(query);
+              }}
+              className="h-8 text-sm"
+              autoFocus={false}
+            />
+          </div>
+          <div
+            ref={listRef}
+            className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto"
+          >
+            {isLoading && items.length === 0 ? (
+              <div className="flex items-center justify-center p-4">
+                <Loader2 className="h-4 w-4 animate-spin" />
+              </div>
+            ) : filteredItems.length === 0 ? (
+              <div className="text-muted-foreground p-4 text-center text-sm">
+                {searchQuery.length < MIN_SEARCH_LENGTH
+                  ? `Type at least ${MIN_SEARCH_LENGTH} characters to search`
+                  : "No sales persons found"}
+              </div>
+            ) : (
+              <>
+                {filteredItems.map((item) => (
+                  <div
+                    key={item.Code}
                     className={cn(
-                      "mr-2 h-4 w-4 shrink-0",
-                      value === item.Code ? "opacity-100" : "opacity-0",
+                      "hover:bg-muted/50 relative flex cursor-default items-center rounded-sm px-2 py-2 text-sm outline-none select-none",
+                      value === item.Code && "bg-muted",
                     )}
-                  />
-                  <div className="min-w-0 flex-1">
-                    <div className="text-foreground font-medium break-words">
-                      {item.Code} - {item.Name}
+                    onClick={() => {
+                      onChange(item.Code, item);
+                      setIsOpen(false);
+                    }}
+                  >
+                    <CheckIcon
+                      className={cn(
+                        "mr-2 h-4 w-4 shrink-0",
+                        value === item.Code ? "opacity-100" : "opacity-0",
+                      )}
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="text-foreground font-medium break-words">
+                        {item.Code} - {item.Name}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
-              {isLoading && filteredItems.length > 0 && (
-                <div className="flex items-center justify-center p-2">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                </div>
-              )}
-            </>
-          )}
-        </div>
+                ))}
+                {isLoading && filteredItems.length > 0 && (
+                  <div className="flex items-center justify-center p-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  </div>
+                )}
+              </>
+            )}
+          </div>
         </div>
       </PopoverContent>
     </Popover>

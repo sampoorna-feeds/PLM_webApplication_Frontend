@@ -1,8 +1,6 @@
 /**
- * Purchase Order Form - Multi-Step Wizard
- * Step 1: Order Information
- * Step 2: Line Items
- * Step 3: Order Summary & Submission
+ * Purchase Order Form - Single Layout
+ * Header section is created first, then line items are managed below in the same form.
  *
  * PurchaseOrderFormContent: Shared form logic for both FormStack tab and full-page modes.
  * PurchaseOrderForm: FormStack tab wrapper (for form registry).
@@ -22,53 +20,165 @@ import {
 } from "@/components/ui/select";
 import { CascadingDimensionSelect } from "@/components/forms/cascading-dimension-select";
 import { VendorSelect, type PurchaseVendor } from "./vendor-select";
+import { BrokerSelect } from "./broker-select";
+import { OrderAddressSelect } from "./order-address-select";
 import { SalesPersonSelect } from "@/components/forms/sales/sales-person-select";
 import { useFormStack } from "@/lib/form-stack/use-form-stack";
-import { useFormStackContext } from "@/lib/form-stack/form-stack-context";
 import { getAuthCredentials } from "@/lib/auth/storage";
 import type { LineItem } from "@/components/forms/sales/line-item-form";
 import { LineItemsTable } from "@/components/forms/sales/line-items-table";
-import { Plus, ChevronLeft, ChevronRight } from "lucide-react";
+import { Plus, ChevronDownIcon, CheckIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ClearableField } from "@/components/ui/clearable-field";
 import { RequestFailedDialog } from "@/components/ui/request-failed-dialog";
+import { PurchaseOrderLineDialog } from "./purchase-order-line-dialog";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import {
   createPurchaseOrder,
   addPurchaseOrderLineItems,
   type PurchaseOrderData,
   type PurchaseOrderLineItem,
 } from "@/lib/api/services/purchase-order.service";
+import { getVendorDetails } from "@/lib/api/services/vendor.service";
+import {
+  purchaseDropdownsService,
+  type TermAndCondition,
+  type MandiMaster,
+  type PaymentTerm,
+} from "@/lib/api/services/purchase-dropdowns.service";
+
+const CREDITOR_TYPE_OPTIONS = [
+  "SOYA CREDITORS",
+  "OTHER GRAIN CREDITORS",
+  "MEDICINE CREDITORS",
+  "CAPEX CREDITORS",
+  "SERVICE CREDITORS",
+  "IMPORT CREDITORS",
+  "MISCELLANEOUS CREDITORS",
+  "Maize Creditors",
+  "BAJRA Creditors",
+  "Wheat Creditors",
+  "Mustard DOC Creditors",
+  "D.D.G.S Creditors",
+  "DEOILED RICE BRAN Creditors",
+  "Birds Creditor",
+  "Chicks Creditor",
+  "Gen Item",
+  "Hatching Egg Outside",
+  "Premix",
+  "Rice Bran Oil",
+  "Rice Bran Polish",
+  "Rice Kanni",
+  "Lime Stone Power",
+  "Gaur Meal",
+  "Chicken Waste Meal",
+  "P.P Bags",
+  "Other",
+  "ANIMAL FEED SUPLEMENT",
+].map((v) => ({ value: v, label: v }));
+
+/** Popover-based searchable select (mirrors VendorSelect / BrokerSelect pattern) */
+function SearchableSelect({
+  value,
+  onChange,
+  options,
+  placeholder = "Select",
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  options: { value: string; label: string }[];
+  placeholder?: string;
+}) {
+  const [open, setOpen] = React.useState(false);
+  const [search, setSearch] = React.useState("");
+
+  const filtered = search
+    ? options.filter((o) =>
+        o.label.toLowerCase().includes(search.toLowerCase()),
+      )
+    : options;
+
+  const selectedLabel = options.find((o) => o.value === value)?.label;
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          role="combobox"
+          className={cn(
+            "h-8 w-full justify-between text-sm font-normal",
+            !value && "text-muted-foreground",
+          )}
+        >
+          <span className="truncate">{selectedLabel || placeholder}</span>
+          <ChevronDownIcon className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent
+        className="flex max-h-(--radix-popover-content-available-height,80vh) min-h-0 w-(--radix-popover-trigger-width) min-w-55 flex-col overflow-hidden p-0"
+        align="start"
+        collisionPadding={8}
+        onOpenAutoFocus={(e) => e.preventDefault()}
+      >
+        <div className="border-b p-2">
+          <Input
+            placeholder="Search..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="h-8"
+            autoFocus
+          />
+        </div>
+        <div className="max-h-60 overflow-y-auto p-1">
+          {filtered.length === 0 && (
+            <p className="text-muted-foreground py-2 text-center text-sm">
+              No results found.
+            </p>
+          )}
+          {filtered.map((opt) => (
+            <button
+              key={opt.value}
+              type="button"
+              className={cn(
+                "hover:bg-accent hover:text-accent-foreground relative flex w-full cursor-default items-center rounded-sm py-1.5 pr-8 pl-2 text-sm outline-none select-none",
+                value === opt.value && "bg-accent text-accent-foreground",
+              )}
+              onClick={() => {
+                onChange(opt.value);
+                setOpen(false);
+                setSearch("");
+              }}
+            >
+              <span className="truncate">{opt.label}</span>
+              {value === opt.value && (
+                <span className="absolute right-2 flex h-4 w-4 items-center justify-center">
+                  <CheckIcon className="h-4 w-4" />
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
 
 export interface PurchaseOrderFormContentProps {
   /** Called when order is successfully placed */
   onSuccess: (orderNo: string) => void;
-  /** Open line-item add/edit tab (from FormStackContext.openTab) */
-  openLineItemTab: (params: {
-    title: string;
-    formData: Record<string, any>;
-    context: {
-      openedFromParent?: boolean;
-      onSave?: (item: LineItem) => void;
-      viewOnly?: boolean;
-      onEdit?: () => void;
-      switchToTabId?: string;
-    };
-    autoCloseOnSuccess: boolean;
-  }) => void;
-  /** Tab ID for FormStack context */
-  tabId: string;
-  /** Initial form data (for restore from line-item tab or page load) */
+  /** Initial form data (for restore on page load/tab reopen) */
   initialFormData?: Record<string, any>;
   /** Optional: persist form data (e.g. to FormStack tab). Omit for standalone page. */
   persistFormData?: (data: Record<string, any>) => void;
 }
 
-type Step = 1 | 2 | 3;
-
 export function PurchaseOrderFormContent({
   onSuccess,
-  openLineItemTab,
-  tabId,
   initialFormData = {},
   persistFormData,
 }: PurchaseOrderFormContentProps) {
@@ -81,13 +191,28 @@ export function PurchaseOrderFormContent({
     postingDate: "",
     documentDate: "",
     orderDate: "",
-    externalDocumentNo: "",
     vendorInvoiceNo: "",
-    status: "",
-    invoiceType: "Bill of supply",
+    invoiceType: "",
     lob: "",
     branch: "",
     loc: "",
+    // New fields
+    poType: "Goods",
+    serviceType: "",
+    vendorGstRegNo: "",
+    vendorPanNo: "",
+    brokerNo: "",
+    brokerName: "",
+    brokerageRate: "",
+    orderAddressCode: "",
+    rateBasis: "",
+    termCode: "",
+    mandiName: "",
+    paymentTermCode: "",
+    dueDateCalculation: "Posting Date",
+    creditorType: "",
+    qcType: "",
+    dueDate: "",
     ...initialFormData,
   });
 
@@ -95,15 +220,37 @@ export function PurchaseOrderFormContent({
   const [lineItems, setLineItems] = useState<LineItem[]>(
     Array.isArray(initialFormData?.lineItems) ? initialFormData.lineItems : [],
   );
+  const [createdOrderNo, setCreatedOrderNo] = useState<string>(
+    typeof initialFormData?.createdOrderNo === "string"
+      ? initialFormData.createdOrderNo
+      : "",
+  );
+  const [isLineDialogOpen, setIsLineDialogOpen] = useState(false);
+  const [selectedLineItem, setSelectedLineItem] = useState<LineItem | null>(
+    null,
+  );
+  const [isCreatingHeader, setIsCreatingHeader] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [placeOrderError, setPlaceOrderError] = useState<string | null>(null);
-  const [currentStep, setCurrentStep] = useState<Step>(
-    (typeof initialFormData?.currentStep === "number" &&
-    initialFormData.currentStep >= 1 &&
-    initialFormData.currentStep <= 3
-      ? initialFormData.currentStep
-      : 1) as Step,
-  );
+
+  const [termList, setTermList] = useState<TermAndCondition[]>([]);
+  const [mandiList, setMandiList] = useState<MandiMaster[]>([]);
+  const [paymentTermList, setPaymentTermList] = useState<PaymentTerm[]>([]);
+
+  useEffect(() => {
+    purchaseDropdownsService
+      .getTermsAndConditions()
+      .then(setTermList)
+      .catch((err) => console.error("Error fetching terms:", err));
+    purchaseDropdownsService
+      .getMandiMasters()
+      .then(setMandiList)
+      .catch((err) => console.error("Error fetching mandis:", err));
+    purchaseDropdownsService
+      .getPaymentTerms()
+      .then(setPaymentTermList)
+      .catch((err) => console.error("Error fetching payment terms:", err));
+  }, []);
 
   const persist = (data: Record<string, any>) => {
     if (persistFormData) persistFormData(data);
@@ -130,7 +277,7 @@ export function PurchaseOrderFormContent({
     });
   }, []);
 
-  // Initialize form data from props (and restore step + line items when returning from line-item tab)
+  // Initialize form data from props and restore persisted header/line state.
   useEffect(() => {
     if (initialFormData && Object.keys(initialFormData).length > 0) {
       const today = new Date().toISOString().split("T")[0];
@@ -144,13 +291,12 @@ export function PurchaseOrderFormContent({
       if (Array.isArray(initialFormData.lineItems)) {
         setLineItems(initialFormData.lineItems);
       }
-      if (
-        typeof initialFormData.currentStep === "number" &&
-        initialFormData.currentStep >= 1 &&
-        initialFormData.currentStep <= 3
-      ) {
-        setCurrentStep(initialFormData.currentStep as Step);
-      }
+
+      const restoredOrderNo =
+        typeof initialFormData.createdOrderNo === "string"
+          ? initialFormData.createdOrderNo
+          : "";
+      setCreatedOrderNo(restoredOrderNo);
     }
   }, [initialFormData]);
 
@@ -170,18 +316,36 @@ export function PurchaseOrderFormContent({
     setFormData(newData);
   };
 
-  // Vendor change handler
-  const handleVendorChange = (vendorNo: string, vendor?: PurchaseVendor) => {
+  // Vendor change handler — also fetches GST / PAN and resets order address
+  const handleVendorChange = async (
+    vendorNo: string,
+    vendor?: PurchaseVendor,
+  ) => {
     const newData = {
       ...formData,
       vendorNo,
       vendorName: vendor?.Name || "",
       locationCode: "",
+      vendorGstRegNo: "",
+      vendorPanNo: "",
+      orderAddressCode: "",
     };
     setFormData(newData);
+
+    // Fetch vendor details (GST, PAN)
+    if (vendorNo) {
+      const details = await getVendorDetails(vendorNo);
+      if (details) {
+        setFormData((prev) => ({
+          ...prev,
+          vendorGstRegNo: details.GST_Registration_No || "",
+          vendorPanNo: details.P_A_N_No || "",
+        }));
+      }
+    }
   };
 
-  // Step 1 validation - all key fields mandatory except External Document No. and Vendor Invoice No. (optional).
+  // Step 1 validation - all key fields mandatory except External Document No. and Vendor Invoice No. (optional). Invoice Type is now optional.
   const isStep1Valid = (): boolean => {
     return !!(
       formData.lob &&
@@ -193,97 +357,120 @@ export function PurchaseOrderFormContent({
       formData.postingDate &&
       formData.documentDate &&
       formData.orderDate &&
-      formData.invoiceType
+      formData.poType
     );
   };
 
-  // Step navigation
-  const canGoToStep = (step: Step): boolean => {
-    if (step === 1) return true;
-    if (step === 2) {
-      return isStep1Valid();
+  const buildOrderData = (): PurchaseOrderData => ({
+    vendorNo: formData.vendorNo,
+    vendorName: formData.vendorName,
+    purchasePersonCode: formData.purchasePersonCode,
+    locationCode: formData.locationCode || formData.loc,
+    postingDate: formData.postingDate,
+    documentDate: formData.documentDate,
+    orderDate: formData.orderDate,
+    vendorInvoiceNo: formData.vendorInvoiceNo,
+    invoiceType: formData.invoiceType,
+    lob: formData.lob,
+    branch: formData.branch,
+    loc: formData.loc,
+    poType: formData.poType,
+    serviceType: formData.serviceType,
+    vendorGstRegNo: formData.vendorGstRegNo,
+    vendorPanNo: formData.vendorPanNo,
+    brokerNo: formData.brokerNo,
+    brokerName: formData.brokerName,
+    brokerageRate: formData.brokerageRate,
+    orderAddressCode: formData.orderAddressCode,
+    rateBasis: formData.rateBasis,
+    termCode: formData.termCode,
+    mandiName: formData.mandiName,
+    paymentTermCode: formData.paymentTermCode,
+    dueDateCalculation: formData.dueDateCalculation,
+    creditorType: formData.creditorType,
+    qcType: formData.qcType === "_none" ? "" : formData.qcType,
+    dueDate: formData.dueDate,
+  });
+
+  const handleCreateOrderHeader = async () => {
+    if (!isStep1Valid()) {
+      return;
     }
-    if (step === 3) {
-      return !!(
-        formData.vendorNo &&
-        lineItems.length > 0 &&
-        formData.postingDate &&
-        formData.documentDate &&
-        formData.orderDate
+
+    setIsCreatingHeader(true);
+    try {
+      const orderResponse = await createPurchaseOrder(buildOrderData());
+      const orderNo = orderResponse.orderNo || orderResponse.orderId;
+
+      if (!orderNo) {
+        throw new Error("Failed to create order: No order number returned");
+      }
+
+      setCreatedOrderNo(orderNo);
+      persist({
+        ...formData,
+        lineItems,
+        createdOrderNo: orderNo,
+      });
+    } catch (error) {
+      console.error(
+        "Error creating purchase order header:",
+        JSON.stringify(error, null, 2),
       );
-    }
-    return false;
-  };
-
-  const handleNext = () => {
-    const nextStep = (currentStep + 1) as Step;
-    if (currentStep < 3 && canGoToStep(nextStep)) {
-      setCurrentStep(nextStep);
-      persist({ ...formData, currentStep: nextStep, lineItems });
-    }
-  };
-
-  const handlePrevious = () => {
-    if (currentStep > 1) {
-      const prevStep = (currentStep - 1) as Step;
-      setCurrentStep(prevStep);
-      persist({ ...formData, currentStep: prevStep, lineItems });
-    }
-  };
-
-  const handleStepClick = (step: Step) => {
-    if (canGoToStep(step)) {
-      setCurrentStep(step);
-      persist({ ...formData, currentStep: step, lineItems });
+      const errObj = error as Record<string, unknown>;
+      const message =
+        errObj && typeof errObj.message === "string"
+          ? typeof errObj.details === "string"
+            ? `${errObj.message}\n${errObj.details}`
+            : errObj.message
+          : error instanceof Error
+            ? error.message
+            : "Failed to create purchase order header. Please try again.";
+      setPlaceOrderError(message);
+    } finally {
+      setIsCreatingHeader(false);
     }
   };
 
   // Line Items management
   const handleAddLineItem = () => {
-    openLineItemTab({
-      title: "Add Line Item",
-      formData: {
-        locationCode: formData.locationCode || formData.loc || "",
-      },
-      context: {
-        openedFromParent: true,
-        switchToTabId: tabId,
-        onSave: (lineItem: LineItem) => {
-          const updated = [...lineItems, lineItem];
-          setLineItems(updated);
-          persist({ ...formData, lineItems: updated, currentStep: 2 });
-        },
-      },
-      autoCloseOnSuccess: true,
-    });
+    if (!createdOrderNo) {
+      setPlaceOrderError(
+        "Create the purchase order header first, then add line items.",
+      );
+      return;
+    }
+
+    setSelectedLineItem(null);
+    setIsLineDialogOpen(true);
   };
 
   const handleEditLineItem = (lineItem: LineItem) => {
-    openLineItemTab({
-      title: "Edit Line Item",
-      formData: {
-        lineItem,
-        locationCode: formData.locationCode || formData.loc || "",
-      },
-      context: {
-        openedFromParent: true,
-        switchToTabId: tabId,
-        onSave: (updatedLineItem: LineItem) => {
-          const updated = lineItems.map((item) =>
-            item.id === lineItem.id ? updatedLineItem : item,
-          );
-          setLineItems(updated);
-          persist({ ...formData, lineItems: updated, currentStep: 2 });
-        },
-      },
-      autoCloseOnSuccess: true,
+    setSelectedLineItem(lineItem);
+    setIsLineDialogOpen(true);
+  };
+
+  const handleLineItemSave = (lineItem: LineItem) => {
+    const updated = selectedLineItem
+      ? lineItems.map((item) =>
+          item.id === selectedLineItem.id ? lineItem : item,
+        )
+      : [...lineItems, lineItem];
+
+    setLineItems(updated);
+    setSelectedLineItem(null);
+    setIsLineDialogOpen(false);
+    persist({
+      ...formData,
+      lineItems: updated,
+      createdOrderNo,
     });
   };
 
   const handleRemoveLineItem = (lineItemId: string) => {
     const updated = lineItems.filter((item) => item.id !== lineItemId);
     setLineItems(updated);
-    persist({ ...formData, lineItems: updated, currentStep });
+    persist({ ...formData, lineItems: updated, createdOrderNo });
   };
 
   const handleUpdateLineItem = (lineItem: LineItem) => {
@@ -291,71 +478,62 @@ export function PurchaseOrderFormContent({
       item.id === lineItem.id ? lineItem : item,
     );
     setLineItems(updated);
-    persist({ ...formData, lineItems: updated, currentStep });
+    persist({ ...formData, lineItems: updated, createdOrderNo });
   };
 
-  // Final submission
+  // Final submission (line-item creation after header creation)
   const handlePlaceOrder = async () => {
-    if (!canGoToStep(3)) {
+    if (!createdOrderNo) {
+      setPlaceOrderError(
+        "Create the purchase order header before submitting line items.",
+      );
+      return;
+    }
+
+    if (lineItems.length === 0) {
+      setPlaceOrderError("Add at least one line item before completing order.");
       return;
     }
 
     setIsSubmitting(true);
     try {
-      const orderData: PurchaseOrderData = {
-        vendorNo: formData.vendorNo,
-        vendorName: formData.vendorName,
-        purchasePersonCode: formData.purchasePersonCode,
-        locationCode: formData.locationCode || formData.loc,
-        postingDate: formData.postingDate,
-        documentDate: formData.documentDate,
-        orderDate: formData.orderDate,
-        externalDocumentNo: formData.externalDocumentNo,
-        invoiceType: formData.invoiceType,
-        lob: formData.lob,
-        branch: formData.branch,
-        loc: formData.loc,
-      };
-
-      const orderResponse = await createPurchaseOrder(orderData);
-      const orderId = orderResponse.orderId ?? orderResponse.orderNo;
-
-      if (!orderId) {
-        throw new Error("Failed to create order: No order number returned");
-      }
-
       const lineItemsData: PurchaseOrderLineItem[] = lineItems.map((item) => ({
         type: item.type,
         no: item.no,
         description: item.description,
         uom: item.uom,
         quantity: item.quantity,
-        mrp: item.mrp,
         price: item.price,
         unitPrice: item.unitPrice,
-        totalMRP: item.totalMRP,
         discount: item.discount,
         amount: item.amount,
         exempted: item.exempted,
         gstGroupCode: item.gstGroupCode,
         hsnSacCode: item.hsnSacCode,
-        tcsGroupCode: item.tcsGroupCode,
+        tdsGroupCode: item.tdsGroupCode,
       }));
 
       const locationCode = formData.locationCode || formData.loc || "";
-      await addPurchaseOrderLineItems(orderId, lineItemsData, locationCode);
-      onSuccess(orderResponse.orderNo || orderId);
+      await addPurchaseOrderLineItems(
+        createdOrderNo,
+        lineItemsData,
+        locationCode,
+      );
+      onSuccess(createdOrderNo);
     } catch (error) {
-      console.error("Error placing purchase order:", error);
+      console.error(
+        "Error submitting purchase order lines:",
+        JSON.stringify(error, null, 2),
+      );
+      const errObj = error as Record<string, unknown>;
       const message =
-        error &&
-        typeof error === "object" &&
-        "message" in error &&
-        typeof (error as { message: unknown }).message === "string"
-          ? (error as { message: string }).message
+        errObj && typeof errObj.message === "string"
+          ? typeof errObj.details === "string"
+            ? `${errObj.message}\n${errObj.details}`
+            : errObj.message
           : error instanceof Error
             ? error.message
-            : "Failed to place order. Please try again.";
+            : "Failed to submit line items. Please try again.";
       setPlaceOrderError(message);
     } finally {
       setIsSubmitting(false);
@@ -367,307 +545,504 @@ export function PurchaseOrderFormContent({
   const labelClass = "text-muted-foreground block text-xs font-medium";
   const renderStep1 = () => (
     <div className="space-y-4">
-      {/* Top: LOB | Branch | LOC | Invoice Type */}
-      <div className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 lg:grid-cols-4">
-        <div className={fieldClass}>
-          <label className={labelClass}>LOB</label>
-          <ClearableField
-            value={formData.lob}
-            onClear={() => handleInputChange("lob", "")}
-          >
-            <CascadingDimensionSelect
-              dimensionType="LOB"
-              value={formData.lob}
-              onChange={(value) => handleInputChange("lob", value)}
-              placeholder="Select LOB"
-              userId={userId}
-              compactWhenSingle
-            />
-          </ClearableField>
+      {createdOrderNo && (
+        <div className="bg-primary/5 text-primary rounded-md border px-3 py-2 text-xs font-medium">
+          Purchase order header created: {createdOrderNo}. Continue to Line
+          Items.
         </div>
-        <div className={fieldClass}>
-          <label className={labelClass}>Branch</label>
-          <ClearableField
-            value={formData.branch}
-            onClear={() => handleInputChange("branch", "")}
-          >
-            <CascadingDimensionSelect
-              dimensionType="BRANCH"
-              value={formData.branch}
-              onChange={(value) => handleInputChange("branch", value)}
-              placeholder="Select Branch"
-              lobValue={formData.lob}
-              userId={userId}
-              compactWhenSingle
-            />
-          </ClearableField>
-        </div>
-        <div className={fieldClass}>
-          <label className={labelClass}>LOC</label>
-          <ClearableField
-            value={formData.loc}
-            onClear={() => handleInputChange("loc", "")}
-          >
-            <CascadingDimensionSelect
-              dimensionType="LOC"
-              value={formData.loc}
-              onChange={(value) => handleInputChange("loc", value)}
-              placeholder="Select LOC"
-              lobValue={formData.lob}
-              branchValue={formData.branch}
-              userId={userId}
-              compactWhenSingle
-            />
-          </ClearableField>
-        </div>
-        <div className={fieldClass}>
-          <label className={labelClass}>Invoice Type</label>
-          <ClearableField
-            value={formData.invoiceType}
-            onClear={() => handleInputChange("invoiceType", "Bill of supply")}
-          >
-            <Select
-              value={formData.invoiceType}
-              onValueChange={(value) => handleInputChange("invoiceType", value)}
-            >
-              <SelectTrigger className="h-9">
-                <SelectValue placeholder="Select" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Bill of supply">Bill of supply</SelectItem>
-                <SelectItem value="Export">Export</SelectItem>
-                <SelectItem value="Supplementary">Supplementary</SelectItem>
-                <SelectItem value="Debit Note">Debit Note</SelectItem>
-                <SelectItem value="Non-GST">Non-GST</SelectItem>
-                <SelectItem value="Taxable">Taxable</SelectItem>
-              </SelectContent>
-            </Select>
-          </ClearableField>
-        </div>
-      </div>
-      {/* Vendor | Location | Purchaser */}
-      <div className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 lg:grid-cols-3">
-        <div className={fieldClass}>
-          <label className={labelClass}>Vendor</label>
-          <ClearableField
-            value={formData.vendorNo}
-            onClear={() => handleVendorChange("", undefined)}
-          >
-            <VendorSelect
-              value={formData.vendorNo}
-              onChange={handleVendorChange}
-              placeholder="Select"
-            />
-          </ClearableField>
-          {formData.vendorName && (
-            <p className="mt-1 pl-1 text-[10px] font-medium text-green-600">
-              {formData.vendorName}
-            </p>
-          )}
-        </div>
-        <div className={fieldClass}>
-          <label className={labelClass}>Location</label>
-          <Input
-            value={formData.locationCode || formData.loc || ""}
-            disabled
-            className="bg-muted h-8"
-            readOnly
-          />
-        </div>
-        <div className={fieldClass}>
-          <label className={labelClass}>Purchaser</label>
-          <ClearableField
-            value={formData.purchasePersonCode}
-            onClear={() =>
-              setFormData((prev) => ({
-                ...prev,
-                purchasePersonCode: "",
-                purchasePersonName: "",
-              }))
-            }
-          >
-            <SalesPersonSelect
-              value={formData.purchasePersonCode}
-              onChange={(value, salesPerson) =>
-                setFormData((prev) => ({
-                  ...prev,
-                  purchasePersonCode: value,
-                  purchasePersonName: salesPerson?.Name || "",
-                }))
-              }
-              placeholder="Select"
-            />
-          </ClearableField>
-          {formData.purchasePersonName && (
-            <p className="mt-1 pl-1 text-[10px] font-medium text-green-600">
-              {formData.purchasePersonName}
-            </p>
-          )}
-        </div>
-      </div>
-      {/* Dates */}
-      <div className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2">
-        <div className={fieldClass}>
-          <label className={labelClass}>Posting Date</label>
-          <ClearableField
-            value={formData.postingDate}
-            onClear={() => handleInputChange("postingDate", "")}
-          >
-            <Input
-              type="date"
-              value={formData.postingDate}
-              onChange={(e) => handleInputChange("postingDate", e.target.value)}
-              className="h-8"
-              onFocus={(e) => e.stopPropagation()}
-            />
-          </ClearableField>
-        </div>
-        <div className={fieldClass}>
-          <label className={labelClass}>Document Date</label>
-          <ClearableField
-            value={formData.documentDate}
-            onClear={() => handleInputChange("documentDate", "")}
-          >
-            <Input
-              type="date"
-              value={formData.documentDate}
-              onChange={(e) =>
-                handleInputChange("documentDate", e.target.value)
-              }
-              className="h-8"
-              onFocus={(e) => e.stopPropagation()}
-            />
-          </ClearableField>
-        </div>
-        <div className={fieldClass}>
-          <label className={labelClass}>Order Date</label>
-          <Input
-            type="date"
-            value={formData.orderDate}
-            onChange={(e) => handleInputChange("orderDate", e.target.value)}
-            disabled
-            className="bg-muted h-8"
-          />
-        </div>
-        <div className={fieldClass}>
-          <label className={labelClass}>External Doc No.</label>
-          <ClearableField
-            value={formData.externalDocumentNo}
-            onClear={() => handleInputChange("externalDocumentNo", "")}
-          >
-            <Input
-              value={formData.externalDocumentNo}
-              onChange={(e) =>
-                handleInputChange("externalDocumentNo", e.target.value)
-              }
-              placeholder="Optional"
-              className="h-8"
-              onFocus={(e) => e.stopPropagation()}
-            />
-          </ClearableField>
-        </div>
-      </div>
-    </div>
-  );
+      )}
 
-  // Step 2: Line Items
-  const renderStep2 = () => (
-    <div className="space-y-3">
-      <div className="flex justify-end">
-        <Button onClick={handleAddLineItem} size="sm" className="h-8">
-          <Plus className="mr-1.5 h-3.5 w-3.5" />
-          Add Item
-        </Button>
-      </div>
-      <LineItemsTable
-        lineItems={lineItems}
-        onEdit={handleEditLineItem}
-        onRemove={handleRemoveLineItem}
-        onUpdate={handleUpdateLineItem}
-        editable={true}
-        showRowActions
-      />
-    </div>
-  );
-
-  // Step 3: Order Summary
-  const renderStep3 = () => {
-    const totalAmount = lineItems.reduce((sum, item) => sum + item.amount, 0);
-    return (
-      <div className="space-y-4">
-        <div className="bg-muted/30 rounded-lg p-3">
-          <div className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
-            <div>
-              <span className="text-muted-foreground block text-xs">
-                Vendor
-              </span>
-              <span className="font-medium">
-                {formData.vendorName || formData.vendorNo}
-              </span>
+      <div
+        className={cn(
+          "space-y-6",
+          createdOrderNo && "pointer-events-none opacity-70",
+        )}
+      >
+        {/* 1. Order Details */}
+        <section className="space-y-3">
+          <h3 className="border-b pb-1 text-sm font-semibold">Order Details</h3>
+          <div className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div className={fieldClass}>
+              <label className={labelClass}>PO Type</label>
+              <Select
+                value={formData.poType}
+                onValueChange={(value) => handleInputChange("poType", value)}
+              >
+                <SelectTrigger className="h-8 text-sm">
+                  <SelectValue placeholder="Select" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Goods">Goods</SelectItem>
+                  <SelectItem value="Service">Service</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-            <div>
-              <span className="text-muted-foreground block text-xs">
-                Order Date
-              </span>
-              <span className="font-medium">{formData.orderDate}</span>
-            </div>
-            <div>
-              <span className="text-muted-foreground block text-xs">
-                Posting Date
-              </span>
-              <span className="font-medium">{formData.postingDate}</span>
-            </div>
-            <div>
-              <span className="text-muted-foreground block text-xs">
-                Document Date
-              </span>
-              <span className="font-medium">{formData.documentDate}</span>
-            </div>
-            {formData.invoiceType && (
-              <div>
-                <span className="text-muted-foreground block text-xs">
-                  Invoice Type
-                </span>
-                <span className="font-medium">{formData.invoiceType}</span>
+            {formData.poType === "Service" && (
+              <div className={fieldClass}>
+                <label className={labelClass}>Service Type</label>
+                <ClearableField
+                  value={formData.serviceType}
+                  onClear={() => handleInputChange("serviceType", "")}
+                >
+                  <Select
+                    value={formData.serviceType || ""}
+                    onValueChange={(value) =>
+                      handleInputChange(
+                        "serviceType",
+                        value === "none" ? "" : value,
+                      )
+                    }
+                  >
+                    <SelectTrigger className="h-8 text-sm">
+                      <SelectValue placeholder="Select" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">None</SelectItem>
+                      <SelectItem value="Logistics">Logistics</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </ClearableField>
               </div>
             )}
+            <div className={fieldClass}>
+              <label className={labelClass}>Invoice Type</label>
+              <ClearableField
+                value={formData.invoiceType}
+                onClear={() => handleInputChange("invoiceType", "")}
+              >
+                <Select
+                  value={formData.invoiceType || ""}
+                  onValueChange={(value) =>
+                    handleInputChange("invoiceType", value)
+                  }
+                >
+                  <SelectTrigger className="h-8 text-sm">
+                    <SelectValue placeholder="Select / None" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Bill of supply">
+                      Bill of supply
+                    </SelectItem>
+                    <SelectItem value="Export">Export</SelectItem>
+                    <SelectItem value="Supplementary">Supplementary</SelectItem>
+                    <SelectItem value="Debit Note">Debit Note</SelectItem>
+                    <SelectItem value="Non-GST">Non-GST</SelectItem>
+                    <SelectItem value="Taxable">Taxable</SelectItem>
+                  </SelectContent>
+                </Select>
+              </ClearableField>
+            </div>
+            <div className={fieldClass}>
+              <label className={labelClass}>Purchaser Code</label>
+              <ClearableField
+                value={formData.purchasePersonCode}
+                onClear={() => handleInputChange("purchasePersonCode", "")}
+              >
+                <SalesPersonSelect
+                  value={formData.purchasePersonCode || ""}
+                  onChange={(val, sp) => {
+                    setFormData((prev) => ({
+                      ...prev,
+                      purchasePersonCode: val,
+                      purchasePersonName: sp?.Name || "",
+                    }));
+                  }}
+                  placeholder="Select Purchaser"
+                />
+              </ClearableField>
+              {formData.purchasePersonName && (
+                <p className="mt-1 truncate pl-1 text-[10px] font-medium text-green-600">
+                  {formData.purchasePersonName}
+                </p>
+              )}
+            </div>
           </div>
-        </div>
+        </section>
 
-        <div>
-          <div className="mb-2 flex justify-end">
-            <Button
-              onClick={handleAddLineItem}
-              size="sm"
-              variant="outline"
-              className="h-8"
+        {/* 2. Dimensions */}
+        <section className="space-y-3">
+          <h3 className="border-b pb-1 text-sm font-semibold">Dimensions</h3>
+          <div className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div className={fieldClass}>
+              <label className={labelClass}>LOB</label>
+              <ClearableField
+                value={formData.lob}
+                onClear={() => handleInputChange("lob", "")}
+              >
+                <CascadingDimensionSelect
+                  dimensionType="LOB"
+                  value={formData.lob}
+                  onChange={(value) => handleInputChange("lob", value)}
+                  placeholder="Select LOB"
+                  userId={userId}
+                  compactWhenSingle
+                />
+              </ClearableField>
+            </div>
+            <div className={fieldClass}>
+              <label className={labelClass}>Branch</label>
+              <ClearableField
+                value={formData.branch}
+                onClear={() => handleInputChange("branch", "")}
+              >
+                <CascadingDimensionSelect
+                  dimensionType="BRANCH"
+                  value={formData.branch}
+                  onChange={(value) => handleInputChange("branch", value)}
+                  placeholder="Select Branch"
+                  lobValue={formData.lob}
+                  userId={userId}
+                  compactWhenSingle
+                />
+              </ClearableField>
+            </div>
+            <div className={fieldClass}>
+              <label className={labelClass}>LOC</label>
+              <ClearableField
+                value={formData.loc}
+                onClear={() => handleInputChange("loc", "")}
+              >
+                <CascadingDimensionSelect
+                  dimensionType="LOC"
+                  value={formData.loc}
+                  onChange={(value) => handleInputChange("loc", value)}
+                  placeholder="Select LOC"
+                  lobValue={formData.lob}
+                  branchValue={formData.branch}
+                  userId={userId}
+                  compactWhenSingle
+                />
+              </ClearableField>
+            </div>
+            <div className={fieldClass}>
+              <label className={labelClass}>Location</label>
+              <Input
+                value={formData.locationCode || formData.loc || ""}
+                disabled
+                className="bg-muted h-8"
+                readOnly
+              />
+              {/* Show Location Name if we have one. We don't have location name in the form data by default, 
+                but we can show loc name if LOC dimension returns it, 
+                or we can just show the code for now if name is not fetched */}
+              {formData.locationCode && (
+                <p className="text-muted-foreground mt-0.5 overflow-hidden pl-1 text-[10px] text-ellipsis whitespace-nowrap">
+                  {formData.locationCode} Location
+                </p>
+              )}
+            </div>
+          </div>
+        </section>
+
+        {/* 3. Vendor & Broker */}
+        <section className="space-y-3">
+          <h3 className="border-b pb-1 text-sm font-semibold">
+            Vendor & Broker
+          </h3>
+          <div className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 lg:grid-cols-3">
+            <div className={fieldClass}>
+              <label className={labelClass}>Vendor</label>
+              <ClearableField
+                value={formData.vendorNo}
+                onClear={() => handleVendorChange("", undefined)}
+              >
+                <VendorSelect
+                  value={formData.vendorNo}
+                  onChange={handleVendorChange}
+                  placeholder="Select Vendor"
+                />
+              </ClearableField>
+              {formData.vendorName && (
+                <p className="mt-1 truncate pl-1 text-[10px] font-medium text-green-600">
+                  {formData.vendorName}
+                </p>
+              )}
+            </div>
+            <div className={fieldClass}>
+              <label className={labelClass}>Vendor GST Reg No.</label>
+              <Input
+                value={formData.vendorGstRegNo}
+                disabled
+                className="bg-muted h-8"
+                placeholder="Auto-filled"
+                readOnly
+              />
+            </div>
+            <div className={fieldClass}>
+              <label className={labelClass}>Vendor PAN No.</label>
+              <Input
+                value={formData.vendorPanNo}
+                disabled
+                className="bg-muted h-8"
+                placeholder="Auto-filled"
+                readOnly
+              />
+            </div>
+            <div className={fieldClass}>
+              <label className={labelClass}>Vendor Invoice No.</label>
+              <ClearableField
+                value={formData.vendorInvoiceNo}
+                onClear={() => handleInputChange("vendorInvoiceNo", "")}
+              >
+                <Input
+                  value={formData.vendorInvoiceNo}
+                  onChange={(e) =>
+                    handleInputChange("vendorInvoiceNo", e.target.value)
+                  }
+                  placeholder="Optional"
+                  className="h-8"
+                />
+              </ClearableField>
+            </div>
+
+            <div className={fieldClass}>
+              <label className={labelClass}>Brokerage Code</label>
+              <ClearableField
+                value={formData.brokerNo}
+                onClear={() =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    brokerNo: "",
+                    brokerName: "",
+                  }))
+                }
+              >
+                <BrokerSelect
+                  value={formData.brokerNo}
+                  onChange={(code, broker) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      brokerNo: code,
+                      brokerName: broker?.Name || "",
+                    }))
+                  }
+                />
+              </ClearableField>
+              {formData.brokerName && (
+                <p className="mt-1 truncate pl-1 text-[10px] font-medium text-green-600">
+                  {formData.brokerName}
+                </p>
+              )}
+            </div>
+            <div className={fieldClass}>
+              <label className={labelClass}>Brokerage Rate</label>
+              <ClearableField
+                value={formData.brokerageRate}
+                onClear={() => handleInputChange("brokerageRate", "")}
+              >
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={formData.brokerageRate}
+                  onChange={(e) =>
+                    handleInputChange("brokerageRate", e.target.value)
+                  }
+                  className="h-8"
+                  placeholder="0.00"
+                />
+              </ClearableField>
+            </div>
+          </div>
+        </section>
+
+        {/* 4. Order Address */}
+        <section className="space-y-3">
+          <h3 className="border-b pb-1 text-sm font-semibold">Order Address</h3>
+          <div className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 lg:grid-cols-3">
+            <div
+              className={`${fieldClass} col-span-1 max-w-md sm:col-span-2 lg:col-span-3`}
             >
-              <Plus className="mr-1.5 h-3.5 w-3.5" />
-              Add Item
-            </Button>
+              <label className={labelClass}>Order Address Select</label>
+              <OrderAddressSelect
+                vendorNo={formData.vendorNo}
+                value={formData.orderAddressCode}
+                onChange={(code, addr) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    orderAddressCode: code,
+                    orderAddressName: addr?.Name || "",
+                  }))
+                }
+                disabled={!formData.vendorNo}
+              />
+            </div>
           </div>
-          <LineItemsTable
-            lineItems={lineItems}
-            onEdit={handleEditLineItem}
-            onRemove={handleRemoveLineItem}
-            onUpdate={handleUpdateLineItem}
-            editable={true}
-            showRowActions
-          />
-        </div>
+        </section>
 
-        {/* Total */}
-        <div className="bg-muted/20 flex justify-end rounded-lg border px-3 py-2">
-          <div className="flex items-baseline gap-2">
-            <span className="text-muted-foreground text-sm">Total Amount</span>
-            <span className="text-base font-semibold">
-              {totalAmount.toFixed(2)}
-            </span>
+        {/* 5. Dates */}
+        <section className="space-y-3">
+          <h3 className="border-b pb-1 text-sm font-semibold">Dates</h3>
+          <div className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div className={fieldClass}>
+              <label className={labelClass}>Posting Date</label>
+              <ClearableField
+                value={formData.postingDate}
+                onClear={() => handleInputChange("postingDate", "")}
+              >
+                <Input
+                  type="date"
+                  value={formData.postingDate}
+                  onChange={(e) =>
+                    handleInputChange("postingDate", e.target.value)
+                  }
+                  className="h-8"
+                />
+              </ClearableField>
+            </div>
+            <div className={fieldClass}>
+              <label className={labelClass}>Document Date</label>
+              <ClearableField
+                value={formData.documentDate}
+                onClear={() => handleInputChange("documentDate", "")}
+              >
+                <Input
+                  type="date"
+                  value={formData.documentDate}
+                  onChange={(e) =>
+                    handleInputChange("documentDate", e.target.value)
+                  }
+                  className="h-8"
+                />
+              </ClearableField>
+            </div>
+            <div className={fieldClass}>
+              <label className={labelClass}>Order Date</label>
+              <Input
+                type="date"
+                value={formData.orderDate}
+                onChange={(e) => handleInputChange("orderDate", e.target.value)}
+                disabled
+                className="bg-muted h-8"
+              />
+            </div>
+            <div className={fieldClass}>
+              <label className={labelClass}>Due Date</label>
+              <ClearableField
+                value={formData.dueDate}
+                onClear={() => handleInputChange("dueDate", "")}
+              >
+                <Input
+                  type="date"
+                  value={formData.dueDate}
+                  onChange={(e) => handleInputChange("dueDate", e.target.value)}
+                  className="h-8"
+                />
+              </ClearableField>
+            </div>
           </div>
-        </div>
+        </section>
+
+        {/* 6. Additional Configurations */}
+        <section className="space-y-3">
+          <h3 className="border-b pb-1 text-sm font-semibold">
+            Additional Configuration
+          </h3>
+          <div className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div className={fieldClass}>
+              <label className={labelClass}>Rate Basis</label>
+              <Select
+                value={formData.rateBasis}
+                onValueChange={(value) => handleInputChange("rateBasis", value)}
+              >
+                <SelectTrigger className="h-8 text-sm">
+                  <SelectValue placeholder="Select" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="EX">EX</SelectItem>
+                  <SelectItem value="FOR">FOR</SelectItem>
+                  <SelectItem value="CIF">CIF</SelectItem>
+                  <SelectItem value="FOB">FOB</SelectItem>
+                  <SelectItem value="N/A">N/A</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className={fieldClass}>
+              <label className={labelClass}>Due Date Calculation</label>
+              <Select
+                value={formData.dueDateCalculation}
+                onValueChange={(value) =>
+                  handleInputChange("dueDateCalculation", value)
+                }
+              >
+                <SelectTrigger className="h-8 text-sm">
+                  <SelectValue placeholder="Select" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Posting Date">Posting Date</SelectItem>
+                  <SelectItem value="Document Date">Document Date</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className={fieldClass}>
+              <label className={labelClass}>Creditor Type</label>
+              <SearchableSelect
+                value={formData.creditorType}
+                onChange={(value) => handleInputChange("creditorType", value)}
+                options={CREDITOR_TYPE_OPTIONS}
+                placeholder="Select creditor type"
+              />
+            </div>
+            <div className={fieldClass}>
+              <label className={labelClass}>QC Type</label>
+              <Select
+                value={formData.qcType}
+                onValueChange={(value) => handleInputChange("qcType", value)}
+              >
+                <SelectTrigger className="h-8 text-sm">
+                  <SelectValue placeholder="Select" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="_none">None</SelectItem>
+                  <SelectItem value="Ex Passing">Ex Passing</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className={fieldClass}>
+              <label className={labelClass}>Term Code</label>
+              <SearchableSelect
+                value={formData.termCode}
+                onChange={(value) => handleInputChange("termCode", value)}
+                options={termList.map((t) => ({
+                  value: t.Terms,
+                  label: `${t.Terms} - ${t.Conditions}`,
+                }))}
+                placeholder="Select term code"
+              />
+            </div>
+            <div className={fieldClass}>
+              <label className={labelClass}>Mandi Name</label>
+              <SearchableSelect
+                value={formData.mandiName}
+                onChange={(value) => handleInputChange("mandiName", value)}
+                options={mandiList.map((m) => ({
+                  value: m.Code,
+                  label: `${m.Code} - ${m.Description}`,
+                }))}
+                placeholder="Select mandi name"
+              />
+            </div>
+            <div className={fieldClass}>
+              <label className={labelClass}>Payment Term Code</label>
+              <SearchableSelect
+                value={formData.paymentTermCode}
+                onChange={(value) =>
+                  handleInputChange("paymentTermCode", value)
+                }
+                options={paymentTermList.map((p) => ({
+                  value: p.Code,
+                  label: `${p.Code} - ${p.Description}`,
+                }))}
+                placeholder="Select payment term"
+              />
+            </div>
+          </div>
+        </section>
       </div>
-    );
-  };
+    </div>
+  );
+
+  const totalAmount = lineItems.reduce((sum, item) => sum + item.amount, 0);
 
   return (
     <>
@@ -677,90 +1052,88 @@ export function PurchaseOrderFormContent({
         onOpenChange={(open) => !open && setPlaceOrderError(null)}
       />
       <div className="flex h-full flex-col">
-        {/* Step Indicators */}
-        <div className="border-b px-4 py-3">
-          <div className="flex w-full justify-center">
-            <div className="flex w-full max-w-2xl items-center gap-1.5">
-              {[1, 2, 3].map((step) => (
-                <React.Fragment key={step}>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      handleStepClick(step as Step);
-                    }}
-                    disabled={!canGoToStep(step as Step)}
-                    className={cn(
-                      "flex h-8 flex-1 items-center justify-center gap-1.5 rounded-md px-3 text-sm transition-all",
-                      currentStep === step
-                        ? "bg-primary text-primary-foreground"
-                        : canGoToStep(step as Step)
-                          ? "bg-muted/50 hover:bg-muted text-foreground"
-                          : "text-muted-foreground cursor-not-allowed opacity-50",
-                    )}
-                  >
-                    <span
-                      className={cn(
-                        "flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-xs font-medium",
-                        currentStep === step
-                          ? "bg-primary-foreground/20"
-                          : "bg-muted",
-                      )}
-                    >
-                      {step}
-                    </span>
-                    <span className="text-sm font-medium">
-                      {step === 1 && "Order Info"}
-                      {step === 2 && "Line Items"}
-                      {step === 3 && "Review"}
-                    </span>
-                  </button>
-                  {step < 3 && (
-                    <ChevronRight className="text-muted-foreground h-4 w-4 shrink-0" />
-                  )}
-                </React.Fragment>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Step Content */}
         <div className="flex-1 overflow-y-auto px-4 py-4">
-          {currentStep === 1 && renderStep1()}
-          {currentStep === 2 && renderStep2()}
-          {currentStep === 3 && renderStep3()}
+          {renderStep1()}
+
+          {createdOrderNo && (
+            <section className="space-y-3 border-t pt-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm font-semibold">Line Items</h3>
+                  <p className="text-muted-foreground text-xs">
+                    Order No: {createdOrderNo}
+                  </p>
+                </div>
+                <Button onClick={handleAddLineItem} size="sm" className="h-8">
+                  <Plus className="mr-1.5 h-3.5 w-3.5" />
+                  Add Item
+                </Button>
+              </div>
+
+              <LineItemsTable
+                lineItems={lineItems}
+                onEdit={handleEditLineItem}
+                onRemove={handleRemoveLineItem}
+                onUpdate={handleUpdateLineItem}
+                editable={true}
+                showRowActions
+              />
+
+              <div className="bg-muted/20 flex justify-end rounded-lg border px-3 py-2">
+                <div className="flex items-baseline gap-2">
+                  <span className="text-muted-foreground text-sm">
+                    Total Amount
+                  </span>
+                  <span className="text-base font-semibold">
+                    {totalAmount.toFixed(2)}
+                  </span>
+                </div>
+              </div>
+            </section>
+          )}
         </div>
 
-        {/* Step Navigation */}
-        <div className="bg-muted/20 flex justify-between border-t px-4 py-3">
-          <Button
-            variant="outline"
-            onClick={handlePrevious}
-            disabled={currentStep === 1}
-          >
-            <ChevronLeft className="mr-2 h-4 w-4" />
-            Previous
-          </Button>
-          {currentStep < 3 ? (
+        <div className="bg-muted/20 flex items-center justify-between border-t px-4 py-3">
+          <div className="text-muted-foreground text-xs">
+            {createdOrderNo
+              ? `Order ${createdOrderNo} ready for completion`
+              : "Create the header first to enable line items"}
+          </div>
+
+          {!createdOrderNo ? (
             <Button
               type="button"
-              onClick={handleNext}
-              disabled={!canGoToStep((currentStep + 1) as Step)}
+              onClick={handleCreateOrderHeader}
+              disabled={!isStep1Valid() || isCreatingHeader}
             >
-              Next
-              <ChevronRight className="ml-2 h-4 w-4" />
+              {isCreatingHeader ? "Creating Order..." : "Create Purchase Order"}
             </Button>
           ) : (
             <Button
               onClick={handlePlaceOrder}
-              disabled={isSubmitting || !canGoToStep(3)}
+              disabled={isSubmitting || lineItems.length === 0}
             >
-              {isSubmitting ? "Placing Order..." : "Place Order"}
+              {isSubmitting ? "Saving Line Items..." : "Complete Order"}
             </Button>
           )}
         </div>
       </div>
+
+      {isLineDialogOpen && (
+        <PurchaseOrderLineDialog
+          isOpen={isLineDialogOpen}
+          onOpenChange={(open) => {
+            setIsLineDialogOpen(open);
+            if (!open) {
+              setSelectedLineItem(null);
+            }
+          }}
+          lineItem={selectedLineItem}
+          customerNo={formData.vendorNo}
+          locationCode={formData.locationCode || formData.loc || ""}
+          onSave={handleLineItemSave}
+        />
+      )}
     </>
   );
 }
@@ -778,29 +1151,17 @@ export function PurchaseOrderForm({
   context,
 }: PurchaseOrderFormProps) {
   const { markAsSaved, closeTab, updateFormData } = useFormStack(tabId);
-  const { openTab, switchTab } = useFormStackContext();
 
-  const onSuccess = (orderNo: string) => {
+  const onSuccess = (_orderNo: string) => {
     const onOrderPlaced = context?.onOrderPlaced as (() => void) | undefined;
     markAsSaved();
     onOrderPlaced?.();
-    const detailTabId = openTab("purchase-order-detail", {
-      title: `Order ${orderNo}`,
-      context: { orderNo, refetch: onOrderPlaced },
-      autoCloseOnSuccess: false,
-    });
-    // Ensure the new detail tab stays active, then close current tab.
-    setTimeout(() => {
-      switchTab(detailTabId);
-      closeTab();
-    }, 0);
+    closeTab();
   };
 
   return (
     <PurchaseOrderFormContent
       onSuccess={onSuccess}
-      openLineItemTab={(params) => openTab("line-item", params)}
-      tabId={tabId}
       initialFormData={initialFormData}
       persistFormData={updateFormData}
     />

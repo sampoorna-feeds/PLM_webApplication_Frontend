@@ -70,7 +70,8 @@ function escapeODataValue(value: string): string {
  */
 async function getCustomers(): Promise<SalesCustomer[]> {
   const query = buildODataQuery({
-    $select: 'No,Name,Assessee_Code,Customer_Price_Group,Responsibility_Center,P_A_N_No,Salesperson_Code',
+    $select:
+      "No,Name,Assessee_Code,Customer_Price_Group,Responsibility_Center,P_A_N_No,Salesperson_Code",
     $filter: getBaseFilter(),
     $orderby: "No",
     $top: INITIAL_LOAD_COUNT,
@@ -105,7 +106,8 @@ async function searchCustomers(query: string): Promise<SalesCustomer[]> {
     (async () => {
       const filterByNo = `(${baseFilter}) and contains(No,'${escapedQuery}')`;
       const odataQuery = buildODataQuery({
-        $select: 'No,Name,Assessee_Code,Customer_Price_Group,Responsibility_Center,P_A_N_No,Salesperson_Code',
+        $select:
+          "No,Name,Assessee_Code,Customer_Price_Group,Responsibility_Center,P_A_N_No,Salesperson_Code",
         $filter: filterByNo,
         $orderby: "No",
         $top: PAGE_SIZE,
@@ -118,7 +120,8 @@ async function searchCustomers(query: string): Promise<SalesCustomer[]> {
     (async () => {
       const filterByName = `(${baseFilter}) and contains(Name,'${escapedQuery}')`;
       const odataQuery = buildODataQuery({
-        $select: 'No,Name,Assessee_Code,Customer_Price_Group,Responsibility_Center,P_A_N_No,Salesperson_Code',
+        $select:
+          "No,Name,Assessee_Code,Customer_Price_Group,Responsibility_Center,P_A_N_No,Salesperson_Code",
         $filter: filterByName,
         $orderby: "No",
         $top: PAGE_SIZE,
@@ -159,7 +162,8 @@ async function getCustomersPage(
   if (!search || search.length < MIN_SEARCH_LENGTH) {
     // No search - return paginated results
     const query = buildODataQuery({
-      $select: 'No,Name,Assessee_Code,Customer_Price_Group,Responsibility_Center,P_A_N_No,Salesperson_Code',
+      $select:
+        "No,Name,Assessee_Code,Customer_Price_Group,Responsibility_Center,P_A_N_No,Salesperson_Code",
       $filter: baseFilter,
       $orderby: "No",
       $top: PAGE_SIZE,
@@ -179,7 +183,8 @@ async function getCustomersPage(
     (async () => {
       const filterByNo = `(${baseFilter}) and contains(No,'${escapedQuery}')`;
       const odataQuery = buildODataQuery({
-        $select: 'No,Name,Assessee_Code,Customer_Price_Group,Responsibility_Center,P_A_N_No,Salesperson_Code',
+        $select:
+          "No,Name,Assessee_Code,Customer_Price_Group,Responsibility_Center,P_A_N_No,Salesperson_Code",
         $filter: filterByNo,
         $orderby: "No",
         $top: PAGE_SIZE,
@@ -193,7 +198,8 @@ async function getCustomersPage(
     (async () => {
       const filterByName = `(${baseFilter}) and contains(Name,'${escapedQuery}')`;
       const odataQuery = buildODataQuery({
-        $select: 'No,Name,Assessee_Code,Customer_Price_Group,Responsibility_Center,P_A_N_No,Salesperson_Code',
+        $select:
+          "No,Name,Assessee_Code,Customer_Price_Group,Responsibility_Center,P_A_N_No,Salesperson_Code",
         $filter: filterByName,
         $orderby: "No",
         $top: PAGE_SIZE,
@@ -416,7 +422,7 @@ export function CustomerSelect({
         </Button>
       </PopoverTrigger>
       <PopoverContent
-        className="flex w-[var(--radix-popover-trigger-width)] min-w-[320px] max-w-[calc(100vw-2rem)] max-h-[var(--radix-popover-content-available-height,80vh)] min-h-0 flex-col overflow-hidden p-0"
+        className="flex max-h-[var(--radix-popover-content-available-height,80vh)] min-h-0 w-[var(--radix-popover-trigger-width)] max-w-[calc(100vw-2rem)] min-w-[320px] flex-col overflow-hidden p-0"
         align="start"
         collisionPadding={8}
         onOpenAutoFocus={(e) => {
@@ -429,79 +435,80 @@ export function CustomerSelect({
         }}
       >
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-        <div className="flex-shrink-0 border-b p-2">
-          <Input
-            placeholder="Search by Code or Name..."
-            value={searchQuery}
-            onChange={(e) => {
-              const query = e.target.value;
-              setSearchQuery(query);
-              performSearch(query);
-            }}
-            className="h-8 text-sm"
-            autoFocus={false}
-          />
-        </div>
-        <div
-          ref={listRef}
-          className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto"
-        >
-          {isLoading && items.length === 0 ? (
-            <div className="flex items-center justify-center p-4">
-              <Loader2 className="h-4 w-4 animate-spin" />
-            </div>
-          ) : filteredItems.length === 0 ? (
-            <div className="text-muted-foreground p-4 text-center text-sm">
-              {searchQuery.length < MIN_SEARCH_LENGTH
-                ? `Type at least ${MIN_SEARCH_LENGTH} characters to search`
-                : "No customers found"}
-            </div>
-          ) : (
-            <>
-              {filteredItems.map((item) => (
-                <div
-                  key={item.No}
-                  className={cn(
-                    "hover:bg-muted/50 relative flex cursor-default items-start rounded-sm px-2 py-2 text-sm outline-none select-none",
-                    value === item.No && "bg-muted",
-                  )}
-                  onClick={() => {
-                    onChange(item.No, item);
-                    setIsOpen(false);
-                  }}
-                >
-                  <CheckIcon
+          <div className="flex-shrink-0 border-b p-2">
+            <Input
+              placeholder="Search by Code or Name..."
+              value={searchQuery}
+              onChange={(e) => {
+                const query = e.target.value;
+                setSearchQuery(query);
+                performSearch(query);
+              }}
+              className="h-8 text-sm"
+              autoFocus={false}
+            />
+          </div>
+          <div
+            ref={listRef}
+            className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto"
+          >
+            {isLoading && items.length === 0 ? (
+              <div className="flex items-center justify-center p-4">
+                <Loader2 className="h-4 w-4 animate-spin" />
+              </div>
+            ) : filteredItems.length === 0 ? (
+              <div className="text-muted-foreground p-4 text-center text-sm">
+                {searchQuery.length < MIN_SEARCH_LENGTH
+                  ? `Type at least ${MIN_SEARCH_LENGTH} characters to search`
+                  : "No customers found"}
+              </div>
+            ) : (
+              <>
+                {filteredItems.map((item) => (
+                  <div
+                    key={item.No}
                     className={cn(
-                      "mt-0.5 mr-2 h-4 w-4 shrink-0",
-                      value === item.No ? "opacity-100" : "opacity-0",
+                      "hover:bg-muted/50 relative flex cursor-default items-start rounded-sm px-2 py-2 text-sm outline-none select-none",
+                      value === item.No && "bg-muted",
                     )}
-                  />
-                  <div className="min-w-0 flex-1">
-                    <div className="text-foreground font-medium break-words">
-                      {item.No} - {item.Name}
-                    </div>
-                    {(item.Responsibility_Center || item.Salesperson_Code) && (
-                      <div className="text-muted-foreground mt-0.5 text-xs break-words">
-                        {item.Responsibility_Center &&
-                          `RC: ${item.Responsibility_Center}`}
-                        {item.Responsibility_Center &&
-                          item.Salesperson_Code &&
-                          " • "}
-                        {item.Salesperson_Code &&
-                          `SP: ${item.Salesperson_Code}`}
+                    onClick={() => {
+                      onChange(item.No, item);
+                      setIsOpen(false);
+                    }}
+                  >
+                    <CheckIcon
+                      className={cn(
+                        "mt-0.5 mr-2 h-4 w-4 shrink-0",
+                        value === item.No ? "opacity-100" : "opacity-0",
+                      )}
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="text-foreground font-medium break-words">
+                        {item.No} - {item.Name}
                       </div>
-                    )}
+                      {(item.Responsibility_Center ||
+                        item.Salesperson_Code) && (
+                        <div className="text-muted-foreground mt-0.5 text-xs break-words">
+                          {item.Responsibility_Center &&
+                            `RC: ${item.Responsibility_Center}`}
+                          {item.Responsibility_Center &&
+                            item.Salesperson_Code &&
+                            " • "}
+                          {item.Salesperson_Code &&
+                            `SP: ${item.Salesperson_Code}`}
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
-              {isLoading && filteredItems.length > 0 && (
-                <div className="flex items-center justify-center p-2">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                </div>
-              )}
-            </>
-          )}
-        </div>
+                ))}
+                {isLoading && filteredItems.length > 0 && (
+                  <div className="flex items-center justify-center p-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  </div>
+                )}
+              </>
+            )}
+          </div>
         </div>
       </PopoverContent>
     </Popover>

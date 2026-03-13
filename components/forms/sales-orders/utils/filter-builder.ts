@@ -137,7 +137,6 @@ export function buildSalesOrderFilterString(
     filterParts.push(`Status eq '${escapeODataValue(statusFilter.trim())}'`);
   }
 
-
   // Column filters (skip Shortcut_Dimension_2_Code and Status when applied at API level)
   Object.entries(columnFilters).forEach(([columnId, filter]) => {
     if (columnId === "Shortcut_Dimension_2_Code") return;

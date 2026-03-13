@@ -18,6 +18,7 @@ import {
   ALL_COLUMNS,
 } from "./column-config";
 import { buildPurchaseOrderFilterString } from "./utils/filter-builder";
+import type { FilterCondition } from "./types";
 
 export type PurchaseOrderStatusTab = "Open" | "Pending Approval" | "Released";
 
@@ -44,6 +45,10 @@ export function usePurchaseOrders(options: UsePurchaseOrdersOptions = {}) {
   const [columnFilters, setColumnFilters] = useState<
     Record<string, { value: string; valueTo?: string }>
   >({});
+
+  const [additionalFilters, setAdditionalFilters] = useState<FilterCondition[]>(
+    [],
+  );
 
   const [visibleColumns, setVisibleColumns] = useState<string[]>(() =>
     typeof window !== "undefined"
@@ -112,6 +117,7 @@ export function usePurchaseOrders(options: UsePurchaseOrdersOptions = {}) {
         branchCodes: effectiveBranchCodes,
         statusFilter,
         columnFilters,
+        additionalFilters,
       });
 
       const commonParams = {
@@ -145,6 +151,7 @@ export function usePurchaseOrders(options: UsePurchaseOrdersOptions = {}) {
     visibleColumns,
     searchQuery,
     columnFilters,
+    additionalFilters,
     userBranchCodes,
     statusFilter,
     getOrderByString,
@@ -215,8 +222,19 @@ export function usePurchaseOrders(options: UsePurchaseOrdersOptions = {}) {
   const handleClearFilters = useCallback(() => {
     setSearchQuery("");
     setColumnFilters({});
+    setAdditionalFilters([]);
     setSortColumn("No");
     setSortDirection("desc");
+    setCurrentPage(1);
+  }, []);
+
+  const handleAddAdditionalFilter = useCallback((filter: FilterCondition) => {
+    setAdditionalFilters((prev) => [...prev, filter]);
+    setCurrentPage(1);
+  }, []);
+
+  const handleRemoveAdditionalFilter = useCallback((index: number) => {
+    setAdditionalFilters((prev) => prev.filter((_, i) => i !== index));
     setCurrentPage(1);
   }, []);
 
@@ -245,6 +263,7 @@ export function usePurchaseOrders(options: UsePurchaseOrdersOptions = {}) {
     sortDirection,
     searchQuery,
     columnFilters,
+    additionalFilters,
     visibleColumns,
     onPageSizeChange: handlePageSizeChange,
     onPageChange: handlePageChange,
@@ -253,6 +272,8 @@ export function usePurchaseOrders(options: UsePurchaseOrdersOptions = {}) {
     onColumnFilter: handleColumnFilter,
     onColumnToggle: handleColumnToggle,
     onResetColumns: handleResetColumns,
+    onAddAdditionalFilter: handleAddAdditionalFilter,
+    onRemoveAdditionalFilter: handleRemoveAdditionalFilter,
     onShowAllColumns: handleShowAllColumns,
     onClearFilters: handleClearFilters,
     refetch: fetchOrders,

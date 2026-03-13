@@ -31,7 +31,8 @@ export function RequestFailedDialog({
   onOpenChange,
   message,
 }: RequestFailedDialogProps) {
-  const displayMessage = cleanApiErrorMessage(message) || "The request failed. Please try again.";
+  const displayMessage =
+    cleanApiErrorMessage(message) || "The request failed. Please try again.";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -39,10 +40,12 @@ export function RequestFailedDialog({
         <DialogHeader>
           <div className="flex items-center gap-2">
             <AlertCircle className="text-destructive h-5 w-5 shrink-0" />
-            <DialogTitle className="text-destructive">Request failed</DialogTitle>
+            <DialogTitle className="text-destructive">
+              Request failed
+            </DialogTitle>
           </div>
           <DialogDescription asChild>
-            <p className="text-foreground mt-2 whitespace-pre-wrap text-sm">
+            <p className="text-foreground mt-2 text-sm whitespace-pre-wrap">
               {displayMessage}
             </p>
           </DialogDescription>

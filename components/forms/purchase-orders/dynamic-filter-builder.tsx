@@ -24,16 +24,18 @@ interface DynamicFilterBuilderProps {
   filters: FilterCondition[];
   onAddFilter: (filter: FilterCondition) => void;
   onRemoveFilter: (index: number) => void;
-  excludedFields?: string[];
-  topFields?: string[];
 }
+
+// Exclude fields that are already handled by the primary filter bar
+const EXCLUDED_FIELDS = ["Shortcut_Dimension_2_Code", "Status"];
+const AVAILABLE_COLUMNS = ALL_COLUMNS.filter(
+  (col) => !EXCLUDED_FIELDS.includes(col.id),
+).sort((a, b) => a.label.localeCompare(b.label));
 
 export function DynamicFilterBuilder({
   filters,
   onAddFilter,
   onRemoveFilter,
-  excludedFields = ["Location_Code", "Item_No", "Posting_Date"],
-  topFields = [],
 }: DynamicFilterBuilderProps) {
   const [open, setOpen] = useState(false);
   const [selectedField, setSelectedField] = useState("");
@@ -41,18 +43,6 @@ export function DynamicFilterBuilder({
     useState<FilterCondition["operator"]>("contains");
   const [value, setValue] = useState("");
   const [fieldSearch, setFieldSearch] = useState("");
-
-  const AVAILABLE_COLUMNS = useMemo(() => {
-    return ALL_COLUMNS.filter((col) => !excludedFields.includes(col.id)).sort(
-      (a, b) => {
-        const aIsTop = topFields.includes(a.id);
-        const bIsTop = topFields.includes(b.id);
-        if (aIsTop && !bIsTop) return -1;
-        if (!aIsTop && bIsTop) return 1;
-        return a.label.localeCompare(b.label);
-      },
-    );
-  }, [excludedFields, topFields]);
 
   // Filter columns by search query (matches label or id)
   const filteredColumns = useMemo(() => {
@@ -113,17 +103,14 @@ export function DynamicFilterBuilder({
 
   const renderValueInput = () => {
     if (!selectedCol) return null;
-    if (selectedCol.filterType === "boolean") {
+    if (selectedCol.filterType === "enum") {
       return (
-        <Select value={value} onValueChange={setValue}>
-          <SelectTrigger>
-            <SelectValue placeholder="Select Yes/No" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="true">Yes</SelectItem>
-            <SelectItem value="false">No</SelectItem>
-          </SelectContent>
-        </Select>
+        <Input
+          type="text"
+          placeholder="Value"
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+        />
       );
     }
     return (

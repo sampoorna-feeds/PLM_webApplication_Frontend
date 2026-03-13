@@ -54,8 +54,10 @@ export function ItemSelectorForm({
   context,
 }: ItemSelectorFormProps) {
   const { closeTab } = useFormStackContext();
-  const locationCode = formData?.filterParams?.locationCode as string | undefined;
-  const [searchQuery, setSearchQuery] = useState('');
+  const locationCode = formData?.filterParams?.locationCode as
+    | string
+    | undefined;
+  const [searchQuery, setSearchQuery] = useState("");
   const [items, setItems] = useState<(Item | GLPostingAccount)[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [hasMore, setHasMore] = useState(true);
@@ -70,7 +72,7 @@ export function ItemSelectorForm({
     setIsLoading(true);
     try {
       const result =
-        selectedType === 'Item'
+        selectedType === "Item"
           ? await getItems(PAGE_SIZE, locationCode)
           : await getGLAccounts(PAGE_SIZE);
 
@@ -96,7 +98,7 @@ export function ItemSelectorForm({
       setIsLoading(true);
       try {
         const result =
-          selectedType === 'Item'
+          selectedType === "Item"
             ? await searchItems(query, locationCode)
             : await searchGLAccounts(query);
 
@@ -104,13 +106,13 @@ export function ItemSelectorForm({
         setSkip(result.length);
         setHasMore(result.length >= PAGE_SIZE);
       } catch (error) {
-        console.error('Error searching items:', error);
+        console.error("Error searching items:", error);
         setItems([]);
       } finally {
         setIsLoading(false);
       }
     },
-    [selectedType, loadInitialItems, locationCode]
+    [selectedType, loadInitialItems, locationCode],
   );
 
   // Load more items (pagination)
@@ -120,8 +122,13 @@ export function ItemSelectorForm({
     setIsLoading(true);
     try {
       const newItems =
-        selectedType === 'Item'
-          ? await getItemsPage(skip, searchQuery || undefined, PAGE_SIZE, locationCode)
+        selectedType === "Item"
+          ? await getItemsPage(
+              skip,
+              searchQuery || undefined,
+              PAGE_SIZE,
+              locationCode,
+            )
           : await getGLAccountsPage(skip, searchQuery || undefined);
 
       if (newItems.length === 0) {
@@ -190,25 +197,28 @@ export function ItemSelectorForm({
   }, [hasMore, isLoading, loadMore]);
 
   // Get display values (ItemList: No, Description, Unit_Price, Sales_Unit_of_Measure)
-  const getItemDisplay = useCallback((item: Item | GLPostingAccount) => {
-    if (selectedType === 'Item') {
-      const itemData = item as Item;
-      return {
-        no: itemData.No,
-        description: itemData.Description,
-        unitPrice: itemData.Unit_Price ?? '',
-        salesUom: itemData.Sales_Unit_of_Measure ?? '-',
-      };
-    } else {
-      const accountData = item as GLPostingAccount;
-      return {
-        no: accountData.No,
-        description: accountData.Name,
-        unitPrice: '',
-        salesUom: '-',
-      };
-    }
-  }, [selectedType]);
+  const getItemDisplay = useCallback(
+    (item: Item | GLPostingAccount) => {
+      if (selectedType === "Item") {
+        const itemData = item as Item;
+        return {
+          no: itemData.No,
+          description: itemData.Description,
+          unitPrice: itemData.Unit_Price ?? "",
+          salesUom: itemData.Sales_Unit_of_Measure ?? "-",
+        };
+      } else {
+        const accountData = item as GLPostingAccount;
+        return {
+          no: accountData.No,
+          description: accountData.Name,
+          unitPrice: "",
+          salesUom: "-",
+        };
+      }
+    },
+    [selectedType],
+  );
 
   return (
     <div className="flex h-full flex-col">
@@ -269,14 +279,22 @@ export function ItemSelectorForm({
           <TableBody>
             {isLoading && items.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={selectedType === 'Item' ? 5 : 3} className="text-center py-8">
-                  <Loader2 className="h-5 w-5 animate-spin mx-auto text-muted-foreground" />
+                <TableCell
+                  colSpan={selectedType === "Item" ? 5 : 3}
+                  className="py-8 text-center"
+                >
+                  <Loader2 className="text-muted-foreground mx-auto h-5 w-5 animate-spin" />
                 </TableCell>
               </TableRow>
             ) : items.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={selectedType === 'Item' ? 5 : 3} className="text-center py-8 text-muted-foreground">
-                  {searchQuery.length >= 2 ? 'No items found' : 'Start typing to search...'}
+                <TableCell
+                  colSpan={selectedType === "Item" ? 5 : 3}
+                  className="text-muted-foreground py-8 text-center"
+                >
+                  {searchQuery.length >= 2
+                    ? "No items found"
+                    : "Start typing to search..."}
                 </TableCell>
               </TableRow>
             ) : (
@@ -292,9 +310,13 @@ export function ItemSelectorForm({
                       {selectedType === "Item" && (
                         <>
                           <TableCell className="text-sm">
-                            {typeof display.unitPrice === 'number' ? display.unitPrice : display.unitPrice || '-'}
+                            {typeof display.unitPrice === "number"
+                              ? display.unitPrice
+                              : display.unitPrice || "-"}
                           </TableCell>
-                          <TableCell className="text-sm">{display.salesUom}</TableCell>
+                          <TableCell className="text-sm">
+                            {display.salesUom}
+                          </TableCell>
                         </>
                       )}
                       <TableCell className="text-right">
@@ -310,7 +332,10 @@ export function ItemSelectorForm({
                 })}
                 {hasMore && (
                   <TableRow>
-                    <TableCell colSpan={selectedType === 'Item' ? 5 : 3} className="text-center py-4">
+                    <TableCell
+                      colSpan={selectedType === "Item" ? 5 : 3}
+                      className="py-4 text-center"
+                    >
                       <Button
                         variant="outline"
                         size="sm"

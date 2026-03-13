@@ -101,17 +101,15 @@ export async function searchSalesOrders(
   }
 
   const escaped = searchTerm.replace(/'/g, "''");
-  const fieldsToSearch = [
-    "No",
-    "Sell_to_Customer_No",
-    "Sell_to_Customer_Name",
-  ];
+  const fieldsToSearch = ["No", "Sell_to_Customer_No", "Sell_to_Customer_Name"];
 
   // perform one request per field
   const responses = await Promise.all(
     fieldsToSearch.map((field) => {
       const filterPart = `contains(${field},'${escaped}')`;
-      const filter = rest.$filter ? `${rest.$filter} and ${filterPart}` : filterPart;
+      const filter = rest.$filter
+        ? `${rest.$filter} and ${filterPart}`
+        : filterPart;
       return getSalesOrdersWithCount({ ...rest, $filter: filter });
     }),
   );
@@ -171,8 +169,6 @@ export interface SalesLine {
   Line_Discount_Amount?: number;
   Line_Discount_Percent?: number;
   Amt_to_Customer?: number;
-  MRP_Price?: number;
-  Total_MRP?: number;
   GST_Group_Code?: string;
   HSN_SAC_Code?: string;
   FOC?: boolean;
@@ -309,16 +305,19 @@ export async function getSalesShipmentsByOrder(
 export function stripEmptyValues(
   obj: Record<string, unknown>,
 ): Record<string, unknown> {
-  return Object.entries(obj).reduce((acc, [key, value]) => {
-    if (
-      value !== undefined &&
-      value !== null &&
-      !(typeof value === "string" && value.trim() === "")
-    ) {
-      acc[key] = value;
-    }
-    return acc;
-  }, {} as Record<string, unknown>);
+  return Object.entries(obj).reduce(
+    (acc, [key, value]) => {
+      if (
+        value !== undefined &&
+        value !== null &&
+        !(typeof value === "string" && value.trim() === "")
+      ) {
+        acc[key] = value;
+      }
+      return acc;
+    },
+    {} as Record<string, unknown>,
+  );
 }
 
 function escapeODataValue(value: string): string {

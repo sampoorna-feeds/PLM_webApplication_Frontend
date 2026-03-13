@@ -74,31 +74,30 @@ export function SalesOrderFormContent({
   initialFormData = {},
   persistFormData,
 }: SalesOrderFormContentProps) {
-
   const [formData, setFormData] = useState({
-    customerNo: '',
-    customerName: '',
-    shipToCode: '',
-    shipToName: '',
-    salesPersonCode: '',
-    salesPersonName: '',
-    locationCode: '',
-    postingDate: '',
-    documentDate: '',
-    orderDate: '',
-    externalDocumentNo: '',
-    customerPriceGroup: '',
-    status: '',
-    invoiceType: 'Bill of supply',
-    lob: '',
-    branch: '',
-    loc: '',
+    customerNo: "",
+    customerName: "",
+    shipToCode: "",
+    shipToName: "",
+    salesPersonCode: "",
+    salesPersonName: "",
+    locationCode: "",
+    postingDate: "",
+    documentDate: "",
+    orderDate: "",
+    externalDocumentNo: "",
+    customerPriceGroup: "",
+    status: "",
+    invoiceType: "Bill of supply",
+    lob: "",
+    branch: "",
+    loc: "",
     ...initialFormData,
   });
 
   const [userId, setUserId] = useState<string | undefined>(undefined);
   const [lineItems, setLineItems] = useState<LineItem[]>(
-    Array.isArray(initialFormData?.lineItems) ? initialFormData.lineItems : []
+    Array.isArray(initialFormData?.lineItems) ? initialFormData.lineItems : [],
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [placeOrderError, setPlaceOrderError] = useState<string | null>(null);
@@ -107,7 +106,7 @@ export function SalesOrderFormContent({
     initialFormData.currentStep >= 1 &&
     initialFormData.currentStep <= 3
       ? initialFormData.currentStep
-      : 1) as Step
+      : 1) as Step,
   );
 
   const persist = (data: Record<string, any>) => {
@@ -149,7 +148,11 @@ export function SalesOrderFormContent({
       if (Array.isArray(initialFormData.lineItems)) {
         setLineItems(initialFormData.lineItems);
       }
-      if (typeof initialFormData.currentStep === 'number' && initialFormData.currentStep >= 1 && initialFormData.currentStep <= 3) {
+      if (
+        typeof initialFormData.currentStep === "number" &&
+        initialFormData.currentStep >= 1 &&
+        initialFormData.currentStep <= 3
+      ) {
         setCurrentStep(initialFormData.currentStep as Step);
       }
     }
@@ -193,10 +196,10 @@ export function SalesOrderFormContent({
       customerName: customer?.Name || "",
       salesPersonCode: nextSalesPersonCode,
       salesPersonName: nextSalesPersonName,
-      customerPriceGroup: customer?.Customer_Price_Group || '',
-      shipToCode: '',
-      shipToName: '',
-      locationCode: '',
+      customerPriceGroup: customer?.Customer_Price_Group || "",
+      shipToCode: "",
+      shipToName: "",
+      locationCode: "",
     };
     setFormData(newData);
     // Don't call updateFormData - it causes re-renders
@@ -279,8 +282,8 @@ export function SalesOrderFormContent({
       title: "Add Line Item",
       formData: {
         customerNo: formData.customerNo,
-        locationCode: formData.locationCode || formData.loc || '',
-        customerPriceGroup: formData.customerPriceGroup || '',
+        locationCode: formData.locationCode || formData.loc || "",
+        customerPriceGroup: formData.customerPriceGroup || "",
       },
       context: {
         openedFromParent: true,
@@ -301,15 +304,15 @@ export function SalesOrderFormContent({
       formData: {
         lineItem,
         customerNo: formData.customerNo,
-        locationCode: formData.locationCode || formData.loc || '',
-        customerPriceGroup: formData.customerPriceGroup || '',
+        locationCode: formData.locationCode || formData.loc || "",
+        customerPriceGroup: formData.customerPriceGroup || "",
       },
       context: {
         openedFromParent: true,
         switchToTabId: tabId,
         onSave: (updatedLineItem: LineItem) => {
           const updated = lineItems.map((item) =>
-            item.id === lineItem.id ? updatedLineItem : item
+            item.id === lineItem.id ? updatedLineItem : item,
           );
           setLineItems(updated);
           persist({ ...formData, lineItems: updated, currentStep: 2 });
@@ -371,16 +374,14 @@ export function SalesOrderFormContent({
         description: item.description,
         uom: item.uom,
         quantity: item.quantity,
-        mrp: item.mrp,
         price: item.price,
         unitPrice: item.unitPrice,
-        totalMRP: item.totalMRP,
         discount: item.discount,
         amount: item.amount,
         exempted: item.exempted,
         gstGroupCode: item.gstGroupCode,
         hsnSacCode: item.hsnSacCode,
-        tcsGroupCode: item.tcsGroupCode,
+        tdsGroupCode: item.tdsGroupCode,
       }));
 
       const locationCode = formData.locationCode || formData.loc || "";
@@ -412,7 +413,10 @@ export function SalesOrderFormContent({
       <div className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 lg:grid-cols-4">
         <div className={fieldClass}>
           <label className={labelClass}>LOB</label>
-          <ClearableField value={formData.lob} onClear={() => handleInputChange("lob", "")}>
+          <ClearableField
+            value={formData.lob}
+            onClear={() => handleInputChange("lob", "")}
+          >
             <CascadingDimensionSelect
               dimensionType="LOB"
               value={formData.lob}
@@ -425,7 +429,10 @@ export function SalesOrderFormContent({
         </div>
         <div className={fieldClass}>
           <label className={labelClass}>Branch</label>
-          <ClearableField value={formData.branch} onClear={() => handleInputChange("branch", "")}>
+          <ClearableField
+            value={formData.branch}
+            onClear={() => handleInputChange("branch", "")}
+          >
             <CascadingDimensionSelect
               dimensionType="BRANCH"
               value={formData.branch}
@@ -439,7 +446,10 @@ export function SalesOrderFormContent({
         </div>
         <div className={fieldClass}>
           <label className={labelClass}>LOC</label>
-          <ClearableField value={formData.loc} onClear={() => handleInputChange("loc", "")}>
+          <ClearableField
+            value={formData.loc}
+            onClear={() => handleInputChange("loc", "")}
+          >
             <CascadingDimensionSelect
               dimensionType="LOC"
               value={formData.loc}
@@ -502,7 +512,7 @@ export function SalesOrderFormContent({
           <Input
             value={formData.locationCode || formData.loc || ""}
             disabled
-            className="h-8 bg-muted"
+            className="bg-muted h-8"
             readOnly
           />
         </div>
@@ -584,7 +594,9 @@ export function SalesOrderFormContent({
             <Input
               type="date"
               value={formData.documentDate}
-              onChange={(e) => handleInputChange("documentDate", e.target.value)}
+              onChange={(e) =>
+                handleInputChange("documentDate", e.target.value)
+              }
               className="h-8"
               onFocus={(e) => e.stopPropagation()}
             />
@@ -597,7 +609,7 @@ export function SalesOrderFormContent({
             value={formData.orderDate}
             onChange={(e) => handleInputChange("orderDate", e.target.value)}
             disabled
-            className="h-8 bg-muted"
+            className="bg-muted h-8"
           />
         </div>
         <div className={fieldClass}>
@@ -608,7 +620,9 @@ export function SalesOrderFormContent({
           >
             <Input
               value={formData.externalDocumentNo}
-              onChange={(e) => handleInputChange("externalDocumentNo", e.target.value)}
+              onChange={(e) =>
+                handleInputChange("externalDocumentNo", e.target.value)
+              }
               placeholder="Optional"
               className="h-8"
               onFocus={(e) => e.stopPropagation()}
@@ -645,45 +659,62 @@ export function SalesOrderFormContent({
     return (
       <div className="space-y-4">
         <div className="bg-muted/30 rounded-lg p-3">
-            <div className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
+          <div className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
+            <div>
+              <span className="text-muted-foreground block text-xs">
+                Customer
+              </span>
+              <span className="font-medium">
+                {formData.customerName || formData.customerNo}
+              </span>
+            </div>
+            <div>
+              <span className="text-muted-foreground block text-xs">
+                Order Date
+              </span>
+              <span className="font-medium">{formData.orderDate}</span>
+            </div>
+            <div>
+              <span className="text-muted-foreground block text-xs">
+                Posting Date
+              </span>
+              <span className="font-medium">{formData.postingDate}</span>
+            </div>
+            <div>
+              <span className="text-muted-foreground block text-xs">
+                Document Date
+              </span>
+              <span className="font-medium">{formData.documentDate}</span>
+            </div>
+            {formData.shipToCode && (
               <div>
-                <span className="text-muted-foreground block text-xs">Customer</span>
+                <span className="text-muted-foreground block text-xs">
+                  Ship To
+                </span>
                 <span className="font-medium">
-                  {formData.customerName || formData.customerNo}
+                  {formData.shipToName || formData.shipToCode}
                 </span>
               </div>
+            )}
+            {formData.invoiceType && (
               <div>
-                <span className="text-muted-foreground block text-xs">Order Date</span>
-                <span className="font-medium">{formData.orderDate}</span>
+                <span className="text-muted-foreground block text-xs">
+                  Invoice Type
+                </span>
+                <span className="font-medium">{formData.invoiceType}</span>
               </div>
-              <div>
-                <span className="text-muted-foreground block text-xs">Posting Date</span>
-                <span className="font-medium">{formData.postingDate}</span>
-              </div>
-              <div>
-                <span className="text-muted-foreground block text-xs">Document Date</span>
-                <span className="font-medium">{formData.documentDate}</span>
-              </div>
-              {formData.shipToCode && (
-                <div>
-                  <span className="text-muted-foreground block text-xs">Ship To</span>
-                  <span className="font-medium">
-                    {formData.shipToName || formData.shipToCode}
-                  </span>
-                </div>
-              )}
-              {formData.invoiceType && (
-                <div>
-                  <span className="text-muted-foreground block text-xs">Invoice Type</span>
-                  <span className="font-medium">{formData.invoiceType}</span>
-                </div>
-              )}
-            </div>
+            )}
+          </div>
         </div>
 
         <div>
           <div className="mb-2 flex justify-end">
-            <Button onClick={handleAddLineItem} size="sm" variant="outline" className="h-8">
+            <Button
+              onClick={handleAddLineItem}
+              size="sm"
+              variant="outline"
+              className="h-8"
+            >
               <Plus className="mr-1.5 h-3.5 w-3.5" />
               Add Item
             </Button>
@@ -699,7 +730,7 @@ export function SalesOrderFormContent({
         </div>
 
         {/* Total */}
-        <div className="flex justify-end rounded-lg border bg-muted/20 px-3 py-2">
+        <div className="bg-muted/20 flex justify-end rounded-lg border px-3 py-2">
           <div className="flex items-baseline gap-2">
             <span className="text-muted-foreground text-sm">Total Amount</span>
             <span className="text-base font-semibold">
@@ -719,87 +750,89 @@ export function SalesOrderFormContent({
         onOpenChange={(open) => !open && setPlaceOrderError(null)}
       />
       <div className="flex h-full flex-col">
-      {/* Step Indicators */}
-      <div className="border-b px-4 py-3">
-        <div className="flex w-full justify-center">
-          <div className="flex w-full max-w-2xl items-center gap-1.5">
-            {[1, 2, 3].map((step) => (
-              <React.Fragment key={step}>
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    handleStepClick(step as Step);
-                  }}
-                  disabled={!canGoToStep(step as Step)}
-                  className={cn(
-                    "flex h-8 flex-1 items-center justify-center gap-1.5 rounded-md px-3 text-sm transition-all",
-                  currentStep === step
-                    ? "bg-primary text-primary-foreground"
-                    : canGoToStep(step as Step)
-                      ? "bg-muted/50 hover:bg-muted text-foreground"
-                      : "text-muted-foreground cursor-not-allowed opacity-50",
-                )}
-              >
-                <span
-                  className={cn(
-                    "flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-xs font-medium",
-                    currentStep === step ? "bg-primary-foreground/20" : "bg-muted",
+        {/* Step Indicators */}
+        <div className="border-b px-4 py-3">
+          <div className="flex w-full justify-center">
+            <div className="flex w-full max-w-2xl items-center gap-1.5">
+              {[1, 2, 3].map((step) => (
+                <React.Fragment key={step}>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleStepClick(step as Step);
+                    }}
+                    disabled={!canGoToStep(step as Step)}
+                    className={cn(
+                      "flex h-8 flex-1 items-center justify-center gap-1.5 rounded-md px-3 text-sm transition-all",
+                      currentStep === step
+                        ? "bg-primary text-primary-foreground"
+                        : canGoToStep(step as Step)
+                          ? "bg-muted/50 hover:bg-muted text-foreground"
+                          : "text-muted-foreground cursor-not-allowed opacity-50",
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        "flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-xs font-medium",
+                        currentStep === step
+                          ? "bg-primary-foreground/20"
+                          : "bg-muted",
+                      )}
+                    >
+                      {step}
+                    </span>
+                    <span className="text-sm font-medium">
+                      {step === 1 && "Order Info"}
+                      {step === 2 && "Line Items"}
+                      {step === 3 && "Review"}
+                    </span>
+                  </button>
+                  {step < 3 && (
+                    <ChevronRight className="text-muted-foreground h-4 w-4 shrink-0" />
                   )}
-                >
-                  {step}
-                </span>
-                <span className="text-sm font-medium">
-                  {step === 1 && "Order Info"}
-                  {step === 2 && "Line Items"}
-                  {step === 3 && "Review"}
-                </span>
-              </button>
-              {step < 3 && (
-                <ChevronRight className="text-muted-foreground h-4 w-4 shrink-0" />
-              )}
-            </React.Fragment>
-          ))}
+                </React.Fragment>
+              ))}
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* Step Content */}
-      <div className="flex-1 overflow-y-auto px-4 py-4">
-        {currentStep === 1 && renderStep1()}
-        {currentStep === 2 && renderStep2()}
-        {currentStep === 3 && renderStep3()}
-      </div>
+        {/* Step Content */}
+        <div className="flex-1 overflow-y-auto px-4 py-4">
+          {currentStep === 1 && renderStep1()}
+          {currentStep === 2 && renderStep2()}
+          {currentStep === 3 && renderStep3()}
+        </div>
 
-      {/* Step Navigation */}
-      <div className="flex justify-between border-t bg-muted/20 px-4 py-3">
-        <Button
-          variant="outline"
-          onClick={handlePrevious}
-          disabled={currentStep === 1}
-        >
-          <ChevronLeft className="mr-2 h-4 w-4" />
-          Previous
-        </Button>
-        {currentStep < 3 ? (
+        {/* Step Navigation */}
+        <div className="bg-muted/20 flex justify-between border-t px-4 py-3">
           <Button
-            type="button"
-            onClick={handleNext}
-            disabled={!canGoToStep((currentStep + 1) as Step)}
+            variant="outline"
+            onClick={handlePrevious}
+            disabled={currentStep === 1}
           >
-            Next
-            <ChevronRight className="ml-2 h-4 w-4" />
+            <ChevronLeft className="mr-2 h-4 w-4" />
+            Previous
           </Button>
-        ) : (
-          <Button
-            onClick={handlePlaceOrder}
-            disabled={isSubmitting || !canGoToStep(3)}
-          >
-            {isSubmitting ? "Placing Order..." : "Place Order"}
-          </Button>
-        )}
-      </div>
+          {currentStep < 3 ? (
+            <Button
+              type="button"
+              onClick={handleNext}
+              disabled={!canGoToStep((currentStep + 1) as Step)}
+            >
+              Next
+              <ChevronRight className="ml-2 h-4 w-4" />
+            </Button>
+          ) : (
+            <Button
+              onClick={handlePlaceOrder}
+              disabled={isSubmitting || !canGoToStep(3)}
+            >
+              {isSubmitting ? "Placing Order..." : "Place Order"}
+            </Button>
+          )}
+        </div>
       </div>
     </>
   );
@@ -821,7 +854,7 @@ export function SalesOrderForm({
   const { openTab, switchTab } = useFormStackContext();
 
   const onSuccess = (orderNo: string) => {
-    const onOrderPlaced = (context?.onOrderPlaced as (() => void) | undefined);
+    const onOrderPlaced = context?.onOrderPlaced as (() => void) | undefined;
     markAsSaved();
     onOrderPlaced?.();
     const detailTabId = openTab("sales-order-detail", {

@@ -47,6 +47,7 @@ import { validatePhone } from "@/lib/validations/shipto.validation";
 import { SearchableSelect } from "@/components/forms/shared/searchable-select";
 import { RequestFailedDialog } from "@/components/ui/request-failed-dialog";
 import { PurchaseItemTrackingDialog } from "./purchase-item-tracking-dialog";
+import { PurchaseOrderLineEditDialog } from "./purchase-order-line-edit-dialog";
 import {
   Table,
   TableBody,
@@ -99,6 +100,7 @@ export function PurchaseOrderDetailForm({
   const [itemTrackingMap, setItemTrackingMap] = useState<
     Record<string, string>
   >({});
+  const [selectedLine, setSelectedLine] = useState<PurchaseLine | null>(null);
   const [selectedTrackingLine, setSelectedTrackingLine] =
     useState<PurchaseLine | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -890,11 +892,7 @@ export function PurchaseOrderDetailForm({
                           "hover:bg-muted/50 cursor-pointer",
                           hasTracking && "text-red-600",
                         )}
-                        onClick={() => {
-                          if (hasTracking) {
-                            setSelectedTrackingLine(line);
-                          }
-                        }}
+                        onClick={() => setSelectedLine(line)}
                       >
                         <TableCell className="text-xs">
                           {line.Line_No}
@@ -977,6 +975,24 @@ export function PurchaseOrderDetailForm({
             </span>
           </div>
         </div>
+
+        <PurchaseOrderLineEditDialog
+          open={!!selectedLine}
+          onOpenChange={(open) => !open && setSelectedLine(null)}
+          line={selectedLine}
+          orderNo={order?.No ?? ""}
+          hasTracking={
+            !!(
+              selectedLine?.No &&
+              itemTrackingMap[String(selectedLine.No).trim().toLowerCase()]
+            )
+          }
+          onSave={() => {
+            loadOrder();
+            setSelectedLine(null);
+          }}
+          onAssignTracking={() => setSelectedTrackingLine(selectedLine)}
+        />
 
         <PurchaseItemTrackingDialog
           open={!!selectedTrackingLine}

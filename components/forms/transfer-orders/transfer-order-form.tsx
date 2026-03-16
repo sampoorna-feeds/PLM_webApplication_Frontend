@@ -22,9 +22,11 @@ import { getAuthCredentials } from "@/lib/auth/storage";
 import {
   getLOBsFromUserSetup,
   getBranchesFromUserSetup,
+  getWebUserSetup,
   getLOBs,
   getBranches,
   type DimensionValue,
+  type WebUserSetup,
 } from "@/lib/api/services/dimension.service";
 import {
   getAllLocationCodes,
@@ -108,15 +110,27 @@ export function TransferOrderForm({
   const [locations, setLocations] = useState<LocationCode[]>([]);
   const [isLoadingDimensions, setIsLoadingDimensions] = useState(false);
 
-  // Get logged-in user ID
+  const [userSetup, setUserSetup] = useState<WebUserSetup[]>([]);
+
+  // Get logged-in user ID and setup
   useEffect(() => {
-    const credentials = getAuthCredentials();
-    if (credentials) {
-      setUserId(credentials.userID);
-      if (!isViewMode) {
-        setFormState((prev) => ({ ...prev, Assigned_User_ID: credentials.userID }));
+    const loadUserContext = async () => {
+      const credentials = getAuthCredentials();
+      if (credentials) {
+        setUserId(credentials.userID);
+        if (!isViewMode) {
+          setFormState((prev) => ({ ...prev, Assigned_User_ID: credentials.userID }));
+        }
+        
+        try {
+          const setup = await getWebUserSetup(credentials.userID);
+          setUserSetup(setup);
+        } catch (err) {
+          console.error("Error loading user setup:", err);
+        }
       }
-    }
+    };
+    loadUserContext();
   }, [isViewMode]);
 
   // Load Order Data and Lines if orderNo exists
@@ -153,37 +167,49 @@ export function TransferOrderForm({
     }
   }, [orderNo, fetchOrderData, registerRefresh]);
 
-  // Resolve Location Names when locations or formState codes change
+  // Resolve Location Names and auto-populate dimensions from setup when Transfer_From_Code changes
   useEffect(() => {
     if (locations.length > 0) {
       const fromLoc = locations.find(l => l.Code === formState.Transfer_From_Code);
       const toLoc = locations.find(l => l.Code === formState.Transfer_To_Code);
       
-      if (fromLoc?.Name || toLoc?.Name) {
-        setFormState(prev => ({
-          ...prev,
-          Transfer_From_Name: fromLoc?.Name || prev.Transfer_From_Name,
-          Transfer_To_Name: toLoc?.Name || prev.Transfer_To_Name
-        }));
+      const updates: Partial<TransferOrder> = {};
+      
+      if (fromLoc?.Name && fromLoc.Name !== formState.Transfer_From_Name) {
+        updates.Transfer_From_Name = fromLoc.Name;
       }
-    }
-  }, [locations, formState.Transfer_From_Code, formState.Transfer_To_Code]);
+      if (toLoc?.Name && toLoc.Name !== formState.Transfer_To_Name) {
+        updates.Transfer_To_Name = toLoc.Name;
+      }
 
-  useEffect(() => {
-    const loadInitialData = async () => {
-      // Need user ID for LOBs
-      let currentUserId = userId;
-      if (!currentUserId) {
-        const credentials = getAuthCredentials();
-        currentUserId = credentials?.userID;
+      // Auto-populate LOB and Branch from user setup based on Transfer From location
+      if (formState.Transfer_From_Code && userSetup.length > 0 && !formState.No) {
+        const setupEntry = userSetup.find(s => s.LOC_Code === formState.Transfer_From_Code);
+        if (setupEntry) {
+          if (setupEntry.LOB && setupEntry.LOB !== formState.Shortcut_Dimension_1_Code) {
+            updates.Shortcut_Dimension_1_Code = setupEntry.LOB;
+          }
+          if (setupEntry.Branch_Code && setupEntry.Branch_Code !== formState.Shortcut_Dimension_2_Code) {
+            updates.Shortcut_Dimension_2_Code = setupEntry.Branch_Code;
+          }
+        }
       }
       
-      if (!currentUserId) return;
+      if (Object.keys(updates).length > 0) {
+        setFormState(prev => ({ ...prev, ...updates }));
+      }
+    }
+  }, [locations, formState.Transfer_From_Code, formState.Transfer_To_Code, userSetup, formState.No, formState.Shortcut_Dimension_1_Code, formState.Shortcut_Dimension_2_Code, formState.Transfer_From_Name, formState.Transfer_To_Name]);
+
+  // Load Dimensions and Locations on mount
+  useEffect(() => {
+    const loadInitialData = async () => {
+      if (!userId) return;
 
       setIsLoadingDimensions(true);
       try {
         let [lobData, locationData] = await Promise.all([
-          getLOBsFromUserSetup(currentUserId),
+          getLOBsFromUserSetup(userId),
           getAllLocationCodes(),
         ]);
         
@@ -213,13 +239,7 @@ export function TransferOrderForm({
   // Load Branches when LOB changes
   useEffect(() => {
     const loadBranches = async () => {
-      let currentUserId = userId;
-      if (!currentUserId) {
-        const credentials = getAuthCredentials();
-        currentUserId = credentials?.userID;
-      }
-
-      if (!currentUserId || !formState.Shortcut_Dimension_1_Code) {
+      if (!userId || !formState.Shortcut_Dimension_1_Code) {
         setBranches([]);
         return;
       }
@@ -227,7 +247,7 @@ export function TransferOrderForm({
       try {
         let branchData = await getBranchesFromUserSetup(
           formState.Shortcut_Dimension_1_Code,
-          currentUserId,
+          userId,
         );
 
         // Fallback to general Branches if user setup doesn't exist
@@ -258,8 +278,8 @@ export function TransferOrderForm({
   const handleCreateHeader = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formState.Transfer_From_Code || !formState.Transfer_To_Code || !formState.Shortcut_Dimension_1_Code || !formState.Shortcut_Dimension_2_Code) {
-      toast.error("Please fill in all required fields");
+    if (!formState.Transfer_From_Code || !formState.Transfer_To_Code) {
+      toast.error("Please fill in all mandatory fields (Transfer From and To)");
       return;
     }
 
@@ -278,6 +298,7 @@ export function TransferOrderForm({
         Shipping_Advice: formState.Shipping_Advice,
         Transporter_Code: formState.Transporter_Code,
         Transporter_Name: formState.Transporter_Name,
+        External_Document_No: formState.External_Document_No,
       };
       
       // Clean empty strings

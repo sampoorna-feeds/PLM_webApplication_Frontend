@@ -43,6 +43,11 @@ import {
 } from "@/lib/api/services/transfer-orders.service";
 import { TransferOrderLinesTable } from "./transfer-order-lines-table";
 import { TransferOrderLineDialog } from "./transfer-order-line-dialog";
+import { 
+  getVendors, 
+  searchVendors, 
+  type Vendor 
+} from "@/lib/api/services/vendor.service";
 
 interface TransferOrderFormProps {
   tabId: string;
@@ -108,6 +113,7 @@ export function TransferOrderForm({
   const [lobs, setLobs] = useState<DimensionValue[]>([]);
   const [branches, setBranches] = useState<DimensionValue[]>([]);
   const [locations, setLocations] = useState<LocationCode[]>([]);
+  const [transporters, setTransporters] = useState<Vendor[]>([]);
   const [isLoadingDimensions, setIsLoadingDimensions] = useState(false);
 
   const [userSetup, setUserSetup] = useState<WebUserSetup[]>([]);
@@ -221,6 +227,10 @@ export function TransferOrderForm({
 
         setLobs(lobData);
         setLocations(locationData);
+
+        // Load initial transporters
+        const vendorData = await getVendors();
+        setTransporters(vendorData);
         
         // Auto-select LOB if only one exists and not currently set (only for new orders)
         if (!formState.No && lobData.length === 1 && !formState.Shortcut_Dimension_1_Code) {
@@ -299,6 +309,10 @@ export function TransferOrderForm({
         Transporter_Code: formState.Transporter_Code,
         Transporter_Name: formState.Transporter_Name,
         External_Document_No: formState.External_Document_No,
+        Posting_Date: formState.Posting_Date,
+        Vehicle_No: formState.Vehicle_No,
+        LR_RR_No: formState.LR_RR_No,
+        Freight_Value: formState.Freight_Value,
       };
       
       // Clean empty strings
@@ -343,7 +357,12 @@ export function TransferOrderForm({
     // Calculate diff for allowed fields only
     const allowedToUpdate = [
       "Transporter_Code",
-      "Transporter_Name"
+      "Transporter_Name",
+      "External_Document_No",
+      "Posting_Date",
+      "Vehicle_No",
+      "LR_RR_No",
+      "Freight_Value"
     ];
 
     const diff: Partial<TransferOrder> = {};
@@ -453,17 +472,30 @@ export function TransferOrderForm({
                   <label className={labelClass}>No.</label>
                   <Input value={formState.No} readOnly disabled className="h-8 bg-muted" placeholder="Auto-generated" />
                 </div>
-                <div className={fieldClass}>
-                  <label className={labelClass}>Status</label>
-                  <Input value={formState.Status} readOnly disabled className="h-8 bg-muted" />
-                </div>
+                {formState.No && (
+                  <div className={fieldClass}>
+                    <label className={labelClass}>Status</label>
+                    <Input value={formState.Status} readOnly disabled className="h-8 bg-muted" />
+                  </div>
+                )}
                 <div className={fieldClass}>
                   <label className={labelClass}>Posting Date</label>
-                  <Input value={formState.Posting_Date ? formState.Posting_Date.split("T")[0] : ""} readOnly disabled className="h-8 bg-muted" />
+                  <Input 
+                    type="date"
+                    value={formState.Posting_Date ? formState.Posting_Date.split("T")[0] : ""} 
+                    onChange={(e) => handleChange("Posting_Date", e.target.value)}
+                    disabled={formState.Status === "Released"}
+                    className="h-8" 
+                  />
                 </div>
                 <div className={fieldClass}>
                   <label className={labelClass}>External Document No.</label>
-                  <Input value={formState.External_Document_No || ""} readOnly disabled className="h-8 bg-muted" />
+                  <Input 
+                    value={formState.External_Document_No || ""} 
+                    onChange={(e) => handleChange("External_Document_No", e.target.value)}
+                    disabled={formState.Status === "Released"}
+                    className="h-8" 
+                  />
                 </div>
               </div>
             </section>
@@ -543,11 +575,21 @@ export function TransferOrderForm({
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-4">
                 <div className={fieldClass}>
                   <label className={labelClass}>Vehicle No.</label>
-                  <Input value={formState.Vehicle_No || ""} readOnly disabled className="h-8 bg-muted" />
+                  <Input 
+                    value={formState.Vehicle_No || ""} 
+                    onChange={(e) => handleChange("Vehicle_No", e.target.value)}
+                    disabled={formState.Status === "Released"}
+                    className="h-8" 
+                  />
                 </div>
                 <div className={fieldClass}>
                   <label className={labelClass}>LR/RR No.</label>
-                  <Input value={formState.LR_RR_No || ""} readOnly disabled className="h-8 bg-muted" />
+                  <Input 
+                    value={formState.LR_RR_No || ""} 
+                    onChange={(e) => handleChange("LR_RR_No", e.target.value)}
+                    disabled={formState.Status === "Released"}
+                    className="h-8" 
+                  />
                 </div>
                 <div className={fieldClass}>
                   <label className={labelClass}>LR/RR Date</label>
@@ -563,16 +605,41 @@ export function TransferOrderForm({
                 </div>
                 <div className={fieldClass}>
                   <label className={labelClass}>Freight Value</label>
-                  <Input value={formState.Freight_Value || 0} readOnly disabled className="h-8 bg-muted text-right" />
+                  <Input 
+                    type="number"
+                    value={formState.Freight_Value || 0} 
+                    onChange={(e) => handleChange("Freight_Value", parseFloat(e.target.value) || 0)}
+                    disabled={formState.Status === "Released"}
+                    className="h-8 text-right" 
+                  />
                 </div>
                 <div className={fieldClass}>
                   <label className={labelClass}>Transporter Code (Optional)</label>
-                  <Input 
-                    value={formState.Transporter_Code || ""} 
-                    onChange={(e) => handleChange("Transporter_Code", e.target.value)}
+                  <SearchableSelect
+                    options={transporters.map(v => ({ value: v.No, label: `${v.No} - ${v.Name}` }))}
+                    value={formState.Transporter_Code || ""}
+                    onValueChange={(v) => {
+                      const vendor = transporters.find(t => t.No === v);
+                      setFormState(prev => ({ 
+                        ...prev, 
+                        Transporter_Code: v, 
+                        Transporter_Name: vendor?.Name || "" 
+                      }));
+                      updateTab({ isSaved: false });
+                    }}
+                    onSearch={async (q) => {
+                      if (q.length >= 2) {
+                        const results = await searchVendors(q);
+                        setTransporters(prev => {
+                          const combined = [...prev, ...results];
+                          const unique = new Map();
+                          combined.forEach(v => unique.set(v.No, v));
+                          return Array.from(unique.values());
+                        });
+                      }
+                    }}
+                    placeholder="Select Transporter"
                     disabled={formState.Status === "Released"}
-                    className="h-8" 
-                    placeholder="Enter Code"
                   />
                 </div>
                 <div className={fieldClass}>

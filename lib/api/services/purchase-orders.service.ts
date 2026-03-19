@@ -518,14 +518,14 @@ export async function assignPurchaseItemTracking(
   params: AssignPurchaseItemTrackingParams,
 ): Promise<unknown> {
   const endpoint = `/API_TrackingAssign?company='${encodeURIComponent(COMPANY)}'`;
-  const qty = -Math.abs(params.quantity);
+  const qty = Math.abs(params.quantity);
   const payload = {
     itemNo: params.itemNo,
     locationCode: params.locationCode,
     quantity: qty,
     qtytoHandle: qty,
     sourceProdOrderLine: 0,
-    sourceType: 37,
+    sourceType: 39,
     sourceSubType: 1,
     sourceID: params.orderNo,
     sourceBatch: "",

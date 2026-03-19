@@ -64,6 +64,9 @@ export interface CreatePurchaseOrderResponse {
 /** API may return the created entity with No (document number) */
 interface CreatePurchaseOrderApiResponse {
   No?: string;
+  PO_No?: string;
+  Document_No?: string;
+  docNo?: string;
   orderId?: string;
   orderNo?: string;
   [key: string]: unknown;
@@ -73,6 +76,28 @@ const COMPANY =
   process.env.NEXT_PUBLIC_API_COMPANY || "Sampoorna Feeds Pvt. Ltd";
 
 /**
+ * Remove properties whose value is undefined, null, or blank string.
+ * Backend rejects payloads containing empty optional values.
+ */
+function stripEmptyValues(
+  obj: Record<string, unknown>,
+): Record<string, unknown> {
+  return Object.entries(obj).reduce(
+    (acc, [key, value]) => {
+      if (
+        value !== undefined &&
+        value !== null &&
+        !(typeof value === "string" && value.trim() === "")
+      ) {
+        acc[key] = value;
+      }
+      return acc;
+    },
+    {} as Record<string, unknown>,
+  );
+}
+
+/**
  * Create a new purchase order
  * Returns the order ID and order number. API returns document number as "No".
  */
@@ -80,49 +105,39 @@ export async function createPurchaseOrder(
   orderData: PurchaseOrderData,
 ): Promise<CreatePurchaseOrderResponse> {
   try {
-    const endpoint = `/PurchaseOrder?company='${encodeURIComponent(COMPANY)}'`;
+    const endpoint = `/API_PostPurchase?company='${encodeURIComponent(COMPANY)}'`;
 
     const payload: Record<string, unknown> = {
-      Document_Type: "Order",
+      PO_Type: orderData.poType,
       Buy_from_Vendor_No: orderData.vendorNo,
-      Ship_to_Code: orderData.shipToCode || "",
-      Purchaseperson_Code: orderData.purchasePersonCode || "",
-      Location_Code: orderData.locationCode || orderData.loc || "",
       Posting_Date: orderData.postingDate,
-      Document_Date: orderData.documentDate,
       Order_Date: orderData.orderDate,
-      External_Document_No: orderData.externalDocumentNo || "",
-      Vendor_Invoice_No: orderData.vendorInvoiceNo || "",
-      Invoice_Type: orderData.invoiceType || "",
+      Document_Date: orderData.documentDate,
+      Purchaser_Code: orderData.purchasePersonCode,
+      Due_Date_calculation: orderData.dueDateCalculation,
+      Brokerage_Code: orderData.brokerNo,
+      Brokerage_Rate:
+        orderData.brokerageRate === "" ||
+        orderData.brokerageRate === null ||
+        orderData.brokerageRate === undefined
+          ? 0
+          : Number(orderData.brokerageRate),
+      Rate_Basis: orderData.rateBasis,
+      QCType: orderData.qcType,
+      Terms_Code: orderData.termCode,
+      Mandi_Name: orderData.mandiName,
+      Payment_Terms_Code: orderData.paymentTermCode,
+      Location_Code: orderData.locationCode || orderData.loc,
+      Creditors_Type: orderData.creditorType,
+      Shortcut_Dimension_3_Code: orderData.loc,
+      Responsibility_Center: orderData.lob,
       Shortcut_Dimension_1_Code: orderData.lob || "",
       Shortcut_Dimension_2_Code: orderData.branch || "",
-      Shortcut_Dimension_3_Code: orderData.loc || "",
-      PO_Type: orderData.poType || "",
-      Service_Type: orderData.serviceType || "",
-      Vendor_GST_Reg_No: orderData.vendorGstRegNo || "",
-      Vendor_PAN_No: orderData.vendorPanNo || "",
-      Broker_No: orderData.brokerNo || "",
-      Broker_Name: orderData.brokerName || "",
-      Brokerage_Rate: orderData.brokerageRate
-        ? Number(orderData.brokerageRate)
-        : 0,
-      Order_Address_Code: orderData.orderAddressCode || "",
-      Rate_Basis: orderData.rateBasis || "",
-      Term_Code: orderData.termCode || "",
-      Mandi_Name: orderData.mandiName || "",
-      Payment_Term_Code: orderData.paymentTermCode || "",
-      Due_Date_Calculation: orderData.dueDateCalculation || "",
-      Creditor_Type: orderData.creditorType || "",
-      QC_Type: orderData.qcType || "",
-      Due_Date: orderData.dueDate || "",
+      Order_Address_Code: orderData.orderAddressCode,
     };
 
-    // Remove empty/null/undefined fields — backend rejects optional fields sent as empty strings
-    const filteredPayload = Object.fromEntries(
-      Object.entries(payload).filter(
-        ([, v]) => v !== "" && v !== null && v !== undefined,
-      ),
-    );
+    // Remove empty/null/undefined/blank fields before sending to backend
+    const filteredPayload = stripEmptyValues(payload);
 
     console.log("[PO Create] Endpoint:", endpoint);
     console.log(
@@ -139,13 +154,22 @@ export async function createPurchaseOrder(
       return { orderId: "", orderNo: "" };
     }
 
-    // API returns document number as "No" (e.g. "PO/2526/080184")
-    const orderNo = response.No ?? response.orderNo ?? "";
+    // API may return document number under different key names
+    const orderNo =
+      response.No ??
+      response.PO_No ??
+      response.Document_No ??
+      response.docNo ??
+      response.orderNo ??
+      "";
     const orderId = response.orderId ?? orderNo;
 
     return { orderId, orderNo };
   } catch (error) {
-    console.error("Error creating purchase order:", error);
+    console.error(
+      "Error creating purchase order:",
+      JSON.stringify(error, null, 2),
+    );
     throw error as ApiError;
   }
 }

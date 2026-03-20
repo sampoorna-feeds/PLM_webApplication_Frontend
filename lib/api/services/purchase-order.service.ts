@@ -105,7 +105,7 @@ export async function createPurchaseOrder(
   orderData: PurchaseOrderData,
 ): Promise<CreatePurchaseOrderResponse> {
   try {
-    const endpoint = `/API_PostPurchase?company='${encodeURIComponent(COMPANY)}'`;
+    const endpoint = `/PurchaseOrder?company='${encodeURIComponent(COMPANY)}'`;
 
     const payload: Record<string, unknown> = {
       PO_Type: orderData.poType,

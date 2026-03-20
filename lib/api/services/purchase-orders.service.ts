@@ -439,7 +439,7 @@ export async function postPurchaseOrder(
   docNo: string,
   defaultOption: "1" | "2" | "3",
 ): Promise<unknown> {
-  const endpoint = `/API_PostPurchase?company='${encodeURIComponent(COMPANY)}'`;
+  const endpoint = `/PurchaseOrder?company='${encodeURIComponent(COMPANY)}'`;
   return apiPost<unknown>(endpoint, { docNo, defaultOption });
 }
 

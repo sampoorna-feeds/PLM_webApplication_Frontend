@@ -81,17 +81,36 @@ export function PurchaseOrderLineEditDialog({
 
     setIsSaving(true);
     try {
-      const payload: Record<string, unknown> = {
-        Description: description.trim(),
-        Qty_to_Ship: receiveVal,
-        Qty_to_Invoice: invoiceVal,
-        Exempted: exempted,
-      };
+      const payload: Record<string, unknown> = {};
 
-      // Only include these fields if user has set a value (avoid sending empty strings — stripEmptyValues handles this)
-      if (gstGroupCode.trim()) payload.GST_Group_Code = gstGroupCode.trim();
-      if (hsnSacCode.trim()) payload.HSN_SAC_Code = hsnSacCode.trim();
-      if (tdsSection.trim()) payload.TDS_Section_Code = tdsSection.trim();
+      if (description.trim() !== (line.Description || "").trim()) {
+        payload.Description = description.trim();
+      }
+      if (receiveVal !== (line.Qty_to_Ship || 0)) {
+        payload.Qty_to_Ship = receiveVal;
+      }
+      if (invoiceVal !== (line.Qty_to_Invoice || 0)) {
+        payload.Qty_to_Invoice = invoiceVal;
+      }
+      if (exempted !== (line.Exempted ?? false)) {
+        payload.Exempted = exempted;
+      }
+      if (gstGroupCode.trim() !== (line.GST_Group_Code || "").trim()) {
+        payload.GST_Group_Code = gstGroupCode.trim();
+      }
+      if (hsnSacCode.trim() !== (line.HSN_SAC_Code || "").trim()) {
+        payload.HSN_SAC_Code = hsnSacCode.trim();
+      }
+      if (tdsSection.trim() !== (line.TDS_Section_Code || "").trim()) {
+        payload.TDS_Section_Code = tdsSection.trim();
+      }
+
+      if (Object.keys(payload).length === 0) {
+        toast.info("No changes to save");
+        setIsSaving(false);
+        onOpenChange(false);
+        return;
+      }
 
       await updatePurchaseLine(orderNo, line.Line_No, payload);
       toast.success("Line updated successfully");
@@ -110,7 +129,7 @@ export function PurchaseOrderLineEditDialog({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="p-8 sm:max-w-[720px]">
+        <DialogContent className="p-8 sm:max-w-180">
           <DialogHeader>
             <DialogTitle className={hasTracking ? "text-red-600" : ""}>
               Purchase Line Details
@@ -277,9 +296,7 @@ export function PurchaseOrderLineEditDialog({
                 <Checkbox
                   id="po-line-exempted"
                   checked={exempted}
-                  onCheckedChange={(checked) =>
-                    setExempted(checked === true)
-                  }
+                  onCheckedChange={(checked) => setExempted(checked === true)}
                 />
               </div>
             </div>

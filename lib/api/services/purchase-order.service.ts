@@ -127,7 +127,7 @@ export async function createPurchaseOrder(
       Terms_Code: orderData.termCode,
       Mandi_Name: orderData.mandiName,
       Payment_Terms_Code: orderData.paymentTermCode,
-      Location_Code: orderData.locationCode || orderData.loc,
+      Location_Code: orderData.locationCode,
       Creditors_Type: orderData.creditorType,
       Shortcut_Dimension_3_Code: orderData.loc,
       Responsibility_Center: orderData.lob,

@@ -455,12 +455,20 @@ export function PurchaseOrderEditForm({
     }
     for (const item of itemsToUpdate) {
       if (item.lineNo == null || item.lineNo <= 0) continue;
-      await updatePurchaseLine(orderNo, item.lineNo, {
-        No: item.no,
-        Description: item.description,
-        Quantity: item.quantity,
-        Unit_of_Measure_Code: item.uom ?? "",
-      });
+      const original = originalItems.find((x) => x.lineNo === item.lineNo);
+
+      const payload: Record<string, unknown> = {};
+      if (!original || item.no !== original.no) payload.No = item.no;
+      if (!original || item.description !== original.description)
+        payload.Description = item.description;
+      if (!original || item.quantity !== original.quantity)
+        payload.Quantity = item.quantity;
+      if (!original || item.uom !== original.uom)
+        payload.Unit_of_Measure_Code = item.uom ?? "";
+
+      if (Object.keys(payload).length > 0) {
+        await updatePurchaseLine(orderNo, item.lineNo, payload);
+      }
     }
   };
 

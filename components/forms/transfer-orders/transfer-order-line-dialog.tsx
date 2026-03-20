@@ -152,13 +152,20 @@ export function TransferOrderLineDialog({
       return;
     }
 
+    const payload = {
+      Document_No: documentNo,
+      Item_No: formData.Item_No,
+      Quantity: Number(formData.Quantity),
+      Appl_to_Item_Entry: Number(formData.Appl_to_Item_Entry || 0),
+    };
+
     setIsSubmitting(true);
     try {
       if (isEdit && line) {
-        await updateTransferLine(documentNo, line.Line_No, formData);
+        await updateTransferLine(documentNo, line.Line_No, payload);
         toast.success("Line updated successfully");
       } else {
-        await createTransferLine(formData);
+        await createTransferLine(payload);
         toast.success("Line added successfully");
       }
       onSuccess();

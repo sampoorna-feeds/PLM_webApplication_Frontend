@@ -78,15 +78,13 @@ export function SearchableSelect({
     }
   };
 
-  // Filter options locally if no onSearch provided
-  const filteredOptions = onSearch
-    ? options
-    : options.filter(
-        (opt) =>
-          opt.label.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          opt.value.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          opt.description?.toLowerCase().includes(searchQuery.toLowerCase()),
-      );
+  // Filter options locally
+  const filteredOptions = options.filter(
+    (opt) =>
+      opt.label.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      opt.value.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      opt.description?.toLowerCase().includes(searchQuery.toLowerCase()),
+  );
 
   // Handle scroll for infinite loading
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {

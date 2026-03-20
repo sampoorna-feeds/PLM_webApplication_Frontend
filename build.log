@@ -1,0 +1,7 @@
+
+> sf-ui@0.1.0 build C:\Users\ACER\Documents\PROGRAMMING\PLM_webApplication_Frontend
+> next build
+
+⨯ Unable to acquire lock at C:\Users\ACER\Documents\PROGRAMMING\PLM_webApplication_Frontend\.next\lock, is another instance of next build running?
+  Suggestion: If you intended to restart next build, terminate the other process, and then try again.
+ ELIFECYCLE  Command failed with exit code 1.

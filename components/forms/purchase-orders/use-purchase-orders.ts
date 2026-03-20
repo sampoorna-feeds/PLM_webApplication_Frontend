@@ -20,7 +20,11 @@ import {
 import { buildPurchaseOrderFilterString } from "./utils/filter-builder";
 import type { FilterCondition } from "./types";
 
-export type PurchaseOrderStatusTab = "Open" | "Pending Approval" | "Released";
+export type PurchaseOrderStatusTab =
+  | "Open"
+  | "Pending Approval"
+  | "Released"
+  | "";
 
 export interface UsePurchaseOrdersOptions {
   /** Status filter for tab (Open | Pending Approval | Released). Applied at API level. */

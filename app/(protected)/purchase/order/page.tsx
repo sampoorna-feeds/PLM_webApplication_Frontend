@@ -9,20 +9,21 @@ import {
 import { PurchaseOrderView } from "@/components/forms/purchase-orders/purchase-order-view";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-type PurchaseOrderTab = "open" | "pending" | "approved";
+type PurchaseOrderTab = "open" | "pending" | "approved" | "all";
 
 const TAB_STATUS_MAP: Record<
   PurchaseOrderTab,
-  "Open" | "Pending Approval" | "Released"
+  "Open" | "Pending Approval" | "Released" | ""
 > = {
   open: "Open",
   pending: "Pending Approval",
   approved: "Released",
+  all: "",
 };
 
 function PurchaseOrderPageContent() {
   const refetchRef = useRef<(() => void) | null>(null);
-  const [activeTab, setActiveTab] = useState<PurchaseOrderTab>("open");
+  const [activeTab, setActiveTab] = useState<PurchaseOrderTab>("all");
 
   return (
     <div className="flex h-[calc(100vh-5rem)] max-h-[calc(100vh-5rem)] w-full">
@@ -42,7 +43,8 @@ function PurchaseOrderPageContent() {
                   Manage and track purchase orders
                 </p>
               </div>
-              <TabsList className="grid w-fit grid-cols-3">
+              <TabsList className="grid w-fit grid-cols-4">
+                <TabsTrigger value="all">All</TabsTrigger>
                 <TabsTrigger value="open">Open</TabsTrigger>
                 <TabsTrigger value="pending">Pending</TabsTrigger>
                 <TabsTrigger value="approved">Approved</TabsTrigger>
@@ -86,6 +88,21 @@ function PurchaseOrderPageContent() {
           >
             <PurchaseOrderView
               statusFilter={TAB_STATUS_MAP.approved}
+              onPlaceOrder={() => {
+                refetchRef.current?.();
+              }}
+              registerRefetch={(refetch) => {
+                refetchRef.current = refetch;
+              }}
+            />
+          </TabsContent>
+
+          <TabsContent
+            value="all"
+            className="flex min-h-0 flex-1 flex-col overflow-hidden px-4 py-3"
+          >
+            <PurchaseOrderView
+              statusFilter={TAB_STATUS_MAP.all}
               onPlaceOrder={() => {
                 refetchRef.current?.();
               }}

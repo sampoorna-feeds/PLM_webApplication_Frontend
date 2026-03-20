@@ -541,12 +541,12 @@ export function PurchaseOrderFormContent({
   };
 
   // Step 1: Order Information
-  const fieldClass = "min-w-0 space-y-1";
-  const labelClass = "text-muted-foreground block text-xs font-medium";
+  const fieldClass = "min-w-0 space-y-0.5";
+  const labelClass = "text-muted-foreground block text-[11px] font-medium";
   const renderStep1 = () => (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {createdOrderNo && (
-        <div className="bg-primary/5 text-primary rounded-md border px-3 py-2 text-xs font-medium">
+        <div className="bg-primary/5 text-primary rounded-md border px-3 py-1.5 text-xs font-medium">
           Purchase order header created: {createdOrderNo}. Continue to Line
           Items.
         </div>
@@ -554,21 +554,23 @@ export function PurchaseOrderFormContent({
 
       <div
         className={cn(
-          "space-y-6",
+          "space-y-4",
           createdOrderNo && "pointer-events-none opacity-70",
         )}
       >
-        {/* 1. Order Details */}
-        <section className="space-y-3">
-          <h3 className="border-b pb-1 text-sm font-semibold">Order Details</h3>
-          <div className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 lg:grid-cols-4">
+        {/* 1. Core Order Info */}
+        <section className="space-y-2">
+          <h3 className="text-foreground/80 border-b pb-1 text-xs font-semibold tracking-wider uppercase">
+            1. Core Information
+          </h3>
+          <div className="grid grid-cols-1 gap-x-3 gap-y-2.5 sm:grid-cols-3 lg:grid-cols-5">
             <div className={fieldClass}>
               <label className={labelClass}>PO Type</label>
               <Select
                 value={formData.poType}
                 onValueChange={(value) => handleInputChange("poType", value)}
               >
-                <SelectTrigger className="h-8 text-sm">
+                <SelectTrigger className="h-7 text-xs">
                   <SelectValue placeholder="Select" />
                 </SelectTrigger>
                 <SelectContent>
@@ -593,7 +595,7 @@ export function PurchaseOrderFormContent({
                       )
                     }
                   >
-                    <SelectTrigger className="h-8 text-sm">
+                    <SelectTrigger className="h-7 text-xs">
                       <SelectValue placeholder="Select" />
                     </SelectTrigger>
                     <SelectContent>
@@ -616,7 +618,7 @@ export function PurchaseOrderFormContent({
                     handleInputChange("invoiceType", value)
                   }
                 >
-                  <SelectTrigger className="h-8 text-sm">
+                  <SelectTrigger className="h-7 text-xs">
                     <SelectValue placeholder="Select / None" />
                   </SelectTrigger>
                   <SelectContent>
@@ -651,18 +653,13 @@ export function PurchaseOrderFormContent({
                 />
               </ClearableField>
               {formData.purchasePersonName && (
-                <p className="mt-1 truncate pl-1 text-[10px] font-medium text-green-600">
+                <p className="mt-0.5 truncate pl-1 text-[9px] font-medium text-green-600">
                   {formData.purchasePersonName}
                 </p>
               )}
             </div>
-          </div>
-        </section>
 
-        {/* 2. Dimensions */}
-        <section className="space-y-3">
-          <h3 className="border-b pb-1 text-sm font-semibold">Dimensions</h3>
-          <div className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 lg:grid-cols-4">
+            {/* Dimensions */}
             <div className={fieldClass}>
               <label className={labelClass}>LOB</label>
               <ClearableField
@@ -719,14 +716,11 @@ export function PurchaseOrderFormContent({
               <Input
                 value={formData.locationCode || formData.loc || ""}
                 disabled
-                className="bg-muted h-8"
+                className="bg-muted h-7 text-xs"
                 readOnly
               />
-              {/* Show Location Name if we have one. We don't have location name in the form data by default, 
-                but we can show loc name if LOC dimension returns it, 
-                or we can just show the code for now if name is not fetched */}
               {formData.locationCode && (
-                <p className="text-muted-foreground mt-0.5 overflow-hidden pl-1 text-[10px] text-ellipsis whitespace-nowrap">
+                <p className="text-muted-foreground mt-0.5 overflow-hidden pl-1 text-[9px] text-ellipsis whitespace-nowrap">
                   {formData.locationCode} Location
                 </p>
               )}
@@ -734,12 +728,12 @@ export function PurchaseOrderFormContent({
           </div>
         </section>
 
-        {/* 3. Vendor & Broker */}
-        <section className="space-y-3">
-          <h3 className="border-b pb-1 text-sm font-semibold">
-            Vendor & Broker
+        {/* 2. Vendor, Broker & Address */}
+        <section className="space-y-2">
+          <h3 className="text-foreground/80 border-b pb-1 text-xs font-semibold tracking-wider uppercase">
+            2. Party Details
           </h3>
-          <div className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-x-3 gap-y-2.5 sm:grid-cols-3 lg:grid-cols-5">
             <div className={fieldClass}>
               <label className={labelClass}>Vendor</label>
               <ClearableField
@@ -753,28 +747,28 @@ export function PurchaseOrderFormContent({
                 />
               </ClearableField>
               {formData.vendorName && (
-                <p className="mt-1 truncate pl-1 text-[10px] font-medium text-green-600">
+                <p className="mt-0.5 truncate pl-1 text-[9px] font-medium text-green-600">
                   {formData.vendorName}
                 </p>
               )}
             </div>
             <div className={fieldClass}>
-              <label className={labelClass}>Vendor GST Reg No.</label>
+              <label className={labelClass}>Vendor GST No.</label>
               <Input
                 value={formData.vendorGstRegNo}
                 disabled
-                className="bg-muted h-8"
-                placeholder="Auto-filled"
+                className="bg-muted h-7 text-xs"
+                placeholder="Auto"
                 readOnly
               />
             </div>
             <div className={fieldClass}>
-              <label className={labelClass}>Vendor PAN No.</label>
+              <label className={labelClass}>Vendor PAN</label>
               <Input
                 value={formData.vendorPanNo}
                 disabled
-                className="bg-muted h-8"
-                placeholder="Auto-filled"
+                className="bg-muted h-7 text-xs"
+                placeholder="Auto"
                 readOnly
               />
             </div>
@@ -790,11 +784,25 @@ export function PurchaseOrderFormContent({
                     handleInputChange("vendorInvoiceNo", e.target.value)
                   }
                   placeholder="Optional"
-                  className="h-8"
+                  className="h-7 text-xs"
                 />
               </ClearableField>
             </div>
-
+            <div className={`${fieldClass} sm:col-span-2 lg:col-span-2`}>
+              <label className={labelClass}>Order Address Select</label>
+              <OrderAddressSelect
+                vendorNo={formData.vendorNo}
+                value={formData.orderAddressCode}
+                onChange={(code, addr) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    orderAddressCode: code,
+                    orderAddressName: addr?.Name || "",
+                  }))
+                }
+                disabled={!formData.vendorNo}
+              />
+            </div>
             <div className={fieldClass}>
               <label className={labelClass}>Brokerage Code</label>
               <ClearableField
@@ -819,7 +827,7 @@ export function PurchaseOrderFormContent({
                 />
               </ClearableField>
               {formData.brokerName && (
-                <p className="mt-1 truncate pl-1 text-[10px] font-medium text-green-600">
+                <p className="mt-0.5 truncate pl-1 text-[9px] font-medium text-green-600">
                   {formData.brokerName}
                 </p>
               )}
@@ -838,7 +846,7 @@ export function PurchaseOrderFormContent({
                   onChange={(e) =>
                     handleInputChange("brokerageRate", e.target.value)
                   }
-                  className="h-8"
+                  className="h-7 text-xs"
                   placeholder="0.00"
                 />
               </ClearableField>
@@ -846,34 +854,12 @@ export function PurchaseOrderFormContent({
           </div>
         </section>
 
-        {/* 4. Order Address */}
-        <section className="space-y-3">
-          <h3 className="border-b pb-1 text-sm font-semibold">Order Address</h3>
-          <div className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 lg:grid-cols-3">
-            <div
-              className={`${fieldClass} col-span-1 max-w-md sm:col-span-2 lg:col-span-3`}
-            >
-              <label className={labelClass}>Order Address Select</label>
-              <OrderAddressSelect
-                vendorNo={formData.vendorNo}
-                value={formData.orderAddressCode}
-                onChange={(code, addr) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    orderAddressCode: code,
-                    orderAddressName: addr?.Name || "",
-                  }))
-                }
-                disabled={!formData.vendorNo}
-              />
-            </div>
-          </div>
-        </section>
-
-        {/* 5. Dates */}
-        <section className="space-y-3">
-          <h3 className="border-b pb-1 text-sm font-semibold">Dates</h3>
-          <div className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 lg:grid-cols-4">
+        {/* 3. Dates & Configurations */}
+        <section className="space-y-2">
+          <h3 className="text-foreground/80 border-b pb-1 text-xs font-semibold tracking-wider uppercase">
+            3. Dates & Settings
+          </h3>
+          <div className="grid grid-cols-2 gap-x-3 gap-y-2.5 sm:grid-cols-4 lg:grid-cols-6">
             <div className={fieldClass}>
               <label className={labelClass}>Posting Date</label>
               <ClearableField
@@ -886,7 +872,7 @@ export function PurchaseOrderFormContent({
                   onChange={(e) =>
                     handleInputChange("postingDate", e.target.value)
                   }
-                  className="h-8"
+                  className="h-7 text-xs"
                 />
               </ClearableField>
             </div>
@@ -902,7 +888,7 @@ export function PurchaseOrderFormContent({
                   onChange={(e) =>
                     handleInputChange("documentDate", e.target.value)
                   }
-                  className="h-8"
+                  className="h-7 text-xs"
                 />
               </ClearableField>
             </div>
@@ -913,7 +899,7 @@ export function PurchaseOrderFormContent({
                 value={formData.orderDate}
                 onChange={(e) => handleInputChange("orderDate", e.target.value)}
                 disabled
-                className="bg-muted h-8"
+                className="bg-muted h-7 text-xs"
               />
             </div>
             <div className={fieldClass}>
@@ -926,26 +912,34 @@ export function PurchaseOrderFormContent({
                   type="date"
                   value={formData.dueDate}
                   onChange={(e) => handleInputChange("dueDate", e.target.value)}
-                  className="h-8"
+                  className="h-7 text-xs"
                 />
               </ClearableField>
             </div>
-          </div>
-        </section>
-
-        {/* 6. Additional Configurations */}
-        <section className="space-y-3">
-          <h3 className="border-b pb-1 text-sm font-semibold">
-            Additional Configuration
-          </h3>
-          <div className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div className={fieldClass}>
+              <label className={labelClass}>Due Date Calc</label>
+              <Select
+                value={formData.dueDateCalculation}
+                onValueChange={(value) =>
+                  handleInputChange("dueDateCalculation", value)
+                }
+              >
+                <SelectTrigger className="h-7 text-xs">
+                  <SelectValue placeholder="Select" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Posting Date">Posting Date</SelectItem>
+                  <SelectItem value="Document Date">Document Date</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             <div className={fieldClass}>
               <label className={labelClass}>Rate Basis</label>
               <Select
                 value={formData.rateBasis}
                 onValueChange={(value) => handleInputChange("rateBasis", value)}
               >
-                <SelectTrigger className="h-8 text-sm">
+                <SelectTrigger className="h-7 text-xs">
                   <SelectValue placeholder="Select" />
                 </SelectTrigger>
                 <SelectContent>
@@ -958,29 +952,12 @@ export function PurchaseOrderFormContent({
               </Select>
             </div>
             <div className={fieldClass}>
-              <label className={labelClass}>Due Date Calculation</label>
-              <Select
-                value={formData.dueDateCalculation}
-                onValueChange={(value) =>
-                  handleInputChange("dueDateCalculation", value)
-                }
-              >
-                <SelectTrigger className="h-8 text-sm">
-                  <SelectValue placeholder="Select" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Posting Date">Posting Date</SelectItem>
-                  <SelectItem value="Document Date">Document Date</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className={fieldClass}>
               <label className={labelClass}>Creditor Type</label>
               <SearchableSelect
                 value={formData.creditorType}
                 onChange={(value) => handleInputChange("creditorType", value)}
                 options={CREDITOR_TYPE_OPTIONS}
-                placeholder="Select creditor type"
+                placeholder="Select creditor"
               />
             </div>
             <div className={fieldClass}>
@@ -989,7 +966,7 @@ export function PurchaseOrderFormContent({
                 value={formData.qcType}
                 onValueChange={(value) => handleInputChange("qcType", value)}
               >
-                <SelectTrigger className="h-8 text-sm">
+                <SelectTrigger className="h-7 text-xs">
                   <SelectValue placeholder="Select" />
                 </SelectTrigger>
                 <SelectContent>
@@ -1007,7 +984,21 @@ export function PurchaseOrderFormContent({
                   value: t.Terms,
                   label: `${t.Terms} - ${t.Conditions}`,
                 }))}
-                placeholder="Select term code"
+                placeholder="Select term"
+              />
+            </div>
+            <div className={fieldClass}>
+              <label className={labelClass}>Payment Term</label>
+              <SearchableSelect
+                value={formData.paymentTermCode}
+                onChange={(value) =>
+                  handleInputChange("paymentTermCode", value)
+                }
+                options={paymentTermList.map((p) => ({
+                  value: p.Code,
+                  label: `${p.Code} - ${p.Description}`,
+                }))}
+                placeholder="Select pmt term"
               />
             </div>
             <div className={fieldClass}>
@@ -1019,21 +1010,7 @@ export function PurchaseOrderFormContent({
                   value: m.Code,
                   label: `${m.Code} - ${m.Description}`,
                 }))}
-                placeholder="Select mandi name"
-              />
-            </div>
-            <div className={fieldClass}>
-              <label className={labelClass}>Payment Term Code</label>
-              <SearchableSelect
-                value={formData.paymentTermCode}
-                onChange={(value) =>
-                  handleInputChange("paymentTermCode", value)
-                }
-                options={paymentTermList.map((p) => ({
-                  value: p.Code,
-                  label: `${p.Code} - ${p.Description}`,
-                }))}
-                placeholder="Select payment term"
+                placeholder="Select mandi"
               />
             </div>
           </div>

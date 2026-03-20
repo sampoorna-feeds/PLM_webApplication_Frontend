@@ -287,21 +287,33 @@ export async function getProdOrderBOMVersions(
 /**
  * Get location codes with optional search and LOC filter
  * @param search - Optional search query
- * @param locCode - LOC dimension code for filtering (same filter as dimension LOC)
+/**
+ * Get location codes with optional search and multiple specific codes
+ * @param search - Optional search query
+ * @param authorizedCodes - Optional array of authorized location codes to filter by
  */
 export async function getLocationCodes(
   search?: string,
-  locCode?: string,
+  authorizedCodes?: string[],
 ): Promise<LocationCode[]> {
   const filters: string[] = [];
 
   if (search && search.length >= 2) {
-    filters.push(`(contains(Code,'${search}') or contains(Name,'${search}'))`);
+    const escapedSearch = search.replace(/'/g, "''");
+    filters.push(
+      `(contains(Code,'${escapedSearch}') or contains(Name,'${escapedSearch}'))`,
+    );
   }
 
-  // If LOC code is provided, filter by it
-  if (locCode) {
-    filters.push(`Code eq '${locCode}'`);
+  // If authorized codes are provided, restrict to those only
+  if (authorizedCodes && authorizedCodes.length > 0) {
+    const codeFilter = authorizedCodes
+      .map((c) => `'${c.replace(/'/g, "''")}'`)
+      .join(",");
+    filters.push(`Code in (${codeFilter})`);
+  } else if (authorizedCodes && authorizedCodes.length === 0) {
+    // If explicitly empty array is passed, return nothing
+    return [];
   }
 
   const queryParams: Record<string, any> = {
@@ -317,22 +329,43 @@ export async function getLocationCodes(
   const query = buildODataQuery(queryParams);
   const endpoint = `/LocationList?company='${encodeURIComponent(COMPANY)}'&${query}`;
 
-  const response = await apiGet<ODataResponse<LocationCode>>(endpoint);
-  return response.value || [];
+  try {
+    const response = await apiGet<ODataResponse<LocationCode>>(endpoint);
+    return response.value || [];
+  } catch (error) {
+    console.error("Error searching location codes:", error);
+    return [];
+  }
 }
 
 /**
  * Get all location codes for dropdown (with optional dimension-based filtering)
  */
-export async function getAllLocationCodes(): Promise<LocationCode[]> {
-  const query = buildODataQuery({
+export async function getAllLocationCodes(
+  codes?: string[],
+): Promise<LocationCode[]> {
+  const queryParams: Record<string, any> = {
     $select: "Code,Name",
     $orderby: "Code",
-    $top: 100,
-  });
+    $top: 1000, // Increase top to avoid clipping
+  };
 
+  if (codes && codes.length > 0) {
+    const codeFilter = codes.map((c) => `'${c.replace(/'/g, "''")}'`).join(",");
+    queryParams.$filter = `Code in (${codeFilter})`;
+  } else if (codes && codes.length === 0) {
+    // If explicitly empty array passed, return nothing
+    return [];
+  }
+
+  const query = buildODataQuery(queryParams);
   const endpoint = `/LocationList?company='${encodeURIComponent(COMPANY)}'&${query}`;
 
-  const response = await apiGet<ODataResponse<LocationCode>>(endpoint);
-  return response.value || [];
+  try {
+    const response = await apiGet<ODataResponse<LocationCode>>(endpoint);
+    return response.value || [];
+  } catch (error) {
+    console.error("Error fetching location codes:", error);
+    return [];
+  }
 }

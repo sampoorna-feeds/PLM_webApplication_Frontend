@@ -7,6 +7,7 @@ import {
   getLOBs,
   getLOBsFromUserSetup,
   getWebUserSetup,
+  getAllLOCsFromUserSetup,
   type DimensionValue,
   type WebUserSetup,
 } from "@/lib/api/services/dimension.service";
@@ -103,9 +104,17 @@ export function TransferOrderForm({
   // Dimension dropdowns state
   const [lobs, setLobs] = useState<DimensionValue[]>([]);
   const [branches, setBranches] = useState<DimensionValue[]>([]);
-  const [locations, setLocations] = useState<LocationCode[]>([]);
+  const [locations, setLocations] = useState<LocationCode[]>([]); // These will be used for Transfer-from
+  const [allLocations, setAllLocations] = useState<LocationCode[]>([]); // These will be used for Transfer-to
+  const [authorizedLOCs, setAuthorizedLOCs] = useState<string[]>([]);
   const [transporters, setTransporters] = useState<Vendor[]>([]);
   const [isLoadingDimensions, setIsLoadingDimensions] = useState(false);
+
+  // Debug: Monitor locations state changes
+  useEffect(() => {
+    console.log("DEBUG: Authorized locations (From):", locations.length, locations);
+    console.log("DEBUG: All locations (To):", allLocations.length);
+  }, [locations, allLocations]);
 
   const [userSetup, setUserSetup] = useState<WebUserSetup[]>([]);
 
@@ -167,7 +176,7 @@ export function TransferOrderForm({
     }
   }, [orderNo, fetchOrderData, registerRefresh]);
 
-  // Resolve Location Names and auto-populate dimensions from setup when Transfer_From_Code changes
+  // Resolve Location Names and auto-populate dimensions from setup when Transfer_from_Code changes
   useEffect(() => {
     if (locations.length > 0) {
       const fromLoc = locations.find(
@@ -234,10 +243,20 @@ export function TransferOrderForm({
 
       setIsLoadingDimensions(true);
       try {
-        let [lobData, locationData] = await Promise.all([
+        // First get the user's authorized locations/dimension setup
+        let [lobData, authLOCEntries] = await Promise.all([
           getLOBsFromUserSetup(userId),
-          getAllLocationCodes(),
+          getAllLOCsFromUserSetup(userId),
         ]);
+
+        // Rule 1: Transfer-from comes ONLY from authorized setup codes (no extra fetch)
+        const fromLocations: LocationCode[] = authLOCEntries.map(l => ({
+          Code: l.Code,
+          Name: "" // No name available in WebUserSetup
+        }));
+
+        // Rule 2: Transfer-to fetches ALL locations without boundation
+        const toLocations = await getAllLocationCodes();
 
         // Fallback to general LOBs if user setup doesn't exist
         if (lobData.length === 0) {
@@ -248,7 +267,8 @@ export function TransferOrderForm({
         }
 
         setLobs(lobData);
-        setLocations(locationData);
+        setLocations(fromLocations);
+        setAllLocations(toLocations);
 
         // Load initial transporters
         const vendorData = await getVendors();
@@ -521,7 +541,83 @@ export function TransferOrderForm({
           </div>
 
           <div className={cn("space-y-8", formState.No && "opacity-90")}>
-            {/* 1. Header Details */}
+            {/* 1. Transfer Locations (Moved to Top) */}
+            <section className="space-y-4">
+              <h3 className="text-muted-foreground text-sm font-semibold tracking-wider uppercase">
+                Transfer Locations
+              </h3>
+              <div className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2">
+                <div className={fieldClass}>
+                  <label className={labelClass}>
+                    Transfer-from Code (Required)
+                  </label>
+                  <SearchableSelect
+                    options={locations.map((l) => ({
+                      value: l.Code,
+                      label: `${l.Code} - ${l.Name || ""}`,
+                    }))}
+                    value={formState.Transfer_From_Code}
+                    onValueChange={(v) => {
+                      const loc = locations.find((l) => l.Code === v);
+                      setFormState((prev) => ({
+                        ...prev,
+                        Transfer_From_Code: v,
+                        Transfer_From_Name: loc?.Name || "",
+                      }));
+                      updateTab({ isSaved: false });
+                    }}
+                    placeholder="Select Source Location"
+                    disabled={formState.Status === "Released" || !!formState.No}
+                  />
+                  {formState.Transfer_From_Name && (
+                    <p className="text-primary mt-1 truncate pl-1 text-[10px] font-medium">
+                      {formState.Transfer_From_Name}
+                    </p>
+                  )}
+                </div>
+                <div className={fieldClass}>
+                  <label className={labelClass}>
+                    Transfer-to Code (Required)
+                  </label>
+                  <SearchableSelect
+                    options={allLocations.map((l) => ({
+                      value: l.Code,
+                      label: l.Name ? `${l.Code} - ${l.Name}` : l.Code,
+                    }))}
+                    value={formState.Transfer_To_Code}
+                    onValueChange={(v) => {
+                      const loc = allLocations.find((l) => l.Code === v);
+                      setFormState((prev) => ({
+                        ...prev,
+                        Transfer_To_Code: v,
+                        Transfer_To_Name: loc?.Name || "",
+                      }));
+                      updateTab({ isSaved: false });
+                    }}
+                    onSearch={async (q) => {
+                      if (q.length >= 2) {
+                        const results = await getLocationCodes(q); // Pass NO authorizedLOCs for unbound search
+                        setAllLocations((prev) => {
+                          const combined = [...prev, ...results];
+                          const unique = new Map();
+                          combined.forEach((l) => unique.set(l.Code, l));
+                          return Array.from(unique.values());
+                        });
+                      }
+                    }}
+                    placeholder="Select Destination Location"
+                    disabled={formState.Status === "Released" || !!formState.No}
+                  />
+                  {formState.Transfer_To_Name && (
+                    <p className="text-primary mt-1 truncate pl-1 text-[10px] font-medium">
+                      {formState.Transfer_To_Name}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </section>
+
+            {/* 2. Header Details */}
             <section className="space-y-4">
               <h3 className="text-muted-foreground text-sm font-semibold tracking-wider uppercase">
                 Order Details
@@ -610,93 +706,6 @@ export function TransferOrderForm({
                     disabled
                     className="bg-muted h-8"
                   />
-                </div>
-              </div>
-            </section>
-
-            {/* 3. Transfer Locations */}
-            <section className="space-y-4">
-              <h3 className="text-muted-foreground text-sm font-semibold tracking-wider uppercase">
-                Transfer Locations
-              </h3>
-              <div className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2">
-                <div className={fieldClass}>
-                  <label className={labelClass}>
-                    Transfer-from Code (Required)
-                  </label>
-                  <SearchableSelect
-                    options={locations.map((l) => ({
-                      value: l.Code,
-                      label: `${l.Code} - ${l.Name || ""}`,
-                    }))}
-                    value={formState.Transfer_From_Code}
-                    onValueChange={(v) => {
-                      const loc = locations.find((l) => l.Code === v);
-                      setFormState((prev) => ({
-                        ...prev,
-                        Transfer_From_Code: v,
-                        Transfer_From_Name: loc?.Name || "",
-                      }));
-                      updateTab({ isSaved: false });
-                    }}
-                    onSearch={async (q) => {
-                      if (q.length >= 2) {
-                        const results = await getLocationCodes(q);
-                        setLocations((prev) => {
-                          const combined = [...prev, ...results];
-                          const unique = new Map();
-                          combined.forEach((l) => unique.set(l.Code, l));
-                          return Array.from(unique.values());
-                        });
-                      }
-                    }}
-                    placeholder="Select Source Location"
-                    disabled={formState.Status === "Released" || !!formState.No}
-                  />
-                  {formState.Transfer_From_Name && (
-                    <p className="text-primary mt-1 truncate pl-1 text-[10px] font-medium">
-                      {formState.Transfer_From_Name}
-                    </p>
-                  )}
-                </div>
-                <div className={fieldClass}>
-                  <label className={labelClass}>
-                    Transfer-to Code (Required)
-                  </label>
-                  <SearchableSelect
-                    options={locations.map((l) => ({
-                      value: l.Code,
-                      label: `${l.Code} - ${l.Name || ""}`,
-                    }))}
-                    value={formState.Transfer_To_Code}
-                    onValueChange={(v) => {
-                      const loc = locations.find((l) => l.Code === v);
-                      setFormState((prev) => ({
-                        ...prev,
-                        Transfer_To_Code: v,
-                        Transfer_To_Name: loc?.Name || "",
-                      }));
-                      updateTab({ isSaved: false });
-                    }}
-                    onSearch={async (q) => {
-                      if (q.length >= 2) {
-                        const results = await getLocationCodes(q);
-                        setLocations((prev) => {
-                          const combined = [...prev, ...results];
-                          const unique = new Map();
-                          combined.forEach((l) => unique.set(l.Code, l));
-                          return Array.from(unique.values());
-                        });
-                      }
-                    }}
-                    placeholder="Select Destination Location"
-                    disabled={formState.Status === "Released" || !!formState.No}
-                  />
-                  {formState.Transfer_To_Name && (
-                    <p className="text-primary mt-1 truncate pl-1 text-[10px] font-medium">
-                      {formState.Transfer_To_Name}
-                    </p>
-                  )}
                 </div>
               </div>
             </section>

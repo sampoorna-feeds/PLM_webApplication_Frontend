@@ -297,6 +297,35 @@ export async function getSalesShipmentsByOrder(
   return response.value || [];
 }
 
+export interface DeliveryReportResponse {
+  value?: string;
+  [key: string]: unknown;
+}
+
+/**
+ * Get delivery challan PDF as a base64 string for a posted shipment.
+ */
+export async function getDeliveryReportPdf(
+  documentNo: string,
+  custNo: string,
+  postingDate: string,
+): Promise<string> {
+  const endpoint = `/API_GetDeliveryReportWeb?company='${encodeURIComponent(COMPANY)}'`;
+  const payload = {
+    documentNo,
+    custNo,
+    postingDate,
+  };
+
+  const response = await apiPost<DeliveryReportResponse | string>(
+    endpoint,
+    payload,
+  );
+
+  if (typeof response === "string") return response;
+  return response?.value || "";
+}
+
 /**
  * Remove properties whose value is `undefined`, `null` or an empty string.
  * This is useful when constructing patch payloads where the API should only

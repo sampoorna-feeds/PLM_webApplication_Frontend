@@ -421,6 +421,8 @@ export function TransferOrderForm({
       "Posting_Date",
       "Vehicle_No",
       "LR_RR_No",
+      "LR_RR_Date",
+      "Distance_Km",
       "Freight_Value",
     ];
 
@@ -739,14 +741,15 @@ export function TransferOrderForm({
                 <div className={fieldClass}>
                   <label className={labelClass}>LR/RR Date</label>
                   <Input
+                    type="date"
                     value={
                       formState.LR_RR_Date
                         ? formState.LR_RR_Date.split("T")[0]
                         : ""
                     }
-                    readOnly
-                    disabled
-                    className="bg-muted h-8"
+                    onChange={(e) => handleChange("LR_RR_Date", e.target.value)}
+                    disabled={formState.Status === "Released"}
+                    className="h-8"
                   />
                 </div>
                 <div className={fieldClass}>
@@ -761,10 +764,16 @@ export function TransferOrderForm({
                 <div className={fieldClass}>
                   <label className={labelClass}>Distance (Km)</label>
                   <Input
+                    type="number"
                     value={formState.Distance_Km || 0}
-                    readOnly
-                    disabled
-                    className="bg-muted h-8 text-right"
+                    onChange={(e) =>
+                      handleChange(
+                        "Distance_Km",
+                        parseFloat(e.target.value) || 0,
+                      )
+                    }
+                    disabled={formState.Status === "Released"}
+                    className="h-8 text-right"
                   />
                 </div>
                 <div className={fieldClass}>

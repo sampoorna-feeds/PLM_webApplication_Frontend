@@ -291,3 +291,68 @@ export async function searchBrokers(query: string): Promise<Broker[]> {
     a.No.localeCompare(b.No),
   );
 }
+
+/**
+ * Get initial transporters (Vendors with Transporter eq true)
+ */
+export async function getTransporters(): Promise<Vendor[]> {
+  const transporterFilter = `${getBaseFilter()} and Transporter eq true`;
+  const query = buildODataQuery({
+    $select: "No,Name",
+    $filter: transporterFilter,
+    $orderby: "No",
+    $top: 50, // Increased top for better initial selection
+  });
+
+  const endpoint = `/VendorCard?company='${encodeURIComponent(COMPANY)}'&${query}`;
+  const response = await apiGet<ODataResponse<Vendor>>(endpoint);
+  return response.value;
+}
+
+/**
+ * Search transporters by No or Name
+ */
+export async function searchTransporters(query: string): Promise<Vendor[]> {
+  if (query.length < 2) return [];
+
+  const transporterFilter = `${getBaseFilter()} and Transporter eq true`;
+  const escapedQuery = escapeODataValue(query);
+
+  const [resultsByNo, resultsByName] = await Promise.all([
+    (async () => {
+      const filterByNo = `(${transporterFilter}) and contains(No,'${escapedQuery}')`;
+      const odataQuery = buildODataQuery({
+        $select: "No,Name",
+        $filter: filterByNo,
+        $orderby: "No",
+        $top: 30,
+      });
+      const endpoint = `/VendorCard?company='${encodeURIComponent(COMPANY)}'&${odataQuery}`;
+      const response = await apiGet<ODataResponse<Vendor>>(endpoint);
+      return response.value;
+    })(),
+    (async () => {
+      const filterByName = `(${transporterFilter}) and contains(Name,'${escapedQuery}')`;
+      const odataQuery = buildODataQuery({
+        $select: "No,Name",
+        $filter: filterByName,
+        $orderby: "No",
+        $top: 30,
+      });
+      const endpoint = `/VendorCard?company='${encodeURIComponent(COMPANY)}'&${odataQuery}`;
+      const response = await apiGet<ODataResponse<Vendor>>(endpoint);
+      return response.value;
+    })(),
+  ]);
+
+  const combined = [...resultsByNo, ...resultsByName];
+  const uniqueMap = new Map<string, Vendor>();
+  combined.forEach((transporter) => {
+    if (!uniqueMap.has(transporter.No)) {
+      uniqueMap.set(transporter.No, transporter);
+    }
+  });
+  return Array.from(uniqueMap.values()).sort((a, b) =>
+    a.No.localeCompare(b.No),
+  );
+}

@@ -27,6 +27,8 @@ import {
 } from "@/lib/api/services/transfer-orders.service";
 import {
   getVendors,
+  getTransporters,
+  searchTransporters,
   searchVendors,
   type Vendor,
 } from "@/lib/api/services/vendor.service";
@@ -271,7 +273,7 @@ export function TransferOrderForm({
         setAllLocations(toLocations);
 
         // Load initial transporters
-        const vendorData = await getVendors();
+        const vendorData = await getTransporters();
         setTransporters(vendorData);
 
         // Auto-select LOB if only one exists and not currently set (only for new orders)
@@ -801,7 +803,7 @@ export function TransferOrderForm({
                     }}
                     onSearch={async (q) => {
                       if (q.length >= 2) {
-                        const results = await searchVendors(q);
+                        const results = await searchTransporters(q);
                         setTransporters((prev) => {
                           const combined = [...prev, ...results];
                           const unique = new Map();

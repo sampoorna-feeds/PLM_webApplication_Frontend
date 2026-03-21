@@ -285,9 +285,6 @@ export async function getProdOrderBOMVersions(
 // ============================================
 
 /**
- * Get location codes with optional search and LOC filter
- * @param search - Optional search query
-/**
  * Get location codes with optional search and multiple specific codes
  * @param search - Optional search query
  * @param authorizedCodes - Optional array of authorized location codes to filter by
@@ -296,42 +293,78 @@ export async function getLocationCodes(
   search?: string,
   authorizedCodes?: string[],
 ): Promise<LocationCode[]> {
-  const filters: string[] = [];
-
-  if (search && search.length >= 2) {
-    const escapedSearch = search.replace(/'/g, "''");
-    filters.push(
-      `(contains(Code,'${escapedSearch}') or contains(Name,'${escapedSearch}'))`,
-    );
-  }
+  const commonFilter: string[] = [];
 
   // If authorized codes are provided, restrict to those only
   if (authorizedCodes && authorizedCodes.length > 0) {
-    const codeFilter = authorizedCodes
+    const codeInFilter = authorizedCodes
       .map((c) => `'${c.replace(/'/g, "''")}'`)
       .join(",");
-    filters.push(`Code in (${codeFilter})`);
+    commonFilter.push(`Code in (${codeInFilter})`);
   } else if (authorizedCodes && authorizedCodes.length === 0) {
-    // If explicitly empty array is passed, return nothing
     return [];
   }
 
-  const queryParams: Record<string, any> = {
-    $select: "Code,Name",
-    $orderby: "Code",
-    $top: 50,
-  };
-
-  if (filters.length > 0) {
-    queryParams.$filter = filters.join(" and ");
-  }
-
-  const query = buildODataQuery(queryParams);
-  const endpoint = `/LocationList?company='${encodeURIComponent(COMPANY)}'&${query}`;
-
-  try {
+  // No search query - return initial list
+  if (!search || search.length < 2) {
+    const queryParams: Record<string, any> = {
+      $select: "Code,Name",
+      $orderby: "Code",
+      $top: 50,
+    };
+    if (commonFilter.length > 0) {
+      queryParams.$filter = commonFilter.join(" and ");
+    }
+    const query = buildODataQuery(queryParams);
+    const endpoint = `/LocationList?company='${encodeURIComponent(COMPANY)}'&${query}`;
     const response = await apiGet<ODataResponse<LocationCode>>(endpoint);
     return response.value || [];
+  }
+
+  // With search - make 2 parallel calls (Code vs Name) since 'OR' is not supported
+  try {
+    const escapedSearch = search.replace(/'/g, "''");
+    const [resultsByCode, resultsByName] = await Promise.all([
+      // Search by Code
+      (async () => {
+        const filter = [...commonFilter, `contains(Code,'${escapedSearch}')`].join(" and ");
+        const query = buildODataQuery({
+          $select: "Code,Name",
+          $filter: filter,
+          $orderby: "Code",
+          $top: 30,
+        });
+        const endpoint = `/LocationList?company='${encodeURIComponent(COMPANY)}'&${query}`;
+        const response = await apiGet<ODataResponse<LocationCode>>(endpoint);
+        return response.value || [];
+      })(),
+      // Search by Name
+      (async () => {
+        const filter = [...commonFilter, `contains(Name,'${escapedSearch}')`].join(" and ");
+        const query = buildODataQuery({
+          $select: "Code,Name",
+          $filter: filter,
+          $orderby: "Code",
+          $top: 30,
+        });
+        const endpoint = `/LocationList?company='${encodeURIComponent(COMPANY)}'&${query}`;
+        const response = await apiGet<ODataResponse<LocationCode>>(endpoint);
+        return response.value || [];
+      })(),
+    ]);
+
+    // Combine and deduplicate
+    const combined = [...resultsByCode, ...resultsByName];
+    const uniqueMap = new Map<string, LocationCode>();
+    combined.forEach((loc) => {
+      if (!uniqueMap.has(loc.Code)) {
+        uniqueMap.set(loc.Code, loc);
+      }
+    });
+
+    return Array.from(uniqueMap.values()).sort((a, b) =>
+      a.Code.localeCompare(b.Code),
+    );
   } catch (error) {
     console.error("Error searching location codes:", error);
     return [];

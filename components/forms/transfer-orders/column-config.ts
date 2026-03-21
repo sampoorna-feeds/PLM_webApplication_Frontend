@@ -26,14 +26,14 @@ export const DEFAULT_COLUMNS: ColumnConfig[] = [
     filterType: "text",
   },
   {
-    id: "Transfer_From_Code",
+    id: "Transfer_from_Code",
     label: "Transfer-from Code",
     sortable: true,
     defaultVisible: true,
     filterType: "text",
   },
   {
-    id: "Transfer_To_Code",
+    id: "Transfer_to_Code",
     label: "Transfer-to Code",
     sortable: true,
     defaultVisible: true,

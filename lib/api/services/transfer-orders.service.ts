@@ -7,10 +7,10 @@ const COMPANY =
 
 export interface TransferOrder {
   No: string;
-  Transfer_From_Code?: string;
-  Transfer_From_Name?: string;
-  Transfer_To_Code?: string;
-  Transfer_To_Name?: string;
+  Transfer_from_Code?: string;
+  Transfer_from_Name?: string;
+  Transfer_to_Code?: string;
+  Transfer_to_Name?: string;
   External_Document_No?: string;
   In_Transit_Code?: string;
   Status?: string;
@@ -58,7 +58,7 @@ export async function getTransferOrdersWithCount(
   params: GetTransferOrdersParams = {},
 ): Promise<PaginatedTransferOrdersResponse> {
   const {
-    $select = "No,Transfer_From_Code,Transfer_To_Code,In_Transit_Code,Status,Shipment_Date,Receipt_Date,Shortcut_Dimension_1_Code,Shortcut_Dimension_2_Code",
+    $select = "No,Transfer_from_Code,Transfer_to_Code,In_Transit_Code,Status,Shipment_Date,Receipt_Date,Shortcut_Dimension_1_Code,Shortcut_Dimension_2_Code",
     $filter,
     $orderby = "No desc",
     $top = 10,
@@ -97,8 +97,8 @@ export async function searchTransferOrders(
   const escaped = searchTerm.replace(/'/g, "''");
   const fieldsToSearch = [
     "No",
-    "Transfer_From_Code",
-    "Transfer_To_Code",
+    "Transfer_from_Code",
+    "Transfer_to_Code",
     "Shortcut_Dimension_1_Code",
     "Shortcut_Dimension_2_Code",
   ];

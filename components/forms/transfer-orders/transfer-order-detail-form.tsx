@@ -113,10 +113,10 @@ export function TransferOrderDetailForm({
             Transfer Locations
           </h2>
           <div className="grid grid-cols-2 gap-x-8 gap-y-6 md:grid-cols-4">
-            <SummaryField label="Transfer-from Code" value={order.Transfer_From_Code} />
-            <SummaryField label="Transfer-from Name" value={order.Transfer_From_Name} />
-            <SummaryField label="Transfer-to Code" value={order.Transfer_To_Code} />
-            <SummaryField label="Transfer-to Name" value={order.Transfer_To_Name} />
+            <SummaryField label="Transfer-from Code" value={order.Transfer_from_Code} />
+            <SummaryField label="Transfer-from Name" value={order.Transfer_from_Name} />
+            <SummaryField label="Transfer-to Code" value={order.Transfer_to_Code} />
+            <SummaryField label="Transfer-to Name" value={order.Transfer_to_Name} />
             <SummaryField label="In-Transit Code" value={order.In_Transit_Code} />
           </div>
         </div>

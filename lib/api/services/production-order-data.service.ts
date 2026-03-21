@@ -404,3 +404,40 @@ export async function getAllLocationCodes(
     return [];
   }
 }
+export interface ItemLedgerEntry {
+  Entry_No: number;
+  Item_No: string;
+  Location_Code: string;
+  Lot_No?: string;
+  Item_Tracking?: string;
+  Open: boolean;
+  Positive: boolean;
+  [key: string]: unknown;
+}
+
+/**
+ * Check if an item has tracking enabled (Lot No.) at a specific location
+ */
+export async function checkItemTracking(
+  itemNo: string,
+  locationCode: string,
+): Promise<boolean> {
+  const filter = `Item_No eq '${itemNo}' and Location_Code eq '${locationCode}' and Open eq true and Positive eq true`;
+  const query = buildODataQuery({
+    $filter: filter,
+    $top: 500, // User suggested $Top=500
+    $select: "Item_Tracking",
+  });
+  const endpoint = `/Itemledger_entry?company='${encodeURIComponent(COMPANY)}'&${query}`;
+
+  try {
+    const response = await apiGet<ODataResponse<ItemLedgerEntry>>(endpoint);
+    // "Item_Tracking" if it is equal to "Lot No." then the tracking is enabled
+    return (
+      response.value?.some((entry) => entry.Item_Tracking === "Lot No.") || false
+    );
+  } catch (error) {
+    console.error("Error checking item tracking:", error);
+    return false;
+  }
+}

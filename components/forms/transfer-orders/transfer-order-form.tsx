@@ -49,6 +49,7 @@ import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { TransferOrderLineDialog } from "./transfer-order-line-dialog";
 import { TransferOrderLinesTable } from "./transfer-order-lines-table";
+import { TransferOrderLineDetailsDialog } from "./transfer-order-line-details-dialog";
 
 interface TransferOrderFormProps {
   tabId: string;
@@ -111,6 +112,7 @@ export function TransferOrderForm({
   const [isLoadingLines, setIsLoadingLines] = useState(false);
   const [selectedLine, setSelectedLine] = useState<TransferLine | null>(null);
   const [isLineDialogOpen, setIsLineDialogOpen] = useState(false);
+  const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
 
   // Dimension dropdowns state
   const [lobs, setLobs] = useState<DimensionValue[]>([]);
@@ -921,6 +923,10 @@ export function TransferOrderForm({
                 setIsLineDialogOpen(true);
               }}
               onDelete={handleDeleteLine}
+              onRowClick={(line) => {
+                setSelectedLine(line);
+                setIsDetailsDialogOpen(true);
+              }}
               isReadOnly={formState.Status === "Released"}
             />
           </section>
@@ -951,12 +957,7 @@ export function TransferOrderForm({
         onOpenChange={setIsLineDialogOpen}
         documentNo={formState.No || ""}
         line={selectedLine}
-        onSuccess={async () => {
-          if (formState.No) {
-            const updatedLines = await getTransferOrderLines(formState.No);
-            setLines(updatedLines);
-          }
-        }}
+        onSuccess={() => fetchOrderData(formState.No!)}
         defaultDimensions={{
           Shortcut_Dimension_1_Code: formState.Shortcut_Dimension_1_Code || "",
           Shortcut_Dimension_2_Code: formState.Shortcut_Dimension_2_Code || "",
@@ -965,6 +966,16 @@ export function TransferOrderForm({
           Receipt_Date: formState.Receipt_Date || "",
         }}
       />
+
+      {selectedLine && (
+        <TransferOrderLineDetailsDialog
+          isOpen={isDetailsDialogOpen}
+          onOpenChange={setIsDetailsDialogOpen}
+          line={selectedLine}
+          locationCode={formState.Transfer_from_Code}
+          onSuccess={() => fetchOrderData(formState.No!)}
+        />
+      )}
 
       {/* Post Dialog */}
       <Dialog open={isPostDialogOpen} onOpenChange={setIsPostDialogOpen}>

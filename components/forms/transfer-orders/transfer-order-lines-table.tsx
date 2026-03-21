@@ -18,6 +18,7 @@ interface TransferOrderLinesTableProps {
   isLoading: boolean;
   onEdit?: (line: TransferLine) => void;
   onDelete?: (line: TransferLine) => void;
+  onRowClick?: (line: TransferLine) => void;
   isReadOnly?: boolean;
 }
 
@@ -26,6 +27,7 @@ export function TransferOrderLinesTable({
   isLoading,
   onEdit,
   onDelete,
+  onRowClick,
   isReadOnly = false,
 }: TransferOrderLinesTableProps) {
   if (isLoading) {
@@ -72,7 +74,8 @@ export function TransferOrderLinesTable({
           {lines.map((line) => (
             <TableRow
               key={`${line.Document_No}-${line.Line_No}`}
-              className="hover:bg-muted/30 transition-colors whitespace-nowrap"
+              className="hover:bg-muted/30 transition-colors whitespace-nowrap cursor-pointer"
+              onClick={() => onRowClick?.(line)}
             >
               <TableCell className="font-medium text-muted-foreground">
                 {line.Line_No}

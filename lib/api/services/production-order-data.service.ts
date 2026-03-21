@@ -297,10 +297,10 @@ export async function getLocationCodes(
 
   // If authorized codes are provided, restrict to those only
   if (authorizedCodes && authorizedCodes.length > 0) {
-    const codeInFilter = authorizedCodes
-      .map((c) => `'${c.replace(/'/g, "''")}'`)
-      .join(",");
-    commonFilter.push(`Code in (${codeInFilter})`);
+    const codeFilter = authorizedCodes
+      .map((c) => `Code eq '${c.replace(/'/g, "''")}'`)
+      .join(" or ");
+    commonFilter.push(`(${codeFilter})`);
   } else if (authorizedCodes && authorizedCodes.length === 0) {
     return [];
   }
@@ -384,8 +384,10 @@ export async function getAllLocationCodes(
   };
 
   if (codes && codes.length > 0) {
-    const codeFilter = codes.map((c) => `'${c.replace(/'/g, "''")}'`).join(",");
-    queryParams.$filter = `Code in (${codeFilter})`;
+    const codeFilter = codes
+      .map((c) => `Code eq '${c.replace(/'/g, "''")}'`)
+      .join(" or ");
+    queryParams.$filter = `(${codeFilter})`;
   } else if (codes && codes.length === 0) {
     // If explicitly empty array passed, return nothing
     return [];

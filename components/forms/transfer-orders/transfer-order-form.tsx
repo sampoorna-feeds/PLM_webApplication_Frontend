@@ -251,11 +251,11 @@ export function TransferOrderForm({
           getAllLOCsFromUserSetup(userId),
         ]);
 
-        // Rule 1: Transfer-from comes ONLY from authorized setup codes (no extra fetch)
-        const fromLocations: LocationCode[] = authLOCEntries.map(l => ({
-          Code: l.Code,
-          Name: "" // No name available in WebUserSetup
-        }));
+        // Rule 1: Transfer-from comes ONLY from authorized setup codes (fetch names from LocationList)
+        const authCodes = authLOCEntries.map(l => l.Code).filter(Boolean);
+        const fromLocations = authCodes.length > 0 
+          ? await getAllLocationCodes(authCodes)
+          : [];
 
         // Rule 2: Transfer-to fetches ALL locations without boundation
         const toLocations = await getAllLocationCodes();

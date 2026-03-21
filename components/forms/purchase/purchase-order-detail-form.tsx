@@ -800,7 +800,6 @@ export function PurchaseOrderDetailForm({
                     Description
                   </TableHead>
                   <TableHead className="w-20 text-xs">UOM</TableHead>
-                  <TableHead className="w-24 text-xs">Avail Stock</TableHead>
                   <TableHead className="w-24 text-right text-xs">
                     Quantity
                   </TableHead>
@@ -834,7 +833,7 @@ export function PurchaseOrderDetailForm({
                 {lines.length === 0 ? (
                   <TableRow>
                     <TableCell
-                      colSpan={17}
+                      colSpan={16}
                       className="text-muted-foreground py-8 text-center text-sm"
                     >
                       No line items
@@ -871,11 +870,6 @@ export function PurchaseOrderDetailForm({
                           {line.Unit_of_Measure_Code ||
                             line.Unit_of_Measure ||
                             "-"}
-                        </TableCell>
-                        <TableCell className="text-right text-xs">
-                          {line.No
-                            ? (lineStockMap[String(line.No).trim()] ?? "-")
-                            : "-"}
                         </TableCell>
                         <TableCell className="text-right text-xs">
                           {line.Quantity != null ? line.Quantity : "-"}

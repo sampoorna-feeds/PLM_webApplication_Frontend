@@ -125,7 +125,9 @@ export function FormStackPanel() {
             : currentTab?.formType === "sales-order" ||
                 currentTab?.formType === "sales-order-detail" ||
                 currentTab?.formType === "sales-order-edit" ||
-                currentTab?.formType === "finished-production-order-detail"
+                currentTab?.formType === "finished-production-order-detail" ||
+                currentTab?.formType === "transfer-order" ||
+                currentTab?.formType === "transfer-order-detail"
               ? "w-screen md:w-[60vw]"
               : currentTab?.formType === "purchase-order" ||
                   currentTab?.formType === "purchase-order-detail" ||

@@ -479,8 +479,8 @@ export function TransferOrderForm({
 
   return (
     <div className="bg-background flex h-full flex-col">
-      <div className="flex-1 space-y-8 overflow-y-auto p-6">
-        <section className="space-y-6">
+      <div className="flex-1 space-y-6 overflow-y-auto p-6">
+        <section className="space-y-4">
           <div className="flex items-center justify-between border-b pb-2">
             <h2 className="text-xl font-bold tracking-tight">
               New Transfer Order
@@ -540,13 +540,13 @@ export function TransferOrderForm({
             </div>
           </div>
 
-          <div className={cn("space-y-8", formState.No && "opacity-90")}>
+          <div className={cn("space-y-6", formState.No && "opacity-90")}>
             {/* 1. Transfer Locations (Moved to Top) */}
-            <section className="space-y-4">
+            <section className="space-y-2">
               <h3 className="text-muted-foreground text-sm font-semibold tracking-wider uppercase">
                 Transfer Locations
               </h3>
-              <div className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2">
+              <div className="grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2">
                 <div className={fieldClass}>
                   <label className={labelClass}>
                     Transfer-from Code (Required)
@@ -618,11 +618,11 @@ export function TransferOrderForm({
             </section>
 
             {/* 2. Header Details */}
-            <section className="space-y-4">
+            <section className="space-y-2">
               <h3 className="text-muted-foreground text-sm font-semibold tracking-wider uppercase">
                 Order Details
               </h3>
-              <div className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2 lg:grid-cols-4">
                 <div className={fieldClass}>
                   <label className={labelClass}>No.</label>
                   <Input
@@ -675,11 +675,11 @@ export function TransferOrderForm({
             </section>
 
             {/* 2. Dimensions */}
-            <section className="space-y-4">
+            <section className="space-y-2">
               <h3 className="text-muted-foreground text-sm font-semibold tracking-wider uppercase">
                 Dimensions
               </h3>
-              <div className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2 lg:grid-cols-4">
                 <div className={fieldClass}>
                   <label className={labelClass}>LOB</label>
                   <Input
@@ -711,11 +711,11 @@ export function TransferOrderForm({
             </section>
 
             {/* 4. Transport & Logistics */}
-            <section className="space-y-4">
+            <section className="space-y-2">
               <h3 className="text-muted-foreground text-sm font-semibold tracking-wider uppercase">
                 Transport & Logistics
               </h3>
-              <div className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2 lg:grid-cols-4">
                 <div className={fieldClass}>
                   <label className={labelClass}>Vehicle No.</label>
                   <Input

@@ -920,7 +920,7 @@ export function PurchaseOrderDetailForm({
                           {line.Quantity != null ? line.Quantity : "-"}
                         </TableCell>
                         <TableCell className="text-right text-xs">
-                          {line.Qty_to_Ship != null ? line.Qty_to_Ship : "-"}
+                          {line.Qty_to_Receive != null ? line.Qty_to_Receive : "-"}
                         </TableCell>
                         <TableCell className="text-right text-xs">
                           {line.Quantity_Shipped != null

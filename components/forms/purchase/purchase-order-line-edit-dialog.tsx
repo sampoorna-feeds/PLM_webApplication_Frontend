@@ -56,7 +56,7 @@ export function PurchaseOrderLineEditDialog({
   useEffect(() => {
     if (!line) return;
     setDescription(line.Description || "");
-    setQtyToReceive(line.Qty_to_Ship?.toString() || "");
+    setQtyToReceive(line.Qty_to_Receive?.toString() || "");
     setQtyToInvoice(line.Qty_to_Invoice?.toString() || "");
     setGstGroupCode(line.GST_Group_Code || "");
     setHsnSacCode(line.HSN_SAC_Code || "");
@@ -86,8 +86,8 @@ export function PurchaseOrderLineEditDialog({
       if (description.trim() !== (line.Description || "").trim()) {
         payload.Description = description.trim();
       }
-      if (receiveVal !== (line.Qty_to_Ship || 0)) {
-        payload.Qty_to_Ship = receiveVal;
+      if (receiveVal !== (line.Qty_to_Receive || 0)) {
+        payload.Qty_to_Receive = receiveVal;
       }
       if (invoiceVal !== (line.Qty_to_Invoice || 0)) {
         payload.Qty_to_Invoice = invoiceVal;

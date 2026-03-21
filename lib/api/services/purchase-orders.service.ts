@@ -175,7 +175,7 @@ export interface PurchaseLine {
   Description?: string;
   Description_2?: string;
   Quantity?: number;
-  Qty_to_Ship?: number;
+  Qty_to_Receive?: number;
   Quantity_Shipped?: number;
   Qty_to_Invoice?: number;
   Quantity_Invoiced?: number;

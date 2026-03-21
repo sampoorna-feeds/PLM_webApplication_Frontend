@@ -43,6 +43,9 @@ export function PurchaseOrderLineEditDialog({
   onSave,
   onAssignTracking,
 }: PurchaseOrderLineEditDialogProps) {
+  const [quantity, setQuantity] = useState("");
+  const [qtyReceived, setQtyReceived] = useState("");
+  const [qtyInvoiced, setQtyInvoiced] = useState("");
   const [description, setDescription] = useState("");
   const [qtyToReceive, setQtyToReceive] = useState("");
   const [qtyToInvoice, setQtyToInvoice] = useState("");
@@ -55,27 +58,36 @@ export function PurchaseOrderLineEditDialog({
 
   useEffect(() => {
     if (!line) return;
+    setQuantity(line.Quantity?.toString() ?? "");
+    setQtyReceived(line.Quantity_Received?.toString() ?? "");
+    setQtyInvoiced(line.Quantity_Invoiced?.toString() ?? "");
     setDescription(line.Description || "");
-    setQtyToReceive(line.Qty_to_Receive?.toString() || "");
-    setQtyToInvoice(line.Qty_to_Invoice?.toString() || "");
+    setQtyToReceive(line.Qty_to_Receive?.toString() ?? "");
+    setQtyToInvoice(line.Qty_to_Invoice?.toString() ?? "");
     setGstGroupCode(line.GST_Group_Code || "");
     setHsnSacCode(line.HSN_SAC_Code || "");
     setExempted(line.Exempted ?? false);
     setTdsSection(line.TDS_Section_Code || "");
   }, [line]);
 
+  const isValidNum = (v: string) => v === "" || /^[0-9]*\.?[0-9]*$/.test(v);
+
   const handleSave = async () => {
     if (!line || !line.Line_No || !orderNo) return;
 
+    const qtyVal = parseFloat(quantity) || 0;
+    const receivedVal = parseFloat(qtyReceived) || 0;
+    const invoicedVal = parseFloat(qtyInvoiced) || 0;
     const receiveVal = parseFloat(qtyToReceive) || 0;
     const invoiceVal = parseFloat(qtyToInvoice) || 0;
 
-    if (receiveVal < 0) {
-      toast.error("Qty to Receive cannot be negative");
-      return;
-    }
-    if (invoiceVal < 0) {
-      toast.error("Qty to Invoice cannot be negative");
+    if (qtyVal < 0) { toast.error("Quantity cannot be negative"); return; }
+    if (receivedVal < 0) { toast.error("Qty Received cannot be negative"); return; }
+    if (invoicedVal < 0) { toast.error("Qty Invoiced cannot be negative"); return; }
+    if (receiveVal < 0) { toast.error("Qty to Receive cannot be negative"); return; }
+    if (invoiceVal < 0) { toast.error("Qty to Invoice cannot be negative"); return; }
+    if (receivedVal + receiveVal > qtyVal) {
+      toast.error(`Qty Received (${receivedVal}) + Qty to Receive (${receiveVal}) cannot exceed Quantity (${qtyVal})`);
       return;
     }
 
@@ -83,27 +95,26 @@ export function PurchaseOrderLineEditDialog({
     try {
       const payload: Record<string, unknown> = {};
 
-      if (description.trim() !== (line.Description || "").trim()) {
+      if (qtyVal !== (line.Quantity || 0))
+        payload.Quantity = qtyVal;
+      if (receivedVal !== (line.Quantity_Received || 0))
+        payload.Quantity_Received = receivedVal;
+      if (invoicedVal !== (line.Quantity_Invoiced || 0))
+        payload.Quantity_Invoiced = invoicedVal;
+      if (description.trim() !== (line.Description || "").trim())
         payload.Description = description.trim();
-      }
-      if (receiveVal !== (line.Qty_to_Receive || 0)) {
+      if (receiveVal !== (line.Qty_to_Receive || 0))
         payload.Qty_to_Receive = receiveVal;
-      }
-      if (invoiceVal !== (line.Qty_to_Invoice || 0)) {
+      if (invoiceVal !== (line.Qty_to_Invoice || 0))
         payload.Qty_to_Invoice = invoiceVal;
-      }
-      if (exempted !== (line.Exempted ?? false)) {
+      if (exempted !== (line.Exempted ?? false))
         payload.Exempted = exempted;
-      }
-      if (gstGroupCode.trim() !== (line.GST_Group_Code || "").trim()) {
+      if (gstGroupCode.trim() !== (line.GST_Group_Code || "").trim())
         payload.GST_Group_Code = gstGroupCode.trim();
-      }
-      if (hsnSacCode.trim() !== (line.HSN_SAC_Code || "").trim()) {
+      if (hsnSacCode.trim() !== (line.HSN_SAC_Code || "").trim())
         payload.HSN_SAC_Code = hsnSacCode.trim();
-      }
-      if (tdsSection.trim() !== (line.TDS_Section_Code || "").trim()) {
+      if (tdsSection.trim() !== (line.TDS_Section_Code || "").trim())
         payload.TDS_Section_Code = tdsSection.trim();
-      }
 
       if (Object.keys(payload).length === 0) {
         toast.info("No changes to save");
@@ -129,195 +140,154 @@ export function PurchaseOrderLineEditDialog({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="p-8 sm:max-w-180">
+        <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle className={hasTracking ? "text-red-600" : ""}>
-              Purchase Line Details
+              Edit Purchase Line
               {hasTracking && (
-                <span className="ml-2 text-sm font-normal">(Has Tracking)</span>
+                <span className="ml-2 text-sm font-normal text-red-500">(Has Tracking)</span>
               )}
             </DialogTitle>
           </DialogHeader>
 
-          <div className="grid gap-4 py-4">
-            {/* ── Read-only display ── */}
-            <div className="grid grid-cols-1 items-start gap-2 sm:grid-cols-4 sm:items-center sm:gap-4">
-              <Label className="text-muted-foreground text-left text-sm sm:text-right">
-                Item No.
-              </Label>
-              <div className="col-span-3 text-sm font-medium">
-                {line.No || "-"}
-              </div>
+          {/* ── Info strip ── */}
+          <div className="bg-muted/40 grid grid-cols-2 gap-x-4 gap-y-1 rounded-md border px-4 py-3 text-sm sm:grid-cols-4">
+            <div>
+              <p className="text-muted-foreground text-[10px] uppercase tracking-wide">Line</p>
+              <p className="font-medium">{line.Line_No}</p>
+            </div>
+            <div>
+              <p className="text-muted-foreground text-[10px] uppercase tracking-wide">Item No</p>
+              <p className="font-medium">{line.No || "—"}</p>
+            </div>
+            <div>
+              <p className="text-muted-foreground text-[10px] uppercase tracking-wide">Type</p>
+              <p>{line.Type || "—"}</p>
+            </div>
+            <div>
+              <p className="text-muted-foreground text-[10px] uppercase tracking-wide">UOM</p>
+              <p>{line.Unit_of_Measure_Code || line.Unit_of_Measure || "—"}</p>
+            </div>
+          </div>
+
+          {/* ── Editable fields ── */}
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {/* Row 1 */}
+            <div className="space-y-1">
+              <Label htmlFor="po-line-qty" className="text-xs">Quantity</Label>
+              <Input
+                id="po-line-qty"
+                inputMode="decimal"
+                value={quantity}
+                onChange={(e) => { if (isValidNum(e.target.value)) setQuantity(e.target.value); }}
+              />
             </div>
 
-            <div className="grid grid-cols-1 items-start gap-2 sm:grid-cols-4 sm:items-center sm:gap-4">
-              <Label className="text-muted-foreground text-left text-sm sm:text-right">
-                Type
-              </Label>
-              <div className="col-span-3 text-sm">{line.Type || "-"}</div>
-            </div>
-
-            <div className="grid grid-cols-1 items-start gap-2 sm:grid-cols-4 sm:items-center sm:gap-4">
-              <Label className="text-muted-foreground text-left text-sm sm:text-right">
-                UOM
-              </Label>
-              <div className="col-span-3 text-sm">
-                {line.Unit_of_Measure_Code || line.Unit_of_Measure || "-"}
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 items-start gap-2 sm:grid-cols-4 sm:items-center sm:gap-4">
-              <Label className="text-muted-foreground text-left text-sm sm:text-right">
-                Quantity
-              </Label>
-              <div className="col-span-3 text-sm font-medium">
-                {line.Quantity ?? "-"}
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 items-start gap-2 sm:grid-cols-4 sm:items-center sm:gap-4">
-              <Label className="text-muted-foreground text-left text-sm sm:text-right">
-                Qty Received
-              </Label>
-              <div className="col-span-3 text-sm font-medium">
-                {line.Quantity_Shipped ?? "-"}
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 items-start gap-2 sm:grid-cols-4 sm:items-center sm:gap-4">
-              <Label className="text-muted-foreground text-left text-sm sm:text-right">
-                Qty Invoiced
-              </Label>
-              <div className="col-span-3 text-sm font-medium">
-                {line.Quantity_Invoiced ?? "-"}
-              </div>
-            </div>
-
-            {/* ── Editable fields ── */}
-            <div className="my-1 border-t" />
-
-            <div className="grid grid-cols-1 items-start gap-2 sm:grid-cols-4 sm:items-center sm:gap-4">
-              <Label
-                htmlFor="po-line-description"
-                className="text-left text-sm sm:text-right"
-              >
-                Description
-              </Label>
+            <div className="space-y-1">
+              <Label htmlFor="po-line-description" className="text-xs">Description</Label>
               <Input
                 id="po-line-description"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                className="col-span-3"
               />
             </div>
 
-            <div className="grid grid-cols-1 items-start gap-2 sm:grid-cols-4 sm:items-center sm:gap-4">
-              <Label
-                htmlFor="po-line-qty-receive"
-                className="text-left text-sm sm:text-right"
-              >
-                Qty to Receive
-              </Label>
+            {/* Row 2 */}
+            <div className="space-y-1">
+              <Label htmlFor="po-line-qty-receive" className="text-xs">Qty to Receive</Label>
               <Input
                 id="po-line-qty-receive"
-                type="text"
                 inputMode="decimal"
                 value={qtyToReceive}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  if (val === "" || /^[0-9]*\.?[0-9]*$/.test(val)) {
-                    setQtyToReceive(val);
-                  }
-                }}
-                className="col-span-3"
+                onChange={(e) => { if (isValidNum(e.target.value)) setQtyToReceive(e.target.value); }}
               />
             </div>
 
-            <div className="grid grid-cols-1 items-start gap-2 sm:grid-cols-4 sm:items-center sm:gap-4">
-              <Label
-                htmlFor="po-line-qty-invoice"
-                className="text-left text-sm sm:text-right"
-              >
-                Qty to Invoice
-              </Label>
+            <div className="space-y-1">
+              <Label htmlFor="po-line-qty-invoice" className="text-xs">Qty to Invoice</Label>
               <Input
                 id="po-line-qty-invoice"
-                type="text"
                 inputMode="decimal"
                 value={qtyToInvoice}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  if (val === "" || /^[0-9]*\.?[0-9]*$/.test(val)) {
-                    setQtyToInvoice(val);
-                  }
-                }}
-                className="col-span-3"
+                onChange={(e) => { if (isValidNum(e.target.value)) setQtyToInvoice(e.target.value); }}
               />
             </div>
 
-            <div className="grid grid-cols-1 items-start gap-2 sm:grid-cols-4 sm:items-center sm:gap-4">
-              <Label
-                htmlFor="po-line-gst-group"
-                className="text-left text-sm sm:text-right"
-              >
-                GST Group Code
-              </Label>
+            {/* Row 3 — received / invoiced (BC-managed, editable on request) */}
+            <div className="space-y-1">
+              <Label htmlFor="po-line-qty-received" className="text-xs">Qty Received</Label>
+              <Input
+                id="po-line-qty-received"
+                inputMode="decimal"
+                value={qtyReceived}
+                onChange={(e) => { if (isValidNum(e.target.value)) setQtyReceived(e.target.value); }}
+              />
+            </div>
+
+            <div className="space-y-1">
+              <Label htmlFor="po-line-qty-invoiced" className="text-xs">Qty Invoiced</Label>
+              <Input
+                id="po-line-qty-invoiced"
+                inputMode="decimal"
+                value={qtyInvoiced}
+                onChange={(e) => { if (isValidNum(e.target.value)) setQtyInvoiced(e.target.value); }}
+              />
+            </div>
+
+            {/* Row 3 */}
+            <div className="space-y-1">
+              <Label htmlFor="po-line-gst-group" className="text-xs">GST Group Code</Label>
               <Input
                 id="po-line-gst-group"
                 value={gstGroupCode}
                 onChange={(e) => setGstGroupCode(e.target.value)}
-                className="col-span-3"
               />
             </div>
 
-            <div className="grid grid-cols-1 items-start gap-2 sm:grid-cols-4 sm:items-center sm:gap-4">
-              <Label
-                htmlFor="po-line-hsn"
-                className="text-left text-sm sm:text-right"
-              >
-                HSN/SAC Code
-              </Label>
+            <div className="space-y-1">
+              <Label htmlFor="po-line-hsn" className="text-xs">HSN/SAC Code</Label>
               <Input
                 id="po-line-hsn"
                 value={hsnSacCode}
                 onChange={(e) => setHsnSacCode(e.target.value)}
-                className="col-span-3"
               />
             </div>
 
-            <div className="grid grid-cols-1 items-start gap-2 sm:grid-cols-4 sm:items-center sm:gap-4">
-              <Label
-                htmlFor="po-line-exempted"
-                className="text-left text-sm sm:text-right"
-              >
-                Exempted
-              </Label>
-              <div className="col-span-3 flex items-center">
-                <Checkbox
-                  id="po-line-exempted"
-                  checked={exempted}
-                  onCheckedChange={(checked) => setExempted(checked === true)}
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 items-start gap-2 sm:grid-cols-4 sm:items-center sm:gap-4">
-              <Label
-                htmlFor="po-line-tds-section"
-                className="text-left text-sm sm:text-right"
-              >
-                TDS Section
-              </Label>
+            {/* Row 4 */}
+            <div className="space-y-1">
+              <Label htmlFor="po-line-tds-section" className="text-xs">TDS Section</Label>
               <Input
                 id="po-line-tds-section"
                 value={tdsSection}
                 onChange={(e) => setTdsSection(e.target.value)}
-                className="col-span-3"
               />
+            </div>
+
+            <div className="flex items-center gap-2 pt-5">
+              <Checkbox
+                id="po-line-exempted"
+                checked={exempted}
+                onCheckedChange={(checked) => setExempted(checked === true)}
+              />
+              <Label htmlFor="po-line-exempted" className="cursor-pointer text-sm">
+                Exempted
+              </Label>
             </div>
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="mt-2 gap-2">
+            {hasTracking && onAssignTracking && (
+              <Button
+                variant="outline"
+                className="mr-auto border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+                onClick={() => {
+                  onAssignTracking();
+                  onOpenChange(false);
+                }}
+              >
+                Item Tracking
+              </Button>
+            )}
             <Button variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
@@ -326,21 +296,6 @@ export function PurchaseOrderLineEditDialog({
               Save
             </Button>
           </DialogFooter>
-
-          {hasTracking && onAssignTracking && (
-            <div className="mt-3 border-t pt-4 pb-2">
-              <Button
-                variant="outline"
-                className="w-full justify-center border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
-                onClick={() => {
-                  onAssignTracking();
-                  onOpenChange(false);
-                }}
-              >
-                Item Tracking
-              </Button>
-            </div>
-          )}
         </DialogContent>
       </Dialog>
 

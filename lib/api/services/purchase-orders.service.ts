@@ -22,29 +22,42 @@ export interface PurchaseOrder {
   Vendor_Order_No?: string;
   Vendor_Invoice_No?: string;
   Status?: string;
-  // Amt_to_Vendor?: number; // Removed as it's not in OData payload
   Location_Code?: string;
   Invoice_Type?: string;
   Shortcut_Dimension_1_Code?: string;
   Shortcut_Dimension_2_Code?: string;
   Shortcut_Dimension_3_Code?: string;
-  Purchaseperson_Code?: string;
+  /** API field: Purchaser_Code */
+  Purchaser_Code?: string;
   PO_Type?: string;
   Service_Type?: string;
   Vendor_GST_Reg_No?: string;
-  Vendor_PAN_No?: string;
+  /** API field: P_A_N_No */
+  P_A_N_No?: string;
   Order_Address_Code?: string;
-  Broker_No?: string;
-  Broker_Name?: string;
+  /** API field: Brokerage_Code (broker vendor number) */
+  Brokerage_Code?: string;
   Brokerage_Rate?: number;
   Rate_Basis?: string;
-  Term_Code?: string;
+  /** API field: Terms_Code */
+  Terms_Code?: string;
   Mandi_Name?: string;
-  Payment_Term_Code?: string;
-  Due_Date_Calculation?: string;
-  Creditor_Type?: string;
-  QC_Type?: string;
+  File_No?: string;
+  /** API field: Payment_Terms_Code */
+  Payment_Terms_Code?: string;
+  Payment_Method_Code?: string;
+  /** API field: Due_Date_calculation (lowercase c) */
+  Due_Date_calculation?: string;
+  /** API field: Creditors_Type */
+  Creditors_Type?: string;
+  /** API field: QCType (no underscore) */
+  QCType?: string;
   Due_Date?: string;
+  Vehicle_No?: string;
+  Line_Narration1?: string;
+  /** API returns Freight as a string e.g. "0" */
+  Freight?: string;
+  Buy_from_City?: string;
   "@odata.etag"?: string;
   [key: string]: unknown;
 }
@@ -176,12 +189,12 @@ export interface PurchaseLine {
   Description_2?: string;
   Quantity?: number;
   Qty_to_Receive?: number;
-  Quantity_Shipped?: number;
+  Quantity_Received?: number;
   Qty_to_Invoice?: number;
   Quantity_Invoiced?: number;
   Unit_of_Measure_Code?: string;
   Unit_of_Measure?: string;
-  Unit_Price?: number;
+  Direct_Unit_Cost?: number;
   Line_Amount?: number;
   Line_Discount_Amount?: number;
   Line_Discount_Percent?: number;

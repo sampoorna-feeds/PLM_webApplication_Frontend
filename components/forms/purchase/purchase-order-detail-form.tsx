@@ -370,14 +370,14 @@ export function PurchaseOrderDetailForm({
         Posting_Date: postDetails.postingDate,
         Document_Date: postDetails.documentDate,
         Vehicle_No: postDetails.vehicleNo || "",
+        Vendor_Invoice_No: postDetails.vendorInvoiceNo || "",
       };
 
       // Invoice-specific fields
       if (isInvoiceOption) {
-        patchPayload.Vendor_Invoice_No = postDetails.vendorInvoiceNo || "";
         patchPayload.Due_Date_calculation = postDetails.dueDateCalculation || "Posting Date";
         patchPayload.Line_Narration1 = postDetails.lineNarration || "";
-        patchPayload.Freight = postDetails.freight ? Number(postDetails.freight) : 0;
+        patchPayload.Freight = postDetails.freight || "0";
       }
 
       await patchPurchaseOrderHeader(orderNo, patchPayload);
@@ -645,12 +645,12 @@ export function PurchaseOrderDetailForm({
                 <span className="font-medium">{order.Vendor_GST_Reg_No}</span>
               </div>
             )}
-            {order.Vendor_PAN_No && (
+            {order.P_A_N_No && (
               <div>
                 <span className="text-muted-foreground block text-xs">
                   Vendor PAN
                 </span>
-                <span className="font-medium">{order.Vendor_PAN_No}</span>
+                <span className="font-medium">{order.P_A_N_No}</span>
               </div>
             )}
             {order.Location_Code && (
@@ -687,12 +687,12 @@ export function PurchaseOrderDetailForm({
                 </span>
               </div>
             )}
-            {order.Broker_Name && (
+            {order.Brokerage_Code && (
               <div>
                 <span className="text-muted-foreground block text-xs">
                   Broker
                 </span>
-                <span className="font-medium">{order.Broker_Name}</span>
+                <span className="font-medium">{order.Brokerage_Code}</span>
               </div>
             )}
             {order.Brokerage_Rate != null && (
@@ -711,46 +711,54 @@ export function PurchaseOrderDetailForm({
                 <span className="font-medium">{order.Rate_Basis}</span>
               </div>
             )}
-            {order.Term_Code && (
+            {order.Terms_Code && (
               <div>
                 <span className="text-muted-foreground block text-xs">
                   Term Code
                 </span>
-                <span className="font-medium">{order.Term_Code}</span>
+                <span className="font-medium">{order.Terms_Code}</span>
               </div>
             )}
-            {order.Payment_Term_Code && (
+            {order.Payment_Terms_Code && (
               <div>
                 <span className="text-muted-foreground block text-xs">
                   Payment Term
                 </span>
-                <span className="font-medium">{order.Payment_Term_Code}</span>
+                <span className="font-medium">{order.Payment_Terms_Code}</span>
               </div>
             )}
-            {order.Due_Date_Calculation && (
+            {order.Due_Date_calculation && (
               <div>
                 <span className="text-muted-foreground block text-xs">
                   Due Date Calc
                 </span>
                 <span className="font-medium">
-                  {order.Due_Date_Calculation}
+                  {order.Due_Date_calculation}
                 </span>
               </div>
             )}
-            {order.Creditor_Type && (
+            {order.Creditors_Type && (
               <div>
                 <span className="text-muted-foreground block text-xs">
                   Creditor Type
                 </span>
-                <span className="font-medium">{order.Creditor_Type}</span>
+                <span className="font-medium">{order.Creditors_Type}</span>
               </div>
             )}
-            {order.QC_Type && (
+            {order.QCType && (
               <div>
                 <span className="text-muted-foreground block text-xs">
                   QC Type
                 </span>
-                <span className="font-medium">{order.QC_Type}</span>
+                <span className="font-medium">{order.QCType}</span>
+              </div>
+            )}
+            {order.Vehicle_No && (
+              <div>
+                <span className="text-muted-foreground block text-xs">
+                  Vehicle No
+                </span>
+                <span className="font-medium">{order.Vehicle_No}</span>
               </div>
             )}
             {order.Due_Date && (
@@ -763,12 +771,12 @@ export function PurchaseOrderDetailForm({
                 </span>
               </div>
             )}
-            {order.Purchaseperson_Code && (
+            {order.Purchaser_Code && (
               <div>
                 <span className="text-muted-foreground block text-xs">
                   Purchaser
                 </span>
-                <span className="font-medium">{order.Purchaseperson_Code}</span>
+                <span className="font-medium">{order.Purchaser_Code}</span>
               </div>
             )}
           </div>
@@ -878,8 +886,8 @@ export function PurchaseOrderDetailForm({
                           {line.Qty_to_Receive != null ? line.Qty_to_Receive : "-"}
                         </TableCell>
                         <TableCell className="text-right text-xs">
-                          {line.Quantity_Shipped != null
-                            ? line.Quantity_Shipped
+                          {line.Quantity_Received != null
+                            ? line.Quantity_Received
                             : "-"}
                         </TableCell>
                         <TableCell className="text-right text-xs">
@@ -893,7 +901,7 @@ export function PurchaseOrderDetailForm({
                             : "-"}
                         </TableCell>
                         <TableCell className="text-right text-xs">
-                          {formatAmount(line.Unit_Price)}
+                          {formatAmount(line.Direct_Unit_Cost)}
                         </TableCell>
                         <TableCell className="text-right text-xs">
                           {formatAmount(line.Line_Discount_Amount)}
@@ -1181,23 +1189,23 @@ export function PurchaseOrderDetailForm({
                 />
               </div>
 
+              <div className="space-y-1">
+                <Label>Vendor Invoice No</Label>
+                <input
+                  className="border-input h-9 w-full rounded-md border bg-transparent px-3 text-sm"
+                  value={postDetails.vendorInvoiceNo}
+                  onChange={(e) =>
+                    setPostDetails((prev) => ({
+                      ...prev,
+                      vendorInvoiceNo: e.target.value,
+                    }))
+                  }
+                />
+              </div>
+
               {/* Invoice-only fields */}
               {isInvoiceOption && (
                 <>
-                  <div className="space-y-1">
-                    <Label>Vendor Invoice No</Label>
-                    <input
-                      className="border-input h-9 w-full rounded-md border bg-transparent px-3 text-sm"
-                      value={postDetails.vendorInvoiceNo}
-                      onChange={(e) =>
-                        setPostDetails((prev) => ({
-                          ...prev,
-                          vendorInvoiceNo: e.target.value,
-                        }))
-                      }
-                    />
-                  </div>
-
                   <div className="space-y-1">
                     <Label>Due Date Calculation</Label>
                     <select
@@ -1246,6 +1254,7 @@ export function PurchaseOrderDetailForm({
                   </div>
                 </>
               )}
+
             </div>
 
             {actionError && (

@@ -270,7 +270,7 @@ function LineItemsTableComponent({
                         autoFocus={false}
                       />
                     ) : (
-                      item.price || "-"
+                      item.price ?? "-"
                     )}
                   </TableCell>
                   <TableCell

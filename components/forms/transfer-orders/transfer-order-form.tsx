@@ -22,9 +22,18 @@ import {
   getTransferOrderByNo,
   getTransferOrderLines,
   patchTransferOrder,
+  postTransferOrder,
   type TransferLine,
   type TransferOrder,
 } from "@/lib/api/services/transfer-orders.service";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import {
   getVendors,
   getTransporters,
@@ -111,6 +120,8 @@ export function TransferOrderForm({
   const [authorizedLOCs, setAuthorizedLOCs] = useState<string[]>([]);
   const [transporters, setTransporters] = useState<Vendor[]>([]);
   const [isLoadingDimensions, setIsLoadingDimensions] = useState(false);
+  const [isPostDialogOpen, setIsPostDialogOpen] = useState(false);
+  const [postSelection, setPostSelection] = useState<"ship" | "receive">("ship");
 
   // Debug: Monitor locations state changes
   useEffect(() => {
@@ -467,6 +478,27 @@ export function TransferOrderForm({
     }
   };
 
+  const handlePost = async () => {
+    if (!formState.No) return;
+
+    setIsSubmitting(true);
+    try {
+      await postTransferOrder({
+        DocNo: formState.No,
+        PostShipment: postSelection === "ship" ? "True" : "False",
+        PostReceipt: postSelection === "receive" ? "True" : "False",
+      });
+      toast.success("Transfer Order posted successfully");
+      setIsPostDialogOpen(false);
+      handleSuccess();
+    } catch (error: any) {
+      console.error("Error posting transfer order:", error);
+      toast.error(error.message || "Failed to post transfer order");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const fieldClass = "min-w-0 space-y-1 text-left";
   const labelClass = "text-muted-foreground block text-xs font-medium";
 
@@ -504,6 +536,16 @@ export function TransferOrderForm({
                 >
                   Close
                 </Button>
+                {formState.Status === "Released" && (
+                  <Button
+                    onClick={() => setIsPostDialogOpen(true)}
+                    variant="default"
+                    size="sm"
+                    className="bg-green-600 font-bold text-white shadow-md transition-all hover:scale-105 hover:bg-green-700 active:scale-95"
+                  >
+                    Post
+                  </Button>
+                )}
                 {!formState.No ? (
                   <Button
                     onClick={handleCreateHeader}
@@ -926,6 +968,91 @@ export function TransferOrderForm({
           Receipt_Date: formState.Receipt_Date || "",
         }}
       />
+
+      {/* Post Dialog */}
+      <Dialog open={isPostDialogOpen} onOpenChange={setIsPostDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Post Transfer Order</DialogTitle>
+            <DialogDescription>
+              Choose how you want to post this released order.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="flex flex-col gap-3">
+              <div
+                className={cn(
+                  "flex cursor-pointer items-center space-x-3 rounded-lg border p-3 transition-colors",
+                  postSelection === "ship"
+                    ? "border-primary bg-primary/10"
+                    : "hover:bg-muted",
+                )}
+                onClick={() => setPostSelection("ship")}
+              >
+                <div
+                  className={cn(
+                    "flex h-4 w-4 items-center justify-center rounded-full border",
+                    postSelection === "ship"
+                      ? "border-primary"
+                      : "border-muted-foreground",
+                  )}
+                >
+                  {postSelection === "ship" && (
+                    <div className="bg-primary h-2 w-2 rounded-full" />
+                  )}
+                </div>
+                <span className="text-sm font-medium">Shipment</span>
+              </div>
+
+              <div
+                className={cn(
+                  "flex cursor-pointer items-center space-x-3 rounded-lg border p-3 transition-colors",
+                  postSelection === "receive"
+                    ? "border-primary bg-primary/10"
+                    : "hover:bg-muted",
+                )}
+                onClick={() => setPostSelection("receive")}
+              >
+                <div
+                  className={cn(
+                    "flex h-4 w-4 items-center justify-center rounded-full border",
+                    postSelection === "receive"
+                      ? "border-primary"
+                      : "border-muted-foreground",
+                  )}
+                >
+                  {postSelection === "receive" && (
+                    <div className="bg-primary h-2 w-2 rounded-full" />
+                  )}
+                </div>
+                <span className="text-sm font-medium">Receipt</span>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsPostDialogOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handlePost}
+              disabled={isSubmitting}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Posting...
+                </>
+              ) : (
+                "Continue"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

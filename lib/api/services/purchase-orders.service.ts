@@ -433,13 +433,13 @@ export async function patchPurchaseOrderHeader(
 
 /**
  * Post purchase order
- * defaultOption: 1-Ship, 2-Invoice, 3-Ship & Invoice
+ * defaultOption: 1-Receive, 2-Invoice, 3-Receive & Invoice
  */
 export async function postPurchaseOrder(
   docNo: string,
   defaultOption: "1" | "2" | "3",
 ): Promise<unknown> {
-  const endpoint = `/PurchaseOrder?company='${encodeURIComponent(COMPANY)}'`;
+  const endpoint = `/API_PostPurchase?company='${encodeURIComponent(COMPANY)}'`;
   return apiPost<unknown>(endpoint, { docNo, defaultOption });
 }
 

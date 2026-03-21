@@ -30,21 +30,15 @@ import {
   reopenPurchaseOrder,
   deletePurchaseOrderLine,
   deletePurchaseOrderHeader,
-  getTransporters,
-  searchTransporters,
-  getTransportersPage,
-  searchTransportersByField,
   patchPurchaseOrderHeader,
   postPurchaseOrder,
   getPurchaseShipmentsByOrder,
   type PurchaseOrder,
   type PurchaseLine,
-  type Transporter,
   type PurchaseShipment,
 } from "@/lib/api/services/purchase-orders.service";
 import { getItemsByNos, getItemStock } from "@/lib/api/services/item.service";
-import { validatePhone } from "@/lib/validations/shipto.validation";
-import { SearchableSelect } from "@/components/forms/shared/searchable-select";
+
 import { RequestFailedDialog } from "@/components/ui/request-failed-dialog";
 import { PurchaseItemTrackingDialog } from "./purchase-item-tracking-dialog";
 import { PurchaseOrderLineEditDialog } from "./purchase-order-line-edit-dialog";
@@ -116,17 +110,13 @@ export function PurchaseOrderDetailForm({
   const [isPostLoading, setIsPostLoading] = useState(false);
   const [isPostDetailsOpen, setIsPostDetailsOpen] = useState(false);
   const [postDetails, setPostDetails] = useState({
-    transporterCode: "",
-    transporterName: "",
-    vehicleNumber: "",
-    driverPhone: "",
-    lrRrNumber: "",
-    lrRrDate: "",
     postingDate: "",
-    externalDocumentNo: "",
-    distanceKm: "",
-    grossWeight: "",
-    tareWeight: "",
+    documentDate: "",
+    vehicleNo: "",
+    vendorInvoiceNo: "",
+    dueDateCalculation: "Posting Date",
+    lineNarration: "",
+    freight: "",
   });
   // Delivery receipt popup state
   const [isReceiptOpen, setIsReceiptOpen] = useState(false);
@@ -342,18 +332,15 @@ export function PurchaseOrderDetailForm({
       toast.error("Please select a post option.");
       return;
     }
+    const today = new Date().toISOString().split("T")[0];
     setPostDetails({
-      transporterCode: "",
-      transporterName: "",
-      vehicleNumber: "",
-      driverPhone: "",
-      lrRrNumber: "",
-      lrRrDate: "",
-      postingDate: order?.Posting_Date || "",
-      externalDocumentNo: "",
-      distanceKm: "",
-      grossWeight: "",
-      tareWeight: "",
+      postingDate: order?.Posting_Date || today,
+      documentDate: order?.Document_Date || today,
+      vehicleNo: "",
+      vendorInvoiceNo: "",
+      dueDateCalculation: "Posting Date",
+      lineNarration: "",
+      freight: "0",
     });
     setIsPostDialogOpen(false);
     setIsPostDetailsOpen(true);
@@ -361,62 +348,36 @@ export function PurchaseOrderDetailForm({
 
   const isReceiveOption =
     postOption === "receive" || postOption === "receive-invoice";
-  const netWeight =
-    (parseFloat(postDetails.grossWeight) || 0) -
-    (parseFloat(postDetails.tareWeight) || 0);
+  const isInvoiceOption =
+    postOption === "invoice" || postOption === "receive-invoice";
 
   const handlePostDetailsSubmit = async () => {
     if (!orderNo || !postOption) return;
-    if (isReceiveOption && !postDetails.transporterName.trim()) {
-      toast.error(
-        "Transporter Name is mandatory for Receive and Receive & Invoice.",
-      );
+
+    if (!postDetails.postingDate) {
+      toast.error("Posting Date is required.");
       return;
     }
-
-    if (isReceiveOption) {
-      const phoneError = validatePhone(postDetails.driverPhone || "");
-      if (!postDetails.driverPhone.trim()) {
-        toast.error("Driver phone number is required for receiving.");
-        return;
-      }
-      if (phoneError) {
-        toast.error(phoneError);
-        return;
-      }
-      if (!postDetails.lrRrNumber.trim()) {
-        toast.error("LR/RR Number is required for receiving options.");
-        return;
-      }
-      if (!postDetails.lrRrDate) {
-        toast.error("LR/RR Date is required for receiving options.");
-        return;
-      }
+    if (!postDetails.documentDate) {
+      toast.error("Document Date is required.");
+      return;
     }
 
     setIsPostLoading(true);
     try {
+      // Build PATCH payload based on post option
       const patchPayload: Record<string, unknown> = {
-        Transporter_Code: postDetails.transporterCode || "",
-        Transporter_Name: postDetails.transporterName || "",
-        Vehicle_No: postDetails.vehicleNumber || "",
-        Driver_Mobile_No: postDetails.driverPhone || "",
-        LR_RR_No: postDetails.lrRrNumber || "",
-        LR_RR_Date: postDetails.lrRrDate || "",
-        Posting_Date: postDetails.postingDate || "",
-        External_Document_No: postDetails.externalDocumentNo || "",
-        Distance_km: postDetails.distanceKm
-          ? Number(postDetails.distanceKm)
-          : 0,
+        Posting_Date: postDetails.postingDate,
+        Document_Date: postDetails.documentDate,
+        Vehicle_No: postDetails.vehicleNo || "",
       };
 
-      if (isReceiveOption) {
-        patchPayload.Gross_Weight = postDetails.grossWeight
-          ? Number(postDetails.grossWeight)
-          : 0;
-        patchPayload.Tier_Weight = postDetails.tareWeight
-          ? Number(postDetails.tareWeight)
-          : 0;
+      // Invoice-specific fields
+      if (isInvoiceOption) {
+        patchPayload.Vendor_Invoice_No = postDetails.vendorInvoiceNo || "";
+        patchPayload.Due_Date_calculation = postDetails.dueDateCalculation || "Posting Date";
+        patchPayload.Line_Narration1 = postDetails.lineNarration || "";
+        patchPayload.Freight = postDetails.freight ? Number(postDetails.freight) : 0;
       }
 
       await patchPurchaseOrderHeader(orderNo, patchPayload);
@@ -1172,75 +1133,18 @@ export function PurchaseOrderDetailForm({
         </Dialog>
 
         <Dialog open={isPostDetailsOpen} onOpenChange={setIsPostDetailsOpen}>
-          <DialogContent className="sm:max-w-2xl">
+          <DialogContent className="sm:max-w-lg">
             <DialogHeader>
               <DialogTitle>Post Details</DialogTitle>
               <DialogDescription>
-                Fill posting details before confirming post.
+                Fill in the posting details before confirming.
               </DialogDescription>
             </DialogHeader>
 
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              {/* Always visible */}
               <div className="space-y-1">
-                <Label>Transporter Code</Label>
-                <SearchableSelect<Transporter>
-                  value={postDetails.transporterCode}
-                  onChange={(value, transporter) =>
-                    setPostDetails((prev) => ({
-                      ...prev,
-                      transporterCode: value,
-                      transporterName:
-                        transporter?.Name &&
-                        String(transporter.Name).trim() !== ""
-                          ? String(transporter.Name)
-                          : prev.transporterName,
-                    }))
-                  }
-                  placeholder="Select (optional)"
-                  loadInitial={() => getTransporters(20)}
-                  searchItems={(q) => searchTransporters(q, 30, 0)}
-                  loadMore={(skip, search) =>
-                    getTransportersPage(skip, search, 30)
-                  }
-                  getDisplayValue={(t) => `${t.No} - ${t.Name || ""}`}
-                  getItemValue={(t) => t.No}
-                  supportsDualSearch={true}
-                  searchByField={(q, field) =>
-                    searchTransportersByField(q, field, 30, 0)
-                  }
-                />
-              </div>
-
-              <div className="space-y-1">
-                <Label>Transporter Name {isReceiveOption ? "*" : ""}</Label>
-                <input
-                  className="border-input h-9 w-full rounded-md border bg-transparent px-3 text-sm"
-                  value={postDetails.transporterName}
-                  onChange={(e) =>
-                    setPostDetails((prev) => ({
-                      ...prev,
-                      transporterName: e.target.value,
-                    }))
-                  }
-                />
-              </div>
-
-              <div className="space-y-1">
-                <Label>Vehicle Number {isReceiveOption ? "*" : ""}</Label>
-                <input
-                  className="border-input h-9 w-full rounded-md border bg-transparent px-3 text-sm"
-                  value={postDetails.vehicleNumber}
-                  onChange={(e) =>
-                    setPostDetails((prev) => ({
-                      ...prev,
-                      vehicleNumber: e.target.value,
-                    }))
-                  }
-                />
-              </div>
-
-              <div className="space-y-1">
-                <Label>Posting Date</Label>
+                <Label>Posting Date *</Label>
                 <input
                   type="date"
                   className="border-input h-9 w-full rounded-md border bg-transparent px-3 text-sm"
@@ -1255,127 +1159,103 @@ export function PurchaseOrderDetailForm({
               </div>
 
               <div className="space-y-1">
-                <Label>Driver Phone Number {isReceiveOption ? "*" : ""}</Label>
-                <input
-                  type="tel"
-                  className="border-input h-9 w-full rounded-md border bg-transparent px-3 text-sm"
-                  value={postDetails.driverPhone}
-                  onChange={(e) =>
-                    setPostDetails((prev) => ({
-                      ...prev,
-                      driverPhone: e.target.value,
-                    }))
-                  }
-                />
-              </div>
-
-              <div className="space-y-1">
-                <Label>LR/RR Number {isReceiveOption ? "*" : ""}</Label>
-                <input
-                  className="border-input h-9 w-full rounded-md border bg-transparent px-3 text-sm"
-                  value={postDetails.lrRrNumber}
-                  onChange={(e) =>
-                    setPostDetails((prev) => ({
-                      ...prev,
-                      lrRrNumber: e.target.value,
-                    }))
-                  }
-                />
-              </div>
-
-              <div className="space-y-1">
-                <Label>LR/RR Date {isReceiveOption ? "*" : ""}</Label>
+                <Label>Document Date *</Label>
                 <input
                   type="date"
                   className="border-input h-9 w-full rounded-md border bg-transparent px-3 text-sm"
-                  value={postDetails.lrRrDate}
+                  value={postDetails.documentDate}
                   onChange={(e) =>
                     setPostDetails((prev) => ({
                       ...prev,
-                      lrRrDate: e.target.value,
+                      documentDate: e.target.value,
                     }))
                   }
                 />
               </div>
 
               <div className="space-y-1">
-                <Label>External Document Number</Label>
+                <Label>Vehicle No</Label>
                 <input
                   className="border-input h-9 w-full rounded-md border bg-transparent px-3 text-sm"
-                  value={postDetails.externalDocumentNo}
+                  value={postDetails.vehicleNo}
                   onChange={(e) =>
                     setPostDetails((prev) => ({
                       ...prev,
-                      externalDocumentNo: e.target.value,
+                      vehicleNo: e.target.value,
                     }))
                   }
                 />
               </div>
 
-              <div className="space-y-1">
-                <Label>Distance (km)</Label>
-                <input
-                  type="number"
-                  step="0.01"
-                  className="border-input h-9 w-full rounded-md border bg-transparent px-3 text-sm"
-                  value={postDetails.distanceKm}
-                  onChange={(e) =>
-                    setPostDetails((prev) => ({
-                      ...prev,
-                      distanceKm: e.target.value,
-                    }))
-                  }
-                />
-              </div>
+              {/* Invoice-only fields */}
+              {isInvoiceOption && (
+                <>
+                  <div className="space-y-1">
+                    <Label>Vendor Invoice No</Label>
+                    <input
+                      className="border-input h-9 w-full rounded-md border bg-transparent px-3 text-sm"
+                      value={postDetails.vendorInvoiceNo}
+                      onChange={(e) =>
+                        setPostDetails((prev) => ({
+                          ...prev,
+                          vendorInvoiceNo: e.target.value,
+                        }))
+                      }
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label>Due Date Calculation</Label>
+                    <select
+                      className="border-input h-9 w-full rounded-md border bg-transparent px-3 text-sm"
+                      value={postDetails.dueDateCalculation}
+                      onChange={(e) =>
+                        setPostDetails((prev) => ({
+                          ...prev,
+                          dueDateCalculation: e.target.value,
+                        }))
+                      }
+                    >
+                      <option value="Posting Date">Posting Date</option>
+                      <option value="Document Date">Document Date</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label>Freight</Label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      className="border-input h-9 w-full rounded-md border bg-transparent px-3 text-sm"
+                      value={postDetails.freight}
+                      onChange={(e) =>
+                        setPostDetails((prev) => ({
+                          ...prev,
+                          freight: e.target.value,
+                        }))
+                      }
+                    />
+                  </div>
+
+                  <div className="space-y-1 sm:col-span-2">
+                    <Label>Line Narration</Label>
+                    <input
+                      className="border-input h-9 w-full rounded-md border bg-transparent px-3 text-sm"
+                      value={postDetails.lineNarration}
+                      onChange={(e) =>
+                        setPostDetails((prev) => ({
+                          ...prev,
+                          lineNarration: e.target.value,
+                        }))
+                      }
+                    />
+                  </div>
+                </>
+              )}
             </div>
 
-            {isReceiveOption && (
-              <div className="mt-2 space-y-3 border-t pt-3">
-                <div className="text-sm font-medium">Weight Detail</div>
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                  <div className="space-y-1">
-                    <Label>Gross Weight</Label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      className="border-input h-9 w-full rounded-md border bg-transparent px-3 text-sm"
-                      value={postDetails.grossWeight}
-                      onChange={(e) =>
-                        setPostDetails((prev) => ({
-                          ...prev,
-                          grossWeight: e.target.value,
-                        }))
-                      }
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label>Tare Weight</Label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      className="border-input h-9 w-full rounded-md border bg-transparent px-3 text-sm"
-                      value={postDetails.tareWeight}
-                      onChange={(e) =>
-                        setPostDetails((prev) => ({
-                          ...prev,
-                          tareWeight: e.target.value,
-                        }))
-                      }
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label>Net Weight</Label>
-                    <input
-                      className="border-input bg-muted h-9 w-full rounded-md border px-3 text-sm"
-                      value={
-                        Number.isFinite(netWeight) ? netWeight.toString() : "0"
-                      }
-                      disabled
-                      readOnly
-                    />
-                  </div>
-                </div>
-              </div>
+            {actionError && (
+              <p className="text-destructive mt-1 text-sm">{actionError}</p>
             )}
 
             <DialogFooter>
@@ -1395,6 +1275,7 @@ export function PurchaseOrderDetailForm({
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
 
         {/* Purchase receipt popup */}
         <Dialog open={isReceiptOpen} onOpenChange={setIsReceiptOpen}>

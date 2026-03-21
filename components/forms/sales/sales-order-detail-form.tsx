@@ -1479,6 +1479,7 @@ export function SalesOrderDetailForm({
                         <TableHead className="text-xs">Posting Date</TableHead>
                         <TableHead className="text-xs">LR/RR No</TableHead>
                         <TableHead className="text-xs">LR/RR Date</TableHead>
+                        <TableHead className="text-xs">Vehicle No</TableHead>
                         <TableHead className="text-right text-xs">
                           Actions
                         </TableHead>
@@ -1496,6 +1497,9 @@ export function SalesOrderDetailForm({
                           </TableCell>
                           <TableCell className="text-xs">
                             {formatDate(s.LR_RR_Date)}
+                          </TableCell>
+                          <TableCell className="text-xs">
+                            {s.Vehicle_No || ""}
                           </TableCell>
                           <TableCell className="text-right">
                             <div className="flex flex-wrap justify-end gap-2">

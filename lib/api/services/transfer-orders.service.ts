@@ -306,3 +306,17 @@ export async function deleteTransferLine(
   const endpoint = `/TransferLine(Document_No='${encodeURIComponent(documentNo)}',Line_No=${lineNo})?company='${encodeURIComponent(COMPANY)}'`;
   return apiDelete(endpoint);
 }
+
+/**
+ * Post a transfer order
+ */
+export async function postTransferOrder(data: {
+  DocNo: string;
+  PostShipment: string;
+  PostReceipt: string;
+}): Promise<void> {
+  const encodedCompany = encodeURIComponent(COMPANY);
+  const endpoint = `/API_PostTransferOrder?company='${encodedCompany}'`;
+  return apiPost<void>(endpoint, data);
+}
+

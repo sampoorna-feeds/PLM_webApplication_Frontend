@@ -773,7 +773,7 @@ export function TransferOrderForm({
                       )
                     }
                     disabled={formState.Status === "Released"}
-                    className="h-8 text-right"
+                    className="h-8"
                   />
                 </div>
                 <div className={fieldClass}>
@@ -788,7 +788,7 @@ export function TransferOrderForm({
                       )
                     }
                     disabled={formState.Status === "Released"}
-                    className="h-8 text-right"
+                    className="h-8"
                   />
                 </div>
                 <div className={fieldClass}>

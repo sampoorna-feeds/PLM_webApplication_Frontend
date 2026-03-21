@@ -637,17 +637,7 @@ export function TransferOrderForm({
                     placeholder="Auto-generated"
                   />
                 </div>
-                {formState.No && (
-                  <div className={fieldClass}>
-                    <label className={labelClass}>Status</label>
-                    <Input
-                      value={formState.Status}
-                      readOnly
-                      disabled
-                      className="bg-muted h-8"
-                    />
-                  </div>
-                )}
+
                 <div className={fieldClass}>
                   <label className={labelClass}>Posting Date</label>
                   <Input

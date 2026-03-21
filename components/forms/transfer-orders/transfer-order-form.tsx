@@ -22,11 +22,22 @@ import {
   getTransferOrderByNo,
   getTransferOrderLines,
   patchTransferOrder,
+  postTransferOrder,
   type TransferLine,
   type TransferOrder,
 } from "@/lib/api/services/transfer-orders.service";
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
   getVendors,
+  getTransporters,
+  searchTransporters,
   searchVendors,
   type Vendor,
 } from "@/lib/api/services/vendor.service";
@@ -38,6 +49,7 @@ import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { TransferOrderLineDialog } from "./transfer-order-line-dialog";
 import { TransferOrderLinesTable } from "./transfer-order-lines-table";
+import { TransferOrderLineDetailsDialog } from "./transfer-order-line-details-dialog";
 
 interface TransferOrderFormProps {
   tabId: string;
@@ -100,6 +112,7 @@ export function TransferOrderForm({
   const [isLoadingLines, setIsLoadingLines] = useState(false);
   const [selectedLine, setSelectedLine] = useState<TransferLine | null>(null);
   const [isLineDialogOpen, setIsLineDialogOpen] = useState(false);
+  const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
 
   // Dimension dropdowns state
   const [lobs, setLobs] = useState<DimensionValue[]>([]);
@@ -109,6 +122,8 @@ export function TransferOrderForm({
   const [authorizedLOCs, setAuthorizedLOCs] = useState<string[]>([]);
   const [transporters, setTransporters] = useState<Vendor[]>([]);
   const [isLoadingDimensions, setIsLoadingDimensions] = useState(false);
+  const [isPostDialogOpen, setIsPostDialogOpen] = useState(false);
+  const [postSelection, setPostSelection] = useState<"ship" | "receive">("ship");
 
   // Debug: Monitor locations state changes
   useEffect(() => {
@@ -249,11 +264,11 @@ export function TransferOrderForm({
           getAllLOCsFromUserSetup(userId),
         ]);
 
-        // Rule 1: Transfer-from comes ONLY from authorized setup codes (no extra fetch)
-        const fromLocations: LocationCode[] = authLOCEntries.map(l => ({
-          Code: l.Code,
-          Name: "" // No name available in WebUserSetup
-        }));
+        // Rule 1: Transfer-from comes ONLY from authorized setup codes (fetch names from LocationList)
+        const authCodes = authLOCEntries.map(l => l.Code).filter(Boolean);
+        const fromLocations = authCodes.length > 0 
+          ? await getAllLocationCodes(authCodes)
+          : [];
 
         // Rule 2: Transfer-to fetches ALL locations without boundation
         const toLocations = await getAllLocationCodes();
@@ -271,7 +286,7 @@ export function TransferOrderForm({
         setAllLocations(toLocations);
 
         // Load initial transporters
-        const vendorData = await getVendors();
+        const vendorData = await getTransporters();
         setTransporters(vendorData);
 
         // Auto-select LOB if only one exists and not currently set (only for new orders)
@@ -353,24 +368,12 @@ export function TransferOrderForm({
 
     setIsSubmitting(true);
     try {
-      // Only send fields explicitly requested or required for system
+      // Only send fields specifically requested for initial creation
       const payload: Partial<TransferOrder> = {
         Transfer_from_Code: formState.Transfer_from_Code,
         Transfer_to_Code: formState.Transfer_to_Code,
-        Shortcut_Dimension_1_Code: formState.Shortcut_Dimension_1_Code,
-        Shortcut_Dimension_2_Code: formState.Shortcut_Dimension_2_Code,
-        In_Transit_Code: formState.In_Transit_Code,
-        Assigned_User_ID: formState.Assigned_User_ID,
-        Shipment_Date: formState.Shipment_Date,
-        Receipt_Date: formState.Receipt_Date,
-        Shipping_Advice: formState.Shipping_Advice,
         Transporter_Code: formState.Transporter_Code,
         Transporter_Name: formState.Transporter_Name,
-        External_Document_No: formState.External_Document_No,
-        Posting_Date: formState.Posting_Date,
-        Vehicle_No: formState.Vehicle_No,
-        LR_RR_No: formState.LR_RR_No,
-        Freight_Value: formState.Freight_Value,
       };
 
       // Clean empty strings
@@ -419,7 +422,18 @@ export function TransferOrderForm({
       "Posting_Date",
       "Vehicle_No",
       "LR_RR_No",
+      "LR_RR_Date",
+      "Distance_Km",
       "Freight_Value",
+      "Transfer_from_Code",
+      "Transfer_to_Code",
+      "Shortcut_Dimension_1_Code",
+      "Shortcut_Dimension_2_Code",
+      "In_Transit_Code",
+      "Assigned_User_ID",
+      "Shipment_Date",
+      "Receipt_Date",
+      "Shipping_Advice",
     ];
 
     const diff: Partial<TransferOrder> = {};
@@ -463,6 +477,27 @@ export function TransferOrderForm({
     }
   };
 
+  const handlePost = async () => {
+    if (!formState.No) return;
+
+    setIsSubmitting(true);
+    try {
+      await postTransferOrder({
+        DocNo: formState.No,
+        PostShipment: postSelection === "ship" ? "True" : "False",
+        PostReceipt: postSelection === "receive" ? "True" : "False",
+      });
+      toast.success("Transfer Order posted successfully");
+      setIsPostDialogOpen(false);
+      handleSuccess();
+    } catch (error: any) {
+      console.error("Error posting transfer order:", error);
+      toast.error(error.message || "Failed to post transfer order");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const fieldClass = "min-w-0 space-y-1 text-left";
   const labelClass = "text-muted-foreground block text-xs font-medium";
 
@@ -479,8 +514,8 @@ export function TransferOrderForm({
 
   return (
     <div className="bg-background flex h-full flex-col">
-      <div className="flex-1 space-y-8 overflow-y-auto p-6">
-        <section className="space-y-6">
+      <div className="flex-1 space-y-6 overflow-y-auto p-4">
+        <section className="space-y-4">
           <div className="flex items-center justify-between border-b pb-2">
             <h2 className="text-xl font-bold tracking-tight">
               New Transfer Order
@@ -500,6 +535,16 @@ export function TransferOrderForm({
                 >
                   Close
                 </Button>
+                {formState.Status === "Released" && (
+                  <Button
+                    onClick={() => setIsPostDialogOpen(true)}
+                    variant="default"
+                    size="sm"
+                    className="bg-green-600 font-bold text-white shadow-md transition-all hover:scale-105 hover:bg-green-700 active:scale-95"
+                  >
+                    Post
+                  </Button>
+                )}
                 {!formState.No ? (
                   <Button
                     onClick={handleCreateHeader}
@@ -540,13 +585,13 @@ export function TransferOrderForm({
             </div>
           </div>
 
-          <div className={cn("space-y-8", formState.No && "opacity-90")}>
+          <div className={cn("space-y-6", formState.No && "opacity-90")}>
             {/* 1. Transfer Locations (Moved to Top) */}
-            <section className="space-y-4">
+            <section className="space-y-2">
               <h3 className="text-muted-foreground text-sm font-semibold tracking-wider uppercase">
                 Transfer Locations
               </h3>
-              <div className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2">
+              <div className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2">
                 <div className={fieldClass}>
                   <label className={labelClass}>
                     Transfer-from Code (Required)
@@ -567,7 +612,7 @@ export function TransferOrderForm({
                       updateTab({ isSaved: false });
                     }}
                     placeholder="Select Source Location"
-                    disabled={formState.Status === "Released" || !!formState.No}
+                    disabled={formState.Status === "Released"}
                   />
                   {formState.Transfer_from_Name && (
                     <p className="text-primary mt-1 truncate pl-1 text-[10px] font-medium">
@@ -606,7 +651,7 @@ export function TransferOrderForm({
                       }
                     }}
                     placeholder="Select Destination Location"
-                    disabled={formState.Status === "Released" || !!formState.No}
+                    disabled={formState.Status === "Released"}
                   />
                   {formState.Transfer_to_Name && (
                     <p className="text-primary mt-1 truncate pl-1 text-[10px] font-medium">
@@ -618,11 +663,11 @@ export function TransferOrderForm({
             </section>
 
             {/* 2. Header Details */}
-            <section className="space-y-4">
+            <section className="space-y-2">
               <h3 className="text-muted-foreground text-sm font-semibold tracking-wider uppercase">
                 Order Details
               </h3>
-              <div className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 lg:grid-cols-4">
                 <div className={fieldClass}>
                   <label className={labelClass}>No.</label>
                   <Input
@@ -633,17 +678,7 @@ export function TransferOrderForm({
                     placeholder="Auto-generated"
                   />
                 </div>
-                {formState.No && (
-                  <div className={fieldClass}>
-                    <label className={labelClass}>Status</label>
-                    <Input
-                      value={formState.Status}
-                      readOnly
-                      disabled
-                      className="bg-muted h-8"
-                    />
-                  </div>
-                )}
+
                 <div className={fieldClass}>
                   <label className={labelClass}>Posting Date</label>
                   <Input
@@ -675,11 +710,11 @@ export function TransferOrderForm({
             </section>
 
             {/* 2. Dimensions */}
-            <section className="space-y-4">
+            <section className="space-y-2">
               <h3 className="text-muted-foreground text-sm font-semibold tracking-wider uppercase">
                 Dimensions
               </h3>
-              <div className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 lg:grid-cols-4">
                 <div className={fieldClass}>
                   <label className={labelClass}>LOB</label>
                   <Input
@@ -711,11 +746,11 @@ export function TransferOrderForm({
             </section>
 
             {/* 4. Transport & Logistics */}
-            <section className="space-y-4">
+            <section className="space-y-2">
               <h3 className="text-muted-foreground text-sm font-semibold tracking-wider uppercase">
                 Transport & Logistics
               </h3>
-              <div className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 lg:grid-cols-4">
                 <div className={fieldClass}>
                   <label className={labelClass}>Vehicle No.</label>
                   <Input
@@ -737,14 +772,15 @@ export function TransferOrderForm({
                 <div className={fieldClass}>
                   <label className={labelClass}>LR/RR Date</label>
                   <Input
+                    type="date"
                     value={
                       formState.LR_RR_Date
                         ? formState.LR_RR_Date.split("T")[0]
                         : ""
                     }
-                    readOnly
-                    disabled
-                    className="bg-muted h-8"
+                    onChange={(e) => handleChange("LR_RR_Date", e.target.value)}
+                    disabled={formState.Status === "Released"}
+                    className="h-8"
                   />
                 </div>
                 <div className={fieldClass}>
@@ -759,10 +795,16 @@ export function TransferOrderForm({
                 <div className={fieldClass}>
                   <label className={labelClass}>Distance (Km)</label>
                   <Input
+                    type="number"
                     value={formState.Distance_Km || 0}
-                    readOnly
-                    disabled
-                    className="bg-muted h-8 text-right"
+                    onChange={(e) =>
+                      handleChange(
+                        "Distance_Km",
+                        parseFloat(e.target.value) || 0,
+                      )
+                    }
+                    disabled={formState.Status === "Released"}
+                    className="h-8"
                   />
                 </div>
                 <div className={fieldClass}>
@@ -777,7 +819,7 @@ export function TransferOrderForm({
                       )
                     }
                     disabled={formState.Status === "Released"}
-                    className="h-8 text-right"
+                    className="h-8"
                   />
                 </div>
                 <div className={fieldClass}>
@@ -801,7 +843,7 @@ export function TransferOrderForm({
                     }}
                     onSearch={async (q) => {
                       if (q.length >= 2) {
-                        const results = await searchVendors(q);
+                        const results = await searchTransporters(q);
                         setTransporters((prev) => {
                           const combined = [...prev, ...results];
                           const unique = new Map();
@@ -823,8 +865,8 @@ export function TransferOrderForm({
                     onChange={(e) =>
                       handleChange("Transporter_Name", e.target.value)
                     }
-                    disabled={formState.Status === "Released"}
-                    className="h-8"
+                    disabled={formState.Status === "Released" || !!formState.Transporter_Code}
+                    className={cn("h-8", !!formState.Transporter_Code && "bg-muted")}
                     placeholder="Enter Name"
                   />
                 </div>
@@ -881,6 +923,10 @@ export function TransferOrderForm({
                 setIsLineDialogOpen(true);
               }}
               onDelete={handleDeleteLine}
+              onRowClick={(line) => {
+                setSelectedLine(line);
+                setIsDetailsDialogOpen(true);
+              }}
               isReadOnly={formState.Status === "Released"}
             />
           </section>
@@ -911,12 +957,7 @@ export function TransferOrderForm({
         onOpenChange={setIsLineDialogOpen}
         documentNo={formState.No || ""}
         line={selectedLine}
-        onSuccess={async () => {
-          if (formState.No) {
-            const updatedLines = await getTransferOrderLines(formState.No);
-            setLines(updatedLines);
-          }
-        }}
+        onSuccess={() => fetchOrderData(formState.No!)}
         defaultDimensions={{
           Shortcut_Dimension_1_Code: formState.Shortcut_Dimension_1_Code || "",
           Shortcut_Dimension_2_Code: formState.Shortcut_Dimension_2_Code || "",
@@ -925,6 +966,101 @@ export function TransferOrderForm({
           Receipt_Date: formState.Receipt_Date || "",
         }}
       />
+
+      {selectedLine && (
+        <TransferOrderLineDetailsDialog
+          isOpen={isDetailsDialogOpen}
+          onOpenChange={setIsDetailsDialogOpen}
+          line={selectedLine}
+          locationCode={formState.Transfer_from_Code}
+          onSuccess={() => fetchOrderData(formState.No!)}
+        />
+      )}
+
+      {/* Post Dialog */}
+      <Dialog open={isPostDialogOpen} onOpenChange={setIsPostDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Post Transfer Order</DialogTitle>
+            <DialogDescription>
+              Choose how you want to post this released order.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="flex flex-col gap-3">
+              <div
+                className={cn(
+                  "flex cursor-pointer items-center space-x-3 rounded-lg border p-3 transition-colors",
+                  postSelection === "ship"
+                    ? "border-primary bg-primary/10"
+                    : "hover:bg-muted",
+                )}
+                onClick={() => setPostSelection("ship")}
+              >
+                <div
+                  className={cn(
+                    "flex h-4 w-4 items-center justify-center rounded-full border",
+                    postSelection === "ship"
+                      ? "border-primary"
+                      : "border-muted-foreground",
+                  )}
+                >
+                  {postSelection === "ship" && (
+                    <div className="bg-primary h-2 w-2 rounded-full" />
+                  )}
+                </div>
+                <span className="text-sm font-medium">Shipment</span>
+              </div>
+
+              <div
+                className={cn(
+                  "flex cursor-pointer items-center space-x-3 rounded-lg border p-3 transition-colors",
+                  postSelection === "receive"
+                    ? "border-primary bg-primary/10"
+                    : "hover:bg-muted",
+                )}
+                onClick={() => setPostSelection("receive")}
+              >
+                <div
+                  className={cn(
+                    "flex h-4 w-4 items-center justify-center rounded-full border",
+                    postSelection === "receive"
+                      ? "border-primary"
+                      : "border-muted-foreground",
+                  )}
+                >
+                  {postSelection === "receive" && (
+                    <div className="bg-primary h-2 w-2 rounded-full" />
+                  )}
+                </div>
+                <span className="text-sm font-medium">Receipt</span>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsPostDialogOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handlePost}
+              disabled={isSubmitting}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Posting...
+                </>
+              ) : (
+                "Continue"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

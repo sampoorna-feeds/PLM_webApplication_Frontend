@@ -92,13 +92,13 @@ export function TransferOrderDetailForm({
 
   return (
     <div className="h-full overflow-y-auto">
-      <div className="flex flex-col gap-8 p-6 pb-20">
+      <div className="flex flex-col gap-6 p-4 pb-20">
         {/* Header Section */}
         <div>
-          <h2 className="mb-4 text-base font-semibold uppercase tracking-wider text-muted-foreground border-b pb-1">
+          <h2 className="mb-2 text-base font-semibold uppercase tracking-wider text-muted-foreground border-b pb-1">
             General Information
           </h2>
-          <div className="grid grid-cols-2 gap-x-8 gap-y-6 md:grid-cols-4 lg:grid-cols-6">
+          <div className="grid grid-cols-2 gap-x-4 gap-y-3 md:grid-cols-4 lg:grid-cols-6">
             <SummaryField label="Transfer order No." value={order.No} />
             <SummaryField label="Status" value={order.Status} />
             <SummaryField label="Posting Date" value={formatDate(order.Posting_Date)} />
@@ -109,10 +109,10 @@ export function TransferOrderDetailForm({
         </div>
 
         <div>
-          <h2 className="mb-4 text-base font-semibold uppercase tracking-wider text-muted-foreground border-b pb-1">
+          <h2 className="mb-2 text-base font-semibold uppercase tracking-wider text-muted-foreground border-b pb-1">
             Transfer Locations
           </h2>
-          <div className="grid grid-cols-2 gap-x-8 gap-y-6 md:grid-cols-4">
+          <div className="grid grid-cols-2 gap-x-4 gap-y-3 md:grid-cols-4">
             <SummaryField label="Transfer-from Code" value={order.Transfer_from_Code} />
             <SummaryField label="Transfer-from Name" value={order.Transfer_from_Name} />
             <SummaryField label="Transfer-to Code" value={order.Transfer_to_Code} />
@@ -122,10 +122,10 @@ export function TransferOrderDetailForm({
         </div>
 
         <div>
-          <h2 className="mb-4 text-base font-semibold uppercase tracking-wider text-muted-foreground border-b pb-1">
+          <h2 className="mb-2 text-base font-semibold uppercase tracking-wider text-muted-foreground border-b pb-1">
             Transport & Logistics
           </h2>
-          <div className="grid grid-cols-2 gap-x-8 gap-y-6 md:grid-cols-4 lg:grid-cols-5">
+          <div className="grid grid-cols-2 gap-x-4 gap-y-3 md:grid-cols-4 lg:grid-cols-5">
             <SummaryField label="Vehicle No." value={order.Vehicle_No} />
             <SummaryField label="LR/RR No." value={order.LR_RR_No} />
             <SummaryField label="LR/RR Date" value={formatDate(order.LR_RR_Date)} />

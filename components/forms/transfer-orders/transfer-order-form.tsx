@@ -63,10 +63,10 @@ export function TransferOrderForm({
   // Form state
   const [formState, setFormState] = useState<Partial<TransferOrder>>({
     No: "",
-    Transfer_From_Code: "",
-    Transfer_From_Name: "",
-    Transfer_To_Code: "",
-    Transfer_To_Name: "",
+    Transfer_from_Code: "",
+    Transfer_from_Name: "",
+    Transfer_to_Code: "",
+    Transfer_to_Name: "",
     External_Document_No: "",
     In_Transit_Code: "IN-TRANSIT",
     Posting_Date: new Date().toISOString().split("T")[0],
@@ -180,29 +180,29 @@ export function TransferOrderForm({
   useEffect(() => {
     if (locations.length > 0) {
       const fromLoc = locations.find(
-        (l) => l.Code === formState.Transfer_From_Code,
+        (l) => l.Code === formState.Transfer_from_Code,
       );
       const toLoc = locations.find(
-        (l) => l.Code === formState.Transfer_To_Code,
+        (l) => l.Code === formState.Transfer_to_Code,
       );
 
       const updates: Partial<TransferOrder> = {};
 
-      if (fromLoc?.Name && fromLoc.Name !== formState.Transfer_From_Name) {
-        updates.Transfer_From_Name = fromLoc.Name;
+      if (fromLoc?.Name && fromLoc.Name !== formState.Transfer_from_Name) {
+        updates.Transfer_from_Name = fromLoc.Name;
       }
-      if (toLoc?.Name && toLoc.Name !== formState.Transfer_To_Name) {
-        updates.Transfer_To_Name = toLoc.Name;
+      if (toLoc?.Name && toLoc.Name !== formState.Transfer_to_Name) {
+        updates.Transfer_to_Name = toLoc.Name;
       }
 
       // Auto-populate LOB and Branch from user setup based on Transfer From location
       if (
-        formState.Transfer_From_Code &&
+        formState.Transfer_from_Code &&
         userSetup.length > 0 &&
         !formState.No
       ) {
         const setupEntry = userSetup.find(
-          (s) => s.LOC_Code === formState.Transfer_From_Code,
+          (s) => s.LOC_Code === formState.Transfer_from_Code,
         );
         if (setupEntry) {
           if (
@@ -226,14 +226,14 @@ export function TransferOrderForm({
     }
   }, [
     locations,
-    formState.Transfer_From_Code,
-    formState.Transfer_To_Code,
+    formState.Transfer_from_Code,
+    formState.Transfer_to_Code,
     userSetup,
     formState.No,
     formState.Shortcut_Dimension_1_Code,
     formState.Shortcut_Dimension_2_Code,
-    formState.Transfer_From_Name,
-    formState.Transfer_To_Name,
+    formState.Transfer_from_Name,
+    formState.Transfer_to_Name,
   ]);
 
   // Load Dimensions and Locations on mount
@@ -346,7 +346,7 @@ export function TransferOrderForm({
   const handleCreateHeader = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!formState.Transfer_From_Code || !formState.Transfer_To_Code) {
+    if (!formState.Transfer_from_Code || !formState.Transfer_to_Code) {
       toast.error("Please fill in all mandatory fields (Transfer From and To)");
       return;
     }
@@ -355,8 +355,8 @@ export function TransferOrderForm({
     try {
       // Only send fields explicitly requested or required for system
       const payload: Partial<TransferOrder> = {
-        Transfer_From_Code: formState.Transfer_From_Code,
-        Transfer_To_Code: formState.Transfer_To_Code,
+        Transfer_from_Code: formState.Transfer_from_Code,
+        Transfer_to_Code: formState.Transfer_to_Code,
         Shortcut_Dimension_1_Code: formState.Shortcut_Dimension_1_Code,
         Shortcut_Dimension_2_Code: formState.Shortcut_Dimension_2_Code,
         In_Transit_Code: formState.In_Transit_Code,
@@ -556,22 +556,22 @@ export function TransferOrderForm({
                       value: l.Code,
                       label: `${l.Code} - ${l.Name || ""}`,
                     }))}
-                    value={formState.Transfer_From_Code}
+                    value={formState.Transfer_from_Code}
                     onValueChange={(v) => {
                       const loc = locations.find((l) => l.Code === v);
                       setFormState((prev) => ({
                         ...prev,
-                        Transfer_From_Code: v,
-                        Transfer_From_Name: loc?.Name || "",
+                        Transfer_from_Code: v,
+                        Transfer_from_Name: loc?.Name || "",
                       }));
                       updateTab({ isSaved: false });
                     }}
                     placeholder="Select Source Location"
                     disabled={formState.Status === "Released" || !!formState.No}
                   />
-                  {formState.Transfer_From_Name && (
+                  {formState.Transfer_from_Name && (
                     <p className="text-primary mt-1 truncate pl-1 text-[10px] font-medium">
-                      {formState.Transfer_From_Name}
+                      {formState.Transfer_from_Name}
                     </p>
                   )}
                 </div>
@@ -584,13 +584,13 @@ export function TransferOrderForm({
                       value: l.Code,
                       label: l.Name ? `${l.Code} - ${l.Name}` : l.Code,
                     }))}
-                    value={formState.Transfer_To_Code}
+                    value={formState.Transfer_to_Code}
                     onValueChange={(v) => {
                       const loc = allLocations.find((l) => l.Code === v);
                       setFormState((prev) => ({
                         ...prev,
-                        Transfer_To_Code: v,
-                        Transfer_To_Name: loc?.Name || "",
+                        Transfer_to_Code: v,
+                        Transfer_to_Name: loc?.Name || "",
                       }));
                       updateTab({ isSaved: false });
                     }}
@@ -608,9 +608,9 @@ export function TransferOrderForm({
                     placeholder="Select Destination Location"
                     disabled={formState.Status === "Released" || !!formState.No}
                   />
-                  {formState.Transfer_To_Name && (
+                  {formState.Transfer_to_Name && (
                     <p className="text-primary mt-1 truncate pl-1 text-[10px] font-medium">
-                      {formState.Transfer_To_Name}
+                      {formState.Transfer_to_Name}
                     </p>
                   )}
                 </div>

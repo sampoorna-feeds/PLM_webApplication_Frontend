@@ -366,24 +366,12 @@ export function TransferOrderForm({
 
     setIsSubmitting(true);
     try {
-      // Only send fields explicitly requested or required for system
+      // Only send fields specifically requested for initial creation
       const payload: Partial<TransferOrder> = {
         Transfer_from_Code: formState.Transfer_from_Code,
         Transfer_to_Code: formState.Transfer_to_Code,
-        Shortcut_Dimension_1_Code: formState.Shortcut_Dimension_1_Code,
-        Shortcut_Dimension_2_Code: formState.Shortcut_Dimension_2_Code,
-        In_Transit_Code: formState.In_Transit_Code,
-        Assigned_User_ID: formState.Assigned_User_ID,
-        Shipment_Date: formState.Shipment_Date,
-        Receipt_Date: formState.Receipt_Date,
-        Shipping_Advice: formState.Shipping_Advice,
         Transporter_Code: formState.Transporter_Code,
         Transporter_Name: formState.Transporter_Name,
-        External_Document_No: formState.External_Document_No,
-        Posting_Date: formState.Posting_Date,
-        Vehicle_No: formState.Vehicle_No,
-        LR_RR_No: formState.LR_RR_No,
-        Freight_Value: formState.Freight_Value,
       };
 
       // Clean empty strings
@@ -435,6 +423,15 @@ export function TransferOrderForm({
       "LR_RR_Date",
       "Distance_Km",
       "Freight_Value",
+      "Transfer_from_Code",
+      "Transfer_to_Code",
+      "Shortcut_Dimension_1_Code",
+      "Shortcut_Dimension_2_Code",
+      "In_Transit_Code",
+      "Assigned_User_ID",
+      "Shipment_Date",
+      "Receipt_Date",
+      "Shipping_Advice",
     ];
 
     const diff: Partial<TransferOrder> = {};
@@ -613,7 +610,7 @@ export function TransferOrderForm({
                       updateTab({ isSaved: false });
                     }}
                     placeholder="Select Source Location"
-                    disabled={formState.Status === "Released" || !!formState.No}
+                    disabled={formState.Status === "Released"}
                   />
                   {formState.Transfer_from_Name && (
                     <p className="text-primary mt-1 truncate pl-1 text-[10px] font-medium">
@@ -652,7 +649,7 @@ export function TransferOrderForm({
                       }
                     }}
                     placeholder="Select Destination Location"
-                    disabled={formState.Status === "Released" || !!formState.No}
+                    disabled={formState.Status === "Released"}
                   />
                   {formState.Transfer_to_Name && (
                     <p className="text-primary mt-1 truncate pl-1 text-[10px] font-medium">
@@ -866,8 +863,8 @@ export function TransferOrderForm({
                     onChange={(e) =>
                       handleChange("Transporter_Name", e.target.value)
                     }
-                    disabled={formState.Status === "Released"}
-                    className="h-8"
+                    disabled={formState.Status === "Released" || !!formState.Transporter_Code}
+                    className={cn("h-8", !!formState.Transporter_Code && "bg-muted")}
                     placeholder="Enter Name"
                   />
                 </div>

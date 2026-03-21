@@ -42,13 +42,13 @@ import {
   type SalesShipment,
   getSalesShipmentsByOrder,
   getDeliveryReportPdf,
-} from "@/lib/api/services/sales-orders.service";
+} from "@/lib/api/services/sales-credit-memos.service";
 import { getItemsByNos, getItemStock } from "@/lib/api/services/item.service";
 import { validatePhone } from "@/lib/validations/shipto.validation";
 import { SearchableSelect } from "@/components/forms/shared/searchable-select";
 import { RequestFailedDialog } from "@/components/ui/request-failed-dialog";
-import { SalesItemTrackingDialog } from "@/components/forms/sales/sales-item-tracking-dialog";
-import { SalesOrderLineDialog } from "@/components/forms/sales/sales-order-line-dialog";
+import { SalesCreditMemoItemTrackingDialog } from "@/components/forms/sales/sales-credit-memo-item-tracking-dialog";
+import { SalesCreditMemoLineDialog } from "@/components/forms/sales/sales-credit-memo-line-dialog";
 import {
   Table,
   TableBody,
@@ -60,7 +60,7 @@ import {
 import { cn } from "@/lib/utils";
 import type { ApiError } from "@/lib/api/client";
 
-interface SalesOrderDetailFormProps {
+interface SalesCreditMemoDetailFormProps {
   tabId: string;
   formData?: Record<string, unknown>;
   context?: Record<string, unknown>;
@@ -81,10 +81,10 @@ function formatAmount(val: number | undefined): string {
   return val.toLocaleString();
 }
 
-export function SalesOrderDetailForm({
+export function SalesCreditMemoDetailForm({
   tabId,
   context,
-}: SalesOrderDetailFormProps) {
+}: SalesCreditMemoDetailFormProps) {
   const { closeTab } = useFormStack(tabId);
   const { openTab } = useFormStackContext();
   const orderNo = context?.orderNo as string | undefined;
@@ -1019,7 +1019,7 @@ export function SalesOrderDetailForm({
           </div>
         </div>
 
-        <SalesOrderLineDialog
+        <SalesCreditMemoLineDialog
           open={!!selectedLine}
           onOpenChange={(open) => !open && setSelectedLine(null)}
           line={selectedLine}
@@ -1037,7 +1037,7 @@ export function SalesOrderDetailForm({
           onAssignTracking={() => setSelectedTrackingLine(selectedLine)}
         />
 
-        <SalesItemTrackingDialog
+        <SalesCreditMemoItemTrackingDialog
           open={!!selectedTrackingLine}
           onOpenChange={(open) => !open && setSelectedTrackingLine(null)}
           onSave={() => {
@@ -1479,7 +1479,6 @@ export function SalesOrderDetailForm({
                         <TableHead className="text-xs">Posting Date</TableHead>
                         <TableHead className="text-xs">LR/RR No</TableHead>
                         <TableHead className="text-xs">LR/RR Date</TableHead>
-                        <TableHead className="text-xs">Vehicle No</TableHead>
                         <TableHead className="text-right text-xs">
                           Actions
                         </TableHead>
@@ -1497,9 +1496,6 @@ export function SalesOrderDetailForm({
                           </TableCell>
                           <TableCell className="text-xs">
                             {formatDate(s.LR_RR_Date)}
-                          </TableCell>
-                          <TableCell className="text-xs">
-                            {s.Vehicle_No || ""}
                           </TableCell>
                           <TableCell className="text-right">
                             <div className="flex flex-wrap justify-end gap-2">

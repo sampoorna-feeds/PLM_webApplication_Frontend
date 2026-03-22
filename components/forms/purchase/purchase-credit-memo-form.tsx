@@ -836,13 +836,15 @@ export function PurchaseOrderFormContent({
                 onClear={() => handleInputChange("brokerageRate", "")}
               >
                 <Input
-                  type="number"
-                  step="0.01"
-                  min="0"
+                  type="text"
+                  inputMode="decimal"
                   value={formData.brokerageRate}
-                  onChange={(e) =>
-                    handleInputChange("brokerageRate", e.target.value)
-                  }
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val === "" || /^\d*\.?\d*$/.test(val)) {
+                      handleInputChange("brokerageRate", val);
+                    }
+                  }}
                   className="h-7 text-xs"
                   placeholder="0.00"
                 />

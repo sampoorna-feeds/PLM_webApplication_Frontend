@@ -37,7 +37,7 @@ import {
   type GLPostingAccount,
 } from "@/lib/api/services/gl-account.service";
 import {
-  getTDSGroupCodes,
+  getVendorTDSGroupCodes,
   type TDSGroupCode,
 } from "@/lib/api/services/tds.service";
 import type { LineItem } from "@/components/forms/sales/line-item-form";
@@ -94,10 +94,10 @@ export function PurchaseOrderLineDialog({
   useEffect(() => {
     if (!isOpen || !customerNo) return;
 
-    getTDSGroupCodes(customerNo)
+    getVendorTDSGroupCodes(customerNo)
       .then(setTdsOptions)
       .catch((error) => {
-        console.error("Error loading TDS Group Codes:", error);
+        console.error("Error loading Vendor TDS Group Codes:", error);
         setTdsOptions([]);
       });
   }, [isOpen, customerNo]);
@@ -119,9 +119,9 @@ export function PurchaseOrderLineDialog({
   }, [isOpen, formState.type, formState.no, formState.uom, isEdit]);
 
   const amount = useMemo(() => {
-    const quantity = formState.quantity || 0;
-    const unitPrice = formState.unitPrice || 0;
-    const discount = formState.discount || 0;
+    const quantity = Number(formState.quantity) || 0;
+    const unitPrice = Number(formState.unitPrice) || 0;
+    const discount = Number(formState.discount) || 0;
     return unitPrice * quantity - discount;
   }, [formState.quantity, formState.unitPrice, formState.discount]);
 
@@ -148,16 +148,15 @@ export function PurchaseOrderLineDialog({
   const handleNumericChange = useCallback(
     (field: keyof LineItem, value: string) => {
       if (value === "" || /^\d*\.?\d*$/.test(value)) {
-        const numValue = value === "" ? 0 : parseFloat(value) || 0;
-        handleFieldChange(field, numValue);
+        handleFieldChange(field, value as any);
       }
     },
     [handleFieldChange],
   );
 
   const formatNumericValue = useCallback(
-    (value: number | undefined): string => {
-      if (value == null || value === 0) return "";
+    (value: any): string => {
+      if (value == null) return "";
       return String(value);
     },
     [],
@@ -244,10 +243,10 @@ export function PurchaseOrderLineDialog({
       no: formState.no,
       description: formState.description,
       uom: formState.uom,
-      quantity: formState.quantity,
-      price: formState.price,
-      unitPrice: formState.unitPrice || 0,
-      discount: formState.discount || 0,
+      quantity: Number(formState.quantity) || 0,
+      price: Number(formState.price) || 0,
+      unitPrice: Number(formState.unitPrice) || 0,
+      discount: Number(formState.discount) || 0,
       amount,
       exempted: formState.exempted,
       gstGroupCode: formState.gstGroupCode,
@@ -394,10 +393,10 @@ export function PurchaseOrderLineDialog({
                   <SelectContent>
                     {tdsOptions.map((tds) => (
                       <SelectItem
-                        key={tds.TDS_Nature_of_Collection}
-                        value={tds.TDS_Nature_of_Collection}
+                        key={tds.TDS_Section!}
+                        value={tds.TDS_Section!}
                       >
-                        {tds.TDS_Nature_of_Collection}
+                        {tds.TDS_Section}
                       </SelectItem>
                     ))}
                   </SelectContent>

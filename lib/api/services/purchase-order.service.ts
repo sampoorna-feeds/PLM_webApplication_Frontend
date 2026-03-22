@@ -30,6 +30,7 @@ export interface PurchaseOrderData {
   brokerName?: string;
   brokerageRate?: string | number;
   orderAddressCode?: string;
+  orderAddressState?: string;
   rateBasis?: string;
   termCode?: string;
   mandiName?: string;
@@ -108,7 +109,9 @@ export async function createPurchaseOrder(
     const endpoint = `/PurchaseOrder?company='${encodeURIComponent(COMPANY)}'`;
 
     const payload: Record<string, unknown> = {
+      Document_Type: "Order",
       PO_Type: orderData.poType,
+      Service_Type: orderData.serviceType,
       Buy_from_Vendor_No: orderData.vendorNo,
       Posting_Date: orderData.postingDate,
       Order_Date: orderData.orderDate,
@@ -134,6 +137,8 @@ export async function createPurchaseOrder(
       Shortcut_Dimension_1_Code: orderData.lob || "",
       Shortcut_Dimension_2_Code: orderData.branch || "",
       Order_Address_Code: orderData.orderAddressCode,
+      GST_Order_Address_State: orderData.orderAddressState,
+      Due_Date: orderData.dueDate,
     };
 
     // Remove empty/null/undefined/blank fields before sending to backend
@@ -191,14 +196,33 @@ export async function addPurchaseOrderLineItems(
 
   try {
     for (const lineItem of lineItems) {
-      const payload = {
+      const payload: Record<string, unknown> = {
+        Document_Type: "Order",
         Document_No: documentNo,
         Type: lineItem.type,
         No: lineItem.no,
-        Location_Code: locationCode || "",
         Quantity: lineItem.quantity,
         Unit_of_Measure_Code: lineItem.uom || "",
       };
+
+      if (lineItem.unitPrice !== undefined && lineItem.unitPrice !== null) {
+        payload.Direct_Unit_Cost = lineItem.unitPrice;
+      }
+      if (lineItem.discount !== undefined && lineItem.discount !== null) {
+        payload.Line_Discount_Percent = lineItem.discount;
+      }
+      if (lineItem.gstGroupCode) {
+        payload.GST_Group_Code = lineItem.gstGroupCode;
+      }
+      if (lineItem.hsnSacCode) {
+        payload.HSN_SAC_Code = lineItem.hsnSacCode;
+      }
+      if (lineItem.tdsGroupCode) {
+        payload.TDS_Group_Code = lineItem.tdsGroupCode;
+      }
+      if (lineItem.exempted !== undefined) {
+        payload.Exempted = lineItem.exempted;
+      }
 
       await apiPost(endpoint, payload);
     }

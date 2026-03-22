@@ -205,6 +205,7 @@ export function PurchaseOrderFormContent({
     brokerName: "",
     brokerageRate: "",
     orderAddressCode: "",
+    orderAddressState: "",
     rateBasis: "",
     termCode: "",
     mandiName: "",
@@ -382,6 +383,7 @@ export function PurchaseOrderFormContent({
     brokerName: formData.brokerName,
     brokerageRate: formData.brokerageRate,
     orderAddressCode: formData.orderAddressCode,
+    orderAddressState: formData.orderAddressState,
     rateBasis: formData.rateBasis,
     termCode: formData.termCode,
     mandiName: formData.mandiName,
@@ -798,6 +800,7 @@ export function PurchaseOrderFormContent({
                     ...prev,
                     orderAddressCode: code,
                     orderAddressName: addr?.Name || "",
+                    orderAddressState: addr?.State || "",
                   }))
                 }
                 disabled={!formData.vendorNo}
@@ -839,13 +842,15 @@ export function PurchaseOrderFormContent({
                 onClear={() => handleInputChange("brokerageRate", "")}
               >
                 <Input
-                  type="number"
-                  step="0.01"
-                  min="0"
+                  type="text"
+                  inputMode="decimal"
                   value={formData.brokerageRate}
-                  onChange={(e) =>
-                    handleInputChange("brokerageRate", e.target.value)
-                  }
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val === "" || /^\d*\.?\d*$/.test(val)) {
+                      handleInputChange("brokerageRate", val);
+                    }
+                  }}
                   className="h-7 text-xs"
                   placeholder="0.00"
                 />

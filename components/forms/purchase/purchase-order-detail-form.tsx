@@ -1226,16 +1226,16 @@ export function PurchaseOrderDetailForm({
                   <div className="space-y-1">
                     <Label>Freight</Label>
                     <input
-                      type="number"
-                      step="0.01"
+                      type="text"
+                      inputMode="decimal"
                       className="border-input h-9 w-full rounded-md border bg-transparent px-3 text-sm"
                       value={postDetails.freight}
-                      onChange={(e) =>
-                        setPostDetails((prev) => ({
-                          ...prev,
-                          freight: e.target.value,
-                        }))
-                      }
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (val === "" || /^\d*\.?\d*$/.test(val)) {
+                          setPostDetails((prev) => ({ ...prev, freight: val }));
+                        }
+                      }}
                     />
                   </div>
 

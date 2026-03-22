@@ -17,6 +17,7 @@ export interface OrderAddress {
   County: string;
   Post_Code: string;
   Country_Region_Code: string;
+  State: string;
   Contact: string;
   Phone_No: string;
 }
@@ -31,6 +32,7 @@ export interface CreateOrderAddressInput {
   County?: string;
   Post_Code?: string;
   Country_Region_Code?: string;
+  State?: string;
   Contact?: string;
   Phone_No?: string;
 }
@@ -43,6 +45,7 @@ export interface UpdateOrderAddressInput {
   County?: string;
   Post_Code?: string;
   Country_Region_Code?: string;
+  State?: string;
   Contact?: string;
   Phone_No?: string;
 }

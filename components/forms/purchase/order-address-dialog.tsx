@@ -40,6 +40,7 @@ interface FormFields {
   County: string;
   Post_Code: string;
   Country_Region_Code: string;
+  State: string;
   Contact: string;
   Phone_No: string;
 }
@@ -53,6 +54,7 @@ const emptyForm: FormFields = {
   County: "",
   Post_Code: "",
   Country_Region_Code: "",
+  State: "",
   Contact: "",
   Phone_No: "",
 };
@@ -79,6 +81,7 @@ export function OrderAddressDialog({
         County: address.County || "",
         Post_Code: address.Post_Code || "",
         Country_Region_Code: address.Country_Region_Code || "",
+        State: address.State || "",
         Contact: address.Contact || "",
         Phone_No: address.Phone_No || "",
       });
@@ -114,6 +117,7 @@ export function OrderAddressDialog({
           County: form.County,
           Post_Code: form.Post_Code,
           Country_Region_Code: form.Country_Region_Code,
+          State: form.State,
           Contact: form.Contact,
           Phone_No: form.Phone_No,
         });
@@ -217,6 +221,15 @@ export function OrderAddressDialog({
               }
               className="h-8"
               placeholder="Country code"
+            />
+          </div>
+          <div className={fieldClass}>
+            <Label className={labelClass}>State (GST)</Label>
+            <Input
+              value={form.State}
+              onChange={(e) => handleChange("State", e.target.value)}
+              className="h-8"
+              placeholder="State code (e.g. PB)"
             />
           </div>
           <div className={fieldClass}>

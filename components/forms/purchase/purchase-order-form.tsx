@@ -85,22 +85,106 @@ const CREDITOR_TYPE_OPTIONS = [
   "ANIMAL FEED SUPLEMENT",
 ].map((v) => ({ value: v, label: v }));
 
+const MASTER_DROPDOWN_PAGE_SIZE = 30;
+
 /** Popover-based searchable select (mirrors VendorSelect / BrokerSelect pattern) */
 function SearchableSelect({
   value,
   onChange,
   options,
   placeholder = "Select",
+  loadMore,
 }: {
   value: string;
   onChange: (value: string) => void;
   options: { value: string; label: string }[];
   placeholder?: string;
+  loadMore?: (
+    skip: number,
+    search: string,
+  ) => Promise<{ value: string; label: string }[]>;
 }) {
   const [open, setOpen] = React.useState(false);
   const [search, setSearch] = React.useState("");
+  const [visibleOptions, setVisibleOptions] = React.useState(options);
+  const [isLoadingMore, setIsLoadingMore] = React.useState(false);
+  const [hasMore, setHasMore] = React.useState(Boolean(loadMore));
+  const debounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const filtered = search
+  React.useEffect(() => {
+    if (loadMore) {
+      setVisibleOptions(options);
+      setHasMore(options.length >= MASTER_DROPDOWN_PAGE_SIZE);
+      return;
+    }
+    setVisibleOptions(options);
+  }, [options, loadMore]);
+
+  React.useEffect(() => {
+    return () => {
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+      }
+    };
+  }, []);
+
+  const loadMoreOptions = React.useCallback(
+    async (skip: number, query: string, replace: boolean = false) => {
+      if (!loadMore || isLoadingMore) return;
+
+      setIsLoadingMore(true);
+      try {
+        const next = await loadMore(skip, query);
+        setVisibleOptions((prev) => (replace ? next : [...prev, ...next]));
+        setHasMore(next.length >= MASTER_DROPDOWN_PAGE_SIZE);
+      } catch (error) {
+        console.error("Error loading dropdown options:", error);
+        if (replace) setVisibleOptions([]);
+        setHasMore(false);
+      } finally {
+        setIsLoadingMore(false);
+      }
+    },
+    [loadMore, isLoadingMore],
+  );
+
+  const handleSearchChange = (nextSearch: string) => {
+    setSearch(nextSearch);
+
+    if (!loadMore) return;
+
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+    }
+
+    debounceRef.current = setTimeout(() => {
+      loadMoreOptions(0, nextSearch, true);
+    }, 250);
+  };
+
+  const handleListScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    if (!loadMore || !hasMore || isLoadingMore) return;
+
+    const target = e.currentTarget;
+    const nearBottom =
+      target.scrollTop + target.clientHeight >= target.scrollHeight - 50;
+
+    if (nearBottom) {
+      loadMoreOptions(visibleOptions.length, search);
+    }
+  };
+
+  const handleOpenChange = (nextOpen: boolean) => {
+    setOpen(nextOpen);
+
+    if (nextOpen && loadMore && visibleOptions.length === 0) {
+      loadMoreOptions(0, search, true);
+    }
+  };
+
+  const filtered = loadMore
+    ? visibleOptions
+    : search
     ? options.filter((o) =>
         o.label.toLowerCase().includes(search.toLowerCase()),
       )
@@ -109,7 +193,7 @@ function SearchableSelect({
   const selectedLabel = options.find((o) => o.value === value)?.label;
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={handleOpenChange}>
       <PopoverTrigger asChild>
         <Button
           variant="outline"
@@ -133,12 +217,12 @@ function SearchableSelect({
           <Input
             placeholder="Search..."
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => handleSearchChange(e.target.value)}
             className="h-8"
             autoFocus
           />
         </div>
-        <div className="max-h-60 overflow-y-auto p-1">
+        <div className="max-h-60 overflow-y-auto p-1" onScroll={handleListScroll}>
           {filtered.length === 0 && (
             <p className="text-muted-foreground py-2 text-center text-sm">
               No results found.
@@ -149,7 +233,7 @@ function SearchableSelect({
               key={opt.value}
               type="button"
               className={cn(
-                "hover:bg-accent hover:text-accent-foreground relative flex w-full cursor-default items-center rounded-sm py-1.5 pr-8 pl-2 text-sm outline-none select-none",
+                "hover:bg-accent hover:text-accent-foreground group relative flex w-full cursor-default items-start rounded-sm py-1.5 pr-8 pl-2 text-sm outline-none select-none",
                 value === opt.value && "bg-accent text-accent-foreground",
               )}
               onClick={() => {
@@ -158,7 +242,12 @@ function SearchableSelect({
                 setSearch("");
               }}
             >
-              <span className="truncate">{opt.label}</span>
+              <span
+                className="block w-full truncate text-left group-hover:wrap-break-word group-hover:whitespace-normal"
+                title={opt.label}
+              >
+                {opt.label}
+              </span>
               {value === opt.value && (
                 <span className="absolute right-2 flex h-4 w-4 items-center justify-center">
                   <CheckIcon className="h-4 w-4" />
@@ -166,6 +255,11 @@ function SearchableSelect({
               )}
             </button>
           ))}
+          {isLoadingMore && (
+            <div className="text-muted-foreground py-2 text-center text-xs">
+              Loading more...
+            </div>
+          )}
         </div>
       </PopoverContent>
     </Popover>
@@ -256,15 +350,15 @@ export function PurchaseOrderFormContent({
 
   useEffect(() => {
     purchaseDropdownsService
-      .getTermsAndConditions()
+      .getTermsAndConditionsPage(0, "", MASTER_DROPDOWN_PAGE_SIZE)
       .then(setTermList)
       .catch((err) => console.error("Error fetching terms:", err));
     purchaseDropdownsService
-      .getMandiMasters()
+      .getMandiMastersPage(0, "", MASTER_DROPDOWN_PAGE_SIZE)
       .then(setMandiList)
       .catch((err) => console.error("Error fetching mandis:", err));
     purchaseDropdownsService
-      .getPaymentTerms()
+      .getPaymentTermsPage(0, "", MASTER_DROPDOWN_PAGE_SIZE)
       .then(setPaymentTermList)
       .catch((err) => console.error("Error fetching payment terms:", err));
   }, []);
@@ -496,7 +590,11 @@ export function PurchaseOrderFormContent({
     try {
       if (lineItem.lineNo) {
         // Update existing line using Line_No
-        await updateSinglePurchaseOrderLine(createdOrderNo, lineItem.lineNo, apiItem);
+        await updateSinglePurchaseOrderLine(
+          createdOrderNo,
+          lineItem.lineNo,
+          apiItem,
+        );
         const updated = lineItems.map((item) =>
           item.id === lineItem.id ? lineItem : item,
         );
@@ -504,7 +602,11 @@ export function PurchaseOrderFormContent({
         persist({ ...formData, lineItems: updated, createdOrderNo });
       } else {
         // Create new line
-        const response = await addSinglePurchaseOrderLine(createdOrderNo, apiItem, locationCode);
+        const response = await addSinglePurchaseOrderLine(
+          createdOrderNo,
+          apiItem,
+          locationCode,
+        );
         const newLineItem = { ...lineItem, lineNo: response.Line_No };
         const updated = [...lineItems, newLineItem];
         setLineItems(updated);
@@ -537,7 +639,10 @@ export function PurchaseOrderFormContent({
 
     try {
       if (itemToRemove.lineNo) {
-        await deleteSinglePurchaseOrderLine(createdOrderNo, itemToRemove.lineNo);
+        await deleteSinglePurchaseOrderLine(
+          createdOrderNo,
+          itemToRemove.lineNo,
+        );
       }
       const updated = lineItems.filter((item) => item.id !== lineItemId);
       setLineItems(updated);
@@ -559,9 +664,7 @@ export function PurchaseOrderFormContent({
   // Final submission is no longer making an API call since lines are synced.
   const handlePlaceOrder = async () => {
     if (!createdOrderNo) {
-      setPlaceOrderError(
-        "Create the purchase order header before submitting.",
-      );
+      setPlaceOrderError("Create the purchase order header before submitting.");
       return;
     }
 
@@ -1036,6 +1139,17 @@ export function PurchaseOrderFormContent({
                   label: `${t.Terms} - ${t.Conditions}`,
                 }))}
                 placeholder="Select term"
+                loadMore={async (skip, searchValue) => {
+                  const rows = await purchaseDropdownsService.getTermsAndConditionsPage(
+                    skip,
+                    searchValue,
+                    MASTER_DROPDOWN_PAGE_SIZE,
+                  );
+                  return rows.map((t) => ({
+                    value: t.Terms,
+                    label: `${t.Terms} - ${t.Conditions}`,
+                  }));
+                }}
               />
             </div>
             <div className={fieldClass}>
@@ -1050,6 +1164,17 @@ export function PurchaseOrderFormContent({
                   label: `${p.Code} - ${p.Description}`,
                 }))}
                 placeholder="Select pmt term"
+                loadMore={async (skip, searchValue) => {
+                  const rows = await purchaseDropdownsService.getPaymentTermsPage(
+                    skip,
+                    searchValue,
+                    MASTER_DROPDOWN_PAGE_SIZE,
+                  );
+                  return rows.map((p) => ({
+                    value: p.Code,
+                    label: `${p.Code} - ${p.Description}`,
+                  }));
+                }}
               />
             </div>
             <div className={fieldClass}>
@@ -1062,6 +1187,17 @@ export function PurchaseOrderFormContent({
                   label: `${m.Code} - ${m.Description}`,
                 }))}
                 placeholder="Select mandi"
+                loadMore={async (skip, searchValue) => {
+                  const rows = await purchaseDropdownsService.getMandiMastersPage(
+                    skip,
+                    searchValue,
+                    MASTER_DROPDOWN_PAGE_SIZE,
+                  );
+                  return rows.map((m) => ({
+                    value: m.Code,
+                    label: `${m.Code} - ${m.Description}`,
+                  }));
+                }}
               />
             </div>
           </div>
@@ -1187,19 +1323,22 @@ export function PurchaseOrderFormContent({
         />
       )}
 
-      {isBardanaDialogOpen && bardanaLineItem && bardanaLineItem.lineNo && createdOrderNo && (
-        <BardanaDialog
-          isOpen={isBardanaDialogOpen}
-          onOpenChange={(open) => {
-            setIsBardanaDialogOpen(open);
-            if (!open) setBardanaLineItem(null);
-          }}
-          documentNo={createdOrderNo}
-          lineNo={bardanaLineItem.lineNo}
-          noOfBags={bardanaLineItem.noOfBags}
-          lineDescription={bardanaLineItem.description}
-        />
-      )}
+      {isBardanaDialogOpen &&
+        bardanaLineItem &&
+        bardanaLineItem.lineNo &&
+        createdOrderNo && (
+          <BardanaDialog
+            isOpen={isBardanaDialogOpen}
+            onOpenChange={(open) => {
+              setIsBardanaDialogOpen(open);
+              if (!open) setBardanaLineItem(null);
+            }}
+            documentNo={createdOrderNo}
+            lineNo={bardanaLineItem.lineNo}
+            noOfBags={bardanaLineItem.noOfBags}
+            lineDescription={bardanaLineItem.description}
+          />
+        )}
     </>
   );
 }

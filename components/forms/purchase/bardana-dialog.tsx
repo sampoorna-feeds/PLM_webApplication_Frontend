@@ -21,6 +21,7 @@ import { FieldTitle } from "@/components/ui/field";
 import { SearchableSelect } from "@/components/forms/shared/searchable-select";
 import {
   getBardanaItems,
+  getBardanaItemsPage,
   searchBardanaItems,
   type Item,
 } from "@/lib/api/services/item.service";
@@ -146,7 +147,7 @@ export function BardanaDialog({
               placeholder="Search bardana items…"
               loadInitial={() => getBardanaItems(20)}
               searchItems={searchBardanaItems}
-              loadMore={async () => []}
+              loadMore={(skip, search) => getBardanaItemsPage(skip, search, 20)}
               getDisplayValue={(item) => `${item.No} - ${item.Description}`}
               getItemValue={(item) => item.No}
               supportsDualSearch={false}

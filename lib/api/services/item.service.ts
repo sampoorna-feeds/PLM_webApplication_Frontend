@@ -418,6 +418,60 @@ export async function getBardanaItems(top: number = 20): Promise<Item[]> {
 }
 
 /**
+ * Get paginated bardana-enabled items with optional search.
+ */
+export async function getBardanaItemsPage(
+  skip: number,
+  search?: string,
+  top: number = 20,
+): Promise<Item[]> {
+  const base = `(Blocked eq false) and (Bardana_Generation_Enable eq true)`;
+  const select = "No,Description,Sales_Unit_of_Measure,Base_Unit_of_Measure";
+
+  if (!search || search.trim().length < 2) {
+    const endpoint = buildItemListEndpoint(base, {
+      top,
+      skip,
+      orderby: "No",
+      select,
+    });
+    const response = await apiGet<ODataResponse<Item>>(endpoint);
+    return response.value;
+  }
+
+  const escaped = escapeODataValue(search.trim());
+  const [byNo, byDesc] = await Promise.all([
+    (async () => {
+      const f = `(${base}) and contains(No,'${escaped}')`;
+      const ep = buildItemListEndpoint(f, {
+        top,
+        skip,
+        orderby: "No",
+        select,
+      });
+      return (await apiGet<ODataResponse<Item>>(ep)).value;
+    })(),
+    (async () => {
+      const f = `(${base}) and contains(Description,'${escaped}')`;
+      const ep = buildItemListEndpoint(f, {
+        top,
+        skip,
+        orderby: "No",
+        select,
+      });
+      return (await apiGet<ODataResponse<Item>>(ep)).value;
+    })(),
+  ]);
+
+  const map = new Map<string, Item>();
+  [...byNo, ...byDesc].forEach((item) => {
+    if (!map.has(item.No)) map.set(item.No, item);
+  });
+
+  return Array.from(map.values()).sort((a, b) => a.No.localeCompare(b.No));
+}
+
+/**
  * Search bardana-enabled items by No or Description.
  */
 export async function searchBardanaItems(query: string): Promise<Item[]> {

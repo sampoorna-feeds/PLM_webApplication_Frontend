@@ -248,7 +248,7 @@ export function SearchableSelect({
                   <div
                     key={option.value}
                     className={cn(
-                      "hover:bg-accent hover:text-accent-foreground relative flex cursor-pointer items-center rounded-sm px-2 py-1.5 text-sm transition-colors outline-none select-none",
+                      "hover:bg-accent hover:text-accent-foreground group relative flex cursor-pointer items-start rounded-sm px-2 py-1.5 text-sm transition-colors outline-none select-none",
                       value === option.value &&
                         "bg-accent text-accent-foreground",
                     )}
@@ -263,7 +263,12 @@ export function SearchableSelect({
                         value === option.value ? "opacity-100" : "opacity-0",
                       )}
                     />
-                    <span className="truncate">{option.label}</span>
+                    <span
+                      className="block w-full truncate text-left group-hover:wrap-break-word group-hover:whitespace-normal"
+                      title={option.label}
+                    >
+                      {option.label}
+                    </span>
                   </div>
                 ))}
 

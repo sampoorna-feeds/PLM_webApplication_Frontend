@@ -7,7 +7,7 @@
  */
 
 import React, { useState, useCallback } from "react";
-import { Pencil, Trash2 } from "lucide-react";
+import { Package, Pencil, Trash2 } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -36,6 +36,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import type { LineItem } from "./line-item-form";
+import { TaxInfoPopover } from "@/components/forms/purchase/tax-info-popover";
 
 interface LineItemsTableProps {
   lineItems: LineItem[];
@@ -46,6 +47,10 @@ interface LineItemsTableProps {
   editable?: boolean;
   /** When true, show Edit/Delete buttons and right-click context menu on each row */
   showRowActions?: boolean;
+  /** Optional document number to fetch tax info for synced line items */
+  documentNo?: string;
+  /** When provided, renders a Bardana button per row (only for synced lines with lineNo) */
+  onBardana?: (lineItem: LineItem) => void;
 }
 
 function LineItemsTableComponent({
@@ -56,6 +61,8 @@ function LineItemsTableComponent({
   onRowClick,
   editable = false,
   showRowActions = false,
+  documentNo,
+  onBardana,
 }: LineItemsTableProps) {
   const [itemToRemove, setItemToRemove] = useState<string | null>(null);
   const [editingCell, setEditingCell] = useState<{
@@ -171,6 +178,7 @@ function LineItemsTableComponent({
               <TableHead className="min-w-[200px]">Description</TableHead>
               <TableHead className="w-[100px]">UOM</TableHead>
               <TableHead className="w-[100px]">Quantity</TableHead>
+              <TableHead className="w-[80px]">Bags</TableHead>
               <TableHead className="w-[100px]">Price</TableHead>
               <TableHead className="w-[100px]">Unit Price</TableHead>
               <TableHead className="w-[100px]">Discount</TableHead>
@@ -180,7 +188,7 @@ function LineItemsTableComponent({
               <TableHead className="w-[120px]">HSN/SAC Code</TableHead>
               <TableHead className="w-[120px]">TDS Group Code</TableHead>
               {showRowActions && (
-                <TableHead className="w-[90px] text-right">Actions</TableHead>
+                <TableHead className="w-[110px] text-right">Actions</TableHead>
               )}
             </TableRow>
           </TableHeader>
@@ -211,7 +219,14 @@ function LineItemsTableComponent({
                   <TableCell className="font-medium">{item.type}</TableCell>
                   <TableCell>{item.no}</TableCell>
                   <TableCell className="max-w-[200px] truncate">
-                    {item.description}
+                    <div className="flex items-center gap-2">
+                      <span className="truncate">{item.description}</span>
+                        {item.lineNo && documentNo && (
+                          <div onClick={(e) => e.stopPropagation()}>
+                            <TaxInfoPopover documentNo={documentNo} lineNo={item.lineNo} />
+                          </div>
+                        )}
+                    </div>
                   </TableCell>
                   <TableCell>{item.uom || "-"}</TableCell>
                   <TableCell
@@ -339,9 +354,26 @@ function LineItemsTableComponent({
                   <TableCell>{item.gstGroupCode || "-"}</TableCell>
                   <TableCell>{item.hsnSacCode || "-"}</TableCell>
                   <TableCell>{item.tdsGroupCode || "-"}</TableCell>
+                  <TableCell>{item.noOfBags ?? "-"}</TableCell>
                   {showRowActions && (
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-1">
+                        {onBardana && item.lineNo && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="text-muted-foreground hover:text-primary h-8 w-8"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onBardana(item);
+                            }}
+                            title="Add Bardana"
+                            aria-label="Add Bardana"
+                          >
+                            <Package className="h-4 w-4" />
+                          </Button>
+                        )}
                         {onEdit && (
                           <Button
                             type="button"

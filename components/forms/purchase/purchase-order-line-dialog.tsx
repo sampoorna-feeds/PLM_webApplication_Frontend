@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -50,7 +51,8 @@ interface PurchaseOrderLineDialogProps {
   lineItem?: LineItem | null;
   customerNo?: string;
   locationCode?: string;
-  onSave: (lineItem: LineItem) => void;
+  onSave: (lineItem: LineItem) => void | Promise<void>;
+  isSaving?: boolean;
 }
 
 function createLineItemId() {
@@ -72,6 +74,7 @@ function getInitialLineState(lineItem?: LineItem | null): Partial<LineItem> {
     gstGroupCode: lineItem?.gstGroupCode || "",
     hsnSacCode: lineItem?.hsnSacCode || "",
     tdsGroupCode: lineItem?.tdsGroupCode || "",
+    noOfBags: lineItem?.noOfBags,
   };
 }
 
@@ -82,6 +85,7 @@ export function PurchaseOrderLineDialog({
   customerNo,
   locationCode,
   onSave,
+  isSaving = false,
 }: PurchaseOrderLineDialogProps) {
   const isEdit = !!lineItem;
   const [formState, setFormState] = useState<Partial<LineItem>>(
@@ -431,6 +435,28 @@ export function PurchaseOrderLineDialog({
               </div>
 
               <div className="space-y-1">
+                <FieldTitle>No. of Bags</FieldTitle>
+                <Input
+                  type="text"
+                  inputMode="numeric"
+                  value={formState.noOfBags != null ? String(formState.noOfBags) : ""}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    if (v === "") {
+                      setFormState((prev) => ({ ...prev, noOfBags: undefined }));
+                    } else {
+                      const n = parseInt(v, 10);
+                      if (!isNaN(n) && n >= 0)
+                        setFormState((prev) => ({ ...prev, noOfBags: n }));
+                    }
+                  }}
+                  onWheel={(e) => e.currentTarget.blur()}
+                  placeholder="0"
+                  className="h-8 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                />
+              </div>
+
+              <div className="space-y-1">
                 <FieldTitle>Unit Price</FieldTitle>
                 <Input
                   type="text"
@@ -520,11 +546,21 @@ export function PurchaseOrderLineDialog({
             type="button"
             variant="outline"
             onClick={() => onOpenChange(false)}
+            disabled={isSaving}
           >
             Cancel
           </Button>
-          <Button type="button" onClick={handleSubmit}>
-            {isEdit ? "Update Item" : "Add Item"}
+          <Button type="button" onClick={handleSubmit} disabled={isSaving}>
+            {isSaving ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Saving...
+              </>
+            ) : isEdit ? (
+              "Update Item"
+            ) : (
+              "Add Item"
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>

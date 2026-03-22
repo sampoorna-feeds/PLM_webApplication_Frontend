@@ -209,6 +209,7 @@ export interface PurchaseLine {
   ShortcutDimCode3?: string;
   TDS_Group_Code?: string;
   TDS_Section_Code?: string;
+  No_of_Bags?: number;
   [key: string]: unknown;
 }
 

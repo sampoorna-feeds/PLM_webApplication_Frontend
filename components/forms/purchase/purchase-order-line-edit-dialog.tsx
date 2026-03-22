@@ -59,6 +59,7 @@ export function PurchaseOrderLineEditDialog({
   const [hsnSacCode, setHsnSacCode] = useState("");
   const [exempted, setExempted] = useState(false);
   const [tdsSection, setTdsSection] = useState("");
+  const [noOfBags, setNoOfBags] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [apiError, setApiError] = useState<ApiErrorState | null>(null);
 
@@ -74,6 +75,7 @@ export function PurchaseOrderLineEditDialog({
     setHsnSacCode(line.HSN_SAC_Code || "");
     setExempted(line.Exempted ?? false);
     setTdsSection(line.TDS_Section_Code || "");
+    setNoOfBags(line.No_of_Bags != null ? String(line.No_of_Bags) : "");
   }, [line]);
 
   const [tdsOptions, setTdsOptions] = useState<SearchableSelectOption[]>([]);
@@ -209,6 +211,9 @@ export function PurchaseOrderLineEditDialog({
         payload.HSN_SAC_Code = hsnSacCode.trim();
       if (tdsSection.trim() !== (line.TDS_Section_Code || "").trim())
         payload.TDS_Section_Code = tdsSection.trim();
+      const bagsVal = noOfBags === "" ? undefined : parseInt(noOfBags, 10);
+      if (!isNaN(bagsVal ?? NaN) && bagsVal !== (line.No_of_Bags ?? undefined))
+        payload.No_of_Bags = bagsVal;
 
       if (Object.keys(payload).length === 0) {
         toast.info("No changes to save");
@@ -291,6 +296,20 @@ export function PurchaseOrderLineEditDialog({
                 id="po-line-description"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-1">
+              <Label htmlFor="po-line-bags" className="text-xs">No. of Bags</Label>
+              <Input
+                id="po-line-bags"
+                inputMode="numeric"
+                placeholder="0"
+                value={noOfBags}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  if (v === "" || /^[0-9]+$/.test(v)) setNoOfBags(v);
+                }}
               />
             </div>
 

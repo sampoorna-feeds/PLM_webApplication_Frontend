@@ -402,3 +402,46 @@ export async function getItemDetailsForSummary(
 
   return result;
 }
+
+/**
+ * Fetch items filtered to only those with Bardana_Generation_Enable = true.
+ */
+export async function getBardanaItems(top: number = 20): Promise<Item[]> {
+  const filter = `(Blocked eq false) and (Bardana_Generation_Enable eq true)`;
+  const endpoint = buildItemListEndpoint(filter, {
+    top,
+    orderby: "No",
+    select: "No,Description,Sales_Unit_of_Measure,Base_Unit_of_Measure",
+  });
+  const response = await apiGet<ODataResponse<Item>>(endpoint);
+  return response.value;
+}
+
+/**
+ * Search bardana-enabled items by No or Description.
+ */
+export async function searchBardanaItems(query: string): Promise<Item[]> {
+  if (query.length < 2) return [];
+
+  const escapedQuery = escapeODataValue(query);
+  const base = `(Blocked eq false) and (Bardana_Generation_Enable eq true)`;
+
+  const [byNo, byDesc] = await Promise.all([
+    (async () => {
+      const f = `(${base}) and contains(No,'${escapedQuery}')`;
+      const ep = buildItemListEndpoint(f, { top: 20, orderby: "No", select: "No,Description,Sales_Unit_of_Measure,Base_Unit_of_Measure" });
+      return (await apiGet<ODataResponse<Item>>(ep)).value;
+    })(),
+    (async () => {
+      const f = `(${base}) and contains(Description,'${escapedQuery}')`;
+      const ep = buildItemListEndpoint(f, { top: 20, orderby: "No", select: "No,Description,Sales_Unit_of_Measure,Base_Unit_of_Measure" });
+      return (await apiGet<ODataResponse<Item>>(ep)).value;
+    })(),
+  ]);
+
+  const map = new Map<string, Item>();
+  [...byNo, ...byDesc].forEach((item) => {
+    if (!map.has(item.No)) map.set(item.No, item);
+  });
+  return Array.from(map.values()).sort((a, b) => a.No.localeCompare(b.No));
+}

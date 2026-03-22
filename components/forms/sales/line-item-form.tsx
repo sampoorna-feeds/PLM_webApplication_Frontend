@@ -49,6 +49,8 @@ export interface LineItem {
   gstGroupCode?: string;
   hsnSacCode?: string;
   tdsGroupCode?: string;
+  /** Number of bags for purchase order lines */
+  noOfBags?: number;
 }
 
 interface LineItemFormProps {

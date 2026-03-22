@@ -7,7 +7,7 @@
  */
 
 import React, { useState, useEffect, useCallback } from "react";
-import { Loader2 } from "lucide-react";
+import { Loader2, Package, Paperclip } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -43,6 +43,8 @@ import { RequestFailedDialog } from "@/components/ui/request-failed-dialog";
 import { PurchaseItemTrackingDialog } from "./purchase-item-tracking-dialog";
 import { PurchaseOrderLineEditDialog } from "./purchase-order-line-edit-dialog";
 import { TaxInfoPopover } from "./tax-info-popover";
+import { POAttachmentDialog } from "./po-attachment-dialog";
+import { BardanaDialog } from "./bardana-dialog";
 import {
   Table,
   TableBody,
@@ -126,6 +128,18 @@ export function PurchaseOrderDetailForm({
     [],
   );
   const [isReceiptLoading, setIsReceiptLoading] = useState(false);
+
+  // Attachment dialog state
+  const [isAttachmentDialogOpen, setIsAttachmentDialogOpen] = useState(false);
+
+  // Bardana dialog state
+  const [bardanaLine, setBardanaLine] = useState<import("@/lib/api/services/purchase-orders.service").PurchaseLine | null>(null);
+  const [isBardanaDialogOpen, setIsBardanaDialogOpen] = useState(false);
+
+  const handleBardanaClick = (line: import("@/lib/api/services/purchase-orders.service").PurchaseLine) => {
+    setBardanaLine(line);
+    setIsBardanaDialogOpen(true);
+  };
 
   useEffect(() => {
     if (order?.Posting_Date) {
@@ -542,6 +556,15 @@ export function PurchaseOrderDetailForm({
               {isActionLoading ? "..." : "Reopen"}
             </Button>
           )}
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8"
+            onClick={() => setIsAttachmentDialogOpen(true)}
+          >
+            <Paperclip className="mr-1.5 h-3.5 w-3.5" />
+            Attachments
+          </Button>
         </div>
 
         {/* Header summary */}
@@ -787,16 +810,18 @@ export function PurchaseOrderDetailForm({
         <div>
           <div className="mb-3 flex items-center justify-between">
             <span className="text-sm font-semibold">Line Items</span>
-            {isLoadingTrackingMap ? (
-              <span className="text-muted-foreground inline-flex items-center text-xs">
-                <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
-                Checking tracking...
-              </span>
-            ) : (
-              <span className="text-muted-foreground text-xs">
-                Tracked items are highlighted
-              </span>
-            )}
+            <div className="flex items-center gap-2">
+              {isLoadingTrackingMap ? (
+                <span className="text-muted-foreground inline-flex items-center text-xs">
+                  <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                  Checking tracking...
+                </span>
+              ) : (
+                <span className="text-muted-foreground text-xs">
+                  Tracked items are highlighted
+                </span>
+              )}
+            </div>
           </div>
           <div className="overflow-x-auto rounded-md border">
             <Table>
@@ -837,13 +862,15 @@ export function PurchaseOrderDetailForm({
                   <TableHead className="w-24 text-xs">GST Group</TableHead>
                   <TableHead className="w-28 text-xs">HSN/SAC</TableHead>
                   <TableHead className="w-20 text-xs">Exempted</TableHead>
+                  <TableHead className="w-20 text-right text-xs">Bags</TableHead>
+                  <TableHead className="w-24 text-right text-xs">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {lines.length === 0 ? (
                   <TableRow>
                     <TableCell
-                      colSpan={17}
+                      colSpan={19}
                       className="text-muted-foreground py-8 text-center text-sm"
                     >
                       No line items
@@ -925,6 +952,27 @@ export function PurchaseOrderDetailForm({
                         <TableCell className="text-xs">
                           {line.Exempted ? "Yes" : "No"}
                         </TableCell>
+                        <TableCell className="text-right text-xs">
+                          {line.No_of_Bags ?? "-"}
+                        </TableCell>
+                        <TableCell
+                          className="text-right"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="text-muted-foreground hover:text-primary h-7 w-7"
+                            title="Add Bardana"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleBardanaClick(line);
+                            }}
+                          >
+                            <Package className="h-3.5 w-3.5" />
+                          </Button>
+                        </TableCell>
                       </TableRow>
                     );
                   })
@@ -964,6 +1012,28 @@ export function PurchaseOrderDetailForm({
           }}
           onAssignTracking={() => setSelectedTrackingLine(selectedLine)}
         />
+
+        {order?.No && (
+          <POAttachmentDialog
+            isOpen={isAttachmentDialogOpen}
+            onOpenChange={setIsAttachmentDialogOpen}
+            orderNo={order.No}
+          />
+        )}
+
+        {isBardanaDialogOpen && bardanaLine && bardanaLine.Line_No && order?.No && (
+          <BardanaDialog
+            isOpen={isBardanaDialogOpen}
+            onOpenChange={(open) => {
+              setIsBardanaDialogOpen(open);
+              if (!open) setBardanaLine(null);
+            }}
+            documentNo={order.No}
+            lineNo={bardanaLine.Line_No}
+            noOfBags={bardanaLine.No_of_Bags}
+            lineDescription={bardanaLine.Description}
+          />
+        )}
 
         <PurchaseItemTrackingDialog
           open={!!selectedTrackingLine}

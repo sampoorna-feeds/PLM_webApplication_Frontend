@@ -490,6 +490,34 @@ export async function updatePurchaseLine(
 }
 
 // ============================================
+// GST AND HSN SAC CODES
+// ============================================
+
+export interface GstGroupCode {
+  Code: string;
+  GST_Group_Type: string;
+  Reverse_Charge: boolean;
+}
+
+export async function getGstGroupCodes(): Promise<GstGroupCode[]> {
+  const endpoint = `/GSTGroup?company='${encodeURIComponent(COMPANY)}'&$select=Code,GST_Group_Type,Reverse_Charge`;
+  const response = await apiGet<ODataResponse<GstGroupCode>>(endpoint);
+  return response.value || [];
+}
+
+export interface HsnSacCode {
+  GST_Group_Code: string;
+  Code: string;
+  Type: string;
+}
+
+export async function getHsnSacCodes(gstGroupCode: string): Promise<HsnSacCode[]> {
+  const endpoint = `/HSNSAC?company='${encodeURIComponent(COMPANY)}'&$select=GST_Group_Code,Code,Type&$filter=GST_Group_Code eq '${encodeURIComponent(gstGroupCode)}'`;
+  const response = await apiGet<ODataResponse<HsnSacCode>>(endpoint);
+  return response.value || [];
+}
+
+// ============================================
 // SALES ITEM TRACKING (LOT ASSIGN / GET / DELETE)
 // Reuse getItemAvailabilityByLot, modifyItemTrackingLine from production-orders.service
 // ============================================
@@ -591,4 +619,45 @@ export async function deletePurchaseItemTrackingLine(
 ): Promise<unknown> {
   const endpoint = `/ItemTrackingLine(Entry_No=${entryNo},Positive=${positive})?company='${encodeURIComponent(COMPANY)}'`;
   return apiDelete<unknown>(endpoint);
+}
+
+// ============================================
+// TAX COMPONENTS INFORMATION
+// ============================================
+export interface TaxComponentInfo {
+  Component: string;
+  Percent: string;
+  Amount: string;
+}
+
+/**
+ * Get tax components for a purchase/sales line.
+ * Fetches base64 encoded JSON, decodes and parses.
+ */
+export async function getTaxComponents(
+  documentNo: string,
+  lineNo: number,
+  tableID: string = "39"
+): Promise<TaxComponentInfo[]> {
+  const endpoint = `/API_GetTaxComponentsInJsonSales_Purchase?company='${encodeURIComponent(COMPANY)}'`;
+  const payload = {
+    tableID,
+    documentNo,
+    lineNo
+  };
+  const response = await apiPost<{ value: string }>(endpoint, payload);
+  if (!response || !response.value) return [];
+  
+  try {
+    // Decoding base64 to utf-8 string using atob
+    const b64 = response.value;
+    const decoded = typeof window !== 'undefined' 
+      ? atob(b64)
+      : Buffer.from(b64, 'base64').toString('utf-8');
+      
+    return JSON.parse(decoded) as TaxComponentInfo[];
+  } catch (err) {
+    console.error("Failed to parse tax components", err);
+    return [];
+  }
 }

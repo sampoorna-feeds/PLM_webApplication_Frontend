@@ -16,8 +16,12 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   updatePurchaseLine,
+  getGstGroupCodes,
+  getHsnSacCodes,
   type PurchaseLine,
 } from "@/lib/api/services/purchase-orders.service";
+import { getVendorTDSGroupCodes } from "@/lib/api/services/tds.service";
+import { SearchableSelect, type SearchableSelectOption } from "@/components/ui/searchable-select";
 import {
   ApiErrorDialog,
   extractApiError,
@@ -29,6 +33,7 @@ interface PurchaseOrderLineEditDialogProps {
   onOpenChange: (open: boolean) => void;
   line: PurchaseLine | null;
   orderNo: string;
+  vendorNo: string;
   hasTracking?: boolean;
   onSave: () => void;
   onAssignTracking?: () => void;
@@ -39,6 +44,7 @@ export function PurchaseOrderLineEditDialog({
   onOpenChange,
   line,
   orderNo,
+  vendorNo,
   hasTracking = false,
   onSave,
   onAssignTracking,
@@ -69,6 +75,94 @@ export function PurchaseOrderLineEditDialog({
     setExempted(line.Exempted ?? false);
     setTdsSection(line.TDS_Section_Code || "");
   }, [line]);
+
+  const [tdsOptions, setTdsOptions] = useState<SearchableSelectOption[]>([]);
+  const [gstOptions, setGstOptions] = useState<SearchableSelectOption[]>([]);
+  const [hsnOptions, setHsnOptions] = useState<SearchableSelectOption[]>([]);
+  const [loadingOptions, setLoadingOptions] = useState({ tds: false, gst: false, hsn: false });
+
+  // Load TDS and GST groups on mount
+  useEffect(() => {
+    if (!open) return;
+    
+    let mounted = true;
+
+    async function fetchTds() {
+      if (!vendorNo) return;
+      setLoadingOptions(p => ({ ...p, tds: true }));
+      try {
+        const res = await getVendorTDSGroupCodes(vendorNo);
+        if (mounted) {
+          setTdsOptions(
+            res.map(r => ({
+              value: r.TDS_Section || "",
+              label: `${r.TDS_Section} - ${r.TDS_Section_Description || ""}`,
+            }))
+          );
+        }
+      } catch (e) {
+        console.error(e);
+      } finally {
+        if (mounted) setLoadingOptions(p => ({ ...p, tds: false }));
+      }
+    }
+
+    async function fetchGst() {
+      setLoadingOptions(p => ({ ...p, gst: true }));
+      try {
+        const res = await getGstGroupCodes();
+        if (mounted) {
+          setGstOptions(
+            res.map(r => ({
+              value: r.Code,
+              label: `${r.Code}`,
+              description: r.GST_Group_Type
+            }))
+          );
+        }
+      } catch (e) {
+        console.error(e);
+      } finally {
+        if (mounted) setLoadingOptions(p => ({ ...p, gst: false }));
+      }
+    }
+    
+    fetchTds();
+    fetchGst();
+    
+    return () => { mounted = false; };
+  }, [open, vendorNo]);
+
+  // Load HSN based on selected GST Group Code
+  useEffect(() => {
+    if (!open) return;
+    if (!gstGroupCode) {
+      setHsnOptions([]);
+      return;
+    }
+    let mounted = true;
+    async function fetchHsn() {
+      setLoadingOptions(p => ({ ...p, hsn: true }));
+      try {
+        const res = await getHsnSacCodes(gstGroupCode);
+        if (mounted) {
+          setHsnOptions(
+            res.map(r => ({
+              value: r.Code,
+              label: `${r.Code}`,
+              description: r.Type
+            }))
+          );
+        }
+      } catch (e) {
+        console.error(e);
+      } finally {
+        if (mounted) setLoadingOptions(p => ({ ...p, hsn: false }));
+      }
+    }
+    fetchHsn();
+    return () => { mounted = false; };
+  }, [open, gstGroupCode]);
 
   const isValidNum = (v: string) => v === "" || /^[0-9]*\.?[0-9]*$/.test(v);
 
@@ -151,7 +245,7 @@ export function PurchaseOrderLineEditDialog({
           </DialogHeader>
 
           {/* ── Info strip ── */}
-          <div className="bg-muted/40 grid grid-cols-2 gap-x-4 gap-y-1 rounded-md border px-4 py-3 text-sm sm:grid-cols-4">
+          <div className="bg-muted/40 grid grid-cols-2 gap-x-4 gap-y-1 rounded-md border px-4 py-3 text-sm sm:grid-cols-6">
             <div>
               <p className="text-muted-foreground text-[10px] uppercase tracking-wide">Line</p>
               <p className="font-medium">{line.Line_No}</p>
@@ -167,6 +261,14 @@ export function PurchaseOrderLineEditDialog({
             <div>
               <p className="text-muted-foreground text-[10px] uppercase tracking-wide">UOM</p>
               <p>{line.Unit_of_Measure_Code || line.Unit_of_Measure || "—"}</p>
+            </div>
+            <div>
+              <p className="text-muted-foreground text-[10px] uppercase tracking-wide">Qty Received</p>
+              <p>{line.Quantity_Received || "0"}</p>
+            </div>
+            <div>
+              <p className="text-muted-foreground text-[10px] uppercase tracking-wide">Qty Invoiced</p>
+              <p>{line.Quantity_Invoiced || "0"}</p>
             </div>
           </div>
 
@@ -213,53 +315,50 @@ export function PurchaseOrderLineEditDialog({
               />
             </div>
 
-            {/* Row 3 — received / invoiced (BC-managed, editable on request) */}
-            <div className="space-y-1">
-              <Label htmlFor="po-line-qty-received" className="text-xs">Qty Received</Label>
-              <Input
-                id="po-line-qty-received"
-                inputMode="decimal"
-                value={qtyReceived}
-                onChange={(e) => { if (isValidNum(e.target.value)) setQtyReceived(e.target.value); }}
-              />
-            </div>
 
-            <div className="space-y-1">
-              <Label htmlFor="po-line-qty-invoiced" className="text-xs">Qty Invoiced</Label>
-              <Input
-                id="po-line-qty-invoiced"
-                inputMode="decimal"
-                value={qtyInvoiced}
-                onChange={(e) => { if (isValidNum(e.target.value)) setQtyInvoiced(e.target.value); }}
-              />
-            </div>
 
             {/* Row 3 */}
-            <div className="space-y-1">
+            <div className="space-y-1 overflow-hidden">
               <Label htmlFor="po-line-gst-group" className="text-xs">GST Group Code</Label>
-              <Input
-                id="po-line-gst-group"
+              <SearchableSelect
                 value={gstGroupCode}
-                onChange={(e) => setGstGroupCode(e.target.value)}
+                onValueChange={(val) => {
+                  setGstGroupCode(val);
+                  setHsnSacCode("");
+                }}
+                options={gstOptions}
+                isLoading={loadingOptions.gst}
+                placeholder="Select GST Group..."
+                searchPlaceholder="Search GST Groups..."
+                allowCustomValue={true}
               />
             </div>
 
-            <div className="space-y-1">
+            <div className="space-y-1 overflow-hidden">
               <Label htmlFor="po-line-hsn" className="text-xs">HSN/SAC Code</Label>
-              <Input
-                id="po-line-hsn"
+              <SearchableSelect
                 value={hsnSacCode}
-                onChange={(e) => setHsnSacCode(e.target.value)}
+                onValueChange={setHsnSacCode}
+                options={hsnOptions}
+                isLoading={loadingOptions.hsn}
+                placeholder={gstGroupCode ? "Select HSN/SAC..." : "Select GST Group first"}
+                searchPlaceholder="Search HSN/SAC Codes..."
+                disabled={!gstGroupCode}
+                allowCustomValue={true}
               />
             </div>
 
             {/* Row 4 */}
-            <div className="space-y-1">
+            <div className="space-y-1 overflow-hidden">
               <Label htmlFor="po-line-tds-section" className="text-xs">TDS Section</Label>
-              <Input
-                id="po-line-tds-section"
+              <SearchableSelect
                 value={tdsSection}
-                onChange={(e) => setTdsSection(e.target.value)}
+                onValueChange={setTdsSection}
+                options={tdsOptions}
+                isLoading={loadingOptions.tds}
+                placeholder="Select TDS Section..."
+                searchPlaceholder="Search TDS Section..."
+                allowCustomValue={true}
               />
             </div>
 

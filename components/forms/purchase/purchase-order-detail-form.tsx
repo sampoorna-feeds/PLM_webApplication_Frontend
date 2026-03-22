@@ -42,6 +42,7 @@ import { getItemsByNos, getItemStock } from "@/lib/api/services/item.service";
 import { RequestFailedDialog } from "@/components/ui/request-failed-dialog";
 import { PurchaseItemTrackingDialog } from "./purchase-item-tracking-dialog";
 import { PurchaseOrderLineEditDialog } from "./purchase-order-line-edit-dialog";
+import { TaxInfoPopover } from "./tax-info-popover";
 import {
   Table,
   TableBody,
@@ -801,6 +802,7 @@ export function PurchaseOrderDetailForm({
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-10 text-xs"></TableHead>
                   <TableHead className="w-16 text-xs">Line</TableHead>
                   <TableHead className="w-24 text-xs">Type</TableHead>
                   <TableHead className="w-24 text-xs">No</TableHead>
@@ -841,7 +843,7 @@ export function PurchaseOrderDetailForm({
                 {lines.length === 0 ? (
                   <TableRow>
                     <TableCell
-                      colSpan={16}
+                      colSpan={17}
                       className="text-muted-foreground py-8 text-center text-sm"
                     >
                       No line items
@@ -862,6 +864,11 @@ export function PurchaseOrderDetailForm({
                         )}
                         onClick={() => setSelectedLine(line)}
                       >
+                        <TableCell className="w-10">
+                          {order?.No && line.Line_No && (
+                            <TaxInfoPopover documentNo={order.No} lineNo={line.Line_No} />
+                          )}
+                        </TableCell>
                         <TableCell className="text-xs">
                           {line.Line_No}
                         </TableCell>
@@ -944,6 +951,7 @@ export function PurchaseOrderDetailForm({
           onOpenChange={(open) => !open && setSelectedLine(null)}
           line={selectedLine}
           orderNo={order?.No ?? ""}
+          vendorNo={order?.Buy_from_Vendor_No ?? ""}
           hasTracking={
             !!(
               selectedLine?.No &&

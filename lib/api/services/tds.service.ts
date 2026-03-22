@@ -9,6 +9,7 @@ import type { ODataResponse } from "../types";
 export interface TDSGroupCode {
   TDS_Nature_of_Collection?: string;
   TDS_Section?: string;
+  TDS_Section_Description?: string;
 }
 
 const COMPANY =
@@ -59,7 +60,7 @@ export async function getVendorTDSGroupCodes(
 
   try {
     const escapedVendor = vendorNo.replace(/'/g, "''");
-    const endpoint = `/TDSSection?company='${encodeURIComponent(COMPANY)}'&$select=TDS_Section&$Filter=Vendor_No eq '${encodeURIComponent(escapedVendor)}'`;
+    const endpoint = `/TDSSection?company='${encodeURIComponent(COMPANY)}'&$select=TDS_Section,TDS_Section_Description&$filter=Vendor_No eq '${encodeURIComponent(escapedVendor)}'`;
     const response = await apiGet<ODataResponse<TDSGroupCode>>(endpoint);
     const items = response.value || [];
 

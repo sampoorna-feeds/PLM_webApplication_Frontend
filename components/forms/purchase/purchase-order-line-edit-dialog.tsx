@@ -488,21 +488,18 @@ export function PurchaseOrderLineEditDialog({
 
           <DialogFooter className="mt-2 gap-2">
             <div className="mr-auto flex items-center gap-2">
-              {
-                // canAddBardana && line?.Line_No &&
-                onOpenBardana && (
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      onOpenBardana(line);
-                      onOpenChange(false);
-                    }}
-                  >
-                    <Package className="mr-2 h-4 w-4" />
-                    Add Bardana
-                  </Button>
-                )
-              }
+              {canAddBardana && line?.Line_No && onOpenBardana && (
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    onOpenBardana(line);
+                    onOpenChange(false);
+                  }}
+                >
+                  <Package className="mr-2 h-4 w-4" />
+                  Add Bardana
+                </Button>
+              )}
               {hasTracking && onAssignTracking && (
                 <Button
                   variant="outline"

@@ -174,6 +174,24 @@ function SearchableSelect({
     }
   };
 
+  const handleListWheel = (e: React.WheelEvent<HTMLDivElement>) => {
+    const target = e.currentTarget;
+    if (target.scrollHeight <= target.clientHeight) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+    target.scrollTop += e.deltaY;
+
+    if (!loadMore || !hasMore || isLoadingMore) return;
+
+    const nearBottom =
+      target.scrollTop + target.clientHeight >= target.scrollHeight - 50;
+
+    if (nearBottom) {
+      loadMoreOptions(visibleOptions.length, search);
+    }
+  };
+
   const handleOpenChange = (nextOpen: boolean) => {
     setOpen(nextOpen);
 
@@ -185,10 +203,10 @@ function SearchableSelect({
   const filtered = loadMore
     ? visibleOptions
     : search
-    ? options.filter((o) =>
-        o.label.toLowerCase().includes(search.toLowerCase()),
-      )
-    : options;
+      ? options.filter((o) =>
+          o.label.toLowerCase().includes(search.toLowerCase()),
+        )
+      : options;
 
   const selectedLabel = options.find((o) => o.value === value)?.label;
 
@@ -222,7 +240,11 @@ function SearchableSelect({
             autoFocus
           />
         </div>
-        <div className="max-h-60 overflow-y-auto p-1" onScroll={handleListScroll}>
+        <div
+          className="max-h-60 overflow-y-auto p-1"
+          onScroll={handleListScroll}
+          onWheel={handleListWheel}
+        >
           {filtered.length === 0 && (
             <p className="text-muted-foreground py-2 text-center text-sm">
               No results found.
@@ -233,8 +255,10 @@ function SearchableSelect({
               key={opt.value}
               type="button"
               className={cn(
-                "hover:bg-accent hover:text-accent-foreground group relative flex w-full cursor-default items-start rounded-sm py-1.5 pr-8 pl-2 text-sm outline-none select-none",
-                value === opt.value && "bg-accent text-accent-foreground",
+                "group relative flex w-full cursor-default items-start rounded-sm py-1.5 pr-8 pl-2 text-sm outline-none select-none",
+                value === opt.value
+                  ? "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
+                  : "hover:bg-muted hover:text-foreground",
               )}
               onClick={() => {
                 onChange(opt.value);
@@ -1140,11 +1164,12 @@ export function PurchaseOrderFormContent({
                 }))}
                 placeholder="Select term"
                 loadMore={async (skip, searchValue) => {
-                  const rows = await purchaseDropdownsService.getTermsAndConditionsPage(
-                    skip,
-                    searchValue,
-                    MASTER_DROPDOWN_PAGE_SIZE,
-                  );
+                  const rows =
+                    await purchaseDropdownsService.getTermsAndConditionsPage(
+                      skip,
+                      searchValue,
+                      MASTER_DROPDOWN_PAGE_SIZE,
+                    );
                   return rows.map((t) => ({
                     value: t.Terms,
                     label: `${t.Terms} - ${t.Conditions}`,
@@ -1165,11 +1190,12 @@ export function PurchaseOrderFormContent({
                 }))}
                 placeholder="Select pmt term"
                 loadMore={async (skip, searchValue) => {
-                  const rows = await purchaseDropdownsService.getPaymentTermsPage(
-                    skip,
-                    searchValue,
-                    MASTER_DROPDOWN_PAGE_SIZE,
-                  );
+                  const rows =
+                    await purchaseDropdownsService.getPaymentTermsPage(
+                      skip,
+                      searchValue,
+                      MASTER_DROPDOWN_PAGE_SIZE,
+                    );
                   return rows.map((p) => ({
                     value: p.Code,
                     label: `${p.Code} - ${p.Description}`,
@@ -1188,11 +1214,12 @@ export function PurchaseOrderFormContent({
                 }))}
                 placeholder="Select mandi"
                 loadMore={async (skip, searchValue) => {
-                  const rows = await purchaseDropdownsService.getMandiMastersPage(
-                    skip,
-                    searchValue,
-                    MASTER_DROPDOWN_PAGE_SIZE,
-                  );
+                  const rows =
+                    await purchaseDropdownsService.getMandiMastersPage(
+                      skip,
+                      searchValue,
+                      MASTER_DROPDOWN_PAGE_SIZE,
+                    );
                   return rows.map((m) => ({
                     value: m.Code,
                     label: `${m.Code} - ${m.Description}`,

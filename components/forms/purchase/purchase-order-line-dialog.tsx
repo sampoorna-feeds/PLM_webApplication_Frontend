@@ -41,9 +41,7 @@ import {
   getGLAccountsPage,
   type GLPostingAccount,
 } from "@/lib/api/services/gl-account.service";
-import {
-  getVendorTDSGroupCodes,
-} from "@/lib/api/services/tds.service";
+import { getVendorTDSGroupCodes } from "@/lib/api/services/tds.service";
 import {
   getGstGroupCodes,
   getHsnSacCodes,
@@ -232,13 +230,10 @@ export function PurchaseOrderLineDialog({
     [handleFieldChange],
   );
 
-  const formatNumericValue = useCallback(
-    (value: any): string => {
-      if (value == null) return "";
-      return String(value);
-    },
-    [],
-  );
+  const formatNumericValue = useCallback((value: any): string => {
+    if (value == null) return "";
+    return String(value);
+  }, []);
 
   const handleGLAccountChange = useCallback(
     (value: string, account?: GLPostingAccount) => {
@@ -460,7 +455,9 @@ export function PurchaseOrderLineDialog({
               <FieldTitle>TDS Group Code</FieldTitle>
               <AppSearchableSelect
                 value={formState.tdsGroupCode || ""}
-                onValueChange={(value) => handleFieldChange("tdsGroupCode", value)}
+                onValueChange={(value) =>
+                  handleFieldChange("tdsGroupCode", value)
+                }
                 options={tdsOptions}
                 isLoading={loadingOptions.tds}
                 placeholder="Select TDS Group Code"
@@ -492,11 +489,16 @@ export function PurchaseOrderLineDialog({
                 <Input
                   type="text"
                   inputMode="numeric"
-                  value={formState.noOfBags != null ? String(formState.noOfBags) : ""}
+                  value={
+                    formState.noOfBags != null ? String(formState.noOfBags) : ""
+                  }
                   onChange={(e) => {
                     const v = e.target.value;
                     if (v === "") {
-                      setFormState((prev) => ({ ...prev, noOfBags: undefined }));
+                      setFormState((prev) => ({
+                        ...prev,
+                        noOfBags: undefined,
+                      }));
                     } else {
                       const n = parseInt(v, 10);
                       if (!isNaN(n) && n >= 0)
@@ -585,7 +587,9 @@ export function PurchaseOrderLineDialog({
                   <FieldTitle>HSN/SAC Code</FieldTitle>
                   <AppSearchableSelect
                     value={formState.hsnSacCode || ""}
-                    onValueChange={(value) => handleFieldChange("hsnSacCode", value)}
+                    onValueChange={(value) =>
+                      handleFieldChange("hsnSacCode", value)
+                    }
                     options={hsnOptions}
                     isLoading={loadingOptions.hsn}
                     placeholder={

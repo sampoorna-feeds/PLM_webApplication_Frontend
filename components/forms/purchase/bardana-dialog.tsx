@@ -3,7 +3,7 @@
 /**
  * Bardana Dialog
  * Allows adding a bardana line to a purchase order line item.
- * Bardana items are filtered by Bardana_Generation_Enable = true.
+ * Bardana items are filtered by Status = Approved and RM_Bardana_Item = true.
  */
 
 import React, { useCallback, useEffect, useState } from "react";
@@ -118,19 +118,23 @@ export function BardanaDialog({
         {/* Context info */}
         <div className="bg-muted/40 rounded-md border px-3 py-2 text-xs">
           <div className="text-muted-foreground">
-            <span className="font-medium text-foreground">Order:</span> {documentNo}
+            <span className="text-foreground font-medium">Order:</span>{" "}
+            {documentNo}
           </div>
           <div className="text-muted-foreground">
-            <span className="font-medium text-foreground">Line No:</span> {lineNo}
+            <span className="text-foreground font-medium">Line No:</span>{" "}
+            {lineNo}
             {noOfBags != null && noOfBags > 0 && (
               <span className="ml-3">
-                <span className="font-medium text-foreground">Bags:</span> {noOfBags}
+                <span className="text-foreground font-medium">Bags:</span>{" "}
+                {noOfBags}
               </span>
             )}
           </div>
           {lineDescription && (
             <div className="text-muted-foreground truncate">
-              <span className="font-medium text-foreground">Item:</span> {lineDescription}
+              <span className="text-foreground font-medium">Item:</span>{" "}
+              {lineDescription}
             </div>
           )}
         </div>
@@ -191,9 +195,7 @@ export function BardanaDialog({
             )}
           </div>
 
-          {error && (
-            <p className="text-destructive text-xs">{error}</p>
-          )}
+          {error && <p className="text-destructive text-xs">{error}</p>}
 
           {success && (
             <p className="text-xs font-medium text-green-600">

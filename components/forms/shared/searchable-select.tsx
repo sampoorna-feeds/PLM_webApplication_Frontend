@@ -247,6 +247,25 @@ export function SearchableSelect<T extends SearchableItem>({
     return () => element.removeEventListener("scroll", handleScroll);
   }, [isOpen, hasMore, isLoading, loadMoreItems, loadMore]);
 
+  const handleListWheel = (e: React.WheelEvent<HTMLDivElement>) => {
+    const element = e.currentTarget;
+    if (element.scrollHeight <= element.clientHeight) return;
+
+    // Ensure wheel/trackpad scroll works even when parent overlays intercept scroll.
+    e.preventDefault();
+    e.stopPropagation();
+    element.scrollTop += e.deltaY;
+
+    if (!loadMore || !hasMore || isLoading) return;
+
+    const isNearBottom =
+      element.scrollTop + element.clientHeight >= element.scrollHeight - 50;
+
+    if (isNearBottom) {
+      loadMoreItems();
+    }
+  };
+
   // Find selected item display value
   const selectedItem = items.find((item) => getItemValue(item) === value);
   const displayValue = selectedItem
@@ -315,6 +334,7 @@ export function SearchableSelect<T extends SearchableItem>({
             ref={listRef}
             className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto p-1"
             style={{ WebkitOverflowScrolling: "touch" }}
+            onWheel={handleListWheel}
           >
             {isLoading && items.length === 0 ? (
               <div className="flex items-center justify-center py-6">
@@ -335,8 +355,10 @@ export function SearchableSelect<T extends SearchableItem>({
                     <div
                       key={itemValue}
                       className={cn(
-                        "hover:bg-accent hover:text-accent-foreground relative flex cursor-default items-start rounded-sm px-2 py-2 text-sm outline-none select-none",
-                        isSelected && "bg-accent text-accent-foreground",
+                        "relative flex cursor-default items-start rounded-sm px-2 py-2 text-sm outline-none select-none",
+                        isSelected
+                          ? "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
+                          : "hover:bg-muted hover:text-foreground",
                       )}
                       onClick={(e) => {
                         e.preventDefault();

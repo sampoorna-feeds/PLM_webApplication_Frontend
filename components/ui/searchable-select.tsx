@@ -100,6 +100,24 @@ export function SearchableSelect({
     }
   };
 
+  const handleWheel = (e: React.WheelEvent<HTMLDivElement>) => {
+    const target = e.currentTarget;
+    if (target.scrollHeight <= target.clientHeight) return;
+
+    // Keep wheel scrolling within the dropdown list and out of parent overlays.
+    e.preventDefault();
+    e.stopPropagation();
+    target.scrollTop += e.deltaY;
+
+    if (!onLoadMore || !hasMore || isLoadingMore) return;
+
+    const scrollBottom =
+      target.scrollHeight - target.scrollTop - target.clientHeight;
+    if (scrollBottom < 50) {
+      onLoadMore();
+    }
+  };
+
   // Reset search when popover closes - REMOVED to keep search persistent
   // React.useEffect(() => {
   //   if (!open) {
@@ -184,6 +202,7 @@ export function SearchableSelect({
             ref={listRef}
             className="min-h-0 flex-1 overflow-y-auto p-1"
             onScroll={handleScroll}
+            onWheel={handleWheel}
           >
             {isLoading ? (
               <div className="flex items-center justify-center py-6">
@@ -248,9 +267,10 @@ export function SearchableSelect({
                   <div
                     key={option.value}
                     className={cn(
-                      "hover:bg-accent hover:text-accent-foreground group relative flex cursor-pointer items-start rounded-sm px-2 py-1.5 text-sm transition-colors outline-none select-none",
-                      value === option.value &&
-                        "bg-accent text-accent-foreground",
+                      "group relative flex cursor-pointer items-start rounded-sm px-2 py-1.5 text-sm transition-colors outline-none select-none",
+                      value === option.value
+                        ? "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
+                        : "hover:bg-muted hover:text-foreground",
                     )}
                     onClick={() => {
                       onValueChange(option.value);

@@ -173,22 +173,22 @@ function LineItemsTableComponent({
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-[80px]">Type</TableHead>
-              <TableHead className="w-[100px]">No.</TableHead>
-              <TableHead className="min-w-[200px]">Description</TableHead>
-              <TableHead className="w-[100px]">UOM</TableHead>
-              <TableHead className="w-[100px]">Quantity</TableHead>
-              <TableHead className="w-[80px]">Bags</TableHead>
-              <TableHead className="w-[100px]">Price</TableHead>
-              <TableHead className="w-[100px]">Unit Price</TableHead>
-              <TableHead className="w-[100px]">Discount</TableHead>
-              <TableHead className="w-[100px]">Amount</TableHead>
-              <TableHead className="w-[100px]">Exempted</TableHead>
-              <TableHead className="w-[120px]">GST Group Code</TableHead>
-              <TableHead className="w-[120px]">HSN/SAC Code</TableHead>
-              <TableHead className="w-[120px]">TDS Group Code</TableHead>
+              <TableHead className="w-20">Type</TableHead>
+              <TableHead className="w-25">No.</TableHead>
+              <TableHead className="min-w-50">Description</TableHead>
+              <TableHead className="w-25">UOM</TableHead>
+              <TableHead className="w-25">Quantity</TableHead>
+              <TableHead className="w-20">Bags</TableHead>
+              <TableHead className="w-25">Price</TableHead>
+              <TableHead className="w-25">Unit Price</TableHead>
+              <TableHead className="w-25">Discount</TableHead>
+              <TableHead className="w-25">Amount</TableHead>
+              <TableHead className="w-25">Exempted</TableHead>
+              <TableHead className="w-30">GST Group Code</TableHead>
+              <TableHead className="w-30">HSN/SAC Code</TableHead>
+              <TableHead className="w-30">TDS Group Code</TableHead>
               {showRowActions && (
-                <TableHead className="w-[110px] text-right">Actions</TableHead>
+                <TableHead className="w-27.5 text-right">Actions</TableHead>
               )}
             </TableRow>
           </TableHeader>
@@ -218,14 +218,17 @@ function LineItemsTableComponent({
                 >
                   <TableCell className="font-medium">{item.type}</TableCell>
                   <TableCell>{item.no}</TableCell>
-                  <TableCell className="max-w-[200px] truncate">
+                  <TableCell className="max-w-50 truncate">
                     <div className="flex items-center gap-2">
                       <span className="truncate">{item.description}</span>
-                        {item.lineNo && documentNo && (
-                          <div onClick={(e) => e.stopPropagation()}>
-                            <TaxInfoPopover documentNo={documentNo} lineNo={item.lineNo} />
-                          </div>
-                        )}
+                      {item.lineNo && documentNo && (
+                        <div onClick={(e) => e.stopPropagation()}>
+                          <TaxInfoPopover
+                            documentNo={documentNo}
+                            lineNo={item.lineNo}
+                          />
+                        </div>
+                      )}
                     </div>
                   </TableCell>
                   <TableCell>{item.uom || "-"}</TableCell>
@@ -285,7 +288,7 @@ function LineItemsTableComponent({
                         autoFocus={false}
                       />
                     ) : (
-                      item.price ?? "-"
+                      (item.price ?? "-")
                     )}
                   </TableCell>
                   <TableCell

@@ -7,9 +7,10 @@
  */
 
 import React, { useState, useEffect, useCallback } from "react";
-import { Loader2, Package, Paperclip } from "lucide-react";
+import { Loader2, Paperclip } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import {
@@ -133,10 +134,18 @@ export function PurchaseOrderDetailForm({
   const [isAttachmentDialogOpen, setIsAttachmentDialogOpen] = useState(false);
 
   // Bardana dialog state
-  const [bardanaLine, setBardanaLine] = useState<import("@/lib/api/services/purchase-orders.service").PurchaseLine | null>(null);
+  const [bardanaLine, setBardanaLine] = useState<
+    import("@/lib/api/services/purchase-orders.service").PurchaseLine | null
+  >(null);
   const [isBardanaDialogOpen, setIsBardanaDialogOpen] = useState(false);
+  const [lineToReopenAfterBardana, setLineToReopenAfterBardana] = useState<
+    import("@/lib/api/services/purchase-orders.service").PurchaseLine | null
+  >(null);
 
-  const handleBardanaClick = (line: import("@/lib/api/services/purchase-orders.service").PurchaseLine) => {
+  const handleBardanaClick = (
+    line: import("@/lib/api/services/purchase-orders.service").PurchaseLine,
+  ) => {
+    setLineToReopenAfterBardana(line);
     setBardanaLine(line);
     setIsBardanaDialogOpen(true);
   };
@@ -390,7 +399,8 @@ export function PurchaseOrderDetailForm({
 
       // Invoice-specific fields
       if (isInvoiceOption) {
-        patchPayload.Due_Date_calculation = postDetails.dueDateCalculation || "Posting Date";
+        patchPayload.Due_Date_calculation =
+          postDetails.dueDateCalculation || "Posting Date";
         patchPayload.Line_Narration1 = postDetails.lineNarration || "";
         patchPayload.Freight = postDetails.freight || "0";
       }
@@ -468,6 +478,21 @@ export function PurchaseOrderDetailForm({
   const isReleased = order.Status === "Released";
   const isOpen = order.Status === "Open";
   const isPendingApproval = order.Status === "Pending Approval";
+  const summaryItemClass =
+    "border bg-background/70 px-2.5 py-1.5 transition-colors hover:bg-muted/40";
+  const summaryLabelClass = "text-muted-foreground block text-[11px]";
+  const summaryValueClass = "mt-0.5 block text-[13px] font-medium leading-snug";
+  const summaryStatusVariant: "default" | "secondary" | "destructive" =
+    isReleased ? "default" : isPendingApproval ? "secondary" : "destructive";
+
+  const renderSummaryField = (label: string, value: React.ReactNode) => (
+    <div className={summaryItemClass}>
+      <span className={summaryLabelClass}>{label}</span>
+      <span className={summaryValueClass}>
+        {value?.toString().trim() || "-"}
+      </span>
+    </div>
+  );
 
   return (
     <>
@@ -568,241 +593,74 @@ export function PurchaseOrderDetailForm({
         </div>
 
         {/* Header summary */}
-        <div className="bg-muted/30 rounded-lg p-4">
-          <div className="mb-4 text-sm font-semibold">Order Summary</div>
-          <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
-            <div>
-              <span className="text-muted-foreground block text-xs">
-                Order No
-              </span>
-              <span className="font-medium">{order.No}</span>
+        <div className="bg-card relative overflow-hidden rounded-xl border">
+          <div className="relative flex flex-wrap items-start justify-between gap-1.5 border-b px-3 py-2.5">
+            <div className="flex flex-col gap-1">
+              <div className="text-sm font-semibold">Order Summary</div>
             </div>
-            <div>
-              <span className="text-muted-foreground block text-xs">
-                Vendor
-              </span>
-              <span className="font-medium">
-                {order.Buy_from_Vendor_Name || order.Buy_from_Vendor_No}
-              </span>
-            </div>
-            <div>
-              <span className="text-muted-foreground block text-xs">
-                Vendor No
-              </span>
-              <span className="font-medium">{order.Buy_from_Vendor_No}</span>
-            </div>
-            <div>
-              <span className="text-muted-foreground block text-xs">
-                Order Date
-              </span>
-              <span className="font-medium">
-                {formatDate(order.Order_Date)}
-              </span>
-            </div>
-            <div>
-              <span className="text-muted-foreground block text-xs">
-                Posting Date
-              </span>
-              <span className="font-medium">
-                {formatDate(order.Posting_Date)}
-              </span>
-            </div>
-            <div>
-              <span className="text-muted-foreground block text-xs">
-                Document Date
-              </span>
-              <span className="font-medium">
-                {formatDate(order.Document_Date)}
-              </span>
-            </div>
-            <div>
-              <span className="text-muted-foreground block text-xs">
-                Vendor Invoice No
-              </span>
-              <span className="font-medium">
-                {order.Vendor_Invoice_No || "-"}
-              </span>
-            </div>
-            <div>
-              <span className="text-muted-foreground block text-xs">
-                Status
-              </span>
-              <span className="font-medium">{order.Status || "-"}</span>
-            </div>
-            {order.Invoice_Type && (
-              <div>
-                <span className="text-muted-foreground block text-xs">
-                  Invoice Type
-                </span>
-                <span className="font-medium">{order.Invoice_Type}</span>
-              </div>
+            <Badge
+              className="px-2 py-0 text-[11px]"
+              variant={summaryStatusVariant}
+            >
+              {order.Status || "-"}
+            </Badge>
+          </div>
+          <div className="relative grid grid-cols-1 gap-0 p-0 sm:grid-cols-2 lg:grid-cols-4">
+            {renderSummaryField("Order No", order.No)}
+            {renderSummaryField(
+              "Vendor",
+              order.Buy_from_Vendor_Name || order.Buy_from_Vendor_No,
             )}
-            {order.PO_Type && (
-              <div>
-                <span className="text-muted-foreground block text-xs">
-                  PO Type
-                </span>
-                <span className="font-medium">{order.PO_Type}</span>
-              </div>
+            {renderSummaryField("Vendor No", order.Buy_from_Vendor_No)}
+            {renderSummaryField("Order Date", formatDate(order.Order_Date))}
+            {renderSummaryField("Posting Date", formatDate(order.Posting_Date))}
+            {renderSummaryField(
+              "Document Date",
+              formatDate(order.Document_Date),
             )}
-            {order.Service_Type && (
-              <div>
-                <span className="text-muted-foreground block text-xs">
-                  Service Type
-                </span>
-                <span className="font-medium">{order.Service_Type}</span>
-              </div>
-            )}
-            {order.Order_Address_Code && (
-              <div>
-                <span className="text-muted-foreground block text-xs">
-                  Order Address Code
-                </span>
-                <span className="font-medium">{order.Order_Address_Code}</span>
-              </div>
-            )}
-            {order.Vendor_GST_Reg_No && (
-              <div>
-                <span className="text-muted-foreground block text-xs">
-                  Vendor GST
-                </span>
-                <span className="font-medium">{order.Vendor_GST_Reg_No}</span>
-              </div>
-            )}
-            {order.P_A_N_No && (
-              <div>
-                <span className="text-muted-foreground block text-xs">
-                  Vendor PAN
-                </span>
-                <span className="font-medium">{order.P_A_N_No}</span>
-              </div>
-            )}
-            {order.Location_Code && (
-              <div>
-                <span className="text-muted-foreground block text-xs">
-                  Location
-                </span>
-                <span className="font-medium">{order.Location_Code}</span>
-              </div>
-            )}
-            {order.Shortcut_Dimension_1_Code && (
-              <div>
-                <span className="text-muted-foreground block text-xs">LOB</span>
-                <span className="font-medium">
-                  {order.Shortcut_Dimension_1_Code}
-                </span>
-              </div>
-            )}
-            {order.Shortcut_Dimension_2_Code && (
-              <div>
-                <span className="text-muted-foreground block text-xs">
-                  Branch
-                </span>
-                <span className="font-medium">
-                  {order.Shortcut_Dimension_2_Code}
-                </span>
-              </div>
-            )}
-            {order.Shortcut_Dimension_3_Code && (
-              <div>
-                <span className="text-muted-foreground block text-xs">LOC</span>
-                <span className="font-medium">
-                  {order.Shortcut_Dimension_3_Code}
-                </span>
-              </div>
-            )}
-            {order.Brokerage_Code && (
-              <div>
-                <span className="text-muted-foreground block text-xs">
-                  Broker
-                </span>
-                <span className="font-medium">{order.Brokerage_Code}</span>
-              </div>
-            )}
-            {order.Brokerage_Rate != null && (
-              <div>
-                <span className="text-muted-foreground block text-xs">
-                  Brokerage Rate
-                </span>
-                <span className="font-medium">{order.Brokerage_Rate}</span>
-              </div>
-            )}
-            {order.Rate_Basis && (
-              <div>
-                <span className="text-muted-foreground block text-xs">
-                  Rate Basis
-                </span>
-                <span className="font-medium">{order.Rate_Basis}</span>
-              </div>
-            )}
-            {order.Terms_Code && (
-              <div>
-                <span className="text-muted-foreground block text-xs">
-                  Term Code
-                </span>
-                <span className="font-medium">{order.Terms_Code}</span>
-              </div>
-            )}
-            {order.Payment_Terms_Code && (
-              <div>
-                <span className="text-muted-foreground block text-xs">
-                  Payment Term
-                </span>
-                <span className="font-medium">{order.Payment_Terms_Code}</span>
-              </div>
-            )}
-            {order.Due_Date_calculation && (
-              <div>
-                <span className="text-muted-foreground block text-xs">
-                  Due Date Calc
-                </span>
-                <span className="font-medium">
-                  {order.Due_Date_calculation}
-                </span>
-              </div>
-            )}
-            {order.Creditors_Type && (
-              <div>
-                <span className="text-muted-foreground block text-xs">
-                  Creditor Type
-                </span>
-                <span className="font-medium">{order.Creditors_Type}</span>
-              </div>
-            )}
-            {order.QCType && (
-              <div>
-                <span className="text-muted-foreground block text-xs">
-                  QC Type
-                </span>
-                <span className="font-medium">{order.QCType}</span>
-              </div>
-            )}
-            {order.Vehicle_No && (
-              <div>
-                <span className="text-muted-foreground block text-xs">
-                  Vehicle No
-                </span>
-                <span className="font-medium">{order.Vehicle_No}</span>
-              </div>
-            )}
-            {order.Due_Date && (
-              <div>
-                <span className="text-muted-foreground block text-xs">
-                  Due Date
-                </span>
-                <span className="font-medium">
-                  {formatDate(order.Due_Date)}
-                </span>
-              </div>
-            )}
-            {order.Purchaser_Code && (
-              <div>
-                <span className="text-muted-foreground block text-xs">
-                  Purchaser
-                </span>
-                <span className="font-medium">{order.Purchaser_Code}</span>
-              </div>
-            )}
+            {renderSummaryField("Vendor Invoice No", order.Vendor_Invoice_No)}
+            {order.Invoice_Type &&
+              renderSummaryField("Invoice Type", order.Invoice_Type)}
+            {order.PO_Type && renderSummaryField("PO Type", order.PO_Type)}
+            {order.Service_Type &&
+              renderSummaryField("Service Type", order.Service_Type)}
+            {order.Order_Address_Code &&
+              renderSummaryField(
+                "Order Address Code",
+                order.Order_Address_Code,
+              )}
+            {order.Vendor_GST_Reg_No &&
+              renderSummaryField("Vendor GST", order.Vendor_GST_Reg_No)}
+            {order.P_A_N_No && renderSummaryField("Vendor PAN", order.P_A_N_No)}
+            {order.Location_Code &&
+              renderSummaryField("Location", order.Location_Code)}
+            {order.Shortcut_Dimension_1_Code &&
+              renderSummaryField("LOB", order.Shortcut_Dimension_1_Code)}
+            {order.Shortcut_Dimension_2_Code &&
+              renderSummaryField("Branch", order.Shortcut_Dimension_2_Code)}
+            {order.Shortcut_Dimension_3_Code &&
+              renderSummaryField("LOC", order.Shortcut_Dimension_3_Code)}
+            {order.Brokerage_Code &&
+              renderSummaryField("Broker", order.Brokerage_Code)}
+            {order.Brokerage_Rate != null &&
+              renderSummaryField("Brokerage Rate", order.Brokerage_Rate)}
+            {order.Rate_Basis &&
+              renderSummaryField("Rate Basis", order.Rate_Basis)}
+            {order.Terms_Code &&
+              renderSummaryField("Term Code", order.Terms_Code)}
+            {order.Payment_Terms_Code &&
+              renderSummaryField("Payment Term", order.Payment_Terms_Code)}
+            {order.Due_Date_calculation &&
+              renderSummaryField("Due Date Calc", order.Due_Date_calculation)}
+            {order.Creditors_Type &&
+              renderSummaryField("Creditor Type", order.Creditors_Type)}
+            {order.QCType && renderSummaryField("QC Type", order.QCType)}
+            {order.Vehicle_No &&
+              renderSummaryField("Vehicle No", order.Vehicle_No)}
+            {order.Due_Date &&
+              renderSummaryField("Due Date", formatDate(order.Due_Date))}
+            {order.Purchaser_Code &&
+              renderSummaryField("Purchaser", order.Purchaser_Code)}
           </div>
         </div>
 
@@ -831,7 +689,7 @@ export function PurchaseOrderDetailForm({
                   <TableHead className="w-16 text-xs">Line</TableHead>
                   <TableHead className="w-24 text-xs">Type</TableHead>
                   <TableHead className="w-24 text-xs">No</TableHead>
-                  <TableHead className="min-w-[180px] text-xs">
+                  <TableHead className="min-w-45 text-xs">
                     Description
                   </TableHead>
                   <TableHead className="w-20 text-xs">UOM</TableHead>
@@ -862,15 +720,16 @@ export function PurchaseOrderDetailForm({
                   <TableHead className="w-24 text-xs">GST Group</TableHead>
                   <TableHead className="w-28 text-xs">HSN/SAC</TableHead>
                   <TableHead className="w-20 text-xs">Exempted</TableHead>
-                  <TableHead className="w-20 text-right text-xs">Bags</TableHead>
-                  <TableHead className="w-24 text-right text-xs">Actions</TableHead>
+                  <TableHead className="w-20 text-right text-xs">
+                    Bags
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {lines.length === 0 ? (
                   <TableRow>
                     <TableCell
-                      colSpan={19}
+                      colSpan={18}
                       className="text-muted-foreground py-8 text-center text-sm"
                     >
                       No line items
@@ -893,7 +752,10 @@ export function PurchaseOrderDetailForm({
                       >
                         <TableCell className="w-10">
                           {order?.No && line.Line_No && (
-                            <TaxInfoPopover documentNo={order.No} lineNo={line.Line_No} />
+                            <TaxInfoPopover
+                              documentNo={order.No}
+                              lineNo={line.Line_No}
+                            />
                           )}
                         </TableCell>
                         <TableCell className="text-xs">
@@ -905,7 +767,7 @@ export function PurchaseOrderDetailForm({
                         <TableCell className="text-xs">
                           {line.No || "-"}
                         </TableCell>
-                        <TableCell className="max-w-[200px] truncate text-xs">
+                        <TableCell className="max-w-50 truncate text-xs">
                           {line.Description || line.Description_2 || "-"}
                         </TableCell>
                         <TableCell className="text-xs">
@@ -917,7 +779,9 @@ export function PurchaseOrderDetailForm({
                           {line.Quantity != null ? line.Quantity : "-"}
                         </TableCell>
                         <TableCell className="text-right text-xs">
-                          {line.Qty_to_Receive != null ? line.Qty_to_Receive : "-"}
+                          {line.Qty_to_Receive != null
+                            ? line.Qty_to_Receive
+                            : "-"}
                         </TableCell>
                         <TableCell className="text-right text-xs">
                           {line.Quantity_Received != null
@@ -955,24 +819,6 @@ export function PurchaseOrderDetailForm({
                         <TableCell className="text-right text-xs">
                           {line.No_of_Bags ?? "-"}
                         </TableCell>
-                        <TableCell
-                          className="text-right"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="text-muted-foreground hover:text-primary h-7 w-7"
-                            title="Add Bardana"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleBardanaClick(line);
-                            }}
-                          >
-                            <Package className="h-3.5 w-3.5" />
-                          </Button>
-                        </TableCell>
                       </TableRow>
                     );
                   })
@@ -1000,6 +846,7 @@ export function PurchaseOrderDetailForm({
           line={selectedLine}
           orderNo={order?.No ?? ""}
           vendorNo={order?.Buy_from_Vendor_No ?? ""}
+          onOpenBardana={handleBardanaClick}
           hasTracking={
             !!(
               selectedLine?.No &&
@@ -1021,19 +868,28 @@ export function PurchaseOrderDetailForm({
           />
         )}
 
-        {isBardanaDialogOpen && bardanaLine && bardanaLine.Line_No && order?.No && (
-          <BardanaDialog
-            isOpen={isBardanaDialogOpen}
-            onOpenChange={(open) => {
-              setIsBardanaDialogOpen(open);
-              if (!open) setBardanaLine(null);
-            }}
-            documentNo={order.No}
-            lineNo={bardanaLine.Line_No}
-            noOfBags={bardanaLine.No_of_Bags}
-            lineDescription={bardanaLine.Description}
-          />
-        )}
+        {isBardanaDialogOpen &&
+          bardanaLine &&
+          bardanaLine.Line_No &&
+          order?.No && (
+            <BardanaDialog
+              isOpen={isBardanaDialogOpen}
+              onOpenChange={(open) => {
+                setIsBardanaDialogOpen(open);
+                if (!open) {
+                  setBardanaLine(null);
+                  if (lineToReopenAfterBardana) {
+                    setSelectedLine(lineToReopenAfterBardana);
+                    setLineToReopenAfterBardana(null);
+                  }
+                }
+              }}
+              documentNo={order.No}
+              lineNo={bardanaLine.Line_No}
+              noOfBags={bardanaLine.No_of_Bags}
+              lineDescription={bardanaLine.Description}
+            />
+          )}
 
         <PurchaseItemTrackingDialog
           open={!!selectedTrackingLine}
@@ -1096,7 +952,7 @@ export function PurchaseOrderDetailForm({
                     />
                     <span>Select all</span>
                   </Label>
-                  <div className="max-h-[252px] space-y-2 overflow-y-auto pr-1">
+                  <div className="max-h-63 space-y-2 overflow-y-auto pr-1">
                     {lines.length === 0 ? (
                       <p className="text-muted-foreground text-sm">
                         No lines available.
@@ -1332,7 +1188,6 @@ export function PurchaseOrderDetailForm({
                   </div>
                 </>
               )}
-
             </div>
 
             {actionError && (
@@ -1356,7 +1211,6 @@ export function PurchaseOrderDetailForm({
             </DialogFooter>
           </DialogContent>
         </Dialog>
-
 
         {/* Purchase receipt popup */}
         <Dialog open={isReceiptOpen} onOpenChange={setIsReceiptOpen}>

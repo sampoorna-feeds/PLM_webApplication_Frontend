@@ -755,7 +755,7 @@ export function PurchaseOrderDetailForm({
                         key={line.Line_No}
                         className={cn(
                           canOpenLineEdit
-                            ? "hover:bg-muted/50 cursor-pointer"
+                            ? "hover:bg-muted/50 cursor-pointer [&>td]:max-w-24 [&>td]:truncate [&>td]:overflow-hidden [&>td]:whitespace-nowrap [&>td]:transition-all [&>td]:duration-200 [&>td]:ease-out hover:[&>td]:w-max hover:[&>td]:max-w-none"
                             : "cursor-default",
                           hasTracking && "text-red-600",
                         )}
@@ -781,8 +781,15 @@ export function PurchaseOrderDetailForm({
                         <TableCell className="text-xs">
                           {line.No || "-"}
                         </TableCell>
-                        <TableCell className="max-w-50 truncate text-xs">
-                          {line.Description || line.Description_2 || "-"}
+                        <TableCell className="max-w-50 align-top text-xs">
+                          <span
+                            title={
+                              line.Description || line.Description_2 || "-"
+                            }
+                            className="block truncate"
+                          >
+                            {line.Description || line.Description_2 || "-"}
+                          </span>
                         </TableCell>
                         <TableCell className="text-xs">
                           {line.Unit_of_Measure_Code ||

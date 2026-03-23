@@ -217,7 +217,7 @@ function LineItemsTableComponent({
                 <TableRow
                   key={item.id}
                   className={cn(
-                    "hover:bg-muted/50",
+                    "hover:bg-muted/50 [&>td]:max-w-24 [&>td]:truncate [&>td]:overflow-hidden [&>td]:whitespace-nowrap [&>td]:transition-all [&>td]:duration-200 [&>td]:ease-out hover:[&>td]:w-max hover:[&>td]:max-w-none",
                     onRowClick && "cursor-pointer",
                   )}
                   onClick={
@@ -236,9 +236,14 @@ function LineItemsTableComponent({
                 >
                   <TableCell className="font-medium">{item.type}</TableCell>
                   <TableCell>{item.no}</TableCell>
-                  <TableCell className="max-w-50 truncate">
+                  <TableCell className="max-w-50 align-top">
                     <div className="flex items-center gap-2">
-                      <span className="truncate">{item.description}</span>
+                      <span
+                        title={item.description}
+                        className="block max-w-50 truncate"
+                      >
+                        {item.description}
+                      </span>
                       {item.lineNo && documentNo && (
                         <div onClick={(e) => e.stopPropagation()}>
                           <TaxInfoPopover

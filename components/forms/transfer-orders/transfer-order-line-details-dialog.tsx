@@ -149,16 +149,6 @@ export function TransferOrderLineDetailsDialog({
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-muted-foreground">Qty to Receive</label>
-              <Input
-                type="number"
-                value={formData.Qty_to_Receive || ""}
-                onChange={(e) => handleChange("Qty_to_Receive", Number(e.target.value))}
-                className="bg-[#111] border-[#222] h-9 text-sm text-white focus:border-red-500/50 transition-colors"
-              />
-            </div>
-
-            <div className="space-y-1.5">
               <label className="text-xs font-medium text-muted-foreground">Qty to Ship</label>
               <Input
                 type="number"
@@ -166,6 +156,16 @@ export function TransferOrderLineDetailsDialog({
                 onChange={(e) => handleChange("Qty_to_Ship", Number(e.target.value))}
                 className="bg-[#111] border-[#222] h-9 text-sm text-white focus:border-red-500/50 transition-colors"
                 placeholder="0"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground">Qty to Receive</label>
+              <Input
+                type="number"
+                value={formData.Qty_to_Receive || ""}
+                onChange={(e) => handleChange("Qty_to_Receive", Number(e.target.value))}
+                className="bg-[#111] border-[#222] h-9 text-sm text-white focus:border-red-500/50 transition-colors"
               />
             </div>
 

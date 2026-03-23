@@ -535,7 +535,7 @@ export function TransferOrderForm({
                 >
                   Close
                 </Button>
-                {formState.Status === "Released" && (
+                {(formState.Status === "Released" || formState.Status === "Open") && formState.No && (
                   <Button
                     onClick={() => setIsPostDialogOpen(true)}
                     variant="default"
@@ -958,6 +958,7 @@ export function TransferOrderForm({
         documentNo={formState.No || ""}
         line={selectedLine}
         onSuccess={() => fetchOrderData(formState.No!)}
+        locationCode={formState.Transfer_from_Code || ""}
         defaultDimensions={{
           Shortcut_Dimension_1_Code: formState.Shortcut_Dimension_1_Code || "",
           Shortcut_Dimension_2_Code: formState.Shortcut_Dimension_2_Code || "",
@@ -983,7 +984,7 @@ export function TransferOrderForm({
           <DialogHeader>
             <DialogTitle>Post Transfer Order</DialogTitle>
             <DialogDescription>
-              Choose how you want to post this released order.
+              Choose how you want to post this order.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">

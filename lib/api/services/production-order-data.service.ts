@@ -75,15 +75,6 @@ export async function getItems(
   skip: number = 0,
   top: number = 50,
 ): Promise<Item[]> {
-  const filters: string[] = [];
-
-  if (search && search.length >= 2) {
-    filters.push(`contains(Search_Description,'${search}')`);
-  }
-
-  // Note: ItemCard endpoint doesn't support Global_Dimension_1_Code filtering
-  // Items are not filtered by LOB
-
   const queryParams: Record<string, any> = {
     $select:
       "No,Description,Production_BOM_No,Base_Unit_of_Measure,GST_Group_Code,HSN_SAC_Code,Exempted",
@@ -92,15 +83,59 @@ export async function getItems(
     $skip: skip,
   };
 
-  if (filters.length > 0) {
-    queryParams.$filter = filters.join(" and ");
+  // If no search query, return basic list
+  if (!search || search.length < 2) {
+    const query = buildODataQuery(queryParams);
+    const endpoint = `/ItemCard?company='${encodeURIComponent(COMPANY)}'&${query}`;
+    const response = await apiGet<ODataResponse<Item>>(endpoint);
+    return response.value || [];
   }
 
-  const query = buildODataQuery(queryParams);
-  const endpoint = `/ItemCard?company='${encodeURIComponent(COMPANY)}'&${query}`;
+  const escapedSearch = search.replace(/'/g, "''");
 
-  const response = await apiGet<ODataResponse<Item>>(endpoint);
-  return response.value || [];
+  try {
+    // Make 2 parallel API calls (No vs Description) for robust searching
+    const [resultsByNo, resultsByDesc] = await Promise.all([
+      // Search by No (Item ID)
+      (async () => {
+        const qp = {
+          ...queryParams,
+          $filter: `contains(No,'${escapedSearch}')`,
+        };
+        const query = buildODataQuery(qp);
+        const endpoint = `/ItemCard?company='${encodeURIComponent(COMPANY)}'&${query}`;
+        const response = await apiGet<ODataResponse<Item>>(endpoint);
+        return response.value || [];
+      })(),
+      // Search by Description (Name)
+      (async () => {
+        const qp = {
+          ...queryParams,
+          $filter: `contains(Description,'${escapedSearch}')`,
+        };
+        const query = buildODataQuery(qp);
+        const endpoint = `/ItemCard?company='${encodeURIComponent(COMPANY)}'&${query}`;
+        const response = await apiGet<ODataResponse<Item>>(endpoint);
+        return response.value || [];
+      })(),
+    ]);
+
+    // Combine results and deduplicate by No field
+    const combined = [...resultsByNo, ...resultsByDesc];
+    const uniqueMap = new Map<string, Item>();
+    combined.forEach((item) => {
+      if (!uniqueMap.has(item.No)) {
+        uniqueMap.set(item.No, item);
+      }
+    });
+
+    return Array.from(uniqueMap.values()).sort((a, b) =>
+      a.No.localeCompare(b.No),
+    );
+  } catch (error) {
+    console.error("Error searching items:", error);
+    return [];
+  }
 }
 
 /**

@@ -958,6 +958,7 @@ export function TransferOrderForm({
         documentNo={formState.No || ""}
         line={selectedLine}
         onSuccess={() => fetchOrderData(formState.No!)}
+        locationCode={formState.Transfer_from_Code || ""}
         defaultDimensions={{
           Shortcut_Dimension_1_Code: formState.Shortcut_Dimension_1_Code || "",
           Shortcut_Dimension_2_Code: formState.Shortcut_Dimension_2_Code || "",

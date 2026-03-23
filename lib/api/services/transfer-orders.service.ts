@@ -237,6 +237,17 @@ export interface TransferLine {
   [key: string]: unknown;
 }
 
+export interface ItemLedgerEntry {
+  Entry_No: number;
+  Document_No: string;
+  Item_No: string;
+  Description: string;
+  Location_Code: string;
+  Remaining_Quantity: number;
+  Lot_No?: string;
+  [key: string]: unknown;
+}
+
 export async function getTransferOrderLines(
   documentNo: string,
 ): Promise<TransferLine[]> {
@@ -318,5 +329,21 @@ export async function postTransferOrder(data: {
   const encodedCompany = encodeURIComponent(COMPANY);
   const endpoint = `/API_PostTransferOrder?company='${encodedCompany}'`;
   return apiPost<void>(endpoint, data);
+}
+
+/**
+ * Get item ledger entries for an item and location
+ */
+export async function getItemLedgerEntries(
+  itemNo: string,
+  locationCode: string,
+): Promise<ItemLedgerEntry[]> {
+  const encodedCompany = encodeURIComponent(COMPANY);
+  const filter = `Item_No eq '${itemNo.replace(/'/g, "''")}' and Location_Code eq '${locationCode.replace(/'/g, "''")}' and Open eq true and Positive eq true`;
+  // Using direct OData syntax as preferred by the user query
+  const endpoint = `/Itemledger_entry?company='${encodedCompany}'&$top=500&$filter=${encodeURIComponent(filter)}`;
+
+  const response = await apiGet<ODataResponse<ItemLedgerEntry>>(endpoint);
+  return response.value || [];
 }
 

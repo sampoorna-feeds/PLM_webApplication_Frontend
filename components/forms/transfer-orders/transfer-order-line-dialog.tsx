@@ -25,6 +25,8 @@ import {
   createTransferLine,
   updateTransferLine,
   type TransferLine,
+  getItemLedgerEntries,
+  type ItemLedgerEntry,
 } from "@/lib/api/services/transfer-orders.service";
 
 interface TransferOrderLineDialogProps {
@@ -33,6 +35,7 @@ interface TransferOrderLineDialogProps {
   documentNo: string;
   line?: TransferLine | null;
   onSuccess: () => void;
+  locationCode: string;
   defaultDimensions: {
     Shortcut_Dimension_1_Code: string;
     Shortcut_Dimension_2_Code: string;
@@ -48,12 +51,15 @@ export function TransferOrderLineDialog({
   documentNo,
   line,
   onSuccess,
+  locationCode,
   defaultDimensions,
 }: TransferOrderLineDialogProps) {
   const isEdit = !!line;
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [items, setItems] = useState<Item[]>([]);
   const [isLoadingItems, setIsLoadingItems] = useState(false);
+  const [ledgerEntries, setLedgerEntries] = useState<ItemLedgerEntry[]>([]);
+  const [isLoadingLedgerEntries, setIsLoadingLedgerEntries] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
   const [formData, setFormData] = useState<Partial<TransferLine>>({
@@ -115,6 +121,30 @@ export function TransferOrderLineDialog({
       loadItems();
     }
   }, [isOpen, searchQuery]);
+
+  // Load Item Ledger Entries when item or location changes
+  useEffect(() => {
+    const loadLedgerEntries = async () => {
+      if (!formData.Item_No || !locationCode) {
+        setLedgerEntries([]);
+        return;
+      }
+
+      setIsLoadingLedgerEntries(true);
+      try {
+        const entries = await getItemLedgerEntries(formData.Item_No, locationCode);
+        setLedgerEntries(entries);
+      } catch (err) {
+        console.error("Error loading item ledger entries:", err);
+      } finally {
+        setIsLoadingLedgerEntries(false);
+      }
+    };
+
+    if (isOpen) {
+      loadLedgerEntries();
+    }
+  }, [isOpen, formData.Item_No, locationCode]);
 
   const handleItemChange = async (itemNo: string) => {
     const item = await getItemByNo(itemNo);
@@ -245,10 +275,15 @@ export function TransferOrderLineDialog({
 
           <div className="space-y-2">
             <FieldTitle>Appl.-to Item Entry</FieldTitle>
-            <Input
-              type="number"
-              value={formData.Appl_to_Item_Entry || ""}
-              onChange={(e) => handleChange("Appl_to_Item_Entry", Number(e.target.value))}
+            <SearchableSelect
+              options={ledgerEntries.map(e => ({
+                value: String(e.Entry_No),
+                label: `${e.Entry_No} (Rem: ${e.Remaining_Quantity}) - ${e.Lot_No || "No Lot"}`,
+              }))}
+              value={formData.Appl_to_Item_Entry ? String(formData.Appl_to_Item_Entry) : ""}
+              onValueChange={(v) => handleChange("Appl_to_Item_Entry", Number(v))}
+              isLoading={isLoadingLedgerEntries}
+              placeholder="Select Entry No."
             />
           </div>
         </div>

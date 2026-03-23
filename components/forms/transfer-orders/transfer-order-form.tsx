@@ -535,7 +535,7 @@ export function TransferOrderForm({
                 >
                   Close
                 </Button>
-                {formState.Status === "Released" && (
+                {(formState.Status === "Released" || formState.Status === "Open") && formState.No && (
                   <Button
                     onClick={() => setIsPostDialogOpen(true)}
                     variant="default"
@@ -983,7 +983,7 @@ export function TransferOrderForm({
           <DialogHeader>
             <DialogTitle>Post Transfer Order</DialogTitle>
             <DialogDescription>
-              Choose how you want to post this released order.
+              Choose how you want to post this order.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">

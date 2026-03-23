@@ -482,22 +482,50 @@ export function TransferOrderForm({
 
     setIsSubmitting(true);
     try {
-      await postTransferOrder({
-        docNo: formState.No,
-        postShipment: postSelection === "ship" ? "True" : "False",
-        postReceipt: postSelection === "receive" ? "True" : "False",
-      });
+    // First, save any header changes before posting
+    const allowedToUpdate = [
+      "Transporter_Code",
+      "Transporter_Name",
+      "External_Document_No",
+      "Posting_Date",
+      "Vehicle_No",
+      "LR_RR_No",
+      "LR_RR_Date",
+      "Distance_Km",
+      "Freight_Value",
+    ];
 
-      toast.success("Transfer Order posted successfully");
-      setIsPostDialogOpen(false);
-      handleSuccess();
-    } catch (error: any) {
-      console.error("Error posting transfer order:", error);
-      toast.error(error.message || "Failed to post transfer order");
-    } finally {
-      setIsSubmitting(false);
+    const diff: Partial<TransferOrder> = {};
+    allowedToUpdate.forEach((k) => {
+      const key = k as keyof TransferOrder;
+      if (formState[key] !== originalState[key]) {
+        (diff as any)[key] = formState[key] || (typeof formState[key] === 'number' ? 0 : "");
+      }
+    });
+
+
+    if (Object.keys(diff).length > 0) {
+      await patchTransferOrder(formState.No, diff);
+      console.log("Header updated before posting:", diff);
     }
-  };
+
+    await postTransferOrder({
+      docNo: formState.No,
+      postShipment: postSelection === "ship" ? "True" : "False",
+      postReceipt: postSelection === "receive" ? "True" : "False",
+    });
+
+    toast.success("Transfer Order posted successfully");
+    setIsPostDialogOpen(false);
+    handleSuccess();
+  } catch (error: any) {
+    console.error("Error posting transfer order:", error);
+    toast.error(error.message || "Failed to post transfer order");
+  } finally {
+    setIsSubmitting(false);
+  }
+};
+
 
   const fieldClass = "min-w-0 space-y-1 text-left";
   const labelClass = "text-muted-foreground block text-xs font-medium";
@@ -981,15 +1009,16 @@ export function TransferOrderForm({
 
       {/* Post Dialog */}
       <Dialog open={isPostDialogOpen} onOpenChange={setIsPostDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="sm:max-w-[700px]">
           <DialogHeader>
             <DialogTitle>Post Transfer Order</DialogTitle>
             <DialogDescription>
-              Choose how you want to post this order.
+              Review order details and choose how you want to post.
             </DialogDescription>
           </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="flex flex-col gap-3">
+          <div className="grid gap-6 py-4">
+            {/* Post Options */}
+            <div className="grid grid-cols-2 gap-3">
               <div
                 className={cn(
                   "flex cursor-pointer items-center space-x-3 rounded-lg border p-3 transition-colors",
@@ -1038,7 +1067,118 @@ export function TransferOrderForm({
                 <span className="text-sm font-medium">Receipt</span>
               </div>
             </div>
+
+            {/* Additional Fields Form */}
+            <div className="grid grid-cols-2 gap-x-6 gap-y-4 border-t pt-4">
+              <div className="space-y-1">
+                <label className="text-muted-foreground text-xs font-medium">Posting Date</label>
+                <Input
+                  type="date"
+                  value={formState.Posting_Date ? formState.Posting_Date.split("T")[0] : ""}
+                  onChange={(e) => handleChange("Posting_Date", e.target.value)}
+                  className="h-9"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-muted-foreground text-xs font-medium">External Document No.</label>
+                <Input
+                  value={formState.External_Document_No || ""}
+                  onChange={(e) => handleChange("External_Document_No", e.target.value)}
+                  className="h-9"
+                  placeholder="Enter External Doc No"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-muted-foreground text-xs font-medium">Vehicle No.</label>
+                <Input
+                  value={formState.Vehicle_No || ""}
+                  onChange={(e) => handleChange("Vehicle_No", e.target.value)}
+                  className="h-9"
+                  placeholder="Enter Vehicle No"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-muted-foreground text-xs font-medium">LR/RR No.</label>
+                <Input
+                  value={formState.LR_RR_No || ""}
+                  onChange={(e) => handleChange("LR_RR_No", e.target.value)}
+                  className="h-9"
+                  placeholder="Enter LR/RR No"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-muted-foreground text-xs font-medium">LR/RR Date</label>
+                <Input
+                  type="date"
+                  value={formState.LR_RR_Date ? formState.LR_RR_Date.split("T")[0] : ""}
+                  onChange={(e) => handleChange("LR_RR_Date", e.target.value)}
+                  className="h-9"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-muted-foreground text-xs font-medium">Distance (Km)</label>
+                <Input
+                  type="number"
+                  value={formState.Distance_Km || 0}
+                  onChange={(e) => handleChange("Distance_Km", parseFloat(e.target.value) || 0)}
+                  className="h-9"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-muted-foreground text-xs font-medium">Freight Value</label>
+                <Input
+                  type="number"
+                  value={formState.Freight_Value || 0}
+                  onChange={(e) => handleChange("Freight_Value", parseFloat(e.target.value) || 0)}
+                  className="h-9"
+                />
+              </div>
+              <div className="col-span-2 grid grid-cols-2 gap-6">
+                <div className="space-y-1">
+                  <label className="text-muted-foreground text-xs font-medium">Transporter</label>
+                  <SearchableSelect
+                    options={transporters.map((v) => ({
+                      value: v.No,
+                      label: `${v.No} - ${v.Name}`,
+                    }))}
+                    value={formState.Transporter_Code || ""}
+                    onValueChange={(v) => {
+                      const vendor = transporters.find((t) => t.No === v);
+                      setFormState((prev) => ({
+                        ...prev,
+                        Transporter_Code: v,
+                        Transporter_Name: vendor?.Name || "",
+                      }));
+                      updateTab({ isSaved: false });
+                    }}
+                    onSearch={async (q) => {
+                      if (q.length >= 2) {
+                        const results = await searchTransporters(q);
+                        setTransporters((prev) => {
+                          const combined = [...prev, ...results];
+                          const unique = new Map();
+                          combined.forEach((v) => unique.set(v.No, v));
+                          return Array.from(unique.values());
+                        });
+                      }
+                    }}
+                    placeholder="Select Transporter"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-muted-foreground text-xs font-medium">Transporter Name</label>
+                  <Input
+                    value={formState.Transporter_Name || ""}
+                    onChange={(e) => handleChange("Transporter_Name", e.target.value)}
+                    className={cn("h-9", !!formState.Transporter_Code && "bg-muted")}
+                    disabled={!!formState.Transporter_Code}
+                    placeholder="Enter Name"
+                  />
+                </div>
+              </div>
+            </div>
           </div>
+
           <DialogFooter>
             <Button
               variant="outline"

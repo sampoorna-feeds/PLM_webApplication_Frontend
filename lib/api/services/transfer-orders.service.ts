@@ -352,14 +352,26 @@ export async function deleteTransferLine(
  * Post a transfer order
  */
 export async function postTransferOrder(data: {
-  DocNo: string;
-  PostShipment: string;
-  PostReceipt: string;
+  docNo: string;
+  postShipment: string;
+  postReceipt: string;
 }): Promise<void> {
   const encodedCompany = encodeURIComponent(COMPANY);
   const endpoint = `/API_PostTransferOrder?company='${encodedCompany}'`;
   return apiPost<void>(endpoint, data);
 }
+
+/**
+ * Reopen a transfer order
+ */
+export async function reopenTransferOrder(docNo: string): Promise<unknown> {
+  const result = await patchTransferOrder(docNo, { Status: "Open" });
+  return result;
+}
+
+
+
+
 
 /**
  * Get item ledger entries for an item and location
@@ -385,12 +397,13 @@ export async function assignTransferItemTracking(
   params: AssignTransferItemTrackingParams,
 ): Promise<unknown> {
   const endpoint = `/API_TrackingAssign?company='${encodeURIComponent(COMPANY)}'`;
-  const qty = Math.abs(params.quantity);
+  const qty = -Math.abs(params.quantity);
   const payload = {
     itemNo: params.itemNo,
     locationCode: params.locationCode,
     quantity: qty,
     qtytoHandle: qty,
+
     sourceProdOrderLine: 0,
     sourceType: 5741,
     sourceSubType: params.isReceipt ? 1 : 0,

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -19,7 +20,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { SearchableSelect } from "@/components/forms/shared/searchable-select";
+import { SearchableSelect as MasterSearchableSelect } from "@/components/forms/shared/searchable-select";
+import {
+  SearchableSelect as AppSearchableSelect,
+  type SearchableSelectOption,
+} from "@/components/ui/searchable-select";
 import {
   getItems,
   searchItems,
@@ -36,10 +41,11 @@ import {
   getGLAccountsPage,
   type GLPostingAccount,
 } from "@/lib/api/services/gl-account.service";
+import { getVendorTDSGroupCodes } from "@/lib/api/services/tds.service";
 import {
-  getTDSGroupCodes,
-  type TDSGroupCode,
-} from "@/lib/api/services/tds.service";
+  getGstGroupCodes,
+  getHsnSacCodes,
+} from "@/lib/api/services/purchase-orders.service";
 import type { LineItem } from "@/components/forms/sales/line-item-form";
 
 type LineType = "G/L Account" | "Item";
@@ -50,7 +56,8 @@ interface PurchaseOrderLineDialogProps {
   lineItem?: LineItem | null;
   customerNo?: string;
   locationCode?: string;
-  onSave: (lineItem: LineItem) => void;
+  onSave: (lineItem: LineItem) => void | Promise<void>;
+  isSaving?: boolean;
 }
 
 function createLineItemId() {
@@ -72,6 +79,7 @@ function getInitialLineState(lineItem?: LineItem | null): Partial<LineItem> {
     gstGroupCode: lineItem?.gstGroupCode || "",
     hsnSacCode: lineItem?.hsnSacCode || "",
     tdsGroupCode: lineItem?.tdsGroupCode || "",
+    noOfBags: lineItem?.noOfBags,
   };
 }
 
@@ -82,25 +90,93 @@ export function PurchaseOrderLineDialog({
   customerNo,
   locationCode,
   onSave,
+  isSaving = false,
 }: PurchaseOrderLineDialogProps) {
   const isEdit = !!lineItem;
   const [formState, setFormState] = useState<Partial<LineItem>>(
     getInitialLineState(lineItem),
   );
   const [uomOptions, setUomOptions] = useState<ItemUnitOfMeasure[]>([]);
-  const [tdsOptions, setTdsOptions] = useState<TDSGroupCode[]>([]);
+  const [tdsOptions, setTdsOptions] = useState<SearchableSelectOption[]>([]);
+  const [gstOptions, setGstOptions] = useState<SearchableSelectOption[]>([]);
+  const [hsnOptions, setHsnOptions] = useState<SearchableSelectOption[]>([]);
+  const [loadingOptions, setLoadingOptions] = useState({
+    tds: false,
+    gst: false,
+    hsn: false,
+  });
   const [validationError, setValidationError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isOpen || !customerNo) return;
 
-    getTDSGroupCodes(customerNo)
-      .then(setTdsOptions)
+    setLoadingOptions((prev) => ({ ...prev, tds: true }));
+    getVendorTDSGroupCodes(customerNo)
+      .then((rows) => {
+        setTdsOptions(
+          rows.map((row) => ({
+            value: row.TDS_Section || "",
+            label: `${row.TDS_Section} - ${row.TDS_Section_Description || ""}`,
+          })),
+        );
+      })
       .catch((error) => {
-        console.error("Error loading TDS Group Codes:", error);
+        console.error("Error loading Vendor TDS Group Codes:", error);
         setTdsOptions([]);
+      })
+      .finally(() => {
+        setLoadingOptions((prev) => ({ ...prev, tds: false }));
       });
   }, [isOpen, customerNo]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    setLoadingOptions((prev) => ({ ...prev, gst: true }));
+    getGstGroupCodes()
+      .then((rows) => {
+        setGstOptions(
+          rows.map((row) => ({
+            value: row.Code,
+            label: row.Code,
+            description: row.GST_Group_Type,
+          })),
+        );
+      })
+      .catch((error) => {
+        console.error("Error loading GST Group Codes:", error);
+        setGstOptions([]);
+      })
+      .finally(() => {
+        setLoadingOptions((prev) => ({ ...prev, gst: false }));
+      });
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen || !formState.gstGroupCode) {
+      setHsnOptions([]);
+      return;
+    }
+
+    setLoadingOptions((prev) => ({ ...prev, hsn: true }));
+    getHsnSacCodes(formState.gstGroupCode)
+      .then((rows) => {
+        setHsnOptions(
+          rows.map((row) => ({
+            value: row.Code,
+            label: row.Code,
+            description: row.Type,
+          })),
+        );
+      })
+      .catch((error) => {
+        console.error("Error loading HSN/SAC Codes:", error);
+        setHsnOptions([]);
+      })
+      .finally(() => {
+        setLoadingOptions((prev) => ({ ...prev, hsn: false }));
+      });
+  }, [isOpen, formState.gstGroupCode]);
 
   useEffect(() => {
     if (!isOpen || formState.type !== "Item" || !formState.no) return;
@@ -119,9 +195,9 @@ export function PurchaseOrderLineDialog({
   }, [isOpen, formState.type, formState.no, formState.uom, isEdit]);
 
   const amount = useMemo(() => {
-    const quantity = formState.quantity || 0;
-    const unitPrice = formState.unitPrice || 0;
-    const discount = formState.discount || 0;
+    const quantity = Number(formState.quantity) || 0;
+    const unitPrice = Number(formState.unitPrice) || 0;
+    const discount = Number(formState.discount) || 0;
     return unitPrice * quantity - discount;
   }, [formState.quantity, formState.unitPrice, formState.discount]);
 
@@ -148,20 +224,16 @@ export function PurchaseOrderLineDialog({
   const handleNumericChange = useCallback(
     (field: keyof LineItem, value: string) => {
       if (value === "" || /^\d*\.?\d*$/.test(value)) {
-        const numValue = value === "" ? 0 : parseFloat(value) || 0;
-        handleFieldChange(field, numValue);
+        handleFieldChange(field, value as any);
       }
     },
     [handleFieldChange],
   );
 
-  const formatNumericValue = useCallback(
-    (value: number | undefined): string => {
-      if (value == null || value === 0) return "";
-      return String(value);
-    },
-    [],
-  );
+  const formatNumericValue = useCallback((value: any): string => {
+    if (value == null) return "";
+    return String(value);
+  }, []);
 
   const handleGLAccountChange = useCallback(
     (value: string, account?: GLPostingAccount) => {
@@ -244,10 +316,10 @@ export function PurchaseOrderLineDialog({
       no: formState.no,
       description: formState.description,
       uom: formState.uom,
-      quantity: formState.quantity,
-      price: formState.price,
-      unitPrice: formState.unitPrice || 0,
-      discount: formState.discount || 0,
+      quantity: Number(formState.quantity) || 0,
+      price: Number(formState.price) || 0,
+      unitPrice: Number(formState.unitPrice) || 0,
+      discount: Number(formState.discount) || 0,
       amount,
       exempted: formState.exempted,
       gstGroupCode: formState.gstGroupCode,
@@ -260,7 +332,7 @@ export function PurchaseOrderLineDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-5xl">
+      <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>
             {isEdit ? "Edit Line Item" : "Add Line Item"}
@@ -268,8 +340,8 @@ export function PurchaseOrderLineDialog({
         </DialogHeader>
 
         <div className="space-y-4">
-          <div className="grid grid-cols-1 gap-2 md:grid-cols-12">
-            <div className="space-y-1 md:col-span-2">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="space-y-1">
               <FieldTitle>Type</FieldTitle>
               <ClearableField
                 value={formState.type}
@@ -290,14 +362,14 @@ export function PurchaseOrderLineDialog({
               </ClearableField>
             </div>
 
-            <div className="space-y-1 md:col-span-5">
+            <div className="space-y-1">
               <FieldTitle>Select Item</FieldTitle>
               {formState.type === "G/L Account" ? (
                 <ClearableField
                   value={formState.no}
                   onClear={() => handleGLAccountChange("", undefined)}
                 >
-                  <SearchableSelect<GLPostingAccount>
+                  <MasterSearchableSelect<GLPostingAccount>
                     value={formState.no || ""}
                     onChange={handleGLAccountChange}
                     placeholder="Select GL Account"
@@ -325,7 +397,7 @@ export function PurchaseOrderLineDialog({
                   value={formState.no}
                   onClear={() => handleItemChange("", undefined)}
                 >
-                  <SearchableSelect<Item>
+                  <MasterSearchableSelect<Item>
                     value={formState.no || ""}
                     onChange={handleItemChange}
                     placeholder="Select Item"
@@ -353,7 +425,7 @@ export function PurchaseOrderLineDialog({
             </div>
 
             {isItemType && (
-              <div className="space-y-1 md:col-span-2">
+              <div className="space-y-1">
                 <FieldTitle>UOM</FieldTitle>
                 <ClearableField
                   value={formState.uom}
@@ -379,37 +451,18 @@ export function PurchaseOrderLineDialog({
               </div>
             )}
 
-            <div className="space-y-1 md:col-span-3">
+            <div className="space-y-1">
               <FieldTitle>TDS Group Code</FieldTitle>
-              {tdsOptions.length > 0 ? (
-                <Select
-                  value={formState.tdsGroupCode || ""}
-                  onValueChange={(value) =>
-                    handleFieldChange("tdsGroupCode", value)
-                  }
-                >
-                  <SelectTrigger className="h-8">
-                    <SelectValue placeholder="Select TDS Group Code" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {tdsOptions.map((tds) => (
-                      <SelectItem
-                        key={tds.TDS_Nature_of_Collection}
-                        value={tds.TDS_Nature_of_Collection}
-                      >
-                        {tds.TDS_Nature_of_Collection}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              ) : (
-                <Input
-                  value="Not available"
-                  disabled
-                  className="bg-muted h-8"
-                  readOnly
-                />
-              )}
+              <AppSearchableSelect
+                value={formState.tdsGroupCode || ""}
+                onValueChange={(value) =>
+                  handleFieldChange("tdsGroupCode", value)
+                }
+                options={tdsOptions}
+                isLoading={loadingOptions.tds}
+                placeholder="Select TDS Group Code"
+                searchPlaceholder="Search TDS Group Code..."
+              />
             </div>
           </div>
 
@@ -427,6 +480,33 @@ export function PurchaseOrderLineDialog({
                   }
                   onWheel={(e) => e.currentTarget.blur()}
                   placeholder="0.00"
+                  className="h-8 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <FieldTitle>No. of Bags</FieldTitle>
+                <Input
+                  type="text"
+                  inputMode="numeric"
+                  value={
+                    formState.noOfBags != null ? String(formState.noOfBags) : ""
+                  }
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    if (v === "") {
+                      setFormState((prev) => ({
+                        ...prev,
+                        noOfBags: undefined,
+                      }));
+                    } else {
+                      const n = parseInt(v, 10);
+                      if (!isNaN(n) && n >= 0)
+                        setFormState((prev) => ({ ...prev, noOfBags: n }));
+                    }
+                  }}
+                  onWheel={(e) => e.currentTarget.blur()}
+                  placeholder="0"
                   className="h-8 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                 />
               </div>
@@ -479,7 +559,7 @@ export function PurchaseOrderLineDialog({
               <h3 className="text-foreground text-xs font-medium">
                 Item Details
               </h3>
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 md:grid-cols-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div className="space-y-1">
                   <FieldTitle>Exempted</FieldTitle>
                   <Input
@@ -491,20 +571,34 @@ export function PurchaseOrderLineDialog({
                 </div>
                 <div className="space-y-1">
                   <FieldTitle>GST Group Code</FieldTitle>
-                  <Input
+                  <AppSearchableSelect
                     value={formState.gstGroupCode || ""}
-                    disabled
-                    className="bg-muted h-8"
-                    readOnly
+                    onValueChange={(value) => {
+                      handleFieldChange("gstGroupCode", value);
+                      handleFieldChange("hsnSacCode", "");
+                    }}
+                    options={gstOptions}
+                    isLoading={loadingOptions.gst}
+                    placeholder="Select GST Group..."
+                    searchPlaceholder="Search GST Group..."
                   />
                 </div>
                 <div className="space-y-1">
                   <FieldTitle>HSN/SAC Code</FieldTitle>
-                  <Input
+                  <AppSearchableSelect
                     value={formState.hsnSacCode || ""}
-                    disabled
-                    className="bg-muted h-8"
-                    readOnly
+                    onValueChange={(value) =>
+                      handleFieldChange("hsnSacCode", value)
+                    }
+                    options={hsnOptions}
+                    isLoading={loadingOptions.hsn}
+                    placeholder={
+                      formState.gstGroupCode
+                        ? "Select HSN/SAC..."
+                        : "Select GST Group first"
+                    }
+                    searchPlaceholder="Search HSN/SAC..."
+                    disabled={!formState.gstGroupCode}
                   />
                 </div>
               </div>
@@ -521,11 +615,21 @@ export function PurchaseOrderLineDialog({
             type="button"
             variant="outline"
             onClick={() => onOpenChange(false)}
+            disabled={isSaving}
           >
             Cancel
           </Button>
-          <Button type="button" onClick={handleSubmit}>
-            {isEdit ? "Update Item" : "Add Item"}
+          <Button type="button" onClick={handleSubmit} disabled={isSaving}>
+            {isSaving ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Saving...
+              </>
+            ) : isEdit ? (
+              "Update Item"
+            ) : (
+              "Add Item"
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>

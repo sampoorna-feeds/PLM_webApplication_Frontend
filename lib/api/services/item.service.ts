@@ -10,6 +10,9 @@ import type { ODataResponse } from "../types";
 export interface Item {
   No: string;
   Description: string;
+  Bardana_Generation_Enable?: boolean;
+  Status?: string;
+  RM_Bardana_Item?: boolean;
   /** From ItemCard (detail) */
   GST_Group_Code?: string;
   HSN_SAC_Code?: string;
@@ -300,7 +303,7 @@ export async function getItemByNo(itemNo: string): Promise<Item | null> {
   const baseFilter = getBaseFilter();
   const query = buildODataQuery({
     $select:
-      "No,Description,GST_Group_Code,HSN_SAC_Code,Exempted,Sales_Unit_of_Measure",
+      "No,Description,GST_Group_Code,HSN_SAC_Code,Exempted,Sales_Unit_of_Measure,Bardana_Generation_Enable,Status,RM_Bardana_Item",
     $filter: `No eq '${itemNo.replace(/'/g, "''")}' and ${baseFilter}`,
   });
 
@@ -401,4 +404,109 @@ export async function getItemDetailsForSummary(
   }
 
   return result;
+}
+
+/**
+ * Fetch bardana items filtered by approval and RM bardana flag.
+ */
+export async function getBardanaItems(top: number = 20): Promise<Item[]> {
+  const filter = `(Blocked eq false) and (Status eq 'Approved') and (RM_Bardana_Item eq true)`;
+  const endpoint = buildItemListEndpoint(filter, {
+    top,
+    orderby: "No",
+    select: "No,Description,Sales_Unit_of_Measure,Base_Unit_of_Measure",
+  });
+  const response = await apiGet<ODataResponse<Item>>(endpoint);
+  return response.value;
+}
+
+/**
+ * Get paginated bardana-enabled items with optional search.
+ */
+export async function getBardanaItemsPage(
+  skip: number,
+  search?: string,
+  top: number = 20,
+): Promise<Item[]> {
+  const base = `(Blocked eq false) and (Status eq 'Approved') and (RM_Bardana_Item eq true)`;
+  const select = "No,Description,Sales_Unit_of_Measure,Base_Unit_of_Measure";
+
+  if (!search || search.trim().length < 2) {
+    const endpoint = buildItemListEndpoint(base, {
+      top,
+      skip,
+      orderby: "No",
+      select,
+    });
+    const response = await apiGet<ODataResponse<Item>>(endpoint);
+    return response.value;
+  }
+
+  const escaped = escapeODataValue(search.trim());
+  const [byNo, byDesc] = await Promise.all([
+    (async () => {
+      const f = `(${base}) and contains(No,'${escaped}')`;
+      const ep = buildItemListEndpoint(f, {
+        top,
+        skip,
+        orderby: "No",
+        select,
+      });
+      return (await apiGet<ODataResponse<Item>>(ep)).value;
+    })(),
+    (async () => {
+      const f = `(${base}) and contains(Description,'${escaped}')`;
+      const ep = buildItemListEndpoint(f, {
+        top,
+        skip,
+        orderby: "No",
+        select,
+      });
+      return (await apiGet<ODataResponse<Item>>(ep)).value;
+    })(),
+  ]);
+
+  const map = new Map<string, Item>();
+  [...byNo, ...byDesc].forEach((item) => {
+    if (!map.has(item.No)) map.set(item.No, item);
+  });
+
+  return Array.from(map.values()).sort((a, b) => a.No.localeCompare(b.No));
+}
+
+/**
+ * Search bardana-enabled items by No or Description.
+ */
+export async function searchBardanaItems(query: string): Promise<Item[]> {
+  if (query.length < 2) return [];
+
+  const escapedQuery = escapeODataValue(query);
+  const base = `(Blocked eq false) and (Status eq 'Approved') and (RM_Bardana_Item eq true)`;
+
+  const [byNo, byDesc] = await Promise.all([
+    (async () => {
+      const f = `(${base}) and contains(No,'${escapedQuery}')`;
+      const ep = buildItemListEndpoint(f, {
+        top: 20,
+        orderby: "No",
+        select: "No,Description,Sales_Unit_of_Measure,Base_Unit_of_Measure",
+      });
+      return (await apiGet<ODataResponse<Item>>(ep)).value;
+    })(),
+    (async () => {
+      const f = `(${base}) and contains(Description,'${escapedQuery}')`;
+      const ep = buildItemListEndpoint(f, {
+        top: 20,
+        orderby: "No",
+        select: "No,Description,Sales_Unit_of_Measure,Base_Unit_of_Measure",
+      });
+      return (await apiGet<ODataResponse<Item>>(ep)).value;
+    })(),
+  ]);
+
+  const map = new Map<string, Item>();
+  [...byNo, ...byDesc].forEach((item) => {
+    if (!map.has(item.No)) map.set(item.No, item);
+  });
+  return Array.from(map.values()).sort((a, b) => a.No.localeCompare(b.No));
 }

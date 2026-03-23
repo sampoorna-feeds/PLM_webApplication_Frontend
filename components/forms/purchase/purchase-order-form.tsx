@@ -27,7 +27,9 @@ import { useFormStack } from "@/lib/form-stack/use-form-stack";
 import { getAuthCredentials } from "@/lib/auth/storage";
 import type { LineItem } from "@/components/forms/sales/line-item-form";
 import { LineItemsTable } from "@/components/forms/sales/line-items-table";
-import { Plus, ChevronDownIcon, CheckIcon } from "lucide-react";
+import { Plus, ChevronDownIcon, CheckIcon, Paperclip } from "lucide-react";
+import { POAttachmentDialog } from "./po-attachment-dialog";
+import { BardanaDialog } from "./bardana-dialog";
 import { cn } from "@/lib/utils";
 import { ClearableField } from "@/components/ui/clearable-field";
 import { RequestFailedDialog } from "@/components/ui/request-failed-dialog";
@@ -39,7 +41,9 @@ import {
 } from "@/components/ui/popover";
 import {
   createPurchaseOrder,
-  addPurchaseOrderLineItems,
+  addSinglePurchaseOrderLine,
+  updateSinglePurchaseOrderLine,
+  deleteSinglePurchaseOrderLine,
   type PurchaseOrderData,
   type PurchaseOrderLineItem,
 } from "@/lib/api/services/purchase-order.service";
@@ -81,31 +85,133 @@ const CREDITOR_TYPE_OPTIONS = [
   "ANIMAL FEED SUPLEMENT",
 ].map((v) => ({ value: v, label: v }));
 
+const MASTER_DROPDOWN_PAGE_SIZE = 30;
+
 /** Popover-based searchable select (mirrors VendorSelect / BrokerSelect pattern) */
 function SearchableSelect({
   value,
   onChange,
   options,
   placeholder = "Select",
+  loadMore,
 }: {
   value: string;
   onChange: (value: string) => void;
   options: { value: string; label: string }[];
   placeholder?: string;
+  loadMore?: (
+    skip: number,
+    search: string,
+  ) => Promise<{ value: string; label: string }[]>;
 }) {
   const [open, setOpen] = React.useState(false);
   const [search, setSearch] = React.useState("");
+  const [visibleOptions, setVisibleOptions] = React.useState(options);
+  const [isLoadingMore, setIsLoadingMore] = React.useState(false);
+  const [hasMore, setHasMore] = React.useState(Boolean(loadMore));
+  const debounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const filtered = search
-    ? options.filter((o) =>
-        o.label.toLowerCase().includes(search.toLowerCase()),
-      )
-    : options;
+  React.useEffect(() => {
+    if (loadMore) {
+      setVisibleOptions(options);
+      setHasMore(options.length >= MASTER_DROPDOWN_PAGE_SIZE);
+      return;
+    }
+    setVisibleOptions(options);
+  }, [options, loadMore]);
+
+  React.useEffect(() => {
+    return () => {
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+      }
+    };
+  }, []);
+
+  const loadMoreOptions = React.useCallback(
+    async (skip: number, query: string, replace: boolean = false) => {
+      if (!loadMore || isLoadingMore) return;
+
+      setIsLoadingMore(true);
+      try {
+        const next = await loadMore(skip, query);
+        setVisibleOptions((prev) => (replace ? next : [...prev, ...next]));
+        setHasMore(next.length >= MASTER_DROPDOWN_PAGE_SIZE);
+      } catch (error) {
+        console.error("Error loading dropdown options:", error);
+        if (replace) setVisibleOptions([]);
+        setHasMore(false);
+      } finally {
+        setIsLoadingMore(false);
+      }
+    },
+    [loadMore, isLoadingMore],
+  );
+
+  const handleSearchChange = (nextSearch: string) => {
+    setSearch(nextSearch);
+
+    if (!loadMore) return;
+
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+    }
+
+    debounceRef.current = setTimeout(() => {
+      loadMoreOptions(0, nextSearch, true);
+    }, 250);
+  };
+
+  const handleListScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    if (!loadMore || !hasMore || isLoadingMore) return;
+
+    const target = e.currentTarget;
+    const nearBottom =
+      target.scrollTop + target.clientHeight >= target.scrollHeight - 50;
+
+    if (nearBottom) {
+      loadMoreOptions(visibleOptions.length, search);
+    }
+  };
+
+  const handleListWheel = (e: React.WheelEvent<HTMLDivElement>) => {
+    const target = e.currentTarget;
+    if (target.scrollHeight <= target.clientHeight) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+    target.scrollTop += e.deltaY;
+
+    if (!loadMore || !hasMore || isLoadingMore) return;
+
+    const nearBottom =
+      target.scrollTop + target.clientHeight >= target.scrollHeight - 50;
+
+    if (nearBottom) {
+      loadMoreOptions(visibleOptions.length, search);
+    }
+  };
+
+  const handleOpenChange = (nextOpen: boolean) => {
+    setOpen(nextOpen);
+
+    if (nextOpen && loadMore && visibleOptions.length === 0) {
+      loadMoreOptions(0, search, true);
+    }
+  };
+
+  const filtered = loadMore
+    ? visibleOptions
+    : search
+      ? options.filter((o) =>
+          o.label.toLowerCase().includes(search.toLowerCase()),
+        )
+      : options;
 
   const selectedLabel = options.find((o) => o.value === value)?.label;
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={handleOpenChange}>
       <PopoverTrigger asChild>
         <Button
           variant="outline"
@@ -129,12 +235,16 @@ function SearchableSelect({
           <Input
             placeholder="Search..."
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => handleSearchChange(e.target.value)}
             className="h-8"
             autoFocus
           />
         </div>
-        <div className="max-h-60 overflow-y-auto p-1">
+        <div
+          className="max-h-60 overflow-y-auto p-1"
+          onScroll={handleListScroll}
+          onWheel={handleListWheel}
+        >
           {filtered.length === 0 && (
             <p className="text-muted-foreground py-2 text-center text-sm">
               No results found.
@@ -145,8 +255,10 @@ function SearchableSelect({
               key={opt.value}
               type="button"
               className={cn(
-                "hover:bg-accent hover:text-accent-foreground relative flex w-full cursor-default items-center rounded-sm py-1.5 pr-8 pl-2 text-sm outline-none select-none",
-                value === opt.value && "bg-accent text-accent-foreground",
+                "group relative flex w-full cursor-default items-start rounded-sm py-1.5 pr-8 pl-2 text-sm outline-none select-none",
+                value === opt.value
+                  ? "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
+                  : "hover:bg-muted hover:text-foreground",
               )}
               onClick={() => {
                 onChange(opt.value);
@@ -154,7 +266,12 @@ function SearchableSelect({
                 setSearch("");
               }}
             >
-              <span className="truncate">{opt.label}</span>
+              <span
+                className="block w-full truncate text-left group-hover:wrap-break-word group-hover:whitespace-normal"
+                title={opt.label}
+              >
+                {opt.label}
+              </span>
               {value === opt.value && (
                 <span className="absolute right-2 flex h-4 w-4 items-center justify-center">
                   <CheckIcon className="h-4 w-4" />
@@ -162,6 +279,11 @@ function SearchableSelect({
               )}
             </button>
           ))}
+          {isLoadingMore && (
+            <div className="text-muted-foreground py-2 text-center text-xs">
+              Loading more...
+            </div>
+          )}
         </div>
       </PopoverContent>
     </Popover>
@@ -205,6 +327,7 @@ export function PurchaseOrderFormContent({
     brokerName: "",
     brokerageRate: "",
     orderAddressCode: "",
+    orderAddressState: "",
     rateBasis: "",
     termCode: "",
     mandiName: "",
@@ -233,21 +356,33 @@ export function PurchaseOrderFormContent({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [placeOrderError, setPlaceOrderError] = useState<string | null>(null);
 
+  // Attachment dialog state
+  const [isAttachmentDialogOpen, setIsAttachmentDialogOpen] = useState(false);
+
+  // Bardana dialog state
+  const [bardanaLineItem, setBardanaLineItem] = useState<LineItem | null>(null);
+  const [isBardanaDialogOpen, setIsBardanaDialogOpen] = useState(false);
+
+  const handleBardanaClick = (lineItem: LineItem) => {
+    setBardanaLineItem(lineItem);
+    setIsBardanaDialogOpen(true);
+  };
+
   const [termList, setTermList] = useState<TermAndCondition[]>([]);
   const [mandiList, setMandiList] = useState<MandiMaster[]>([]);
   const [paymentTermList, setPaymentTermList] = useState<PaymentTerm[]>([]);
 
   useEffect(() => {
     purchaseDropdownsService
-      .getTermsAndConditions()
+      .getTermsAndConditionsPage(0, "", MASTER_DROPDOWN_PAGE_SIZE)
       .then(setTermList)
       .catch((err) => console.error("Error fetching terms:", err));
     purchaseDropdownsService
-      .getMandiMasters()
+      .getMandiMastersPage(0, "", MASTER_DROPDOWN_PAGE_SIZE)
       .then(setMandiList)
       .catch((err) => console.error("Error fetching mandis:", err));
     purchaseDropdownsService
-      .getPaymentTerms()
+      .getPaymentTermsPage(0, "", MASTER_DROPDOWN_PAGE_SIZE)
       .then(setPaymentTermList)
       .catch((err) => console.error("Error fetching payment terms:", err));
   }, []);
@@ -352,7 +487,6 @@ export function PurchaseOrderFormContent({
       formData.branch &&
       formData.loc &&
       formData.vendorNo &&
-      formData.purchasePersonCode &&
       (formData.locationCode || formData.loc) &&
       formData.postingDate &&
       formData.documentDate &&
@@ -382,6 +516,7 @@ export function PurchaseOrderFormContent({
     brokerName: formData.brokerName,
     brokerageRate: formData.brokerageRate,
     orderAddressCode: formData.orderAddressCode,
+    orderAddressState: formData.orderAddressState,
     rateBasis: formData.rateBasis,
     termCode: formData.termCode,
     mandiName: formData.mandiName,
@@ -433,6 +568,8 @@ export function PurchaseOrderFormContent({
   };
 
   // Line Items management
+  const [isSavingLine, setIsSavingLine] = useState(false);
+
   const handleAddLineItem = () => {
     if (!createdOrderNo) {
       setPlaceOrderError(
@@ -450,27 +587,94 @@ export function PurchaseOrderFormContent({
     setIsLineDialogOpen(true);
   };
 
-  const handleLineItemSave = (lineItem: LineItem) => {
-    const updated = selectedLineItem
-      ? lineItems.map((item) =>
-          item.id === selectedLineItem.id ? lineItem : item,
-        )
-      : [...lineItems, lineItem];
+  const handleLineItemSave = async (lineItem: LineItem) => {
+    if (!createdOrderNo) return;
+    setIsSavingLine(true);
+    setPlaceOrderError(null);
 
-    setLineItems(updated);
-    setSelectedLineItem(null);
-    setIsLineDialogOpen(false);
-    persist({
-      ...formData,
-      lineItems: updated,
-      createdOrderNo,
-    });
+    const apiItem: PurchaseOrderLineItem = {
+      type: lineItem.type,
+      no: lineItem.no,
+      description: lineItem.description,
+      uom: lineItem.uom,
+      quantity: lineItem.quantity,
+      price: lineItem.price,
+      unitPrice: lineItem.unitPrice,
+      discount: lineItem.discount,
+      amount: lineItem.amount,
+      exempted: lineItem.exempted,
+      gstGroupCode: lineItem.gstGroupCode,
+      hsnSacCode: lineItem.hsnSacCode,
+      tdsGroupCode: lineItem.tdsGroupCode,
+      noOfBags: lineItem.noOfBags,
+    };
+
+    const locationCode = formData.locationCode || formData.loc || "";
+
+    try {
+      if (lineItem.lineNo) {
+        // Update existing line using Line_No
+        await updateSinglePurchaseOrderLine(
+          createdOrderNo,
+          lineItem.lineNo,
+          apiItem,
+        );
+        const updated = lineItems.map((item) =>
+          item.id === lineItem.id ? lineItem : item,
+        );
+        setLineItems(updated);
+        persist({ ...formData, lineItems: updated, createdOrderNo });
+      } else {
+        // Create new line
+        const response = await addSinglePurchaseOrderLine(
+          createdOrderNo,
+          apiItem,
+          locationCode,
+        );
+        const newLineItem = { ...lineItem, lineNo: response.Line_No };
+        const updated = [...lineItems, newLineItem];
+        setLineItems(updated);
+        persist({ ...formData, lineItems: updated, createdOrderNo });
+      }
+
+      setSelectedLineItem(null);
+      setIsLineDialogOpen(false);
+    } catch (error) {
+      console.error("Error saving line item:", error);
+      const errObj = error as Record<string, unknown>;
+      const message =
+        errObj && typeof errObj.message === "string"
+          ? typeof errObj.details === "string"
+            ? `${errObj.message}\n${errObj.details}`
+            : errObj.message
+          : error instanceof Error
+            ? error.message
+            : "Failed to save line item. Please try again.";
+      setPlaceOrderError(message);
+    } finally {
+      setIsSavingLine(false);
+    }
   };
 
-  const handleRemoveLineItem = (lineItemId: string) => {
-    const updated = lineItems.filter((item) => item.id !== lineItemId);
-    setLineItems(updated);
-    persist({ ...formData, lineItems: updated, createdOrderNo });
+  const handleRemoveLineItem = async (lineItemId: string) => {
+    if (!createdOrderNo) return;
+    const itemToRemove = lineItems.find((item) => item.id === lineItemId);
+    if (!itemToRemove) return;
+
+    try {
+      if (itemToRemove.lineNo) {
+        await deleteSinglePurchaseOrderLine(
+          createdOrderNo,
+          itemToRemove.lineNo,
+        );
+      }
+      const updated = lineItems.filter((item) => item.id !== lineItemId);
+      setLineItems(updated);
+      persist({ ...formData, lineItems: updated, createdOrderNo });
+    } catch (error) {
+      console.error("Error deleting line item:", error);
+      setPlaceOrderError("Failed to delete line item. Please try again.");
+    }
   };
 
   const handleUpdateLineItem = (lineItem: LineItem) => {
@@ -481,12 +685,10 @@ export function PurchaseOrderFormContent({
     persist({ ...formData, lineItems: updated, createdOrderNo });
   };
 
-  // Final submission (line-item creation after header creation)
+  // Final submission is no longer making an API call since lines are synced.
   const handlePlaceOrder = async () => {
     if (!createdOrderNo) {
-      setPlaceOrderError(
-        "Create the purchase order header before submitting line items.",
-      );
+      setPlaceOrderError("Create the purchase order header before submitting.");
       return;
     }
 
@@ -495,49 +697,8 @@ export function PurchaseOrderFormContent({
       return;
     }
 
-    setIsSubmitting(true);
-    try {
-      const lineItemsData: PurchaseOrderLineItem[] = lineItems.map((item) => ({
-        type: item.type,
-        no: item.no,
-        description: item.description,
-        uom: item.uom,
-        quantity: item.quantity,
-        price: item.price,
-        unitPrice: item.unitPrice,
-        discount: item.discount,
-        amount: item.amount,
-        exempted: item.exempted,
-        gstGroupCode: item.gstGroupCode,
-        hsnSacCode: item.hsnSacCode,
-        tdsGroupCode: item.tdsGroupCode,
-      }));
-
-      const locationCode = formData.locationCode || formData.loc || "";
-      await addPurchaseOrderLineItems(
-        createdOrderNo,
-        lineItemsData,
-        locationCode,
-      );
-      onSuccess(createdOrderNo);
-    } catch (error) {
-      console.error(
-        "Error submitting purchase order lines:",
-        JSON.stringify(error, null, 2),
-      );
-      const errObj = error as Record<string, unknown>;
-      const message =
-        errObj && typeof errObj.message === "string"
-          ? typeof errObj.details === "string"
-            ? `${errObj.message}\n${errObj.details}`
-            : errObj.message
-          : error instanceof Error
-            ? error.message
-            : "Failed to submit line items. Please try again.";
-      setPlaceOrderError(message);
-    } finally {
-      setIsSubmitting(false);
-    }
+    // Success - just close the form
+    onSuccess(createdOrderNo);
   };
 
   // Step 1: Order Information
@@ -565,7 +726,9 @@ export function PurchaseOrderFormContent({
           </h3>
           <div className="grid grid-cols-1 gap-x-3 gap-y-2.5 sm:grid-cols-3 lg:grid-cols-5">
             <div className={fieldClass}>
-              <label className={labelClass}>PO Type</label>
+              <label className={labelClass}>
+                PO Type <span className="text-red-500">*</span>
+              </label>
               <Select
                 value={formData.poType}
                 onValueChange={(value) => handleInputChange("poType", value)}
@@ -661,7 +824,9 @@ export function PurchaseOrderFormContent({
 
             {/* Dimensions */}
             <div className={fieldClass}>
-              <label className={labelClass}>LOB</label>
+              <label className={labelClass}>
+                LOB <span className="text-red-500">*</span>
+              </label>
               <ClearableField
                 value={formData.lob}
                 onClear={() => handleInputChange("lob", "")}
@@ -677,7 +842,9 @@ export function PurchaseOrderFormContent({
               </ClearableField>
             </div>
             <div className={fieldClass}>
-              <label className={labelClass}>Branch</label>
+              <label className={labelClass}>
+                Branch <span className="text-red-500">*</span>
+              </label>
               <ClearableField
                 value={formData.branch}
                 onClear={() => handleInputChange("branch", "")}
@@ -694,7 +861,9 @@ export function PurchaseOrderFormContent({
               </ClearableField>
             </div>
             <div className={fieldClass}>
-              <label className={labelClass}>LOC</label>
+              <label className={labelClass}>
+                LOC <span className="text-red-500">*</span>
+              </label>
               <ClearableField
                 value={formData.loc}
                 onClear={() => handleInputChange("loc", "")}
@@ -735,7 +904,9 @@ export function PurchaseOrderFormContent({
           </h3>
           <div className="grid grid-cols-1 gap-x-3 gap-y-2.5 sm:grid-cols-3 lg:grid-cols-5">
             <div className={fieldClass}>
-              <label className={labelClass}>Vendor</label>
+              <label className={labelClass}>
+                Vendor <span className="text-red-500">*</span>
+              </label>
               <ClearableField
                 value={formData.vendorNo}
                 onClear={() => handleVendorChange("", undefined)}
@@ -798,6 +969,7 @@ export function PurchaseOrderFormContent({
                     ...prev,
                     orderAddressCode: code,
                     orderAddressName: addr?.Name || "",
+                    orderAddressState: addr?.State || "",
                   }))
                 }
                 disabled={!formData.vendorNo}
@@ -839,13 +1011,15 @@ export function PurchaseOrderFormContent({
                 onClear={() => handleInputChange("brokerageRate", "")}
               >
                 <Input
-                  type="number"
-                  step="0.01"
-                  min="0"
+                  type="text"
+                  inputMode="decimal"
                   value={formData.brokerageRate}
-                  onChange={(e) =>
-                    handleInputChange("brokerageRate", e.target.value)
-                  }
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val === "" || /^\d*\.?\d*$/.test(val)) {
+                      handleInputChange("brokerageRate", val);
+                    }
+                  }}
                   className="h-7 text-xs"
                   placeholder="0.00"
                 />
@@ -861,7 +1035,9 @@ export function PurchaseOrderFormContent({
           </h3>
           <div className="grid grid-cols-2 gap-x-3 gap-y-2.5 sm:grid-cols-4 lg:grid-cols-6">
             <div className={fieldClass}>
-              <label className={labelClass}>Posting Date</label>
+              <label className={labelClass}>
+                Posting Date <span className="text-red-500">*</span>
+              </label>
               <ClearableField
                 value={formData.postingDate}
                 onClear={() => handleInputChange("postingDate", "")}
@@ -877,7 +1053,9 @@ export function PurchaseOrderFormContent({
               </ClearableField>
             </div>
             <div className={fieldClass}>
-              <label className={labelClass}>Document Date</label>
+              <label className={labelClass}>
+                Document Date <span className="text-red-500">*</span>
+              </label>
               <ClearableField
                 value={formData.documentDate}
                 onClear={() => handleInputChange("documentDate", "")}
@@ -985,6 +1163,18 @@ export function PurchaseOrderFormContent({
                   label: `${t.Terms} - ${t.Conditions}`,
                 }))}
                 placeholder="Select term"
+                loadMore={async (skip, searchValue) => {
+                  const rows =
+                    await purchaseDropdownsService.getTermsAndConditionsPage(
+                      skip,
+                      searchValue,
+                      MASTER_DROPDOWN_PAGE_SIZE,
+                    );
+                  return rows.map((t) => ({
+                    value: t.Terms,
+                    label: `${t.Terms} - ${t.Conditions}`,
+                  }));
+                }}
               />
             </div>
             <div className={fieldClass}>
@@ -999,6 +1189,18 @@ export function PurchaseOrderFormContent({
                   label: `${p.Code} - ${p.Description}`,
                 }))}
                 placeholder="Select pmt term"
+                loadMore={async (skip, searchValue) => {
+                  const rows =
+                    await purchaseDropdownsService.getPaymentTermsPage(
+                      skip,
+                      searchValue,
+                      MASTER_DROPDOWN_PAGE_SIZE,
+                    );
+                  return rows.map((p) => ({
+                    value: p.Code,
+                    label: `${p.Code} - ${p.Description}`,
+                  }));
+                }}
               />
             </div>
             <div className={fieldClass}>
@@ -1011,6 +1213,18 @@ export function PurchaseOrderFormContent({
                   label: `${m.Code} - ${m.Description}`,
                 }))}
                 placeholder="Select mandi"
+                loadMore={async (skip, searchValue) => {
+                  const rows =
+                    await purchaseDropdownsService.getMandiMastersPage(
+                      skip,
+                      searchValue,
+                      MASTER_DROPDOWN_PAGE_SIZE,
+                    );
+                  return rows.map((m) => ({
+                    value: m.Code,
+                    label: `${m.Code} - ${m.Description}`,
+                  }));
+                }}
               />
             </div>
           </div>
@@ -1041,10 +1255,23 @@ export function PurchaseOrderFormContent({
                     Order No: {createdOrderNo}
                   </p>
                 </div>
-                <Button onClick={handleAddLineItem} size="sm" className="h-8">
-                  <Plus className="mr-1.5 h-3.5 w-3.5" />
-                  Add Item
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-8"
+                    onClick={() => setIsAttachmentDialogOpen(true)}
+                    title="Upload Attachments"
+                  >
+                    <Paperclip className="h-3.5 w-3.5" />
+                    <span className="ml-1.5">Attachments</span>
+                  </Button>
+                  <Button onClick={handleAddLineItem} size="sm" className="h-8">
+                    <Plus className="mr-1.5 h-3.5 w-3.5" />
+                    Add Item
+                  </Button>
+                </div>
               </div>
 
               <LineItemsTable
@@ -1054,6 +1281,8 @@ export function PurchaseOrderFormContent({
                 onUpdate={handleUpdateLineItem}
                 editable={true}
                 showRowActions
+                documentNo={createdOrderNo}
+                onBardana={handleBardanaClick}
               />
 
               <div className="bg-muted/20 flex justify-end rounded-lg border px-3 py-2">
@@ -1109,8 +1338,34 @@ export function PurchaseOrderFormContent({
           customerNo={formData.vendorNo}
           locationCode={formData.locationCode || formData.loc || ""}
           onSave={handleLineItemSave}
+          isSaving={isSavingLine}
         />
       )}
+
+      {createdOrderNo && (
+        <POAttachmentDialog
+          isOpen={isAttachmentDialogOpen}
+          onOpenChange={setIsAttachmentDialogOpen}
+          orderNo={createdOrderNo}
+        />
+      )}
+
+      {isBardanaDialogOpen &&
+        bardanaLineItem &&
+        bardanaLineItem.lineNo &&
+        createdOrderNo && (
+          <BardanaDialog
+            isOpen={isBardanaDialogOpen}
+            onOpenChange={(open) => {
+              setIsBardanaDialogOpen(open);
+              if (!open) setBardanaLineItem(null);
+            }}
+            documentNo={createdOrderNo}
+            lineNo={bardanaLineItem.lineNo}
+            noOfBags={bardanaLineItem.noOfBags}
+            lineDescription={bardanaLineItem.description}
+          />
+        )}
     </>
   );
 }

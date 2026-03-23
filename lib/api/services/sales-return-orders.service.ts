@@ -9,6 +9,9 @@ import type { ODataResponse } from "../types";
 
 const COMPANY =
   process.env.NEXT_PUBLIC_API_COMPANY || "Sampoorna Feeds Pvt. Ltd";
+const HEADER_ENTITY = "SalesReturnOrderHeader";
+const LINE_ENTITY = "SalesReturnOrderLine";
+const DOCUMENT_TYPE = "Return Order";
 
 export interface SalesOrder {
   No: string;
@@ -30,6 +33,56 @@ export interface SalesOrder {
   Salesperson_Code?: string;
   "@odata.etag"?: string;
   [key: string]: unknown;
+}
+
+type SalesReturnOrderHeader = SalesOrder;
+
+function translateHeaderSelect(select: string): string {
+  const mapped = select
+    .split(",")
+    .map((field) => field.trim())
+    .filter(Boolean)
+    .flatMap((field) => {
+      if (field === "Amt_to_Customer") return [];
+      return [field];
+    });
+
+  return [...new Set(mapped)].join(",");
+}
+
+function translateHeaderFilter(filter?: string): string | undefined {
+  if (!filter) return filter;
+
+  return filter
+    .replace(/\s+and\s+Amt_to_Customer\s+(eq|gt|lt|ge|le)\s+[^ )]+/g, "")
+    .replace(/Amt_to_Customer\s+(eq|gt|lt|ge|le)\s+[^ )]+\s+and\s+/g, "")
+    .replace(/\(\s*\)/g, "")
+    .trim();
+}
+
+function translateHeaderOrderBy(orderBy?: string): string | undefined {
+  if (!orderBy) return orderBy;
+
+  return orderBy
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .flatMap((part) => {
+      if (part.startsWith("Amt_to_Customer")) {
+        return [];
+      }
+      return [part];
+    })
+    .join(",");
+}
+
+function normalizeHeader(order: SalesReturnOrderHeader): SalesOrder {
+  return {
+    ...order,
+    Order_Date: order.Order_Date || order.Posting_Date || order.Document_Date,
+    Amt_to_Customer:
+      typeof order.Amt_to_Customer === "number" ? order.Amt_to_Customer : undefined,
+  };
 }
 
 export interface GetSalesOrdersParams {
@@ -58,7 +111,7 @@ export async function getSalesOrdersWithCount(
   params: GetSalesOrdersParams = {},
 ): Promise<PaginatedSalesOrdersResponse> {
   const {
-    $select = "No,Sell_to_Customer_No,Sell_to_Customer_Name,Order_Date,Posting_Date,Document_Date,External_Document_No,Status,Amt_to_Customer",
+    $select = "No,Sell_to_Customer_No,Sell_to_Customer_Name,Order_Date,Posting_Date,Document_Date,External_Document_No,Status,Invoice_Type,Location_Code,Shortcut_Dimension_1_Code,Shortcut_Dimension_2_Code,Shortcut_Dimension_3_Code,Salesperson_Code,Ship_to_Code,Ship_to_Name",
     $filter,
     $orderby = "No desc",
     $top = 10,
@@ -66,23 +119,26 @@ export async function getSalesOrdersWithCount(
   } = params;
 
   const queryParams: Record<string, unknown> = {
-    $select,
+    $select: translateHeaderSelect($select),
     $top,
     $count: true,
   };
 
-  if ($filter) queryParams.$filter = $filter;
-  if ($orderby) queryParams.$orderby = $orderby;
+  const translatedFilter = translateHeaderFilter($filter);
+  const translatedOrderBy = translateHeaderOrderBy($orderby);
+
+  if (translatedFilter) queryParams.$filter = translatedFilter;
+  if (translatedOrderBy) queryParams.$orderby = translatedOrderBy;
   if ($skip !== undefined) queryParams.$skip = $skip;
 
   const query = buildODataQuery(
     queryParams as Parameters<typeof buildODataQuery>[0],
   );
-  const endpoint = `/SalesOrder?company='${encodeURIComponent(COMPANY)}'&${query}`;
-  const response = await apiGet<ODataResponse<SalesOrder>>(endpoint);
+  const endpoint = `/${HEADER_ENTITY}?company='${encodeURIComponent(COMPANY)}'&${query}`;
+  const response = await apiGet<ODataResponse<SalesReturnOrderHeader>>(endpoint);
 
   return {
-    orders: response.value || [],
+    orders: (response.value || []).map(normalizeHeader),
     totalCount: response["@odata.count"] ?? 0,
   };
 }
@@ -143,10 +199,10 @@ export async function getSalesOrderByNo(
 ): Promise<SalesOrder | null> {
   const filter = `No eq '${orderNo.replace(/'/g, "''")}'`;
   const query = buildODataQuery({ $filter: filter });
-  const endpoint = `/SalesOrder?company='${encodeURIComponent(COMPANY)}'&${query}`;
-  const response = await apiGet<ODataResponse<SalesOrder>>(endpoint);
+  const endpoint = `/${HEADER_ENTITY}?company='${encodeURIComponent(COMPANY)}'&${query}`;
+  const response = await apiGet<ODataResponse<SalesReturnOrderHeader>>(endpoint);
   const value = response.value;
-  return value && value.length > 0 ? value[0] : null;
+  return value && value.length > 0 ? normalizeHeader(value[0]) : null;
 }
 
 export interface SalesLine {
@@ -189,7 +245,7 @@ export async function getSalesOrderLines(
   const escaped = documentNo.replace(/'/g, "''");
   const filter = `Document_No eq '${escaped}'`;
   const query = buildODataQuery({ $filter: filter, $orderby: "Line_No asc" });
-  const endpoint = `/SalesLine?company='${encodeURIComponent(COMPANY)}'&${query}`;
+  const endpoint = `/${LINE_ENTITY}?company='${encodeURIComponent(COMPANY)}'&${query}`;
   const response = await apiGet<ODataResponse<SalesLine>>(endpoint);
   return response.value || [];
 }
@@ -252,7 +308,7 @@ export async function deleteSalesOrderHeader(
   orderNo: string,
 ): Promise<unknown> {
   const escapedNo = orderNo.replace(/'/g, "''");
-  const endpoint = `/SalesOrder(Document_Type='Order',No='${encodeURIComponent(escapedNo)}')?company='${encodeURIComponent(COMPANY)}'`;
+  const endpoint = `/${HEADER_ENTITY}(Document_Type='${encodeURIComponent(DOCUMENT_TYPE)}',No='${encodeURIComponent(escapedNo)}')?company='${encodeURIComponent(COMPANY)}'`;
   return apiDelete<unknown>(endpoint);
 }
 
@@ -434,7 +490,7 @@ export async function patchSalesOrderHeader(
   body: Record<string, unknown>,
 ): Promise<unknown> {
   const escapedNo = orderNo.replace(/'/g, "''");
-  const endpoint = `/SalesOrder(Document_Type='Order',No='${encodeURIComponent(escapedNo)}')?company='${encodeURIComponent(COMPANY)}'`;
+  const endpoint = `/${HEADER_ENTITY}(Document_Type='${encodeURIComponent(DOCUMENT_TYPE)}',No='${encodeURIComponent(escapedNo)}')?company='${encodeURIComponent(COMPANY)}'`;
   const payload = stripEmptyValues(body);
   return apiPatch<unknown>(endpoint, payload);
 }
@@ -466,7 +522,7 @@ export interface AddSalesLinePayload {
 export async function addSalesLine(
   line: AddSalesLinePayload,
 ): Promise<unknown> {
-  const endpoint = `/SalesLine?company='${encodeURIComponent(COMPANY)}'`;
+  const endpoint = `/${LINE_ENTITY}?company='${encodeURIComponent(COMPANY)}'`;
   return apiPost<unknown>(endpoint, line);
 }
 
@@ -479,7 +535,7 @@ export async function updateSalesLine(
   body: Record<string, unknown>,
 ): Promise<unknown> {
   const escapedNo = documentNo.replace(/'/g, "''");
-  const endpoint = `/SalesLine(Document_Type='Order',Document_No='${encodeURIComponent(escapedNo)}',Line_No=${lineNo})?company='${encodeURIComponent(COMPANY)}'`;
+  const endpoint = `/${LINE_ENTITY}(Document_Type='${encodeURIComponent(DOCUMENT_TYPE)}',Document_No='${encodeURIComponent(escapedNo)}',Line_No=${lineNo})?company='${encodeURIComponent(COMPANY)}'`;
   const payload = stripEmptyValues(body);
   return apiPatch<unknown>(endpoint, payload);
 }

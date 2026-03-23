@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Loader2 } from "lucide-react";
+import { Loader2, Package } from "lucide-react";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -16,8 +16,16 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   updatePurchaseLine,
+  getGstGroupCodes,
+  getHsnSacCodes,
   type PurchaseLine,
 } from "@/lib/api/services/purchase-orders.service";
+import { getVendorTDSGroupCodes } from "@/lib/api/services/tds.service";
+import {
+  SearchableSelect,
+  type SearchableSelectOption,
+} from "@/components/ui/searchable-select";
+import { getItemByNo } from "@/lib/api/services/item.service";
 import {
   ApiErrorDialog,
   extractApiError,
@@ -29,6 +37,8 @@ interface PurchaseOrderLineEditDialogProps {
   onOpenChange: (open: boolean) => void;
   line: PurchaseLine | null;
   orderNo: string;
+  vendorNo: string;
+  onOpenBardana?: (line: PurchaseLine) => void;
   hasTracking?: boolean;
   onSave: () => void;
   onAssignTracking?: () => void;
@@ -39,10 +49,15 @@ export function PurchaseOrderLineEditDialog({
   onOpenChange,
   line,
   orderNo,
+  vendorNo,
+  onOpenBardana,
   hasTracking = false,
   onSave,
   onAssignTracking,
 }: PurchaseOrderLineEditDialogProps) {
+  const [quantity, setQuantity] = useState("");
+  const [qtyReceived, setQtyReceived] = useState("");
+  const [qtyInvoiced, setQtyInvoiced] = useState("");
   const [description, setDescription] = useState("");
   const [qtyToReceive, setQtyToReceive] = useState("");
   const [qtyToInvoice, setQtyToInvoice] = useState("");
@@ -50,26 +65,167 @@ export function PurchaseOrderLineEditDialog({
   const [hsnSacCode, setHsnSacCode] = useState("");
   const [exempted, setExempted] = useState(false);
   const [tdsSection, setTdsSection] = useState("");
+  const [noOfBags, setNoOfBags] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [apiError, setApiError] = useState<ApiErrorState | null>(null);
+  const [canAddBardana, setCanAddBardana] = useState(false);
 
   useEffect(() => {
     if (!line) return;
+    setQuantity(line.Quantity?.toString() ?? "");
+    setQtyReceived(line.Quantity_Received?.toString() ?? "");
+    setQtyInvoiced(line.Quantity_Invoiced?.toString() ?? "");
     setDescription(line.Description || "");
-    setQtyToReceive(line.Qty_to_Ship?.toString() || "");
-    setQtyToInvoice(line.Qty_to_Invoice?.toString() || "");
+    setQtyToReceive(line.Qty_to_Receive?.toString() ?? "");
+    setQtyToInvoice(line.Qty_to_Invoice?.toString() ?? "");
     setGstGroupCode(line.GST_Group_Code || "");
     setHsnSacCode(line.HSN_SAC_Code || "");
     setExempted(line.Exempted ?? false);
     setTdsSection(line.TDS_Section_Code || "");
+    setNoOfBags(line.No_of_Bags != null ? String(line.No_of_Bags) : "");
   }, [line]);
+
+  const [tdsOptions, setTdsOptions] = useState<SearchableSelectOption[]>([]);
+  const [gstOptions, setGstOptions] = useState<SearchableSelectOption[]>([]);
+  const [hsnOptions, setHsnOptions] = useState<SearchableSelectOption[]>([]);
+  const [loadingOptions, setLoadingOptions] = useState({
+    tds: false,
+    gst: false,
+    hsn: false,
+  });
+
+  useEffect(() => {
+    if (!open || !line?.No) {
+      setCanAddBardana(false);
+      return;
+    }
+
+    let mounted = true;
+    getItemByNo(String(line.No))
+      .then((item) => {
+        if (!mounted) return;
+        setCanAddBardana(item?.Bardana_Generation_Enable === true);
+      })
+      .catch((error) => {
+        console.error("Error loading item bardana configuration:", error);
+        if (mounted) setCanAddBardana(false);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, [open, line?.No]);
+
+  // Load TDS and GST groups on mount
+  useEffect(() => {
+    if (!open) return;
+
+    let mounted = true;
+
+    async function fetchTds() {
+      if (!vendorNo) return;
+      setLoadingOptions((p) => ({ ...p, tds: true }));
+      try {
+        const res = await getVendorTDSGroupCodes(vendorNo);
+        if (mounted) {
+          setTdsOptions(
+            res.map((r) => ({
+              value: r.TDS_Section || "",
+              label: `${r.TDS_Section} - ${r.TDS_Section_Description || ""}`,
+            })),
+          );
+        }
+      } catch (e) {
+        console.error(e);
+      } finally {
+        if (mounted) setLoadingOptions((p) => ({ ...p, tds: false }));
+      }
+    }
+
+    async function fetchGst() {
+      setLoadingOptions((p) => ({ ...p, gst: true }));
+      try {
+        const res = await getGstGroupCodes();
+        if (mounted) {
+          setGstOptions(
+            res.map((r) => ({
+              value: r.Code,
+              label: `${r.Code}`,
+              description: r.GST_Group_Type,
+            })),
+          );
+        }
+      } catch (e) {
+        console.error(e);
+      } finally {
+        if (mounted) setLoadingOptions((p) => ({ ...p, gst: false }));
+      }
+    }
+
+    fetchTds();
+    fetchGst();
+
+    return () => {
+      mounted = false;
+    };
+  }, [open, vendorNo]);
+
+  // Load HSN based on selected GST Group Code
+  useEffect(() => {
+    if (!open) return;
+    if (!gstGroupCode) {
+      setHsnOptions([]);
+      return;
+    }
+    let mounted = true;
+    async function fetchHsn() {
+      setLoadingOptions((p) => ({ ...p, hsn: true }));
+      try {
+        const res = await getHsnSacCodes(gstGroupCode);
+        if (mounted) {
+          setHsnOptions(
+            res.map((r) => ({
+              value: r.Code,
+              label: `${r.Code}`,
+              description: r.Type,
+            })),
+          );
+        }
+      } catch (e) {
+        console.error(e);
+      } finally {
+        if (mounted) setLoadingOptions((p) => ({ ...p, hsn: false }));
+      }
+    }
+    fetchHsn();
+    return () => {
+      mounted = false;
+    };
+  }, [open, gstGroupCode]);
+
+  const isValidNum = (v: string) => v === "" || /^[0-9]*\.?[0-9]*$/.test(v);
 
   const handleSave = async () => {
     if (!line || !line.Line_No || !orderNo) return;
 
+    const qtyVal = parseFloat(quantity) || 0;
+    const receivedVal = parseFloat(qtyReceived) || 0;
+    const invoicedVal = parseFloat(qtyInvoiced) || 0;
     const receiveVal = parseFloat(qtyToReceive) || 0;
     const invoiceVal = parseFloat(qtyToInvoice) || 0;
 
+    if (qtyVal < 0) {
+      toast.error("Quantity cannot be negative");
+      return;
+    }
+    if (receivedVal < 0) {
+      toast.error("Qty Received cannot be negative");
+      return;
+    }
+    if (invoicedVal < 0) {
+      toast.error("Qty Invoiced cannot be negative");
+      return;
+    }
     if (receiveVal < 0) {
       toast.error("Qty to Receive cannot be negative");
       return;
@@ -78,32 +234,38 @@ export function PurchaseOrderLineEditDialog({
       toast.error("Qty to Invoice cannot be negative");
       return;
     }
+    if (receivedVal + receiveVal > qtyVal) {
+      toast.error(
+        `Qty Received (${receivedVal}) + Qty to Receive (${receiveVal}) cannot exceed Quantity (${qtyVal})`,
+      );
+      return;
+    }
 
     setIsSaving(true);
     try {
       const payload: Record<string, unknown> = {};
 
-      if (description.trim() !== (line.Description || "").trim()) {
+      if (qtyVal !== (line.Quantity || 0)) payload.Quantity = qtyVal;
+      if (receivedVal !== (line.Quantity_Received || 0))
+        payload.Quantity_Received = receivedVal;
+      if (invoicedVal !== (line.Quantity_Invoiced || 0))
+        payload.Quantity_Invoiced = invoicedVal;
+      if (description.trim() !== (line.Description || "").trim())
         payload.Description = description.trim();
-      }
-      if (receiveVal !== (line.Qty_to_Ship || 0)) {
-        payload.Qty_to_Ship = receiveVal;
-      }
-      if (invoiceVal !== (line.Qty_to_Invoice || 0)) {
+      if (receiveVal !== (line.Qty_to_Receive || 0))
+        payload.Qty_to_Receive = receiveVal;
+      if (invoiceVal !== (line.Qty_to_Invoice || 0))
         payload.Qty_to_Invoice = invoiceVal;
-      }
-      if (exempted !== (line.Exempted ?? false)) {
-        payload.Exempted = exempted;
-      }
-      if (gstGroupCode.trim() !== (line.GST_Group_Code || "").trim()) {
+      if (exempted !== (line.Exempted ?? false)) payload.Exempted = exempted;
+      if (gstGroupCode.trim() !== (line.GST_Group_Code || "").trim())
         payload.GST_Group_Code = gstGroupCode.trim();
-      }
-      if (hsnSacCode.trim() !== (line.HSN_SAC_Code || "").trim()) {
+      if (hsnSacCode.trim() !== (line.HSN_SAC_Code || "").trim())
         payload.HSN_SAC_Code = hsnSacCode.trim();
-      }
-      if (tdsSection.trim() !== (line.TDS_Section_Code || "").trim()) {
+      if (tdsSection.trim() !== (line.TDS_Section_Code || "").trim())
         payload.TDS_Section_Code = tdsSection.trim();
-      }
+      const bagsVal = noOfBags === "" ? undefined : parseInt(noOfBags, 10);
+      if (!isNaN(bagsVal ?? NaN) && bagsVal !== (line.No_of_Bags ?? undefined))
+        payload.No_of_Bags = bagsVal;
 
       if (Object.keys(payload).length === 0) {
         toast.info("No changes to save");
@@ -129,195 +291,228 @@ export function PurchaseOrderLineEditDialog({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="p-8 sm:max-w-180">
+        <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle className={hasTracking ? "text-red-600" : ""}>
-              Purchase Line Details
+              Edit Purchase Line
               {hasTracking && (
-                <span className="ml-2 text-sm font-normal">(Has Tracking)</span>
+                <span className="ml-2 text-sm font-normal text-red-500">
+                  (Has Tracking)
+                </span>
               )}
             </DialogTitle>
           </DialogHeader>
 
-          <div className="grid gap-4 py-4">
-            {/* ── Read-only display ── */}
-            <div className="grid grid-cols-1 items-start gap-2 sm:grid-cols-4 sm:items-center sm:gap-4">
-              <Label className="text-muted-foreground text-left text-sm sm:text-right">
-                Item No.
-              </Label>
-              <div className="col-span-3 text-sm font-medium">
-                {line.No || "-"}
-              </div>
+          {/* ── Info strip ── */}
+          <div className="bg-muted/40 grid grid-cols-2 gap-x-4 gap-y-1 rounded-md border px-4 py-3 text-sm sm:grid-cols-6">
+            <div>
+              <p className="text-muted-foreground text-[10px] tracking-wide uppercase">
+                Line
+              </p>
+              <p className="font-medium">{line.Line_No}</p>
             </div>
-
-            <div className="grid grid-cols-1 items-start gap-2 sm:grid-cols-4 sm:items-center sm:gap-4">
-              <Label className="text-muted-foreground text-left text-sm sm:text-right">
+            <div>
+              <p className="text-muted-foreground text-[10px] tracking-wide uppercase">
+                Item No
+              </p>
+              <p className="font-medium">{line.No || "—"}</p>
+            </div>
+            <div>
+              <p className="text-muted-foreground text-[10px] tracking-wide uppercase">
                 Type
-              </Label>
-              <div className="col-span-3 text-sm">{line.Type || "-"}</div>
+              </p>
+              <p>{line.Type || "—"}</p>
             </div>
-
-            <div className="grid grid-cols-1 items-start gap-2 sm:grid-cols-4 sm:items-center sm:gap-4">
-              <Label className="text-muted-foreground text-left text-sm sm:text-right">
+            <div>
+              <p className="text-muted-foreground text-[10px] tracking-wide uppercase">
                 UOM
-              </Label>
-              <div className="col-span-3 text-sm">
-                {line.Unit_of_Measure_Code || line.Unit_of_Measure || "-"}
-              </div>
+              </p>
+              <p>{line.Unit_of_Measure_Code || line.Unit_of_Measure || "—"}</p>
             </div>
+            <div>
+              <p className="text-muted-foreground text-[10px] tracking-wide uppercase">
+                Qty Received
+              </p>
+              <p>{line.Quantity_Received || "0"}</p>
+            </div>
+            <div>
+              <p className="text-muted-foreground text-[10px] tracking-wide uppercase">
+                Qty Invoiced
+              </p>
+              <p>{line.Quantity_Invoiced || "0"}</p>
+            </div>
+          </div>
 
-            <div className="grid grid-cols-1 items-start gap-2 sm:grid-cols-4 sm:items-center sm:gap-4">
-              <Label className="text-muted-foreground text-left text-sm sm:text-right">
+          {/* ── Editable fields ── */}
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {/* Row 1 */}
+            <div className="space-y-1">
+              <Label htmlFor="po-line-qty" className="text-xs">
                 Quantity
               </Label>
-              <div className="col-span-3 text-sm font-medium">
-                {line.Quantity ?? "-"}
-              </div>
+              <Input
+                id="po-line-qty"
+                inputMode="decimal"
+                value={quantity}
+                onChange={(e) => {
+                  if (isValidNum(e.target.value)) setQuantity(e.target.value);
+                }}
+              />
             </div>
 
-            <div className="grid grid-cols-1 items-start gap-2 sm:grid-cols-4 sm:items-center sm:gap-4">
-              <Label className="text-muted-foreground text-left text-sm sm:text-right">
-                Qty Received
-              </Label>
-              <div className="col-span-3 text-sm font-medium">
-                {line.Quantity_Shipped ?? "-"}
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 items-start gap-2 sm:grid-cols-4 sm:items-center sm:gap-4">
-              <Label className="text-muted-foreground text-left text-sm sm:text-right">
-                Qty Invoiced
-              </Label>
-              <div className="col-span-3 text-sm font-medium">
-                {line.Quantity_Invoiced ?? "-"}
-              </div>
-            </div>
-
-            {/* ── Editable fields ── */}
-            <div className="my-1 border-t" />
-
-            <div className="grid grid-cols-1 items-start gap-2 sm:grid-cols-4 sm:items-center sm:gap-4">
-              <Label
-                htmlFor="po-line-description"
-                className="text-left text-sm sm:text-right"
-              >
+            <div className="space-y-1">
+              <Label htmlFor="po-line-description" className="text-xs">
                 Description
               </Label>
               <Input
                 id="po-line-description"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                className="col-span-3"
               />
             </div>
 
-            <div className="grid grid-cols-1 items-start gap-2 sm:grid-cols-4 sm:items-center sm:gap-4">
-              <Label
-                htmlFor="po-line-qty-receive"
-                className="text-left text-sm sm:text-right"
-              >
+            <div className="space-y-1">
+              <Label htmlFor="po-line-bags" className="text-xs">
+                No. of Bags
+              </Label>
+              <Input
+                id="po-line-bags"
+                inputMode="numeric"
+                placeholder="0"
+                value={noOfBags}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  if (v === "" || /^[0-9]+$/.test(v)) setNoOfBags(v);
+                }}
+              />
+            </div>
+
+            {/* Row 2 */}
+            <div className="space-y-1">
+              <Label htmlFor="po-line-qty-receive" className="text-xs">
                 Qty to Receive
               </Label>
               <Input
                 id="po-line-qty-receive"
-                type="text"
                 inputMode="decimal"
                 value={qtyToReceive}
                 onChange={(e) => {
-                  const val = e.target.value;
-                  if (val === "" || /^[0-9]*\.?[0-9]*$/.test(val)) {
-                    setQtyToReceive(val);
-                  }
+                  if (isValidNum(e.target.value))
+                    setQtyToReceive(e.target.value);
                 }}
-                className="col-span-3"
               />
             </div>
 
-            <div className="grid grid-cols-1 items-start gap-2 sm:grid-cols-4 sm:items-center sm:gap-4">
-              <Label
-                htmlFor="po-line-qty-invoice"
-                className="text-left text-sm sm:text-right"
-              >
+            <div className="space-y-1">
+              <Label htmlFor="po-line-qty-invoice" className="text-xs">
                 Qty to Invoice
               </Label>
               <Input
                 id="po-line-qty-invoice"
-                type="text"
                 inputMode="decimal"
                 value={qtyToInvoice}
                 onChange={(e) => {
-                  const val = e.target.value;
-                  if (val === "" || /^[0-9]*\.?[0-9]*$/.test(val)) {
-                    setQtyToInvoice(val);
-                  }
+                  if (isValidNum(e.target.value))
+                    setQtyToInvoice(e.target.value);
                 }}
-                className="col-span-3"
               />
             </div>
 
-            <div className="grid grid-cols-1 items-start gap-2 sm:grid-cols-4 sm:items-center sm:gap-4">
-              <Label
-                htmlFor="po-line-gst-group"
-                className="text-left text-sm sm:text-right"
-              >
+            {/* Row 3 */}
+            <div className="space-y-1 overflow-hidden">
+              <Label htmlFor="po-line-gst-group" className="text-xs">
                 GST Group Code
               </Label>
-              <Input
-                id="po-line-gst-group"
+              <SearchableSelect
                 value={gstGroupCode}
-                onChange={(e) => setGstGroupCode(e.target.value)}
-                className="col-span-3"
+                onValueChange={(val) => {
+                  setGstGroupCode(val);
+                  setHsnSacCode("");
+                }}
+                options={gstOptions}
+                isLoading={loadingOptions.gst}
+                placeholder="Select GST Group..."
+                searchPlaceholder="Search GST Groups..."
+                allowCustomValue={true}
               />
             </div>
 
-            <div className="grid grid-cols-1 items-start gap-2 sm:grid-cols-4 sm:items-center sm:gap-4">
-              <Label
-                htmlFor="po-line-hsn"
-                className="text-left text-sm sm:text-right"
-              >
+            <div className="space-y-1 overflow-hidden">
+              <Label htmlFor="po-line-hsn" className="text-xs">
                 HSN/SAC Code
               </Label>
-              <Input
-                id="po-line-hsn"
+              <SearchableSelect
                 value={hsnSacCode}
-                onChange={(e) => setHsnSacCode(e.target.value)}
-                className="col-span-3"
+                onValueChange={setHsnSacCode}
+                options={hsnOptions}
+                isLoading={loadingOptions.hsn}
+                placeholder={
+                  gstGroupCode ? "Select HSN/SAC..." : "Select GST Group first"
+                }
+                searchPlaceholder="Search HSN/SAC Codes..."
+                disabled={!gstGroupCode}
+                allowCustomValue={true}
               />
             </div>
 
-            <div className="grid grid-cols-1 items-start gap-2 sm:grid-cols-4 sm:items-center sm:gap-4">
+            {/* Row 4 */}
+            <div className="space-y-1 overflow-hidden">
+              <Label htmlFor="po-line-tds-section" className="text-xs">
+                TDS Section
+              </Label>
+              <SearchableSelect
+                value={tdsSection}
+                onValueChange={setTdsSection}
+                options={tdsOptions}
+                isLoading={loadingOptions.tds}
+                placeholder="Select TDS Section..."
+                searchPlaceholder="Search TDS Section..."
+                allowCustomValue={true}
+              />
+            </div>
+
+            <div className="flex items-center gap-2 pt-5">
+              <Checkbox
+                id="po-line-exempted"
+                checked={exempted}
+                onCheckedChange={(checked) => setExempted(checked === true)}
+              />
               <Label
                 htmlFor="po-line-exempted"
-                className="text-left text-sm sm:text-right"
+                className="cursor-pointer text-sm"
               >
                 Exempted
               </Label>
-              <div className="col-span-3 flex items-center">
-                <Checkbox
-                  id="po-line-exempted"
-                  checked={exempted}
-                  onCheckedChange={(checked) => setExempted(checked === true)}
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 items-start gap-2 sm:grid-cols-4 sm:items-center sm:gap-4">
-              <Label
-                htmlFor="po-line-tds-section"
-                className="text-left text-sm sm:text-right"
-              >
-                TDS Section
-              </Label>
-              <Input
-                id="po-line-tds-section"
-                value={tdsSection}
-                onChange={(e) => setTdsSection(e.target.value)}
-                className="col-span-3"
-              />
             </div>
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="mt-2 gap-2">
+            <div className="mr-auto flex items-center gap-2">
+              {canAddBardana && line?.Line_No && onOpenBardana && (
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    onOpenBardana(line);
+                    onOpenChange(false);
+                  }}
+                >
+                  <Package className="mr-2 h-4 w-4" />
+                  Add Bardana
+                </Button>
+              )}
+              {hasTracking && onAssignTracking && (
+                <Button
+                  variant="outline"
+                  className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+                  onClick={() => {
+                    onAssignTracking();
+                    onOpenChange(false);
+                  }}
+                >
+                  Item Tracking
+                </Button>
+              )}
+            </div>
             <Button variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
@@ -326,21 +521,6 @@ export function PurchaseOrderLineEditDialog({
               Save
             </Button>
           </DialogFooter>
-
-          {hasTracking && onAssignTracking && (
-            <div className="mt-3 border-t pt-4 pb-2">
-              <Button
-                variant="outline"
-                className="w-full justify-center border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
-                onClick={() => {
-                  onAssignTracking();
-                  onOpenChange(false);
-                }}
-              >
-                Item Tracking
-              </Button>
-            </div>
-          )}
         </DialogContent>
       </Dialog>
 

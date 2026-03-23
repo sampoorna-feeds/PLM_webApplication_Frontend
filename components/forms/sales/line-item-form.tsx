@@ -49,6 +49,8 @@ export interface LineItem {
   gstGroupCode?: string;
   hsnSacCode?: string;
   tdsGroupCode?: string;
+  /** Number of bags for purchase order lines */
+  noOfBags?: number;
 }
 
 interface LineItemFormProps {
@@ -490,8 +492,8 @@ function LineItemFormComponent({
             <SelectContent>
               {tdsOptions.map((tds) => (
                 <SelectItem
-                  key={tds.TDS_Nature_of_Collection}
-                  value={tds.TDS_Nature_of_Collection}
+                  key={tds.TDS_Nature_of_Collection!}
+                  value={tds.TDS_Nature_of_Collection!}
                 >
                   {tds.TDS_Nature_of_Collection}
                 </SelectItem>

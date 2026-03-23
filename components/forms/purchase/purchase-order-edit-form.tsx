@@ -50,8 +50,8 @@ function purchaseLineToLineItem(
       [line.Description, line.Description_2].filter(Boolean).join(" ") || "",
     uom: line.Unit_of_Measure_Code ?? line.Unit_of_Measure ?? "",
     quantity: line.Quantity ?? 0,
-    price: line.Unit_Price,
-    unitPrice: line.Unit_Price ?? 0,
+    price: line.Direct_Unit_Cost,
+    unitPrice: line.Direct_Unit_Cost ?? 0,
     discount: line.Line_Discount_Amount ?? line.Line_Discount_Percent ?? 0,
     amount: line.Line_Amount ?? 0,
     exempted: line.Exempted,
@@ -567,13 +567,13 @@ export function PurchaseOrderEditForm({
                     <span className="font-medium">{order.Location_Code}</span>
                   </div>
                 )}
-                {order.Purchaseperson_Code && (
+                {order.Purchaser_Code && (
                   <div>
                     <span className="text-muted-foreground block text-xs">
                       Purchaser
                     </span>
                     <span className="font-medium">
-                      {order.Purchaseperson_Code}
+                      {order.Purchaser_Code}
                     </span>
                   </div>
                 )}

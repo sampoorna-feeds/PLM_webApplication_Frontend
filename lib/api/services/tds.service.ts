@@ -7,7 +7,9 @@ import { apiGet } from "../client";
 import type { ODataResponse } from "../types";
 
 export interface TDSGroupCode {
-  TDS_Nature_of_Collection: string;
+  TDS_Nature_of_Collection?: string;
+  TDS_Section?: string;
+  TDS_Section_Description?: string;
 }
 
 const COMPANY =
@@ -43,6 +45,32 @@ export async function getTDSGroupCodes(
     );
   } catch (error) {
     console.error("Error fetching TDS Group Codes:", error);
+    return [];
+  }
+}
+
+/**
+ * Get TDS Group Codes (TDS_Section) for a Vendor
+ * Uses the TDSSection API endpoint with Vendor_No filter
+ */
+export async function getVendorTDSGroupCodes(
+  vendorNo: string,
+): Promise<TDSGroupCode[]> {
+  if (!vendorNo) return [];
+
+  try {
+    const escapedVendor = vendorNo.replace(/'/g, "''");
+    const endpoint = `/TDSSection?company='${encodeURIComponent(COMPANY)}'&$select=TDS_Section,TDS_Section_Description&$filter=Vendor_No eq '${encodeURIComponent(escapedVendor)}'`;
+    const response = await apiGet<ODataResponse<TDSGroupCode>>(endpoint);
+    const items = response.value || [];
+
+    return items.filter(
+      (item) =>
+        item.TDS_Section &&
+        item.TDS_Section.trim() !== "",
+    );
+  } catch (error) {
+    console.error("Error fetching Vendor TDS Group Codes:", error);
     return [];
   }
 }

@@ -1,16 +1,15 @@
 "use client";
 
 /**
- * Purchase Order Detail Form
- * Read-only view of a purchase order with header and line items.
- * Toolbar: Edit, Send For Approval / Cancel Approval / Reopen, Delete, Post.
+ * Sales Order Detail Form
+ * Read-only view of a sales order with header and line items.
+ * Toolbar: Edit, Send For Approval / Cancel Approval / Reopen.
  */
 
-import React, { useState, useEffect, useCallback } from "react";
-import { Loader2, Paperclip } from "lucide-react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
+import { Download, Eye, Loader2, Printer } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import {
@@ -24,28 +23,32 @@ import {
 import { useFormStack } from "@/lib/form-stack/use-form-stack";
 import { useFormStackContext } from "@/lib/form-stack/form-stack-context";
 import {
-  getPurchaseOrderByNo,
-  getPurchaseOrderLines,
+  getSalesOrderByNo,
+  getSalesOrderLines,
   sendApprovalRequest,
   cancelApprovalRequest,
-  reopenPurchaseOrder,
-  deletePurchaseOrderLine,
-  deletePurchaseOrderHeader,
-  patchPurchaseOrderHeader,
-  postPurchaseOrder,
-  getPurchaseShipmentsByOrder,
-  type PurchaseOrder,
-  type PurchaseLine,
-  type PurchaseShipment,
-} from "@/lib/api/services/purchase-orders.service";
+  reopenSalesOrder,
+  deleteSalesOrderLine,
+  deleteSalesOrderHeader,
+  getTransporters,
+  searchTransporters,
+  getTransportersPage,
+  searchTransportersByField,
+  patchSalesOrderHeader,
+  postSalesOrder,
+  type SalesOrder,
+  type SalesLine,
+  type Transporter,
+  type SalesShipment,
+  getSalesShipmentsByOrder,
+  getDeliveryReportPdf,
+} from "@/lib/api/services/sales-credit-memos.service";
 import { getItemsByNos, getItemStock } from "@/lib/api/services/item.service";
-
+import { validatePhone } from "@/lib/validations/shipto.validation";
+import { SearchableSelect } from "@/components/forms/shared/searchable-select";
 import { RequestFailedDialog } from "@/components/ui/request-failed-dialog";
-import { PurchaseItemTrackingDialog } from "./purchase-item-tracking-dialog";
-import { PurchaseOrderLineEditDialog } from "./purchase-order-line-edit-dialog";
-import { TaxInfoPopover } from "./tax-info-popover";
-import { POAttachmentDialog } from "./po-attachment-dialog";
-import { BardanaDialog } from "./bardana-dialog";
+import { SalesCreditMemoItemTrackingDialog } from "@/components/forms/sales/sales-credit-memo-item-tracking-dialog";
+import { SalesCreditMemoLineDialog } from "@/components/forms/sales/sales-credit-memo-line-dialog";
 import {
   Table,
   TableBody,
@@ -57,7 +60,7 @@ import {
 import { cn } from "@/lib/utils";
 import type { ApiError } from "@/lib/api/client";
 
-interface PurchaseOrderDetailFormProps {
+interface SalesCreditMemoDetailFormProps {
   tabId: string;
   formData?: Record<string, unknown>;
   context?: Record<string, unknown>;
@@ -78,29 +81,33 @@ function formatAmount(val: number | undefined): string {
   return val.toLocaleString();
 }
 
-export function PurchaseOrderDetailForm({
+export function SalesCreditMemoDetailForm({
   tabId,
   context,
-}: PurchaseOrderDetailFormProps) {
+}: SalesCreditMemoDetailFormProps) {
   const { closeTab } = useFormStack(tabId);
   const { openTab } = useFormStackContext();
   const orderNo = context?.orderNo as string | undefined;
   const refetch = context?.refetch as (() => void) | undefined;
 
-  const [order, setOrder] = useState<PurchaseOrder | null>(null);
-  const [lines, setLines] = useState<PurchaseLine[]>([]);
+  const [order, setOrder] = useState<SalesOrder | null>(null);
+  const [lines, setLines] = useState<SalesLine[]>([]);
+  // item -> available stock
   const [lineStockMap, setLineStockMap] = useState<Record<string, number>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [isActionLoading, setIsActionLoading] = useState(false);
   const [isLoadingTrackingMap, setIsLoadingTrackingMap] = useState(false);
+  /** Item No -> Item_Tracking_Code (only set when item has tracking) */
   const [itemTrackingMap, setItemTrackingMap] = useState<
     Record<string, string>
   >({});
-  const [selectedLine, setSelectedLine] = useState<PurchaseLine | null>(null);
+  /** Selected line for line-card dialog */
+  const [selectedLine, setSelectedLine] = useState<SalesLine | null>(null);
+  /** Selected sales line for item tracking dialog (Product Tracking sheet) */
   const [selectedTrackingLine, setSelectedTrackingLine] =
-    useState<PurchaseLine | null>(null);
+    useState<SalesLine | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [deleteMode, setDeleteMode] = useState<"order" | "lines">("order");
   const [selectedDeleteLineNos, setSelectedDeleteLineNos] = useState<number[]>(
@@ -109,52 +116,53 @@ export function PurchaseOrderDetailForm({
   const [isDeleteLoading, setIsDeleteLoading] = useState(false);
   const [isPostDialogOpen, setIsPostDialogOpen] = useState(false);
   const [postOption, setPostOption] = useState<
-    "receive" | "invoice" | "receive-invoice" | null
+    "ship" | "invoice" | "ship-invoice" | null
   >(null);
   const [isPostLoading, setIsPostLoading] = useState(false);
   const [isPostDetailsOpen, setIsPostDetailsOpen] = useState(false);
   const [postDetails, setPostDetails] = useState({
+    transporterCode: "",
+    transporterName: "",
+    vehicleNumber: "",
+    driverPhone: "",
+    lrRrNumber: "",
+    lrRrDate: "",
     postingDate: "",
-    documentDate: "",
-    vehicleNo: "",
-    vendorInvoiceNo: "",
-    dueDateCalculation: "Posting Date",
-    lineNarration: "",
-    freight: "",
+    externalDocumentNo: "",
+    distanceKm: "",
+    grossWeight: "",
+    tareWeight: "",
   });
-  // Delivery receipt popup state
-  const [isReceiptOpen, setIsReceiptOpen] = useState(false);
-  const [receiptDate, setReceiptDate] = useState(order?.Posting_Date || "");
-  const [receiptShipments, setReceiptShipments] = useState<PurchaseShipment[]>(
-    [],
-  );
-  const [isReceiptLoading, setIsReceiptLoading] = useState(false);
-
-  // Attachment dialog state
-  const [isAttachmentDialogOpen, setIsAttachmentDialogOpen] = useState(false);
-
-  // Bardana dialog state
-  const [bardanaLine, setBardanaLine] = useState<
-    import("@/lib/api/services/purchase-orders.service").PurchaseLine | null
-  >(null);
-  const [isBardanaDialogOpen, setIsBardanaDialogOpen] = useState(false);
-  const [lineToReopenAfterBardana, setLineToReopenAfterBardana] = useState<
-    import("@/lib/api/services/purchase-orders.service").PurchaseLine | null
-  >(null);
-
-  const handleBardanaClick = (
-    line: import("@/lib/api/services/purchase-orders.service").PurchaseLine,
-  ) => {
-    setLineToReopenAfterBardana(line);
-    setBardanaLine(line);
-    setIsBardanaDialogOpen(true);
-  };
+  // delivery challan popup state
+  const [isChallanOpen, setIsChallanOpen] = useState(false);
+  const [challanDate, setChallanDate] = useState(order?.Posting_Date || "");
 
   useEffect(() => {
     if (order?.Posting_Date) {
-      setReceiptDate(order.Posting_Date);
+      setChallanDate(order.Posting_Date);
     }
   }, [order]);
+  const [challanShipments, setChallanShipments] = useState<SalesShipment[]>([]);
+  const [isChallanLoading, setIsChallanLoading] = useState(false);
+  const [challanPdfUrls, setChallanPdfUrls] = useState<Record<string, string>>(
+    {},
+  );
+  const [activeChallanDocNo, setActiveChallanDocNo] = useState<string | null>(
+    null,
+  );
+  const challanPdfUrlsRef = useRef<Record<string, string>>({});
+
+  useEffect(() => {
+    challanPdfUrlsRef.current = challanPdfUrls;
+  }, [challanPdfUrls]);
+
+  useEffect(() => {
+    return () => {
+      Object.values(challanPdfUrlsRef.current).forEach((url) => {
+        window.URL.revokeObjectURL(url);
+      });
+    };
+  }, []);
 
   const deletableLineNos = lines
     .map((l) => l.Line_No)
@@ -170,11 +178,12 @@ export function PurchaseOrderDetailForm({
     if (!orderNo) return;
     setIsLoading(true);
     setError(null);
-    Promise.all([getPurchaseOrderByNo(orderNo), getPurchaseOrderLines(orderNo)])
+    Promise.all([getSalesOrderByNo(orderNo), getSalesOrderLines(orderNo)])
       .then(async ([header, lineItems]) => {
         setOrder(header || null);
         const linesData = lineItems || [];
         setLines(linesData);
+        // fetch stock if we have location and lines
         if (header?.Location_Code && linesData.length > 0) {
           const itemNos = [
             ...new Set(linesData.map((l) => String(l.No || ""))),
@@ -188,6 +197,7 @@ export function PurchaseOrderDetailForm({
             );
             setLineStockMap(stock);
           } catch {
+            // ignore failure; stock will be empty
             setLineStockMap({});
           }
         } else {
@@ -210,7 +220,7 @@ export function PurchaseOrderDetailForm({
   }, [orderNo, loadOrder]);
 
   const handleEdit = () => {
-    openTab("purchase-order-edit", {
+    openTab("sales-order-edit", {
       title: `Edit Order ${orderNo}`,
       context: { orderNo, onUpdated: refetch },
       autoCloseOnSuccess: false,
@@ -254,7 +264,7 @@ export function PurchaseOrderDetailForm({
     setIsActionLoading(true);
     setActionError(null);
     try {
-      await reopenPurchaseOrder(orderNo);
+      await reopenSalesOrder(orderNo);
       refetch?.();
       loadOrder();
       toast.success("Order reopened.");
@@ -292,7 +302,7 @@ export function PurchaseOrderDetailForm({
           return;
         }
         for (const lineNo of toDelete) {
-          await deletePurchaseOrderLine(orderNo, lineNo);
+          await deleteSalesOrderLine(orderNo, lineNo);
         }
         toast.success(`Deleted ${toDelete.length} line item(s).`);
         setIsDeleteDialogOpen(false);
@@ -305,9 +315,9 @@ export function PurchaseOrderDetailForm({
         .map((l) => l.Line_No)
         .filter((lineNo): lineNo is number => typeof lineNo === "number");
       for (const lineNo of headerLines) {
-        await deletePurchaseOrderLine(orderNo, lineNo);
+        await deleteSalesOrderLine(orderNo, lineNo);
       }
-      await deletePurchaseOrderHeader(orderNo);
+      await deleteSalesOrderHeader(orderNo);
       toast.success("Order deleted successfully.");
       setIsDeleteDialogOpen(false);
       refetch?.();
@@ -321,6 +331,7 @@ export function PurchaseOrderDetailForm({
 
   const handleOpenPostDialog = () => {
     setPostOption(null);
+    // initialize postingDate from header
     setPostDetails((prev) => ({
       ...prev,
       postingDate: order?.Posting_Date || "",
@@ -328,26 +339,150 @@ export function PurchaseOrderDetailForm({
     setIsPostDialogOpen(true);
   };
 
-  const handleOpenReceipt = () => {
-    setReceiptDate(order?.Posting_Date || "");
-    setReceiptShipments([]);
-    setIsReceiptOpen(true);
+  const handleOpenChallan = () => {
+    setChallanDate(order?.Posting_Date || "");
+    setChallanShipments([]);
+    setIsChallanOpen(true);
   };
 
-  const loadReceipt = async () => {
+  const base64ToPdfBlob = (base64Value: string) => {
+    const normalized = base64Value
+      .replace(/^data:application\/pdf;base64,/, "")
+      .replace(/\s/g, "");
+    const byteCharacters = atob(normalized);
+    const byteNumbers = new Array(byteCharacters.length);
+    for (let i = 0; i < byteCharacters.length; i++) {
+      byteNumbers[i] = byteCharacters.charCodeAt(i);
+    }
+    return new Blob([new Uint8Array(byteNumbers)], {
+      type: "application/pdf",
+    });
+  };
+
+  const getChallanPdfUrl = useCallback(
+    async (shipment: SalesShipment) => {
+      const existingUrl = challanPdfUrlsRef.current[shipment.No];
+      if (existingUrl) return existingUrl;
+
+      const customerNo = String(order?.Sell_to_Customer_No || "").trim();
+      const postingDate = String(shipment.Posting_Date || challanDate || "").trim();
+
+      if (!customerNo) {
+        throw new Error("Customer number is missing for this sales order.");
+      }
+      if (!postingDate) {
+        throw new Error("Posting date is missing for this challan.");
+      }
+
+      setActiveChallanDocNo(shipment.No);
+      try {
+        const base64Data = await getDeliveryReportPdf(
+          shipment.No,
+          customerNo,
+          postingDate,
+        );
+
+        if (!base64Data) {
+          throw new Error("No PDF content was returned for this challan.");
+        }
+
+        const blob = base64ToPdfBlob(base64Data);
+        const url = window.URL.createObjectURL(blob);
+
+        setChallanPdfUrls((prev) => {
+          const previousUrl = prev[shipment.No];
+          if (previousUrl) {
+            window.URL.revokeObjectURL(previousUrl);
+          }
+          return { ...prev, [shipment.No]: url };
+        });
+
+        return url;
+      } finally {
+        setActiveChallanDocNo((current) =>
+          current === shipment.No ? null : current,
+        );
+      }
+    },
+    [challanDate, order?.Sell_to_Customer_No],
+  );
+
+  const getSafePdfFileName = (documentNo: string) =>
+    `Delivery_Challan_${documentNo.replace(/[^a-zA-Z0-9]/g, "_")}.pdf`;
+
+  const handlePreviewChallan = async (shipment: SalesShipment) => {
+    try {
+      const pdfUrl = await getChallanPdfUrl(shipment);
+      window.open(pdfUrl, "_blank", "noopener,noreferrer");
+    } catch (err) {
+      toast.error(
+        (err as ApiError).message ?? "Failed to open delivery challan.",
+      );
+    }
+  };
+
+  const handleDownloadChallan = async (shipment: SalesShipment) => {
+    try {
+      const pdfUrl = await getChallanPdfUrl(shipment);
+      const link = document.createElement("a");
+      link.href = pdfUrl;
+      link.download = getSafePdfFileName(shipment.No);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (err) {
+      toast.error(
+        (err as ApiError).message ?? "Failed to download delivery challan.",
+      );
+    }
+  };
+
+  const handlePrintChallan = async (shipment: SalesShipment) => {
+    try {
+      const pdfUrl = await getChallanPdfUrl(shipment);
+      const printFrame = document.createElement("iframe");
+      printFrame.style.position = "fixed";
+      printFrame.style.right = "0";
+      printFrame.style.bottom = "0";
+      printFrame.style.width = "0";
+      printFrame.style.height = "0";
+      printFrame.style.border = "none";
+      printFrame.src = pdfUrl;
+
+      document.body.appendChild(printFrame);
+
+      printFrame.onload = () => {
+        try {
+          printFrame.contentWindow?.print();
+        } catch {
+          window.open(pdfUrl, "_blank", "noopener,noreferrer");
+        }
+
+        setTimeout(() => {
+          if (document.body.contains(printFrame)) {
+            document.body.removeChild(printFrame);
+          }
+        }, 1000);
+      };
+    } catch (err) {
+      toast.error((err as ApiError).message ?? "Failed to print challan.");
+    }
+  };
+
+  const loadChallan = async () => {
     if (!order?.No) return;
-    if (!receiptDate) {
+    if (!challanDate) {
       toast.error("Please choose a posting date.");
       return;
     }
-    setIsReceiptLoading(true);
+    setIsChallanLoading(true);
     try {
-      const results = await getPurchaseShipmentsByOrder(order.No, receiptDate);
-      setReceiptShipments(results);
+      const results = await getSalesShipmentsByOrder(order.No, challanDate);
+      setChallanShipments(results);
     } catch (err) {
-      toast.error((err as ApiError).message ?? "Failed to fetch receipts.");
+      toast.error((err as ApiError).message ?? "Failed to fetch shipments.");
     } finally {
-      setIsReceiptLoading(false);
+      setIsChallanLoading(false);
     }
   };
 
@@ -356,66 +491,95 @@ export function PurchaseOrderDetailForm({
       toast.error("Please select a post option.");
       return;
     }
-    const today = new Date().toISOString().split("T")[0];
     setPostDetails({
-      postingDate: order?.Posting_Date || today,
-      documentDate: order?.Document_Date || today,
-      vehicleNo: "",
-      vendorInvoiceNo: "",
-      dueDateCalculation: "Posting Date",
-      lineNarration: "",
-      freight: "0",
+      transporterCode: "",
+      transporterName: "",
+      vehicleNumber: "",
+      driverPhone: "",
+      lrRrNumber: "",
+      lrRrDate: "",
+      postingDate: order?.Posting_Date || "",
+      externalDocumentNo: "",
+      distanceKm: "",
+      grossWeight: "",
+      tareWeight: "",
     });
     setIsPostDialogOpen(false);
     setIsPostDetailsOpen(true);
   };
 
-  const isReceiveOption =
-    postOption === "receive" || postOption === "receive-invoice";
-  const isInvoiceOption =
-    postOption === "invoice" || postOption === "receive-invoice";
+  const isShipOption = postOption === "ship" || postOption === "ship-invoice";
+  const netWeight =
+    (parseFloat(postDetails.grossWeight) || 0) -
+    (parseFloat(postDetails.tareWeight) || 0);
 
   const handlePostDetailsSubmit = async () => {
     if (!orderNo || !postOption) return;
-
-    if (!postDetails.postingDate) {
-      toast.error("Posting Date is required.");
+    if (isShipOption && !postDetails.transporterName.trim()) {
+      toast.error("Transporter Name is mandatory for Ship and Ship & Invoice.");
       return;
     }
-    if (!postDetails.documentDate) {
-      toast.error("Document Date is required.");
-      return;
+
+    if (isShipOption) {
+      // driver phone validation already exists
+      const phoneError = validatePhone(postDetails.driverPhone || "");
+      if (!postDetails.driverPhone.trim()) {
+        toast.error("Driver phone number is required for shipping.");
+        return;
+      }
+      if (phoneError) {
+        toast.error(phoneError);
+        return;
+      }
+
+      // LR/RR details should also be mandatory for any shipping option
+      if (!postDetails.lrRrNumber.trim()) {
+        toast.error("LR/RR Number is required for shipping options.");
+        return;
+      }
+      if (!postDetails.lrRrDate) {
+        toast.error("LR/RR Date is required for shipping options.");
+        return;
+      }
     }
 
     setIsPostLoading(true);
     try {
-      // Build PATCH payload based on post option
       const patchPayload: Record<string, unknown> = {
-        Posting_Date: postDetails.postingDate,
-        Document_Date: postDetails.documentDate,
-        Vehicle_No: postDetails.vehicleNo || "",
-        Vendor_Invoice_No: postDetails.vendorInvoiceNo || "",
+        Transporter_Code: postDetails.transporterCode || "",
+        Transporter_Name: postDetails.transporterName || "",
+        Vehicle_No: postDetails.vehicleNumber || "",
+        Driver_Mobile_No: postDetails.driverPhone || "",
+        LR_RR_No: postDetails.lrRrNumber || "",
+        LR_RR_Date: postDetails.lrRrDate || "",
+        Posting_Date: postDetails.postingDate || "",
+        External_Document_No: postDetails.externalDocumentNo || "",
+        Distance_km: postDetails.distanceKm
+          ? Number(postDetails.distanceKm)
+          : 0,
       };
 
-      // Invoice-specific fields
-      if (isInvoiceOption) {
-        patchPayload.Due_Date_calculation =
-          postDetails.dueDateCalculation || "Posting Date";
-        patchPayload.Line_Narration1 = postDetails.lineNarration || "";
-        patchPayload.Freight = postDetails.freight || "0";
+      if (isShipOption) {
+        patchPayload.Gross_Weight = postDetails.grossWeight
+          ? Number(postDetails.grossWeight)
+          : 0;
+        patchPayload.Tier_Weight = postDetails.tareWeight
+          ? Number(postDetails.tareWeight)
+          : 0;
+        // Net weight intentionally excluded from header patch payload
       }
 
-      await patchPurchaseOrderHeader(orderNo, patchPayload);
+      await patchSalesOrderHeader(orderNo, patchPayload);
 
       const optionMap: Record<
         NonNullable<typeof postOption>,
         "1" | "2" | "3"
       > = {
-        receive: "1",
+        ship: "1",
         invoice: "2",
-        "receive-invoice": "3",
+        "ship-invoice": "3",
       };
-      await postPurchaseOrder(orderNo, optionMap[postOption]);
+      await postSalesOrder(orderNo, optionMap[postOption]);
 
       toast.success("Order posted successfully.");
       setIsPostDetailsOpen(false);
@@ -478,21 +642,6 @@ export function PurchaseOrderDetailForm({
   const isReleased = order.Status === "Released";
   const isOpen = order.Status === "Open";
   const isPendingApproval = order.Status === "Pending Approval";
-  const summaryItemClass =
-    "border bg-background/70 px-2.5 py-1.5 transition-colors hover:bg-muted/40";
-  const summaryLabelClass = "text-muted-foreground block text-[11px]";
-  const summaryValueClass = "mt-0.5 block text-[13px] font-medium leading-snug";
-  const summaryStatusVariant: "default" | "secondary" | "destructive" =
-    isReleased ? "default" : isPendingApproval ? "secondary" : "destructive";
-
-  const renderSummaryField = (label: string, value: React.ReactNode) => (
-    <div className={summaryItemClass}>
-      <span className={summaryLabelClass}>{label}</span>
-      <span className={summaryValueClass}>
-        {value?.toString().trim() || "-"}
-      </span>
-    </div>
-  );
 
   return (
     <>
@@ -502,8 +651,9 @@ export function PurchaseOrderDetailForm({
         onOpenChange={(open) => !open && setActionError(null)}
       />
       <div className="flex flex-col gap-6 px-6 py-4">
-        {/* Action bar */}
+        {/* Action bar: Edit, Send/Cancel/Reopen */}
         <div className="flex flex-wrap items-center justify-end gap-2">
+          {/* hide edit/delete when pending approval or already released/approved */}
           {!isPendingApproval && !isReleased && (
             <>
               <Button
@@ -552,11 +702,11 @@ export function PurchaseOrderDetailForm({
             <Button
               variant="default"
               size="sm"
-              onClick={handleOpenReceipt}
+              onClick={handleOpenChallan}
               disabled={isActionLoading}
               className="h-8"
             >
-              Purchase Receipts
+              Delivery Challan
             </Button>
           )}
           {isReleased && (
@@ -581,126 +731,168 @@ export function PurchaseOrderDetailForm({
               {isActionLoading ? "..." : "Reopen"}
             </Button>
           )}
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8"
-            onClick={() => setIsAttachmentDialogOpen(true)}
-          >
-            <Paperclip className="mr-1.5 h-3.5 w-3.5" />
-            Attachments
-          </Button>
         </div>
 
-        {/* Header summary */}
-        <div className="bg-card relative overflow-hidden rounded-xl border">
-          <div className="relative flex flex-wrap items-start justify-between gap-1.5 border-b px-3 py-2.5">
-            <div className="flex flex-col gap-1">
-              <div className="text-sm font-semibold">Order Summary</div>
+        {/* Header summary - same fields as review step */}
+        <div className="bg-muted/30 rounded-lg p-4">
+          <div className="mb-4 text-sm font-semibold">Order Summary</div>
+          <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
+            <div>
+              <span className="text-muted-foreground block text-xs">
+                Order No
+              </span>
+              <span className="font-medium">{order.No}</span>
             </div>
-            <Badge
-              className="px-2 py-0 text-[11px]"
-              variant={summaryStatusVariant}
-            >
-              {order.Status || "-"}
-            </Badge>
-          </div>
-          <div className="relative grid grid-cols-1 gap-0 p-0 sm:grid-cols-2 lg:grid-cols-4">
-            {renderSummaryField("Order No", order.No)}
-            {renderSummaryField(
-              "Vendor",
-              order.Buy_from_Vendor_Name || order.Buy_from_Vendor_No,
+            <div>
+              <span className="text-muted-foreground block text-xs">
+                Customer
+              </span>
+              <span className="font-medium">
+                {order.Sell_to_Customer_Name || order.Sell_to_Customer_No}
+              </span>
+            </div>
+            <div>
+              <span className="text-muted-foreground block text-xs">
+                Customer No
+              </span>
+              <span className="font-medium">{order.Sell_to_Customer_No}</span>
+            </div>
+            <div>
+              <span className="text-muted-foreground block text-xs">
+                Order Date
+              </span>
+              <span className="font-medium">
+                {formatDate(order.Order_Date)}
+              </span>
+            </div>
+            <div>
+              <span className="text-muted-foreground block text-xs">
+                Posting Date
+              </span>
+              <span className="font-medium">
+                {formatDate(order.Posting_Date)}
+              </span>
+            </div>
+            <div>
+              <span className="text-muted-foreground block text-xs">
+                Document Date
+              </span>
+              <span className="font-medium">
+                {formatDate(order.Document_Date)}
+              </span>
+            </div>
+            <div>
+              <span className="text-muted-foreground block text-xs">
+                External Doc No
+              </span>
+              <span className="font-medium">
+                {order.External_Document_No || "-"}
+              </span>
+            </div>
+            <div>
+              <span className="text-muted-foreground block text-xs">
+                Status
+              </span>
+              <span className="font-medium">{order.Status || "-"}</span>
+            </div>
+            {(order.Ship_to_Code || order.Ship_to_Name) && (
+              <div>
+                <span className="text-muted-foreground block text-xs">
+                  Ship To
+                </span>
+                <span className="font-medium">
+                  {order.Ship_to_Name || order.Ship_to_Code}
+                </span>
+              </div>
             )}
-            {renderSummaryField("Vendor No", order.Buy_from_Vendor_No)}
-            {renderSummaryField("Order Date", formatDate(order.Order_Date))}
-            {renderSummaryField("Posting Date", formatDate(order.Posting_Date))}
-            {renderSummaryField(
-              "Document Date",
-              formatDate(order.Document_Date),
+            {order.Invoice_Type && (
+              <div>
+                <span className="text-muted-foreground block text-xs">
+                  Invoice Type
+                </span>
+                <span className="font-medium">{order.Invoice_Type}</span>
+              </div>
             )}
-            {renderSummaryField("Vendor Invoice No", order.Vendor_Invoice_No)}
-            {order.Invoice_Type &&
-              renderSummaryField("Invoice Type", order.Invoice_Type)}
-            {order.PO_Type && renderSummaryField("PO Type", order.PO_Type)}
-            {order.Service_Type &&
-              renderSummaryField("Service Type", order.Service_Type)}
-            {order.Order_Address_Code &&
-              renderSummaryField(
-                "Order Address Code",
-                order.Order_Address_Code,
-              )}
-            {order.Vendor_GST_Reg_No &&
-              renderSummaryField("Vendor GST", order.Vendor_GST_Reg_No)}
-            {order.P_A_N_No && renderSummaryField("Vendor PAN", order.P_A_N_No)}
-            {order.Location_Code &&
-              renderSummaryField("Location", order.Location_Code)}
-            {order.Shortcut_Dimension_1_Code &&
-              renderSummaryField("LOB", order.Shortcut_Dimension_1_Code)}
-            {order.Shortcut_Dimension_2_Code &&
-              renderSummaryField("Branch", order.Shortcut_Dimension_2_Code)}
-            {order.Shortcut_Dimension_3_Code &&
-              renderSummaryField("LOC", order.Shortcut_Dimension_3_Code)}
-            {order.Brokerage_Code &&
-              renderSummaryField("Broker", order.Brokerage_Code)}
-            {order.Brokerage_Rate != null &&
-              renderSummaryField("Brokerage Rate", order.Brokerage_Rate)}
-            {order.Rate_Basis &&
-              renderSummaryField("Rate Basis", order.Rate_Basis)}
-            {order.Terms_Code &&
-              renderSummaryField("Term Code", order.Terms_Code)}
-            {order.Payment_Terms_Code &&
-              renderSummaryField("Payment Term", order.Payment_Terms_Code)}
-            {order.Due_Date_calculation &&
-              renderSummaryField("Due Date Calc", order.Due_Date_calculation)}
-            {order.Creditors_Type &&
-              renderSummaryField("Creditor Type", order.Creditors_Type)}
-            {order.QCType && renderSummaryField("QC Type", order.QCType)}
-            {order.Vehicle_No &&
-              renderSummaryField("Vehicle No", order.Vehicle_No)}
-            {order.Due_Date &&
-              renderSummaryField("Due Date", formatDate(order.Due_Date))}
-            {order.Purchaser_Code &&
-              renderSummaryField("Purchaser", order.Purchaser_Code)}
+            {order.Location_Code && (
+              <div>
+                <span className="text-muted-foreground block text-xs">
+                  Location
+                </span>
+                <span className="font-medium">{order.Location_Code}</span>
+              </div>
+            )}
+            {order.Shortcut_Dimension_1_Code && (
+              <div>
+                <span className="text-muted-foreground block text-xs">LOB</span>
+                <span className="font-medium">
+                  {order.Shortcut_Dimension_1_Code}
+                </span>
+              </div>
+            )}
+            {order.Shortcut_Dimension_2_Code && (
+              <div>
+                <span className="text-muted-foreground block text-xs">
+                  Branch
+                </span>
+                <span className="font-medium">
+                  {order.Shortcut_Dimension_2_Code}
+                </span>
+              </div>
+            )}
+            {order.Shortcut_Dimension_3_Code && (
+              <div>
+                <span className="text-muted-foreground block text-xs">LOC</span>
+                <span className="font-medium">
+                  {order.Shortcut_Dimension_3_Code}
+                </span>
+              </div>
+            )}
+            {order.Salesperson_Code && (
+              <div>
+                <span className="text-muted-foreground block text-xs">
+                  Salesperson
+                </span>
+                <span className="font-medium">{order.Salesperson_Code}</span>
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Line items table */}
+        {/* Line items table - all details as in review */}
         <div>
           <div className="mb-3 flex items-center justify-between">
             <span className="text-sm font-semibold">Line Items</span>
-            <div className="flex items-center gap-2">
-              {isLoadingTrackingMap ? (
-                <span className="text-muted-foreground inline-flex items-center text-xs">
-                  <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
-                  Checking tracking...
-                </span>
-              ) : (
-                <span className="text-muted-foreground text-xs">
-                  Tracked items are highlighted
-                </span>
-              )}
-            </div>
+            {isLoadingTrackingMap ? (
+              <span className="text-muted-foreground inline-flex items-center text-xs">
+                <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                Checking tracking...
+              </span>
+            ) : (
+              <span className="text-muted-foreground text-xs">
+                Tracked items are highlighted
+              </span>
+            )}
           </div>
           <div className="overflow-x-auto rounded-md border">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-10 text-xs"></TableHead>
                   <TableHead className="w-16 text-xs">Line</TableHead>
                   <TableHead className="w-24 text-xs">Type</TableHead>
                   <TableHead className="w-24 text-xs">No</TableHead>
-                  <TableHead className="min-w-45 text-xs">
+                  <TableHead className="min-w-[180px] text-xs">
                     Description
                   </TableHead>
                   <TableHead className="w-20 text-xs">UOM</TableHead>
+                  <TableHead className="w-24 text-xs">Avail Stock</TableHead>
                   <TableHead className="w-24 text-right text-xs">
                     Quantity
                   </TableHead>
                   <TableHead className="w-24 text-right text-xs">
-                    Qty to Receive
+                    Qty to Ship
                   </TableHead>
                   <TableHead className="w-24 text-right text-xs">
-                    Qty Received
+                    Qty Shipped
                   </TableHead>
                   <TableHead className="w-24 text-right text-xs">
                     Qty to Invoice
@@ -720,16 +912,13 @@ export function PurchaseOrderDetailForm({
                   <TableHead className="w-24 text-xs">GST Group</TableHead>
                   <TableHead className="w-28 text-xs">HSN/SAC</TableHead>
                   <TableHead className="w-20 text-xs">Exempted</TableHead>
-                  <TableHead className="w-20 text-right text-xs">
-                    Bags
-                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {lines.length === 0 ? (
                   <TableRow>
                     <TableCell
-                      colSpan={18}
+                      colSpan={16}
                       className="text-muted-foreground py-8 text-center text-sm"
                     >
                       No line items
@@ -750,14 +939,6 @@ export function PurchaseOrderDetailForm({
                         )}
                         onClick={() => setSelectedLine(line)}
                       >
-                        <TableCell className="w-10">
-                          {order?.No && line.Line_No && (
-                            <TaxInfoPopover
-                              documentNo={order.No}
-                              lineNo={line.Line_No}
-                            />
-                          )}
-                        </TableCell>
                         <TableCell className="text-xs">
                           {line.Line_No}
                         </TableCell>
@@ -767,7 +948,7 @@ export function PurchaseOrderDetailForm({
                         <TableCell className="text-xs">
                           {line.No || "-"}
                         </TableCell>
-                        <TableCell className="max-w-50 truncate text-xs">
+                        <TableCell className="max-w-[200px] truncate text-xs">
                           {line.Description || line.Description_2 || "-"}
                         </TableCell>
                         <TableCell className="text-xs">
@@ -776,16 +957,19 @@ export function PurchaseOrderDetailForm({
                             "-"}
                         </TableCell>
                         <TableCell className="text-right text-xs">
-                          {line.Quantity != null ? line.Quantity : "-"}
-                        </TableCell>
-                        <TableCell className="text-right text-xs">
-                          {line.Qty_to_Receive != null
-                            ? line.Qty_to_Receive
+                          {line.No
+                            ? (lineStockMap[String(line.No).trim()] ?? "-")
                             : "-"}
                         </TableCell>
                         <TableCell className="text-right text-xs">
-                          {line.Quantity_Received != null
-                            ? line.Quantity_Received
+                          {line.Quantity != null ? line.Quantity : "-"}
+                        </TableCell>
+                        <TableCell className="text-right text-xs">
+                          {line.Qty_to_Ship != null ? line.Qty_to_Ship : "-"}
+                        </TableCell>
+                        <TableCell className="text-right text-xs">
+                          {line.Quantity_Shipped != null
+                            ? line.Quantity_Shipped
                             : "-"}
                         </TableCell>
                         <TableCell className="text-right text-xs">
@@ -799,7 +983,7 @@ export function PurchaseOrderDetailForm({
                             : "-"}
                         </TableCell>
                         <TableCell className="text-right text-xs">
-                          {formatAmount(line.Direct_Unit_Cost)}
+                          {formatAmount(line.Unit_Price)}
                         </TableCell>
                         <TableCell className="text-right text-xs">
                           {formatAmount(line.Line_Discount_Amount)}
@@ -816,9 +1000,6 @@ export function PurchaseOrderDetailForm({
                         <TableCell className="text-xs">
                           {line.Exempted ? "Yes" : "No"}
                         </TableCell>
-                        <TableCell className="text-right text-xs">
-                          {line.No_of_Bags ?? "-"}
-                        </TableCell>
                       </TableRow>
                     );
                   })
@@ -833,20 +1014,16 @@ export function PurchaseOrderDetailForm({
           <div className="flex items-baseline gap-3">
             <span className="text-muted-foreground text-sm">Total Amount</span>
             <span className="text-lg font-semibold">
-              {formatAmount(
-                lines.reduce((sum, l) => sum + (l.Line_Amount || 0), 0),
-              )}
+              {formatAmount(order.Amt_to_Customer)}
             </span>
           </div>
         </div>
 
-        <PurchaseOrderLineEditDialog
+        <SalesCreditMemoLineDialog
           open={!!selectedLine}
           onOpenChange={(open) => !open && setSelectedLine(null)}
           line={selectedLine}
           orderNo={order?.No ?? ""}
-          vendorNo={order?.Buy_from_Vendor_No ?? ""}
-          onOpenBardana={handleBardanaClick}
           hasTracking={
             !!(
               selectedLine?.No &&
@@ -860,38 +1037,7 @@ export function PurchaseOrderDetailForm({
           onAssignTracking={() => setSelectedTrackingLine(selectedLine)}
         />
 
-        {order?.No && (
-          <POAttachmentDialog
-            isOpen={isAttachmentDialogOpen}
-            onOpenChange={setIsAttachmentDialogOpen}
-            orderNo={order.No}
-          />
-        )}
-
-        {isBardanaDialogOpen &&
-          bardanaLine &&
-          bardanaLine.Line_No &&
-          order?.No && (
-            <BardanaDialog
-              isOpen={isBardanaDialogOpen}
-              onOpenChange={(open) => {
-                setIsBardanaDialogOpen(open);
-                if (!open) {
-                  setBardanaLine(null);
-                  if (lineToReopenAfterBardana) {
-                    setSelectedLine(lineToReopenAfterBardana);
-                    setLineToReopenAfterBardana(null);
-                  }
-                }
-              }}
-              documentNo={order.No}
-              lineNo={bardanaLine.Line_No}
-              noOfBags={bardanaLine.No_of_Bags}
-              lineDescription={bardanaLine.Description}
-            />
-          )}
-
-        <PurchaseItemTrackingDialog
+        <SalesCreditMemoItemTrackingDialog
           open={!!selectedTrackingLine}
           onOpenChange={(open) => !open && setSelectedTrackingLine(null)}
           onSave={() => {
@@ -906,7 +1052,7 @@ export function PurchaseOrderDetailForm({
         <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
           <DialogContent className="sm:max-w-xl">
             <DialogHeader>
-              <DialogTitle>Delete Purchase Order</DialogTitle>
+              <DialogTitle>Delete Sales Order</DialogTitle>
               <DialogDescription>
                 Choose whether to delete the full order or only specific line
                 items.
@@ -952,7 +1098,7 @@ export function PurchaseOrderDetailForm({
                     />
                     <span>Select all</span>
                   </Label>
-                  <div className="max-h-63 space-y-2 overflow-y-auto pr-1">
+                  <div className="max-h-[252px] space-y-2 overflow-y-auto pr-1">
                     {lines.length === 0 ? (
                       <p className="text-muted-foreground text-sm">
                         No lines available.
@@ -1017,7 +1163,7 @@ export function PurchaseOrderDetailForm({
         <Dialog open={isPostDialogOpen} onOpenChange={setIsPostDialogOpen}>
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
-              <DialogTitle>Post Purchase Order</DialogTitle>
+              <DialogTitle>Post Sales Order</DialogTitle>
               <DialogDescription>
                 Choose how you want to post this released order.
               </DialogDescription>
@@ -1028,10 +1174,10 @@ export function PurchaseOrderDetailForm({
                 <input
                   type="radio"
                   name="post-mode"
-                  checked={postOption === "receive"}
-                  onChange={() => setPostOption("receive")}
+                  checked={postOption === "ship"}
+                  onChange={() => setPostOption("ship")}
                 />
-                <span>Receive</span>
+                <span>Ship</span>
               </Label>
               <Label className="flex cursor-pointer items-center gap-2">
                 <input
@@ -1046,10 +1192,10 @@ export function PurchaseOrderDetailForm({
                 <input
                   type="radio"
                   name="post-mode"
-                  checked={postOption === "receive-invoice"}
-                  onChange={() => setPostOption("receive-invoice")}
+                  checked={postOption === "ship-invoice"}
+                  onChange={() => setPostOption("ship-invoice")}
                 />
-                <span>Receive & Invoice</span>
+                <span>Ship & Invoice</span>
               </Label>
             </div>
 
@@ -1069,18 +1215,75 @@ export function PurchaseOrderDetailForm({
         </Dialog>
 
         <Dialog open={isPostDetailsOpen} onOpenChange={setIsPostDetailsOpen}>
-          <DialogContent className="sm:max-w-lg">
+          <DialogContent className="sm:max-w-2xl">
             <DialogHeader>
               <DialogTitle>Post Details</DialogTitle>
               <DialogDescription>
-                Fill in the posting details before confirming.
+                Fill posting details before confirming post.
               </DialogDescription>
             </DialogHeader>
 
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              {/* Always visible */}
               <div className="space-y-1">
-                <Label>Posting Date *</Label>
+                <Label>Transporter Code</Label>
+                <SearchableSelect<Transporter>
+                  value={postDetails.transporterCode}
+                  onChange={(value, transporter) =>
+                    setPostDetails((prev) => ({
+                      ...prev,
+                      transporterCode: value,
+                      transporterName:
+                        transporter?.Name &&
+                        String(transporter.Name).trim() !== ""
+                          ? String(transporter.Name)
+                          : prev.transporterName,
+                    }))
+                  }
+                  placeholder="Select (optional)"
+                  loadInitial={() => getTransporters(20)}
+                  searchItems={(q) => searchTransporters(q, 30, 0)}
+                  loadMore={(skip, search) =>
+                    getTransportersPage(skip, search, 30)
+                  }
+                  getDisplayValue={(t) => `${t.No} - ${t.Name || ""}`}
+                  getItemValue={(t) => t.No}
+                  supportsDualSearch={true}
+                  searchByField={(q, field) =>
+                    searchTransportersByField(q, field, 30, 0)
+                  }
+                />
+              </div>
+
+              <div className="space-y-1">
+                <Label>Transporter Name {isShipOption ? "*" : ""}</Label>
+                <input
+                  className="border-input h-9 w-full rounded-md border bg-transparent px-3 text-sm"
+                  value={postDetails.transporterName}
+                  onChange={(e) =>
+                    setPostDetails((prev) => ({
+                      ...prev,
+                      transporterName: e.target.value,
+                    }))
+                  }
+                />
+              </div>
+
+              <div className="space-y-1">
+                <Label>Vehicle Number {isShipOption ? "*" : ""}</Label>
+                <input
+                  className="border-input h-9 w-full rounded-md border bg-transparent px-3 text-sm"
+                  value={postDetails.vehicleNumber}
+                  onChange={(e) =>
+                    setPostDetails((prev) => ({
+                      ...prev,
+                      vehicleNumber: e.target.value,
+                    }))
+                  }
+                />
+              </div>
+
+              <div className="space-y-1">
+                <Label>Posting Date</Label>
                 <input
                   type="date"
                   className="border-input h-9 w-full rounded-md border bg-transparent px-3 text-sm"
@@ -1095,103 +1298,127 @@ export function PurchaseOrderDetailForm({
               </div>
 
               <div className="space-y-1">
-                <Label>Document Date *</Label>
+                <Label>Driver Phone Number {isShipOption ? "*" : ""}</Label>
+                <input
+                  type="tel"
+                  className="border-input h-9 w-full rounded-md border bg-transparent px-3 text-sm"
+                  value={postDetails.driverPhone}
+                  onChange={(e) =>
+                    setPostDetails((prev) => ({
+                      ...prev,
+                      driverPhone: e.target.value,
+                    }))
+                  }
+                />
+              </div>
+
+              <div className="space-y-1">
+                <Label>LR/RR Number {isShipOption ? "*" : ""}</Label>
+                <input
+                  className="border-input h-9 w-full rounded-md border bg-transparent px-3 text-sm"
+                  value={postDetails.lrRrNumber}
+                  onChange={(e) =>
+                    setPostDetails((prev) => ({
+                      ...prev,
+                      lrRrNumber: e.target.value,
+                    }))
+                  }
+                />
+              </div>
+
+              <div className="space-y-1">
+                <Label>LR/RR Date {isShipOption ? "*" : ""}</Label>
                 <input
                   type="date"
                   className="border-input h-9 w-full rounded-md border bg-transparent px-3 text-sm"
-                  value={postDetails.documentDate}
+                  value={postDetails.lrRrDate}
                   onChange={(e) =>
                     setPostDetails((prev) => ({
                       ...prev,
-                      documentDate: e.target.value,
+                      lrRrDate: e.target.value,
                     }))
                   }
                 />
               </div>
 
               <div className="space-y-1">
-                <Label>Vehicle No</Label>
+                <Label>External Document Number</Label>
                 <input
                   className="border-input h-9 w-full rounded-md border bg-transparent px-3 text-sm"
-                  value={postDetails.vehicleNo}
+                  value={postDetails.externalDocumentNo}
                   onChange={(e) =>
                     setPostDetails((prev) => ({
                       ...prev,
-                      vehicleNo: e.target.value,
+                      externalDocumentNo: e.target.value,
                     }))
                   }
                 />
               </div>
 
               <div className="space-y-1">
-                <Label>Vendor Invoice No</Label>
+                <Label>Distance (km)</Label>
                 <input
+                  type="number"
+                  step="0.01"
                   className="border-input h-9 w-full rounded-md border bg-transparent px-3 text-sm"
-                  value={postDetails.vendorInvoiceNo}
+                  value={postDetails.distanceKm}
                   onChange={(e) =>
                     setPostDetails((prev) => ({
                       ...prev,
-                      vendorInvoiceNo: e.target.value,
+                      distanceKm: e.target.value,
                     }))
                   }
                 />
               </div>
-
-              {/* Invoice-only fields */}
-              {isInvoiceOption && (
-                <>
-                  <div className="space-y-1">
-                    <Label>Due Date Calculation</Label>
-                    <select
-                      className="border-input h-9 w-full rounded-md border bg-transparent px-3 text-sm"
-                      value={postDetails.dueDateCalculation}
-                      onChange={(e) =>
-                        setPostDetails((prev) => ({
-                          ...prev,
-                          dueDateCalculation: e.target.value,
-                        }))
-                      }
-                    >
-                      <option value="Posting Date">Posting Date</option>
-                      <option value="Document Date">Document Date</option>
-                    </select>
-                  </div>
-
-                  <div className="space-y-1">
-                    <Label>Freight</Label>
-                    <input
-                      type="text"
-                      inputMode="decimal"
-                      className="border-input h-9 w-full rounded-md border bg-transparent px-3 text-sm"
-                      value={postDetails.freight}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        if (val === "" || /^\d*\.?\d*$/.test(val)) {
-                          setPostDetails((prev) => ({ ...prev, freight: val }));
-                        }
-                      }}
-                    />
-                  </div>
-
-                  <div className="space-y-1 sm:col-span-2">
-                    <Label>Line Narration</Label>
-                    <input
-                      className="border-input h-9 w-full rounded-md border bg-transparent px-3 text-sm"
-                      value={postDetails.lineNarration}
-                      onChange={(e) =>
-                        setPostDetails((prev) => ({
-                          ...prev,
-                          lineNarration: e.target.value,
-                        }))
-                      }
-                    />
-                  </div>
-                </>
-              )}
             </div>
 
-            {actionError && (
-              <p className="text-destructive mt-1 text-sm">{actionError}</p>
+            {isShipOption && (
+              <div className="mt-2 space-y-3 border-t pt-3">
+                <div className="text-sm font-medium">Weight Detail</div>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                  <div className="space-y-1">
+                    <Label>Gross Weight</Label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      className="border-input h-9 w-full rounded-md border bg-transparent px-3 text-sm"
+                      value={postDetails.grossWeight}
+                      onChange={(e) =>
+                        setPostDetails((prev) => ({
+                          ...prev,
+                          grossWeight: e.target.value,
+                        }))
+                      }
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label>Tier Weight</Label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      className="border-input h-9 w-full rounded-md border bg-transparent px-3 text-sm"
+                      value={postDetails.tareWeight}
+                      onChange={(e) =>
+                        setPostDetails((prev) => ({
+                          ...prev,
+                          tareWeight: e.target.value,
+                        }))
+                      }
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label>Net Weight</Label>
+                    <input
+                      className="border-input bg-muted h-9 w-full rounded-md border px-3 text-sm"
+                      value={
+                        Number.isFinite(netWeight) ? netWeight.toString() : "0"
+                      }
+                      disabled
+                      readOnly
+                    />
+                  </div>
+                </div>
+              </div>
             )}
 
             <DialogFooter>
@@ -1212,13 +1439,18 @@ export function PurchaseOrderDetailForm({
           </DialogContent>
         </Dialog>
 
-        {/* Purchase receipt popup */}
-        <Dialog open={isReceiptOpen} onOpenChange={setIsReceiptOpen}>
-          <DialogContent className="sm:max-w-md">
+        {/* Delivery challan popup */}
+        <Dialog open={isChallanOpen} onOpenChange={setIsChallanOpen}>
+          <DialogContent
+            className={cn(
+              "transition-[max-width] duration-200",
+              challanShipments.length > 0 ? "sm:max-w-4xl" : "sm:max-w-md",
+            )}
+          >
             <DialogHeader>
-              <DialogTitle>Purchase Receipts</DialogTitle>
+              <DialogTitle>Delivery Challan</DialogTitle>
               <DialogDescription>
-                Select posting date and load receipts for this order.
+                Select posting date and load shipments for this order.
               </DialogDescription>
             </DialogHeader>
 
@@ -1228,17 +1460,17 @@ export function PurchaseOrderDetailForm({
                 <input
                   type="date"
                   className="border-input h-9 w-full rounded-md border bg-transparent px-3 text-sm"
-                  value={receiptDate}
-                  onChange={(e) => setReceiptDate(e.target.value)}
+                  value={challanDate}
+                  onChange={(e) => setChallanDate(e.target.value)}
                 />
               </div>
               <Button
-                onClick={loadReceipt}
-                disabled={isReceiptLoading || !receiptDate}
+                onClick={loadChallan}
+                disabled={isChallanLoading || !challanDate}
               >
-                {isReceiptLoading ? "Loading..." : "Load"}
+                {isChallanLoading ? "Loading..." : "Load"}
               </Button>
-              {receiptShipments.length > 0 && (
+              {challanShipments.length > 0 && (
                 <div className="overflow-x-auto rounded-md border">
                   <Table>
                     <TableHeader>
@@ -1247,10 +1479,13 @@ export function PurchaseOrderDetailForm({
                         <TableHead className="text-xs">Posting Date</TableHead>
                         <TableHead className="text-xs">LR/RR No</TableHead>
                         <TableHead className="text-xs">LR/RR Date</TableHead>
+                        <TableHead className="text-right text-xs">
+                          Actions
+                        </TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {receiptShipments.map((s) => (
+                      {challanShipments.map((s) => (
                         <TableRow key={s.No}>
                           <TableCell className="text-xs">{s.No}</TableCell>
                           <TableCell className="text-xs">
@@ -1262,6 +1497,43 @@ export function PurchaseOrderDetailForm({
                           <TableCell className="text-xs">
                             {formatDate(s.LR_RR_Date)}
                           </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex flex-wrap justify-end gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-7 px-2 text-xs"
+                                onClick={() => handlePreviewChallan(s)}
+                                disabled={activeChallanDocNo === s.No}
+                              >
+                                {activeChallanDocNo === s.No ? (
+                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                ) : (
+                                  <Eye className="h-3.5 w-3.5" />
+                                )}
+                                <span className="ml-1">View</span>
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-7 px-2 text-xs"
+                                onClick={() => handleDownloadChallan(s)}
+                                disabled={activeChallanDocNo === s.No}
+                              >
+                                <Download className="h-3.5 w-3.5" />
+                                <span className="ml-1">Download</span>
+                              </Button>
+                              <Button
+                                size="sm"
+                                className="h-7 px-2 text-xs"
+                                onClick={() => handlePrintChallan(s)}
+                                disabled={activeChallanDocNo === s.No}
+                              >
+                                <Printer className="h-3.5 w-3.5" />
+                                <span className="ml-1">Print</span>
+                              </Button>
+                            </div>
+                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -1271,7 +1543,7 @@ export function PurchaseOrderDetailForm({
             </div>
 
             <DialogFooter>
-              <Button variant="outline" onClick={() => setIsReceiptOpen(false)}>
+              <Button variant="outline" onClick={() => setIsChallanOpen(false)}>
                 Close
               </Button>
             </DialogFooter>

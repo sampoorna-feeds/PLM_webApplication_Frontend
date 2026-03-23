@@ -247,6 +247,25 @@ export function SearchableSelect<T extends SearchableItem>({
     return () => element.removeEventListener("scroll", handleScroll);
   }, [isOpen, hasMore, isLoading, loadMoreItems, loadMore]);
 
+  const handleListWheel = (e: React.WheelEvent<HTMLDivElement>) => {
+    const element = e.currentTarget;
+    if (element.scrollHeight <= element.clientHeight) return;
+
+    // Ensure wheel/trackpad scroll works even when parent overlays intercept scroll.
+    e.preventDefault();
+    e.stopPropagation();
+    element.scrollTop += e.deltaY;
+
+    if (!loadMore || !hasMore || isLoading) return;
+
+    const isNearBottom =
+      element.scrollTop + element.clientHeight >= element.scrollHeight - 50;
+
+    if (isNearBottom) {
+      loadMoreItems();
+    }
+  };
+
   // Find selected item display value
   const selectedItem = items.find((item) => getItemValue(item) === value);
   const displayValue = selectedItem
@@ -282,7 +301,7 @@ export function SearchableSelect<T extends SearchableItem>({
         </Button>
       </PopoverTrigger>
       <PopoverContent
-        className="flex max-h-[var(--radix-popover-content-available-height,80vh)] min-h-0 w-[var(--radix-popover-trigger-width)] max-w-[calc(100vw-2rem)] min-w-[320px] flex-col overflow-hidden p-0"
+        className="flex max-h-(--radix-popover-content-available-height,80vh) min-h-0 w-(--radix-popover-trigger-width) max-w-[calc(100vw-2rem)] min-w-[320px] flex-col overflow-hidden p-0"
         align="start"
         collisionPadding={8}
         onOpenAutoFocus={(e) => {
@@ -296,7 +315,7 @@ export function SearchableSelect<T extends SearchableItem>({
       >
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
           {/* Search Input */}
-          <div className="flex-shrink-0 border-b p-2">
+          <div className="shrink-0 border-b p-2">
             <Input
               placeholder="Search..."
               value={searchQuery}
@@ -315,6 +334,7 @@ export function SearchableSelect<T extends SearchableItem>({
             ref={listRef}
             className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto p-1"
             style={{ WebkitOverflowScrolling: "touch" }}
+            onWheel={handleListWheel}
           >
             {isLoading && items.length === 0 ? (
               <div className="flex items-center justify-center py-6">
@@ -335,8 +355,10 @@ export function SearchableSelect<T extends SearchableItem>({
                     <div
                       key={itemValue}
                       className={cn(
-                        "hover:bg-accent hover:text-accent-foreground relative flex cursor-default items-start rounded-sm px-2 py-2 text-sm outline-none select-none",
-                        isSelected && "bg-accent text-accent-foreground",
+                        "relative flex cursor-default items-start rounded-sm px-2 py-2 text-sm outline-none select-none",
+                        isSelected
+                          ? "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
+                          : "hover:bg-muted hover:text-foreground",
                       )}
                       onClick={(e) => {
                         e.preventDefault();
@@ -354,12 +376,12 @@ export function SearchableSelect<T extends SearchableItem>({
                             <span className="text-foreground font-medium">
                               {item.No}
                             </span>
-                            <span className="text-muted-foreground text-xs break-words">
+                            <span className="text-muted-foreground text-xs wrap-break-word">
                               {item.Description || item.Name || ""}
                             </span>
                           </div>
                         ) : (
-                          <span className="break-words">
+                          <span className="wrap-break-word">
                             {getDisplayValue(item)}
                           </span>
                         )}

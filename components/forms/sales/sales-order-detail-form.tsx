@@ -6,8 +6,8 @@
  * Toolbar: Edit, Send For Approval / Cancel Approval / Reopen.
  */
 
-import React, { useState, useEffect, useCallback } from "react";
-import { Loader2 } from "lucide-react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
+import { Download, Eye, Loader2, Printer } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -41,6 +41,7 @@ import {
   type Transporter,
   type SalesShipment,
   getSalesShipmentsByOrder,
+  getDeliveryReportPdf,
 } from "@/lib/api/services/sales-orders.service";
 import { getItemsByNos, getItemStock } from "@/lib/api/services/item.service";
 import { validatePhone } from "@/lib/validations/shipto.validation";
@@ -143,6 +144,25 @@ export function SalesOrderDetailForm({
   }, [order]);
   const [challanShipments, setChallanShipments] = useState<SalesShipment[]>([]);
   const [isChallanLoading, setIsChallanLoading] = useState(false);
+  const [challanPdfUrls, setChallanPdfUrls] = useState<Record<string, string>>(
+    {},
+  );
+  const [activeChallanDocNo, setActiveChallanDocNo] = useState<string | null>(
+    null,
+  );
+  const challanPdfUrlsRef = useRef<Record<string, string>>({});
+
+  useEffect(() => {
+    challanPdfUrlsRef.current = challanPdfUrls;
+  }, [challanPdfUrls]);
+
+  useEffect(() => {
+    return () => {
+      Object.values(challanPdfUrlsRef.current).forEach((url) => {
+        window.URL.revokeObjectURL(url);
+      });
+    };
+  }, []);
 
   const deletableLineNos = lines
     .map((l) => l.Line_No)
@@ -323,6 +343,130 @@ export function SalesOrderDetailForm({
     setChallanDate(order?.Posting_Date || "");
     setChallanShipments([]);
     setIsChallanOpen(true);
+  };
+
+  const base64ToPdfBlob = (base64Value: string) => {
+    const normalized = base64Value
+      .replace(/^data:application\/pdf;base64,/, "")
+      .replace(/\s/g, "");
+    const byteCharacters = atob(normalized);
+    const byteNumbers = new Array(byteCharacters.length);
+    for (let i = 0; i < byteCharacters.length; i++) {
+      byteNumbers[i] = byteCharacters.charCodeAt(i);
+    }
+    return new Blob([new Uint8Array(byteNumbers)], {
+      type: "application/pdf",
+    });
+  };
+
+  const getChallanPdfUrl = useCallback(
+    async (shipment: SalesShipment) => {
+      const existingUrl = challanPdfUrlsRef.current[shipment.No];
+      if (existingUrl) return existingUrl;
+
+      const customerNo = String(order?.Sell_to_Customer_No || "").trim();
+      const postingDate = String(shipment.Posting_Date || challanDate || "").trim();
+
+      if (!customerNo) {
+        throw new Error("Customer number is missing for this sales order.");
+      }
+      if (!postingDate) {
+        throw new Error("Posting date is missing for this challan.");
+      }
+
+      setActiveChallanDocNo(shipment.No);
+      try {
+        const base64Data = await getDeliveryReportPdf(
+          shipment.No,
+          customerNo,
+          postingDate,
+        );
+
+        if (!base64Data) {
+          throw new Error("No PDF content was returned for this challan.");
+        }
+
+        const blob = base64ToPdfBlob(base64Data);
+        const url = window.URL.createObjectURL(blob);
+
+        setChallanPdfUrls((prev) => {
+          const previousUrl = prev[shipment.No];
+          if (previousUrl) {
+            window.URL.revokeObjectURL(previousUrl);
+          }
+          return { ...prev, [shipment.No]: url };
+        });
+
+        return url;
+      } finally {
+        setActiveChallanDocNo((current) =>
+          current === shipment.No ? null : current,
+        );
+      }
+    },
+    [challanDate, order?.Sell_to_Customer_No],
+  );
+
+  const getSafePdfFileName = (documentNo: string) =>
+    `Delivery_Challan_${documentNo.replace(/[^a-zA-Z0-9]/g, "_")}.pdf`;
+
+  const handlePreviewChallan = async (shipment: SalesShipment) => {
+    try {
+      const pdfUrl = await getChallanPdfUrl(shipment);
+      window.open(pdfUrl, "_blank", "noopener,noreferrer");
+    } catch (err) {
+      toast.error(
+        (err as ApiError).message ?? "Failed to open delivery challan.",
+      );
+    }
+  };
+
+  const handleDownloadChallan = async (shipment: SalesShipment) => {
+    try {
+      const pdfUrl = await getChallanPdfUrl(shipment);
+      const link = document.createElement("a");
+      link.href = pdfUrl;
+      link.download = getSafePdfFileName(shipment.No);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (err) {
+      toast.error(
+        (err as ApiError).message ?? "Failed to download delivery challan.",
+      );
+    }
+  };
+
+  const handlePrintChallan = async (shipment: SalesShipment) => {
+    try {
+      const pdfUrl = await getChallanPdfUrl(shipment);
+      const printFrame = document.createElement("iframe");
+      printFrame.style.position = "fixed";
+      printFrame.style.right = "0";
+      printFrame.style.bottom = "0";
+      printFrame.style.width = "0";
+      printFrame.style.height = "0";
+      printFrame.style.border = "none";
+      printFrame.src = pdfUrl;
+
+      document.body.appendChild(printFrame);
+
+      printFrame.onload = () => {
+        try {
+          printFrame.contentWindow?.print();
+        } catch {
+          window.open(pdfUrl, "_blank", "noopener,noreferrer");
+        }
+
+        setTimeout(() => {
+          if (document.body.contains(printFrame)) {
+            document.body.removeChild(printFrame);
+          }
+        }, 1000);
+      };
+    } catch (err) {
+      toast.error((err as ApiError).message ?? "Failed to print challan.");
+    }
   };
 
   const loadChallan = async () => {
@@ -1297,7 +1441,12 @@ export function SalesOrderDetailForm({
 
         {/* Delivery challan popup */}
         <Dialog open={isChallanOpen} onOpenChange={setIsChallanOpen}>
-          <DialogContent className="sm:max-w-md">
+          <DialogContent
+            className={cn(
+              "transition-[max-width] duration-200",
+              challanShipments.length > 0 ? "sm:max-w-4xl" : "sm:max-w-md",
+            )}
+          >
             <DialogHeader>
               <DialogTitle>Delivery Challan</DialogTitle>
               <DialogDescription>
@@ -1330,6 +1479,10 @@ export function SalesOrderDetailForm({
                         <TableHead className="text-xs">Posting Date</TableHead>
                         <TableHead className="text-xs">LR/RR No</TableHead>
                         <TableHead className="text-xs">LR/RR Date</TableHead>
+                        <TableHead className="text-xs">Vehicle No</TableHead>
+                        <TableHead className="text-right text-xs">
+                          Actions
+                        </TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -1344,6 +1497,46 @@ export function SalesOrderDetailForm({
                           </TableCell>
                           <TableCell className="text-xs">
                             {formatDate(s.LR_RR_Date)}
+                          </TableCell>
+                          <TableCell className="text-xs">
+                            {s.Vehicle_No || ""}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex flex-wrap justify-end gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-7 px-2 text-xs"
+                                onClick={() => handlePreviewChallan(s)}
+                                disabled={activeChallanDocNo === s.No}
+                              >
+                                {activeChallanDocNo === s.No ? (
+                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                ) : (
+                                  <Eye className="h-3.5 w-3.5" />
+                                )}
+                                <span className="ml-1">View</span>
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-7 px-2 text-xs"
+                                onClick={() => handleDownloadChallan(s)}
+                                disabled={activeChallanDocNo === s.No}
+                              >
+                                <Download className="h-3.5 w-3.5" />
+                                <span className="ml-1">Download</span>
+                              </Button>
+                              <Button
+                                size="sm"
+                                className="h-7 px-2 text-xs"
+                                onClick={() => handlePrintChallan(s)}
+                                disabled={activeChallanDocNo === s.No}
+                              >
+                                <Printer className="h-3.5 w-3.5" />
+                                <span className="ml-1">Print</span>
+                              </Button>
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))}

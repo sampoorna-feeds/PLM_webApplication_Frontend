@@ -39,16 +39,24 @@ import {
   getGLAccounts,
   searchGLAccounts,
   getGLAccountsPage,
+  searchGLAccountsByField,
   type GLPostingAccount,
 } from "@/lib/api/services/gl-account.service";
+import {
+  getFixedAssets,
+  searchFixedAssets,
+  getFixedAssetsPage,
+  searchFixedAssetsByField,
+  type FixedAsset,
+} from "@/lib/api/services/fixed-asset.service";
 import { getVendorTDSGroupCodes } from "@/lib/api/services/tds.service";
 import {
   getGstGroupCodes,
   getHsnSacCodes,
 } from "@/lib/api/services/purchase-orders.service";
-import type { LineItem } from "@/components/forms/sales/line-item-form";
+import type { LineItem } from "@/components/forms/purchase/purchase-line-item.type";
 
-type LineType = "G/L Account" | "Item";
+type LineType = "G/L Account" | "Item" | "Fixed Asset";
 
 interface PurchaseOrderLineDialogProps {
   isOpen: boolean;
@@ -79,6 +87,8 @@ function getInitialLineState(lineItem?: LineItem | null): Partial<LineItem> {
     gstGroupCode: lineItem?.gstGroupCode || "",
     hsnSacCode: lineItem?.hsnSacCode || "",
     tdsGroupCode: lineItem?.tdsGroupCode || "",
+    faPostingType: lineItem?.faPostingType || "",
+    salvageValue: lineItem?.salvageValue,
     noOfBags: lineItem?.noOfBags,
   };
 }
@@ -105,7 +115,43 @@ export function PurchaseOrderLineDialog({
     gst: false,
     hsn: false,
   });
+  const [canAddBardana, setCanAddBardana] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!isOpen || formState.type !== "Item" || !formState.no) {
+      setCanAddBardana(false);
+      setFormState((prev) =>
+        prev.noOfBags == null ? prev : { ...prev, noOfBags: undefined },
+      );
+      return;
+    }
+
+    let mounted = true;
+    getItemByNo(formState.no)
+      .then((item) => {
+        if (!mounted) return;
+        const isBardanaEnabled = item?.Bardana_Generation_Enable === true;
+        setCanAddBardana(isBardanaEnabled);
+        if (!isBardanaEnabled) {
+          setFormState((prev) =>
+            prev.noOfBags == null ? prev : { ...prev, noOfBags: undefined },
+          );
+        }
+      })
+      .catch((error) => {
+        console.error("Error loading item bardana configuration:", error);
+        if (!mounted) return;
+        setCanAddBardana(false);
+        setFormState((prev) =>
+          prev.noOfBags == null ? prev : { ...prev, noOfBags: undefined },
+        );
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, [isOpen, formState.type, formState.no]);
 
   useEffect(() => {
     if (!isOpen || !customerNo) return;
@@ -205,12 +251,16 @@ export function PurchaseOrderLineDialog({
 
   const handleTypeChange = useCallback((type: LineType) => {
     setUomOptions([]);
+    setCanAddBardana(false);
     setFormState((prev) => ({
       ...prev,
       type,
       no: "",
       description: "",
       uom: type === "Item" ? prev.uom : "",
+      noOfBags: undefined,
+      faPostingType: "",
+      salvageValue: undefined,
       exempted: false,
       gstGroupCode: "",
       hsnSacCode: "",
@@ -255,12 +305,16 @@ export function PurchaseOrderLineDialog({
 
   const handleItemChange = useCallback((value: string, item?: Item) => {
     if (value === "" && !item) {
+      setCanAddBardana(false);
       setUomOptions([]);
       setFormState((prev) => ({
         ...prev,
         no: "",
         description: "",
         uom: "",
+        noOfBags: undefined,
+        faPostingType: "",
+        salvageValue: undefined,
         price: 0,
         unitPrice: 0,
       }));
@@ -282,17 +336,21 @@ export function PurchaseOrderLineDialog({
     getItemByNo(item.No)
       .then((cardItem) => {
         if (cardItem) {
+          const isBardanaEnabled = cardItem.Bardana_Generation_Enable === true;
+          setCanAddBardana(isBardanaEnabled);
           setFormState((prev) => ({
             ...prev,
             exempted: cardItem.Exempted ?? false,
             gstGroupCode: cardItem.GST_Group_Code ?? "",
             hsnSacCode: cardItem.HSN_SAC_Code ?? "",
             uom: cardItem.Sales_Unit_of_Measure || prev.uom,
+            noOfBags: isBardanaEnabled ? prev.noOfBags : undefined,
           }));
         }
       })
       .catch((error) => {
         console.error("Error loading item card details:", error);
+        setCanAddBardana(false);
       });
   }, []);
 
@@ -325,6 +383,17 @@ export function PurchaseOrderLineDialog({
       gstGroupCode: formState.gstGroupCode,
       hsnSacCode: formState.hsnSacCode,
       tdsGroupCode: formState.tdsGroupCode,
+      faPostingType:
+        formState.type === "Fixed Asset"
+          ? (formState.faPostingType || "").trim() || undefined
+          : undefined,
+      salvageValue:
+        formState.type === "Fixed Asset"
+          ? formState.salvageValue != null
+            ? Number(formState.salvageValue)
+            : undefined
+          : undefined,
+      noOfBags: canAddBardana ? formState.noOfBags : undefined,
     };
 
     onSave(normalizedLineItem);
@@ -346,10 +415,12 @@ export function PurchaseOrderLineDialog({
               <ClearableField
                 value={formState.type}
                 onClear={() => handleTypeChange("Item")}
+                disabled={isEdit}
               >
                 <Select
                   value={(formState.type as string) || "Item"}
                   onValueChange={(value) => handleTypeChange(value as LineType)}
+                  disabled={isEdit}
                 >
                   <SelectTrigger className="h-8">
                     <SelectValue placeholder="Select type" />
@@ -357,6 +428,7 @@ export function PurchaseOrderLineDialog({
                   <SelectContent>
                     <SelectItem value="G/L Account">G/L Account</SelectItem>
                     <SelectItem value="Item">Item</SelectItem>
+                    <SelectItem value="Fixed Asset">Fixed Asset</SelectItem>
                   </SelectContent>
                 </Select>
               </ClearableField>
@@ -379,17 +451,74 @@ export function PurchaseOrderLineDialog({
                     getDisplayValue={(item) => `${item.No} - ${item.Name}`}
                     getItemValue={(item) => item.No}
                     supportsDualSearch={true}
-                    searchByField={async (query, field) => {
-                      const results = await searchGLAccounts(query);
-                      if (field === "No") {
-                        return results.filter((acc) =>
-                          acc.No.toLowerCase().includes(query.toLowerCase()),
-                        );
+                    searchByField={(query, field) =>
+                      searchGLAccountsByField(
+                        query,
+                        field === "No" ? "No" : "Name",
+                      )
+                    }
+                  />
+                </ClearableField>
+              ) : formState.type === "Fixed Asset" ? (
+                <ClearableField
+                  value={formState.no}
+                  onClear={() => {
+                    setFormState((prev) => ({
+                      ...prev,
+                      no: "",
+                      description: "",
+                      uom: "",
+                      exempted: false,
+                      gstGroupCode: "",
+                      hsnSacCode: "",
+                      faPostingType: "",
+                      salvageValue: undefined,
+                    }));
+                  }}
+                >
+                  <MasterSearchableSelect<FixedAsset>
+                    value={formState.no || ""}
+                    onChange={(value, asset) => {
+                      if (value === "" && !asset) {
+                        setFormState((prev) => ({
+                          ...prev,
+                          no: "",
+                          description: "",
+                          uom: "",
+                          exempted: false,
+                          gstGroupCode: "",
+                          hsnSacCode: "",
+                          faPostingType: "",
+                          salvageValue: undefined,
+                        }));
+                        return;
                       }
-                      return results.filter((acc) =>
-                        acc.Name.toLowerCase().includes(query.toLowerCase()),
-                      );
+
+                      if (!asset) return;
+                      setFormState((prev) => ({
+                        ...prev,
+                        no: asset.No,
+                        description: asset.Description,
+                        uom: "",
+                      }));
                     }}
+                    placeholder="Select Fixed Asset"
+                    loadInitial={() => getFixedAssets(20)}
+                    searchItems={searchFixedAssets}
+                    loadMore={(skip, search) =>
+                      getFixedAssetsPage(skip, search)
+                    }
+                    getDisplayValue={(asset) =>
+                      `${asset.No} - ${asset.Description}`
+                    }
+                    getItemValue={(asset) => asset.No}
+                    supportsDualSearch={true}
+                    searchByField={(query, field) =>
+                      searchFixedAssetsByField(
+                        query,
+                        field === "No" ? "No" : "Description",
+                      )
+                    }
                   />
                 </ClearableField>
               ) : (
@@ -484,32 +613,36 @@ export function PurchaseOrderLineDialog({
                 />
               </div>
 
-              <div className="space-y-1">
-                <FieldTitle>No. of Bags</FieldTitle>
-                <Input
-                  type="text"
-                  inputMode="numeric"
-                  value={
-                    formState.noOfBags != null ? String(formState.noOfBags) : ""
-                  }
-                  onChange={(e) => {
-                    const v = e.target.value;
-                    if (v === "") {
-                      setFormState((prev) => ({
-                        ...prev,
-                        noOfBags: undefined,
-                      }));
-                    } else {
-                      const n = parseInt(v, 10);
-                      if (!isNaN(n) && n >= 0)
-                        setFormState((prev) => ({ ...prev, noOfBags: n }));
+              {canAddBardana && (
+                <div className="space-y-1">
+                  <FieldTitle>No. of Bags</FieldTitle>
+                  <Input
+                    type="text"
+                    inputMode="numeric"
+                    value={
+                      formState.noOfBags != null
+                        ? String(formState.noOfBags)
+                        : ""
                     }
-                  }}
-                  onWheel={(e) => e.currentTarget.blur()}
-                  placeholder="0"
-                  className="h-8 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                />
-              </div>
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      if (v === "") {
+                        setFormState((prev) => ({
+                          ...prev,
+                          noOfBags: undefined,
+                        }));
+                      } else {
+                        const n = parseInt(v, 10);
+                        if (!isNaN(n) && n >= 0)
+                          setFormState((prev) => ({ ...prev, noOfBags: n }));
+                      }
+                    }}
+                    onWheel={(e) => e.currentTarget.blur()}
+                    placeholder="0"
+                    className="h-8 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                  />
+                </div>
+              )}
 
               <div className="space-y-1">
                 <FieldTitle>Unit Price</FieldTitle>
@@ -551,59 +684,93 @@ export function PurchaseOrderLineDialog({
                   readOnly
                 />
               </div>
+
+              {formState.type === "Fixed Asset" && (
+                <>
+                  <div className="space-y-1">
+                    <FieldTitle>FA Posting Type</FieldTitle>
+                    <Input
+                      value={formState.faPostingType || ""}
+                      onChange={(e) =>
+                        handleFieldChange("faPostingType", e.target.value)
+                      }
+                      placeholder="e.g. Acquisition Cost"
+                      className="h-8"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <FieldTitle>Salvage Value</FieldTitle>
+                    <Input
+                      type="text"
+                      inputMode="decimal"
+                      value={formatNumericValue(formState.salvageValue)}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        if (value === "") {
+                          handleFieldChange("salvageValue", undefined);
+                          return;
+                        }
+                        if (/^\d*\.?\d*$/.test(value)) {
+                          handleFieldChange("salvageValue", Number(value));
+                        }
+                      }}
+                      onWheel={(e) => e.currentTarget.blur()}
+                      placeholder="0.00"
+                      className="h-8 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                    />
+                  </div>
+                </>
+              )}
             </div>
           </div>
 
-          {isItemType && (
-            <div className="space-y-2 border-t pt-2">
-              <h3 className="text-foreground text-xs font-medium">
-                Item Details
-              </h3>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <div className="space-y-1">
-                  <FieldTitle>Exempted</FieldTitle>
-                  <Input
-                    value={formState.exempted ? "Yes" : "No"}
-                    disabled
-                    className="bg-muted h-8"
-                    readOnly
-                  />
-                </div>
-                <div className="space-y-1">
-                  <FieldTitle>GST Group Code</FieldTitle>
-                  <AppSearchableSelect
-                    value={formState.gstGroupCode || ""}
-                    onValueChange={(value) => {
-                      handleFieldChange("gstGroupCode", value);
-                      handleFieldChange("hsnSacCode", "");
-                    }}
-                    options={gstOptions}
-                    isLoading={loadingOptions.gst}
-                    placeholder="Select GST Group..."
-                    searchPlaceholder="Search GST Group..."
-                  />
-                </div>
-                <div className="space-y-1">
-                  <FieldTitle>HSN/SAC Code</FieldTitle>
-                  <AppSearchableSelect
-                    value={formState.hsnSacCode || ""}
-                    onValueChange={(value) =>
-                      handleFieldChange("hsnSacCode", value)
-                    }
-                    options={hsnOptions}
-                    isLoading={loadingOptions.hsn}
-                    placeholder={
-                      formState.gstGroupCode
-                        ? "Select HSN/SAC..."
-                        : "Select GST Group first"
-                    }
-                    searchPlaceholder="Search HSN/SAC..."
-                    disabled={!formState.gstGroupCode}
-                  />
-                </div>
+          <div className="space-y-2 border-t pt-2">
+            <h3 className="text-foreground text-xs font-medium">Tax Details</h3>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="space-y-1">
+                <FieldTitle>Exempted</FieldTitle>
+                <Input
+                  value={formState.exempted ? "Yes" : "No"}
+                  disabled
+                  className="bg-muted h-8"
+                  readOnly
+                />
+              </div>
+              <div className="space-y-1">
+                <FieldTitle>GST Group Code</FieldTitle>
+                <AppSearchableSelect
+                  value={formState.gstGroupCode || ""}
+                  onValueChange={(value) => {
+                    handleFieldChange("gstGroupCode", value);
+                    handleFieldChange("hsnSacCode", "");
+                  }}
+                  options={gstOptions}
+                  isLoading={loadingOptions.gst}
+                  placeholder="Select GST Group..."
+                  searchPlaceholder="Search GST Group..."
+                />
+              </div>
+              <div className="space-y-1">
+                <FieldTitle>HSN/SAC Code</FieldTitle>
+                <AppSearchableSelect
+                  value={formState.hsnSacCode || ""}
+                  onValueChange={(value) =>
+                    handleFieldChange("hsnSacCode", value)
+                  }
+                  options={hsnOptions}
+                  isLoading={loadingOptions.hsn}
+                  placeholder={
+                    formState.gstGroupCode
+                      ? "Select HSN/SAC..."
+                      : "Select GST Group first"
+                  }
+                  searchPlaceholder="Search HSN/SAC..."
+                  disabled={!formState.gstGroupCode}
+                />
               </div>
             </div>
-          )}
+          </div>
 
           {validationError && (
             <p className="text-destructive text-xs">{validationError}</p>

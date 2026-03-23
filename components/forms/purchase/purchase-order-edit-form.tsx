@@ -22,7 +22,7 @@ import {
   type PurchaseOrder,
   type PurchaseLine,
 } from "@/lib/api/services/purchase-orders.service";
-import type { LineItem } from "@/components/forms/sales/line-item-form";
+import type { LineItem } from "@/components/forms/purchase/purchase-line-item.type";
 import { LineItemsTable } from "@/components/forms/sales/line-items-table";
 import { toast } from "sonner";
 import { RequestFailedDialog } from "@/components/ui/request-failed-dialog";
@@ -44,7 +44,7 @@ function purchaseLineToLineItem(
   return {
     id,
     lineNo: lineNo > 0 ? lineNo : undefined,
-    type: (line.Type as "Item" | "G/L Account") || "Item",
+    type: (line.Type as "Item" | "G/L Account" | "Fixed Asset") || "Item",
     no: line.No ?? "",
     description:
       [line.Description, line.Description_2].filter(Boolean).join(" ") || "",
@@ -58,6 +58,12 @@ function purchaseLineToLineItem(
     gstGroupCode: line.GST_Group_Code,
     hsnSacCode: line.HSN_SAC_Code,
     tdsGroupCode: line.TDS_Group_Code || line.TDS_Section_Code || undefined,
+    faPostingType:
+      (line.FA_Posting_Type as string | undefined) ||
+      (line["FA Posting Type"] as string | undefined),
+    salvageValue:
+      (line.Salvage_Value as number | undefined) ??
+      (line["Salvage Value"] as number | undefined),
   };
 }
 
@@ -572,9 +578,7 @@ export function PurchaseOrderEditForm({
                     <span className="text-muted-foreground block text-xs">
                       Purchaser
                     </span>
-                    <span className="font-medium">
-                      {order.Purchaser_Code}
-                    </span>
+                    <span className="font-medium">{order.Purchaser_Code}</span>
                   </div>
                 )}
               </div>

@@ -1,0 +1,23 @@
+export type PurchaseLineType = "G/L Account" | "Item" | "Fixed Asset";
+
+export interface LineItem {
+  id: string;
+  /** API Line_No for existing lines; absent or <= 0 for new lines */
+  lineNo?: number;
+  type: PurchaseLineType;
+  no: string;
+  description: string;
+  uom?: string;
+  quantity: number;
+  price?: number;
+  unitPrice: number;
+  discount: number;
+  amount: number;
+  exempted?: boolean;
+  gstGroupCode?: string;
+  hsnSacCode?: string;
+  tdsGroupCode?: string;
+  faPostingType?: string;
+  salvageValue?: number;
+  noOfBags?: number;
+}

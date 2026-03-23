@@ -214,6 +214,31 @@ export async function getGLAccountByNo(
 }
 
 /**
+ * Search GL accounts by a specific field.
+ */
+export async function searchGLAccountsByField(
+  query: string,
+  field: "No" | "Name",
+): Promise<GLPostingAccount[]> {
+  if (query.length < 2) return [];
+
+  const baseFilter = getBaseFilter();
+  const escapedQuery = escapeODataValue(query);
+  const filter = `(${baseFilter}) and contains(${field},'${escapedQuery}')`;
+
+  const odataQuery = buildODataQuery({
+    $select: "No,Name",
+    $filter: filter,
+    $orderby: "No",
+    $top: 30,
+  });
+
+  const endpoint = `/GLAccount?company='${encodeURIComponent(COMPANY)}'&${odataQuery}`;
+  const response = await apiGet<ODataResponse<GLPostingAccount>>(endpoint);
+  return response.value;
+}
+
+/**
  * Clear search cache
  */
 export function clearGLAccountCache(): void {

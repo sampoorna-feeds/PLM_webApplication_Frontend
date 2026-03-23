@@ -209,6 +209,8 @@ export interface PurchaseLine {
   ShortcutDimCode3?: string;
   TDS_Group_Code?: string;
   TDS_Section_Code?: string;
+  FA_Posting_Type?: string;
+  Salvage_Value?: number;
   No_of_Bags?: number;
   [key: string]: unknown;
 }
@@ -312,6 +314,28 @@ export interface PurchaseShipment {
   [key: string]: unknown;
 }
 
+export interface PostGateEntryLine {
+  "@odata.etag"?: string;
+  Entry_Type?: string;
+  Gate_Entry_No: string;
+  Line_No: number;
+  Source_Type?: string;
+  Source_No?: string;
+  Source_Name?: string;
+  Description?: string;
+  Challan_No?: string;
+  Challan_Date?: string;
+  [key: string]: unknown;
+}
+
+export interface AttachGateEntryPayload {
+  SourceType: string;
+  SourceNo: string;
+  EntryType: string;
+  GateEntryNo: string;
+  LineNo: number;
+}
+
 /**
  * Get purchase shipment records for a specific order number.
  */
@@ -330,6 +354,35 @@ export async function getPurchaseShipmentsByOrder(
   const endpoint = `/PurchaseShipment_?company='${encodeURIComponent(COMPANY)}'&${query}`;
   const response = await apiGet<ODataResponse<PurchaseShipment>>(endpoint);
   return response.value || [];
+}
+
+/**
+ * Get post gate entry lines for a source document (for example a purchase order).
+ */
+export async function getPostGateEntryLineList(
+  sourceNo: string,
+  entryType: "Inward" | "Outward" = "Inward",
+): Promise<PostGateEntryLine[]> {
+  const escapedSourceNo = sourceNo.replace(/'/g, "''");
+  const escapedEntryType = entryType.replace(/'/g, "''");
+  const filter = `Entry_Type eq '${escapedEntryType}' and Source_No eq '${escapedSourceNo}'`;
+  const query = buildODataQuery({
+    $filter: filter,
+    $orderby: "Line_No asc",
+  });
+  const endpoint = `/PostGateEntryLineList?company='${encodeURIComponent(COMPANY)}'&${query}`;
+  const response = await apiGet<ODataResponse<PostGateEntryLine>>(endpoint);
+  return response.value || [];
+}
+
+/**
+ * Attach a gate entry line to its source document.
+ */
+export async function attachGateEntry(
+  payload: AttachGateEntryPayload,
+): Promise<unknown> {
+  const endpoint = `/API_AttachedGateEntry?company='${encodeURIComponent(COMPANY)}'`;
+  return apiPost<unknown>(endpoint, payload);
 }
 
 /**
@@ -512,7 +565,9 @@ export interface HsnSacCode {
   Type: string;
 }
 
-export async function getHsnSacCodes(gstGroupCode: string): Promise<HsnSacCode[]> {
+export async function getHsnSacCodes(
+  gstGroupCode: string,
+): Promise<HsnSacCode[]> {
   const endpoint = `/HSNSAC?company='${encodeURIComponent(COMPANY)}'&$select=GST_Group_Code,Code,Type&$filter=GST_Group_Code eq '${encodeURIComponent(gstGroupCode)}'`;
   const response = await apiGet<ODataResponse<HsnSacCode>>(endpoint);
   return response.value || [];
@@ -638,24 +693,25 @@ export interface TaxComponentInfo {
 export async function getTaxComponents(
   documentNo: string,
   lineNo: number,
-  tableID: string = "39"
+  tableID: string = "39",
 ): Promise<TaxComponentInfo[]> {
   const endpoint = `/API_GetTaxComponentsInJsonSales_Purchase?company='${encodeURIComponent(COMPANY)}'`;
   const payload = {
     tableID,
     documentNo,
-    lineNo
+    lineNo,
   };
   const response = await apiPost<{ value: string }>(endpoint, payload);
   if (!response || !response.value) return [];
-  
+
   try {
     // Decoding base64 to utf-8 string using atob
     const b64 = response.value;
-    const decoded = typeof window !== 'undefined' 
-      ? atob(b64)
-      : Buffer.from(b64, 'base64').toString('utf-8');
-      
+    const decoded =
+      typeof window !== "undefined"
+        ? atob(b64)
+        : Buffer.from(b64, "base64").toString("utf-8");
+
     return JSON.parse(decoded) as TaxComponentInfo[];
   } catch (err) {
     console.error("Failed to parse tax components", err);

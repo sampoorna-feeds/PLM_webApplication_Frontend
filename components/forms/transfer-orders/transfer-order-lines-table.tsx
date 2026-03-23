@@ -2,6 +2,8 @@
 
 import { Loader2, Pencil, Trash2 } from "lucide-react";
 import type { TransferLine } from "@/lib/api/services/transfer-orders.service";
+import { useState, useEffect, useCallback } from "react";
+import { getItemsByNos } from "@/lib/api/services/item.service";
 import {
   Table,
   TableBody,
@@ -30,6 +32,37 @@ export function TransferOrderLinesTable({
   onRowClick,
   isReadOnly = false,
 }: TransferOrderLinesTableProps) {
+  const [itemTrackingMap, setItemTrackingMap] = useState<Record<string, boolean>>({});
+  const [isLoadingTracking, setIsLoadingTracking] = useState(false);
+
+  const fetchTrackingMap = useCallback(async () => {
+    const itemNos = [...new Set(lines.map((l) => l.Item_No).filter(Boolean) as string[])];
+    if (itemNos.length === 0) {
+      setItemTrackingMap({});
+      return;
+    }
+
+    setIsLoadingTracking(true);
+    try {
+      const items = await getItemsByNos(itemNos);
+      const map: Record<string, boolean> = {};
+      items.forEach((item) => {
+        if (item.Item_Tracking_Code?.trim()) {
+          map[item.No.trim().toLowerCase()] = true;
+        }
+      });
+      setItemTrackingMap(map);
+    } catch (err) {
+      console.error("Error fetching item tracking map:", err);
+    } finally {
+      setIsLoadingTracking(false);
+    }
+  }, [lines]);
+
+  useEffect(() => {
+    fetchTrackingMap();
+  }, [fetchTrackingMap]);
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-8">
@@ -71,12 +104,17 @@ export function TransferOrderLinesTable({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {lines.map((line) => (
-            <TableRow
-              key={`${line.Document_No}-${line.Line_No}`}
-              className="hover:bg-muted/30 transition-colors whitespace-nowrap cursor-pointer"
-              onClick={() => onRowClick?.(line)}
-            >
+          {lines.map((line) => {
+            const hasTracking = line.Item_No ? !!itemTrackingMap[line.Item_No.trim().toLowerCase()] : false;
+            return (
+              <TableRow
+                key={`${line.Document_No}-${line.Line_No}`}
+                className={cn(
+                  "hover:bg-muted/30 transition-colors whitespace-nowrap cursor-pointer",
+                  hasTracking && "text-red-500 font-medium"
+                )}
+                onClick={() => onRowClick?.(line)}
+              >
               <TableCell className="font-medium text-muted-foreground">
                 {line.Line_No}
               </TableCell>
@@ -140,8 +178,9 @@ export function TransferOrderLinesTable({
                 </TableCell>
               )}
             </TableRow>
-          ))}
-        </TableBody>
+          );
+        })}
+      </TableBody>
       </Table>
     </div>
   );

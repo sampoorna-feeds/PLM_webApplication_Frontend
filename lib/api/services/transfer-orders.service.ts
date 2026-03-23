@@ -361,6 +361,17 @@ export async function postTransferOrder(data: {
   return apiPost<void>(endpoint, data);
 }
 
+/**
+ * Reopen a transfer order
+ */
+export async function reopenTransferOrder(docNo: string): Promise<unknown> {
+  const result = await patchTransferOrder(docNo, { Status: "Open" });
+  return result;
+}
+
+
+
+
 
 /**
  * Get item ledger entries for an item and location

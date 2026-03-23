@@ -23,6 +23,7 @@ import {
   getTransferOrderLines,
   patchTransferOrder,
   postTransferOrder,
+  reopenTransferOrder,
   type TransferLine,
   type TransferOrder,
 } from "@/lib/api/services/transfer-orders.service";
@@ -521,10 +522,27 @@ export function TransferOrderForm({
   } catch (error: any) {
     console.error("Error posting transfer order:", error);
     toast.error(error.message || "Failed to post transfer order");
-  } finally {
-    setIsSubmitting(false);
-  }
-};
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleReopen = async () => {
+    if (!formState.No) return;
+    
+    setIsSubmitting(true);
+    try {
+      await reopenTransferOrder(formState.No);
+      toast.success("Transfer Order reopened successfully");
+      fetchOrderData(formState.No);
+    } catch (error: any) {
+      console.error("Error reopening transfer order:", error);
+      toast.error(error.message || "Failed to reopen transfer order");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
 
 
   const fieldClass = "min-w-0 space-y-1 text-left";
@@ -574,6 +592,17 @@ export function TransferOrderForm({
                     Post
                   </Button>
                 )}
+                {formState.Status === "Released" && formState.No && (
+                  <Button
+                    onClick={handleReopen}
+                    variant="outline"
+                    size="sm"
+                    className="border-primary text-primary hover:bg-primary/10 font-bold transition-all hover:scale-105 active:scale-95"
+                  >
+                    Reopen
+                  </Button>
+                )}
+
                 {!formState.No ? (
                   <Button
                     onClick={handleCreateHeader}

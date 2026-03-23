@@ -20,6 +20,9 @@ import {
   updateTransferLine,
   type TransferLine,
 } from "@/lib/api/services/transfer-orders.service";
+import {
+  TransferOrderItemTrackingDialog
+} from "./transfer-order-item-tracking-dialog";
 
 interface TransferOrderLineDetailsDialogProps {
   isOpen: boolean;
@@ -39,6 +42,7 @@ export function TransferOrderLineDetailsDialog({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [hasTracking, setHasTracking] = useState(false);
   const [isLoadingTracking, setIsLoadingTracking] = useState(false);
+  const [isTrackingOpen, setIsTrackingOpen] = useState(false);
 
   const [formData, setFormData] = useState<Partial<TransferLine>>({ ...line });
 
@@ -227,6 +231,7 @@ export function TransferOrderLineDetailsDialog({
               <Button
                 variant="outline"
                 className="w-full text-red-500 border-[#222] hover:bg-red-500/10 hover:text-red-500 font-bold h-10 rounded-xl text-sm"
+                onClick={() => setIsTrackingOpen(true)}
               >
                 Item Tracking
               </Button>
@@ -234,6 +239,15 @@ export function TransferOrderLineDetailsDialog({
           )}
         </div>
       </DialogContent>
+
+      <TransferOrderItemTrackingDialog
+        open={isTrackingOpen}
+        onOpenChange={setIsTrackingOpen}
+        orderNo={line.Document_No}
+        locationCode={locationCode || ""}
+        line={line}
+        onSave={onSuccess}
+      />
     </Dialog>
   );
 }

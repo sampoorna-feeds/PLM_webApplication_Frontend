@@ -237,6 +237,36 @@ export interface TransferLine {
   [key: string]: unknown;
 }
 
+export interface TransferItemTrackingLine {
+  "@odata.etag"?: string;
+  Entry_No: number;
+  Positive?: boolean;
+  Source_Type?: number;
+  Source_Subtype?: string;
+  Source_ID?: string;
+  Source_Batch_Name?: string;
+  Source_Prod_Order_Line?: number;
+  Source_Ref_No_?: number;
+  Item_No: string;
+  Location_Code?: string;
+  Lot_No?: string;
+  Expiration_Date?: string;
+  Quantity_Base?: number;
+  Qty_to_Handl_Base?: number;
+  [key: string]: unknown;
+}
+
+export interface AssignTransferItemTrackingParams {
+  orderNo: string;
+  lineNo: number;
+  itemNo: string;
+  locationCode: string;
+  quantity: number;
+  lotNo: string;
+  expirationDate?: string;
+  isReceipt?: boolean;
+}
+
 export interface ItemLedgerEntry {
   Entry_No: number;
   Document_No: string;
@@ -345,5 +375,73 @@ export async function getItemLedgerEntries(
 
   const response = await apiGet<ODataResponse<ItemLedgerEntry>>(endpoint);
   return response.value || [];
+}
+/**
+ * Assign item tracking (lot) to a transfer order line.
+ * SourceType: 5741 (Transfer Line)
+ * SourceSubtype: 0 for Shipment (Outbound), 1 for Receipt (Inbound)
+ */
+export async function assignTransferItemTracking(
+  params: AssignTransferItemTrackingParams,
+): Promise<unknown> {
+  const endpoint = `/API_TrackingAssign?company='${encodeURIComponent(COMPANY)}'`;
+  const qty = Math.abs(params.quantity);
+  const payload = {
+    itemNo: params.itemNo,
+    locationCode: params.locationCode,
+    quantity: qty,
+    qtytoHandle: qty,
+    sourceProdOrderLine: 0,
+    sourceType: 5741,
+    sourceSubType: params.isReceipt ? 1 : 0,
+    sourceID: params.orderNo,
+    sourceBatch: "",
+    sourcerefNo: params.lineNo,
+    lotNo: params.lotNo,
+    expirationdate: params.expirationDate || "0001-01-01",
+    manufacuringdate: "0001-01-01",
+    newExpirationdate: "0001-01-01",
+    newManufacuringdate: "0001-01-01",
+    reservationStatus: 2,
+  };
+  return apiPost<unknown>(endpoint, payload);
+}
+
+/**
+ * Get item tracking lines for a transfer order line.
+ * SourceType: 5741, SourceSubtype: 0 (Shipment) or 1 (Receipt)
+ */
+export async function getTransferItemTrackingLines(
+  orderNo: string,
+  lineNo: number,
+  itemNo: string,
+  locationCode: string,
+  isReceipt: boolean = false,
+): Promise<TransferItemTrackingLine[]> {
+  const subtype = isReceipt ? "1" : "0";
+  const filter = [
+    `Source_ID eq '${orderNo.replace(/'/g, "''")}'`,
+    `Source_Ref_No_ eq ${lineNo}`,
+    `Item_No eq '${itemNo.replace(/'/g, "''")}'`,
+    `Location_Code eq '${locationCode.replace(/'/g, "''")}'`,
+    "Source_Type eq 5741",
+    `Source_Subtype eq '${subtype}'`,
+  ].join(" and ");
+  const query = buildODataQuery({ $filter: filter });
+  const endpoint = `/ItemTrackingLine?company='${encodeURIComponent(COMPANY)}'&${query}`;
+  const response =
+    await apiGet<ODataResponse<TransferItemTrackingLine>>(endpoint);
+  return response.value || [];
+}
+
+/**
+ * Delete a transfer item tracking line.
+ */
+export async function deleteTransferItemTrackingLine(
+  entryNo: number,
+  positive: boolean,
+): Promise<unknown> {
+  const endpoint = `/ItemTrackingLine(Entry_No=${entryNo},Positive=${positive})?company='${encodeURIComponent(COMPANY)}'`;
+  return apiDelete<unknown>(endpoint);
 }
 

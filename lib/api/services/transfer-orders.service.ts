@@ -352,14 +352,15 @@ export async function deleteTransferLine(
  * Post a transfer order
  */
 export async function postTransferOrder(data: {
-  DocNo: string;
-  PostShipment: string;
-  PostReceipt: string;
+  docNo: string;
+  postShipment: string;
+  postReceipt: string;
 }): Promise<void> {
   const encodedCompany = encodeURIComponent(COMPANY);
   const endpoint = `/API_PostTransferOrder?company='${encodedCompany}'`;
   return apiPost<void>(endpoint, data);
 }
+
 
 /**
  * Get item ledger entries for an item and location

@@ -483,10 +483,11 @@ export function TransferOrderForm({
     setIsSubmitting(true);
     try {
       await postTransferOrder({
-        DocNo: formState.No,
-        PostShipment: postSelection === "ship" ? "True" : "False",
-        PostReceipt: postSelection === "receive" ? "True" : "False",
+        docNo: formState.No,
+        postShipment: postSelection === "ship" ? "True" : "False",
+        postReceipt: postSelection === "receive" ? "True" : "False",
       });
+
       toast.success("Transfer Order posted successfully");
       setIsPostDialogOpen(false);
       handleSuccess();

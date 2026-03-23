@@ -386,12 +386,13 @@ export async function assignTransferItemTracking(
   params: AssignTransferItemTrackingParams,
 ): Promise<unknown> {
   const endpoint = `/API_TrackingAssign?company='${encodeURIComponent(COMPANY)}'`;
-  const qty = Math.abs(params.quantity);
+  const qty = -Math.abs(params.quantity);
   const payload = {
     itemNo: params.itemNo,
     locationCode: params.locationCode,
     quantity: qty,
     qtytoHandle: qty,
+
     sourceProdOrderLine: 0,
     sourceType: 5741,
     sourceSubType: params.isReceipt ? 1 : 0,

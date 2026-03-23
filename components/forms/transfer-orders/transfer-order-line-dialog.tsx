@@ -273,19 +273,22 @@ export function TransferOrderLineDialog({
             />
           </div>
 
-          <div className="space-y-2">
-            <FieldTitle>Appl.-to Item Entry</FieldTitle>
-            <SearchableSelect
-              options={ledgerEntries.map(e => ({
-                value: String(e.Entry_No),
-                label: `${e.Entry_No} (Rem: ${e.Remaining_Quantity}) - ${e.Lot_No || "No Lot"}`,
-              }))}
-              value={formData.Appl_to_Item_Entry ? String(formData.Appl_to_Item_Entry) : ""}
-              onValueChange={(v) => handleChange("Appl_to_Item_Entry", Number(v))}
-              isLoading={isLoadingLedgerEntries}
-              placeholder="Select Entry No."
-            />
-          </div>
+          {(ledgerEntries.length > 0 || (isEdit && formData.Appl_to_Item_Entry)) && (
+            <div className="space-y-2">
+              <FieldTitle>Appl.-to Item Entry</FieldTitle>
+              <SearchableSelect
+                options={ledgerEntries.map(e => ({
+                  value: String(e.Entry_No),
+                  label: `${e.Entry_No} (Rem: ${e.Remaining_Quantity}) - ${e.Lot_No || "No Lot"}`,
+                }))}
+                value={formData.Appl_to_Item_Entry ? String(formData.Appl_to_Item_Entry) : ""}
+                onValueChange={(v) => handleChange("Appl_to_Item_Entry", Number(v))}
+                isLoading={isLoadingLedgerEntries}
+                placeholder="Select Entry No."
+              />
+            </div>
+          )}
+
         </div>
 
         <DialogFooter>

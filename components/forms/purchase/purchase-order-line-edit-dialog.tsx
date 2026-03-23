@@ -101,7 +101,7 @@ export function PurchaseOrderLineEditDialog({
   });
 
   useEffect(() => {
-    if (!open || !line?.No) {
+    if (!open || !line?.No || (line.Type || "").trim() !== "Item") {
       setCanAddBardana(false);
       return;
     }

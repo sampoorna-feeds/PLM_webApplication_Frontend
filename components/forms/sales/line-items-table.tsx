@@ -40,7 +40,7 @@ import { TaxInfoPopover } from "@/components/forms/purchase/tax-info-popover";
 interface TableLineItem {
   id: string;
   lineNo?: number;
-  type: "G/L Account" | "Item" | "Fixed Asset";
+  type: "G/L Account" | "Item" | "Fixed Asset" | "Charge (Item)";
   no: string;
   description: string;
   uom?: string;

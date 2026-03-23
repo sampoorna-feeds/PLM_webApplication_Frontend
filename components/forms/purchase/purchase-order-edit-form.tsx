@@ -44,7 +44,9 @@ function purchaseLineToLineItem(
   return {
     id,
     lineNo: lineNo > 0 ? lineNo : undefined,
-    type: (line.Type as "Item" | "G/L Account" | "Fixed Asset") || "Item",
+    type:
+      (line.Type as "Item" | "G/L Account" | "Fixed Asset" | "Charge (Item)") ||
+      "Item",
     no: line.No ?? "",
     description:
       [line.Description, line.Description_2].filter(Boolean).join(" ") || "",

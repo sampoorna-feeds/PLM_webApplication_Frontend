@@ -42,7 +42,7 @@ export interface PurchaseOrderData {
 }
 
 export interface PurchaseOrderLineItem {
-  type: "G/L Account" | "Item" | "Fixed Asset";
+  type: "G/L Account" | "Item" | "Fixed Asset" | "Charge (Item)";
   no: string;
   description: string;
   uom?: string;
@@ -226,7 +226,10 @@ export async function addPurchaseOrderLineItems(
       if (lineItem.faPostingType) {
         payload.FA_Posting_Type = lineItem.faPostingType;
       }
-      if (lineItem.salvageValue !== undefined && lineItem.salvageValue !== null) {
+      if (
+        lineItem.salvageValue !== undefined &&
+        lineItem.salvageValue !== null
+      ) {
         payload.Salvage_Value = lineItem.salvageValue;
       }
       if (lineItem.exempted !== undefined) {

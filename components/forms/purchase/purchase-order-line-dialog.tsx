@@ -49,6 +49,13 @@ import {
   searchFixedAssetsByField,
   type FixedAsset,
 } from "@/lib/api/services/fixed-asset.service";
+import {
+  getItemCharges,
+  searchItemCharges,
+  getItemChargesPage,
+  searchItemChargesByField,
+  type ItemCharge,
+} from "@/lib/api/services/item-charge.service";
 import { getVendorTDSGroupCodes } from "@/lib/api/services/tds.service";
 import {
   getGstGroupCodes,
@@ -56,7 +63,7 @@ import {
 } from "@/lib/api/services/purchase-orders.service";
 import type { LineItem } from "@/components/forms/purchase/purchase-line-item.type";
 
-type LineType = "G/L Account" | "Item" | "Fixed Asset";
+type LineType = "G/L Account" | "Item" | "Fixed Asset" | "Charge (Item)";
 
 interface PurchaseOrderLineDialogProps {
   isOpen: boolean;
@@ -429,6 +436,7 @@ export function PurchaseOrderLineDialog({
                     <SelectItem value="G/L Account">G/L Account</SelectItem>
                     <SelectItem value="Item">Item</SelectItem>
                     <SelectItem value="Fixed Asset">Fixed Asset</SelectItem>
+                    <SelectItem value="Charge (Item)">Charge Item</SelectItem>
                   </SelectContent>
                 </Select>
               </ClearableField>
@@ -438,10 +446,12 @@ export function PurchaseOrderLineDialog({
               <FieldTitle>Select Item</FieldTitle>
               {formState.type === "G/L Account" ? (
                 <ClearableField
+                  key="line-selector-gl-account"
                   value={formState.no}
                   onClear={() => handleGLAccountChange("", undefined)}
                 >
                   <MasterSearchableSelect<GLPostingAccount>
+                    key="master-select-gl-account"
                     value={formState.no || ""}
                     onChange={handleGLAccountChange}
                     placeholder="Select GL Account"
@@ -461,6 +471,7 @@ export function PurchaseOrderLineDialog({
                 </ClearableField>
               ) : formState.type === "Fixed Asset" ? (
                 <ClearableField
+                  key="line-selector-fixed-asset"
                   value={formState.no}
                   onClear={() => {
                     setFormState((prev) => ({
@@ -477,6 +488,7 @@ export function PurchaseOrderLineDialog({
                   }}
                 >
                   <MasterSearchableSelect<FixedAsset>
+                    key="master-select-fixed-asset"
                     value={formState.no || ""}
                     onChange={(value, asset) => {
                       if (value === "" && !asset) {
@@ -521,12 +533,78 @@ export function PurchaseOrderLineDialog({
                     }
                   />
                 </ClearableField>
+              ) : formState.type === "Charge (Item)" ? (
+                <ClearableField
+                  key="line-selector-charge-item"
+                  value={formState.no}
+                  onClear={() => {
+                    setFormState((prev) => ({
+                      ...prev,
+                      no: "",
+                      description: "",
+                      uom: "",
+                      exempted: false,
+                      gstGroupCode: "",
+                      hsnSacCode: "",
+                    }));
+                  }}
+                >
+                  <MasterSearchableSelect<ItemCharge>
+                    key="master-select-charge-item"
+                    value={formState.no || ""}
+                    onChange={(value, charge) => {
+                      if (value === "" && !charge) {
+                        setFormState((prev) => ({
+                          ...prev,
+                          no: "",
+                          description: "",
+                          uom: "",
+                          exempted: false,
+                          gstGroupCode: "",
+                          hsnSacCode: "",
+                        }));
+                        return;
+                      }
+
+                      if (!charge) return;
+                      setFormState((prev) => ({
+                        ...prev,
+                        no: charge.No,
+                        description: charge.Description || prev.description,
+                        uom: "",
+                        exempted: charge.Exempted ?? prev.exempted,
+                        gstGroupCode:
+                          charge.GST_Group_Code || prev.gstGroupCode,
+                        hsnSacCode: charge.HSN_SAC_Code || prev.hsnSacCode,
+                      }));
+                    }}
+                    placeholder="Select Charge Item"
+                    loadInitial={() => getItemCharges(20)}
+                    searchItems={searchItemCharges}
+                    loadMore={(skip, search) =>
+                      getItemChargesPage(skip, search)
+                    }
+                    getDisplayValue={(charge) =>
+                      `${charge.No} - ${charge.Description || ""}`
+                    }
+                    getItemValue={(charge) => charge.No}
+                    supportsDualSearch={true}
+                    searchByField={(query, field) =>
+                      searchItemChargesByField(
+                        query,
+                        field === "No" ? "No" : "Description",
+                      )
+                    }
+                  />
+                </ClearableField>
               ) : (
                 <ClearableField
+                  key="line-selector-item"
                   value={formState.no}
                   onClear={() => handleItemChange("", undefined)}
                 >
                   <MasterSearchableSelect<Item>
+                    key="master-select-item"
                     value={formState.no || ""}
                     onChange={handleItemChange}
                     placeholder="Select Item"

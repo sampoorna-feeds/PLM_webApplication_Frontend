@@ -1,4 +1,8 @@
-export type PurchaseLineType = "G/L Account" | "Item" | "Fixed Asset";
+export type PurchaseLineType =
+  | "G/L Account"
+  | "Item"
+  | "Fixed Asset"
+  | "Charge (Item)";
 
 export interface LineItem {
   id: string;

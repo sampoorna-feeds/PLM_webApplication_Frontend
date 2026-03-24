@@ -31,12 +31,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { getItemAvailabilityByLot, modifyItemTrackingLine } from "@/lib/api/services/production-orders.service";
-import type { LotAvailability } from "@/lib/api/services/production-orders.service";
 import {
   assignTransferItemTracking,
   getTransferItemTrackingLines,
   deleteTransferItemTrackingLine,
+  getTransferItemAvailabilityByLot,
+  modifyTransferItemTrackingLine,
+  type TransferLotAvailability,
   type TransferLine,
   type TransferItemTrackingLine,
 } from "@/lib/api/services/transfer-orders.service";
@@ -69,7 +70,7 @@ export function TransferOrderItemTrackingDialog({
   const [expirationDate, setExpirationDate] = useState("");
   const [quantity, setQuantity] = useState("");
   const [isSaving, setIsSaving] = useState(false);
-  const [availableLots, setAvailableLots] = useState<LotAvailability[]>([]);
+  const [availableLots, setAvailableLots] = useState<TransferLotAvailability[]>([]);
   const [isLoadingLots, setIsLoadingLots] = useState(false);
   const [trackingLines, setTrackingLines] = useState<TransferItemTrackingLine[]>([]);
   const [isLoadingTrackingLines, setIsLoadingTrackingLines] = useState(false);
@@ -107,7 +108,7 @@ export function TransferOrderItemTrackingDialog({
       const fetchLots = async () => {
         setIsLoadingLots(true);
         try {
-          const lots = await getItemAvailabilityByLot(itemNo, locationCode);
+          const lots = await getTransferItemAvailabilityByLot(itemNo, locationCode);
           setAvailableLots(lots);
         } catch (error) {
           console.error("Error fetching available lots:", error);
@@ -149,7 +150,7 @@ export function TransferOrderItemTrackingDialog({
     }
   }, [open, line, orderNo, lineNo, itemNo, locationCode, isReceipt]);
 
-  const handleLotSelect = (lot: LotAvailability) => {
+  const handleLotSelect = (lot: TransferLotAvailability) => {
     setLotNo(lot.LotNo);
     const expDate = lot.Expiration_Date?.split("T")[0] || "";
     setExpirationDate(expDate);
@@ -194,7 +195,7 @@ export function TransferOrderItemTrackingDialog({
     setIsSaving(true);
     try {
       if (editingLine) {
-        await modifyItemTrackingLine({
+        await modifyTransferItemTrackingLine({
           entryNo: editingLine.Entry_No,
           positive: editingLine.Positive ?? false,
           quantityBase: isReceipt ? Math.abs(quantityValue) : -Math.abs(quantityValue),

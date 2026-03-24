@@ -17,16 +17,14 @@ import {
   SearchableSelect,
 } from "@/components/ui/searchable-select";
 import {
-  getItems,
-  getItemByNo,
-  type Item,
-} from "@/lib/api/services/production-order-data.service";
-import {
   createTransferLine,
   updateTransferLine,
+  getTransferItemLedgerEntries,
+  getTransferItems,
+  getTransferItemByNo,
+  type TransferItem,
   type TransferLine,
-  getItemLedgerEntries,
-  type ItemLedgerEntry,
+  type TransferItemLedgerEntry,
 } from "@/lib/api/services/transfer-orders.service";
 
 interface TransferOrderLineDialogProps {
@@ -56,9 +54,9 @@ export function TransferOrderLineDialog({
 }: TransferOrderLineDialogProps) {
   const isEdit = !!line;
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [items, setItems] = useState<Item[]>([]);
+  const [items, setItems] = useState<TransferItem[]>([]);
   const [isLoadingItems, setIsLoadingItems] = useState(false);
-  const [ledgerEntries, setLedgerEntries] = useState<ItemLedgerEntry[]>([]);
+  const [ledgerEntries, setLedgerEntries] = useState<TransferItemLedgerEntry[]>([]);
   const [isLoadingLedgerEntries, setIsLoadingLedgerEntries] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -108,7 +106,7 @@ export function TransferOrderLineDialog({
     const loadItems = async () => {
       setIsLoadingItems(true);
       try {
-        const data = await getItems(searchQuery || undefined);
+        const data = await getTransferItems(searchQuery || undefined);
         setItems(data);
       } catch (err) {
         console.error("Error loading items:", err);
@@ -132,7 +130,7 @@ export function TransferOrderLineDialog({
 
       setIsLoadingLedgerEntries(true);
       try {
-        const entries = await getItemLedgerEntries(formData.Item_No, locationCode);
+        const entries = await getTransferItemLedgerEntries(formData.Item_No, locationCode);
         setLedgerEntries(entries);
       } catch (err) {
         console.error("Error loading item ledger entries:", err);
@@ -147,7 +145,7 @@ export function TransferOrderLineDialog({
   }, [isOpen, formData.Item_No, locationCode]);
 
   const handleItemChange = async (itemNo: string) => {
-    const item = await getItemByNo(itemNo);
+    const item = await getTransferItemByNo(itemNo);
     if (item) {
       setFormData(prev => ({
         ...prev,

@@ -15,7 +15,9 @@ import {
 } from "@/components/ui/dialog";
 import {
   checkItemTracking,
+  getItemAvailableQuantity,
 } from "@/lib/api/services/production-order-data.service";
+
 import {
   updateTransferLine,
   type TransferLine,
@@ -23,6 +25,8 @@ import {
 import {
   TransferOrderItemTrackingDialog
 } from "./transfer-order-item-tracking-dialog";
+
+
 
 interface TransferOrderLineDetailsDialogProps {
   isOpen: boolean;
@@ -43,6 +47,9 @@ export function TransferOrderLineDetailsDialog({
   const [hasTracking, setHasTracking] = useState(false);
   const [isLoadingTracking, setIsLoadingTracking] = useState(false);
   const [isTrackingOpen, setIsTrackingOpen] = useState(false);
+  const [availableQty, setAvailableQty] = useState<number | null>(null);
+  const [isLoadingStock, setIsLoadingStock] = useState(false);
+
 
   const [formData, setFormData] = useState<Partial<TransferLine>>({ ...line });
 
@@ -50,19 +57,30 @@ export function TransferOrderLineDetailsDialog({
     setFormData({ ...line });
     if (isOpen && line?.Item_No && locationCode) {
       const activeLocationCode = locationCode;
-      const runCheck = async () => {
+      
+      const fetchData = async () => {
         setIsLoadingTracking(true);
+        setIsLoadingStock(true);
         try {
-          const result = await checkItemTracking(line.Item_No!, activeLocationCode);
-          setHasTracking(result);
+          // Parallel fetch for tracking and stock
+          const [trackingResult, availableResult] = await Promise.all([
+            checkItemTracking(line.Item_No!, activeLocationCode),
+            getItemAvailableQuantity(line.Item_No!, activeLocationCode)
+          ]);
+          
+          setHasTracking(trackingResult);
+          setAvailableQty(availableResult);
         } catch (err) {
-          console.error("Error checking tracking:", err);
+          console.error("Error fetching line metadata:", err);
         } finally {
           setIsLoadingTracking(false);
+          setIsLoadingStock(false);
         }
       };
-      runCheck();
+      fetchData();
     }
+
+
   }, [line, isOpen, locationCode]);
 
   const handleChange = (field: string, value: any) => {
@@ -70,7 +88,16 @@ export function TransferOrderLineDetailsDialog({
   };
 
   const handleSave = async () => {
-    if (!line?.No || !line?.Line_No) return;
+    if (!line?.Document_No || !line?.Line_No) return;
+
+    // Validation: Qty to Ship <= Available Quantity
+    const qtyToShip = Number(formData.Qty_to_Ship);
+    if (availableQty !== null && qtyToShip > availableQty) {
+      toast.error(`Cannot ship ${qtyToShip}. Only ${availableQty} available at ${locationCode}`);
+      return;
+    }
+
+
 
     setIsSubmitting(true);
     try {
@@ -137,7 +164,18 @@ export function TransferOrderLineDetailsDialog({
               <span className={infoLabelClass}>Qty Shipped</span>
               <span className={infoValueClass}>{line.Quantity_Shipped?.toLocaleString() || "0"}</span>
             </div>
+            <div className="flex items-center">
+              <span className={infoLabelClass}>Available Qty</span>
+              <span className={cn(
+                infoValueClass,
+                availableQty !== null && availableQty <= 0 && "text-red-500",
+                isLoadingStock && "animate-pulse"
+              )}>
+                {isLoadingStock ? "..." : (availableQty?.toLocaleString() ?? "-")}
+              </span>
+            </div>
           </div>
+
 
           <div className="h-px bg-[#222] w-full" />
 

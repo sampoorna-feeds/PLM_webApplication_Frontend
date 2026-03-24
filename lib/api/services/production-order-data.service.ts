@@ -362,7 +362,10 @@ export async function getLocationCodes(
     const [resultsByCode, resultsByName] = await Promise.all([
       // Search by Code
       (async () => {
-        const filter = [...commonFilter, `contains(Code,'${escapedSearch}')`].join(" and ");
+        const filter = [
+          ...commonFilter,
+          `contains(Code,'${escapedSearch}')`,
+        ].join(" and ");
         const query = buildODataQuery({
           $select: "Code,Name",
           $filter: filter,
@@ -375,7 +378,10 @@ export async function getLocationCodes(
       })(),
       // Search by Name
       (async () => {
-        const filter = [...commonFilter, `contains(Name,'${escapedSearch}')`].join(" and ");
+        const filter = [
+          ...commonFilter,
+          `contains(Name,'${escapedSearch}')`,
+        ].join(" and ");
         const query = buildODataQuery({
           $select: "Code,Name",
           $filter: filter,
@@ -469,7 +475,8 @@ export async function checkItemTracking(
     const response = await apiGet<ODataResponse<ItemLedgerEntry>>(endpoint);
     // "Item_Tracking" if it is equal to "Lot No." then the tracking is enabled
     return (
-      response.value?.some((entry) => entry.Item_Tracking === "Lot No.") || false
+      response.value?.some((entry) => entry.Item_Tracking === "Lot No.") ||
+      false
     );
   } catch (error) {
     console.error("Error checking item tracking:", error);

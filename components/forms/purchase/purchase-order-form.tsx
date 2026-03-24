@@ -25,7 +25,7 @@ import { OrderAddressSelect } from "./order-address-select";
 import { SalesPersonSelect } from "@/components/forms/sales/sales-person-select";
 import { useFormStack } from "@/lib/form-stack/use-form-stack";
 import { getAuthCredentials } from "@/lib/auth/storage";
-import type { LineItem } from "@/components/forms/sales/line-item-form";
+import type { LineItem } from "@/components/forms/purchase/purchase-line-item.type";
 import { LineItemsTable } from "@/components/forms/sales/line-items-table";
 import { Plus, ChevronDownIcon, CheckIcon, Paperclip } from "lucide-react";
 import { POAttachmentDialog } from "./po-attachment-dialog";
@@ -606,6 +606,8 @@ export function PurchaseOrderFormContent({
       gstGroupCode: lineItem.gstGroupCode,
       hsnSacCode: lineItem.hsnSacCode,
       tdsGroupCode: lineItem.tdsGroupCode,
+      faPostingType: lineItem.faPostingType,
+      salvageValue: lineItem.salvageValue,
       noOfBags: lineItem.noOfBags,
     };
 

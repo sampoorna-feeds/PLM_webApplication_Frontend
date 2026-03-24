@@ -22,7 +22,7 @@ import { OrderAddressSelect } from "./order-address-select";
 import { SalesPersonSelect } from "@/components/forms/sales/sales-person-select";
 import { useFormStack } from "@/lib/form-stack/use-form-stack";
 import { getAuthCredentials } from "@/lib/auth/storage";
-import type { LineItem } from "@/components/forms/sales/line-item-form";
+import type { LineItem } from "@/components/forms/purchase/purchase-line-item.type";
 import { LineItemsTable } from "@/components/forms/sales/line-items-table";
 import { Plus, ChevronDownIcon, CheckIcon } from "lucide-react";
 import { cn } from "@/lib/utils";

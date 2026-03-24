@@ -46,6 +46,7 @@ import { PurchaseOrderLineEditDialog } from "./purchase-order-line-edit-dialog";
 import { TaxInfoPopover } from "./tax-info-popover";
 import { POAttachmentDialog } from "./po-attachment-dialog";
 import { BardanaDialog } from "./bardana-dialog";
+import { PostGateEntryDialog } from "./post-gate-entry-dialog";
 import {
   Table,
   TableBody,
@@ -570,6 +571,12 @@ export function PurchaseOrderDetailForm({
               Post
             </Button>
           )}
+          {order?.No && (
+            <PostGateEntryDialog
+              sourceNo={order.No}
+              disabled={isActionLoading}
+            />
+          )}
           {isReleased && (
             <Button
               variant="default"
@@ -741,14 +748,21 @@ export function PurchaseOrderDetailForm({
                       ? String(line.No).trim().toLowerCase()
                       : "";
                     const hasTracking = !!itemTrackingMap[itemNoKey];
+                    const canOpenLineEdit =
+                      typeof line.Type === "string" && line.Type.trim() !== "";
                     return (
                       <TableRow
                         key={line.Line_No}
                         className={cn(
-                          "hover:bg-muted/50 cursor-pointer",
+                          canOpenLineEdit
+                            ? "hover:bg-muted/50 cursor-pointer [&>td]:max-w-24 [&>td]:truncate [&>td]:overflow-hidden [&>td]:whitespace-nowrap [&>td]:transition-all [&>td]:duration-200 [&>td]:ease-out hover:[&>td]:w-max hover:[&>td]:max-w-none"
+                            : "cursor-default",
                           hasTracking && "text-red-600",
                         )}
-                        onClick={() => setSelectedLine(line)}
+                        onClick={() => {
+                          if (!canOpenLineEdit) return;
+                          setSelectedLine(line);
+                        }}
                       >
                         <TableCell className="w-10">
                           {order?.No && line.Line_No && (
@@ -767,8 +781,15 @@ export function PurchaseOrderDetailForm({
                         <TableCell className="text-xs">
                           {line.No || "-"}
                         </TableCell>
-                        <TableCell className="max-w-50 truncate text-xs">
-                          {line.Description || line.Description_2 || "-"}
+                        <TableCell className="max-w-50 align-top text-xs">
+                          <span
+                            title={
+                              line.Description || line.Description_2 || "-"
+                            }
+                            className="block truncate"
+                          >
+                            {line.Description || line.Description_2 || "-"}
+                          </span>
                         </TableCell>
                         <TableCell className="text-xs">
                           {line.Unit_of_Measure_Code ||

@@ -42,7 +42,7 @@ export interface PurchaseOrderData {
 }
 
 export interface PurchaseOrderLineItem {
-  type: "G/L Account" | "Item";
+  type: "G/L Account" | "Item" | "Fixed Asset" | "Charge (Item)";
   no: string;
   description: string;
   uom?: string;
@@ -55,6 +55,8 @@ export interface PurchaseOrderLineItem {
   gstGroupCode?: string;
   hsnSacCode?: string;
   tdsGroupCode?: string;
+  faPostingType?: string;
+  salvageValue?: number;
   noOfBags?: number;
 }
 
@@ -221,6 +223,15 @@ export async function addPurchaseOrderLineItems(
       if (lineItem.tdsGroupCode) {
         payload.TDS_Group_Code = lineItem.tdsGroupCode;
       }
+      if (lineItem.faPostingType) {
+        payload.FA_Posting_Type = lineItem.faPostingType;
+      }
+      if (
+        lineItem.salvageValue !== undefined &&
+        lineItem.salvageValue !== null
+      ) {
+        payload.Salvage_Value = lineItem.salvageValue;
+      }
       if (lineItem.exempted !== undefined) {
         payload.Exempted = lineItem.exempted;
       }
@@ -267,6 +278,12 @@ export async function addSinglePurchaseOrderLine(
   if (lineItem.tdsGroupCode) {
     payload.TDS_Group_Code = lineItem.tdsGroupCode;
   }
+  if (lineItem.faPostingType) {
+    payload.FA_Posting_Type = lineItem.faPostingType;
+  }
+  if (lineItem.salvageValue !== undefined && lineItem.salvageValue !== null) {
+    payload.Salvage_Value = lineItem.salvageValue;
+  }
   if (lineItem.exempted !== undefined) {
     payload.Exempted = lineItem.exempted;
   }
@@ -275,7 +292,10 @@ export async function addSinglePurchaseOrderLine(
   }
 
   try {
-    const response = await apiPost<{ Line_No: number; [key: string]: any }>(endpoint, payload);
+    const response = await apiPost<{ Line_No: number; [key: string]: any }>(
+      endpoint,
+      payload,
+    );
     return response;
   } catch (error) {
     console.error("Error adding single purchase order line:", error);
@@ -293,22 +313,35 @@ export async function updateSinglePurchaseOrderLine(
 ): Promise<{ Line_No: number; [key: string]: any }> {
   const escapedNo = documentNo.replace(/'/g, "''");
   const endpoint = `/PurchaseLine(Document_Type='Order',Document_No='${encodeURIComponent(escapedNo)}',Line_No=${lineNo})?company='${encodeURIComponent(COMPANY)}'`;
-  
+
   const payload: Record<string, unknown> = {};
   if (lineItem.type !== undefined) payload.Type = lineItem.type;
   if (lineItem.no !== undefined) payload.No = lineItem.no;
   if (lineItem.quantity !== undefined) payload.Quantity = lineItem.quantity;
   if (lineItem.uom !== undefined) payload.Unit_of_Measure_Code = lineItem.uom;
-  if (lineItem.unitPrice !== undefined && lineItem.unitPrice !== null) payload.Direct_Unit_Cost = lineItem.unitPrice;
-  if (lineItem.discount !== undefined && lineItem.discount !== null) payload.Line_Discount_Percent = lineItem.discount;
-  if (lineItem.gstGroupCode !== undefined) payload.GST_Group_Code = lineItem.gstGroupCode;
-  if (lineItem.hsnSacCode !== undefined) payload.HSN_SAC_Code = lineItem.hsnSacCode;
-  if (lineItem.tdsGroupCode !== undefined) payload.TDS_Group_Code = lineItem.tdsGroupCode;
+  if (lineItem.unitPrice !== undefined && lineItem.unitPrice !== null)
+    payload.Direct_Unit_Cost = lineItem.unitPrice;
+  if (lineItem.discount !== undefined && lineItem.discount !== null)
+    payload.Line_Discount_Percent = lineItem.discount;
+  if (lineItem.gstGroupCode !== undefined)
+    payload.GST_Group_Code = lineItem.gstGroupCode;
+  if (lineItem.hsnSacCode !== undefined)
+    payload.HSN_SAC_Code = lineItem.hsnSacCode;
+  if (lineItem.tdsGroupCode !== undefined)
+    payload.TDS_Group_Code = lineItem.tdsGroupCode;
+  if (lineItem.faPostingType !== undefined)
+    payload.FA_Posting_Type = lineItem.faPostingType;
+  if (lineItem.salvageValue !== undefined && lineItem.salvageValue !== null)
+    payload.Salvage_Value = lineItem.salvageValue;
   if (lineItem.exempted !== undefined) payload.Exempted = lineItem.exempted;
-  if (lineItem.noOfBags !== undefined && lineItem.noOfBags !== null) payload.No_of_Bags = lineItem.noOfBags;
+  if (lineItem.noOfBags !== undefined && lineItem.noOfBags !== null)
+    payload.No_of_Bags = lineItem.noOfBags;
 
   try {
-    const response = await apiPatch<{ Line_No: number; [key: string]: any }>(endpoint, payload);
+    const response = await apiPatch<{ Line_No: number; [key: string]: any }>(
+      endpoint,
+      payload,
+    );
     return response;
   } catch (error) {
     console.error("Error updating single purchase order line:", error);

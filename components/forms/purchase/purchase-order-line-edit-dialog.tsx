@@ -65,6 +65,8 @@ export function PurchaseOrderLineEditDialog({
   const [hsnSacCode, setHsnSacCode] = useState("");
   const [exempted, setExempted] = useState(false);
   const [tdsSection, setTdsSection] = useState("");
+  const [faPostingType, setFaPostingType] = useState("");
+  const [salvageValue, setSalvageValue] = useState("");
   const [noOfBags, setNoOfBags] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [apiError, setApiError] = useState<ApiErrorState | null>(null);
@@ -82,6 +84,10 @@ export function PurchaseOrderLineEditDialog({
     setHsnSacCode(line.HSN_SAC_Code || "");
     setExempted(line.Exempted ?? false);
     setTdsSection(line.TDS_Section_Code || "");
+    setFaPostingType(line.FA_Posting_Type || "");
+    setSalvageValue(
+      line.Salvage_Value != null ? String(line.Salvage_Value) : "",
+    );
     setNoOfBags(line.No_of_Bags != null ? String(line.No_of_Bags) : "");
   }, [line]);
 
@@ -95,7 +101,7 @@ export function PurchaseOrderLineEditDialog({
   });
 
   useEffect(() => {
-    if (!open || !line?.No) {
+    if (!open || !line?.No || (line.Type || "").trim() !== "Item") {
       setCanAddBardana(false);
       return;
     }
@@ -263,9 +269,30 @@ export function PurchaseOrderLineEditDialog({
         payload.HSN_SAC_Code = hsnSacCode.trim();
       if (tdsSection.trim() !== (line.TDS_Section_Code || "").trim())
         payload.TDS_Section_Code = tdsSection.trim();
-      const bagsVal = noOfBags === "" ? undefined : parseInt(noOfBags, 10);
-      if (!isNaN(bagsVal ?? NaN) && bagsVal !== (line.No_of_Bags ?? undefined))
-        payload.No_of_Bags = bagsVal;
+      if ((line.Type || "").trim() === "Fixed Asset") {
+        if (faPostingType.trim() !== (line.FA_Posting_Type || "").trim()) {
+          payload.FA_Posting_Type = faPostingType.trim();
+        }
+
+        const parsedSalvage =
+          salvageValue.trim() === "" ? undefined : Number(salvageValue);
+        if (
+          parsedSalvage !== undefined &&
+          !Number.isNaN(parsedSalvage) &&
+          parsedSalvage !== (line.Salvage_Value ?? undefined)
+        ) {
+          payload.Salvage_Value = parsedSalvage;
+        }
+      }
+      if (canAddBardana) {
+        const bagsVal = noOfBags === "" ? undefined : parseInt(noOfBags, 10);
+        if (
+          !isNaN(bagsVal ?? NaN) &&
+          bagsVal !== (line.No_of_Bags ?? undefined)
+        ) {
+          payload.No_of_Bags = bagsVal;
+        }
+      }
 
       if (Object.keys(payload).length === 0) {
         toast.info("No changes to save");
@@ -371,21 +398,57 @@ export function PurchaseOrderLineEditDialog({
               />
             </div>
 
-            <div className="space-y-1">
-              <Label htmlFor="po-line-bags" className="text-xs">
-                No. of Bags
-              </Label>
-              <Input
-                id="po-line-bags"
-                inputMode="numeric"
-                placeholder="0"
-                value={noOfBags}
-                onChange={(e) => {
-                  const v = e.target.value;
-                  if (v === "" || /^[0-9]+$/.test(v)) setNoOfBags(v);
-                }}
-              />
-            </div>
+            {(line.Type || "").trim() === "Fixed Asset" && (
+              <>
+                <div className="space-y-1">
+                  <Label htmlFor="po-line-fa-posting-type" className="text-xs">
+                    FA Posting Type
+                  </Label>
+                  <Input
+                    id="po-line-fa-posting-type"
+                    value={faPostingType}
+                    onChange={(e) => setFaPostingType(e.target.value)}
+                    placeholder="e.g. Acquisition Cost"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <Label htmlFor="po-line-salvage-value" className="text-xs">
+                    Salvage Value
+                  </Label>
+                  <Input
+                    id="po-line-salvage-value"
+                    inputMode="decimal"
+                    value={salvageValue}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      if (value === "" || /^\d*\.?\d*$/.test(value)) {
+                        setSalvageValue(value);
+                      }
+                    }}
+                    placeholder="0.00"
+                  />
+                </div>
+              </>
+            )}
+
+            {canAddBardana && (
+              <div className="space-y-1">
+                <Label htmlFor="po-line-bags" className="text-xs">
+                  No. of Bags
+                </Label>
+                <Input
+                  id="po-line-bags"
+                  inputMode="numeric"
+                  placeholder="0"
+                  value={noOfBags}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    if (v === "" || /^[0-9]+$/.test(v)) setNoOfBags(v);
+                  }}
+                />
+              </div>
+            )}
 
             {/* Row 2 */}
             <div className="space-y-1">

@@ -7,6 +7,7 @@ export interface TransferItem {
   Description: string;
   Production_BOM_No?: string;
   Base_Unit_of_Measure?: string;
+  Item_Tracking_Code?: string;
   [key: string]: unknown;
 }
 
@@ -426,9 +427,11 @@ export async function checkItemTracking(
   itemNo: string,
   locationCode: string,
 ): Promise<boolean> {
+  const encodedCompany = encodeURIComponent(COMPANY);
   const filter = `Item_No eq '${itemNo.replace(/'/g, "''")}' and Location_Code eq '${locationCode.replace(/'/g, "''")}' and Open eq true and Positive eq true`;
-  // Using direct OData syntax as preferred by the user query
-  const endpoint = `/Itemledger_entry?company='${encodeURIComponent(COMPANY)}'&$top=500&$filter=${encodeURIComponent(filter)}&$select=Item_Tracking`;
+  
+  // Using exact casing $Top as per user request
+  const endpoint = `/Itemledger_entry?company='${encodedCompany}'&$Top=500&$filter=${encodeURIComponent(filter)}&$select=Item_Tracking`;
 
   try {
     const response = await apiGet<ODataResponse<TransferItemLedgerEntry>>(endpoint);
@@ -449,9 +452,11 @@ export async function getItemAvailableQuantity(
   itemNo: string,
   locationCode: string,
 ): Promise<number> {
+  const encodedCompany = encodeURIComponent(COMPANY);
   const filter = `Item_No eq '${itemNo.replace(/'/g, "''")}' and Location_Code eq '${locationCode.replace(/'/g, "''")}' and Open eq true`;
-  // Using direct OData syntax as preferred by the user query
-  const endpoint = `/Itemledger_entry?company='${encodeURIComponent(COMPANY)}'&$top=1000&$filter=${encodeURIComponent(filter)}&$select=Remaining_Quantity`;
+  
+  // Using exact casing $Top as per user request
+  const endpoint = `/Itemledger_entry?company='${encodedCompany}'&$Top=1000&$filter=${encodeURIComponent(filter)}&$select=Remaining_Quantity`;
 
   try {
     const response = await apiGet<ODataResponse<TransferItemLedgerEntry>>(endpoint);
@@ -656,7 +661,7 @@ export async function getTransferItemByNo(itemNo: string): Promise<TransferItem 
   const filter = `No eq '${itemNo}'`;
   const query = buildODataQuery({
     $filter: filter,
-    $select: "No,Description,Production_BOM_No,Base_Unit_of_Measure,GST_Group_Code,HSN_SAC_Code,Exempted",
+    $select: "No,Description,Production_BOM_No,Base_Unit_of_Measure,GST_Group_Code,HSN_SAC_Code,Exempted,Item_Tracking_Code",
   });
   const endpoint = `/ItemCard?company='${encodeURIComponent(COMPANY)}'&${query}`;
   const response = await apiGet<ODataResponse<TransferItem>>(endpoint);

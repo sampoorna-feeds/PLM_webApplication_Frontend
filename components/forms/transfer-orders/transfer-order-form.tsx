@@ -644,168 +644,145 @@ export function TransferOrderForm({
             </div>
           </div>
 
-          <div className={cn("space-y-6", formState.No && "opacity-90")}>
-            {/* 1. Transfer Locations (Moved to Top) */}
-            <section className="space-y-1">
-              <h3 className="text-muted-foreground text-[11px] font-bold tracking-wider uppercase">
-                Transfer Locations
-              </h3>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <div className={cn("space-y-4", formState.No && "opacity-90")}>
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+              {/* 1. Transfer Locations */}
+              <section className="space-y-1">
+                <h3 className="text-muted-foreground text-[11px] font-bold tracking-wider uppercase border-b pb-0.5 mb-1">
+                  Transfer Locations
+                </h3>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div className={fieldClass}>
+                    <label className={labelClass}>Transfer-from Code</label>
+                    <SearchableSelect
+                      options={locations.map((l) => ({
+                        value: l.Code,
+                        label: `${l.Code} - ${l.Name || ""}`,
+                      }))}
+                      value={formState.Transfer_from_Code}
+                      onValueChange={(v) => {
+                        const loc = locations.find((l) => l.Code === v);
+                        setFormState((prev) => ({
+                          ...prev,
+                          Transfer_from_Code: v,
+                          Transfer_from_Name: loc?.Name || "",
+                        }));
+                        updateTab({ isSaved: false });
+                      }}
+                      placeholder="Select Source"
+                      disabled={formState.Status === "Released"}
+                    />
+                  </div>
+                  <div className={fieldClass}>
+                    <label className={labelClass}>Transfer-to Code</label>
+                    <SearchableSelect
+                      options={allLocations.map((l) => ({
+                        value: l.Code,
+                        label: l.Name ? `${l.Code} - ${l.Name}` : l.Code,
+                      }))}
+                      value={formState.Transfer_to_Code}
+                      onValueChange={(v) => {
+                        const loc = allLocations.find((l) => l.Code === v);
+                        setFormState((prev) => ({
+                          ...prev,
+                          Transfer_to_Code: v,
+                          Transfer_to_Name: loc?.Name || "",
+                        }));
+                        updateTab({ isSaved: false });
+                      }}
+                      onSearch={async (q) => {
+                        if (q.length >= 2) {
+                          const results = await getLocationCodes(q);
+                          setAllLocations((prev) => {
+                            const combined = [...prev, ...results];
+                            const unique = new Map();
+                            combined.forEach((l) => unique.set(l.Code, l));
+                            return Array.from(unique.values());
+                          });
+                        }
+                      }}
+                      placeholder="Select Destination"
+                      disabled={formState.Status === "Released"}
+                    />
+                  </div>
+                </div>
+              </section>
 
-                <div className={fieldClass}>
-                  <label className={labelClass}>
-                    Transfer-from Code (Required)
-                  </label>
-                  <SearchableSelect
-                    options={locations.map((l) => ({
-                      value: l.Code,
-                      label: `${l.Code} - ${l.Name || ""}`,
-                    }))}
-                    value={formState.Transfer_from_Code}
-                    onValueChange={(v) => {
-                      const loc = locations.find((l) => l.Code === v);
-                      setFormState((prev) => ({
-                        ...prev,
-                        Transfer_from_Code: v,
-                        Transfer_from_Name: loc?.Name || "",
-                      }));
-                      updateTab({ isSaved: false });
-                    }}
-                    placeholder="Select Source Location"
-                    disabled={formState.Status === "Released"}
-                  />
-                  {formState.Transfer_from_Name && (
-                    <p className="text-primary mt-1 truncate pl-1 text-[10px] font-medium">
-                      {formState.Transfer_from_Name}
-                    </p>
-                  )}
+              {/* 2. Order Details */}
+              <section className="space-y-1">
+                <h3 className="text-muted-foreground text-[11px] font-bold tracking-wider uppercase border-b pb-0.5 mb-1">
+                  Order Details
+                </h3>
+                <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
+                  <div className={fieldClass}>
+                    <label className={labelClass}>No.</label>
+                    <Input
+                      value={formState.No}
+                      readOnly
+                      disabled
+                      className="bg-muted h-8"
+                      placeholder="Auto"
+                    />
+                  </div>
+                  <div className={fieldClass}>
+                    <label className={labelClass}>Posting Date</label>
+                    <Input
+                      type="date"
+                      value={formState.Posting_Date ? formState.Posting_Date.split("T")[0] : ""}
+                      onChange={(e) => handleChange("Posting_Date", e.target.value)}
+                      disabled={formState.Status === "Released"}
+                      className="h-8"
+                    />
+                  </div>
+                  <div className={fieldClass}>
+                    <label className={labelClass}>Ext. Doc No.</label>
+                    <Input
+                      value={formState.External_Document_No || ""}
+                      onChange={(e) => handleChange("External_Document_No", e.target.value)}
+                      disabled={formState.Status === "Released"}
+                      className="h-8"
+                    />
+                  </div>
                 </div>
-                <div className={fieldClass}>
-                  <label className={labelClass}>
-                    Transfer-to Code (Required)
-                  </label>
-                  <SearchableSelect
-                    options={allLocations.map((l) => ({
-                      value: l.Code,
-                      label: l.Name ? `${l.Code} - ${l.Name}` : l.Code,
-                    }))}
-                    value={formState.Transfer_to_Code}
-                    onValueChange={(v) => {
-                      const loc = allLocations.find((l) => l.Code === v);
-                      setFormState((prev) => ({
-                        ...prev,
-                        Transfer_to_Code: v,
-                        Transfer_to_Name: loc?.Name || "",
-                      }));
-                      updateTab({ isSaved: false });
-                    }}
-                    onSearch={async (q) => {
-                      if (q.length >= 2) {
-                        const results = await getLocationCodes(q); // Pass NO authorizedLOCs for unbound search
-                        setAllLocations((prev) => {
-                          const combined = [...prev, ...results];
-                          const unique = new Map();
-                          combined.forEach((l) => unique.set(l.Code, l));
-                          return Array.from(unique.values());
-                        });
-                      }
-                    }}
-                    placeholder="Select Destination Location"
-                    disabled={formState.Status === "Released"}
-                  />
-                  {formState.Transfer_to_Name && (
-                    <p className="text-primary mt-1 truncate pl-1 text-[10px] font-medium">
-                      {formState.Transfer_to_Name}
-                    </p>
-                  )}
-                </div>
-              </div>
-            </section>
+              </section>
 
-            {/* 2. Header Details */}
-            <section className="space-y-1">
-              <h3 className="text-muted-foreground text-[11px] font-bold tracking-wider uppercase">
-                Order Details
-              </h3>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6">
+              {/* 3. Dimensions */}
+              <section className="space-y-1">
+                <h3 className="text-muted-foreground text-[11px] font-bold tracking-wider uppercase border-b pb-0.5 mb-1">
+                  Dimensions
+                </h3>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                  <div className={fieldClass}>
+                    <label className={labelClass}>LOB</label>
+                    <Input
+                      value={formState.Shortcut_Dimension_1_Code || ""}
+                      readOnly
+                      disabled
+                      className="bg-muted h-8"
+                    />
+                  </div>
+                  <div className={fieldClass}>
+                    <label className={labelClass}>Branch</label>
+                    <Input
+                      value={formState.Shortcut_Dimension_2_Code || ""}
+                      readOnly
+                      disabled
+                      className="bg-muted h-8"
+                    />
+                  </div>
+                  <div className={fieldClass}>
+                    <label className={labelClass}>In-Transit</label>
+                    <Input
+                      value={formState.In_Transit_Code}
+                      readOnly
+                      disabled
+                      className="bg-muted h-8"
+                    />
+                  </div>
+                </div>
+              </section>
+            </div>
 
-                <div className={fieldClass}>
-                  <label className={labelClass}>No.</label>
-                  <Input
-                    value={formState.No}
-                    readOnly
-                    disabled
-                    className="bg-muted h-8"
-                    placeholder="Auto-generated"
-                  />
-                </div>
-
-                <div className={fieldClass}>
-                  <label className={labelClass}>Posting Date</label>
-                  <Input
-                    type="date"
-                    value={
-                      formState.Posting_Date
-                        ? formState.Posting_Date.split("T")[0]
-                        : ""
-                    }
-                    onChange={(e) =>
-                      handleChange("Posting_Date", e.target.value)
-                    }
-                    disabled={formState.Status === "Released"}
-                    className="h-8"
-                  />
-                </div>
-                <div className={fieldClass}>
-                  <label className={labelClass}>External Document No.</label>
-                  <Input
-                    value={formState.External_Document_No || ""}
-                    onChange={(e) =>
-                      handleChange("External_Document_No", e.target.value)
-                    }
-                    disabled={formState.Status === "Released"}
-                    className="h-8"
-                  />
-                </div>
-              </div>
-            </section>
-
-            {/* 2. Dimensions */}
-            <section className="space-y-1">
-              <h3 className="text-muted-foreground text-[11px] font-bold tracking-wider uppercase">
-                Dimensions
-              </h3>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6">
-
-                <div className={fieldClass}>
-                  <label className={labelClass}>LOB</label>
-                  <Input
-                    value={formState.Shortcut_Dimension_1_Code || ""}
-                    readOnly
-                    disabled
-                    className="bg-muted h-8"
-                  />
-                </div>
-                <div className={fieldClass}>
-                  <label className={labelClass}>Branch</label>
-                  <Input
-                    value={formState.Shortcut_Dimension_2_Code || ""}
-                    readOnly
-                    disabled
-                    className="bg-muted h-8"
-                  />
-                </div>
-                <div className={fieldClass}>
-                  <label className={labelClass}>In-Transit Code</label>
-                  <Input
-                    value={formState.In_Transit_Code}
-                    readOnly
-                    disabled
-                    className="bg-muted h-8"
-                  />
-                </div>
-              </div>
-            </section>
 
             {/* 4. Transport & Logistics */}
             <section className="space-y-1">

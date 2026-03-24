@@ -137,8 +137,12 @@ export async function getTransferOrderByNo(
   orderNo: string,
 ): Promise<TransferOrder | null> {
   const filter = `No eq '${orderNo.replace(/'/g, "''")}'`;
-  const query = buildODataQuery({ $filter: filter });
+  const query = buildODataQuery({ 
+    $filter: filter,
+    $select: "No,Transfer_from_Code,Transfer_from_Name,Transfer_to_Code,Transfer_to_Name,In_Transit_Code,Status,Shortcut_Dimension_1_Code,Shortcut_Dimension_2_Code,Posting_Date,External_Document_No,Vehicle_No,LR_RR_No,LR_RR_Date,Distance_Km,Freight_Value,Transporter_Code,Transporter_Name,Mode_of_Transport"
+  });
   const endpoint = `/TransferHeader?company='${encodeURIComponent(COMPANY)}'&${query}`;
+
 
   const response = await apiGet<ODataResponse<TransferOrder>>(endpoint);
   const value = response.value;

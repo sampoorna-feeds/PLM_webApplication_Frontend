@@ -225,8 +225,8 @@ export function TransferOrderLineDialog({
               onSearch={setSearchQuery}
               isLoading={isLoadingItems}
               placeholder="Select Item"
-              disabled={isEdit}
             />
+
           </div>
 
           <div className="space-y-2 col-span-2">

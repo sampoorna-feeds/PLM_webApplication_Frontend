@@ -566,14 +566,20 @@ export function TransferOrderForm({
 
           <div className="flex items-center justify-between border-b pb-2">
             <h2 className="text-xl font-bold tracking-tight">
-              New Transfer Order
+              {formState.No ? `Order ${formState.No}` : "New Transfer Order"}
             </h2>
             <div className="flex items-center gap-4">
-              {formState.No && (
-                <span className="bg-primary/10 text-primary border-primary/20 rounded-full border px-3 py-1 text-sm font-bold">
-                  # {formState.No}
+              {formState.Status && (
+                <span className={cn(
+                  "rounded-full border px-3 py-1 text-[11px] font-bold uppercase tracking-wider",
+                  formState.Status === "Released" 
+                    ? "bg-green-100/10 text-green-500 border-green-500/20" 
+                    : "bg-blue-100/10 text-blue-500 border-blue-500/20"
+                )}>
+                  {formState.Status}
                 </span>
               )}
+
               <div className="flex gap-2">
                 <Button
                   variant="outline"
@@ -659,7 +665,7 @@ export function TransferOrderForm({
                         value: l.Code,
                         label: `${l.Code} - ${l.Name || ""}`,
                       }))}
-                      value={formState.Transfer_from_Code}
+                      value={formState.Transfer_from_Code || ""}
                       onValueChange={(v) => {
                         const loc = locations.find((l) => l.Code === v);
                         setFormState((prev) => ({
@@ -672,6 +678,11 @@ export function TransferOrderForm({
                       placeholder="Select Source"
                       disabled={formState.Status === "Released"}
                     />
+                    {formState.Transfer_from_Name && (
+                      <p className="text-primary mt-1 truncate pl-1 text-[10px] font-medium animate-in fade-in duration-300">
+                        {formState.Transfer_from_Name}
+                      </p>
+                    )}
                   </div>
                   <div className={fieldClass}>
                     <label className={labelClass}>Transfer-to Code</label>
@@ -680,7 +691,7 @@ export function TransferOrderForm({
                         value: l.Code,
                         label: l.Name ? `${l.Code} - ${l.Name}` : l.Code,
                       }))}
-                      value={formState.Transfer_to_Code}
+                      value={formState.Transfer_to_Code || ""}
                       onValueChange={(v) => {
                         const loc = allLocations.find((l) => l.Code === v);
                         setFormState((prev) => ({
@@ -704,7 +715,13 @@ export function TransferOrderForm({
                       placeholder="Select Destination"
                       disabled={formState.Status === "Released"}
                     />
+                    {formState.Transfer_to_Name && (
+                      <p className="text-primary mt-1 truncate pl-1 text-[10px] font-medium animate-in fade-in duration-300">
+                        {formState.Transfer_to_Name}
+                      </p>
+                    )}
                   </div>
+
                 </div>
               </section>
 

@@ -17,6 +17,7 @@ import {
   updateTransferLine,
   checkItemTracking,
   getItemAvailableQuantity,
+  getTransferItemByNo,
   type TransferLine,
 } from "@/lib/api/services/transfer-orders.service";
 import {
@@ -56,16 +57,21 @@ export function TransferOrderLineDetailsDialog({
       const activeLocationCode = locationCode;
       
       const fetchData = async () => {
+        setHasTracking(false);
+        setAvailableQty(null);
         setIsLoadingTracking(true);
         setIsLoadingStock(true);
         try {
-          // Parallel fetch for tracking and stock
-          const [trackingResult, availableResult] = await Promise.all([
+          // Parallel fetch for ledger tracking, stock and item master
+          const [ledgerTrackingResult, availableResult, itemResult] = await Promise.all([
             checkItemTracking(line.Item_No!, activeLocationCode),
-            getItemAvailableQuantity(line.Item_No!, activeLocationCode)
+            getItemAvailableQuantity(line.Item_No!, activeLocationCode),
+            getTransferItemByNo(line.Item_No!)
           ]);
           
-          setHasTracking(trackingResult);
+          // An item has tracking if it either has tracked entries OR is setup for tracking in item master
+          const isTrackedInMaster = !!itemResult?.Item_Tracking_Code?.trim();
+          setHasTracking(ledgerTrackingResult || isTrackedInMaster);
           setAvailableQty(availableResult);
         } catch (err) {
           console.error("Error fetching line metadata:", err);
@@ -127,10 +133,15 @@ export function TransferOrderLineDetailsDialog({
         <div className="p-6 space-y-6">
           <div className="flex items-center justify-between">
             <h2 className={cn(
-                "text-base font-semibold",
+                "text-base font-semibold transition-colors duration-300",
                 hasTracking ? "text-red-500" : "text-white"
             )}>
-              Transfer Line Details {hasTracking && "(Has Tracking)"}
+              Transfer Line Details 
+              {isLoadingTracking ? (
+                <span className="ml-2 text-xs font-normal text-muted-foreground animate-pulse">(Checking tracking...)</span>
+              ) : hasTracking && (
+                <span className="ml-2 animate-in fade-in slide-in-from-left-2 duration-500">(Has Tracking)</span>
+              )}
             </h2>
 
           </div>
@@ -173,6 +184,12 @@ export function TransferOrderLineDetailsDialog({
             </div>
           </div>
 
+
+          {!locationCode && hasTracking && (
+            <div className="p-3 mb-4 rounded-lg bg-red-500/10 border border-red-500/20 text-red-500 text-xs text-center font-medium animate-in fade-in zoom-in duration-300">
+              Note: Select a source location in the header to manage item tracking correctly.
+            </div>
+          )}
 
           <div className="h-px bg-[#222] w-full" />
 

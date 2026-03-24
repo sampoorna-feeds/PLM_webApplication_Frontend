@@ -123,6 +123,7 @@ export function TransferOrderForm({
   const [isLoadingDimensions, setIsLoadingDimensions] = useState(false);
   const [isPostDialogOpen, setIsPostDialogOpen] = useState(false);
   const [postSelection, setPostSelection] = useState<"ship" | "receive">("ship");
+  const [postStep, setPostStep] = useState<1 | 2>(1);
 
   // Debug: Monitor locations state changes
   useEffect(() => {
@@ -433,6 +434,7 @@ export function TransferOrderForm({
       "Shipment_Date",
       "Receipt_Date",
       "Shipping_Advice",
+      "Mode_of_Transport",
     ];
 
     const diff: Partial<TransferOrder> = {};
@@ -492,6 +494,7 @@ export function TransferOrderForm({
       "LR_RR_Date",
       "Distance_Km",
       "Freight_Value",
+      "Mode_of_Transport",
     ];
 
     const diff: Partial<TransferOrder> = {};
@@ -1035,196 +1038,241 @@ export function TransferOrderForm({
       )}
 
       {/* Post Dialog */}
-      <Dialog open={isPostDialogOpen} onOpenChange={setIsPostDialogOpen}>
-        <DialogContent className="sm:max-w-[700px]">
+      {/* Post Dialog */}
+      <Dialog 
+        open={isPostDialogOpen} 
+        onOpenChange={(open) => {
+          setIsPostDialogOpen(open);
+          if (!open) setPostStep(1); // Reset step when closing
+        }}
+      >
+        <DialogContent className="sm:max-w-[700px] bg-[#0a0a0a] border-[#222] text-white rounded-2xl">
           <DialogHeader>
-            <DialogTitle>Post Transfer Order</DialogTitle>
-            <DialogDescription>
-              Review order details and choose how you want to post.
+            <DialogTitle className="text-xl font-bold">Post Transfer Order</DialogTitle>
+            <DialogDescription className="text-muted-foreground">
+              {postStep === 1 
+                ? "Choose how you want to post this transfer order." 
+                : "Review and update order details before final posting."}
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-6 py-4">
-            {/* Post Options */}
-            <div className="grid grid-cols-2 gap-3">
-              <div
-                className={cn(
-                  "flex cursor-pointer items-center space-x-3 rounded-lg border p-3 transition-colors",
-                  postSelection === "ship"
-                    ? "border-primary bg-primary/10"
-                    : "hover:bg-muted",
-                )}
-                onClick={() => setPostSelection("ship")}
-              >
+            {postStep === 1 ? (
+              /* Step 1: Post Options */
+              <div className="grid grid-cols-2 gap-4">
                 <div
                   className={cn(
-                    "flex h-4 w-4 items-center justify-center rounded-full border",
+                    "flex flex-row items-center cursor-pointer space-x-3 rounded-2xl border-2 p-3.5 transition-all duration-300",
                     postSelection === "ship"
-                      ? "border-primary"
-                      : "border-muted-foreground",
+                      ? "border-green-600 bg-green-600/10 shadow-[0_0_20px_rgba(22,163,74,0.1)]"
+                      : "border-[#222] hover:border-green-600/50 hover:bg-[#111]",
                   )}
+                  onClick={() => setPostSelection("ship")}
                 >
-                  {postSelection === "ship" && (
-                    <div className="bg-primary h-2 w-2 rounded-full" />
-                  )}
+                  <div
+                    className={cn(
+                      "flex h-4 w-4 items-center justify-center rounded-full border-2",
+                      postSelection === "ship"
+                        ? "border-green-600"
+                        : "border-muted-foreground",
+                    )}
+                  >
+                    {postSelection === "ship" && (
+                      <div className="bg-green-600 h-2 w-2 rounded-full" />
+                    )}
+                  </div>
+                  <span className={cn(
+                    "text-sm font-bold",
+                    postSelection === "ship" ? "text-green-500" : "text-white"
+                  )}>Shipment</span>
                 </div>
-                <span className="text-sm font-medium">Shipment</span>
-              </div>
 
-              <div
-                className={cn(
-                  "flex cursor-pointer items-center space-x-3 rounded-lg border p-3 transition-colors",
-                  postSelection === "receive"
-                    ? "border-primary bg-primary/10"
-                    : "hover:bg-muted",
-                )}
-                onClick={() => setPostSelection("receive")}
-              >
                 <div
                   className={cn(
-                    "flex h-4 w-4 items-center justify-center rounded-full border",
+                    "flex flex-row items-center cursor-pointer space-x-3 rounded-2xl border-2 p-3.5 transition-all duration-300",
                     postSelection === "receive"
-                      ? "border-primary"
-                      : "border-muted-foreground",
+                      ? "border-green-600 bg-green-600/10 shadow-[0_0_20px_rgba(22,163,74,0.1)]"
+                      : "border-[#222] hover:border-green-600/50 hover:bg-[#111]",
                   )}
+                  onClick={() => setPostSelection("receive")}
                 >
-                  {postSelection === "receive" && (
-                    <div className="bg-primary h-2 w-2 rounded-full" />
-                  )}
+                  <div
+                    className={cn(
+                      "flex h-4 w-4 items-center justify-center rounded-full border-2",
+                      postSelection === "receive"
+                        ? "border-green-600"
+                        : "border-muted-foreground",
+                    )}
+                  >
+                    {postSelection === "receive" && (
+                      <div className="bg-green-600 h-2 w-2 rounded-full" />
+                    )}
+                  </div>
+                  <span className={cn(
+                    "text-sm font-bold",
+                    postSelection === "receive" ? "text-green-500" : "text-white"
+                  )}>Receipt</span>
                 </div>
-                <span className="text-sm font-medium">Receipt</span>
               </div>
-            </div>
-
-            {/* Additional Fields Form */}
-            <div className="grid grid-cols-2 gap-x-6 gap-y-4 border-t pt-4">
-              <div className="space-y-1">
-                <label className="text-muted-foreground text-xs font-medium">Posting Date</label>
-                <Input
-                  type="date"
-                  value={formState.Posting_Date ? formState.Posting_Date.split("T")[0] : ""}
-                  onChange={(e) => handleChange("Posting_Date", e.target.value)}
-                  className="h-9"
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-muted-foreground text-xs font-medium">External Document No.</label>
-                <Input
-                  value={formState.External_Document_No || ""}
-                  onChange={(e) => handleChange("External_Document_No", e.target.value)}
-                  className="h-9"
-                  placeholder="Enter External Doc No"
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-muted-foreground text-xs font-medium">Vehicle No.</label>
-                <Input
-                  value={formState.Vehicle_No || ""}
-                  onChange={(e) => handleChange("Vehicle_No", e.target.value)}
-                  className="h-9"
-                  placeholder="Enter Vehicle No"
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-muted-foreground text-xs font-medium">LR/RR No.</label>
-                <Input
-                  value={formState.LR_RR_No || ""}
-                  onChange={(e) => handleChange("LR_RR_No", e.target.value)}
-                  className="h-9"
-                  placeholder="Enter LR/RR No"
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-muted-foreground text-xs font-medium">LR/RR Date</label>
-                <Input
-                  type="date"
-                  value={formState.LR_RR_Date ? formState.LR_RR_Date.split("T")[0] : ""}
-                  onChange={(e) => handleChange("LR_RR_Date", e.target.value)}
-                  className="h-9"
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-muted-foreground text-xs font-medium">Distance (Km)</label>
-                <Input
-                  type="number"
-                  value={formState.Distance_Km || 0}
-                  onChange={(e) => handleChange("Distance_Km", parseFloat(e.target.value) || 0)}
-                  className="h-9"
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-muted-foreground text-xs font-medium">Freight Value</label>
-                <Input
-                  type="number"
-                  value={formState.Freight_Value || 0}
-                  onChange={(e) => handleChange("Freight_Value", parseFloat(e.target.value) || 0)}
-                  className="h-9"
-                />
-              </div>
-              <div className="col-span-2 grid grid-cols-2 gap-6">
-                <div className="space-y-1">
-                  <label className="text-muted-foreground text-xs font-medium">Transporter</label>
-                  <SearchableSelect
-                    options={transporters.map((v) => ({
-                      value: v.No,
-                      label: `${v.No} - ${v.Name}`,
-                    }))}
-                    value={formState.Transporter_Code || ""}
-                    onValueChange={(v) => {
-                      const vendor = transporters.find((t) => t.No === v);
-                      setFormState((prev) => ({
-                        ...prev,
-                        Transporter_Code: v,
-                        Transporter_Name: vendor?.Name || "",
-                      }));
-                      updateTab({ isSaved: false });
-                    }}
-                    onSearch={async (q) => {
-                      if (q.length >= 2) {
-                        const results = await searchTransporters(q);
-                        setTransporters((prev) => {
-                          const combined = [...prev, ...results];
-                          const unique = new Map();
-                          combined.forEach((v) => unique.set(v.No, v));
-                          return Array.from(unique.values());
-                        });
-                      }
-                    }}
-                    placeholder="Select Transporter"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-muted-foreground text-xs font-medium">Transporter Name</label>
+            ) : (
+              /* Step 2: Additional Fields Form */
+              <div className="grid grid-cols-2 gap-x-6 gap-y-5 animate-in fade-in slide-in-from-right-4 duration-300">
+                <div className="space-y-1.5">
+                  <label className="text-muted-foreground text-[11px] font-bold uppercase tracking-wider">Posting Date</label>
                   <Input
-                    value={formState.Transporter_Name || ""}
-                    onChange={(e) => handleChange("Transporter_Name", e.target.value)}
-                    className={cn("h-9", !!formState.Transporter_Code && "bg-muted")}
-                    disabled={!!formState.Transporter_Code}
-                    placeholder="Enter Name"
+                    type="date"
+                    value={formState.Posting_Date ? formState.Posting_Date.split("T")[0] : ""}
+                    onChange={(e) => handleChange("Posting_Date", e.target.value)}
+                    className="h-10 bg-[#111] border-[#222] focus:border-green-600/50"
                   />
                 </div>
+                <div className="space-y-1.5">
+                  <label className="text-muted-foreground text-[11px] font-bold uppercase tracking-wider">External Document No.</label>
+                  <Input
+                    value={formState.External_Document_No || ""}
+                    onChange={(e) => handleChange("External_Document_No", e.target.value)}
+                    className="h-10 bg-[#111] border-[#222] focus:border-green-600/50"
+                    placeholder="Enter External Doc No"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-muted-foreground text-[11px] font-bold uppercase tracking-wider">Vehicle No.</label>
+                  <Input
+                    value={formState.Vehicle_No || ""}
+                    onChange={(e) => handleChange("Vehicle_No", e.target.value)}
+                    className="h-10 bg-[#111] border-[#222] focus:border-green-600/50"
+                    placeholder="Enter Vehicle No"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-muted-foreground text-[11px] font-bold uppercase tracking-wider">LR/RR No.</label>
+                  <Input
+                    value={formState.LR_RR_No || ""}
+                    onChange={(e) => handleChange("LR_RR_No", e.target.value)}
+                    className="h-10 bg-[#111] border-[#222] focus:border-green-600/50"
+                    placeholder="Enter LR/RR No"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-muted-foreground text-[11px] font-bold uppercase tracking-wider">LR/RR Date</label>
+                  <Input
+                    type="date"
+                    value={formState.LR_RR_Date ? formState.LR_RR_Date.split("T")[0] : ""}
+                    onChange={(e) => handleChange("LR_RR_Date", e.target.value)}
+                    className="h-10 bg-[#111] border-[#222] focus:border-green-600/50"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-muted-foreground text-[11px] font-bold uppercase tracking-wider">Distance (Km)</label>
+                  <Input
+                    type="number"
+                    value={formState.Distance_Km || 0}
+                    onChange={(e) => handleChange("Distance_Km", parseFloat(e.target.value) || 0)}
+                    className="h-10 bg-[#111] border-[#222] focus:border-green-600/50"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-muted-foreground text-[11px] font-bold uppercase tracking-wider">Freight Value</label>
+                  <Input
+                    type="number"
+                    value={formState.Freight_Value || 0}
+                    onChange={(e) => handleChange("Freight_Value", parseFloat(e.target.value) || 0)}
+                    className="h-10 bg-[#111] border-[#222] focus:border-green-600/50"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-muted-foreground text-[11px] font-bold uppercase tracking-wider">Mode of Transport</label>
+                  <SearchableSelect
+                    options={[
+                      { value: "Road", label: "Road" },
+                      { value: "Rail", label: "Rail" },
+                      { value: "Air", label: "Air" },
+                      { value: "Ship", label: "Ship" },
+                      { value: "Owner", label: "Owner" },
+                      { value: "Hand", label: "Hand" },
+                    ]}
+                    value={formState.Mode_of_Transport || ""}
+                    onValueChange={(v) => {
+                      handleChange("Mode_of_Transport", v);
+                    }}
+                    placeholder="Select Mode"
+                  />
+                </div>
+                <div className="col-span-2 grid grid-cols-2 gap-6 bg-[#111]/50 p-4 rounded-xl border border-[#222]">
+                  <div className="space-y-1.5">
+                    <label className="text-muted-foreground text-[11px] font-bold uppercase tracking-wider">Transporter</label>
+                    <SearchableSelect
+                      options={transporters.map((v) => ({
+                        value: v.No,
+                        label: `${v.No} - ${v.Name}`,
+                      }))}
+                      value={formState.Transporter_Code || ""}
+                      onValueChange={(v) => {
+                        const vendor = transporters.find((t) => t.No === v);
+                        setFormState((prev) => ({
+                          ...prev,
+                          Transporter_Code: v,
+                          Transporter_Name: vendor?.Name || "",
+                        }));
+                        updateTab({ isSaved: false });
+                      }}
+                      onSearch={async (q) => {
+                        if (q.length >= 2) {
+                          const results = await searchTransporters(q);
+                          setTransporters((prev) => {
+                            const combined = [...prev, ...results];
+                            const unique = new Map();
+                            combined.forEach((v) => unique.set(v.No, v));
+                            return Array.from(unique.values());
+                          });
+                        }
+                      }}
+                      placeholder="Select Transporter"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-muted-foreground text-[11px] font-bold uppercase tracking-wider">Transporter Name</label>
+                    <Input
+                      value={formState.Transporter_Name || ""}
+                      onChange={(e) => handleChange("Transporter_Name", e.target.value)}
+                      className={cn("h-10 bg-[#111] border-[#222] focus:border-green-600/50", !!formState.Transporter_Code && "bg-muted/20")}
+                      disabled={!!formState.Transporter_Code}
+                      placeholder="Enter Name"
+                    />
+                  </div>
+                </div>
               </div>
-            </div>
+            )}
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="gap-3">
+            {postStep === 2 && (
+              <Button
+                variant="outline"
+                onClick={() => setPostStep(1)}
+                className="bg-[#1a1a1a] border-[#333] hover:bg-[#222] text-white px-8 h-10 rounded-xl"
+              >
+                Back
+              </Button>
+            )}
             <Button
               variant="outline"
               onClick={() => setIsPostDialogOpen(false)}
+              className="bg-[#1a1a1a] border-[#333] hover:bg-[#222] text-white px-8 h-10 rounded-xl"
             >
               Cancel
             </Button>
             <Button
-              onClick={handlePost}
+              onClick={postStep === 1 ? () => setPostStep(2) : handlePost}
               disabled={isSubmitting}
-              className="bg-green-600 hover:bg-green-700"
+              className="bg-green-600 hover:bg-green-700 text-white font-bold px-10 h-10 rounded-xl shadow-lg shadow-green-900/20"
             >
               {isSubmitting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Posting...
+                  Processing...
                 </>
               ) : (
-                "Continue"
+                postStep === 1 ? "Continue" : "Post Order"
               )}
             </Button>
           </DialogFooter>

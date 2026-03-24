@@ -14,12 +14,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
+  updateTransferLine,
   checkItemTracking,
   getItemAvailableQuantity,
-} from "@/lib/api/services/production-order-data.service";
-
-import {
-  updateTransferLine,
   type TransferLine,
 } from "@/lib/api/services/transfer-orders.service";
 import {

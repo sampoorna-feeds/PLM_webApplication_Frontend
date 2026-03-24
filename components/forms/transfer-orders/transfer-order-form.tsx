@@ -12,11 +12,6 @@ import {
   type WebUserSetup,
 } from "@/lib/api/services/dimension.service";
 import {
-  getAllLocationCodes,
-  getLocationCodes,
-  type LocationCode,
-} from "@/lib/api/services/production-order-data.service";
-import {
   createTransferOrder,
   deleteTransferLine,
   getTransferOrderByNo,
@@ -24,6 +19,9 @@ import {
   patchTransferOrder,
   postTransferOrder,
   reopenTransferOrder,
+  getTransferAllLocationCodes,
+  getTransferLocationCodes,
+  type TransferLocationCode,
   type TransferLine,
   type TransferOrder,
 } from "@/lib/api/services/transfer-orders.service";
@@ -118,8 +116,8 @@ export function TransferOrderForm({
   // Dimension dropdowns state
   const [lobs, setLobs] = useState<DimensionValue[]>([]);
   const [branches, setBranches] = useState<DimensionValue[]>([]);
-  const [locations, setLocations] = useState<LocationCode[]>([]); // These will be used for Transfer-from
-  const [allLocations, setAllLocations] = useState<LocationCode[]>([]); // These will be used for Transfer-to
+  const [locations, setLocations] = useState<TransferLocationCode[]>([]); // These will be used for Transfer-from
+  const [allLocations, setAllLocations] = useState<TransferLocationCode[]>([]); // These will be used for Transfer-to
   const [authorizedLOCs, setAuthorizedLOCs] = useState<string[]>([]);
   const [transporters, setTransporters] = useState<Vendor[]>([]);
   const [isLoadingDimensions, setIsLoadingDimensions] = useState(false);
@@ -268,11 +266,11 @@ export function TransferOrderForm({
         // Rule 1: Transfer-from comes ONLY from authorized setup codes (fetch names from LocationList)
         const authCodes = authLOCEntries.map(l => l.Code).filter(Boolean);
         const fromLocations = authCodes.length > 0 
-          ? await getAllLocationCodes(authCodes)
+          ? await getTransferAllLocationCodes(authCodes)
           : [];
 
         // Rule 2: Transfer-to fetches ALL locations without boundation
-        const toLocations = await getAllLocationCodes();
+        const toLocations = await getTransferAllLocationCodes();
 
         // Fallback to general LOBs if user setup doesn't exist
         if (lobData.length === 0) {
@@ -703,7 +701,7 @@ export function TransferOrderForm({
                       }}
                       onSearch={async (q) => {
                         if (q.length >= 2) {
-                          const results = await getLocationCodes(q);
+                          const results = await getTransferLocationCodes(q);
                           setAllLocations((prev) => {
                             const combined = [...prev, ...results];
                             const unique = new Map();

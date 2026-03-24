@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Loader2, Package, Trash2 } from "lucide-react";
+import { Loader2, Package, Trash2, Link2 } from "lucide-react";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -13,6 +13,13 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   updatePurchaseLine,
@@ -42,6 +49,7 @@ interface PurchaseOrderLineEditDialogProps {
   hasTracking?: boolean;
   onSave: () => void;
   onAssignTracking?: (line: PurchaseLine) => void;
+  onOpenItemCharge?: (line: PurchaseLine) => void;
 }
 
 export function PurchaseOrderLineEditDialog({
@@ -54,6 +62,7 @@ export function PurchaseOrderLineEditDialog({
   hasTracking = false,
   onSave,
   onAssignTracking,
+  onOpenItemCharge,
 }: PurchaseOrderLineEditDialogProps) {
   const [quantity, setQuantity] = useState("");
   const [qtyReceived, setQtyReceived] = useState("");
@@ -68,6 +77,8 @@ export function PurchaseOrderLineEditDialog({
   const [faPostingType, setFaPostingType] = useState("");
   const [salvageValue, setSalvageValue] = useState("");
   const [noOfBags, setNoOfBags] = useState("");
+  const [challanQty, setChallanQty] = useState("");
+  const [weightQty, setWeightQty] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [apiError, setApiError] = useState<ApiErrorState | null>(null);
 
@@ -88,11 +99,13 @@ export function PurchaseOrderLineEditDialog({
     setHsnSacCode(line.HSN_SAC_Code || "");
     setExempted(line.Exempted ?? false);
     setTdsSection(line.TDS_Section_Code || "");
-    setFaPostingType(line.FA_Posting_Type || "");
+    setFaPostingType((line.FA_Posting_Type || "").trim());
     setSalvageValue(
       line.Salvage_Value != null ? String(line.Salvage_Value) : "",
     );
     setNoOfBags(line.No_of_Bags != null ? String(line.No_of_Bags) : "");
+    setChallanQty(line.Challan_Qty != null ? String(line.Challan_Qty) : "");
+    setWeightQty(line.Weight_Qty != null ? String(line.Weight_Qty) : "");
   }, [line]);
 
   const [tdsOptions, setTdsOptions] = useState<SearchableSelectOption[]>([]);
@@ -299,6 +312,13 @@ export function PurchaseOrderLineEditDialog({
         }
       }
 
+      if ((line.Type || "").trim() === "Item") {
+        const cQty = parseFloat(challanQty) || 0;
+        const wQty = parseFloat(weightQty) || 0;
+        if (cQty !== (line.Challan_Qty || 0)) payload.Challan_Qty = cQty;
+        if (wQty !== (line.Weight_Qty || 0)) payload.Weight_Qty = wQty;
+      }
+
       if (Object.keys(payload).length === 0) {
         toast.info("No changes to save");
         setIsSaving(false);
@@ -339,7 +359,7 @@ export function PurchaseOrderLineEditDialog({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-2xl">
+        <DialogContent className="sm:max-w-2xl [&>button]:hidden">
           <DialogHeader>
             <DialogTitle className={hasTracking ? "text-red-600" : ""}>
               Edit Purchase Line
@@ -409,6 +429,39 @@ export function PurchaseOrderLineEditDialog({
               />
             </div>
 
+            {(line.Type || "").trim() === "Item" && (
+              <>
+                <div className="space-y-1">
+                  <Label htmlFor="po-line-challan-qty" className="text-xs">
+                    Challan Qty
+                  </Label>
+                  <Input
+                    id="po-line-challan-qty"
+                    inputMode="decimal"
+                    value={challanQty}
+                    onChange={(e) => {
+                      if (isValidNum(e.target.value)) setChallanQty(e.target.value);
+                    }}
+                    className={fieldInputClass}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="po-line-weight-qty" className="text-xs">
+                    Weight Qty
+                  </Label>
+                  <Input
+                    id="po-line-weight-qty"
+                    inputMode="decimal"
+                    value={weightQty}
+                    onChange={(e) => {
+                      if (isValidNum(e.target.value)) setWeightQty(e.target.value);
+                    }}
+                    className={fieldInputClass}
+                  />
+                </div>
+              </>
+            )}
+
             <div className="space-y-1">
               <Label htmlFor="po-line-description" className="text-xs">
                 Description
@@ -427,13 +480,19 @@ export function PurchaseOrderLineEditDialog({
                   <Label htmlFor="po-line-fa-posting-type" className="text-xs">
                     FA Posting Type
                   </Label>
-                  <Input
-                    id="po-line-fa-posting-type"
-                    value={faPostingType}
-                    onChange={(e) => setFaPostingType(e.target.value)}
-                    placeholder="e.g. Acquisition Cost"
-                    className={fieldInputClass}
-                  />
+                  <Select
+                    value={faPostingType || ""}
+                    onValueChange={setFaPostingType}
+                  >
+                    <SelectTrigger id="po-line-fa-posting-type" className={fieldInputClass}>
+                      <SelectValue placeholder="Select Type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Acquisition Cost">Acquisition Cost</SelectItem>
+                      <SelectItem value="Maintenance">Maintenance</SelectItem>
+                      <SelectItem value="Appreciation">Appreciation</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <div className="space-y-1">
@@ -586,6 +645,15 @@ export function PurchaseOrderLineEditDialog({
                 >
                   <Package className="mr-2 h-4 w-4" />
                   Add Bardana
+                </Button>
+              )}
+              {(line.Type || "").trim() === "Charge (Item)" && line?.Line_No && (
+                <Button
+                  variant="outline"
+                  onClick={() => onOpenItemCharge?.(line)}
+                >
+                  <Link2 className="mr-2 h-4 w-4" />
+                  Item Charge Assignment
                 </Button>
               )}
               {/* )} */}

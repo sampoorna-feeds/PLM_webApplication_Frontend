@@ -28,4 +28,6 @@ export interface LineItem {
   faPostingType?: string;
   salvageValue?: number;
   noOfBags?: number;
+  challanQty?: number;
+  weightQty?: number;
 }

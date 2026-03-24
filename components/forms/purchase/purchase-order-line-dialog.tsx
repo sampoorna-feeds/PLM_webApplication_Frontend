@@ -4,6 +4,8 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Loader2, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -96,9 +98,11 @@ function getInitialLineState(lineItem?: LineItem | null): Partial<LineItem> {
     gstGroupCode: lineItem?.gstGroupCode || "",
     hsnSacCode: lineItem?.hsnSacCode || "",
     tdsGroupCode: lineItem?.tdsGroupCode || "",
-    faPostingType: lineItem?.faPostingType || "",
+    faPostingType: (lineItem?.faPostingType || "").trim(),
     salvageValue: lineItem?.salvageValue,
     noOfBags: lineItem?.noOfBags,
+    challanQty: lineItem?.challanQty,
+    weightQty: lineItem?.weightQty,
   };
 }
 
@@ -407,6 +411,8 @@ export function PurchaseOrderLineDialog({
             : undefined
           : undefined,
       noOfBags: canAddBardana ? formState.noOfBags : undefined,
+      challanQty: isItemType ? Number(formState.challanQty) || 0 : undefined,
+      weightQty: isItemType ? Number(formState.weightQty) || 0 : undefined,
     };
 
     onSave(normalizedLineItem);
@@ -727,6 +733,38 @@ export function PurchaseOrderLineDialog({
                   />
                 </div>
               )}
+              {isItemType && (
+                <>
+                  <div className="space-y-1">
+                    <FieldTitle>Challan Qty</FieldTitle>
+                    <Input
+                      type="text"
+                      inputMode="decimal"
+                      value={formatNumericValue(formState.challanQty)}
+                      onChange={(e) =>
+                        handleNumericChange("challanQty", e.target.value)
+                      }
+                      onWheel={(e) => e.currentTarget.blur()}
+                      placeholder="0.00"
+                      className={cn("h-8 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none", fieldInputClass)}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <FieldTitle>Weight Qty</FieldTitle>
+                    <Input
+                      type="text"
+                      inputMode="decimal"
+                      value={formatNumericValue(formState.weightQty)}
+                      onChange={(e) =>
+                        handleNumericChange("weightQty", e.target.value)
+                      }
+                      onWheel={(e) => e.currentTarget.blur()}
+                      placeholder="0.00"
+                      className={cn("h-8 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none", fieldInputClass)}
+                    />
+                  </div>
+                </>
+              )}
 
               <div className="space-y-1">
                 <FieldTitle>Unit Price</FieldTitle>
@@ -773,14 +811,24 @@ export function PurchaseOrderLineDialog({
                 <>
                   <div className="space-y-1">
                     <FieldTitle>FA Posting Type</FieldTitle>
-                    <Input
-                      value={formState.faPostingType || ""}
-                      onChange={(e) =>
-                        handleFieldChange("faPostingType", e.target.value)
-                      }
-                      placeholder="e.g. Acquisition Cost"
-                      className={cn("h-8", fieldInputClass)}
-                    />
+                    <ClearableField
+                      value={formState.faPostingType}
+                      onClear={() => handleFieldChange("faPostingType", "")}
+                    >
+                      <Select
+                        value={formState.faPostingType || ""}
+                        onValueChange={(val) => handleFieldChange("faPostingType", val)}
+                      >
+                        <SelectTrigger className={cn("h-8", fieldInputClass)}>
+                          <SelectValue placeholder="Select Type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Acquisition Cost">Acquisition Cost</SelectItem>
+                          <SelectItem value="Maintenance">Maintenance</SelectItem>
+                          <SelectItem value="Appreciation">Appreciation</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </ClearableField>
                   </div>
 
                   <div className="space-y-1">
@@ -812,14 +860,15 @@ export function PurchaseOrderLineDialog({
           <div className="space-y-2 border-t pt-2">
             <h3 className="text-foreground text-xs font-medium">Tax Details</h3>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <div className="space-y-1">
-                <FieldTitle>Exempted</FieldTitle>
-                <Input
-                  value={formState.exempted ? "Yes" : "No"}
-                  disabled
-                  className="bg-muted h-8"
-                  readOnly
+              <div className="flex items-center gap-2 pt-5">
+                <Checkbox
+                  id="line-exempted"
+                  checked={formState.exempted}
+                  onCheckedChange={(checked) => handleFieldChange("exempted", checked === true)}
                 />
+                <Label htmlFor="line-exempted" className="cursor-pointer text-xs font-medium text-muted-foreground mr-1">
+                  Exempted
+                </Label>
               </div>
               <div className="space-y-1">
                 <FieldTitle>GST Group Code</FieldTitle>

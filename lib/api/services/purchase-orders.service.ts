@@ -212,6 +212,8 @@ export interface PurchaseLine {
   FA_Posting_Type?: string;
   Salvage_Value?: number;
   No_of_Bags?: number;
+  Challan_Qty?: number;
+  Weight_Qty?: number;
   [key: string]: unknown;
 }
 

@@ -67,6 +67,7 @@ import type { ApiError } from "@/lib/api/client";
 import { toast } from "sonner";
 import { PostGateEntryDialog } from "../purchase/post-gate-entry-dialog";
 import { PurchaseOrderLineEditDialog } from "../purchase/purchase-order-line-edit-dialog";
+import { ItemChargeAssignmentDialog } from "../purchase/item-charge-assignment-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
@@ -535,6 +536,8 @@ export function PurchaseOrderFormContent({
   // Item Tracking state
   const [isTrackingOpen, setIsTrackingOpen] = useState(false);
   const [trackingLine, setTrackingLine] = useState<PurchaseLine | null>(null);
+  const [selectedItemChargeLine, setSelectedItemChargeLine] = useState<PurchaseLine | null>(null);
+  const [isItemChargeOpen, setIsItemChargeOpen] = useState(false);
   const [confirmDialog, setConfirmDialog] = useState<{
     open: boolean;
     title: string;
@@ -2144,6 +2147,10 @@ export function PurchaseOrderFormContent({
             setTrackingLine(line);
             setIsTrackingOpen(true);
           }}
+          onOpenItemCharge={(line: PurchaseLine) => {
+            setSelectedItemChargeLine(line);
+            setIsItemChargeOpen(true);
+          }}
           onDelete={async (line) => {
             if (line.Line_No) {
               await handleRemoveLineItem(`synced-${line.Line_No}`);
@@ -2497,6 +2504,20 @@ export function PurchaseOrderFormContent({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {isItemChargeOpen && selectedItemChargeLine && (
+        <ItemChargeAssignmentDialog
+          open={isItemChargeOpen}
+          onOpenChange={setIsItemChargeOpen}
+          docType={selectedItemChargeLine.Document_Type || "Order"}
+          docNo={createdOrderNo || ""}
+          docLineNo={selectedItemChargeLine.Line_No!}
+          itemChargeNo={selectedItemChargeLine.No || ""}
+          itemChargeDescription={selectedItemChargeLine.Description || ""}
+          totalAmount={selectedItemChargeLine.Line_Amount || 0}
+          totalQuantity={selectedItemChargeLine.Quantity || 0}
+        />
+      )}
     </>
   );
 }

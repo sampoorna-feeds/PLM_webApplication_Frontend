@@ -160,7 +160,10 @@ export function TransferOrderLinesTable({
                     <Button
                       variant="ghost"
                       size="icon-sm"
-                      onClick={() => onEdit?.(line)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onEdit?.(line);
+                      }}
                       title="Edit Line"
                     >
                       <Pencil className="h-3 w-3" />
@@ -169,11 +172,15 @@ export function TransferOrderLinesTable({
                       variant="ghost"
                       size="icon-sm"
                       className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                      onClick={() => onDelete?.(line)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDelete?.(line);
+                      }}
                       title="Delete Line"
                     >
                       <Trash2 className="h-3 w-3" />
                     </Button>
+
                   </div>
                 </TableCell>
               )}

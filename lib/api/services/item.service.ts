@@ -20,6 +20,7 @@ export interface Item {
   /** From ItemList (list) */
   Unit_Price?: number;
   Sales_Unit_of_Measure?: string;
+  Purch_Unit_of_Measure?: string;
   /** For tracking lookup */
   Item_Tracking_Code?: string;
   /** For inventory summary */
@@ -95,7 +96,7 @@ function getBaseFilter(locationCode?: string): string {
   return `(${blockedFilter})`;
 }
 
-const ITEM_LIST_SELECT = "No,Description,Unit_Price,Sales_Unit_of_Measure";
+const ITEM_LIST_SELECT = "No,Description,Unit_Price,Sales_Unit_of_Measure,Purch_Unit_of_Measure";
 
 /**
  * Builds the ItemList endpoint URL with Company and $filter (and optional OData params)
@@ -289,7 +290,7 @@ export async function getItemUnitOfMeasures(
     $orderby: "Code",
   });
 
-  const endpoint = `/ItemUnitofMeasure?company='${encodeURIComponent(COMPANY)}'&${query}`;
+  const endpoint = `/ItemUnitofMeasure?Company=${encodeURIComponent(COMPANY)}&${query}`;
   const response = await apiGet<ODataResponse<ItemUnitOfMeasure>>(endpoint);
   return response.value;
 }
@@ -303,11 +304,10 @@ export async function getItemByNo(itemNo: string): Promise<Item | null> {
   const baseFilter = getBaseFilter();
   const query = buildODataQuery({
     $select:
-      "No,Description,GST_Group_Code,HSN_SAC_Code,Exempted,Sales_Unit_of_Measure,Bardana_Generation_Enable,Status,RM_Bardana_Item",
-    $filter: `No eq '${itemNo.replace(/'/g, "''")}' and ${baseFilter}`,
+      "No,Description,GST_Group_Code,HSN_SAC_Code,Exempted,Sales_Unit_of_Measure,Purch_Unit_of_Measure,Bardana_Generation_Enable,Status,RM_Bardana_Item",
+    $filter: `No eq '${escapeODataValue(itemNo)}' and ${baseFilter}`,
   });
-
-  const endpoint = `/ItemCard?company='${encodeURIComponent(COMPANY)}'&${query}`;
+  const endpoint = `/ItemCard?Company=${encodeURIComponent(COMPANY)}&${query}`;
   const response = await apiGet<ODataResponse<Item>>(endpoint);
 
   return response.value.length > 0 ? response.value[0] : null;

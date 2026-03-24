@@ -65,6 +65,7 @@ export function PurchaseOrderView({
     openTab("purchase-order", {
       title: "New Order",
       context: {
+        mode: "create",
         openedFromParent: true,
         onOrderPlaced: onPlaceOrder,
       },
@@ -111,9 +112,9 @@ export function PurchaseOrderView({
             currentPage={currentPage}
             columnFilters={columnFilters}
             onRowClick={(orderNo) => {
-              openTab("purchase-order-detail", {
+              openTab("purchase-order", {
                 title: `Order ${orderNo}`,
-                context: { orderNo, refetch },
+                context: { mode: "view", orderNo, refetch },
                 autoCloseOnSuccess: false,
               });
             }}

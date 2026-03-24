@@ -42,11 +42,12 @@ export function ClearableField({
         disabled={disabled || !hasValue}
         className={cn(
           "text-muted-foreground hover:text-foreground hover:bg-muted/80 focus:ring-ring flex h-7 w-7 shrink-0 items-center justify-center rounded transition-colors focus:ring-2 focus:ring-offset-1 focus:outline-none disabled:pointer-events-none disabled:opacity-50",
-          !hasValue && "invisible w-0 p-0",
+          (!hasValue || disabled) && "invisible w-0 p-0",
           hasValue &&
+            !disabled &&
             showOnHoverOnly &&
             "opacity-0 group-hover/clearable:opacity-100",
-          hasValue && !showOnHoverOnly && "opacity-100",
+          hasValue && !disabled && !showOnHoverOnly && "opacity-100",
         )}
         aria-label="Clear selection"
       >

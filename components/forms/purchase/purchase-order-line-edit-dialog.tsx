@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Loader2, Package } from "lucide-react";
+import { Loader2, Package, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -31,17 +31,17 @@ import {
   extractApiError,
   type ApiErrorState,
 } from "@/components/forms/production-orders/api-error-dialog";
-
+import { BardanaDialog } from "./bardana-dialog";
 interface PurchaseOrderLineEditDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   line: PurchaseLine | null;
   orderNo: string;
   vendorNo: string;
-  onOpenBardana?: (line: PurchaseLine) => void;
+  onDelete?: (line: PurchaseLine) => void | Promise<void>;
   hasTracking?: boolean;
   onSave: () => void;
-  onAssignTracking?: () => void;
+  onAssignTracking?: (line: PurchaseLine) => void;
 }
 
 export function PurchaseOrderLineEditDialog({
@@ -50,7 +50,7 @@ export function PurchaseOrderLineEditDialog({
   line,
   orderNo,
   vendorNo,
-  onOpenBardana,
+  onDelete,
   hasTracking = false,
   onSave,
   onAssignTracking,
@@ -70,7 +70,11 @@ export function PurchaseOrderLineEditDialog({
   const [noOfBags, setNoOfBags] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [apiError, setApiError] = useState<ApiErrorState | null>(null);
+
+  const fieldInputClass = "disabled:opacity-100 disabled:text-foreground font-medium text-xs disabled:pointer-events-none";
   const [canAddBardana, setCanAddBardana] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isBardanaOpen, setIsBardanaOpen] = useState(false);
 
   useEffect(() => {
     if (!line) return;
@@ -113,7 +117,8 @@ export function PurchaseOrderLineEditDialog({
         setCanAddBardana(item?.Bardana_Generation_Enable === true);
       })
       .catch((error) => {
-        console.error("Error loading item bardana configuration:", error);
+        const { message } = extractApiError(error);
+        console.error(`Error loading item bardana configuration for ${line.No}:`, message);
         if (mounted) setCanAddBardana(false);
       });
 
@@ -313,6 +318,22 @@ export function PurchaseOrderLineEditDialog({
     }
   };
 
+  const handleDelete = async () => {
+    if (!line || !onDelete || !orderNo) return;
+    if (!confirm("Are you sure you want to delete this line?")) return;
+
+    setIsDeleting(true);
+    try {
+      await onDelete(line);
+      onOpenChange(false);
+    } catch (error) {
+      const { message, code } = extractApiError(error);
+      setApiError({ title: "Delete Failed", message, code });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   if (!line) return null;
 
   return (
@@ -331,38 +352,38 @@ export function PurchaseOrderLineEditDialog({
           </DialogHeader>
 
           {/* ── Info strip ── */}
-          <div className="bg-muted/40 grid grid-cols-2 gap-x-4 gap-y-1 rounded-md border px-4 py-3 text-sm sm:grid-cols-6">
-            <div>
+          <div className="bg-muted/40 grid grid-cols-2 rounded-md border text-sm sm:grid-cols-3 overflow-hidden">
+            <div className="p-2 border-r border-b">
               <p className="text-muted-foreground text-[10px] tracking-wide uppercase">
                 Line
               </p>
               <p className="font-medium">{line.Line_No}</p>
             </div>
-            <div>
+            <div className="p-2 border-b sm:border-r">
               <p className="text-muted-foreground text-[10px] tracking-wide uppercase">
                 Item No
               </p>
               <p className="font-medium">{line.No || "—"}</p>
             </div>
-            <div>
+            <div className="p-2 border-r border-b sm:border-r-0">
               <p className="text-muted-foreground text-[10px] tracking-wide uppercase">
                 Type
               </p>
               <p>{line.Type || "—"}</p>
             </div>
-            <div>
+            <div className="p-2 border-b sm:border-b-0 sm:border-r">
               <p className="text-muted-foreground text-[10px] tracking-wide uppercase">
                 UOM
               </p>
               <p>{line.Unit_of_Measure_Code || line.Unit_of_Measure || "—"}</p>
             </div>
-            <div>
+            <div className="p-2 border-r sm:border-b-0">
               <p className="text-muted-foreground text-[10px] tracking-wide uppercase">
                 Qty Received
               </p>
               <p>{line.Quantity_Received || "0"}</p>
             </div>
-            <div>
+            <div className="p-2">
               <p className="text-muted-foreground text-[10px] tracking-wide uppercase">
                 Qty Invoiced
               </p>
@@ -384,6 +405,7 @@ export function PurchaseOrderLineEditDialog({
                 onChange={(e) => {
                   if (isValidNum(e.target.value)) setQuantity(e.target.value);
                 }}
+                className={fieldInputClass}
               />
             </div>
 
@@ -395,6 +417,7 @@ export function PurchaseOrderLineEditDialog({
                 id="po-line-description"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
+                className={fieldInputClass}
               />
             </div>
 
@@ -409,6 +432,7 @@ export function PurchaseOrderLineEditDialog({
                     value={faPostingType}
                     onChange={(e) => setFaPostingType(e.target.value)}
                     placeholder="e.g. Acquisition Cost"
+                    className={fieldInputClass}
                   />
                 </div>
 
@@ -427,12 +451,13 @@ export function PurchaseOrderLineEditDialog({
                       }
                     }}
                     placeholder="0.00"
+                    className={fieldInputClass}
                   />
                 </div>
               </>
             )}
 
-            {canAddBardana && (
+            {/* {canAddBardana && ( */}
               <div className="space-y-1">
                 <Label htmlFor="po-line-bags" className="text-xs">
                   No. of Bags
@@ -448,7 +473,7 @@ export function PurchaseOrderLineEditDialog({
                   }}
                 />
               </div>
-            )}
+            {/* )} */}
 
             {/* Row 2 */}
             <div className="space-y-1">
@@ -551,36 +576,47 @@ export function PurchaseOrderLineEditDialog({
 
           <DialogFooter className="mt-2 gap-2">
             <div className="mr-auto flex items-center gap-2">
-              {canAddBardana && line?.Line_No && onOpenBardana && (
+              {/* {canAddBardana && line?.Line_No && ( */}
+              {line?.Line_No && (
                 <Button
                   variant="outline"
                   onClick={() => {
-                    onOpenBardana(line);
-                    onOpenChange(false);
+                    setIsBardanaOpen(true);
                   }}
                 >
                   <Package className="mr-2 h-4 w-4" />
                   Add Bardana
                 </Button>
               )}
+              {/* )} */}
               {hasTracking && onAssignTracking && (
                 <Button
                   variant="outline"
                   className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
                   onClick={() => {
-                    onAssignTracking();
-                    onOpenChange(false);
+                    onAssignTracking(line);
                   }}
                 >
                   Item Tracking
+                </Button>
+              )}
+              {onDelete && (
+                <Button
+                  variant="secondary"
+                  className="text-destructive hover:bg-destructive/10 hover:text-destructive h-8 px-2"
+                  onClick={handleDelete}
+                  disabled={isSaving || isDeleting}
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Delete Line
                 </Button>
               )}
             </div>
             <Button variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button onClick={handleSave} disabled={isSaving}>
-              {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            <Button onClick={handleSave} disabled={isSaving || isDeleting}>
+              {(isSaving || isDeleting) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Save
             </Button>
           </DialogFooter>
@@ -588,6 +624,17 @@ export function PurchaseOrderLineEditDialog({
       </Dialog>
 
       <ApiErrorDialog error={apiError} onClose={() => setApiError(null)} />
+
+      {isBardanaOpen && line && (
+        <BardanaDialog
+          isOpen={isBardanaOpen}
+          onOpenChange={setIsBardanaOpen}
+          documentNo={orderNo}
+          lineNo={line.Line_No!}
+          noOfBags={parseInt(noOfBags, 10) || line.No_of_Bags}
+          lineDescription={description || line.Description}
+        />
+      )}
     </>
   );
 }

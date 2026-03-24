@@ -192,6 +192,7 @@ export function CascadingDimensionSelect({
 
   // Handle dropdown open
   const handleOpenChange = (open: boolean) => {
+    if (disabled) return;
     setIsOpen(open);
     if (open) {
       // Only load if items are empty or parent values changed
@@ -216,7 +217,9 @@ export function CascadingDimensionSelect({
     ? selectedItem.Name
       ? `${selectedItem.Code} - ${selectedItem.Name}`
       : selectedItem.Code
-    : value || "";
+    : disabled && value
+      ? "None"
+      : value || "";
 
   // Filter items based on search query
   const filteredItems =
@@ -267,7 +270,7 @@ export function CascadingDimensionSelect({
                 ? "Select Branch first"
                 : !isFieldDisabled && items.length === 0 && !isLoading && userId
                   ? `No ${dimensionType} found. Please contact IT.`
-                  : displayValue || placeholder}
+                  : displayValue || (disabled ? "None" : placeholder)}
           </span>
           <ChevronDownIcon className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>

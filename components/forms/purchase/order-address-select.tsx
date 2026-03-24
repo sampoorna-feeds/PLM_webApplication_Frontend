@@ -7,6 +7,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { ChevronsUpDown, Check, Plus, Pencil } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -24,6 +25,8 @@ interface OrderAddressSelectProps {
   value: string;
   onChange: (code: string, address?: OrderAddress) => void;
   disabled?: boolean;
+  placeholder?: string;
+  className?: string;
 }
 
 export function OrderAddressSelect({
@@ -31,6 +34,8 @@ export function OrderAddressSelect({
   value,
   onChange,
   disabled = false,
+  placeholder = "Select address",
+  className,
 }: OrderAddressSelectProps) {
   const [open, setOpen] = useState(false);
   const [addresses, setAddresses] = useState<OrderAddress[]>([]);
@@ -63,7 +68,9 @@ export function OrderAddressSelect({
   const selectedAddress = addresses.find((a) => a.Code === value);
   const displayText = selectedAddress
     ? `${selectedAddress.Code} - ${selectedAddress.Name}`
-    : value || "Select address";
+    : disabled && value
+      ? "None"
+      : value || placeholder;
 
   const handleDialogSaved = () => {
     loadAddresses();
@@ -74,17 +81,17 @@ export function OrderAddressSelect({
   return (
     <>
       <div className="flex items-center gap-1">
-        <Popover open={open} onOpenChange={setOpen}>
+        <Popover open={open} onOpenChange={(val) => !disabled && setOpen(val)}>
           <PopoverTrigger asChild>
             <Button
               variant="outline"
               role="combobox"
               aria-expanded={open}
               disabled={disabled || !vendorNo}
-              className="h-9 flex-1 justify-between font-normal"
+              className={cn("h-9 flex-1 justify-between font-normal", className)}
             >
               <span className="truncate text-left">
-                {value ? displayText : "Select address"}
+                {value ? displayText : (disabled ? "None" : placeholder)}
               </span>
               <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
             </Button>
@@ -147,7 +154,7 @@ export function OrderAddressSelect({
           </PopoverContent>
         </Popover>
 
-        {value && selectedAddress && (
+        {value && selectedAddress && !disabled && (
           <Button
             variant="ghost"
             size="icon"

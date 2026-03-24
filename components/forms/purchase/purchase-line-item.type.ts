@@ -13,6 +13,10 @@ export interface LineItem {
   description: string;
   uom?: string;
   quantity: number;
+  qtyToReceive?: number;
+  qtyReceived?: number;
+  qtyToInvoice?: number;
+  qtyInvoiced?: number;
   price?: number;
   unitPrice: number;
   discount: number;

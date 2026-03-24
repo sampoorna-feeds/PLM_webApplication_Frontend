@@ -82,6 +82,8 @@ export function PurchaseItemTrackingDialog({
   const [isLoadingTrackingLines, setIsLoadingTrackingLines] = useState(false);
   const [apiError, setApiError] = useState<ApiErrorState | null>(null);
 
+  const fieldInputClass = "disabled:opacity-100 disabled:text-foreground font-medium text-xs disabled:pointer-events-none";
+
   const [editingLine, setEditingLine] =
     useState<PurchaseItemTrackingLine | null>(null);
   const [isDeleting, setIsDeleting] = useState<number | null>(null);
@@ -403,6 +405,7 @@ export function PurchaseItemTrackingDialog({
                       value={lotNo}
                       onChange={(e) => setLotNo(e.target.value)}
                       placeholder="Select or enter lot no"
+                      className={fieldInputClass}
                     />
                   </div>
                   <div className="space-y-1.5">
@@ -414,6 +417,7 @@ export function PurchaseItemTrackingDialog({
                       type="date"
                       value={expirationDate}
                       onChange={(e) => setExpirationDate(e.target.value)}
+                      className={fieldInputClass}
                     />
                   </div>
                   <div className="space-y-1.5">
@@ -432,6 +436,7 @@ export function PurchaseItemTrackingDialog({
                         }
                       }}
                       placeholder="Enter quantity"
+                      className={fieldInputClass}
                     />
                     <div className="text-muted-foreground mt-1 space-y-0.5 text-xs">
                       <p className="flex justify-between">

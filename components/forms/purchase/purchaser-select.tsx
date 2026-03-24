@@ -1,10 +1,9 @@
 "use client";
 
 /**
- * VendorSelect component for Purchase forms
- * Smart dropdown with search, debounce, and pagination for Vendor selection
- * Uses Vendor API with fields: No, Name
- * Mirrors the CustomerSelect pattern from Sales forms
+ * PurchaserSelect component for Purchase forms
+ * Dropdown with search and pagination on scroll
+ * Uses Purchaser API: Code, Name
  */
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
@@ -18,17 +17,14 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import {
-  getVendors,
-  searchVendors,
-  getVendorsPage,
-  type Vendor,
-} from "@/lib/api/services/vendor.service";
+  getPurchasers,
+  searchPurchasers,
+  type Purchaser,
+} from "@/lib/api/services/purchaser.service";
 
-export type { Vendor as PurchaseVendor };
-
-interface VendorSelectProps {
+interface PurchaserSelectProps {
   value: string;
-  onChange: (value: string, vendor?: Vendor) => void;
+  onChange: (value: string, purchaser?: Purchaser) => void;
   placeholder?: string;
   disabled?: boolean;
   className?: string;
@@ -41,16 +37,16 @@ const MIN_SEARCH_LENGTH = 2;
 const INITIAL_LOAD_COUNT = 20;
 const PAGE_SIZE = 30;
 
-export function VendorSelect({
+export function PurchaserSelect({
   value,
   onChange,
-  placeholder = "Select vendor",
+  placeholder = "Select",
   disabled = false,
   className,
   hasError = false,
   errorClass = "",
-}: VendorSelectProps) {
-  const [items, setItems] = useState<Vendor[]>([]);
+}: PurchaserSelectProps) {
+  const [items, setItems] = useState<Purchaser[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -65,19 +61,19 @@ export function VendorSelect({
   const loadInitialItems = useCallback(async () => {
     setIsLoading(true);
     try {
-      const result = await getVendors();
+      const result = await getPurchasers(INITIAL_LOAD_COUNT, 0);
       setItems(result);
       setSkip(result.length);
       setHasMore(result.length >= INITIAL_LOAD_COUNT);
     } catch (error) {
-      console.error("Error loading vendors:", error);
+      console.error("Error loading purchasers:", error);
       setItems([]);
     } finally {
       setIsLoading(false);
     }
   }, []);
 
-  // Search with debounce and request cancellation
+  // Search with debounce
   const performSearch = useCallback(
     async (query: string) => {
       if (query.length < MIN_SEARCH_LENGTH) {
@@ -86,43 +82,30 @@ export function VendorSelect({
         return;
       }
 
-      // Cancel previous request
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
       }
-
-      // Clear debounce timer
       if (debounceTimerRef.current) {
         clearTimeout(debounceTimerRef.current);
       }
 
-      // Debounce the search
       debounceTimerRef.current = setTimeout(async () => {
         const controller = new AbortController();
         abortControllerRef.current = controller;
 
         setIsLoading(true);
         try {
-          const result = await searchVendors(query);
+          const result = await searchPurchasers(query, PAGE_SIZE, 0);
 
-          // Check if request was aborted
-          if (controller.signal.aborted) {
-            return;
-          }
+          if (controller.signal.aborted) return;
 
           setItems(result);
           setSkip(result.length);
           setHasMore(result.length >= PAGE_SIZE);
         } catch (error) {
-          // Ignore abort errors
-          if (error instanceof Error && error.name === "AbortError") {
-            return;
-          }
-          // Check if request was aborted
-          if (controller.signal.aborted) {
-            return;
-          }
-          console.error("Error searching vendors:", error);
+          if (error instanceof Error && error.name === "AbortError") return;
+          if (controller.signal.aborted) return;
+          console.error("Error searching purchasers:", error);
           setItems([]);
         } finally {
           if (!controller.signal.aborted) {
@@ -134,22 +117,25 @@ export function VendorSelect({
     [loadInitialItems],
   );
 
-  // Load more items (pagination)
+  // Load more items (pagination on scroll)
   const loadMore = useCallback(async () => {
     if (isLoading || !hasMore) return;
 
     setIsLoading(true);
     try {
-      const newItems = await getVendorsPage(skip, searchQuery || undefined);
+      const newItems =
+        searchQuery.length >= MIN_SEARCH_LENGTH
+          ? await searchPurchasers(searchQuery, PAGE_SIZE, skip)
+          : await getPurchasers(PAGE_SIZE, skip);
+
       if (newItems.length > 0) {
         setItems((prev) => {
-          // Deduplicate by No
-          const existingNos = new Set(prev.map((item) => item.No));
+          const existingCodes = new Set(prev.map((item) => item.Code));
           const uniqueNewItems = newItems.filter(
-            (item) => !existingNos.has(item.No),
+            (item) => !existingCodes.has(item.Code),
           );
           return [...prev, ...uniqueNewItems].sort((a, b) =>
-            a.No.localeCompare(b.No),
+            a.Code.localeCompare(b.Code),
           );
         });
         setSkip((prev) => prev + newItems.length);
@@ -158,7 +144,7 @@ export function VendorSelect({
         setHasMore(false);
       }
     } catch (error) {
-      console.error("Error loading more vendors:", error);
+      console.error("Error loading more purchasers:", error);
       setHasMore(false);
     } finally {
       setIsLoading(false);
@@ -199,18 +185,17 @@ export function VendorSelect({
   }, [isOpen, hasMore, isLoading, loadMore]);
 
   // Find selected item display value
-  const selectedItem = items.find((item) => item.No === value);
+  const selectedItem = items.find((item) => item.Code === value);
   const displayValue = selectedItem
-    ? `${selectedItem.No} - ${selectedItem.Name}`
+    ? `${selectedItem.Code} - ${selectedItem.Name}`
     : disabled && value
       ? "None"
       : value || "";
 
-  // Filter items based on search query (client-side filtering for display)
   const filteredItems =
     searchQuery.length >= MIN_SEARCH_LENGTH
       ? items.filter((item) => {
-          const codeMatch = item.No?.toLowerCase().includes(
+          const codeMatch = item.Code?.toLowerCase().includes(
             searchQuery.toLowerCase(),
           );
           const nameMatch = item.Name?.toLowerCase().includes(
@@ -242,15 +227,11 @@ export function VendorSelect({
         </Button>
       </PopoverTrigger>
       <PopoverContent
-        className="flex max-h-[var(--radix-popover-content-available-height,80vh)] min-h-0 w-[var(--radix-popover-trigger-width)] max-w-[calc(100vw-2rem)] min-w-[320px] flex-col overflow-hidden p-0"
+          className="flex max-h-[var(--radix-popover-content-available-height,80vh)] min-h-0 w-[var(--radix-popover-trigger-width)] max-w-[calc(100vw-2rem)] min-w-[320px] flex-col overflow-hidden p-0"
         align="start"
         collisionPadding={8}
-        onOpenAutoFocus={(e) => {
-          e.preventDefault();
-        }}
-        onCloseAutoFocus={(e) => {
-          e.preventDefault();
-        }}
+        onOpenAutoFocus={(e) => e.preventDefault()}
+        onCloseAutoFocus={(e) => e.preventDefault()}
       >
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
           <div className="flex-shrink-0 border-b p-2">
@@ -278,31 +259,31 @@ export function VendorSelect({
               <div className="text-muted-foreground p-4 text-center text-sm">
                 {searchQuery.length < MIN_SEARCH_LENGTH
                   ? `Type at least ${MIN_SEARCH_LENGTH} characters to search`
-                  : "No vendors found"}
+                  : "No purchasers found"}
               </div>
             ) : (
               <>
                 {filteredItems.map((item) => (
                   <div
-                    key={item.No}
+                    key={item.Code}
                     className={cn(
-                      "hover:bg-muted/50 relative flex cursor-default items-start rounded-sm px-2 py-2 text-sm outline-none select-none",
-                      value === item.No && "bg-muted",
+                      "hover:bg-muted/50 relative flex cursor-default items-center rounded-sm px-2 py-2 text-sm outline-none select-none",
+                      value === item.Code && "bg-muted",
                     )}
                     onClick={() => {
-                      onChange(item.No, item);
+                      onChange(item.Code, item);
                       setIsOpen(false);
                     }}
                   >
                     <CheckIcon
                       className={cn(
-                        "mt-0.5 mr-2 h-4 w-4 shrink-0",
-                        value === item.No ? "opacity-100" : "opacity-0",
+                        "mr-2 h-4 w-4 shrink-0",
+                        value === item.Code ? "opacity-100" : "opacity-0",
                       )}
                     />
                     <div className="min-w-0 flex-1">
                       <div className="text-foreground font-medium break-words">
-                        {item.No} - {item.Name}
+                        {item.Code} - {item.Name}
                       </div>
                     </div>
                   </div>

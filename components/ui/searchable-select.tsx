@@ -59,7 +59,12 @@ export function SearchableSelect({
   // Get the selected option's label (or show value if custom)
   const selectedOption = options.find((opt) => opt.value === value);
   const displayLabel =
-    selectedOption?.label ?? (allowCustomValue && value ? value : undefined);
+    selectedOption?.label ??
+    (allowCustomValue && value
+      ? value
+      : disabled && value
+        ? "None"
+        : undefined);
 
   // Handle search with debounce
   const handleSearchChange = (query: string) => {

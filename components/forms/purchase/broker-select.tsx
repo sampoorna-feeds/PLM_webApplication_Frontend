@@ -94,6 +94,7 @@ export function BrokerSelect({
   }, [searchQuery, open, hasLoadedInitial]);
 
   const handleOpenChange = (newOpen: boolean) => {
+    if (disabled) return;
     setOpen(newOpen);
     if (newOpen) {
       loadInitialBrokers();
@@ -105,7 +106,9 @@ export function BrokerSelect({
   const selectedBroker = brokers.find((b) => b.No === value);
   const displayText = selectedBroker
     ? `${selectedBroker.No} - ${selectedBroker.Name}`
-    : value || placeholder;
+    : disabled && value
+      ? "None"
+      : value || placeholder;
 
   return (
     <Popover open={open} onOpenChange={handleOpenChange}>
@@ -118,7 +121,7 @@ export function BrokerSelect({
           className={`h-9 w-full justify-between font-normal ${className || ""}`}
         >
           <span className="truncate text-left">
-            {value ? displayText : placeholder}
+            {value ? displayText : (disabled ? "None" : placeholder)}
           </span>
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>

@@ -121,7 +121,7 @@ export function FormStackPanel() {
         className={cn(
           "bg-background border-border fixed top-0 right-0 z-50 flex h-full flex-col border-l shadow-xl",
           currentTab?.formType === "transfer-order" ||
-          currentTab?.formType === "transfer-order-detail"
+            currentTab?.formType === "transfer-order-detail"
             ? "w-screen lg:w-[80vw]"
             : currentTab?.formType === "line-item"
               ? "w-screen md:w-[60vw]"
@@ -130,9 +130,7 @@ export function FormStackPanel() {
                   currentTab?.formType === "sales-order-edit" ||
                   currentTab?.formType === "finished-production-order-detail"
                 ? "w-screen md:w-[60vw]"
-                : currentTab?.formType === "purchase-order" ||
-                    currentTab?.formType === "purchase-order-detail" ||
-                    currentTab?.formType === "purchase-order-edit"
+                : currentTab?.formType === "purchase-order"
                   ? "w-screen lg:w-[70vw]"
                   : "w-screen md:w-[65vw] lg:w-[48vw]",
         )}

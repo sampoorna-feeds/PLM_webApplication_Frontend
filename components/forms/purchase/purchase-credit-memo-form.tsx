@@ -19,11 +19,11 @@ import { CascadingDimensionSelect } from "@/components/forms/cascading-dimension
 import { VendorSelect, type PurchaseVendor } from "./vendor-select";
 import { BrokerSelect } from "./broker-select";
 import { OrderAddressSelect } from "./order-address-select";
-import { SalesPersonSelect } from "@/components/forms/sales/sales-person-select";
+import { PurchaserSelect } from "./purchaser-select";
 import { useFormStack } from "@/lib/form-stack/use-form-stack";
 import { getAuthCredentials } from "@/lib/auth/storage";
 import type { LineItem } from "@/components/forms/purchase/purchase-line-item.type";
-import { LineItemsTable } from "@/components/forms/sales/line-items-table";
+import { PurchaseLineItemsTable } from "./purchase-line-items-table";
 import { Plus, ChevronDownIcon, CheckIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ClearableField } from "@/components/ui/clearable-field";
@@ -755,7 +755,7 @@ export function PurchaseOrderFormContent({
                 value={formData.purchasePersonCode}
                 onClear={() => handleInputChange("purchasePersonCode", "")}
               >
-                <SalesPersonSelect
+              <PurchaserSelect
                   value={formData.purchasePersonCode || ""}
                   onChange={(val, sp) => {
                     setFormData((prev) => ({
@@ -1200,12 +1200,11 @@ export function PurchaseOrderFormContent({
                 </Button>
               </div>
 
-              <LineItemsTable
+              <PurchaseLineItemsTable
                 lineItems={lineItems}
                 onEdit={handleEditLineItem}
                 onRemove={handleRemoveLineItem}
-                onUpdate={handleUpdateLineItem}
-                editable={true}
+                onRowClick={handleEditLineItem}
                 showRowActions
               />
 
@@ -1259,7 +1258,7 @@ export function PurchaseOrderFormContent({
             }
           }}
           lineItem={selectedLineItem}
-          customerNo={formData.vendorNo}
+          vendorNo={formData.vendorNo}
           locationCode={formData.locationCode || formData.loc || ""}
           onSave={handleLineItemSave}
         />

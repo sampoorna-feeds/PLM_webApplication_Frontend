@@ -23,8 +23,6 @@ let ItemSelectorForm: FormComponent | null = null;
 let LineItemTabForm: FormComponent | null = null;
 
 let PurchaseOrderForm: FormComponent | null = null;
-let PurchaseOrderDetailForm: FormComponent | null = null;
-let PurchaseOrderEditForm: FormComponent | null = null;
 let PurchaseInvoiceForm: FormComponent | null = null;
 let PurchaseReturnOrderForm: FormComponent | null = null;
 let PurchaseCreditMemoForm: FormComponent | null = null;
@@ -40,7 +38,8 @@ export const formRegistry: Record<
 > = {
   "sales-order": async () => {
     if (!SalesOrderForm) {
-      const formModule = await import("@/components/forms/sales/sales-order-form");
+      const formModule =
+        await import("@/components/forms/sales/sales-order-form");
       SalesOrderForm = formModule.SalesOrderForm;
     }
     return { default: SalesOrderForm! };
@@ -111,14 +110,16 @@ export const formRegistry: Record<
   },
   "add-pincode": async () => {
     if (!AddPincodeForm) {
-      const formModule = await import("@/components/forms/nested/add-pincode-form");
+      const formModule =
+        await import("@/components/forms/nested/add-pincode-form");
       AddPincodeForm = formModule.AddPincodeForm;
     }
     return { default: AddPincodeForm! };
   },
   "add-shipto": async () => {
     if (!AddShipToForm) {
-      const formModule = await import("@/components/forms/sales/add-shipto-form");
+      const formModule =
+        await import("@/components/forms/sales/add-shipto-form");
       AddShipToForm = formModule.AddShipToForm;
     }
     return { default: AddShipToForm! };
@@ -159,26 +160,10 @@ export const formRegistry: Record<
   "purchase-order": async () => {
     if (!PurchaseOrderForm) {
       const formModule =
-        await import("@/components/forms/purchase/purchase-order-form");
+        await import("@/components/forms/purchase-orders/purchase-order-form");
       PurchaseOrderForm = formModule.PurchaseOrderForm;
     }
     return { default: PurchaseOrderForm! };
-  },
-  "purchase-order-detail": async () => {
-    if (!PurchaseOrderDetailForm) {
-      const formModule =
-        await import("@/components/forms/purchase/purchase-order-detail-form");
-      PurchaseOrderDetailForm = formModule.PurchaseOrderDetailForm;
-    }
-    return { default: PurchaseOrderDetailForm! };
-  },
-  "purchase-order-edit": async () => {
-    if (!PurchaseOrderEditForm) {
-      const formModule =
-        await import("@/components/forms/purchase/purchase-order-edit-form");
-      PurchaseOrderEditForm = formModule.PurchaseOrderEditForm;
-    }
-    return { default: PurchaseOrderEditForm! };
   },
   "purchase-invoice": async () => {
     if (!PurchaseInvoiceForm) {

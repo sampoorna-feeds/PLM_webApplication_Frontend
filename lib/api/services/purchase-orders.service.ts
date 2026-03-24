@@ -233,30 +233,30 @@ export async function getPurchaseOrderLines(
  * Send approval request for a purchase order (Approve action)
  */
 export async function sendApprovalRequest(
-  purchaseOrderNo: string,
+  docNo: string,
 ): Promise<unknown> {
-  const endpoint = `/API_SendApprovalRequest?company='${encodeURIComponent(COMPANY)}'`;
-  return apiPost<unknown>(endpoint, { purchaseOrderNo });
+  const endpoint = `/SendPurchaseApprovalReqeust?company='${encodeURIComponent(COMPANY)}'`;
+  return apiPost<unknown>(endpoint, { docNo });
 }
 
 /**
  * Cancel approval request for a purchase order (Pending Approval -> Open)
  */
 export async function cancelApprovalRequest(
-  purchaseOrderNo: string,
+  docNo: string,
 ): Promise<unknown> {
-  const endpoint = `/API_CancelApprovalRequest?company='${encodeURIComponent(COMPANY)}'`;
-  return apiPost<unknown>(endpoint, { purchaseOrderNo });
+  const endpoint = `/CancelApprovalPurchase?company='${encodeURIComponent(COMPANY)}'`;
+  return apiPost<unknown>(endpoint, { docNo });
 }
 
 /**
  * Reopen a purchase order
  */
 export async function reopenPurchaseOrder(
-  purchaseOrderNo: string,
+  docNo: string,
 ): Promise<unknown> {
-  const endpoint = `/API_ReOpenPurchaseOrder?company='${encodeURIComponent(COMPANY)}'`;
-  return apiPost<unknown>(endpoint, { purchaseOrderNo });
+  const endpoint = `/ReopenPurchase?company='${encodeURIComponent(COMPANY)}'`;
+  return apiPost<unknown>(endpoint, { docNo });
 }
 
 /**
@@ -656,7 +656,7 @@ export async function getPurchaseItemTrackingLines(
     `Source_Ref_No_ eq ${lineNo}`,
     `Item_No eq '${escapeODataString(itemNo)}'`,
     `Location_Code eq '${escapeODataString(locationCode)}'`,
-    "Source_Type eq 37",
+    "Source_Type eq 39",
     "Source_Subtype eq '1'",
   ].join(" and ");
   const query = buildODataQuery({ $filter: filter });

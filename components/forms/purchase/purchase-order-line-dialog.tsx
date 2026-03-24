@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Loader2 } from "lucide-react";
+import { Loader2, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -20,6 +20,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { cn } from "@/lib/utils";
 import { SearchableSelect as MasterSearchableSelect } from "@/components/forms/shared/searchable-select";
 import {
   SearchableSelect as AppSearchableSelect,
@@ -69,9 +70,10 @@ interface PurchaseOrderLineDialogProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   lineItem?: LineItem | null;
-  customerNo?: string;
+  vendorNo?: string;
   locationCode?: string;
   onSave: (lineItem: LineItem) => void | Promise<void>;
+  onRemove?: (lineItem: LineItem) => void | Promise<void>;
   isSaving?: boolean;
 }
 
@@ -104,11 +106,13 @@ export function PurchaseOrderLineDialog({
   isOpen,
   onOpenChange,
   lineItem,
-  customerNo,
+  vendorNo,
   locationCode,
   onSave,
+  onRemove,
   isSaving = false,
 }: PurchaseOrderLineDialogProps) {
+  const [isRemoving, setIsRemoving] = useState(false);
   const isEdit = !!lineItem;
   const [formState, setFormState] = useState<Partial<LineItem>>(
     getInitialLineState(lineItem),
@@ -124,6 +128,8 @@ export function PurchaseOrderLineDialog({
   });
   const [canAddBardana, setCanAddBardana] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
+
+  const fieldInputClass = "disabled:opacity-100 disabled:text-foreground font-medium text-xs disabled:pointer-events-none";
 
   useEffect(() => {
     if (!isOpen || formState.type !== "Item" || !formState.no) {
@@ -161,10 +167,10 @@ export function PurchaseOrderLineDialog({
   }, [isOpen, formState.type, formState.no]);
 
   useEffect(() => {
-    if (!isOpen || !customerNo) return;
+    if (!isOpen || !vendorNo) return;
 
     setLoadingOptions((prev) => ({ ...prev, tds: true }));
-    getVendorTDSGroupCodes(customerNo)
+    getVendorTDSGroupCodes(vendorNo)
       .then((rows) => {
         setTdsOptions(
           rows.map((row) => ({
@@ -180,7 +186,7 @@ export function PurchaseOrderLineDialog({
       .finally(() => {
         setLoadingOptions((prev) => ({ ...prev, tds: false }));
       });
-  }, [isOpen, customerNo]);
+  }, [isOpen, vendorNo]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -335,7 +341,7 @@ export function PurchaseOrderLineDialog({
       ...prev,
       no: item.No,
       description: item.Description,
-      uom: item.Sales_Unit_of_Measure || prev.uom,
+      uom: item.Purch_Unit_of_Measure || item.Sales_Unit_of_Measure || prev.uom,
       price: unitPrice,
       unitPrice,
     }));
@@ -350,7 +356,7 @@ export function PurchaseOrderLineDialog({
             exempted: cardItem.Exempted ?? false,
             gstGroupCode: cardItem.GST_Group_Code ?? "",
             hsnSacCode: cardItem.HSN_SAC_Code ?? "",
-            uom: cardItem.Sales_Unit_of_Measure || prev.uom,
+            uom: cardItem.Purch_Unit_of_Measure || cardItem.Sales_Unit_of_Measure || prev.uom,
             noOfBags: isBardanaEnabled ? prev.noOfBags : undefined,
           }));
         }
@@ -429,7 +435,7 @@ export function PurchaseOrderLineDialog({
                   onValueChange={(value) => handleTypeChange(value as LineType)}
                   disabled={isEdit}
                 >
-                  <SelectTrigger className="h-8">
+                  <SelectTrigger className={cn("h-8", fieldInputClass)}>
                     <SelectValue placeholder="Select type" />
                   </SelectTrigger>
                   <SelectContent>
@@ -643,7 +649,7 @@ export function PurchaseOrderLineDialog({
                     onValueChange={(value) => handleFieldChange("uom", value)}
                     disabled={uomOptions.length === 0}
                   >
-                    <SelectTrigger className="h-8">
+                    <SelectTrigger className={cn("h-8", fieldInputClass)}>
                       <SelectValue placeholder="Select UOM" />
                     </SelectTrigger>
                     <SelectContent>
@@ -687,7 +693,7 @@ export function PurchaseOrderLineDialog({
                   }
                   onWheel={(e) => e.currentTarget.blur()}
                   placeholder="0.00"
-                  className="h-8 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                  className={cn("h-8 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none", fieldInputClass)}
                 />
               </div>
 
@@ -717,7 +723,7 @@ export function PurchaseOrderLineDialog({
                     }}
                     onWheel={(e) => e.currentTarget.blur()}
                     placeholder="0"
-                    className="h-8 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                    className={cn("h-8 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none", fieldInputClass)}
                   />
                 </div>
               )}
@@ -733,7 +739,7 @@ export function PurchaseOrderLineDialog({
                   }
                   onWheel={(e) => e.currentTarget.blur()}
                   placeholder="0.00"
-                  className="h-8 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                  className={cn("h-8 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none", fieldInputClass)}
                 />
               </div>
 
@@ -748,7 +754,7 @@ export function PurchaseOrderLineDialog({
                   }
                   onWheel={(e) => e.currentTarget.blur()}
                   placeholder="0.00"
-                  className="h-8 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                  className={cn("h-8 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none", fieldInputClass)}
                 />
               </div>
 
@@ -758,7 +764,7 @@ export function PurchaseOrderLineDialog({
                   type="text"
                   value={amount > 0 ? amount.toFixed(2) : ""}
                   disabled
-                  className="bg-muted h-8 font-medium"
+                  className={cn("bg-muted h-8 font-medium", fieldInputClass)}
                   readOnly
                 />
               </div>
@@ -773,7 +779,7 @@ export function PurchaseOrderLineDialog({
                         handleFieldChange("faPostingType", e.target.value)
                       }
                       placeholder="e.g. Acquisition Cost"
-                      className="h-8"
+                      className={cn("h-8", fieldInputClass)}
                     />
                   </div>
 
@@ -795,7 +801,7 @@ export function PurchaseOrderLineDialog({
                       }}
                       onWheel={(e) => e.currentTarget.blur()}
                       placeholder="0.00"
-                      className="h-8 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                      className={cn("h-8 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none", fieldInputClass)}
                     />
                   </div>
                 </>
@@ -855,27 +861,65 @@ export function PurchaseOrderLineDialog({
           )}
         </div>
 
-        <DialogFooter>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-            disabled={isSaving}
-          >
-            Cancel
-          </Button>
-          <Button type="button" onClick={handleSubmit} disabled={isSaving}>
-            {isSaving ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Saving...
-              </>
-            ) : isEdit ? (
-              "Update Item"
-            ) : (
-              "Add Item"
+        <DialogFooter className="flex items-center justify-between sm:justify-between">
+          <div>
+            {isEdit && onRemove && (
+              <Button
+                type="button"
+                variant="ghost"
+                className="text-destructive hover:bg-destructive/10 hover:text-destructive h-8 px-2"
+                onClick={async () => {
+                  if (lineItem) {
+                    setIsRemoving(true);
+                    try {
+                      await onRemove(lineItem);
+                      onOpenChange(false);
+                    } finally {
+                      setIsRemoving(false);
+                    }
+                  }
+                }}
+                disabled={isSaving || isRemoving}
+              >
+                {isRemoving ? (
+                  <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Trash2 className="mr-2 h-3.5 w-3.5" />
+                )}
+                Delete Item
+              </Button>
             )}
-          </Button>
+          </div>
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-8"
+              onClick={() => onOpenChange(false)}
+              disabled={isSaving || isRemoving}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              className="h-8"
+              onClick={handleSubmit}
+              disabled={isSaving || isRemoving}
+            >
+              {isSaving ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Saving...
+                </>
+              ) : isEdit ? (
+                "Update Item"
+              ) : (
+                "Add Item"
+              )}
+            </Button>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>

@@ -54,7 +54,7 @@ export interface PurchaseOrderLineItem {
   exempted?: boolean;
   gstGroupCode?: string;
   hsnSacCode?: string;
-  tdsGroupCode?: string;
+  tdsSectionCode?: string;
   faPostingType?: string;
   salvageValue?: number;
   noOfBags?: number;
@@ -220,8 +220,8 @@ export async function addPurchaseOrderLineItems(
       if (lineItem.hsnSacCode) {
         payload.HSN_SAC_Code = lineItem.hsnSacCode;
       }
-      if (lineItem.tdsGroupCode) {
-        payload.TDS_Group_Code = lineItem.tdsGroupCode;
+      if (lineItem.tdsSectionCode) {
+        payload.TDS_Section_Code = lineItem.tdsSectionCode;
       }
       if (lineItem.faPostingType) {
         payload.FA_Posting_Type = lineItem.faPostingType;
@@ -275,8 +275,8 @@ export async function addSinglePurchaseOrderLine(
   if (lineItem.hsnSacCode) {
     payload.HSN_SAC_Code = lineItem.hsnSacCode;
   }
-  if (lineItem.tdsGroupCode) {
-    payload.TDS_Group_Code = lineItem.tdsGroupCode;
+  if (lineItem.tdsSectionCode) {
+    payload.TDS_Section_Code = lineItem.tdsSectionCode;
   }
   if (lineItem.faPostingType) {
     payload.FA_Posting_Type = lineItem.faPostingType;
@@ -327,8 +327,8 @@ export async function updateSinglePurchaseOrderLine(
     payload.GST_Group_Code = lineItem.gstGroupCode;
   if (lineItem.hsnSacCode !== undefined)
     payload.HSN_SAC_Code = lineItem.hsnSacCode;
-  if (lineItem.tdsGroupCode !== undefined)
-    payload.TDS_Group_Code = lineItem.tdsGroupCode;
+  if (lineItem.tdsSectionCode !== undefined)
+    payload.TDS_Section_Code = lineItem.tdsSectionCode;
   if (lineItem.faPostingType !== undefined)
     payload.FA_Posting_Type = lineItem.faPostingType;
   if (lineItem.salvageValue !== undefined && lineItem.salvageValue !== null)

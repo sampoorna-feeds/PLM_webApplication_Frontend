@@ -1,8 +1,18 @@
-import { apiGet, apiDelete } from "../client";
+import { apiGet, apiDelete, apiPost } from "../client";
 
 const COMPANY = process.env.NEXT_PUBLIC_API_COMPANY || "Sampoorna Feeds Pvt. Ltd";
 
+export interface PostItemChargeAssignmentPayload {
+  sourceDoc: string; // Purchase Order and Invoice No.
+  sourceLine: number; // Purchase Line No.
+  getType: string; // GetreceiptLine, GetReturnReceiptLine, GetShipmentLine, GetTransferReceiptLine, GetReturnShipmentLine
+  chargeDocNo: string;
+  chargeLineNo: number;
+  assignmentType: string; // Purchase, Sale
+}
+
 export interface ItemChargeAssignment {
+// ... existing fields ...
   "@odata.etag"?: string;
   Document_Type: string;
   Document_No: string;
@@ -21,6 +31,10 @@ export interface ItemChargeAssignment {
   AmounttoHandle: number;
   GrossWeight: number;
   UnitVolume: number;
+  QtyToReceiveBase: number;
+  QtyReceivedBase: number;
+  QtyToShipBase: number;
+  QtyShippedBase: number;
 }
 
 export interface ItemChargeSourceLine {
@@ -46,6 +60,14 @@ const ENDPOINTS: Record<SourceType, string> = {
   ReturnShipment: "ReturnShipmentLine",
 };
 
+const GET_TYPE_MAP: Record<SourceType, string> = {
+  Receipt: "GetreceiptLine",
+  SalesShipment: "GetShipmentLine",
+  Transfer: "GetTransferReceiptLine",
+  ReturnReceipt: "GetReturnReceiptLine",
+  ReturnShipment: "GetReturnShipmentLine",
+};
+
 export const itemChargeAssignmentService = {
   async getAssignments(filters: {
     docType: string;
@@ -60,15 +82,35 @@ export const itemChargeAssignmentService = {
     return response.value || [];
   },
 
-  async getSourceLines(type: SourceType, docNo?: string): Promise<ItemChargeSourceLine[]> {
+  async getSourceLines(type: SourceType, docNo?: string, search?: string): Promise<ItemChargeSourceLine[]> {
     const endpointName = ENDPOINTS[type];
-    let filter = "";
+    const filters: string[] = [];
+
     if (docNo) {
-      filter = `&$filter=Document_No eq '${docNo}'`;
+      filters.push(`Document_No eq '${docNo}'`);
     }
-    const endpoint = `/${endpointName}?company='${encodeURIComponent(COMPANY)}'${filter}&$top=50`;
+
+    if (search) {
+      const s = search.replace(/'/g, "''"); // Escape single quotes for OData
+      // Try to search across multiple common fields. 
+      // Note: Some BC environments might require different syntax for 'or', 
+      // but 'contains' with 'or' is standard OData V4.
+      filters.push(`(contains(Document_No, '${s}') or contains(No, '${s}') or contains(Item_No, '${s}'))`);
+    }
+
+    const filterStr = filters.length > 0 ? `&$filter=${encodeURIComponent(filters.join(" and "))}` : "";
+    const endpoint = `/${endpointName}?company='${encodeURIComponent(COMPANY)}'${filterStr}&$top=50`;
     const response = await apiGet<{ value: ItemChargeSourceLine[] }>(endpoint);
     return response.value || [];
+  },
+
+  async postAssignment(payload: PostItemChargeAssignmentPayload): Promise<void> {
+    const endpoint = `/API_PostItemChargeAssignment?company='${encodeURIComponent(COMPANY)}'`;
+    await apiPost(endpoint, payload);
+  },
+
+  getApiGetType(type: SourceType): string {
+    return GET_TYPE_MAP[type];
   },
 
   async suggestAssignment(params: {

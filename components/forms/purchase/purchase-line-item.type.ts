@@ -21,10 +21,10 @@ export interface LineItem {
   unitPrice: number;
   discount: number;
   amount: number;
-  exempted?: boolean;
-  gstGroupCode?: string;
-  hsnSacCode?: string;
-  tdsGroupCode?: string;
+  exempted: boolean;
+  gstGroupCode: string;
+  hsnSacCode: string;
+  tdsSectionCode: string;
   faPostingType?: string;
   salvageValue?: number;
   noOfBags?: number;

@@ -625,7 +625,7 @@ export function PurchaseOrderFormContent({
         exempted: item.exempted,
         gstGroupCode: item.gstGroupCode,
         hsnSacCode: item.hsnSacCode,
-        tdsGroupCode: item.tdsGroupCode,
+        tdsSectionCode: item.tdsSectionCode,
       }));
 
       const locationCode = formData.locationCode || formData.loc || "";

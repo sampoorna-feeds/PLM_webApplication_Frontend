@@ -237,7 +237,7 @@ export async function getPurchaseOrderLines(
 export async function sendApprovalRequest(
   docNo: string,
 ): Promise<unknown> {
-  const endpoint = `/SendPurchaseApprovalReqeust?company='${encodeURIComponent(COMPANY)}'`;
+  const endpoint = `/API_SendPurchaseApprovalReqeust?company='${encodeURIComponent(COMPANY)}'`;
   return apiPost<unknown>(endpoint, { docNo });
 }
 
@@ -247,7 +247,7 @@ export async function sendApprovalRequest(
 export async function cancelApprovalRequest(
   docNo: string,
 ): Promise<unknown> {
-  const endpoint = `/CancelApprovalPurchase?company='${encodeURIComponent(COMPANY)}'`;
+  const endpoint = `/API_CancelApprovalPurchase?company='${encodeURIComponent(COMPANY)}'`;
   return apiPost<unknown>(endpoint, { docNo });
 }
 
@@ -257,7 +257,7 @@ export async function cancelApprovalRequest(
 export async function reopenPurchaseOrder(
   docNo: string,
 ): Promise<unknown> {
-  const endpoint = `/ReopenPurchase?company='${encodeURIComponent(COMPANY)}'`;
+  const endpoint = `/API_ReopenPurchase?company='${encodeURIComponent(COMPANY)}'`;
   return apiPost<unknown>(endpoint, { docNo });
 }
 

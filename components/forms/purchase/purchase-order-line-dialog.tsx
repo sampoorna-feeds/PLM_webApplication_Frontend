@@ -97,7 +97,7 @@ function getInitialLineState(lineItem?: LineItem | null): Partial<LineItem> {
     exempted: lineItem?.exempted || false,
     gstGroupCode: lineItem?.gstGroupCode || "",
     hsnSacCode: lineItem?.hsnSacCode || "",
-    tdsGroupCode: lineItem?.tdsGroupCode || "",
+    tdsSectionCode: lineItem?.tdsSectionCode || "",
     faPostingType: (lineItem?.faPostingType || "").trim(),
     salvageValue: lineItem?.salvageValue,
     noOfBags: lineItem?.noOfBags,
@@ -396,10 +396,10 @@ export function PurchaseOrderLineDialog({
       unitPrice: Number(formState.unitPrice) || 0,
       discount: Number(formState.discount) || 0,
       amount,
-      exempted: formState.exempted,
-      gstGroupCode: formState.gstGroupCode,
-      hsnSacCode: formState.hsnSacCode,
-      tdsGroupCode: formState.tdsGroupCode,
+      exempted: formState.exempted || false,
+      gstGroupCode: formState.gstGroupCode || "",
+      hsnSacCode: formState.hsnSacCode || "",
+      tdsSectionCode: formState.tdsSectionCode || "",
       faPostingType:
         formState.type === "Fixed Asset"
           ? (formState.faPostingType || "").trim() || undefined
@@ -671,16 +671,16 @@ export function PurchaseOrderLineDialog({
             )}
 
             <div className="space-y-1">
-              <FieldTitle>TDS Group Code</FieldTitle>
+              <FieldTitle>TDS Section</FieldTitle>
               <AppSearchableSelect
-                value={formState.tdsGroupCode || ""}
+                value={formState.tdsSectionCode || ""}
                 onValueChange={(value) =>
-                  handleFieldChange("tdsGroupCode", value)
+                  handleFieldChange("tdsSectionCode", value)
                 }
                 options={tdsOptions}
                 isLoading={loadingOptions.tds}
-                placeholder="Select TDS Group Code"
-                searchPlaceholder="Search TDS Group Code..."
+                placeholder="Select TDS Section"
+                searchPlaceholder="Search TDS Section..."
               />
             </div>
           </div>
@@ -733,38 +733,7 @@ export function PurchaseOrderLineDialog({
                   />
                 </div>
               )}
-              {isItemType && (
-                <>
-                  <div className="space-y-1">
-                    <FieldTitle>Challan Qty</FieldTitle>
-                    <Input
-                      type="text"
-                      inputMode="decimal"
-                      value={formatNumericValue(formState.challanQty)}
-                      onChange={(e) =>
-                        handleNumericChange("challanQty", e.target.value)
-                      }
-                      onWheel={(e) => e.currentTarget.blur()}
-                      placeholder="0.00"
-                      className={cn("h-8 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none", fieldInputClass)}
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <FieldTitle>Weight Qty</FieldTitle>
-                    <Input
-                      type="text"
-                      inputMode="decimal"
-                      value={formatNumericValue(formState.weightQty)}
-                      onChange={(e) =>
-                        handleNumericChange("weightQty", e.target.value)
-                      }
-                      onWheel={(e) => e.currentTarget.blur()}
-                      placeholder="0.00"
-                      className={cn("h-8 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none", fieldInputClass)}
-                    />
-                  </div>
-                </>
-              )}
+
 
               <div className="space-y-1">
                 <FieldTitle>Unit Price</FieldTitle>

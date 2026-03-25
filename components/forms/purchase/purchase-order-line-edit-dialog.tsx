@@ -516,7 +516,7 @@ export function PurchaseOrderLineEditDialog({
               </>
             )}
 
-            {/* {canAddBardana && ( */}
+            {canAddBardana && (
               <div className="space-y-1">
                 <Label htmlFor="po-line-bags" className="text-xs">
                   No. of Bags
@@ -532,7 +532,7 @@ export function PurchaseOrderLineEditDialog({
                   }}
                 />
               </div>
-            {/* )} */}
+            )}
 
             {/* Row 2 */}
             <div className="space-y-1">
@@ -635,8 +635,7 @@ export function PurchaseOrderLineEditDialog({
 
           <DialogFooter className="mt-2 gap-2">
             <div className="mr-auto flex items-center gap-2">
-              {/* {canAddBardana && line?.Line_No && ( */}
-              {line?.Line_No && (
+              {canAddBardana && line?.Line_No && (
                 <Button
                   variant="outline"
                   onClick={() => {
@@ -656,7 +655,7 @@ export function PurchaseOrderLineEditDialog({
                   Item Charge Assignment
                 </Button>
               )}
-              {/* )} */}
+
               {hasTracking && onAssignTracking && (
                 <Button
                   variant="outline"

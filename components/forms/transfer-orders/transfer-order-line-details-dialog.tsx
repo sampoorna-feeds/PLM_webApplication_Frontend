@@ -290,24 +290,28 @@ export function TransferOrderLineDetailsDialog({
                 />
                 
                 {formData.Appl_to_Item_Entry && (
-                  <div className="mt-3 grid grid-cols-2 gap-4 p-3 rounded-lg bg-[#111] border border-[#222] animate-in slide-in-from-right-2 duration-500">
+                  <div className="mt-3 grid grid-cols-2 lg:grid-cols-3 gap-y-4 gap-x-6 p-4 rounded-xl bg-[#111] border border-[#222] animate-in slide-in-from-right-2 duration-500">
                     {(() => {
                       const selectedEntry = ledgerEntries.find(e => e.Entry_No.toString() === formData.Appl_to_Item_Entry?.toString());
                       if (!selectedEntry) return null;
+                      
+                      const detailItem = (label: string, value: string | number | undefined, isUpper = false) => (
+                        <div className="space-y-1">
+                          <span className="text-[10px] uppercase font-bold text-muted-foreground">{label}</span>
+                          <p className={cn("text-xs font-bold text-white", isUpper && "uppercase")}>
+                            {value?.toString() || "N/A"}
+                          </p>
+                        </div>
+                      );
+
                       return (
                         <>
-                          <div className="space-y-1">
-                            <span className="text-[10px] uppercase font-bold text-muted-foreground">Posting Date</span>
-                            <p className="text-xs font-bold text-white">
-                              {selectedEntry.Posting_Date ? new Date(selectedEntry.Posting_Date).toLocaleDateString() : "N/A"}
-                            </p>
-                          </div>
-                          <div className="space-y-1">
-                            <span className="text-[10px] uppercase font-bold text-muted-foreground">Vehicle No.</span>
-                            <p className="text-xs font-bold text-white uppercase">
-                              {selectedEntry.Vehicle_No || "N/A"}
-                            </p>
-                          </div>
+                          {detailItem("Document No.", selectedEntry.Document_No)}
+                          {detailItem("Item No.", selectedEntry.Item_No)}
+                          {detailItem("Posting Date", selectedEntry.Posting_Date ? new Date(selectedEntry.Posting_Date).toLocaleDateString() : "N/A")}
+                          {detailItem("Quantity", selectedEntry.Quantity)}
+                          {detailItem("Remaining Qty", selectedEntry.Remaining_Quantity)}
+                          {detailItem("Vehicle No.", selectedEntry.Vehicle_No, true)}
                         </>
                       );
                     })()}

@@ -299,6 +299,7 @@ export interface TransferItemLedgerEntry {
   Open?: boolean;
   Posting_Date?: string;
   Vehicle_No?: string;
+  Quantity?: number;
   [key: string]: unknown;
 }
 

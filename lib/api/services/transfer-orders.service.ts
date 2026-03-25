@@ -390,6 +390,10 @@ export async function postTransferOrder(data: {
   docNo: string;
   postShipment: string;
   postReceipt: string;
+  locationCode?: string;
+  quantity?: number;
+  qtytoHandle?: number;
+  sourceSubType?: number;
 }): Promise<void> {
   const encodedCompany = encodeURIComponent(COMPANY);
   const endpoint = `/API_PostTransferOrder?company='${encodedCompany}'`;

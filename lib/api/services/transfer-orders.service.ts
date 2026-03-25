@@ -297,6 +297,8 @@ export interface TransferItemLedgerEntry {
   Item_Tracking?: string;
   Positive?: boolean;
   Open?: boolean;
+  Posting_Date?: string;
+  Vehicle_No?: string;
   [key: string]: unknown;
 }
 

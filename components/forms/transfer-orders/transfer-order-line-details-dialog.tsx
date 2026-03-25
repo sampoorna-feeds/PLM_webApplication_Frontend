@@ -18,8 +18,11 @@ import {
   checkItemTracking,
   getItemAvailableQuantity,
   getTransferItemByNo,
+  getTransferItemLedgerEntries,
   type TransferLine,
+  type TransferItemLedgerEntry,
 } from "@/lib/api/services/transfer-orders.service";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import {
   TransferOrderItemTrackingDialog
 } from "./transfer-order-item-tracking-dialog";
@@ -47,6 +50,8 @@ export function TransferOrderLineDetailsDialog({
   const [isTrackingOpen, setIsTrackingOpen] = useState(false);
   const [availableQty, setAvailableQty] = useState<number | null>(null);
   const [isLoadingStock, setIsLoadingStock] = useState(false);
+  const [ledgerEntries, setLedgerEntries] = useState<TransferItemLedgerEntry[]>([]);
+  const [isLoadingLedger, setIsLoadingLedger] = useState(false);
 
 
   const [formData, setFormData] = useState<Partial<TransferLine>>({ ...line });
@@ -71,8 +76,19 @@ export function TransferOrderLineDetailsDialog({
           
           // An item has tracking if it either has tracked entries OR is setup for tracking in item master
           const isTrackedInMaster = !!itemResult?.Item_Tracking_Code?.trim();
-          setHasTracking(ledgerTrackingResult || isTrackedInMaster);
+          const tracked = ledgerTrackingResult || isTrackedInMaster;
+          setHasTracking(tracked);
           setAvailableQty(availableResult);
+
+          if (tracked) {
+            setIsLoadingLedger(true);
+            try {
+              const entries = await getTransferItemLedgerEntries(line.Item_No!, activeLocationCode);
+              setLedgerEntries(entries);
+            } finally {
+              setIsLoadingLedger(false);
+            }
+          }
         } catch (err) {
           console.error("Error fetching line metadata:", err);
         } finally {
@@ -112,6 +128,7 @@ export function TransferOrderLineDetailsDialog({
         GST_Group_Code: formData.GST_Group_Code,
         HSN_SAC_Code: formData.HSN_SAC_Code,
         Exempted: !!formData.Exempted,
+        Appl_to_Item_Entry: formData.Appl_to_Item_Entry ? Number(formData.Appl_to_Item_Entry) : undefined,
       });
       toast.success("Line details updated successfully");
       onSuccess();
@@ -256,6 +273,48 @@ export function TransferOrderLineDetailsDialog({
                 Exempted
               </label>
             </div>
+
+            {hasTracking && (
+              <div className="space-y-1.5 md:col-span-2 animate-in fade-in slide-in-from-top-2 duration-300">
+                <label className="text-xs font-medium text-muted-foreground">Applies to Entry</label>
+                <SearchableSelect
+                  options={ledgerEntries.map((e) => ({
+                    value: e.Entry_No.toString(),
+                    label: `Entry: ${e.Entry_No} | Lot: ${e.Lot_No || "N/A"} | Qty: ${e.Remaining_Quantity}`,
+                  }))}
+                  value={formData.Appl_to_Item_Entry?.toString() || ""}
+                  onValueChange={(v) => handleChange("Appl_to_Item_Entry", v)}
+                  placeholder={isLoadingLedger ? "Loading entries..." : "Select Entry No."}
+                  className="h-9 transition-all focus:ring-1 focus:ring-red-500/50"
+                  disabled={isLoadingLedger}
+                />
+                
+                {formData.Appl_to_Item_Entry && (
+                  <div className="mt-3 grid grid-cols-2 gap-4 p-3 rounded-lg bg-[#111] border border-[#222] animate-in slide-in-from-right-2 duration-500">
+                    {(() => {
+                      const selectedEntry = ledgerEntries.find(e => e.Entry_No.toString() === formData.Appl_to_Item_Entry?.toString());
+                      if (!selectedEntry) return null;
+                      return (
+                        <>
+                          <div className="space-y-1">
+                            <span className="text-[10px] uppercase font-bold text-muted-foreground">Posting Date</span>
+                            <p className="text-xs font-bold text-white">
+                              {selectedEntry.Posting_Date ? new Date(selectedEntry.Posting_Date).toLocaleDateString() : "N/A"}
+                            </p>
+                          </div>
+                          <div className="space-y-1">
+                            <span className="text-[10px] uppercase font-bold text-muted-foreground">Vehicle No.</span>
+                            <p className="text-xs font-bold text-white uppercase">
+                              {selectedEntry.Vehicle_No || "N/A"}
+                            </p>
+                          </div>
+                        </>
+                      );
+                    })()}
+                  </div>
+                )}
+              </div>
+            )}
 
 
           </div>

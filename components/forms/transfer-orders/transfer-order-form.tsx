@@ -159,14 +159,14 @@ export function TransferOrderForm({
   }, [isViewMode]);
 
   // Load Order Data and Lines if orderNo exists
-  const fetchOrderData = useCallback(async (no: string) => {
-    setIsLoading(true);
+  const fetchOrderData = useCallback(async (no: string, showFullLoader: boolean = true) => {
+    if (showFullLoader) setIsLoading(true);
+    setIsLoadingLines(true);
     try {
       const order = await getTransferOrderByNo(no);
       if (order) {
         setFormState(order);
         setOriginalState(order);
-        setIsLoadingLines(true);
         const linesData = await getTransferOrderLines(no);
         setLines(linesData);
       }
@@ -1043,7 +1043,7 @@ export function TransferOrderForm({
         onOpenChange={setIsLineDialogOpen}
         documentNo={formState.No || ""}
         line={selectedLine}
-        onSuccess={() => fetchOrderData(formState.No!)}
+        onSuccess={() => fetchOrderData(formState.No!, false)}
         locationCode={formState.Transfer_from_Code || ""}
         defaultDimensions={{
           Shortcut_Dimension_1_Code: formState.Shortcut_Dimension_1_Code || "",
@@ -1060,7 +1060,7 @@ export function TransferOrderForm({
           onOpenChange={setIsDetailsDialogOpen}
           line={selectedLine}
           locationCode={formState.Transfer_from_Code}
-          onSuccess={() => fetchOrderData(formState.No!)}
+          onSuccess={() => fetchOrderData(formState.No!, false)}
         />
       )}
 

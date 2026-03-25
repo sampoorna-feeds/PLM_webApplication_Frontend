@@ -19,6 +19,7 @@ import {
   patchTransferOrder,
   postTransferOrder,
   reopenTransferOrder,
+  releaseTransferOrder,
   getTransferAllLocationCodes,
   getTransferLocationCodes,
   type TransferLocationCode,
@@ -158,14 +159,14 @@ export function TransferOrderForm({
   }, [isViewMode]);
 
   // Load Order Data and Lines if orderNo exists
-  const fetchOrderData = useCallback(async (no: string) => {
-    setIsLoading(true);
+  const fetchOrderData = useCallback(async (no: string, showFullLoader: boolean = true) => {
+    if (showFullLoader) setIsLoading(true);
+    setIsLoadingLines(true);
     try {
       const order = await getTransferOrderByNo(no);
       if (order) {
         setFormState(order);
         setOriginalState(order);
-        setIsLoadingLines(true);
         const linesData = await getTransferOrderLines(no);
         setLines(linesData);
       }
@@ -544,6 +545,22 @@ export function TransferOrderForm({
     }
   };
 
+  const handleRelease = async () => {
+    if (!formState.No) return;
+    
+    setIsSubmitting(true);
+    try {
+      await releaseTransferOrder(formState.No);
+      toast.success("Transfer Order released successfully");
+      fetchOrderData(formState.No);
+    } catch (error: any) {
+      console.error("Error releasing transfer order:", error);
+      toast.error(error.message || "Failed to release transfer order");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
 
 
   const fieldClass = "min-w-0 space-y-1 text-left";
@@ -608,6 +625,16 @@ export function TransferOrderForm({
                     className="border-primary text-primary hover:bg-primary/10 font-bold transition-all hover:scale-105 active:scale-95"
                   >
                     Reopen
+                  </Button>
+                )}
+                {formState.Status === "Open" && formState.No && (
+                   <Button
+                    onClick={handleRelease}
+                    variant="outline"
+                    size="sm"
+                    className="border-primary text-primary hover:bg-primary/10 font-bold transition-all hover:scale-105 active:scale-95"
+                  >
+                    Release
                   </Button>
                 )}
 
@@ -1016,7 +1043,7 @@ export function TransferOrderForm({
         onOpenChange={setIsLineDialogOpen}
         documentNo={formState.No || ""}
         line={selectedLine}
-        onSuccess={() => fetchOrderData(formState.No!)}
+        onSuccess={() => fetchOrderData(formState.No!, false)}
         locationCode={formState.Transfer_from_Code || ""}
         defaultDimensions={{
           Shortcut_Dimension_1_Code: formState.Shortcut_Dimension_1_Code || "",
@@ -1033,7 +1060,7 @@ export function TransferOrderForm({
           onOpenChange={setIsDetailsDialogOpen}
           line={selectedLine}
           locationCode={formState.Transfer_from_Code}
-          onSuccess={() => fetchOrderData(formState.No!)}
+          onSuccess={() => fetchOrderData(formState.No!, false)}
         />
       )}
 

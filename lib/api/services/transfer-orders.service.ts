@@ -253,6 +253,7 @@ export interface TransferLine {
   Appl_to_Item_Entry?: number;
   Shortcut_Dimension_1_Code?: string;
   Shortcut_Dimension_2_Code?: string;
+  'Derived From Line No'?: number;
   [key: string]: unknown;
 }
 
@@ -297,6 +298,9 @@ export interface TransferItemLedgerEntry {
   Item_Tracking?: string;
   Positive?: boolean;
   Open?: boolean;
+  Posting_Date?: string;
+  Vehicle_No?: string;
+  Quantity?: number;
   [key: string]: unknown;
 }
 
@@ -313,7 +317,7 @@ export async function getTransferOrderLines(
   documentNo: string,
 ): Promise<TransferLine[]> {
   const escaped = documentNo.replace(/'/g, "''");
-  const filter = `Document_No eq '${escaped}'`;
+  const filter = `Document_No eq '${escaped}' and 'Derived From Line No' eq '0'`;
   const query = buildODataQuery({ $filter: filter, $orderby: "Line_No asc" });
   const endpoint = `/TransferLine?company='${encodeURIComponent(COMPANY)}'&${query}`;
 
@@ -393,11 +397,30 @@ export async function postTransferOrder(data: {
 }
 
 /**
+ * Release or Reopen a transfer order
+ */
+export async function releaseOpenTransferOrder(data: {
+  docNo: string;
+  open: boolean;
+  released: boolean;
+}): Promise<void> {
+  const encodedCompany = encodeURIComponent(COMPANY);
+  const endpoint = `/API_TransferOrderReleaseOpen?company='${encodedCompany}'`;
+  return apiPost<void>(endpoint, data);
+}
+
+/**
  * Reopen a transfer order
  */
-export async function reopenTransferOrder(docNo: string): Promise<unknown> {
-  const result = await patchTransferOrder(docNo, { Status: "Open" });
-  return result;
+export async function reopenTransferOrder(docNo: string): Promise<void> {
+  return releaseOpenTransferOrder({ docNo, open: true, released: false });
+}
+
+/**
+ * Release a transfer order
+ */
+export async function releaseTransferOrder(docNo: string): Promise<void> {
+  return releaseOpenTransferOrder({ docNo, open: false, released: true });
 }
 
 

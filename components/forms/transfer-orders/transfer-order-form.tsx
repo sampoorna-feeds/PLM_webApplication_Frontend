@@ -50,6 +50,7 @@ import { toast } from "sonner";
 import { TransferOrderLineDialog } from "./transfer-order-line-dialog";
 import { TransferOrderLinesTable } from "./transfer-order-lines-table";
 import { TransferOrderLineDetailsDialog } from "./transfer-order-line-details-dialog";
+import { DateInput } from "@/components/ui/date-input";
 
 interface TransferOrderFormProps {
   tabId: string;
@@ -1145,10 +1146,9 @@ export function TransferOrderForm({
               <div className="grid grid-cols-2 gap-x-6 gap-y-5 animate-in fade-in slide-in-from-right-4 duration-300">
                 <div className="space-y-1.5">
                   <label className="text-muted-foreground text-[11px] font-bold uppercase tracking-wider">Posting Date</label>
-                  <Input
-                    type="date"
+                  <DateInput
                     value={formState.Posting_Date ? formState.Posting_Date.split("T")[0] : ""}
-                    onChange={(e) => handleChange("Posting_Date", e.target.value)}
+                    onChange={(val) => handleChange("Posting_Date", val)}
                     className="h-10 bg-[#111] border-[#222] focus:border-green-600/50"
                   />
                 </div>
@@ -1181,10 +1181,9 @@ export function TransferOrderForm({
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-muted-foreground text-[11px] font-bold uppercase tracking-wider">LR/RR Date</label>
-                  <Input
-                    type="date"
+                  <DateInput
                     value={formState.LR_RR_Date ? formState.LR_RR_Date.split("T")[0] : ""}
-                    onChange={(e) => handleChange("LR_RR_Date", e.target.value)}
+                    onChange={(val) => handleChange("LR_RR_Date", val)}
                     className="h-10 bg-[#111] border-[#222] focus:border-green-600/50"
                   />
                 </div>

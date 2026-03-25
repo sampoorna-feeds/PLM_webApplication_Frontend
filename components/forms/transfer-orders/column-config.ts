@@ -53,6 +53,48 @@ export const DEFAULT_COLUMNS: ColumnConfig[] = [
     defaultVisible: true,
     filterType: "enum",
   },
+  {
+    id: "Posting_Date",
+    label: "Posting Date",
+    sortable: true,
+    defaultVisible: true,
+    filterType: "date",
+  },
+  {
+    id: "Shortcut_Dimension_1_Code",
+    label: "LOB",
+    sortable: true,
+    defaultVisible: true,
+    filterType: "text",
+  },
+  {
+    id: "Shortcut_Dimension_2_Code",
+    label: "Branch",
+    sortable: true,
+    defaultVisible: true,
+    filterType: "text",
+  },
+  {
+    id: "New_LOB",
+    label: "New LOB",
+    sortable: true,
+    defaultVisible: true,
+    filterType: "text",
+  },
+  {
+    id: "New_Branch",
+    label: "New Branch",
+    sortable: true,
+    defaultVisible: true,
+    filterType: "text",
+  },
+  {
+    id: "Shipped",
+    label: "Shipped",
+    sortable: true,
+    defaultVisible: true,
+    filterType: "text",
+  },
 ];
 
 // Optional columns - can be toggled by user
@@ -64,20 +106,7 @@ export const OPTIONAL_COLUMNS: ColumnConfig[] = [
     defaultVisible: false,
     filterType: "text",
   },
-  {
-    id: "Shortcut_Dimension_1_Code",
-    label: "LOB",
-    sortable: true,
-    defaultVisible: false,
-    filterType: "text",
-  },
-  {
-    id: "Shortcut_Dimension_2_Code",
-    label: "Branch",
-    sortable: true,
-    defaultVisible: false,
-    filterType: "text",
-  },
+
   {
     id: "Receipt_Date",
     label: "Receipt Date",

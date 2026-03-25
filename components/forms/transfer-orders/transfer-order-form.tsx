@@ -19,6 +19,7 @@ import {
   patchTransferOrder,
   postTransferOrder,
   reopenTransferOrder,
+  releaseTransferOrder,
   getTransferAllLocationCodes,
   getTransferLocationCodes,
   type TransferLocationCode,
@@ -49,6 +50,7 @@ import { toast } from "sonner";
 import { TransferOrderLineDialog } from "./transfer-order-line-dialog";
 import { TransferOrderLinesTable } from "./transfer-order-lines-table";
 import { TransferOrderLineDetailsDialog } from "./transfer-order-line-details-dialog";
+import { DateInput } from "@/components/ui/date-input";
 
 interface TransferOrderFormProps {
   tabId: string;
@@ -158,14 +160,14 @@ export function TransferOrderForm({
   }, [isViewMode]);
 
   // Load Order Data and Lines if orderNo exists
-  const fetchOrderData = useCallback(async (no: string) => {
-    setIsLoading(true);
+  const fetchOrderData = useCallback(async (no: string, showFullLoader: boolean = true) => {
+    if (showFullLoader) setIsLoading(true);
+    setIsLoadingLines(true);
     try {
       const order = await getTransferOrderByNo(no);
       if (order) {
         setFormState(order);
         setOriginalState(order);
-        setIsLoadingLines(true);
         const linesData = await getTransferOrderLines(no);
         setLines(linesData);
       }
@@ -517,6 +519,20 @@ export function TransferOrderForm({
       postReceipt: postSelection === "receive" ? "True" : "False",
     });
 
+    // Third call: Same API as above but with changed payload for "To" location
+    // Currently using the total quantity from lines as the sample payload
+    const totalQty = lines.reduce((sum, line) => sum + (Number(line.Quantity) || 0), 0);
+    
+    await postTransferOrder({
+      docNo: formState.No,
+      postShipment: postSelection === "ship" ? "True" : "False",
+      postReceipt: postSelection === "receive" ? "True" : "False",
+      locationCode: formState.Transfer_to_Code || "",
+      quantity: totalQty,
+      qtytoHandle: totalQty,
+      sourceSubType: 1, // Target/Receipt side
+    });
+
     toast.success("Transfer Order posted successfully");
     setIsPostDialogOpen(false);
     handleSuccess();
@@ -539,6 +555,22 @@ export function TransferOrderForm({
     } catch (error: any) {
       console.error("Error reopening transfer order:", error);
       toast.error(error.message || "Failed to reopen transfer order");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleRelease = async () => {
+    if (!formState.No) return;
+    
+    setIsSubmitting(true);
+    try {
+      await releaseTransferOrder(formState.No);
+      toast.success("Transfer Order released successfully");
+      fetchOrderData(formState.No);
+    } catch (error: any) {
+      console.error("Error releasing transfer order:", error);
+      toast.error(error.message || "Failed to release transfer order");
     } finally {
       setIsSubmitting(false);
     }
@@ -608,6 +640,16 @@ export function TransferOrderForm({
                     className="border-primary text-primary hover:bg-primary/10 font-bold transition-all hover:scale-105 active:scale-95"
                   >
                     Reopen
+                  </Button>
+                )}
+                {formState.Status === "Open" && formState.No && (
+                   <Button
+                    onClick={handleRelease}
+                    variant="outline"
+                    size="sm"
+                    className="border-primary text-primary hover:bg-primary/10 font-bold transition-all hover:scale-105 active:scale-95"
+                  >
+                    Release
                   </Button>
                 )}
 
@@ -1016,7 +1058,7 @@ export function TransferOrderForm({
         onOpenChange={setIsLineDialogOpen}
         documentNo={formState.No || ""}
         line={selectedLine}
-        onSuccess={() => fetchOrderData(formState.No!)}
+        onSuccess={() => fetchOrderData(formState.No!, false)}
         locationCode={formState.Transfer_from_Code || ""}
         defaultDimensions={{
           Shortcut_Dimension_1_Code: formState.Shortcut_Dimension_1_Code || "",
@@ -1033,7 +1075,7 @@ export function TransferOrderForm({
           onOpenChange={setIsDetailsDialogOpen}
           line={selectedLine}
           locationCode={formState.Transfer_from_Code}
-          onSuccess={() => fetchOrderData(formState.No!)}
+          onSuccess={() => fetchOrderData(formState.No!, false)}
         />
       )}
 
@@ -1118,10 +1160,9 @@ export function TransferOrderForm({
               <div className="grid grid-cols-2 gap-x-6 gap-y-5 animate-in fade-in slide-in-from-right-4 duration-300">
                 <div className="space-y-1.5">
                   <label className="text-muted-foreground text-[11px] font-bold uppercase tracking-wider">Posting Date</label>
-                  <Input
-                    type="date"
+                  <DateInput
                     value={formState.Posting_Date ? formState.Posting_Date.split("T")[0] : ""}
-                    onChange={(e) => handleChange("Posting_Date", e.target.value)}
+                    onChange={(val) => handleChange("Posting_Date", val)}
                     className="h-10 bg-[#111] border-[#222] focus:border-green-600/50"
                   />
                 </div>
@@ -1154,10 +1195,9 @@ export function TransferOrderForm({
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-muted-foreground text-[11px] font-bold uppercase tracking-wider">LR/RR Date</label>
-                  <Input
-                    type="date"
+                  <DateInput
                     value={formState.LR_RR_Date ? formState.LR_RR_Date.split("T")[0] : ""}
-                    onChange={(e) => handleChange("LR_RR_Date", e.target.value)}
+                    onChange={(val) => handleChange("LR_RR_Date", val)}
                     className="h-10 bg-[#111] border-[#222] focus:border-green-600/50"
                   />
                 </div>

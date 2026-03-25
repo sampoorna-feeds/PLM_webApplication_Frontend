@@ -253,6 +253,7 @@ export interface TransferLine {
   Appl_to_Item_Entry?: number;
   Shortcut_Dimension_1_Code?: string;
   Shortcut_Dimension_2_Code?: string;
+  'Derived From Line No'?: number;
   [key: string]: unknown;
 }
 
@@ -316,7 +317,7 @@ export async function getTransferOrderLines(
   documentNo: string,
 ): Promise<TransferLine[]> {
   const escaped = documentNo.replace(/'/g, "''");
-  const filter = `Document_No eq '${escaped}'`;
+  const filter = `Document_No eq '${escaped}' and 'Derived From Line No' eq '0'`;
   const query = buildODataQuery({ $filter: filter, $orderby: "Line_No asc" });
   const endpoint = `/TransferLine?company='${encodeURIComponent(COMPANY)}'&${query}`;
 

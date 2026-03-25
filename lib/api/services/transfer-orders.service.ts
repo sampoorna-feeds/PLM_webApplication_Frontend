@@ -393,11 +393,30 @@ export async function postTransferOrder(data: {
 }
 
 /**
+ * Release or Reopen a transfer order
+ */
+export async function releaseOpenTransferOrder(data: {
+  docNo: string;
+  open: boolean;
+  released: boolean;
+}): Promise<void> {
+  const encodedCompany = encodeURIComponent(COMPANY);
+  const endpoint = `/API_TransferOrderReleaseOpen?company='${encodedCompany}'`;
+  return apiPost<void>(endpoint, data);
+}
+
+/**
  * Reopen a transfer order
  */
-export async function reopenTransferOrder(docNo: string): Promise<unknown> {
-  const result = await patchTransferOrder(docNo, { Status: "Open" });
-  return result;
+export async function reopenTransferOrder(docNo: string): Promise<void> {
+  return releaseOpenTransferOrder({ docNo, open: true, released: false });
+}
+
+/**
+ * Release a transfer order
+ */
+export async function releaseTransferOrder(docNo: string): Promise<void> {
+  return releaseOpenTransferOrder({ docNo, open: false, released: true });
 }
 
 

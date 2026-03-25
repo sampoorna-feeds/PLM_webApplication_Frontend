@@ -19,6 +19,7 @@ import {
   patchTransferOrder,
   postTransferOrder,
   reopenTransferOrder,
+  releaseTransferOrder,
   getTransferAllLocationCodes,
   getTransferLocationCodes,
   type TransferLocationCode,
@@ -544,6 +545,22 @@ export function TransferOrderForm({
     }
   };
 
+  const handleRelease = async () => {
+    if (!formState.No) return;
+    
+    setIsSubmitting(true);
+    try {
+      await releaseTransferOrder(formState.No);
+      toast.success("Transfer Order released successfully");
+      fetchOrderData(formState.No);
+    } catch (error: any) {
+      console.error("Error releasing transfer order:", error);
+      toast.error(error.message || "Failed to release transfer order");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
 
 
   const fieldClass = "min-w-0 space-y-1 text-left";
@@ -608,6 +625,16 @@ export function TransferOrderForm({
                     className="border-primary text-primary hover:bg-primary/10 font-bold transition-all hover:scale-105 active:scale-95"
                   >
                     Reopen
+                  </Button>
+                )}
+                {formState.Status === "Open" && formState.No && (
+                   <Button
+                    onClick={handleRelease}
+                    variant="outline"
+                    size="sm"
+                    className="border-primary text-primary hover:bg-primary/10 font-bold transition-all hover:scale-105 active:scale-95"
+                  >
+                    Release
                   </Button>
                 )}
 

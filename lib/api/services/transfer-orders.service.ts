@@ -152,12 +152,12 @@ export async function getTransferOrderByNo(
   orderNo: string,
 ): Promise<TransferOrder | null> {
   const filter = `No eq '${orderNo.replace(/'/g, "''")}'`;
-  const query = buildODataQuery({ 
+  const query = buildODataQuery({
     $filter: filter,
-    $select: "No,Transfer_from_Code,Transfer_from_Name,Transfer_to_Code,Transfer_to_Name,In_Transit_Code,Status,Shortcut_Dimension_1_Code,Shortcut_Dimension_2_Code,Posting_Date,External_Document_No,Vehicle_No,LR_RR_No,LR_RR_Date,Distance_Km,Freight_Value,Transporter_Code,Transporter_Name,Mode_of_Transport"
+    $select:
+      "No,Transfer_from_Code,Transfer_from_Name,Transfer_to_Code,Transfer_to_Name,In_Transit_Code,Status,Shortcut_Dimension_1_Code,Shortcut_Dimension_2_Code,Posting_Date,External_Document_No,Vehicle_No,LR_RR_No,LR_RR_Date,Distance_Km,Freight_Value,Transporter_Code,Transporter_Name,Mode_of_Transport",
   });
   const endpoint = `/TransferHeader?company='${encodeURIComponent(COMPANY)}'&${query}`;
-
 
   const response = await apiGet<ODataResponse<TransferOrder>>(endpoint);
   const value = response.value;
@@ -253,7 +253,7 @@ export interface TransferLine {
   Appl_to_Item_Entry?: number;
   Shortcut_Dimension_1_Code?: string;
   Shortcut_Dimension_2_Code?: string;
-  'Derived From Line No'?: number;
+  Derived_From_Line_No?: number;
   [key: string]: unknown;
 }
 
@@ -317,7 +317,7 @@ export async function getTransferOrderLines(
   documentNo: string,
 ): Promise<TransferLine[]> {
   const escaped = documentNo.replace(/'/g, "''");
-  const filter = `Document_No eq '${escaped}' and 'Derived From Line No' eq '0'`;
+  const filter = `Document_No eq '${escaped}' and 'Derived_From_Line_No' eq '0'`;
   const query = buildODataQuery({ $filter: filter, $orderby: "Line_No asc" });
   const endpoint = `/TransferLine?company='${encodeURIComponent(COMPANY)}'&${query}`;
 
@@ -390,6 +390,10 @@ export async function postTransferOrder(data: {
   docNo: string;
   postShipment: string;
   postReceipt: string;
+  locationCode?: string;
+  quantity?: number;
+  qtytoHandle?: number;
+  sourceSubType?: number;
 }): Promise<void> {
   const encodedCompany = encodeURIComponent(COMPANY);
   const endpoint = `/API_PostTransferOrder?company='${encodedCompany}'`;
@@ -423,10 +427,6 @@ export async function releaseTransferOrder(docNo: string): Promise<void> {
   return releaseOpenTransferOrder({ docNo, open: false, released: true });
 }
 
-
-
-
-
 /**
  * Get item ledger entries for an item and location
  */
@@ -439,7 +439,8 @@ export async function getTransferItemLedgerEntries(
   // Using direct OData syntax as preferred by the user query
   const endpoint = `/Itemledger_entry?company='${encodedCompany}'&$top=500&$filter=${encodeURIComponent(filter)}`;
 
-  const response = await apiGet<ODataResponse<TransferItemLedgerEntry>>(endpoint);
+  const response =
+    await apiGet<ODataResponse<TransferItemLedgerEntry>>(endpoint);
   return response.value || [];
 }
 
@@ -452,12 +453,13 @@ export async function checkItemTracking(
 ): Promise<boolean> {
   const encodedCompany = encodeURIComponent(COMPANY);
   const filter = `Item_No eq '${itemNo.replace(/'/g, "''")}' and Location_Code eq '${locationCode.replace(/'/g, "''")}' and Open eq true and Positive eq true`;
-  
+
   // Using exact casing $Top as per user request
   const endpoint = `/Itemledger_entry?company='${encodedCompany}'&$Top=500&$filter=${encodeURIComponent(filter)}&$select=Item_Tracking`;
 
   try {
-    const response = await apiGet<ODataResponse<TransferItemLedgerEntry>>(endpoint);
+    const response =
+      await apiGet<ODataResponse<TransferItemLedgerEntry>>(endpoint);
     return (
       response.value?.some((entry) => entry.Item_Tracking === "Lot No.") ||
       false
@@ -477,12 +479,13 @@ export async function getItemAvailableQuantity(
 ): Promise<number> {
   const encodedCompany = encodeURIComponent(COMPANY);
   const filter = `Item_No eq '${itemNo.replace(/'/g, "''")}' and Location_Code eq '${locationCode.replace(/'/g, "''")}' and Open eq true`;
-  
+
   // Using exact casing $Top as per user request
   const endpoint = `/Itemledger_entry?company='${encodedCompany}'&$Top=1000&$filter=${encodeURIComponent(filter)}&$select=Remaining_Quantity`;
 
   try {
-    const response = await apiGet<ODataResponse<TransferItemLedgerEntry>>(endpoint);
+    const response =
+      await apiGet<ODataResponse<TransferItemLedgerEntry>>(endpoint);
     return (
       response.value?.reduce(
         (sum, entry) => sum + (Number(entry.Remaining_Quantity) || 0),
@@ -581,7 +584,8 @@ export async function getTransferItemAvailabilityByLot(
   // Use the same endpoint format as in production-orders.service.ts
   const endpoint = `/Company('${encodedCompany}')/ItemAvailabilitybyLot?$filter=${encodeURIComponent(filter)}`;
 
-  const response = await apiGet<ODataResponse<TransferLotAvailability>>(endpoint);
+  const response =
+    await apiGet<ODataResponse<TransferLotAvailability>>(endpoint);
   return response.value || [];
 }
 
@@ -649,14 +653,20 @@ export async function getTransferItems(
   try {
     const [resultsByNo, resultsByDesc] = await Promise.all([
       (async () => {
-        const qp = { ...queryParams, $filter: `contains(No,'${escapedSearch}')` };
+        const qp = {
+          ...queryParams,
+          $filter: `contains(No,'${escapedSearch}')`,
+        };
         const query = buildODataQuery(qp);
         const endpoint = `/ItemCard?company='${encodeURIComponent(COMPANY)}'&${query}`;
         const response = await apiGet<ODataResponse<TransferItem>>(endpoint);
         return response.value || [];
       })(),
       (async () => {
-        const qp = { ...queryParams, $filter: `contains(Description,'${escapedSearch}')` };
+        const qp = {
+          ...queryParams,
+          $filter: `contains(Description,'${escapedSearch}')`,
+        };
         const query = buildODataQuery(qp);
         const endpoint = `/ItemCard?company='${encodeURIComponent(COMPANY)}'&${query}`;
         const response = await apiGet<ODataResponse<TransferItem>>(endpoint);
@@ -670,7 +680,9 @@ export async function getTransferItems(
       if (!uniqueMap.has(item.No)) uniqueMap.set(item.No, item);
     });
 
-    return Array.from(uniqueMap.values()).sort((a, b) => a.No.localeCompare(b.No));
+    return Array.from(uniqueMap.values()).sort((a, b) =>
+      a.No.localeCompare(b.No),
+    );
   } catch (error) {
     console.error("Error searching items:", error);
     return [];
@@ -680,11 +692,14 @@ export async function getTransferItems(
 /**
  * Get a single item by No
  */
-export async function getTransferItemByNo(itemNo: string): Promise<TransferItem | null> {
+export async function getTransferItemByNo(
+  itemNo: string,
+): Promise<TransferItem | null> {
   const filter = `No eq '${itemNo}'`;
   const query = buildODataQuery({
     $filter: filter,
-    $select: "No,Description,Production_BOM_No,Base_Unit_of_Measure,GST_Group_Code,HSN_SAC_Code,Exempted,Item_Tracking_Code",
+    $select:
+      "No,Description,Production_BOM_No,Base_Unit_of_Measure,GST_Group_Code,HSN_SAC_Code,Exempted,Item_Tracking_Code",
   });
   const endpoint = `/ItemCard?company='${encodeURIComponent(COMPANY)}'&${query}`;
   const response = await apiGet<ODataResponse<TransferItem>>(endpoint);
@@ -700,7 +715,9 @@ export async function getTransferLocationCodes(
 ): Promise<TransferLocationCode[]> {
   const commonFilter: string[] = [];
   if (authorizedCodes && authorizedCodes.length > 0) {
-    const codeFilter = authorizedCodes.map((c) => `Code eq '${c.replace(/'/g, "''")}'`).join(" or ");
+    const codeFilter = authorizedCodes
+      .map((c) => `Code eq '${c.replace(/'/g, "''")}'`)
+      .join(" or ");
     commonFilter.push(`(${codeFilter})`);
   }
 
@@ -710,10 +727,12 @@ export async function getTransferLocationCodes(
       $orderby: "Code",
       $top: 50,
     };
-    if (commonFilter.length > 0) queryParams.$filter = commonFilter.join(" and ");
+    if (commonFilter.length > 0)
+      queryParams.$filter = commonFilter.join(" and ");
     const query = buildODataQuery(queryParams);
     const endpoint = `/LocationList?company='${encodeURIComponent(COMPANY)}'&${query}`;
-    const response = await apiGet<ODataResponse<TransferLocationCode>>(endpoint);
+    const response =
+      await apiGet<ODataResponse<TransferLocationCode>>(endpoint);
     return response.value || [];
   }
 
@@ -721,25 +740,47 @@ export async function getTransferLocationCodes(
     const escapedSearch = search.replace(/'/g, "''");
     const [resultsByCode, resultsByName] = await Promise.all([
       (async () => {
-        const filter = [...commonFilter, `contains(Code,'${escapedSearch}')`].join(" and ");
-        const query = buildODataQuery({ $select: "Code,Name", $filter: filter, $orderby: "Code", $top: 30 });
+        const filter = [
+          ...commonFilter,
+          `contains(Code,'${escapedSearch}')`,
+        ].join(" and ");
+        const query = buildODataQuery({
+          $select: "Code,Name",
+          $filter: filter,
+          $orderby: "Code",
+          $top: 30,
+        });
         const endpoint = `/LocationList?company='${encodeURIComponent(COMPANY)}'&${query}`;
-        const response = await apiGet<ODataResponse<TransferLocationCode>>(endpoint);
+        const response =
+          await apiGet<ODataResponse<TransferLocationCode>>(endpoint);
         return response.value || [];
       })(),
       (async () => {
-        const filter = [...commonFilter, `contains(Name,'${escapedSearch}')`].join(" and ");
-        const query = buildODataQuery({ $select: "Code,Name", $filter: filter, $orderby: "Code", $top: 30 });
+        const filter = [
+          ...commonFilter,
+          `contains(Name,'${escapedSearch}')`,
+        ].join(" and ");
+        const query = buildODataQuery({
+          $select: "Code,Name",
+          $filter: filter,
+          $orderby: "Code",
+          $top: 30,
+        });
         const endpoint = `/LocationList?company='${encodeURIComponent(COMPANY)}'&${query}`;
-        const response = await apiGet<ODataResponse<TransferLocationCode>>(endpoint);
+        const response =
+          await apiGet<ODataResponse<TransferLocationCode>>(endpoint);
         return response.value || [];
       })(),
     ]);
 
     const combined = [...resultsByCode, ...resultsByName];
     const uniqueMap = new Map<string, TransferLocationCode>();
-    combined.forEach((loc) => { if (!uniqueMap.has(loc.Code)) uniqueMap.set(loc.Code, loc); });
-    return Array.from(uniqueMap.values()).sort((a, b) => a.Code.localeCompare(b.Code));
+    combined.forEach((loc) => {
+      if (!uniqueMap.has(loc.Code)) uniqueMap.set(loc.Code, loc);
+    });
+    return Array.from(uniqueMap.values()).sort((a, b) =>
+      a.Code.localeCompare(b.Code),
+    );
   } catch (error) {
     console.error("Error searching location codes:", error);
     return [];
@@ -749,24 +790,28 @@ export async function getTransferLocationCodes(
 /**
  * Get all location codes
  */
-export async function getTransferAllLocationCodes(codes?: string[]): Promise<TransferLocationCode[]> {
+export async function getTransferAllLocationCodes(
+  codes?: string[],
+): Promise<TransferLocationCode[]> {
   const queryParams: Record<string, any> = {
     $select: "Code,Name",
     $orderby: "Code",
     $top: 1000,
   };
   if (codes && codes.length > 0) {
-    const codeFilter = codes.map((c) => `Code eq '${c.replace(/'/g, "''")}'`).join(" or ");
+    const codeFilter = codes
+      .map((c) => `Code eq '${c.replace(/'/g, "''")}'`)
+      .join(" or ");
     queryParams.$filter = `(${codeFilter})`;
   }
   const query = buildODataQuery(queryParams);
   const endpoint = `/LocationList?company='${encodeURIComponent(COMPANY)}'&${query}`;
   try {
-    const response = await apiGet<ODataResponse<TransferLocationCode>>(endpoint);
+    const response =
+      await apiGet<ODataResponse<TransferLocationCode>>(endpoint);
     return response.value || [];
   } catch (error) {
     console.error("Error fetching location codes:", error);
     return [];
   }
 }
-

@@ -80,7 +80,7 @@ export function TransferOrderLineDetailsDialog({
           setHasTracking(tracked);
           setAvailableQty(availableResult);
 
-          if (tracked) {
+          if (!tracked) {
             setIsLoadingLedger(true);
             try {
               const entries = await getTransferItemLedgerEntries(line.Item_No!, activeLocationCode);
@@ -274,13 +274,13 @@ export function TransferOrderLineDetailsDialog({
               </label>
             </div>
 
-            {hasTracking && (
+            {!isLoadingTracking && !hasTracking && (
               <div className="space-y-1.5 md:col-span-2 animate-in fade-in slide-in-from-top-2 duration-300">
                 <label className="text-xs font-medium text-muted-foreground">Applies to Entry</label>
                 <SearchableSelect
                   options={ledgerEntries.map((e) => ({
                     value: e.Entry_No.toString(),
-                    label: `Entry: ${e.Entry_No} | Lot: ${e.Lot_No || "N/A"} | Qty: ${e.Remaining_Quantity}`,
+                    label: `Entry: ${e.Entry_No} | Date: ${e.Posting_Date ? new Date(e.Posting_Date).toLocaleDateString() : "N/A"} | Doc: ${e.Document_No} | Qty: ${e.Quantity} | Rem: ${e.Remaining_Quantity}`,
                   }))}
                   value={formData.Appl_to_Item_Entry?.toString() || ""}
                   onValueChange={(v) => handleChange("Appl_to_Item_Entry", v)}

@@ -11,7 +11,8 @@ import { Search, RotateCcw } from "lucide-react";
 import { useEffect } from "react";
 
 export interface PostedTransferFilters {
-  postingDate?: string;
+  fromDate?: string;
+  toDate?: string;
   fromLocation?: string;
   toLocation?: string;
 }
@@ -24,7 +25,8 @@ interface PostedTransferFilterFormProps {
 
 export function PostedTransferFilterForm({ onApply, title, description }: PostedTransferFilterFormProps) {
   const [filters, setFilters] = useState<PostedTransferFilters>({
-    postingDate: new Date().toISOString().split("T")[0],
+    fromDate: new Date().toISOString().split("T")[0],
+    toDate: new Date().toISOString().split("T")[0],
   });
   
   const [locationOptions, setLocationOptions] = useState<SearchableSelectOption[]>([]);
@@ -65,7 +67,8 @@ export function PostedTransferFilterForm({ onApply, title, description }: Posted
 
   const handleReset = () => {
     setFilters({
-      postingDate: new Date().toISOString().split("T")[0],
+      fromDate: new Date().toISOString().split("T")[0],
+      toDate: new Date().toISOString().split("T")[0],
     });
   };
 
@@ -78,13 +81,22 @@ export function PostedTransferFilterForm({ onApply, title, description }: Posted
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
-            <Field>
-              <FieldTitle>Posting Date</FieldTitle>
-              <DateInput
-                value={filters.postingDate}
-                onChange={(val) => setFilters(prev => ({ ...prev, postingDate: val }))}
-              />
-            </Field>
+            <div className="grid grid-cols-2 gap-4">
+              <Field>
+                <FieldTitle>From Date</FieldTitle>
+                <DateInput
+                  value={filters.fromDate}
+                  onChange={(val) => setFilters(prev => ({ ...prev, fromDate: val }))}
+                />
+              </Field>
+              <Field>
+                <FieldTitle>To Date</FieldTitle>
+                <DateInput
+                  value={filters.toDate}
+                  onChange={(val) => setFilters(prev => ({ ...prev, toDate: val }))}
+                />
+              </Field>
+            </div>
 
             <Field>
 

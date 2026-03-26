@@ -26,8 +26,11 @@ export function PostedTransferView({ type }: PostedTransferViewProps) {
     setIsLoading(true);
     try {
       const parts = [];
-      if (appliedFilters.postingDate) {
-        parts.push(`Posting_Date eq ${appliedFilters.postingDate}`);
+      if (appliedFilters.fromDate) {
+        parts.push(`Posting_Date ge ${appliedFilters.fromDate}`);
+      }
+      if (appliedFilters.toDate) {
+        parts.push(`Posting_Date le ${appliedFilters.toDate}`);
       }
       if (appliedFilters.fromLocation) {
         parts.push(`Transfer_from_Code eq '${appliedFilters.fromLocation}'`);
@@ -73,7 +76,7 @@ export function PostedTransferView({ type }: PostedTransferViewProps) {
         <div className="flex flex-col">
           <h1 className="text-xl font-bold">{title} Data</h1>
           <p className="text-muted-foreground text-xs">
-            Date: {filters.postingDate}
+            Range: {filters.fromDate} to {filters.toDate}
           </p>
         </div>
         <div className="flex gap-2">

@@ -142,16 +142,16 @@ export function TransferOrderLineDetailsDialog({
   };
 
   const infoLabelClass = "text-muted-foreground text-sm font-medium w-32";
-  const infoValueClass = "text-sm font-bold text-white";
+  const infoValueClass = "text-sm font-bold text-foreground";
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl bg-[#0a0a0a] border-[#222] text-white p-0 overflow-hidden rounded-2xl">
+      <DialogContent className="max-w-4xl bg-background border-border p-0 overflow-hidden rounded-2xl">
         <div className="p-6 space-y-6">
           <div className="flex items-center justify-between">
             <h2 className={cn(
                 "text-base font-semibold transition-colors duration-300",
-                hasTracking ? "text-red-500" : "text-white"
+                hasTracking ? "text-red-500" : "text-foreground"
             )}>
               Transfer Line Details 
               {isLoadingTracking ? (
@@ -208,7 +208,7 @@ export function TransferOrderLineDetailsDialog({
             </div>
           )}
 
-          <div className="h-px bg-[#222] w-full" />
+          <div className="h-px bg-border w-full" />
 
           {/* Editable Fields Section - 2-column Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
@@ -217,7 +217,7 @@ export function TransferOrderLineDetailsDialog({
               <Input
                 value={formData.Description || ""}
                 onChange={(e) => handleChange("Description", e.target.value)}
-                className="bg-[#111] border-[#222] h-9 text-sm text-white focus:border-red-500/50 transition-colors"
+                className="h-9 text-sm focus:border-red-500/50 transition-colors"
               />
             </div>
 
@@ -227,7 +227,7 @@ export function TransferOrderLineDetailsDialog({
                 type="number"
                 value={formData.Qty_to_Ship || ""}
                 onChange={(e) => handleChange("Qty_to_Ship", Number(e.target.value))}
-                className="bg-[#111] border-[#222] h-9 text-sm text-white focus:border-red-500/50 transition-colors"
+                className="h-9 text-sm focus:border-red-500/50 transition-colors"
                 placeholder="0"
               />
             </div>
@@ -238,7 +238,7 @@ export function TransferOrderLineDetailsDialog({
                 type="number"
                 value={formData.Qty_to_Receive || ""}
                 onChange={(e) => handleChange("Qty_to_Receive", Number(e.target.value))}
-                className="bg-[#111] border-[#222] h-9 text-sm text-white focus:border-red-500/50 transition-colors"
+                className="h-9 text-sm focus:border-red-500/50 transition-colors"
               />
             </div>
 
@@ -247,7 +247,7 @@ export function TransferOrderLineDetailsDialog({
               <Input
                 value={formData.GST_Group_Code || ""}
                 readOnly
-                className="bg-[#111]/50 border-[#222] h-9 text-sm text-muted-foreground"
+                className="bg-muted/50 h-9 text-sm text-muted-foreground"
               />
             </div>
 
@@ -256,14 +256,14 @@ export function TransferOrderLineDetailsDialog({
               <Input
                 value={formData.HSN_SAC_Code || ""}
                 readOnly
-                className="bg-[#111]/50 border-[#222] h-9 text-sm text-muted-foreground"
+                className="bg-muted/50 h-9 text-sm text-muted-foreground"
               />
             </div>
 
             <div className="flex items-center space-x-3 pt-4">
               <div className={cn(
-                  "w-4 h-4 rounded border bg-[#111] flex items-center justify-center transition-colors cursor-pointer",
-                  formData.Exempted ? "bg-green-600 border-green-600" : "border-[#333]"
+                  "w-4 h-4 rounded border flex items-center justify-center transition-colors cursor-pointer",
+                  formData.Exempted ? "bg-green-600 border-green-600" : "bg-muted border-input"
               )}
               onClick={() => handleChange("Exempted", !formData.Exempted)}
               >
@@ -290,7 +290,7 @@ export function TransferOrderLineDetailsDialog({
                 />
                 
                 {formData.Appl_to_Item_Entry && (
-                  <div className="mt-3 grid grid-cols-2 lg:grid-cols-3 gap-y-4 gap-x-6 p-4 rounded-xl bg-[#111] border border-[#222] animate-in slide-in-from-right-2 duration-500">
+                  <div className="mt-3 grid grid-cols-2 lg:grid-cols-3 gap-y-4 gap-x-6 p-4 rounded-xl bg-muted/50 border border-border animate-in slide-in-from-right-2 duration-500">
                     {(() => {
                       const selectedEntry = ledgerEntries.find(e => e.Entry_No.toString() === formData.Appl_to_Item_Entry?.toString());
                       if (!selectedEntry) return null;
@@ -298,7 +298,7 @@ export function TransferOrderLineDetailsDialog({
                       const detailItem = (label: string, value: string | number | undefined, isUpper = false) => (
                         <div className="space-y-1">
                           <span className="text-[10px] uppercase font-bold text-muted-foreground">{label}</span>
-                          <p className={cn("text-xs font-bold text-white", isUpper && "uppercase")}>
+                          <p className={cn("text-xs font-bold text-foreground", isUpper && "uppercase")}>
                             {value?.toString() || "N/A"}
                           </p>
                         </div>
@@ -327,7 +327,7 @@ export function TransferOrderLineDetailsDialog({
             <Button
               variant="outline"
               onClick={() => onOpenChange(false)}
-              className="bg-[#1a1a1a] border-[#333] hover:bg-[#222] text-white hover:text-white rounded-lg px-8 h-9 text-sm"
+              className="rounded-lg px-8 h-9 text-sm"
             >
               Cancel
             </Button>
@@ -342,10 +342,10 @@ export function TransferOrderLineDetailsDialog({
           </div>
 
           {hasTracking && (
-            <div className="pt-2 border-t border-[#222]">
+            <div className="pt-2 border-t border-border">
               <Button
                 variant="outline"
-                className="w-full text-red-500 border-[#222] hover:bg-red-500/10 hover:text-red-500 font-bold h-10 rounded-xl text-sm"
+                className="w-full text-red-500 border-border hover:bg-red-500/10 hover:text-red-500 font-bold h-10 rounded-xl text-sm"
                 onClick={() => setIsTrackingOpen(true)}
               >
                 Item Tracking

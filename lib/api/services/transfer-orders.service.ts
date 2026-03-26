@@ -887,6 +887,21 @@ export async function getPostedTransferShipments(params: GetTransferOrdersParams
 }
 
 /**
+ * Get posted transfer shipments by order number
+ */
+export async function getPostedTransferShipmentsByOrder(orderNo: string, postingDate?: string): Promise<PostedTransferShipment[]> {
+  const escaped = orderNo.replace(/'/g, "''");
+  let filter = `Transfer_Order_No eq '${escaped}'`;
+  if (postingDate) {
+    filter += ` and Posting_Date eq ${postingDate}`;
+  }
+  const query = buildODataQuery({ $filter: filter });
+  const endpoint = `/PostedTransferShipment?company='${encodeURIComponent(COMPANY)}'&${query}`;
+  const response = await apiGet<ODataResponse<PostedTransferShipment>>(endpoint);
+  return response.value || [];
+}
+
+/**
  * Get posted transfer receipts with count
  */
 export async function getTransferReceipts(params: GetTransferOrdersParams = {}): Promise<{ orders: TransferReceipt[], totalCount: number }> {
@@ -954,5 +969,16 @@ export async function getTransferReceiptLines(documentNo: string): Promise<Trans
   const endpoint = `/TransferReceiptLine?company='${encodeURIComponent(COMPANY)}'&${query}`;
   const response = await apiGet<ODataResponse<TransferReceiptLine>>(endpoint);
   return response.value || [];
+}
+
+/**
+ * Get transfer shipment report PDF as base64
+ */
+export async function getTransferShipmentReport(shipmentNo: string): Promise<string> {
+  const endpoint = `/API_GetTransferShipmentReport?company='${encodeURIComponent(COMPANY)}'`;
+  const payload = { shipmentNo };
+  const response = await apiPost<{ value: string } | string>(endpoint, payload);
+  if (typeof response === "string") return response;
+  return response?.value || "";
 }
 

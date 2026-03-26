@@ -22,10 +22,22 @@ import {
   releaseTransferOrder,
   getTransferAllLocationCodes,
   getTransferLocationCodes,
+  getPostedTransferShipmentsByOrder,
+  getTransferShipmentReport,
+  type PostedTransferShipment,
   type TransferLocationCode,
   type TransferLine,
   type TransferOrder,
 } from "@/lib/api/services/transfer-orders.service";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
@@ -44,7 +56,7 @@ import {
 import { getAuthCredentials } from "@/lib/auth/storage";
 import { useFormStack } from "@/lib/form-stack/use-form-stack";
 import { cn } from "@/lib/utils";
-import { Loader2, Plus, RefreshCw } from "lucide-react";
+import { Loader2, Plus, RefreshCw, Eye, Download, Printer } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { TransferOrderLineDialog } from "./transfer-order-line-dialog";
@@ -126,6 +138,14 @@ export function TransferOrderForm({
   const [isPostDialogOpen, setIsPostDialogOpen] = useState(false);
   const [postSelection, setPostSelection] = useState<"ship" | "receive">("ship");
   const [postStep, setPostStep] = useState<1 | 2>(1);
+
+  // Report states
+  const [isReportDialogOpen, setIsReportDialogOpen] = useState(false);
+  const [reportShipments, setReportShipments] = useState<PostedTransferShipment[]>([]);
+  const [reportDate, setReportDate] = useState("");
+  const [isReportLoading, setIsReportLoading] = useState(false);
+  const [activeReportDocNo, setActiveReportDocNo] = useState<string | null>(null);
+  const [reportPdfUrls, setReportPdfUrls] = useState<Record<string, string>>({});
 
   // Debug: Monitor locations state changes
   useEffect(() => {
@@ -355,6 +375,14 @@ export function TransferOrderForm({
     loadBranches();
   }, [userId, formState.Shortcut_Dimension_1_Code]);
 
+  // Cleanup report blob URLs on unmount
+  useEffect(() => {
+    const urls = Object.values(reportPdfUrls);
+    return () => {
+      urls.forEach((url) => window.URL.revokeObjectURL(url));
+    };
+  }, [reportPdfUrls]);
+
   const handleChange = (field: string, value: any) => {
     setFormState((prev) => ({ ...prev, [field]: value }));
     updateTab({ isSaved: false });
@@ -576,6 +604,92 @@ export function TransferOrderForm({
     }
   };
 
+  const handleOpenReportDialog = () => {
+    setReportDate(formState.Posting_Date ? formState.Posting_Date.split("T")[0] : "");
+    setReportShipments([]);
+    setIsReportDialogOpen(true);
+  };
+
+  const loadReportShipments = async () => {
+    if (!formState.No) return;
+    setIsReportLoading(true);
+    try {
+      const shipments = await getPostedTransferShipmentsByOrder(formState.No, reportDate);
+      setReportShipments(shipments || []);
+      if (shipments.length === 0) {
+        toast.info("No shipments found for this date.");
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Failed to load shipments");
+    } finally {
+      setIsReportLoading(false);
+    }
+  };
+
+  const base64ToPdfBlob = (base64Value: string) => {
+    const normalized = base64Value.replace(/^data:application\/pdf;base64,/, "").replace(/\s/g, "");
+    const byteCharacters = atob(normalized);
+    const byteNumbers = new Array(byteCharacters.length);
+    for (let i = 0; i < byteCharacters.length; i++) {
+      byteNumbers[i] = byteCharacters.charCodeAt(i);
+    }
+    return new Blob([new Uint8Array(byteNumbers)], { type: "application/pdf" });
+  };
+
+  const getReportPdfUrl = async (shipmentNo: string) => {
+    if (reportPdfUrls[shipmentNo]) return reportPdfUrls[shipmentNo];
+
+    setActiveReportDocNo(shipmentNo);
+    try {
+      const base64Data = await getTransferShipmentReport(shipmentNo);
+      if (!base64Data) throw new Error("No PDF content returned.");
+
+      const blob = base64ToPdfBlob(base64Data);
+      const url = window.URL.createObjectURL(blob);
+      setReportPdfUrls(prev => ({ ...prev, [shipmentNo]: url }));
+      return url;
+    } finally {
+      setActiveReportDocNo(null);
+    }
+  };
+
+  const handlePreviewReport = async (shipmentNo: string) => {
+    try {
+      const url = await getReportPdfUrl(shipmentNo);
+      window.open(url, "_blank", "noopener,noreferrer");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to preview report");
+    }
+  };
+
+  const handleDownloadReport = async (shipmentNo: string) => {
+    try {
+      const url = await getReportPdfUrl(shipmentNo);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `Shipment_Report_${shipmentNo}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to download report");
+    }
+  };
+
+  const handlePrintReport = async (shipmentNo: string) => {
+    try {
+      const url = await getReportPdfUrl(shipmentNo);
+      const iframe = document.createElement("iframe");
+      iframe.style.display = "none";
+      iframe.src = url;
+      document.body.appendChild(iframe);
+      iframe.onload = () => {
+        iframe.contentWindow?.print();
+      };
+    } catch (err: any) {
+      toast.error(err.message || "Failed to print report");
+    }
+  };
 
 
   const fieldClass = "min-w-0 space-y-1 text-left";
@@ -622,6 +736,17 @@ export function TransferOrderForm({
                 >
                   Close
                 </Button>
+
+                {formState.No && (
+                  <Button
+                    onClick={handleOpenReportDialog}
+                    variant="outline"
+                    size="sm"
+                    className="border-primary text-primary hover:bg-primary/10 font-bold transition-all hover:scale-105 active:scale-95"
+                  >
+                    View Shipment Report
+                  </Button>
+                )}
                 {(formState.Status === "Released" || formState.Status === "Open") && formState.No && (
                   <Button
                     onClick={() => setIsPostDialogOpen(true)}
@@ -1314,6 +1439,119 @@ export function TransferOrderForm({
               ) : (
                 postStep === 1 ? "Continue" : "Post Order"
               )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Shipment Report Dialog */}
+      <Dialog open={isReportDialogOpen} onOpenChange={setIsReportDialogOpen}>
+        <DialogContent className={cn(
+          "transition-[max-width] duration-300 rounded-3xl border-[#333] bg-[#090909] text-white",
+          reportShipments.length > 0 ? "sm:max-w-4xl" : "sm:max-w-md"
+        )}>
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold tracking-tight">Shipment Report</DialogTitle>
+            <DialogDescription className="text-[#888]">
+              Select a posting date to load shipments for this transfer order.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-6 pt-4">
+            <div className="flex items-end gap-3">
+              <div className="flex-1 space-y-2 text-left">
+                <Label className="text-xs font-bold uppercase tracking-wider text-[#666]">Posting Date</Label>
+                <input
+                  type="date"
+                  className="h-10 w-full rounded-xl border border-[#333] bg-[#111] px-4 text-sm font-medium transition-all focus:border-primary focus:ring-1 focus:ring-primary outline-none"
+                  value={reportDate}
+                  onChange={(e) => setReportDate(e.target.value)}
+                />
+              </div>
+              <Button
+                onClick={loadReportShipments}
+                disabled={isReportLoading || !reportDate}
+                className="h-10 rounded-xl bg-primary px-8 font-bold text-white shadow-lg transition-all hover:scale-105 active:scale-95 disabled:opacity-50"
+              >
+                {isReportLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  "Load Shipments"
+                )}
+              </Button>
+            </div>
+
+            {reportShipments.length > 0 && (
+              <div className="animate-in fade-in slide-in-from-bottom-2 overflow-hidden rounded-2xl border border-[#333] bg-[#0a0a0a] duration-500">
+                <Table>
+                  <TableHeader className="bg-[#111]/50">
+                    <TableRow className="border-[#222]">
+                      <TableHead className="text-[11px] font-bold uppercase tracking-wider text-[#666]">No.</TableHead>
+                      <TableHead className="text-[11px] font-bold uppercase tracking-wider text-[#666]">Posting Date</TableHead>
+                      <TableHead className="text-[11px] font-bold uppercase tracking-wider text-[#666]">Vehicle No.</TableHead>
+                      <TableHead className="text-[11px] font-bold uppercase tracking-wider text-[#666] text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {reportShipments.map((s) => (
+                      <TableRow key={s.No} className="border-[#111] transition-colors hover:bg-[#111]">
+                        <TableCell className="text-xs font-bold text-white">{s.No}</TableCell>
+                        <TableCell className="text-xs text-[#888]">
+                          {s.Posting_Date ? new Date(s.Posting_Date).toLocaleDateString() : "-"}
+                        </TableCell>
+                        <TableCell className="text-xs text-[#888]">{s.Vehicle_No || "-"}</TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-8 border-[#222] bg-[#111] hover:bg-[#222] text-[#ccc] rounded-lg transition-all active:scale-95"
+                              onClick={() => handlePreviewReport(s.No)}
+                              disabled={activeReportDocNo === s.No}
+                            >
+                              {activeReportDocNo === s.No ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                <Eye className="h-3.5 w-3.5" />
+                              )}
+                              <span className="ml-2 hidden sm:inline">View</span>
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-8 border-[#222] bg-[#111] hover:bg-[#222] text-[#ccc] rounded-lg transition-all active:scale-95"
+                              onClick={() => handleDownloadReport(s.No)}
+                              disabled={activeReportDocNo === s.No}
+                            >
+                              <Download className="h-3.5 w-3.5" />
+                              <span className="ml-2 hidden sm:inline">Download</span>
+                            </Button>
+                            <Button
+                              size="sm"
+                              className="h-8 bg-primary hover:bg-primary/90 text-white rounded-lg shadow-md transition-all active:scale-95"
+                              onClick={() => handlePrintReport(s.No)}
+                              disabled={activeReportDocNo === s.No}
+                            >
+                              <Printer className="h-3.5 w-3.5" />
+                              <span className="ml-2 hidden sm:inline">Print</span>
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="pt-4">
+            <Button
+              variant="outline"
+              onClick={() => setIsReportDialogOpen(false)}
+              className="bg-[#111] border-[#222] hover:bg-[#222] text-[#888] px-8 h-10 rounded-xl"
+            >
+              Close
             </Button>
           </DialogFooter>
         </DialogContent>

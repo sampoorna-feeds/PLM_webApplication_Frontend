@@ -547,20 +547,6 @@ export function TransferOrderForm({
       postReceipt: postSelection === "receive" ? "True" : "False",
     });
 
-    // Third call: Same API as above but with changed payload for "To" location
-    // Currently using the total quantity from lines as the sample payload
-    const totalQty = lines.reduce((sum, line) => sum + (Number(line.Quantity) || 0), 0);
-    
-    await postTransferOrder({
-      docNo: formState.No,
-      postShipment: postSelection === "ship" ? "True" : "False",
-      postReceipt: postSelection === "receive" ? "True" : "False",
-      locationCode: formState.Transfer_to_Code || "",
-      quantity: totalQty,
-      qtytoHandle: totalQty,
-      sourceSubType: 1, // Target/Receipt side
-    });
-
     toast.success("Transfer Order posted successfully");
     setIsPostDialogOpen(false);
     handleSuccess();

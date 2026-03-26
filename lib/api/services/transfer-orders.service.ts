@@ -51,6 +51,31 @@ export interface TransferOrder {
   [key: string]: unknown;
 }
 
+export interface PostedTransferShipment {
+  No: string;
+  Transfer_from_Code?: string;
+  Transfer_from_Name?: string;
+  Transfer_to_Code?: string;
+  Transfer_to_Name?: string;
+  Posting_Date?: string;
+  Vehicle_No?: string;
+  External_Document_No?: string;
+  [key: string]: unknown;
+}
+
+export interface TransferReceipt {
+  No: string;
+  Transfer_from_Code?: string;
+  Transfer_from_Name?: string;
+  Transfer_to_Code?: string;
+  Transfer_to_Name?: string;
+  Posting_Date?: string;
+  Vehicle_No?: string;
+  External_Document_No?: string;
+  [key: string]: unknown;
+}
+
+
 export interface GetTransferOrdersParams {
   $select?: string;
   $filter?: string;
@@ -257,6 +282,27 @@ export interface TransferLine {
   [key: string]: unknown;
 }
 
+export interface PostedTransferShipmentLine {
+  Document_No: string;
+  Line_No: number;
+  Item_No?: string;
+  Description?: string;
+  Quantity?: number;
+  Unit_of_Measure?: string;
+  [key: string]: unknown;
+}
+
+export interface TransferReceiptLine {
+  Document_No: string;
+  Line_No: number;
+  Item_No?: string;
+  Description?: string;
+  Quantity?: number;
+  Unit_of_Measure?: string;
+  [key: string]: unknown;
+}
+
+
 export interface TransferItemTrackingLine {
   "@odata.etag"?: string;
   Entry_No: number;
@@ -317,7 +363,7 @@ export async function getTransferOrderLines(
   documentNo: string,
 ): Promise<TransferLine[]> {
   const escaped = documentNo.replace(/'/g, "''");
-  const filter = `Document_No eq '${escaped}' and 'Derived_From_Line_No' eq '0'`;
+  const filter = `Document_No eq '${escaped}' and Derived_From_Line_No eq '0'`;
   const query = buildODataQuery({ $filter: filter, $orderby: "Line_No asc" });
   const endpoint = `/TransferLine?company='${encodeURIComponent(COMPANY)}'&${query}`;
 
@@ -815,3 +861,98 @@ export async function getTransferAllLocationCodes(
     return [];
   }
 }
+
+/**
+ * Get posted transfer shipments with count
+ */
+export async function getPostedTransferShipments(params: GetTransferOrdersParams = {}): Promise<{ orders: PostedTransferShipment[], totalCount: number }> {
+  const {
+    $select = "No,Transfer_from_Code,Transfer_to_Code,Posting_Date,Vehicle_No",
+    $filter,
+    $orderby = "No desc",
+    $top = 10,
+    $skip,
+  } = params;
+  const queryParams: Record<string, unknown> = { $select, $top, $count: true };
+  if ($filter) queryParams.$filter = $filter;
+  if ($orderby) queryParams.$orderby = $orderby;
+  if ($skip !== undefined) queryParams.$skip = $skip;
+  const query = buildODataQuery(queryParams as any);
+  const endpoint = `/PostedTransferShipment?company='${encodeURIComponent(COMPANY)}'&${query}`;
+  const response = await apiGet<ODataResponse<PostedTransferShipment>>(endpoint);
+  return {
+    orders: response.value || [],
+    totalCount: response["@odata.count"] ?? 0,
+  };
+}
+
+/**
+ * Get posted transfer receipts with count
+ */
+export async function getTransferReceipts(params: GetTransferOrdersParams = {}): Promise<{ orders: TransferReceipt[], totalCount: number }> {
+  const {
+    $select = "No,Transfer_from_Code,Transfer_to_Code,Posting_Date,Vehicle_No",
+    $filter,
+    $orderby = "No desc",
+    $top = 10,
+    $skip,
+  } = params;
+  const queryParams: Record<string, unknown> = { $select, $top, $count: true };
+  if ($filter) queryParams.$filter = $filter;
+  if ($orderby) queryParams.$orderby = $orderby;
+  if ($skip !== undefined) queryParams.$skip = $skip;
+  const query = buildODataQuery(queryParams as any);
+  const endpoint = `/TransferReceipt?company='${encodeURIComponent(COMPANY)}'&${query}`;
+  const response = await apiGet<ODataResponse<TransferReceipt>>(endpoint);
+  return {
+    orders: response.value || [],
+    totalCount: response["@odata.count"] ?? 0,
+  };
+}
+
+/**
+ * Get posted transfer shipment by No
+ */
+export async function getPostedTransferShipmentByNo(no: string): Promise<PostedTransferShipment | null> {
+  const filter = `No eq '${no.replace(/'/g, "''")}'`;
+  const query = buildODataQuery({ $filter: filter });
+  const endpoint = `/PostedTransferShipment?company='${encodeURIComponent(COMPANY)}'&${query}`;
+  const response = await apiGet<ODataResponse<PostedTransferShipment>>(endpoint);
+  return response.value?.[0] || null;
+}
+
+/**
+ * Get posted transfer receipt by No
+ */
+export async function getTransferReceiptByNo(no: string): Promise<TransferReceipt | null> {
+  const filter = `No eq '${no.replace(/'/g, "''")}'`;
+  const query = buildODataQuery({ $filter: filter });
+  const endpoint = `/TransferReceipt?company='${encodeURIComponent(COMPANY)}'&${query}`;
+  const response = await apiGet<ODataResponse<TransferReceipt>>(endpoint);
+  return response.value?.[0] || null;
+}
+
+/**
+ * Get posted transfer shipment lines
+ */
+export async function getPostedTransferShipmentLines(documentNo: string): Promise<PostedTransferShipmentLine[]> {
+  const escaped = documentNo.replace(/'/g, "''");
+  const filter = `Document_No eq '${escaped}'`;
+  const query = buildODataQuery({ $filter: filter, $orderby: "Line_No asc" });
+  const endpoint = `/PostedTransferShipmentLine?company='${encodeURIComponent(COMPANY)}'&${query}`;
+  const response = await apiGet<ODataResponse<PostedTransferShipmentLine>>(endpoint);
+  return response.value || [];
+}
+
+/**
+ * Get posted transfer receipt lines
+ */
+export async function getTransferReceiptLines(documentNo: string): Promise<TransferReceiptLine[]> {
+  const escaped = documentNo.replace(/'/g, "''");
+  const filter = `Document_No eq '${escaped}'`;
+  const query = buildODataQuery({ $filter: filter, $orderby: "Line_No asc" });
+  const endpoint = `/TransferReceiptLine?company='${encodeURIComponent(COMPANY)}'&${query}`;
+  const response = await apiGet<ODataResponse<TransferReceiptLine>>(endpoint);
+  return response.value || [];
+}
+

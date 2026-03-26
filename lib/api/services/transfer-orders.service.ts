@@ -848,17 +848,28 @@ export async function getTransferLocationCodes(
  */
 export async function getTransferAllLocationCodes(
   codes?: string[],
+  searchTerm?: string,
 ): Promise<TransferLocationCode[]> {
   const queryParams: Record<string, any> = {
     $select: "Code,Name",
     $orderby: "Code",
     $top: 1000,
   };
+  const parts: string[] = [];
   if (codes && codes.length > 0) {
     const codeFilter = codes
       .map((c) => `Code eq '${c.replace(/'/g, "''")}'`)
       .join(" or ");
-    queryParams.$filter = `(${codeFilter})`;
+    parts.push(`(${codeFilter})`);
+  }
+
+  if (searchTerm) {
+    const escaped = searchTerm.replace(/'/g, "''");
+    parts.push(`(contains(Code,'${escaped}') or contains(Name,'${escaped}'))`);
+  }
+
+  if (parts.length > 0) {
+    queryParams.$filter = parts.join(" and ");
   }
   const query = buildODataQuery(queryParams);
   const endpoint = `/LocationList?company='${encodeURIComponent(COMPANY)}'&${query}`;

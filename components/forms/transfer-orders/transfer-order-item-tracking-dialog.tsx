@@ -276,8 +276,8 @@ export function TransferOrderItemTrackingDialog({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="flex max-h-[90vh] max-w-[95vw] flex-col gap-0 p-0 sm:max-w-[85vw] md:max-w-4xl lg:max-w-6xl bg-[#0a0a0a] border-[#222] text-white overflow-hidden rounded-2xl">
-          <DialogHeader className="border-b border-[#222] px-4 py-4 sm:px-6 md:px-8">
+        <DialogContent className="flex max-h-[90vh] max-w-[95vw] flex-col gap-0 p-0 sm:max-w-[85vw] md:max-w-4xl lg:max-w-6xl bg-background border-border overflow-hidden rounded-2xl">
+          <DialogHeader className="border-b border-border px-4 py-4 sm:px-6 md:px-8">
             <DialogTitle className="text-lg font-semibold">
               {editingLine
                 ? "Edit Item Tracking (Transfer Line)"
@@ -288,8 +288,8 @@ export function TransferOrderItemTrackingDialog({
           <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-6 md:px-8 scrollbar-hide">
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-8">
               {/* Left Side: Available Lots */}
-              <div className="flex h-[400px] flex-col overflow-hidden rounded-xl border border-[#222] bg-[#111]">
-                <div className="bg-[#1a1a1a] border-b border-[#222] px-4 py-3 font-medium text-sm">
+              <div className="flex h-[400px] flex-col overflow-hidden rounded-xl border border-border bg-muted/20">
+                <div className="bg-muted border-b border-border px-4 py-3 font-medium text-sm">
                   Available Lots
                 </div>
                 <div className="flex-1 overflow-auto scrollbar-hide">
@@ -304,8 +304,8 @@ export function TransferOrderItemTrackingDialog({
                     </div>
                   ) : (
                     <Table>
-                      <TableHeader className="bg-[#1a1a1a] sticky top-0 z-10">
-                        <TableRow className="border-[#222] hover:bg-transparent">
+                      <TableHeader className="bg-muted sticky top-0 z-10">
+                        <TableRow className="border-border hover:bg-transparent">
                           <TableHead className="h-9 text-xs font-semibold text-muted-foreground">Lot No.</TableHead>
                           <TableHead className="h-9 text-xs font-semibold text-muted-foreground text-right">Qty</TableHead>
                         </TableRow>
@@ -314,7 +314,7 @@ export function TransferOrderItemTrackingDialog({
                         {availableLots.map((lot, index) => (
                           <TableRow
                             key={`${lot.LotNo}-${index}`}
-                            className="border-[#222] hover:bg-[#1a1a1a] cursor-pointer transition-colors"
+                            className="border-border hover:bg-muted cursor-pointer transition-colors"
                             onClick={() => handleLotSelect(lot)}
                           >
                             <TableCell className="py-2.5 font-medium text-sm">
@@ -355,7 +355,7 @@ export function TransferOrderItemTrackingDialog({
                   </div>
                 )}
 
-                <div className="bg-[#111] border border-[#222] space-y-2 rounded-xl p-4 text-sm">
+                <div className="bg-muted/30 border border-border space-y-2 rounded-xl p-4 text-sm font-medium">
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Item No:</span>
                     <span className="font-bold">{itemNo}</span>
@@ -373,7 +373,7 @@ export function TransferOrderItemTrackingDialog({
                       value={lotNo}
                       onChange={(e) => setLotNo(e.target.value)}
                       placeholder="Select or enter lot no"
-                      className="bg-[#111] border-[#222] h-10 text-sm focus:border-red-500/50 transition-colors"
+                      className="h-10 text-sm focus:border-red-500/50 transition-colors"
                     />
                   </div>
                   <div className="space-y-1.5">
@@ -382,7 +382,7 @@ export function TransferOrderItemTrackingDialog({
                       type="date"
                       value={expirationDate}
                       onChange={(e) => setExpirationDate(e.target.value)}
-                      className="bg-[#111] border-[#222] h-10 text-sm focus:border-red-500/50 transition-colors"
+                      className="h-10 text-sm focus:border-red-500/50 transition-colors"
                     />
                   </div>
                   <div className="space-y-1.5">
@@ -398,10 +398,9 @@ export function TransferOrderItemTrackingDialog({
                         }
                       }}
                       placeholder="Enter quantity"
-                      className="bg-[#111] border-[#222] h-10 text-sm focus:border-red-500/50 transition-colors font-semibold"
                     />
                     
-                    <div className="bg-[#111]/50 p-3 rounded-xl border border-[#222] mt-3 space-y-1.5 text-xs">
+                    <div className="bg-muted/20 p-3 rounded-xl border border-border mt-3 space-y-1.5 text-xs">
                       <p className="flex justify-between">
                         <span className="text-muted-foreground">Total to Track:</span>
                         <span className="font-bold">{totalQuantity.toLocaleString()}</span>
@@ -410,7 +409,7 @@ export function TransferOrderItemTrackingDialog({
                         <span className="text-muted-foreground">Already Assigned:</span>
                         <span className="font-bold">{assignedQuantity.toLocaleString()}</span>
                       </p>
-                      <div className="h-px bg-[#222] my-1" />
+                      <div className="h-px bg-border my-1" />
                       <p className="flex justify-between">
                         <span className="font-semibold">Available to Assign:</span>
                         <span className={availableForAssignment > 0 ? "font-bold text-green-500" : "font-bold text-red-500"}>
@@ -433,7 +432,7 @@ export function TransferOrderItemTrackingDialog({
                     </span>
                 )}
               </h3>
-              <div className="max-h-60 overflow-auto rounded-xl border border-[#222] bg-[#111] scrollbar-hide">
+              <div className="max-h-60 overflow-auto rounded-xl border border-border bg-muted/10 scrollbar-hide">
                 {isLoadingTrackingLines ? (
                   <div className="flex items-center justify-center py-12">
                     <Loader2 className="text-muted-foreground h-6 w-6 animate-spin" />
@@ -441,8 +440,8 @@ export function TransferOrderItemTrackingDialog({
                   </div>
                 ) : (
                   <Table>
-                    <TableHeader className="bg-[#1a1a1a] sticky top-0 z-10">
-                      <TableRow className="border-[#222] hover:bg-transparent">
+                    <TableHeader className="bg-muted sticky top-0 z-10">
+                      <TableRow className="border-border hover:bg-transparent">
                         <TableHead className="h-9 text-xs font-semibold text-muted-foreground">Item No.</TableHead>
                         <TableHead className="h-9 text-xs font-semibold text-muted-foreground">Lot No.</TableHead>
                         <TableHead className="h-9 text-xs font-semibold text-muted-foreground">Location</TableHead>
@@ -456,7 +455,7 @@ export function TransferOrderItemTrackingDialog({
                         <TableRow className="hover:bg-transparent">
                           <TableCell colSpan={6} className="h-32 text-center">
                             <div className="text-muted-foreground flex flex-col items-center justify-center gap-2">
-                              <div className="w-10 h-10 rounded-full bg-[#1a1a1a] flex items-center justify-center">
+                              <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
                                   <X className="h-5 w-5 opacity-20" />
                               </div>
                               <p className="text-sm font-medium">No tracking lines assigned yet</p>
@@ -469,8 +468,8 @@ export function TransferOrderItemTrackingDialog({
                           <TableRow
                             key={`${l.Entry_No}-${index}`}
                             className={cn(
-                                "border-[#222] transition-colors",
-                                editingLine?.Entry_No === l.Entry_No ? "bg-red-500/5 hover:bg-red-500/10" : "hover:bg-[#1a1a1a]"
+                                "border-border transition-colors",
+                                editingLine?.Entry_No === l.Entry_No ? "bg-red-500/5 hover:bg-red-500/10" : "hover:bg-muted"
                             )}
                           >
                             <TableCell className="py-2.5 text-xs font-medium">{l.Item_No || "-"}</TableCell>
@@ -487,7 +486,7 @@ export function TransferOrderItemTrackingDialog({
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  className="h-7 w-7 p-0 hover:bg-[#222] hover:text-white"
+                                  className="h-7 w-7 p-0 hover:bg-muted"
                                   onClick={() => handleEditLine(l)}
                                   disabled={!!editingLine}
                                 >
@@ -518,11 +517,11 @@ export function TransferOrderItemTrackingDialog({
             </div>
           </div>
 
-          <DialogFooter className="border-t border-[#222] px-4 py-4 sm:px-6 md:px-8 bg-[#0a0a0a]">
+          <DialogFooter className="border-t border-border px-4 py-4 sm:px-6 md:px-8 bg-background">
             <Button 
                 variant="outline" 
                 onClick={() => onOpenChange(false)}
-                className="bg-[#1a1a1a] border-[#222] hover:bg-[#222] text-white rounded-lg px-6 h-10 text-sm"
+                className="rounded-lg px-6 h-10 text-sm"
             >
               Close
             </Button>
@@ -549,7 +548,7 @@ export function TransferOrderItemTrackingDialog({
       </Dialog>
 
       <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
-        <AlertDialogContent className="bg-[#0a0a0a] border-[#222] text-white rounded-2xl">
+        <AlertDialogContent className="bg-background border-border rounded-2xl">
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Item Tracking?</AlertDialogTitle>
             <AlertDialogDescription className="text-muted-foreground">
@@ -557,7 +556,7 @@ export function TransferOrderItemTrackingDialog({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="bg-[#1a1a1a] border-[#222] text-white hover:bg-[#222] rounded-lg">
+            <AlertDialogCancel className="rounded-lg">
               Cancel
             </AlertDialogCancel>
             <AlertDialogAction 

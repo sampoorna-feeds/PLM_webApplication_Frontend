@@ -1213,7 +1213,7 @@ export function TransferOrderForm({
           if (!open) setPostStep(1); // Reset step when closing
         }}
       >
-        <DialogContent className="sm:max-w-[700px] bg-[#0a0a0a] border-[#222] text-white rounded-2xl">
+        <DialogContent className="sm:max-w-[700px] bg-background border-border rounded-2xl">
           <DialogHeader>
             <DialogTitle className="text-xl font-bold">Post Transfer Order</DialogTitle>
             <DialogDescription className="text-muted-foreground">
@@ -1231,7 +1231,7 @@ export function TransferOrderForm({
                     "flex flex-row items-center cursor-pointer space-x-3 rounded-2xl border-2 p-3.5 transition-all duration-300",
                     postSelection === "ship"
                       ? "border-green-600 bg-green-600/10 shadow-[0_0_20px_rgba(22,163,74,0.1)]"
-                      : "border-[#222] hover:border-green-600/50 hover:bg-[#111]",
+                      : "border-border hover:border-green-600/50 hover:bg-muted",
                   )}
                   onClick={() => setPostSelection("ship")}
                 >
@@ -1249,7 +1249,7 @@ export function TransferOrderForm({
                   </div>
                   <span className={cn(
                     "text-sm font-bold",
-                    postSelection === "ship" ? "text-green-500" : "text-white"
+                    postSelection === "ship" ? "text-green-500" : "text-foreground"
                   )}>Shipment</span>
                 </div>
 
@@ -1258,7 +1258,7 @@ export function TransferOrderForm({
                     "flex flex-row items-center cursor-pointer space-x-3 rounded-2xl border-2 p-3.5 transition-all duration-300",
                     postSelection === "receive"
                       ? "border-green-600 bg-green-600/10 shadow-[0_0_20px_rgba(22,163,74,0.1)]"
-                      : "border-[#222] hover:border-green-600/50 hover:bg-[#111]",
+                      : "border-border hover:border-green-600/50 hover:bg-muted",
                   )}
                   onClick={() => setPostSelection("receive")}
                 >
@@ -1276,7 +1276,7 @@ export function TransferOrderForm({
                   </div>
                   <span className={cn(
                     "text-sm font-bold",
-                    postSelection === "receive" ? "text-green-500" : "text-white"
+                    postSelection === "receive" ? "text-green-500" : "text-foreground"
                   )}>Receipt</span>
                 </div>
               </div>
@@ -1288,7 +1288,7 @@ export function TransferOrderForm({
                   <DateInput
                     value={formState.Posting_Date ? formState.Posting_Date.split("T")[0] : ""}
                     onChange={(val) => handleChange("Posting_Date", val)}
-                    className="h-10 bg-[#111] border-[#222] focus:border-green-600/50"
+                    className="h-10 border-border focus:border-green-600/50"
                   />
                 </div>
                 <div className="space-y-1.5">
@@ -1296,7 +1296,7 @@ export function TransferOrderForm({
                   <Input
                     value={formState.External_Document_No || ""}
                     onChange={(e) => handleChange("External_Document_No", e.target.value)}
-                    className="h-10 bg-[#111] border-[#222] focus:border-green-600/50"
+                    className="h-10 border-border focus:border-green-600/50"
                     placeholder="Enter External Doc No"
                   />
                 </div>
@@ -1305,7 +1305,7 @@ export function TransferOrderForm({
                   <Input
                     value={formState.Vehicle_No || ""}
                     onChange={(e) => handleChange("Vehicle_No", e.target.value)}
-                    className="h-10 bg-[#111] border-[#222] focus:border-green-600/50"
+                    className="h-10 border-border focus:border-green-600/50"
                     placeholder="Enter Vehicle No"
                   />
                 </div>
@@ -1314,7 +1314,7 @@ export function TransferOrderForm({
                   <Input
                     value={formState.LR_RR_No || ""}
                     onChange={(e) => handleChange("LR_RR_No", e.target.value)}
-                    className="h-10 bg-[#111] border-[#222] focus:border-green-600/50"
+                    className="h-10 border-border focus:border-green-600/50"
                     placeholder="Enter LR/RR No"
                   />
                 </div>
@@ -1323,7 +1323,7 @@ export function TransferOrderForm({
                   <DateInput
                     value={formState.LR_RR_Date ? formState.LR_RR_Date.split("T")[0] : ""}
                     onChange={(val) => handleChange("LR_RR_Date", val)}
-                    className="h-10 bg-[#111] border-[#222] focus:border-green-600/50"
+                    className="h-10 border-border focus:border-green-600/50"
                   />
                 </div>
                 <div className="space-y-1.5">
@@ -1332,7 +1332,7 @@ export function TransferOrderForm({
                     type="number"
                     value={formState.Distance_Km || 0}
                     onChange={(e) => handleChange("Distance_Km", parseFloat(e.target.value) || 0)}
-                    className="h-10 bg-[#111] border-[#222] focus:border-green-600/50"
+                    className="h-10 border-border focus:border-green-600/50"
                   />
                 </div>
                 <div className="space-y-1.5">
@@ -1341,7 +1341,7 @@ export function TransferOrderForm({
                     type="number"
                     value={formState.Freight_Value || 0}
                     onChange={(e) => handleChange("Freight_Value", parseFloat(e.target.value) || 0)}
-                    className="h-10 bg-[#111] border-[#222] focus:border-green-600/50"
+                    className="h-10 border-border focus:border-green-600/50"
                   />
                 </div>
                 <div className="space-y-1.5">
@@ -1362,7 +1362,7 @@ export function TransferOrderForm({
                     placeholder="Select Mode"
                   />
                 </div>
-                <div className="col-span-2 grid grid-cols-2 gap-6 bg-[#111]/50 p-4 rounded-xl border border-[#222]">
+                <div className="col-span-2 grid grid-cols-2 gap-6 bg-muted p-4 rounded-xl border border-border">
                   <div className="space-y-1.5">
                     <label className="text-muted-foreground text-[11px] font-bold uppercase tracking-wider">Transporter</label>
                     <SearchableSelect
@@ -1399,7 +1399,7 @@ export function TransferOrderForm({
                     <Input
                       value={formState.Transporter_Name || ""}
                       onChange={(e) => handleChange("Transporter_Name", e.target.value)}
-                      className={cn("h-10 bg-[#111] border-[#222] focus:border-green-600/50", !!formState.Transporter_Code && "bg-muted/20")}
+                      className={cn("h-10 border-border focus:border-green-600/50", !!formState.Transporter_Code && "bg-muted/20")}
                       disabled={!!formState.Transporter_Code}
                       placeholder="Enter Name"
                     />
@@ -1414,7 +1414,7 @@ export function TransferOrderForm({
               <Button
                 variant="outline"
                 onClick={() => setPostStep(1)}
-                className="bg-[#1a1a1a] border-[#333] hover:bg-[#222] text-white px-8 h-10 rounded-xl"
+                className="rounded-lg px-8 h-10"
               >
                 Back
               </Button>
@@ -1422,7 +1422,7 @@ export function TransferOrderForm({
             <Button
               variant="outline"
               onClick={() => setIsPostDialogOpen(false)}
-              className="bg-[#1a1a1a] border-[#333] hover:bg-[#222] text-white px-8 h-10 rounded-xl"
+              className="rounded-lg px-8 h-10"
             >
               Cancel
             </Button>
@@ -1447,12 +1447,12 @@ export function TransferOrderForm({
       {/* Shipment Report Dialog */}
       <Dialog open={isReportDialogOpen} onOpenChange={setIsReportDialogOpen}>
         <DialogContent className={cn(
-          "transition-[max-width] duration-300 rounded-3xl border-[#333] bg-[#090909] text-white",
+          "transition-[max-width] duration-300 rounded-3xl border-border bg-background",
           reportShipments.length > 0 ? "sm:max-w-4xl" : "sm:max-w-md"
         )}>
           <DialogHeader>
             <DialogTitle className="text-xl font-bold tracking-tight">Shipment Report</DialogTitle>
-            <DialogDescription className="text-[#888]">
+            <DialogDescription className="text-muted-foreground">
               Select a posting date to load shipments for this transfer order.
             </DialogDescription>
           </DialogHeader>
@@ -1460,10 +1460,10 @@ export function TransferOrderForm({
           <div className="space-y-6 pt-4">
             <div className="flex items-end gap-3">
               <div className="flex-1 space-y-2 text-left">
-                <Label className="text-xs font-bold uppercase tracking-wider text-[#666]">Posting Date</Label>
+                <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Posting Date</Label>
                 <input
                   type="date"
-                  className="h-10 w-full rounded-xl border border-[#333] bg-[#111] px-4 text-sm font-medium transition-all focus:border-primary focus:ring-1 focus:ring-primary outline-none"
+                  className="h-10 w-full rounded-xl border border-border bg-muted px-4 text-sm font-medium transition-all focus:border-primary focus:ring-1 focus:ring-primary outline-none"
                   value={reportDate}
                   onChange={(e) => setReportDate(e.target.value)}
                 />
@@ -1482,30 +1482,30 @@ export function TransferOrderForm({
             </div>
 
             {reportShipments.length > 0 && (
-              <div className="animate-in fade-in slide-in-from-bottom-2 overflow-hidden rounded-2xl border border-[#333] bg-[#0a0a0a] duration-500">
+              <div className="animate-in fade-in slide-in-from-bottom-2 overflow-hidden rounded-2xl border border-border bg-muted/10 duration-500">
                 <Table>
-                  <TableHeader className="bg-[#111]/50">
-                    <TableRow className="border-[#222]">
-                      <TableHead className="text-[11px] font-bold uppercase tracking-wider text-[#666]">No.</TableHead>
-                      <TableHead className="text-[11px] font-bold uppercase tracking-wider text-[#666]">Posting Date</TableHead>
-                      <TableHead className="text-[11px] font-bold uppercase tracking-wider text-[#666]">Vehicle No.</TableHead>
-                      <TableHead className="text-[11px] font-bold uppercase tracking-wider text-[#666] text-right">Actions</TableHead>
+                  <TableHeader className="bg-muted">
+                    <TableRow className="border-border">
+                      <TableHead className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">No.</TableHead>
+                      <TableHead className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Posting Date</TableHead>
+                      <TableHead className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Vehicle No.</TableHead>
+                      <TableHead className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {reportShipments.map((s) => (
-                      <TableRow key={s.No} className="border-[#111] transition-colors hover:bg-[#111]">
-                        <TableCell className="text-xs font-bold text-white">{s.No}</TableCell>
-                        <TableCell className="text-xs text-[#888]">
+                      <TableRow key={s.No} className="border-border transition-colors hover:bg-muted">
+                        <TableCell className="text-xs font-bold text-foreground">{s.No}</TableCell>
+                        <TableCell className="text-xs text-muted-foreground">
                           {s.Posting_Date ? new Date(s.Posting_Date).toLocaleDateString() : "-"}
                         </TableCell>
-                        <TableCell className="text-xs text-[#888]">{s.Vehicle_No || "-"}</TableCell>
+                        <TableCell className="text-xs text-muted-foreground">{s.Vehicle_No || "-"}</TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-2">
                             <Button
                               variant="outline"
                               size="sm"
-                              className="h-8 border-[#222] bg-[#111] hover:bg-[#222] text-[#ccc] rounded-lg transition-all active:scale-95"
+                              className="h-8 rounded-lg transition-all active:scale-95"
                               onClick={() => handlePreviewReport(s.No)}
                               disabled={activeReportDocNo === s.No}
                             >
@@ -1519,7 +1519,7 @@ export function TransferOrderForm({
                             <Button
                               variant="outline"
                               size="sm"
-                              className="h-8 border-[#222] bg-[#111] hover:bg-[#222] text-[#ccc] rounded-lg transition-all active:scale-95"
+                              className="h-8 rounded-lg transition-all active:scale-95"
                               onClick={() => handleDownloadReport(s.No)}
                               disabled={activeReportDocNo === s.No}
                             >
@@ -1549,7 +1549,7 @@ export function TransferOrderForm({
             <Button
               variant="outline"
               onClick={() => setIsReportDialogOpen(false)}
-              className="bg-[#111] border-[#222] hover:bg-[#222] text-[#888] px-8 h-10 rounded-xl"
+              className="px-8 h-10 rounded-xl"
             >
               Close
             </Button>

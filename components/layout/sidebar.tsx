@@ -60,6 +60,8 @@ import {
   Factory,
   BookOpenCheck,
   Store,
+  Truck,
+  ClipboardCheck,
 } from "lucide-react";
 
 const salesSubItems = [
@@ -80,6 +82,20 @@ const purchaseSubItems = [
   { title: "Credit Memo", url: "/purchase/credit-memo", icon: CreditCard },
 ];
 
+const stockTransferSubItems = [
+  { title: "Transfer Order", url: "/transfer-orders", icon: Package },
+  {
+    title: "Posted Transfer Shipment",
+    url: "/posted-transfer-shipments",
+    icon: Truck,
+  },
+  {
+    title: "Posted Transfer Receipt",
+    url: "/posted-transfer-receipts",
+    icon: ClipboardCheck,
+  },
+];
+
 const formsItems = [
   {
     title: "Voucher",
@@ -95,11 +111,6 @@ const formsItems = [
     title: "Report Ledger",
     url: "/report-ledger",
     icon: BookOpenCheck,
-  },
-  {
-    title: "Transfer Order",
-    url: "/transfer-orders",
-    icon: Package,
   },
 ];
 
@@ -261,6 +272,46 @@ export function AppSidebar({
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 ))}
+                <Collapsible
+                  defaultOpen={
+                    pathname?.startsWith("/transfer-orders") ||
+                    pathname?.startsWith("/posted-transfer")
+                  }
+                  className="group/stock"
+                >
+                  <SidebarMenuItem>
+                    <CollapsibleTrigger asChild>
+                      <SidebarMenuButton
+                        isActive={
+                          pathname?.startsWith("/transfer-orders") ||
+                          pathname?.startsWith("/posted-transfer")
+                        }
+                        className="w-full"
+                      >
+                        <ArrowLeftRight />
+                        <span>Stock Transfer</span>
+                        <ChevronDown className="ml-auto size-4 group-data-[state=closed]/stock:-rotate-90 group-data-[state=open]/stock:rotate-0" />
+                      </SidebarMenuButton>
+                    </CollapsibleTrigger>
+                  </SidebarMenuItem>
+                  <CollapsibleContent>
+                    <SidebarMenuSub>
+                      {stockTransferSubItems.map((item) => (
+                        <SidebarMenuSubItem key={item.url}>
+                          <SidebarMenuSubButton
+                            asChild
+                            isActive={pathname === item.url}
+                          >
+                            <Link href={item.url}>
+                              {item.icon && <item.icon />}
+                              <span>{item.title}</span>
+                            </Link>
+                          </SidebarMenuSubButton>
+                        </SidebarMenuSubItem>
+                      ))}
+                    </SidebarMenuSub>
+                  </CollapsibleContent>
+                </Collapsible>
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>

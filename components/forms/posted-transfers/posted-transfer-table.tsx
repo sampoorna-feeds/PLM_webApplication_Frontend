@@ -2,21 +2,10 @@
 
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { Eye, Loader2 } from "lucide-react";
+import { Eye, Loader2, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-
-interface Column {
-  id: string;
-  label: string;
-}
-
-const columns: Column[] = [
-  { id: "No", label: "No." },
-  { id: "Posting_Date", label: "Posting Date" },
-  { id: "Transfer_from_Code", label: "From Location" },
-  { id: "Transfer_to_Code", label: "To Location" },
-  { id: "Vehicle_No", label: "Vehicle No." },
-];
+import { POSTED_TRANSFER_COLUMNS, type SortDirection } from "./column-config";
+import { ColumnFilter } from "./column-filter";
 
 interface PostedTransferTableProps {
   data: any[];
@@ -24,9 +13,26 @@ interface PostedTransferTableProps {
   onRowClick?: (id: string) => void;
   onViewReport?: (id: string) => void;
   activeReportId?: string | null;
+  sortColumn?: string | null;
+  sortDirection?: SortDirection;
+  onSort?: (column: string) => void;
+  columnFilters?: Record<string, { value: string; valueTo?: string }>;
+  onColumnFilter?: (columnId: string, value: string, valueTo?: string) => void;
 }
 
-export function PostedTransferTable({ data, isLoading, onRowClick, onViewReport, activeReportId }: PostedTransferTableProps) {
+export function PostedTransferTable({ 
+  data, 
+  isLoading, 
+  onRowClick, 
+  onViewReport, 
+  activeReportId,
+  sortColumn,
+  sortDirection,
+  onSort,
+  columnFilters = {},
+  onColumnFilter
+}: PostedTransferTableProps) {
+  const columns = POSTED_TRANSFER_COLUMNS;
   return (
     <div className="bg-card flex h-full flex-1 flex-col overflow-hidden rounded-lg border shadow-sm">
       <div className="flex-1 overflow-auto">
@@ -41,9 +47,34 @@ export function PostedTransferTable({ data, isLoading, onRowClick, onViewReport,
                   Action
                 </th>
               )}
-              {columns.map((col) => (
-                <th key={col.id} className="text-foreground h-10 px-3 py-3 text-left align-middle text-xs font-bold whitespace-nowrap">
-                  {col.label}
+              {columns.map((column) => (
+                <th 
+                  key={column.id} 
+                  className={`text-foreground h-10 px-3 py-3 text-left align-middle text-xs font-bold whitespace-nowrap select-none ${
+                    sortColumn === column.id ? "text-primary" : ""
+                  }`}
+                >
+                  <div className="flex items-center gap-1.5">
+                    <span 
+                      className={column.sortable ? "hover:text-primary cursor-pointer transition-colors" : ""}
+                      onClick={() => column.sortable && onSort?.(column.id)}
+                    >
+                      {column.label}
+                    </span>
+                    {column.sortable && (
+                      <button className="hover:text-primary transition-colors" onClick={() => onSort?.(column.id)}>
+                        {getSortIcon(column.id, sortColumn, sortDirection)}
+                      </button>
+                    )}
+                    {column.filterType && onColumnFilter && (
+                      <ColumnFilter
+                        column={column}
+                        value={columnFilters[column.id]?.value || ""}
+                        valueTo={columnFilters[column.id]?.valueTo || ""}
+                        onChange={(value, valueTo) => onColumnFilter(column.id, value, valueTo)}
+                      />
+                    )}
+                  </div>
                 </th>
               ))}
             </tr>
@@ -112,6 +143,17 @@ export function PostedTransferTable({ data, isLoading, onRowClick, onViewReport,
         </table>
       </div>
     </div>
+  );
+}
+
+function getSortIcon(columnId: string, sortColumn?: string | null, sortDirection?: SortDirection) {
+  if (sortColumn !== columnId || !sortDirection) {
+    return <ArrowUpDown className="h-3 w-3 opacity-50" />;
+  }
+  return sortDirection === "asc" ? (
+    <ArrowUp className="h-3 w-3" />
+  ) : (
+    <ArrowDown className="h-3 w-3" />
   );
 }
 

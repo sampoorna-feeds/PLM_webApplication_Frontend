@@ -363,7 +363,7 @@ export async function getTransferOrderLines(
   documentNo: string,
 ): Promise<TransferLine[]> {
   const escaped = documentNo.replace(/'/g, "''");
-  const filter = `Document_No eq '${escaped}' and Derived_From_Line_No eq '0'`;
+  const filter = `Document_No eq '${escaped}' and Derived_From_Line_No eq 0`;
   const query = buildODataQuery({ $filter: filter, $orderby: "Line_No asc" });
   const endpoint = `/TransferLine?company='${encodeURIComponent(COMPANY)}'&${query}`;
 

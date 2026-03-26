@@ -142,7 +142,6 @@ export function TransferOrderForm({
   // Report states
   const [isReportDialogOpen, setIsReportDialogOpen] = useState(false);
   const [reportShipments, setReportShipments] = useState<PostedTransferShipment[]>([]);
-  const [reportDate, setReportDate] = useState("");
   const [isReportLoading, setIsReportLoading] = useState(false);
   const [activeReportDocNo, setActiveReportDocNo] = useState<string | null>(null);
   const [reportPdfUrls, setReportPdfUrls] = useState<Record<string, string>>({});
@@ -591,19 +590,23 @@ export function TransferOrderForm({
   };
 
   const handleOpenReportDialog = () => {
-    setReportDate(formState.Posting_Date ? formState.Posting_Date.split("T")[0] : "");
-    setReportShipments([]);
     setIsReportDialogOpen(true);
+    setReportShipments([]);
+    // Automatically load shipments when the dialog opens
+    loadReportShipments(formState.No);
   };
 
-  const loadReportShipments = async () => {
-    if (!formState.No) return;
+  const loadReportShipments = async (orderNo?: string) => {
+    const targetNo = orderNo || formState.No;
+    if (!targetNo) return;
+    
     setIsReportLoading(true);
     try {
-      const shipments = await getPostedTransferShipmentsByOrder(formState.No, reportDate);
+      // Removing the date filter, directly fetching by order number
+      const shipments = await getPostedTransferShipmentsByOrder(targetNo);
       setReportShipments(shipments || []);
       if (shipments.length === 0) {
-        toast.info("No shipments found for this date.");
+        toast.info("No shipments found for this order.");
       }
     } catch (err: any) {
       toast.error(err.message || "Failed to load shipments");
@@ -1440,33 +1443,17 @@ export function TransferOrderForm({
           <DialogHeader>
             <DialogTitle className="text-xl font-bold tracking-tight">Shipment Report</DialogTitle>
             <DialogDescription className="text-muted-foreground">
-              Select a posting date to load shipments for this transfer order.
+              Directly viewing all shipments for Transfer Order {formState.No}.
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-6 pt-4">
-            <div className="flex items-end gap-3">
-              <div className="flex-1 space-y-2 text-left">
-                <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Posting Date</Label>
-                <input
-                  type="date"
-                  className="h-10 w-full rounded-xl border border-border bg-muted px-4 text-sm font-medium transition-all focus:border-primary focus:ring-1 focus:ring-primary outline-none"
-                  value={reportDate}
-                  onChange={(e) => setReportDate(e.target.value)}
-                />
+            {isReportLoading && reportShipments.length === 0 && (
+              <div className="flex flex-col items-center justify-center py-12 space-y-4">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <p className="text-sm text-muted-foreground animate-pulse">Searching for shipments...</p>
               </div>
-              <Button
-                onClick={loadReportShipments}
-                disabled={isReportLoading || !reportDate}
-                className="h-10 rounded-xl bg-primary px-8 font-bold text-white shadow-lg transition-all hover:scale-105 active:scale-95 disabled:opacity-50"
-              >
-                {isReportLoading ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  "Load Shipments"
-                )}
-              </Button>
-            </div>
+            )}
 
             {reportShipments.length > 0 && (
               <div className="animate-in fade-in slide-in-from-bottom-2 overflow-hidden rounded-2xl border border-border bg-muted/10 duration-500">

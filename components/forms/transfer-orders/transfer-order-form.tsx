@@ -142,7 +142,6 @@ export function TransferOrderForm({
   // Report states
   const [isReportDialogOpen, setIsReportDialogOpen] = useState(false);
   const [reportShipments, setReportShipments] = useState<PostedTransferShipment[]>([]);
-  const [reportDate, setReportDate] = useState("");
   const [isReportLoading, setIsReportLoading] = useState(false);
   const [activeReportDocNo, setActiveReportDocNo] = useState<string | null>(null);
   const [reportPdfUrls, setReportPdfUrls] = useState<Record<string, string>>({});
@@ -212,6 +211,20 @@ export function TransferOrderForm({
       registerRefresh(() => fetchOrderData(orderNo));
     }
   }, [orderNo, fetchOrderData, registerRefresh]);
+
+  // Ensure current order codes are in the select options
+  useEffect(() => {
+    if (formState.Transfer_from_Code && locations.length > 0) {
+      if (!locations.some(l => l.Code === formState.Transfer_from_Code)) {
+        setLocations(prev => [...prev, { Code: formState.Transfer_from_Code!, Name: formState.Transfer_from_Name || "" }]);
+      }
+    }
+    if (formState.Transfer_to_Code && allLocations.length > 0) {
+      if (!allLocations.some(l => l.Code === formState.Transfer_to_Code)) {
+        setAllLocations(prev => [...prev, { Code: formState.Transfer_to_Code!, Name: formState.Transfer_to_Name || "" }]);
+      }
+    }
+  }, [formState.Transfer_from_Code, formState.Transfer_to_Code, formState.Transfer_from_Name, formState.Transfer_to_Name, locations.length, allLocations.length]);
 
   // Resolve Location Names and auto-populate dimensions from setup when Transfer_from_Code changes
   useEffect(() => {
@@ -297,15 +310,31 @@ export function TransferOrderForm({
 
         // Fallback to general LOBs if user setup doesn't exist
         if (lobData.length === 0) {
-          console.log(
-            "No LOBs in user setup, falling back to general LOB list",
-          );
           lobData = await getLOBs();
         }
 
+        // Ensure current order's locations are in the lists so they show up even if not in current user's setup
+        let finalFromLocs = [...fromLocations];
+        if (formState.Transfer_from_Code && !finalFromLocs.some(l => l.Code === formState.Transfer_from_Code)) {
+          console.log("Adding missing From-Code from order into options:", formState.Transfer_from_Code);
+          finalFromLocs.push({ 
+            Code: formState.Transfer_from_Code, 
+            Name: formState.Transfer_from_Name || "Loading..." 
+          });
+        }
+
+        let finalToLocs = [...toLocations];
+        if (formState.Transfer_to_Code && !finalToLocs.some(l => l.Code === formState.Transfer_to_Code)) {
+          console.log("Adding missing To-Code from order into options:", formState.Transfer_to_Code);
+          finalToLocs.push({ 
+            Code: formState.Transfer_to_Code, 
+            Name: formState.Transfer_to_Name || "Loading..." 
+          });
+        }
+
         setLobs(lobData);
-        setLocations(fromLocations);
-        setAllLocations(toLocations);
+        setLocations(finalFromLocs);
+        setAllLocations(finalToLocs);
 
         // Load initial transporters
         const vendorData = await getTransporters();
@@ -547,20 +576,6 @@ export function TransferOrderForm({
       postReceipt: postSelection === "receive" ? "True" : "False",
     });
 
-    // Third call: Same API as above but with changed payload for "To" location
-    // Currently using the total quantity from lines as the sample payload
-    const totalQty = lines.reduce((sum, line) => sum + (Number(line.Quantity) || 0), 0);
-    
-    await postTransferOrder({
-      docNo: formState.No,
-      postShipment: postSelection === "ship" ? "True" : "False",
-      postReceipt: postSelection === "receive" ? "True" : "False",
-      locationCode: formState.Transfer_to_Code || "",
-      quantity: totalQty,
-      qtytoHandle: totalQty,
-      sourceSubType: 1, // Target/Receipt side
-    });
-
     toast.success("Transfer Order posted successfully");
     setIsPostDialogOpen(false);
     handleSuccess();
@@ -605,19 +620,23 @@ export function TransferOrderForm({
   };
 
   const handleOpenReportDialog = () => {
-    setReportDate(formState.Posting_Date ? formState.Posting_Date.split("T")[0] : "");
-    setReportShipments([]);
     setIsReportDialogOpen(true);
+    setReportShipments([]);
+    // Automatically load shipments when the dialog opens
+    loadReportShipments(formState.No);
   };
 
-  const loadReportShipments = async () => {
-    if (!formState.No) return;
+  const loadReportShipments = async (orderNo?: string) => {
+    const targetNo = orderNo || formState.No;
+    if (!targetNo) return;
+    
     setIsReportLoading(true);
     try {
-      const shipments = await getPostedTransferShipmentsByOrder(formState.No, reportDate);
+      // Removing the date filter, directly fetching by order number
+      const shipments = await getPostedTransferShipmentsByOrder(targetNo);
       setReportShipments(shipments || []);
       if (shipments.length === 0) {
-        toast.info("No shipments found for this date.");
+        toast.info("No shipments found for this order.");
       }
     } catch (err: any) {
       toast.error(err.message || "Failed to load shipments");
@@ -1200,6 +1219,7 @@ export function TransferOrderForm({
           onOpenChange={setIsDetailsDialogOpen}
           line={selectedLine}
           locationCode={formState.Transfer_from_Code}
+          transferToCode={formState.Transfer_to_Code}
           onSuccess={() => fetchOrderData(formState.No!, false)}
         />
       )}
@@ -1453,33 +1473,17 @@ export function TransferOrderForm({
           <DialogHeader>
             <DialogTitle className="text-xl font-bold tracking-tight">Shipment Report</DialogTitle>
             <DialogDescription className="text-muted-foreground">
-              Select a posting date to load shipments for this transfer order.
+              Directly viewing all shipments for Transfer Order {formState.No}.
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-6 pt-4">
-            <div className="flex items-end gap-3">
-              <div className="flex-1 space-y-2 text-left">
-                <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Posting Date</Label>
-                <input
-                  type="date"
-                  className="h-10 w-full rounded-xl border border-border bg-muted px-4 text-sm font-medium transition-all focus:border-primary focus:ring-1 focus:ring-primary outline-none"
-                  value={reportDate}
-                  onChange={(e) => setReportDate(e.target.value)}
-                />
+            {isReportLoading && reportShipments.length === 0 && (
+              <div className="flex flex-col items-center justify-center py-12 space-y-4">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <p className="text-sm text-muted-foreground animate-pulse">Searching for shipments...</p>
               </div>
-              <Button
-                onClick={loadReportShipments}
-                disabled={isReportLoading || !reportDate}
-                className="h-10 rounded-xl bg-primary px-8 font-bold text-white shadow-lg transition-all hover:scale-105 active:scale-95 disabled:opacity-50"
-              >
-                {isReportLoading ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  "Load Shipments"
-                )}
-              </Button>
-            </div>
+            )}
 
             {reportShipments.length > 0 && (
               <div className="animate-in fade-in slide-in-from-bottom-2 overflow-hidden rounded-2xl border border-border bg-muted/10 duration-500">

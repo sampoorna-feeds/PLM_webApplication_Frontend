@@ -331,6 +331,8 @@ export interface AssignTransferItemTrackingParams {
   lotNo: string;
   expirationDate?: string;
   isReceipt?: boolean;
+  useExactQuantity?: boolean; // Use quantity as provided without sign enforcement
+  sourceSubType?: number; // Explicit source sub type
 }
 
 export interface TransferItemLedgerEntry {
@@ -552,7 +554,15 @@ export async function assignTransferItemTracking(
   params: AssignTransferItemTrackingParams,
 ): Promise<unknown> {
   const endpoint = `/API_TrackingAssign?company='${encodeURIComponent(COMPANY)}'`;
-  const qty = -Math.abs(params.quantity);
+  
+  // By default, shipment (isReceipt=false) uses negative quantity
+  // and receipt (isReceipt=true) uses positive quantity?
+  // User says "sent in minus" for previous one.
+  // Actually, shipment side in Nav/BC usually subtracts, receipt side adds.
+  
+  let qty = params.useExactQuantity ? params.quantity : -Math.abs(params.quantity);
+  const subType = params.sourceSubType !== undefined ? params.sourceSubType : (params.isReceipt ? 1 : 0);
+
   const payload = {
     itemNo: params.itemNo,
     locationCode: params.locationCode,
@@ -561,7 +571,7 @@ export async function assignTransferItemTracking(
 
     sourceProdOrderLine: 0,
     sourceType: 5741,
-    sourceSubType: params.isReceipt ? 1 : 0,
+    sourceSubType: subType,
     sourceID: params.orderNo,
     sourceBatch: "",
     sourcerefNo: params.lineNo,
@@ -838,17 +848,28 @@ export async function getTransferLocationCodes(
  */
 export async function getTransferAllLocationCodes(
   codes?: string[],
+  searchTerm?: string,
 ): Promise<TransferLocationCode[]> {
   const queryParams: Record<string, any> = {
     $select: "Code,Name",
     $orderby: "Code",
     $top: 1000,
   };
+  const parts: string[] = [];
   if (codes && codes.length > 0) {
     const codeFilter = codes
       .map((c) => `Code eq '${c.replace(/'/g, "''")}'`)
       .join(" or ");
-    queryParams.$filter = `(${codeFilter})`;
+    parts.push(`(${codeFilter})`);
+  }
+
+  if (searchTerm) {
+    const escaped = searchTerm.replace(/'/g, "''");
+    parts.push(`(contains(Code,'${escaped}') or contains(Name,'${escaped}'))`);
+  }
+
+  if (parts.length > 0) {
+    queryParams.$filter = parts.join(" and ");
   }
   const query = buildODataQuery(queryParams);
   const endpoint = `/LocationList?company='${encodeURIComponent(COMPANY)}'&${query}`;

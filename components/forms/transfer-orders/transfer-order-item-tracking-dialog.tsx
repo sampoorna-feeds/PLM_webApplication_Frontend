@@ -55,6 +55,7 @@ interface TransferOrderItemTrackingDialogProps {
   locationCode: string; // This should be the Transfer-from Code
   line: TransferLine | null;
   isReceipt?: boolean;
+  transferToCode?: string;
 }
 
 export function TransferOrderItemTrackingDialog({
@@ -65,6 +66,7 @@ export function TransferOrderItemTrackingDialog({
   locationCode,
   line,
   isReceipt = false,
+  transferToCode,
 }: TransferOrderItemTrackingDialogProps) {
   const [lotNo, setLotNo] = useState("");
   const [expirationDate, setExpirationDate] = useState("");
@@ -205,6 +207,7 @@ export function TransferOrderItemTrackingDialog({
         });
         toast.success("Item tracking updated successfully");
       } else {
+        // First call: Original request (usually minus quantity for shipment side)
         await assignTransferItemTracking({
           orderNo,
           lineNo,
@@ -215,6 +218,29 @@ export function TransferOrderItemTrackingDialog({
           expirationDate: expirationDate || undefined,
           isReceipt
         });
+
+        // Second call: If not receipt side (Shipment side), also add to receipt side with positive quantity
+        if (!isReceipt && transferToCode) {
+           try {
+             await assignTransferItemTracking({
+               orderNo,
+               lineNo,
+               itemNo,
+               locationCode: transferToCode,
+               quantity: Math.abs(quantityValue),
+               lotNo: lotNo.trim(),
+               expirationDate: expirationDate || undefined,
+               isReceipt: true,
+               useExactQuantity: true, // Force positive quantity
+               sourceSubType: 1 // Source Sub Type will be 1
+             });
+           } catch (err) {
+             console.error("Secondary tracking assignment failed:", err);
+             // We don't necessarily block the first success, but maybe notify?
+             // toast.error("Failed to assign tracking to target location");
+           }
+        }
+
         toast.success("Item tracking assigned successfully");
       }
       

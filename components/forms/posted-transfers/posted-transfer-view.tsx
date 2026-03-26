@@ -5,7 +5,7 @@ import { PostedTransferFilterForm, type PostedTransferFilters } from "./posted-t
 import { PostedTransferTable } from "./posted-transfer-table";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, RefreshCcw } from "lucide-react";
-import { getPostedTransferShipments, getTransferReceipts } from "@/lib/api/services/transfer-orders.service";
+import { getPostedTransferShipments, getTransferReceipts, getTransferShipmentReport } from "@/lib/api/services/transfer-orders.service";
 import { toast } from "sonner";
 import { useFormStackContext } from "@/lib/form-stack/form-stack-context";
 
@@ -18,6 +18,8 @@ export function PostedTransferView({ type }: PostedTransferViewProps) {
   const [filters, setFilters] = useState<PostedTransferFilters | null>(null);
   const [data, setData] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [activeReportDocNo, setActiveReportDocNo] = useState<string | null>(null);
+  const [reportPdfUrls, setReportPdfUrls] = useState<Record<string, string>>({});
 
   const title = type === "shipment" ? "Posted Transfer Shipment" : "Posted Transfer Receipt";
   const description = `Enter details to find posted transfer ${type}s.`;
@@ -58,7 +60,47 @@ export function PostedTransferView({ type }: PostedTransferViewProps) {
     if (filters) {
       fetchData(filters);
     }
+    // Cleanup URLs on unmount
+    return () => {
+      Object.values(reportPdfUrls).forEach(url => window.URL.revokeObjectURL(url));
+    };
   }, [filters, fetchData]);
+
+  const base64ToPdfBlob = (base64Value: string) => {
+    const normalized = base64Value.replace(/^data:application\/pdf;base64,/, "").replace(/\s/g, "");
+    const byteCharacters = atob(normalized);
+    const byteNumbers = new Array(byteCharacters.length);
+    for (let i = 0; i < byteCharacters.length; i++) {
+      byteNumbers[i] = byteCharacters.charCodeAt(i);
+    }
+    return new Blob([new Uint8Array(byteNumbers)], { type: "application/pdf" });
+  };
+
+  const getReportPdfUrl = async (shipmentNo: string) => {
+    if (reportPdfUrls[shipmentNo]) return reportPdfUrls[shipmentNo];
+
+    setActiveReportDocNo(shipmentNo);
+    try {
+      const base64Data = await getTransferShipmentReport(shipmentNo);
+      if (!base64Data) throw new Error("No PDF content returned.");
+
+      const blob = base64ToPdfBlob(base64Data);
+      const url = window.URL.createObjectURL(blob);
+      setReportPdfUrls(prev => ({ ...prev, [shipmentNo]: url }));
+      return url;
+    } finally {
+      setActiveReportDocNo(null);
+    }
+  };
+
+  const handlePreviewReport = async (shipmentNo: string) => {
+    try {
+      const url = await getReportPdfUrl(shipmentNo);
+      window.open(url, "_blank", "noopener,noreferrer");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to preview report");
+    }
+  };
 
   if (!filters) {
     return (
@@ -95,6 +137,8 @@ export function PostedTransferView({ type }: PostedTransferViewProps) {
         <PostedTransferTable 
           data={data} 
           isLoading={isLoading} 
+          onViewReport={type === "shipment" ? handlePreviewReport : undefined}
+          activeReportId={activeReportDocNo}
           onRowClick={(id) => {
              // Open detailed view tab if needed
              // For now, just a toast as details are not implemented

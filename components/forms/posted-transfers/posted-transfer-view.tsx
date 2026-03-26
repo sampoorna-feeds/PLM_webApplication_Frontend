@@ -5,7 +5,7 @@ import { PostedTransferFilterForm, type PostedTransferFilters } from "./posted-t
 import { PostedTransferTable } from "./posted-transfer-table";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, RefreshCcw } from "lucide-react";
-import { getPostedTransferShipments, getPostedTransferReceipts } from "@/lib/api/services/transfer-orders.service";
+import { getPostedTransferShipments, getTransferReceipts } from "@/lib/api/services/transfer-orders.service";
 import { toast } from "sonner";
 import { useFormStackContext } from "@/lib/form-stack/form-stack-context";
 
@@ -39,7 +39,7 @@ export function PostedTransferView({ type }: PostedTransferViewProps) {
       const filter = parts.join(" and ");
       const result = type === "shipment" 
         ? await getPostedTransferShipments({ $filter: filter, $top: 200 })
-        : await getPostedTransferReceipts({ $filter: filter, $top: 200 });
+        : await getTransferReceipts({ $filter: filter, $top: 200 });
       
       setData(result.orders);
     } catch (error) {

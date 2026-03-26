@@ -1186,6 +1186,7 @@ export function TransferOrderForm({
           onOpenChange={setIsDetailsDialogOpen}
           line={selectedLine}
           locationCode={formState.Transfer_from_Code}
+          transferToCode={formState.Transfer_to_Code}
           onSuccess={() => fetchOrderData(formState.No!, false)}
         />
       )}

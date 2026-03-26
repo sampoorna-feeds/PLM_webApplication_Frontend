@@ -34,6 +34,7 @@ interface TransferOrderLineDetailsDialogProps {
   onOpenChange: (open: boolean) => void;
   line: TransferLine;
   locationCode?: string;
+  transferToCode?: string;
   onSuccess: () => void;
 }
 
@@ -42,6 +43,7 @@ export function TransferOrderLineDetailsDialog({
   onOpenChange,
   line,
   locationCode,
+  transferToCode,
   onSuccess,
 }: TransferOrderLineDetailsDialogProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -360,6 +362,7 @@ export function TransferOrderLineDetailsDialog({
         onOpenChange={setIsTrackingOpen}
         orderNo={line.Document_No}
         locationCode={locationCode || ""}
+        transferToCode={transferToCode}
         line={line}
         onSave={onSuccess}
       />

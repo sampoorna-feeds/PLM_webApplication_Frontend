@@ -331,6 +331,8 @@ export interface AssignTransferItemTrackingParams {
   lotNo: string;
   expirationDate?: string;
   isReceipt?: boolean;
+  useExactQuantity?: boolean; // Use quantity as provided without sign enforcement
+  sourceSubType?: number; // Explicit source sub type
 }
 
 export interface TransferItemLedgerEntry {
@@ -552,7 +554,15 @@ export async function assignTransferItemTracking(
   params: AssignTransferItemTrackingParams,
 ): Promise<unknown> {
   const endpoint = `/API_TrackingAssign?company='${encodeURIComponent(COMPANY)}'`;
-  const qty = -Math.abs(params.quantity);
+  
+  // By default, shipment (isReceipt=false) uses negative quantity
+  // and receipt (isReceipt=true) uses positive quantity?
+  // User says "sent in minus" for previous one.
+  // Actually, shipment side in Nav/BC usually subtracts, receipt side adds.
+  
+  let qty = params.useExactQuantity ? params.quantity : -Math.abs(params.quantity);
+  const subType = params.sourceSubType !== undefined ? params.sourceSubType : (params.isReceipt ? 1 : 0);
+
   const payload = {
     itemNo: params.itemNo,
     locationCode: params.locationCode,
@@ -561,7 +571,7 @@ export async function assignTransferItemTracking(
 
     sourceProdOrderLine: 0,
     sourceType: 5741,
-    sourceSubType: params.isReceipt ? 1 : 0,
+    sourceSubType: subType,
     sourceID: params.orderNo,
     sourceBatch: "",
     sourcerefNo: params.lineNo,

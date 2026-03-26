@@ -212,6 +212,20 @@ export function TransferOrderForm({
     }
   }, [orderNo, fetchOrderData, registerRefresh]);
 
+  // Ensure current order codes are in the select options
+  useEffect(() => {
+    if (formState.Transfer_from_Code && locations.length > 0) {
+      if (!locations.some(l => l.Code === formState.Transfer_from_Code)) {
+        setLocations(prev => [...prev, { Code: formState.Transfer_from_Code!, Name: formState.Transfer_from_Name || "" }]);
+      }
+    }
+    if (formState.Transfer_to_Code && allLocations.length > 0) {
+      if (!allLocations.some(l => l.Code === formState.Transfer_to_Code)) {
+        setAllLocations(prev => [...prev, { Code: formState.Transfer_to_Code!, Name: formState.Transfer_to_Name || "" }]);
+      }
+    }
+  }, [formState.Transfer_from_Code, formState.Transfer_to_Code, formState.Transfer_from_Name, formState.Transfer_to_Name, locations.length, allLocations.length]);
+
   // Resolve Location Names and auto-populate dimensions from setup when Transfer_from_Code changes
   useEffect(() => {
     if (locations.length > 0) {
@@ -296,15 +310,31 @@ export function TransferOrderForm({
 
         // Fallback to general LOBs if user setup doesn't exist
         if (lobData.length === 0) {
-          console.log(
-            "No LOBs in user setup, falling back to general LOB list",
-          );
           lobData = await getLOBs();
         }
 
+        // Ensure current order's locations are in the lists so they show up even if not in current user's setup
+        let finalFromLocs = [...fromLocations];
+        if (formState.Transfer_from_Code && !finalFromLocs.some(l => l.Code === formState.Transfer_from_Code)) {
+          console.log("Adding missing From-Code from order into options:", formState.Transfer_from_Code);
+          finalFromLocs.push({ 
+            Code: formState.Transfer_from_Code, 
+            Name: formState.Transfer_from_Name || "Loading..." 
+          });
+        }
+
+        let finalToLocs = [...toLocations];
+        if (formState.Transfer_to_Code && !finalToLocs.some(l => l.Code === formState.Transfer_to_Code)) {
+          console.log("Adding missing To-Code from order into options:", formState.Transfer_to_Code);
+          finalToLocs.push({ 
+            Code: formState.Transfer_to_Code, 
+            Name: formState.Transfer_to_Name || "Loading..." 
+          });
+        }
+
         setLobs(lobData);
-        setLocations(fromLocations);
-        setAllLocations(toLocations);
+        setLocations(finalFromLocs);
+        setAllLocations(finalToLocs);
 
         // Load initial transporters
         const vendorData = await getTransporters();

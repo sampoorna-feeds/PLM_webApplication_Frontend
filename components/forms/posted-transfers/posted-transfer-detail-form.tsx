@@ -12,17 +12,23 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 
 export interface PostedTransferDetailFormProps {
+  tabId: string;
+  formData?: Record<string, any>;
+  context?: Record<string, any>;
   type?: "shipment" | "receipt";
   no?: string;
 }
 
 export function PostedTransferDetailForm({
+  tabId,
+  formData,
+  context,
   type: propType,
-  no,
+  no: propNo,
 }: PostedTransferDetailFormProps) {
   const { currentTab } = useFormStackContext();
-  const activeNo = no || currentTab?.context?.no;
-  const type = propType || currentTab?.context?.type || "shipment";
+  const activeNo = propNo || context?.no || currentTab?.context?.no;
+  const type = propType || context?.type || currentTab?.context?.type || "shipment";
 
   const [header, setHeader] = useState<any | null>(null);
   const [lines, setLines] = useState<any[]>([]);

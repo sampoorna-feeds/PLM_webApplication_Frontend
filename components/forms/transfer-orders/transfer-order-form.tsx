@@ -727,6 +727,35 @@ export function TransferOrderForm({
     }
   };
 
+  const handlePrintRecord = async (docType: string, docNo: string, reportName: string) => {
+    setActiveReportDocNo(docNo);
+    try {
+      const url = await getDownloadRecordLink({ documentType: docType, documentNo: docNo });
+      if (!url) {
+        toast.info(`No URL returned for ${reportName}`);
+        return;
+      }
+
+      // Fetch the PDF to create a local blob for printing (handles CORS better in iframes)
+      const response = await fetch(url);
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+
+      const iframe = document.createElement("iframe");
+      iframe.style.display = "none";
+      iframe.src = blobUrl;
+      document.body.appendChild(iframe);
+      iframe.onload = () => {
+        iframe.contentWindow?.print();
+      };
+    } catch (err: any) {
+      toast.error(err.message || `Failed to print ${reportName}`);
+    } finally {
+      setActiveReportDocNo(null);
+    }
+  };
+
 
   const fieldClass = "min-w-0 space-y-1 text-left";
   const labelClass = "text-muted-foreground block text-xs font-medium";
@@ -1527,14 +1556,26 @@ export function TransferOrderForm({
                           <div className="flex items-center gap-2">
                              <span>{s.E_Way_Bill_No || "false"}</span>
                              {s.No && (
-                               <Button 
-                                 variant="ghost" 
-                                 size="sm" 
-                                 className="h-7 px-2 text-[10px] gap-1 hover:bg-primary/10 transition-colors"
-                                 onClick={() => handleGetRecordLink("Transfer", s.No, "E-way Bill")}
-                               >
-                                  <Download className="h-3 w-3" />
-                               </Button>
+                               <div className="flex gap-1">
+                                 <Button 
+                                   variant="ghost" 
+                                   size="sm" 
+                                   className="h-7 px-2 text-[10px] gap-1 hover:bg-primary/10 transition-colors"
+                                   onClick={() => handleGetRecordLink("Transfer", s.No, "E-way Bill")}
+                                   title="Download E-way Bill"
+                                 >
+                                    <Download className="h-3 w-3" />
+                                 </Button>
+                                 <Button 
+                                   variant="ghost" 
+                                   size="sm" 
+                                   className="h-7 px-2 text-[10px] gap-1 hover:bg-primary/10 transition-colors"
+                                   onClick={() => handlePrintRecord("Transfer", s.No, "E-way Bill")}
+                                   title="Print E-way Bill"
+                                 >
+                                    <Printer className="h-3 w-3" />
+                                 </Button>
+                               </div>
                              )}
                           </div>
                         </TableCell>
@@ -1542,14 +1583,26 @@ export function TransferOrderForm({
                            <div className="flex items-center gap-2">
                              <span>{s.E_Invoice_No || "false"}</span>
                              {s.No && (
-                               <Button 
-                                 variant="ghost" 
-                                 size="sm" 
-                                 className="h-7 px-2 text-[10px] gap-1 hover:bg-primary/10 transition-colors"
-                                 onClick={() => handleGetRecordLink("Invoice", s.No, "E-Invoice")}
-                               >
-                                  <Download className="h-3 w-3" />
-                               </Button>
+                               <div className="flex gap-1">
+                                 <Button 
+                                   variant="ghost" 
+                                   size="sm" 
+                                   className="h-7 px-2 text-[10px] gap-1 hover:bg-primary/10 transition-colors"
+                                   onClick={() => handleGetRecordLink("Invoice", s.No, "E-Invoice")}
+                                   title="Download E-Invoice"
+                                 >
+                                    <Download className="h-3 w-3" />
+                                 </Button>
+                                 <Button 
+                                   variant="ghost" 
+                                   size="sm" 
+                                   className="h-7 px-2 text-[10px] gap-1 hover:bg-primary/10 transition-colors"
+                                   onClick={() => handlePrintRecord("Invoice", s.No, "E-Invoice")}
+                                   title="Print E-Invoice"
+                                 >
+                                    <Printer className="h-3 w-3" />
+                                 </Button>
+                               </div>
                              )}
                           </div>
                         </TableCell>

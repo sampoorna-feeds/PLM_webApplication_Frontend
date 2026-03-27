@@ -1,7 +1,17 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { Loader2, Trash2, Search, X, ChevronLeft, ChevronRight } from "lucide-react";
+import {
+  Loader2,
+  Search,
+  X,
+  ChevronLeft,
+  ChevronRight,
+  ArrowUp,
+  ArrowDown,
+  ArrowUpDown,
+  Filter,
+} from "lucide-react";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -21,13 +31,169 @@ import {
 } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { ErrorDialog, ErrorDetail } from "@/components/ui/error-dialog";
-import { itemChargeAssignmentService, ItemChargeAssignment, SourceType, ItemChargeSourceLine } from "@/lib/api/services/item-charge-assignment.service";
+import {
+  itemChargeAssignmentService,
+  ItemChargeAssignment,
+  SourceType,
+  ItemChargeSourceLine,
+} from "@/lib/api/services/item-charge-assignment.service";
 import { ItemChargeSelectionDialog } from "./item-charge-selection-dialog";
 import { cn } from "@/lib/utils";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Label } from "@/components/ui/label";
 
-const FIELD_INPUT_CLASS = "disabled:opacity-100 disabled:text-foreground font-medium text-xs disabled:pointer-events-none disabled:bg-muted/30";
+const FIELD_INPUT_CLASS =
+  "disabled:opacity-100 disabled:text-foreground font-normal text-xs disabled:pointer-events-none disabled:bg-muted/30";
+
+type SortDirection = "asc" | "desc" | null;
+
+interface ColumnConfig {
+  id: keyof ItemChargeAssignment | string;
+  label: string;
+  sortable?: boolean;
+  filterType?: "text" | "number" | "date";
+  align?: "left" | "right" | "center";
+  width?: string;
+}
+
+const ASSIGNMENT_COLUMNS: ColumnConfig[] = [
+  {
+    id: "Applies_toDocType",
+    label: "Applies-to Doc. Type",
+    sortable: true,
+    filterType: "text",
+    width: "120px",
+  },
+  {
+    id: "Applies_toDocNo",
+    label: "Applies-to Doc. No.",
+    sortable: true,
+    filterType: "text",
+    width: "150px",
+  },
+  {
+    id: "Applies_toDocLineNo",
+    label: "Doc. Line No.",
+    sortable: true,
+    filterType: "number",
+    width: "100px",
+    align: "center",
+  },
+  {
+    id: "ItemNo",
+    label: "Item No.",
+    sortable: true,
+    filterType: "text",
+    width: "120px",
+  },
+  {
+    id: "Description",
+    label: "Description",
+    sortable: true,
+    filterType: "text",
+    width: "200px",
+  },
+  {
+    id: "QtytoAssign",
+    label: "Qty. to Assign",
+    sortable: true,
+    filterType: "number",
+    width: "100px",
+    align: "right",
+  },
+  {
+    id: "QtytoHandle",
+    label: "Qty. to Handle",
+    sortable: true,
+    filterType: "number",
+    width: "100px",
+    align: "right",
+  },
+  {
+    id: "QtyAssigned",
+    label: "Qty. Assigned",
+    sortable: true,
+    filterType: "number",
+    width: "100px",
+    align: "right",
+  },
+  {
+    id: "AmounttoAssign",
+    label: "Amount to Assign",
+    sortable: true,
+    filterType: "number",
+    width: "130px",
+    align: "right",
+  },
+  {
+    id: "AmounttoHandle",
+    label: "Amount to Handle",
+    sortable: true,
+    filterType: "number",
+    width: "130px",
+    align: "right",
+  },
+  {
+    id: "GrossWeight",
+    label: "Gross Weight",
+    sortable: true,
+    filterType: "number",
+    width: "100px",
+    align: "right",
+  },
+  {
+    id: "UnitVolume",
+    label: "Unit Volume",
+    sortable: true,
+    filterType: "number",
+    width: "100px",
+    align: "right",
+  },
+  {
+    id: "QtyToReceiveBase",
+    label: "Qty. Rec. (B)",
+    sortable: true,
+    filterType: "number",
+    width: "120px",
+    align: "right",
+  },
+  {
+    id: "QtyReceivedBase",
+    label: "Qty. Rec'd (B)",
+    sortable: true,
+    filterType: "number",
+    width: "120px",
+    align: "right",
+  },
+  {
+    id: "QtyToShipBase",
+    label: "Qty. Ship (B)",
+    sortable: true,
+    filterType: "number",
+    width: "120px",
+    align: "right",
+  },
+  {
+    id: "QtyShippedBase",
+    label: "Qty. Shipp'd (B)",
+    sortable: true,
+    filterType: "number",
+    width: "120px",
+    align: "right",
+  },
+];
 
 interface ItemChargeAssignmentDialogProps {
   open: boolean;
@@ -58,7 +224,16 @@ export function ItemChargeAssignmentDialog({
   const [pageSize, setPageSize] = useState(10);
   const [lines, setLines] = useState<ItemChargeAssignment[]>([]);
   const [selectedLines, setSelectedLines] = useState<Set<string>>(new Set());
-  
+
+  // Sorting State
+  const [sortColumn, setSortColumn] = useState<string | null>(null);
+  const [sortDirection, setSortDirection] = useState<SortDirection>(null);
+
+  // Filtering State
+  const [columnFilters, setColumnFilters] = useState<
+    Record<string, { value: string; valueTo?: string }>
+  >({});
+
   // Selection Dialog State
   const [selectionOpen, setSelectionOpen] = useState(false);
   const [selectionType, setSelectionType] = useState<SourceType>("Receipt");
@@ -73,12 +248,14 @@ export function ItemChargeAssignmentDialog({
     setErrorTitle(title);
     setErrorMessage(message);
     if (error) {
-      setApiErrors([{
-        message: error.message || "Unknown error occurred",
-        code: error.code,
-        status: error.status,
-        details: error.details
-      }]);
+      setApiErrors([
+        {
+          message: error.message || "Unknown error occurred",
+          code: error.code,
+          status: error.status,
+          details: error.details,
+        },
+      ]);
     } else {
       setApiErrors([]);
     }
@@ -97,7 +274,11 @@ export function ItemChargeAssignmentDialog({
       setLines(data);
     } catch (error: any) {
       console.error("Failed to fetch assignments:", error);
-      showError("Fetch Failed", "Could not load assignments from the server.", error);
+      showError(
+        "Fetch Failed",
+        "Could not load assignments from the server.",
+        error,
+      );
     } finally {
       setLoading(false);
     }
@@ -118,50 +299,100 @@ export function ItemChargeAssignmentDialog({
   const handleLinesAdded = async (sourceLines: ItemChargeSourceLine[]) => {
     setLoading(true);
     try {
-      const apiGetType = itemChargeAssignmentService.getApiGetType(selectionType);
-      
+      const apiGetType =
+        itemChargeAssignmentService.getApiGetType(selectionType);
+
       // Post all selected lines to the API
-      await Promise.all(sourceLines.map(sl => 
-        itemChargeAssignmentService.postAssignment({
-          sourceDoc: docNo,
-          sourceLine: docLineNo,
-          getType: apiGetType,
-          chargeDocNo: sl.Document_No,
-          chargeLineNo: sl.Line_No,
-          assignmentType: "Purchase"
-        })
-      ));
+      await Promise.all(
+        sourceLines.map((sl) =>
+          itemChargeAssignmentService.postAssignment({
+            sourceDoc: docNo,
+            sourceLine: docLineNo,
+            getType: apiGetType,
+            chargeDocNo: sl.Document_No,
+            chargeLineNo: sl.Line_No,
+            assignmentType: "Purchase",
+          }),
+        ),
+      );
 
       toast.success(`Successfully added ${sourceLines.length} assignments`);
       await fetchAssignments();
     } catch (error: any) {
       console.error("Failed to post assignments:", error);
-      showError("Assignment Failed", "Failed to sync some assignments with the server.", error);
+      showError(
+        "Assignment Failed",
+        "Failed to sync some assignments with the server.",
+        error,
+      );
       await fetchAssignments();
     } finally {
       setLoading(false);
     }
   };
 
-  // Filtered and Paginated Lines
-  const filteredLines = useMemo(() => {
+  // Filtered and Sorted Lines
+  const filteredAndSortedLines = useMemo(() => {
     let result = lines;
+
+    // 1. Global search
     if (searchQuery) {
       const lowerQuery = searchQuery.toLowerCase();
-      result = result.filter(line => 
-        line.Applies_toDocNo.toLowerCase().includes(lowerQuery) ||
-        line.Description.toLowerCase().includes(lowerQuery) ||
-        line.ItemNo.toLowerCase().includes(lowerQuery) ||
-        line.Applies_toDocType.toLowerCase().includes(lowerQuery)
+      result = result.filter(
+        (line) =>
+          line.Applies_toDocNo.toLowerCase().includes(lowerQuery) ||
+          line.Description.toLowerCase().includes(lowerQuery) ||
+          line.ItemNo.toLowerCase().includes(lowerQuery) ||
+          line.Applies_toDocType.toLowerCase().includes(lowerQuery),
       );
     }
-    return result;
-  }, [lines, searchQuery]);
 
-  const totalPages = Math.ceil(filteredLines.length / pageSize) || 1;
-  const paginatedLines = filteredLines.slice(
+    // 2. Column filters
+    Object.entries(columnFilters).forEach(([columnId, filter]) => {
+      if (!filter.value && !filter.valueTo) return;
+
+      result = result.filter((line) => {
+        const value = (line as any)[columnId];
+        if (value === null || value === undefined) return false;
+
+        const stringValue = String(value).toLowerCase();
+        const filterValue = filter.value.toLowerCase();
+
+        // Basic text filter (comma separated)
+        if (filterValue.includes(",")) {
+          const parts = filterValue
+            .split(",")
+            .map((p) => p.trim())
+            .filter(Boolean);
+          return parts.some((p) => stringValue.includes(p));
+        }
+
+        return stringValue.includes(filterValue);
+      });
+    });
+
+    // 3. Sorting
+    if (sortColumn && sortDirection) {
+      result = [...result].sort((a, b) => {
+        const valA = (a as any)[sortColumn];
+        const valB = (b as any)[sortColumn];
+
+        if (valA === valB) return 0;
+        if (valA === null || valA === undefined) return 1;
+        if (valB === null || valB === undefined) return -1;
+
+        const comparison = valA < valB ? -1 : 1;
+        return sortDirection === "asc" ? comparison : -comparison;
+      });
+    }
+
+    return result;
+  }, [lines, searchQuery, columnFilters, sortColumn, sortDirection]);
+
+  const totalPages = Math.ceil(filteredAndSortedLines.length / pageSize) || 1;
+  const paginatedLines = filteredAndSortedLines.slice(
     (currentPage - 1) * pageSize,
-    currentPage * pageSize
+    currentPage * pageSize,
   );
 
   useEffect(() => {
@@ -172,7 +403,7 @@ export function ItemChargeAssignmentDialog({
     try {
       setLoading(true);
       await itemChargeAssignmentService.deleteAssignment(line);
-      setLines(prev => prev.filter(l => l.Line_No !== line.Line_No));
+      setLines((prev) => prev.filter((l) => l.Line_No !== line.Line_No));
       const nextSelected = new Set(selectedLines);
       const uniqueKey = `${line.Applies_toDocNo}-${line.Line_No}`;
       nextSelected.delete(uniqueKey);
@@ -180,22 +411,44 @@ export function ItemChargeAssignmentDialog({
       toast.success("Assignment deleted");
     } catch (error: any) {
       console.error("Failed to delete assignment:", error);
-      showError("Deletion Failed", "Failed to delete assignment from server.", error);
+      showError(
+        "Deletion Failed",
+        "Failed to delete assignment from server.",
+        error,
+      );
     } finally {
       setLoading(false);
     }
   };
 
-  const handleUpdateLine = (lineNo: number, field: keyof ItemChargeAssignment, value: number) => {
-    setLines(prev => prev.map(l => l.Line_No === lineNo ? { ...l, [field]: value } : l));
+  const handleUpdateLine = (
+    lineNo: number,
+    field: keyof ItemChargeAssignment,
+    value: number,
+  ) => {
+    setLines((prev) =>
+      prev.map((l) => (l.Line_No === lineNo ? { ...l, [field]: value } : l)),
+    );
   };
 
   // Calculations for Footer
   const totals = useMemo(() => {
-    const toAssignQty = lines.reduce((sum, l) => sum + (Number(l.QtytoAssign) || 0), 0);
-    const toAssignAmt = lines.reduce((sum, l) => sum + (Number(l.AmounttoAssign) || 0), 0);
-    const toHandleQty = lines.reduce((sum, l) => sum + (Number(l.QtytoHandle) || 0), 0);
-    const toHandleAmt = lines.reduce((sum, l) => sum + (Number(l.AmounttoHandle) || 0), 0);
+    const toAssignQty = lines.reduce(
+      (sum, l) => sum + (Number(l.QtytoAssign) || 0),
+      0,
+    );
+    const toAssignAmt = lines.reduce(
+      (sum, l) => sum + (Number(l.AmounttoAssign) || 0),
+      0,
+    );
+    const toHandleQty = lines.reduce(
+      (sum, l) => sum + (Number(l.QtytoHandle) || 0),
+      0,
+    );
+    const toHandleAmt = lines.reduce(
+      (sum, l) => sum + (Number(l.AmounttoHandle) || 0),
+      0,
+    );
 
     return {
       assignableQty: totalQuantity,
@@ -212,10 +465,19 @@ export function ItemChargeAssignmentDialog({
   }, [lines, totalQuantity, totalAmount]);
 
   const toggleSelectAll = () => {
-    if (selectedLines.size === filteredLines.length && filteredLines.length > 0) {
+    if (
+      selectedLines.size === filteredAndSortedLines.length &&
+      filteredAndSortedLines.length > 0
+    ) {
       setSelectedLines(new Set());
     } else {
-      setSelectedLines(new Set(filteredLines.map(l => `${l.Applies_toDocNo}-${l.Line_No}`)));
+      setSelectedLines(
+        new Set(
+          filteredAndSortedLines.map(
+            (l) => `${l.Applies_toDocNo}-${l.Line_No}`,
+          ),
+        ),
+      );
     }
   };
 
@@ -230,298 +492,490 @@ export function ItemChargeAssignmentDialog({
     setSelectedLines(next);
   };
 
-  const fieldInputClass = cn("h-full w-full rounded-none border-0 text-right tabular-nums focus:bg-background/80 transition-all font-bold pr-3 text-xs bg-transparent ring-0 focus-visible:ring-1 focus-visible:ring-primary/40", FIELD_INPUT_CLASS);
+  const handleSort = (column: string) => {
+    if (sortColumn === column) {
+      setSortDirection((prev) =>
+        prev === "asc" ? "desc" : prev === "desc" ? null : "asc",
+      );
+      if (sortDirection === "desc") setSortColumn(null);
+    } else {
+      setSortColumn(column);
+      setSortDirection("asc");
+    }
+  };
+
+  const handleColumnFilter = (
+    columnId: string,
+    value: string,
+    valueTo?: string,
+  ) => {
+    setColumnFilters((prev) => {
+      if (!value && !valueTo) {
+        const { [columnId]: _, ...rest } = prev;
+        return rest;
+      }
+      return { ...prev, [columnId]: { value, valueTo } };
+    });
+    setCurrentPage(1);
+  };
+
+  const fieldInputClass = cn(
+    "h-full w-full rounded-none border-0 text-center tabular-nums focus:bg-background/80 transition-all pr-0 text-xs bg-transparent ring-0 focus-visible:ring-1 focus-visible:ring-primary/40",
+    FIELD_INPUT_CLASS,
+  );
 
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-[95vw] w-[95vw] h-[95vh] flex flex-col p-0 overflow-hidden border-border bg-background shadow-2xl rounded-xl sm:border">
-          <DialogHeader className="p-6 border-b border-border space-y-4">
+        <DialogContent className="border-border bg-background flex h-[95vh] w-[95vw] flex-col gap-0 space-y-0 overflow-hidden rounded-xl p-0 shadow-2xl sm:max-w-[95vw] sm:border">
+          <DialogHeader className="border-border space-y-3 border-b px-4 py-3">
             <div className="flex items-center justify-between">
-              <DialogTitle className="text-xl font-extrabold tracking-tight text-foreground flex items-center gap-2">
+              <DialogTitle className="text-foreground flex items-center gap-2 text-lg font-extrabold tracking-tight">
                 Item Charge Assignment (Purch)
-                <span className="bg-primary/10 text-primary px-3 py-1 rounded-full text-xs font-bold tabular-nums">
+                <span className="bg-primary/10 text-primary rounded-full px-2 py-0.5 text-[10px] font-bold tabular-nums">
                   {itemChargeNo} — {itemChargeDescription}
                 </span>
               </DialogTitle>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2">
-              <Button variant="outline" size="sm" className="h-9 px-4 text-[11px] font-bold uppercase tracking-wider hover:bg-primary hover:text-primary-foreground transition-all" onClick={() => handleOpenSelection("Receipt")}>
+            <div className="flex flex-wrap items-center gap-1.5">
+              <Button
+                variant="outline"
+                size="sm"
+                className="hover:bg-primary hover:text-primary-foreground flex h-7 items-center gap-1.5 px-3 text-[10px] font-bold tracking-wider uppercase transition-all"
+                onClick={() => handleOpenSelection("Receipt")}
+              >
+                <ArrowUp className="h-3 w-3" />
                 Get Receipt Lines
               </Button>
-              <Button variant="outline" size="sm" className="h-9 px-4 text-[11px] font-bold uppercase tracking-wider hover:bg-primary hover:text-primary-foreground transition-all" onClick={() => handleOpenSelection("SalesShipment")}>
+              <Button
+                variant="outline"
+                size="sm"
+                className="hover:bg-primary hover:text-primary-foreground flex h-7 items-center gap-1.5 px-3 text-[10px] font-bold tracking-wider uppercase transition-all"
+                onClick={() => handleOpenSelection("SalesShipment")}
+              >
+                <ArrowDown className="h-3 w-3" />
                 Get Sales Shipment Lines
               </Button>
-              <Button variant="outline" size="sm" className="h-9 px-4 text-[11px] font-bold uppercase tracking-wider hover:bg-primary hover:text-primary-foreground transition-all" onClick={() => handleOpenSelection("Transfer")}>
+              <Button
+                variant="outline"
+                size="sm"
+                className="hover:bg-primary hover:text-primary-foreground flex h-7 items-center gap-1.5 px-3 text-[10px] font-bold tracking-wider uppercase transition-all"
+                onClick={() => handleOpenSelection("Transfer")}
+              >
+                <ArrowUpDown className="h-3 w-3" />
                 Get Transfer Receipt Lines
               </Button>
-              <Button variant="outline" size="sm" className="h-9 px-4 text-[11px] font-bold uppercase tracking-wider hover:bg-primary hover:text-primary-foreground transition-all" onClick={() => handleOpenSelection("ReturnReceipt")}>
+              <Button
+                variant="outline"
+                size="sm"
+                className="hover:bg-primary hover:text-primary-foreground flex h-7 items-center gap-1.5 px-3 text-[10px] font-bold tracking-wider uppercase transition-all"
+                onClick={() => handleOpenSelection("ReturnReceipt")}
+              >
+                <ChevronRight className="h-3 w-3" />
                 Get Return Receipt Lines
               </Button>
-              <Button variant="outline" size="sm" className="h-9 px-4 text-[11px] font-bold uppercase tracking-wider hover:bg-primary hover:text-primary-foreground transition-all" onClick={() => handleOpenSelection("ReturnShipment")}>
+              <Button
+                variant="outline"
+                size="sm"
+                className="hover:bg-primary hover:text-primary-foreground flex h-7 items-center gap-1.5 px-3 text-[10px] font-bold tracking-wider uppercase transition-all"
+                onClick={() => handleOpenSelection("ReturnShipment")}
+              >
+                <ChevronLeft className="h-3 w-3" />
                 Get Return Shipment Lines
               </Button>
             </div>
+
+            <div className="relative w-full">
+              <Search className="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
+              <Input
+                placeholder="Search assignments by Doc No, Item No or Description..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="h-10 w-full pl-9"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery("")}
+                  className="text-muted-foreground hover:text-foreground absolute top-1/2 right-4 h-5 w-5 -translate-y-1/2 transition-colors"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </div>
           </DialogHeader>
 
-          <div className="flex-1 flex flex-col overflow-hidden bg-background/50">
-            {/* Table Controls */}
-            <div className="flex items-center justify-between gap-4 py-3 px-6 border-b bg-background/80 backdrop-blur-sm">
-              <div className="relative w-80">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search assignments..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9 h-9 text-xs focus-visible:ring-primary/20"
-                />
-                {searchQuery && (
-                  <button
-                    onClick={() => setSearchQuery("")}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                )}
+          <div className="bg-background/50 flex flex-1 flex-col overflow-hidden">
+            {loading && lines.length === 0 ? (
+              <div className="flex flex-1 items-center justify-center">
+                <div className="flex flex-col items-center gap-4">
+                  <Loader2 className="text-primary h-12 w-12 animate-spin" />
+                  <p className="text-muted-foreground animate-pulse font-medium">
+                    Fetching assignments...
+                  </p>
+                </div>
               </div>
+            ) : (
+              <>
+                <div className="flex-1 overflow-hidden">
+                  <div className="bg-background flex h-full flex-col overflow-hidden">
+                    <div className="relative flex-1 overflow-auto">
+                      <Table className="relative w-full border-collapse">
+                        <TableHeader className="bg-muted border-border sticky top-0 z-30 border-b shadow-sm">
+                          <TableRow className="h-9 hover:bg-transparent [&_th]:border-b">
+                            <TableHead className="bg-muted sticky left-0 z-40 w-16 px-4 text-center align-middle">
+                              <Checkbox
+                                checked={
+                                  filteredAndSortedLines.length > 0 &&
+                                  selectedLines.size ===
+                                    filteredAndSortedLines.length
+                                }
+                                onCheckedChange={toggleSelectAll}
+                                className="mr-3 rounded-none shadow-none"
+                              />
+                            </TableHead>
+                            {ASSIGNMENT_COLUMNS.map((col) => (
+                              <SortableTableHead
+                                key={col.id}
+                                column={col}
+                                isActive={sortColumn === col.id}
+                                sortDirection={
+                                  sortColumn === col.id ? sortDirection : null
+                                }
+                                filterValue={columnFilters[col.id]?.value ?? ""}
+                                onSort={handleSort}
+                                onFilter={handleColumnFilter}
+                              />
+                            ))}
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {paginatedLines.length === 0 ? (
+                            <TableRow className="border-none hover:bg-transparent">
+                              <TableCell
+                                colSpan={18}
+                                className="text-muted-foreground h-96 text-center text-sm font-medium italic opacity-50"
+                              >
+                                {searchQuery
+                                  ? "(No assignments match your search)"
+                                  : "(There is nothing to show in this view)"}
+                              </TableCell>
+                            </TableRow>
+                          ) : (
+                            paginatedLines.map((line) => {
+                              const uniqueKey = `${line.Applies_toDocNo}-${line.Line_No}`;
+                              const isSelected = selectedLines.has(uniqueKey);
+                              return (
+                                <TableRow
+                                  key={uniqueKey}
+                                  className="group border-b border-border h-9 cursor-pointer transition-colors"
+                                  onClick={() => toggleSelectLine(line)}
+                                >
+                                  <TableCell
+                                    className="bg-background sticky left-0 z-20 w-16 px-4 text-center align-middle transition-colors"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    <Checkbox
+                                      checked={isSelected}
+                                      onCheckedChange={() =>
+                                        toggleSelectLine(line)
+                                      }
+                                      className="mr-3 rounded-none shadow-none"
+                                    />
+                                  </TableCell>
+                                  <TableCell className="px-3 py-0 text-[10px] text-center align-middle whitespace-nowrap">
+                                    {line.Applies_toDocType || "—"}
+                                  </TableCell>
+                                  <TableCell className="text-primary px-3 py-0 text-center align-middle text-xs tabular-nums">
+                                    {line.Applies_toDocNo}
+                                  </TableCell>
+                                  <TableCell className="px-3 py-0 text-center align-middle text-[10px] tabular-nums">
+                                    {line.Applies_toDocLineNo}
+                                  </TableCell>
+                                  <TableCell className="px-3 py-0 text-center align-middle text-xs tabular-nums">
+                                    {line.ItemNo}
+                                  </TableCell>
+                                  <TableCell className="max-w-[200px] truncate px-3 py-0 text-center align-middle text-[10px]">
+                                    {line.Description}
+                                  </TableCell>
+                                  <TableCell
+                                    className="h-9 p-0 text-center align-middle"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    <Input
+                                      type="text"
+                                      className={fieldInputClass}
+                                      style={{ height: "36px" }}
+                                      value={line.QtytoAssign}
+                                      onChange={(e) =>
+                                        handleUpdateLine(
+                                          line.Line_No,
+                                          "QtytoAssign",
+                                          parseFloat(e.target.value) || 0,
+                                        )
+                                      }
+                                    />
+                                  </TableCell>
+                                  <TableCell
+                                    className="h-9 p-0 text-center align-middle"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    <Input
+                                      type="text"
+                                      className={fieldInputClass}
+                                      style={{ height: "36px" }}
+                                      value={line.QtytoHandle}
+                                      onChange={(e) =>
+                                        handleUpdateLine(
+                                          line.Line_No,
+                                          "QtytoHandle",
+                                          parseFloat(e.target.value) || 0,
+                                        )
+                                      }
+                                    />
+                                  </TableCell>
+                                  <TableCell className="px-3 text-center align-middle text-[11px] tabular-nums">
+                                    {line.QtyAssigned}
+                                  </TableCell>
+                                  <TableCell
+                                    className="h-9 p-0 text-center align-middle"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    <Input
+                                      type="text"
+                                      className={fieldInputClass}
+                                      style={{ height: "36px" }}
+                                      value={line.AmounttoAssign}
+                                      onChange={(e) =>
+                                        handleUpdateLine(
+                                          line.Line_No,
+                                          "AmounttoAssign",
+                                          parseFloat(e.target.value) || 0,
+                                        )
+                                      }
+                                    />
+                                  </TableCell>
+                                  <TableCell
+                                    className="h-9 p-0 text-center align-middle"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    <Input
+                                      type="text"
+                                      className={fieldInputClass}
+                                      style={{ height: "36px" }}
+                                      value={line.AmounttoHandle}
+                                      onChange={(e) =>
+                                        handleUpdateLine(
+                                          line.Line_No,
+                                          "AmounttoHandle",
+                                          parseFloat(e.target.value) || 0,
+                                        )
+                                      }
+                                    />
+                                  </TableCell>
+                                  <TableCell className="px-3 py-0 text-center align-middle text-[11px] tabular-nums">
+                                    {line.GrossWeight}
+                                  </TableCell>
+                                  <TableCell className="px-3 py-0 text-center align-middle text-[11px] tabular-nums">
+                                    {line.UnitVolume}
+                                  </TableCell>
+                                  <TableCell className="px-3 py-0 text-center align-middle text-[11px] tabular-nums">
+                                    {line.QtyToReceiveBase || 0}
+                                  </TableCell>
+                                  <TableCell className="px-3 py-0 text-center align-middle text-[11px] tabular-nums">
+                                    {line.QtyReceivedBase || 0}
+                                  </TableCell>
+                                  <TableCell className="px-3 py-0 text-center align-middle text-[11px] tabular-nums">
+                                    {line.QtyToShipBase || 0}
+                                  </TableCell>
+                                  <TableCell className="px-3 py-0 text-center align-middle text-[11px] tabular-nums">
+                                    {line.QtyShippedBase || 0}
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            })
+                          )}
+                        </TableBody>
+                      </Table>
+                    </div>
 
-              <div className="flex items-center gap-3">
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  className="h-9 font-bold text-xs uppercase tracking-wider"
-                  onClick={() => setSelectionOpen(true)}
-                >
-                  Add Lines
-                </Button>
-              </div>
-            </div>
+                    {/* Pagination Section */}
+                    <div className="bg-muted/20 flex items-center justify-between border-t px-4 py-1.5">
+                      <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-2">
+                          <span className="text-muted-foreground text-[10px] font-medium tracking-wider uppercase">
+                            Rows:
+                          </span>
+                          <Select
+                            value={pageSize.toString()}
+                            onValueChange={(val) => setPageSize(Number(val))}
+                          >
+                            <SelectTrigger className="bg-background h-7 w-14 text-[10px] font-bold">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent title="Rows per page">
+                              {[10, 20, 50, 100].map((size) => (
+                                <SelectItem
+                                  key={size}
+                                  value={size.toString()}
+                                  className="text-[10px]"
+                                >
+                                  {size}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <span className="text-muted-foreground text-[10px] font-bold tracking-wider uppercase">
+                          {filteredAndSortedLines.length} Records
+                        </span>
+                      </div>
 
-            <div className="flex-1 overflow-auto px-6 py-4 scrollbar-thin">
-              {loading && lines.length === 0 ? (
-                <div className="flex h-full items-center justify-center">
-                  <div className="flex flex-col items-center gap-4">
-                    <Loader2 className="h-12 w-12 animate-spin text-primary" />
-                    <p className="text-muted-foreground font-medium animate-pulse">Fetching assignments...</p>
+                      <div className="flex items-center gap-3">
+                        <span className="text-muted-foreground text-[10px] font-bold tracking-wider uppercase">
+                          Page {currentPage} of {totalPages}
+                        </span>
+                        <div className="flex items-center gap-1">
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="bg-background h-7 w-7"
+                            disabled={currentPage === 1}
+                            onClick={() => setCurrentPage((prev) => prev - 1)}
+                          >
+                            <ChevronLeft className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="bg-background h-7 w-7"
+                            disabled={currentPage === totalPages}
+                            onClick={() => setCurrentPage((prev) => prev + 1)}
+                          >
+                            <ChevronRight className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
-              ) : (
-                <div className="border border-border rounded-lg overflow-hidden flex flex-col shadow-sm bg-background">
-                  <div className="overflow-auto relative">
-                    <Table className="relative w-full border-collapse">
-                      <TableHeader className="bg-muted/80 sticky top-0 z-20 backdrop-blur-sm border-b border-border shadow-sm">
-                        <TableRow className="h-12 hover:bg-transparent">
-                          <TableHead className="w-12 text-center border-r border-border/50">
-                            <Checkbox
-                              checked={filteredLines.length > 0 && selectedLines.size === filteredLines.length}
-                              onCheckedChange={toggleSelectAll}
-                              className="rounded-sm"
-                            />
+
+                {/* Totals Section */}
+                {!loading && lines.length > 0 && (
+                  <div className="bg-muted/10 border-border overflow-x-auto border-t px-4 py-2">
+                    <Table className="border-collapse">
+                      <TableHeader className="bg-transparent">
+                        <TableRow className="h-6 border-none hover:bg-transparent">
+                          <TableHead className="h-6 w-[150px]"></TableHead>
+                          <TableHead className="text-muted-foreground h-6 w-[120px] px-4 text-right text-[9px] font-black uppercase">
+                            Assignable
                           </TableHead>
-                          <TableHead className="w-[120px] text-[10px] font-black text-foreground border-r border-border/50 px-3 uppercase tracking-tighter">Applies-to Doc. Type</TableHead>
-                          <TableHead className="w-[150px] text-[10px] font-black text-foreground border-r border-border/50 px-3 uppercase tracking-tighter">Applies-to Doc. No.</TableHead>
-                          <TableHead className="w-[100px] text-[10px] font-black text-foreground border-r border-border/50 px-3 uppercase tracking-tighter">Doc. Line No.</TableHead>
-                          <TableHead className="w-[120px] text-[10px] font-black text-foreground border-r border-border/50 px-3 uppercase tracking-tighter">Item No.</TableHead>
-                          <TableHead className="min-w-[200px] text-[10px] font-black text-foreground border-r border-border/50 px-3 uppercase tracking-tighter">Description</TableHead>
-                          <TableHead className="w-[100px] text-right text-[10px] font-black text-foreground border-r border-border/50 px-3 uppercase tracking-tighter bg-primary/5">Qty. to Assign</TableHead>
-                          <TableHead className="w-[100px] text-right text-[10px] font-black text-foreground border-r border-border/50 px-3 uppercase tracking-tighter bg-primary/5">Qty. to Handle</TableHead>
-                          <TableHead className="w-[100px] text-right text-[10px] font-black text-foreground border-r border-border/50 px-3 uppercase tracking-tighter">Qty. Assigned</TableHead>
-                          <TableHead className="w-[130px] text-right text-[10px] font-black text-foreground border-r border-border/50 px-3 uppercase tracking-tighter bg-primary/5">Amount to Assign</TableHead>
-                          <TableHead className="w-[130px] text-right text-[10px] font-black text-foreground border-r border-border/50 px-3 uppercase tracking-tighter bg-primary/5">Amount to Handle</TableHead>
-                          <TableHead className="w-[100px] text-right text-[10px] font-black text-foreground border-r border-border/50 px-3 uppercase tracking-tighter">Gross Weight</TableHead>
-                          <TableHead className="w-[100px] text-right text-[10px] font-black text-foreground border-r border-border/50 px-3 uppercase tracking-tighter">Unit Volume</TableHead>
-                          <TableHead className="w-[120px] text-right text-[10px] font-black text-foreground border-r border-border/50 px-3 uppercase tracking-tighter">Qty. Rec. (B)</TableHead>
-                          <TableHead className="w-[120px] text-right text-[10px] font-black text-foreground border-r border-border/50 px-3 uppercase tracking-tighter text-blue-600">Qty. Rec'd (B)</TableHead>
-                          <TableHead className="w-[120px] text-right text-[10px] font-black text-foreground border-r border-border/50 px-3 uppercase tracking-tighter">Qty. Ship (B)</TableHead>
-                          <TableHead className="w-[120px] text-right text-[10px] font-black text-foreground border-r border-border/50 px-3 uppercase tracking-tighter text-green-600">Qty. Shipp'd (B)</TableHead>
-                          <TableHead className="w-12 text-center px-3"></TableHead>
+                          <TableHead className="text-muted-foreground h-6 w-[120px] px-4 text-right text-[9px] font-black uppercase">
+                            To Assign
+                          </TableHead>
+                          <TableHead className="text-muted-foreground h-6 w-[120px] px-4 text-right text-[9px] font-black uppercase">
+                            Rem. to Assign
+                          </TableHead>
+                          <TableHead className="text-muted-foreground h-6 w-[120px] px-4 text-right text-[9px] font-black uppercase">
+                            To Handle
+                          </TableHead>
+                          <TableHead className="text-muted-foreground h-6 w-[120px] px-4 text-right text-[9px] font-black uppercase">
+                            Rem. to Handle
+                          </TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {paginatedLines.length === 0 ? (
-                          <TableRow className="hover:bg-transparent border-none">
-                            <TableCell colSpan={18} className="h-96 text-center text-muted-foreground text-sm font-medium opacity-50 italic">
-                              {searchQuery ? "(No assignments match your search)" : "(There is nothing to show in this view)"}
-                            </TableCell>
-                          </TableRow>
-                        ) : (
-                          paginatedLines.map((line) => {
-                            const uniqueKey = `${line.Applies_toDocNo}-${line.Line_No}`;
-                            const isSelected = selectedLines.has(uniqueKey);
-                            return (
-                              <TableRow
-                                key={uniqueKey}
-                                className={cn(
-                                  "group h-10 border-b border-border transition-colors cursor-pointer",
-                                  isSelected ? "bg-primary/5 shadow-inner" : "hover:bg-muted/30"
-                                )}
-                                onClick={() => toggleSelectLine(line)}
-                              >
-                                <TableCell className="text-center py-0 border-r border-border/50" onClick={(e) => e.stopPropagation()}>
-                                  <Checkbox
-                                    checked={isSelected}
-                                    onCheckedChange={() => toggleSelectLine(line)}
-                                    className="rounded-sm"
-                                  />
-                                </TableCell>
-                                <TableCell className="text-[10px] py-0 border-r border-border/50 px-3 text-muted-foreground whitespace-nowrap">{line.Applies_toDocType || "—"}</TableCell>
-                                <TableCell className="font-bold text-xs py-0 border-r border-border/50 px-3 tabular-nums text-primary/80">{line.Applies_toDocNo}</TableCell>
-                                <TableCell className="text-[10px] py-0 border-r border-border/50 px-3 text-muted-foreground tabular-nums text-center">{line.Applies_toDocLineNo}</TableCell>
-                                <TableCell className="text-xs font-semibold py-0 border-r border-border/50 px-3 tabular-nums">{line.ItemNo}</TableCell>
-                                <TableCell className="text-[10px] py-0 border-r border-border/50 px-3 text-muted-foreground truncate max-w-[200px]">
-                                  {line.Description}
-                                </TableCell>
-                                <TableCell className="p-0 border-r border-border/50 h-10 bg-primary/5" onClick={(e) => e.stopPropagation()}>
-                                  <Input
-                                    type="text"
-                                    className={fieldInputClass}
-                                    value={line.QtytoAssign}
-                                    onChange={(e) => handleUpdateLine(line.Line_No, "QtytoAssign", parseFloat(e.target.value) || 0)}
-                                  />
-                                </TableCell>
-                                <TableCell className="p-0 border-r border-border/50 h-10 bg-primary/5" onClick={(e) => e.stopPropagation()}>
-                                  <Input
-                                    type="text"
-                                    className={fieldInputClass}
-                                    value={line.QtytoHandle}
-                                    onChange={(e) => handleUpdateLine(line.Line_No, "QtytoHandle", parseFloat(e.target.value) || 0)}
-                                  />
-                                </TableCell>
-                                <TableCell className="text-right text-[11px] font-bold tabular-nums text-foreground/60 px-3 border-r border-border/50">{line.QtyAssigned}</TableCell>
-                                <TableCell className="p-0 border-r border-border/50 h-10 bg-primary/5" onClick={(e) => e.stopPropagation()}>
-                                  <Input 
-                                    type="text"
-                                    className={fieldInputClass}
-                                    value={line.AmounttoAssign}
-                                    onChange={(e) => handleUpdateLine(line.Line_No, "AmounttoAssign", parseFloat(e.target.value) || 0)}
-                                  />
-                                </TableCell>
-                                <TableCell className="p-0 border-r border-border/50 h-10 bg-primary/5" onClick={(e) => e.stopPropagation()}>
-                                  <Input 
-                                    type="text"
-                                    className={fieldInputClass}
-                                    value={line.AmounttoHandle}
-                                    onChange={(e) => handleUpdateLine(line.Line_No, "AmounttoHandle", parseFloat(e.target.value) || 0)}
-                                  />
-                                </TableCell>
-                                <TableCell className="text-right text-[11px] tabular-nums text-muted-foreground px-3 border-r border-border/50">{line.GrossWeight}</TableCell>
-                                <TableCell className="text-right text-[11px] tabular-nums text-muted-foreground px-3 border-r border-border/50">{line.UnitVolume}</TableCell>
-                                <TableCell className="text-right text-[11px] tabular-nums text-muted-foreground px-3 border-r border-border/50">{line.QtyToReceiveBase || 0}</TableCell>
-                                <TableCell className="text-right text-[11px] font-bold tabular-nums text-blue-600 px-3 border-r border-border/50">{line.QtyReceivedBase || 0}</TableCell>
-                                <TableCell className="text-right text-[11px] tabular-nums text-muted-foreground px-3 border-r border-border/50">{line.QtyToShipBase || 0}</TableCell>
-                                <TableCell className="text-right text-[11px] font-bold tabular-nums text-green-600 px-3 border-r border-border/50">{line.QtyShippedBase || 0}</TableCell>
-                                <TableCell className="px-3" onClick={(e) => e.stopPropagation()}>
-                                  <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive hover:bg-destructive/10" onClick={() => handleDeleteLine(line)}>
-                                    <Trash2 className="h-3 w-3" />
-                                  </Button>
-                                </TableCell>
-                              </TableRow>
-                            );
-                          })
-                        )}
+                        <TableRow className="h-7 border-none hover:bg-transparent">
+                          <TableCell className="text-foreground h-7 px-4 py-0 text-[11px] font-bold">
+                            Total (Qty.)
+                          </TableCell>
+                          <TableCell className="h-7 px-4 py-0 text-right text-[12px] font-black tabular-nums">
+                            {totals.assignableQty.toLocaleString()}
+                          </TableCell>
+                          <TableCell className="h-7 px-4 py-0 text-right text-[12px] font-black tabular-nums">
+                            {totals.toAssignQty.toLocaleString()}
+                          </TableCell>
+                          <TableCell
+                            className={cn(
+                              "h-7 px-4 py-0 text-right text-[12px] font-black tabular-nums",
+                              totals.remToAssignQty !== 0
+                                ? "text-destructive"
+                                : "text-green-600",
+                            )}
+                          >
+                            {totals.remToAssignQty.toLocaleString()}
+                          </TableCell>
+                          <TableCell className="h-7 px-4 py-0 text-right text-[12px] font-black tabular-nums">
+                            {totals.toHandleQty.toLocaleString()}
+                          </TableCell>
+                          <TableCell
+                            className={cn(
+                              "h-7 px-4 py-0 text-right text-[12px] font-black tabular-nums",
+                              totals.remToHandleQty !== 0
+                                ? "text-destructive"
+                                : "text-green-600",
+                            )}
+                          >
+                            {totals.remToHandleQty.toLocaleString()}
+                          </TableCell>
+                        </TableRow>
+                        <TableRow className="h-7 border-none hover:bg-transparent">
+                          <TableCell className="text-foreground h-7 px-4 py-0 text-[11px] font-bold">
+                            Total (Amount)
+                          </TableCell>
+                          <TableCell className="h-7 px-4 py-0 text-right text-[12px] font-black tabular-nums">
+                            {totals.assignableAmt.toLocaleString(undefined, {
+                              minimumFractionDigits: 2,
+                            })}
+                          </TableCell>
+                          <TableCell className="h-7 px-4 py-0 text-right text-[12px] font-black tabular-nums">
+                            {totals.toAssignAmt.toLocaleString(undefined, {
+                              minimumFractionDigits: 2,
+                            })}
+                          </TableCell>
+                          <TableCell
+                            className={cn(
+                              "h-7 px-4 py-0 text-right text-[12px] font-black tabular-nums",
+                              totals.remToAssignAmt !== 0
+                                ? "text-destructive"
+                                : "text-green-600",
+                            )}
+                          >
+                            {totals.remToAssignAmt.toLocaleString(undefined, {
+                              minimumFractionDigits: 2,
+                            })}
+                          </TableCell>
+                          <TableCell className="h-7 px-4 py-0 text-right text-[12px] font-black tabular-nums">
+                            {totals.toHandleAmt.toLocaleString(undefined, {
+                              minimumFractionDigits: 2,
+                            })}
+                          </TableCell>
+                          <TableCell
+                            className={cn(
+                              "h-7 px-4 py-0 text-right text-[12px] font-black tabular-nums",
+                              totals.remToHandleAmt !== 0
+                                ? "text-destructive"
+                                : "text-green-600",
+                            )}
+                          >
+                            {totals.remToHandleAmt.toLocaleString(undefined, {
+                              minimumFractionDigits: 2,
+                            })}
+                          </TableCell>
+                        </TableRow>
                       </TableBody>
                     </Table>
                   </div>
-
-                  {/* Pagination Section */}
-                  <div className="border-t px-4 py-3 flex items-center justify-between bg-muted/20">
-                    <div className="flex items-center gap-4">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-muted-foreground font-medium">Rows per page:</span>
-                        <Select
-                          value={pageSize.toString()}
-                          onValueChange={(val) => setPageSize(Number(val))}
-                        >
-                          <SelectTrigger className="w-16 h-8 text-xs font-semibold">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {[10, 20, 50, 100].map((size) => (
-                              <SelectItem key={size} value={size.toString()} className="text-xs">
-                                {size}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <span className="text-xs text-muted-foreground font-medium">
-                        {filteredLines.length} {filteredLines.length === 1 ? 'record' : 'records'}
-                      </span>
-                    </div>
-                    
-                    <div className="flex items-center gap-3">
-                      <span className="text-xs text-muted-foreground font-medium">
-                        Page {currentPage} of {totalPages}
-                      </span>
-                      <div className="flex items-center gap-1">
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          className="h-8 w-8"
-                          disabled={currentPage === 1}
-                          onClick={() => setCurrentPage(prev => prev - 1)}
-                        >
-                          <ChevronLeft className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          className="h-8 w-8"
-                          disabled={currentPage === totalPages}
-                          onClick={() => setCurrentPage(prev => prev + 1)}
-                        >
-                          <ChevronRight className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Totals Section */}
-            {!loading && lines.length > 0 && (
-              <div className="bg-muted/10 border-t border-border overflow-x-auto">
-                <Table className="border-collapse">
-                  <TableHeader className="bg-transparent">
-                    <TableRow className="h-8 hover:bg-transparent border-none">
-                      <TableHead className="w-[150px]"></TableHead>
-                      <TableHead className="w-[120px] text-[10px] font-black text-muted-foreground uppercase text-right px-6">Assignable</TableHead>
-                      <TableHead className="w-[120px] text-[10px] font-black text-muted-foreground uppercase text-right px-6">To Assign</TableHead>
-                      <TableHead className="w-[120px] text-[10px] font-black text-muted-foreground uppercase text-right px-6">Rem. to Assign</TableHead>
-                      <TableHead className="w-[120px] text-[10px] font-black text-muted-foreground uppercase text-right px-6">To Handle</TableHead>
-                      <TableHead className="w-[120px] text-[10px] font-black text-muted-foreground uppercase text-right px-6">Rem. to Handle</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    <TableRow className="h-10 hover:bg-transparent border-none">
-                      <TableCell className="text-xs font-bold text-foreground px-6 py-0">Total (Qty.)</TableCell>
-                      <TableCell className="text-sm font-black tabular-nums text-right px-6 py-0">{totals.assignableQty.toLocaleString()}</TableCell>
-                      <TableCell className="text-sm font-black tabular-nums text-right px-6 py-0">{totals.toAssignQty.toLocaleString()}</TableCell>
-                      <TableCell className={cn("text-sm font-black tabular-nums text-right px-6 py-0", totals.remToAssignQty !== 0 ? "text-destructive" : "text-green-600")}>{totals.remToAssignQty.toLocaleString()}</TableCell>
-                      <TableCell className="text-sm font-black tabular-nums text-right px-6 py-0">{totals.toHandleQty.toLocaleString()}</TableCell>
-                      <TableCell className={cn("text-sm font-black tabular-nums text-right px-6 py-0", totals.remToHandleQty !== 0 ? "text-destructive" : "text-green-600")}>{totals.remToHandleQty.toLocaleString()}</TableCell>
-                    </TableRow>
-                    <TableRow className="h-10 hover:bg-transparent border-none">
-                      <TableCell className="text-xs font-bold text-foreground px-6 py-0">Total (Amount)</TableCell>
-                      <TableCell className="text-sm font-black tabular-nums text-right px-6 py-0">{totals.assignableAmt.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
-                      <TableCell className="text-sm font-black tabular-nums text-right px-6 py-0">{totals.toAssignAmt.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
-                      <TableCell className={cn("text-sm font-black tabular-nums text-right px-6 py-0", totals.remToAssignAmt !== 0 ? "text-destructive" : "text-green-600")}>{totals.remToAssignAmt.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
-                      <TableCell className="text-sm font-black tabular-nums text-right px-6 py-0">{totals.toHandleAmt.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
-                      <TableCell className={cn("text-sm font-black tabular-nums text-right px-6 py-0", totals.remToHandleAmt !== 0 ? "text-destructive" : "text-green-600")}>{totals.remToHandleAmt.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
-                    </TableRow>
-                  </TableBody>
-                </Table>
-              </div>
+                )}
+              </>
             )}
           </div>
 
-          <DialogFooter className="p-6 border-t border-border bg-background items-center flex justify-end gap-3 shadow-top-lg">
-            <Button 
-              variant="outline" 
-              size="default" 
-              className="px-8 font-bold h-11 border-border/50" 
+          <DialogFooter className="border-border bg-background shadow-top-lg flex items-center justify-end gap-2 border-t px-4 py-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="border-border/50 text-muted-foreground hover:text-foreground h-8 px-6 text-xs font-bold tracking-widest uppercase"
               onClick={() => onOpenChange(false)}
             >
               Close
@@ -530,7 +984,7 @@ export function ItemChargeAssignmentDialog({
         </DialogContent>
       </Dialog>
 
-      <ItemChargeSelectionDialog 
+      <ItemChargeSelectionDialog
         open={selectionOpen}
         onOpenChange={setSelectionOpen}
         type={selectionType}
@@ -545,5 +999,160 @@ export function ItemChargeAssignmentDialog({
         errors={apiErrors}
       />
     </>
+  );
+}
+
+interface SortableTableHeadProps {
+  column: ColumnConfig;
+  isActive: boolean;
+  sortDirection: SortDirection;
+  filterValue: string;
+  onSort: (column: string) => void;
+  onFilter: (columnId: string, value: string, valueTo?: string) => void;
+}
+
+function SortableTableHead({
+  column,
+  isActive,
+  sortDirection,
+  filterValue,
+  onSort,
+  onFilter,
+}: SortableTableHeadProps) {
+  const getSortIcon = () => {
+    if (!isActive || !sortDirection) {
+      return <ArrowUpDown className="h-3 w-3 opacity-50" />;
+    }
+    if (sortDirection === "asc") {
+      return <ArrowUp className="h-3 w-3" />;
+    }
+    return <ArrowDown className="h-3 w-3" />;
+  };
+
+  return (
+    <th
+      className={cn(
+        "bg-muted text-foreground h-10 px-3 py-3 text-left align-middle text-[10px] font-bold tracking-tight whitespace-nowrap uppercase select-none",
+        isActive && "text-primary",
+      )}
+      style={{ width: column.width }}
+    >
+      <div
+        className={cn(
+          "flex items-center gap-1.5",
+          column.align === "right"
+            ? "justify-end"
+            : column.align === "center"
+              ? "justify-center"
+              : "",
+        )}
+      >
+        <span
+          className="hover:text-primary cursor-pointer transition-colors"
+          onClick={() => column.sortable && onSort(column.id as string)}
+        >
+          {column.label}
+        </span>
+        {column.sortable && (
+          <button
+            type="button"
+            className="hover:text-primary transition-colors"
+            onClick={() => onSort(column.id as string)}
+          >
+            {getSortIcon()}
+          </button>
+        )}
+        {column.filterType && (
+          <ColumnFilter
+            column={column}
+            value={filterValue}
+            onChange={(value) => onFilter(column.id as string, value)}
+          />
+        )}
+      </div>
+    </th>
+  );
+}
+
+interface ColumnFilterProps {
+  column: ColumnConfig;
+  value: string;
+  onChange: (value: string) => void;
+}
+
+function ColumnFilter({ column, value, onChange }: ColumnFilterProps) {
+  const [open, setOpen] = useState(false);
+  const [localValue, setLocalValue] = useState(value);
+  const hasFilter = !!value;
+
+  useEffect(() => {
+    setLocalValue(value);
+  }, [value]);
+
+  const handleApply = () => {
+    onChange(localValue);
+    setOpen(false);
+  };
+
+  const handleClear = () => {
+    setLocalValue("");
+    onChange("");
+    setOpen(false);
+  };
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className={cn(
+            "hover:bg-background/50 rounded p-0.5 transition-colors",
+            hasFilter
+              ? "text-primary"
+              : "text-muted-foreground/50 hover:text-muted-foreground",
+          )}
+          onClick={(e) => {
+            e.stopPropagation();
+          }}
+        >
+          <Filter className={cn("h-3 w-3", hasFilter ? "fill-current" : "")} />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        className="w-56 p-3"
+        align="start"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="space-y-2">
+          <Label className="text-xs font-medium">Filter {column.label}</Label>
+          <Input
+            placeholder="Search..."
+            value={localValue}
+            onChange={(e) => setLocalValue(e.target.value)}
+            className="h-8 text-xs"
+            onKeyDown={(e) => e.key === "Enter" && handleApply()}
+          />
+        </div>
+        <div className="mt-3 flex gap-2">
+          <Button
+            size="sm"
+            className="h-7 flex-1 text-xs"
+            onClick={handleApply}
+          >
+            Apply
+          </Button>
+          {hasFilter && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 px-2 text-xs"
+              onClick={handleClear}
+            >
+              <X className="h-3 w-3" />
+            </Button>
+          )}
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 }

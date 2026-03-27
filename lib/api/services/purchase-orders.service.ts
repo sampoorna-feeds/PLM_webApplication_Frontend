@@ -261,9 +261,7 @@ export async function getPurchaseOrderLines(
 /**
  * Send approval request for a purchase order (Approve action)
  */
-export async function sendApprovalRequest(
-  docNo: string,
-): Promise<unknown> {
+export async function sendApprovalRequest(docNo: string): Promise<unknown> {
   const endpoint = `/API_SendPurchaseApprovalReqeust?company='${encodeURIComponent(COMPANY)}'`;
   return apiPost<unknown>(endpoint, { docNo });
 }
@@ -271,9 +269,7 @@ export async function sendApprovalRequest(
 /**
  * Cancel approval request for a purchase order (Pending Approval -> Open)
  */
-export async function cancelApprovalRequest(
-  docNo: string,
-): Promise<unknown> {
+export async function cancelApprovalRequest(docNo: string): Promise<unknown> {
   const endpoint = `/API_CancelApprovalPurchase?company='${encodeURIComponent(COMPANY)}'`;
   return apiPost<unknown>(endpoint, { docNo });
 }
@@ -281,9 +277,7 @@ export async function cancelApprovalRequest(
 /**
  * Reopen a purchase order
  */
-export async function reopenPurchaseOrder(
-  docNo: string,
-): Promise<unknown> {
+export async function reopenPurchaseOrder(docNo: string): Promise<unknown> {
   const endpoint = `/API_ReopenPurchase?company='${encodeURIComponent(COMPANY)}'`;
   return apiPost<unknown>(endpoint, { docNo });
 }
@@ -774,9 +768,9 @@ export async function getPurchaseOrderReport(orderNo: string): Promise<string> {
 /**
  * Get Purchase Receipt Report (MRN Report - Base64 PDF)
  */
-export async function getPurchasereceiptReport(mrnNo: string): Promise<string> {
+export async function getPurchasereceiptReport(MRNNo: string): Promise<string> {
   const endpoint = `/API_GetPurchasereceiptReport?company='${encodeURIComponent(COMPANY)}'`;
-  const response = await apiPost<{ value: string }>(endpoint, { mrnNo });
+  const response = await apiPost<{ value: string }>(endpoint, { MRNNo });
   return response.value || "";
 }
 

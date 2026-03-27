@@ -2715,7 +2715,7 @@ export function PurchaseOrderFormContent({
                             >
                               <FileText className="h-3.5 w-3.5" />
                             </Button>
-                            <Button
+                            {/* <Button
                               size="icon"
                               variant="ghost"
                               className="h-7 w-7 text-green-600 hover:bg-green-50"
@@ -2723,7 +2723,7 @@ export function PurchaseOrderFormContent({
                               onClick={() => handleOpenItemChargeForMrn(s.No)}
                             >
                               <PackagePlus className="h-3.5 w-3.5" />
-                            </Button>
+                            </Button> */}
                           </div>
                         </TableCell>
                       </TableRow>

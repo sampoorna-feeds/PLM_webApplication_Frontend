@@ -5,7 +5,7 @@ import { PostedTransferFilterForm, type PostedTransferFilters } from "./posted-t
 import { PostedTransferTable } from "./posted-transfer-table";
 import { TableFilterBar } from "./table-filter-bar";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, RefreshCcw, Plus } from "lucide-react";
+import { ChevronLeft, RefreshCcw } from "lucide-react";
 import { type SortDirection } from "./column-config";
 import { getPostedTransferShipments, getTransferReceipts, getTransferShipmentReport } from "@/lib/api/services/transfer-orders.service";
 import { toast } from "sonner";
@@ -110,18 +110,6 @@ export function PostedTransferView({ type }: PostedTransferViewProps) {
     }
   };
 
-  const handleCreateOrder = () => {
-    openTab("transfer-order", {
-      title: "Create Transfer Order",
-      context: {
-        openedFromParent: true,
-        onOrderCreated: () => {
-          if (filters) fetchData(filters);
-        },
-      },
-      autoCloseOnSuccess: true,
-    });
-  };
 
   const handleSort = (column: string) => {
     if (sortColumn === column) {
@@ -210,10 +198,6 @@ export function PostedTransferView({ type }: PostedTransferViewProps) {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button onClick={handleCreateOrder} size="sm">
-            <Plus className="mr-2 h-4 w-4" />
-            Add Order
-          </Button>
           <Button variant="outline" size="sm" onClick={() => fetchData(filters)} disabled={isLoading}>
             <RefreshCcw className={`mr-2 h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
             Refresh

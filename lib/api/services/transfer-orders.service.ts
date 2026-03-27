@@ -979,7 +979,7 @@ export async function getPostedTransferShipmentLines(documentNo: string): Promis
   const escaped = documentNo.replace(/'/g, "''");
   const filter = `Document_No eq '${escaped}'`;
   const query = buildODataQuery({ $filter: filter, $orderby: "Line_No asc" });
-  const endpoint = `/PostedTransferShipmentLine?company='${encodeURIComponent(COMPANY)}'&${query}`;
+  const endpoint = `/TransferLine?company='${encodeURIComponent(COMPANY)}'&${query}`;
   const response = await apiGet<ODataResponse<PostedTransferShipmentLine>>(endpoint);
   return response.value || [];
 }
@@ -991,7 +991,7 @@ export async function getTransferReceiptLines(documentNo: string): Promise<Trans
   const escaped = documentNo.replace(/'/g, "''");
   const filter = `Document_No eq '${escaped}'`;
   const query = buildODataQuery({ $filter: filter, $orderby: "Line_No asc" });
-  const endpoint = `/TransferReceiptLine?company='${encodeURIComponent(COMPANY)}'&${query}`;
+  const endpoint = `/TransferLine?company='${encodeURIComponent(COMPANY)}'&${query}`;
   const response = await apiGet<ODataResponse<TransferReceiptLine>>(endpoint);
   return response.value || [];
 }

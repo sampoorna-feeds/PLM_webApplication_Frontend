@@ -337,8 +337,10 @@ export function PostedTransferView({ type }: PostedTransferViewProps) {
           columnFilters={columnFilters}
           onColumnFilter={handleColumnFilter}
            onRowClick={(id) => {
-              // For now, just a toast as details are not implemented
-              toast.info(`${type} ${id} selected. Detailed view coming soon.`);
+              openTab(`posted-transfer-${type}-detail`, {
+                title: `${type === "shipment" ? "Shipment" : "Receipt"} ${id}`,
+                context: { no: id, type }
+              });
            }}
            onDownloadRecord={handleGetRecordLink}
            onPrintRecord={handlePrintRecord}

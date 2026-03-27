@@ -768,9 +768,9 @@ export async function getPurchaseOrderReport(orderNo: string): Promise<string> {
 /**
  * Get Purchase Receipt Report (MRN Report - Base64 PDF)
  */
-export async function getPurchasereceiptReport(MRNNo: string): Promise<string> {
+export async function getPurchasereceiptReport(mrnNo: string): Promise<string> {
   const endpoint = `/API_GetPurchasereceiptReport?company='${encodeURIComponent(COMPANY)}'`;
-  const response = await apiPost<{ value: string }>(endpoint, { MRNNo });
+  const response = await apiPost<{ value: string }>(endpoint, { mrnNo });
   return response.value || "";
 }
 

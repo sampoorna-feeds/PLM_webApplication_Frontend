@@ -1501,9 +1501,9 @@ export function TransferOrderForm({
                       <TableRow key={s.No} className="border-border transition-colors hover:bg-muted">
                         <TableCell className="text-xs font-bold text-foreground">{s.No}</TableCell>
                         <TableCell className="text-xs text-muted-foreground">
-                          {s.Posting_Date ? new Date(s.Posting_Date).toLocaleDateString() : "-"}
+                          {s.Posting_Date ? new Date(s.Posting_Date).toLocaleDateString() : "false"}
                         </TableCell>
-                        <TableCell className="text-xs text-muted-foreground">{s.Vehicle_No || "-"}</TableCell>
+                        <TableCell className="text-xs text-muted-foreground">{s.Vehicle_No || "false"}</TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-2">
                             <Button

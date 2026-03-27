@@ -8,7 +8,13 @@
 
 "use client";
 
-import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import React, {
+  useState,
+  useEffect,
+  useMemo,
+  useRef,
+  useCallback,
+} from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -26,7 +32,15 @@ import { PurchaserSelect } from "../purchase/purchaser-select";
 import { useFormStack } from "@/lib/form-stack/use-form-stack";
 import { getAuthCredentials } from "@/lib/auth/storage";
 import type { LineItem } from "@/components/forms/purchase/purchase-line-item.type";
-import { Plus, ChevronDownIcon, CheckIcon, Paperclip } from "lucide-react";
+import {
+  Plus,
+  ChevronDownIcon,
+  CheckIcon,
+  Paperclip,
+  FileText,
+  PackagePlus,
+  Loader2,
+} from "lucide-react";
 import { PurchaseLineItemsTable } from "../purchase/purchase-line-items-table";
 import { POAttachmentDialog } from "../purchase/po-attachment-dialog";
 import { PurchaseItemTrackingDialog } from "../purchase/purchase-item-tracking-dialog";
@@ -60,8 +74,12 @@ import {
   getPurchaseShipmentsByOrder,
   type PurchaseLine,
   type PurchaseOrder,
-  type PurchaseShipment,
+  type PurchaseReceipt,
+  getPurchasereceipts,
+  getPurchaseOrderReport,
+  getPurchasereceiptReport,
 } from "@/lib/api/services/purchase-orders.service";
+import { ItemChargeMultiSelectDialog } from "@/components/forms/purchase/item-charge-multi-select-dialog";
 import { getVendorDetails } from "@/lib/api/services/vendor.service";
 import type { ApiError } from "@/lib/api/client";
 import { toast } from "sonner";
@@ -71,6 +89,12 @@ import { ItemChargeAssignmentDialog } from "../purchase/item-charge-assignment-d
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import {
   Dialog,
   DialogContent,
@@ -102,6 +126,7 @@ import {
   type MandiMaster,
   type PaymentTerm,
 } from "@/lib/api/services/purchase-dropdowns.service";
+import { Separator } from "@/components/ui/separator";
 
 const CREDITOR_TYPE_OPTIONS = [
   "SOYA CREDITORS",
@@ -137,7 +162,8 @@ const MASTER_DROPDOWN_PAGE_SIZE = 30;
 
 const FIELD_CLASS = "min-w-0 space-y-0.5";
 const LABEL_CLASS = "text-muted-foreground block text-[11px] font-medium";
-const FIELD_INPUT_CLASS = "disabled:opacity-100 disabled:text-foreground font-medium text-xs disabled:pointer-events-none disabled:bg-muted/30";
+const FIELD_INPUT_CLASS =
+  "disabled:opacity-100 disabled:text-foreground font-medium text-xs disabled:pointer-events-none disabled:bg-muted/30";
 
 export type UnifiedPurchaseOrderMode = "create" | "edit" | "view";
 
@@ -150,7 +176,9 @@ function purchaseLineToLineItem(line: PurchaseLine): LineItem {
       (line.Type as "Item" | "G/L Account" | "Fixed Asset" | "Charge (Item)") ||
       "Item",
     no: line.No ?? "",
-    description: [line.Description, line.Description_2].filter(Boolean).join(" "),
+    description: [line.Description, line.Description_2]
+      .filter(Boolean)
+      .join(" "),
     uom: line.Unit_of_Measure_Code ?? line.Unit_of_Measure ?? "",
     quantity: line.Quantity ?? 0,
     qtyToReceive: line.Qty_to_Receive,
@@ -192,7 +220,8 @@ function mapOrderToFormData(order: PurchaseOrder): Record<string, string> {
     vendorPanNo: order.P_A_N_No || "",
     brokerNo: order.Brokerage_Code || "",
     brokerName: "",
-    brokerageRate: order.Brokerage_Rate != null ? String(order.Brokerage_Rate) : "",
+    brokerageRate:
+      order.Brokerage_Rate != null ? String(order.Brokerage_Rate) : "",
     orderAddressCode: order.Order_Address_Code || "",
     orderAddressState: "",
     rateBasis: order.Rate_Basis || "",
@@ -220,7 +249,10 @@ function SearchableSelect({
   onChange: (value: string) => void;
   options: { value: string; label: string }[];
   placeholder?: string;
-  loadMore?: (skip: number, search: string) => Promise<{ value: string; label: string }[]>;
+  loadMore?: (
+    skip: number,
+    search: string,
+  ) => Promise<{ value: string; label: string }[]>;
   disabled?: boolean;
   className?: string;
 }) {
@@ -504,13 +536,19 @@ export function PurchaseOrderFormContent({
   const [isActionLoading, setIsActionLoading] = useState(false);
   const [orderStatus, setOrderStatus] = useState<string>("");
   const [placeOrderError, setPlaceOrderError] = useState<string | null>(null);
-  const [initialHeaderState, setInitialHeaderState] = useState<Record<string, any>>({});
-  const [initialLineItemsState, setInitialLineItemsState] = useState<LineItem[]>([]);
+  const [initialHeaderState, setInitialHeaderState] = useState<
+    Record<string, any>
+  >({});
+  const [initialLineItemsState, setInitialLineItemsState] = useState<
+    LineItem[]
+  >([]);
   const [selectedLine, setSelectedLine] = useState<PurchaseLine | null>(null);
   const [purchaseLines, setPurchaseLines] = useState<PurchaseLine[]>([]);
 
   const [isPostDialogOpen, setIsPostDialogOpen] = useState(false);
-  const [postOption, setPostOption] = useState<"receive" | "invoice" | "receive-invoice" | null>(null);
+  const [postOption, setPostOption] = useState<
+    "receive" | "invoice" | "receive-invoice" | null
+  >(null);
   const [isPostDetailsOpen, setIsPostDetailsOpen] = useState(false);
   const [postDetails, setPostDetails] = useState({
     postingDate: "",
@@ -526,17 +564,27 @@ export function PurchaseOrderFormContent({
 
   // Receipt list state
   const [isReceiptOpen, setIsReceiptOpen] = useState(false);
-  const [receiptDate, setReceiptDate] = useState(new Date().toISOString().split("T")[0]);
-  const [receiptShipments, setReceiptShipments] = useState<PurchaseShipment[]>([]);
+  const [receiptDate, setReceiptDate] = useState(
+    new Date().toISOString().split("T")[0],
+  );
+  const [receiptShipments, setReceiptShipments] = useState<PurchaseReceipt[]>(
+    [],
+  );
   const [isReceiptLoading, setIsReceiptLoading] = useState(false);
 
-  // Gate Entry state
+  // Item Charge Assignment State
+  const [itemChargeDialogOpen, setItemChargeDialogOpen] = useState(false);
+  const [selectedMrnNo, setSelectedMrnNo] = useState("");
+  const [selectedMrnLineNo, setSelectedMrnLineNo] = useState<
+    number | undefined
+  >();
   const [isGateEntryOpen, setIsGateEntryOpen] = useState(false);
 
   // Item Tracking state
   const [isTrackingOpen, setIsTrackingOpen] = useState(false);
   const [trackingLine, setTrackingLine] = useState<PurchaseLine | null>(null);
-  const [selectedItemChargeLine, setSelectedItemChargeLine] = useState<PurchaseLine | null>(null);
+  const [selectedItemChargeLine, setSelectedItemChargeLine] =
+    useState<PurchaseLine | null>(null);
   const [isItemChargeOpen, setIsItemChargeOpen] = useState(false);
   const [confirmDialog, setConfirmDialog] = useState<{
     open: boolean;
@@ -557,9 +605,9 @@ export function PurchaseOrderFormContent({
   // Change detection
   const isDirty = useMemo(() => {
     if (isCreateMode) return true;
-    
+
     // Compare header fields
-    const headerChanged = Object.keys(initialHeaderState).some(key => {
+    const headerChanged = Object.keys(initialHeaderState).some((key) => {
       const current = formData[key as keyof typeof formData];
       const initial = initialHeaderState[key];
       // Normalize empty strings vs null/undefined for comparison
@@ -570,7 +618,7 @@ export function PurchaseOrderFormContent({
 
     // Compare line items
     if (lineItems.length !== initialLineItemsState.length) return true;
-    
+
     return lineItems.some((item, index) => {
       const initial = initialLineItemsState[index];
       if (!initial) return true;
@@ -583,11 +631,16 @@ export function PurchaseOrderFormContent({
         item.hsnSacCode !== initial.hsnSacCode
       );
     });
-  }, [formData, lineItems, initialHeaderState, initialLineItemsState, isCreateMode]);
+  }, [
+    formData,
+    lineItems,
+    initialHeaderState,
+    initialLineItemsState,
+    isCreateMode,
+  ]);
 
   // Attachment dialog state
   const [isAttachmentDialogOpen, setIsAttachmentDialogOpen] = useState(false);
-
 
   const [termList, setTermList] = useState<TermAndCondition[]>([]);
   const [mandiList, setMandiList] = useState<MandiMaster[]>([]);
@@ -907,10 +960,9 @@ export function PurchaseOrderFormContent({
   };
 
   const handleEditLineItem = (lineItem: LineItem) => {
-    
     // Find the original purchase line if it exists
     if (lineItem.lineNo) {
-      const existing = purchaseLines.find(l => l.Line_No === lineItem.lineNo);
+      const existing = purchaseLines.find((l) => l.Line_No === lineItem.lineNo);
       if (existing) {
         setSelectedLine(existing);
         return;
@@ -975,7 +1027,9 @@ export function PurchaseOrderFormContent({
         persist({ ...formData, lineItems: updated, createdOrderNo });
       }
 
-      toast.success(lineItem.lineNo ? "Line item updated." : "Line item added.");
+      toast.success(
+        lineItem.lineNo ? "Line item updated." : "Line item added.",
+      );
 
       // Refresh purchase lines from server to ensure full sync
       await fetchLines(createdOrderNo);
@@ -1013,7 +1067,9 @@ export function PurchaseOrderFormContent({
       }
       const updated = lineItems.filter((item) => item.id !== lineItemId);
       setLineItems(updated);
-      setPurchaseLines(prev => prev.filter(l => l.Line_No !== itemToRemove.lineNo));
+      setPurchaseLines((prev) =>
+        prev.filter((l) => l.Line_No !== itemToRemove.lineNo),
+      );
       persist({ ...formData, lineItems: updated, createdOrderNo });
       toast.success("Line item removed.");
     } catch (error) {
@@ -1128,7 +1184,8 @@ export function PurchaseOrderFormContent({
     setActionError(null);
 
     try {
-      const isInvoiceOption = postOption === "invoice" || postOption === "receive-invoice";
+      const isInvoiceOption =
+        postOption === "invoice" || postOption === "receive-invoice";
 
       // 1. Patch header with metadata
       const patchPayload: Record<string, unknown> = {
@@ -1139,7 +1196,8 @@ export function PurchaseOrderFormContent({
       };
 
       if (isInvoiceOption) {
-        patchPayload.Due_Date_calculation = postDetails.dueDateCalculation || "Posting Date";
+        patchPayload.Due_Date_calculation =
+          postDetails.dueDateCalculation || "Posting Date";
         patchPayload.Line_Narration1 = postDetails.lineNarration || "";
         patchPayload.Freight = postDetails.freight || "0";
       }
@@ -1157,11 +1215,11 @@ export function PurchaseOrderFormContent({
 
       toast.success("Order posted successfully.");
       setIsPostDetailsOpen(false);
-      
+
       // Refresh order status
       const updatedOrder = await getPurchaseOrderByNo(createdOrderNo);
       if (updatedOrder) setOrderStatus(updatedOrder.Status ?? "");
-      
+
       if (onSuccess) onSuccess(createdOrderNo);
 
       // Close the tab if in FormStack
@@ -1185,14 +1243,67 @@ export function PurchaseOrderFormContent({
     if (!createdOrderNo) return;
     setIsReceiptLoading(true);
     try {
-      const shipments = await getPurchaseShipmentsByOrder(createdOrderNo, date);
-      setReceiptShipments(shipments);
+      const receipts = await getPurchasereceipts(createdOrderNo);
+      // If date filtering is needed client-side, we can add it here,
+      // but usually we show all receipts for the order.
+      setReceiptShipments(receipts);
     } catch (error) {
       console.error("Failed to load receipts", error);
       toast.error("Failed to load receipts");
     } finally {
       setIsReceiptLoading(false);
     }
+  };
+
+  const base64ToPdfBlob = (base64: string) => {
+    const binaryString = window.atob(base64);
+    const len = binaryString.length;
+    const bytes = new Uint8Array(len);
+    for (let i = 0; i < len; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+    return new Blob([bytes], { type: "application/pdf" });
+  };
+
+  const handlePrintPO = async () => {
+    if (!createdOrderNo) return;
+    setIsActionLoading(true);
+    try {
+      const base64 = await getPurchaseOrderReport(createdOrderNo);
+      if (!base64) {
+        toast.error("No report data found.");
+        return;
+      }
+      const blob = base64ToPdfBlob(base64);
+      const url = URL.createObjectURL(blob);
+      window.open(url, "_blank");
+    } catch (error) {
+      console.error("Print PO failed", error);
+      toast.error("Failed to generate report.");
+    } finally {
+      setIsActionLoading(false);
+    }
+  };
+
+  const handlePrintMRN = async (mrnNo: string) => {
+    try {
+      const base64 = await getPurchasereceiptReport(mrnNo);
+      if (!base64) {
+        toast.error("No report data found.");
+        return;
+      }
+      const blob = base64ToPdfBlob(base64);
+      const url = URL.createObjectURL(blob);
+      window.open(url, "_blank");
+    } catch (error) {
+      console.error("Print MRN failed", error);
+      toast.error("Failed to generate MRN report.");
+    }
+  };
+
+  const handleOpenItemChargeForMrn = (mrnNo: string) => {
+    setSelectedMrnNo(mrnNo);
+    setItemChargeDialogOpen(true);
   };
 
   const refreshOrder = async () => {
@@ -1318,740 +1429,858 @@ export function PurchaseOrderFormContent({
   const isPendingApproval = orderStatus === "Pending Approval";
   const isReleased = orderStatus === "Released";
   const noop = () => {};
+  const renderStep1 = () => {
+    const defaultAccordionValue =
+      isCreateMode || isEditMode ? ["core", "party", "dates"] : ["core"];
 
-  const renderStep1 = () => (
-    <div className="space-y-3">
-      <div className="mb-2 flex flex-wrap items-center justify-end gap-2 border-b pb-3">
-        {orderStatus && (
-          <div className="mr-auto flex items-center gap-2">
-            <span className="text-muted-foreground text-[10px] font-medium uppercase tracking-wider">Status:</span>
-            <Badge
-              variant="outline"
-              className={cn(
-                "h-6 px-3 text-[10px] font-bold uppercase tracking-wider",
-                orderStatus === "Released" && "bg-green-500/10 text-green-600 border-green-200",
-                orderStatus === "Pending Approval" && "bg-yellow-500/10 text-yellow-600 border-yellow-200",
-                orderStatus === "Open" && "bg-blue-500/10 text-blue-600 border-blue-200"
-              )}
-            >
-              {orderStatus}
-            </Badge>
-          </div>
-        )}
-        {isCreateMode && !createdOrderNo && (
-          <Button
-            type="button"
-            onClick={handleCreateOrderHeader}
-            disabled={!isStep1Valid() || isCreatingHeader || isHydratingOrder}
-          >
-            {isCreatingHeader ? "Creating Order..." : "Create Purchase Order"}
-          </Button>
-        )}
+    const fieldsetDisabled =
+      isViewMode || (isCreateMode && Boolean(createdOrderNo));
 
-
-        {isViewMode && createdOrderNo && (
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="h-8"
-            onClick={onRequestEdit ?? noop}
-            disabled={isActionLoading}
-          >
-            Edit
-          </Button>
-        )}
-
-        {isViewMode && createdOrderNo && !isPendingApproval && !isReleased && (
-          <Button
-            type="button"
-            variant="destructive"
-            size="sm"
-            className="h-8"
-            onClick={handleDeleteOrder}
-            disabled={isActionLoading}
-          >
-            Delete
-          </Button>
-        )}
-
-        {isViewMode && createdOrderNo && isOpen && (
-          <Button
-            type="button"
-            size="sm"
-            className="h-8"
-            onClick={handleSendForApproval}
-            disabled={isActionLoading}
-          >
-            Send For Approval
-          </Button>
-        )}
-
-        {isViewMode && createdOrderNo && isPendingApproval && (
-          <Button
-            type="button"
-            size="sm"
-            className="h-8"
-            onClick={handleCancelApproval}
-            disabled={isActionLoading}
-          >
-            Cancel Approval
-          </Button>
-        )}
-
-        {isViewMode && createdOrderNo && isReleased && (
-          <PostGateEntryDialog sourceNo={createdOrderNo} disabled={isActionLoading} />
-        )}
-
-        {isViewMode && createdOrderNo && isReleased && (
-          <Button
-            type="button"
-            size="sm"
-            className="h-8"
-            onClick={() => handlePendingAction("Purchase Receipts")}
-            disabled={isActionLoading}
-          >
-            Purchase Receipts
-          </Button>
-        )}
-
-        {isViewMode && createdOrderNo && isReleased && (
-          <Button
-            type="button"
-            size="sm"
-            className="h-8"
-            onClick={() => handlePendingAction("Post")}
-            disabled={isActionLoading}
-          >
-            Post
-          </Button>
-        )}
-
-        {isViewMode && createdOrderNo && isReleased && (
-          <Button 
-            type="button" 
-            size="sm" 
-            className="h-8" 
-            onClick={handleReopen} 
-            disabled={isActionLoading}
-          >
-            Reopen
-          </Button>
-        )}
-
-        {isEditMode && (
-          <>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="h-8"
-              onClick={handleCancelEdit}
-              disabled={isSubmitting}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              className="h-8"
-              onClick={handleUpdateOrder}
-              disabled={!isDirty || isSubmitting}
-            >
-              {isSubmitting ? "Updating..." : "Update"}
-            </Button>
-          </>
-        )}
-
-        {!isEditMode && createdOrderNo && (
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="h-8"
-            onClick={() => setIsAttachmentDialogOpen(true)}
-            disabled={isActionLoading}
-          >
-            <Paperclip className="mr-1.5 h-3.5 w-3.5" />
-            Attachments
-          </Button>
-        )}
-      </div>
-
-      <fieldset
-        disabled={isViewMode || (isCreateMode && Boolean(createdOrderNo))}
-        className={cn(
-          "space-y-4",
-          isCreateMode && Boolean(createdOrderNo) && "opacity-70",
-        )}
-      >
-        {/* 1. Core Order Info */}
-        <section className="space-y-2">
-          <h3 className="bg-primary/5 border-primary/20 text-primary rounded-sm border px-2 py-1 text-[10px] font-bold tracking-wider uppercase">
-            1. Core Information
-          </h3>
-          <div className="grid grid-cols-1 gap-x-3 gap-y-2.5 sm:grid-cols-3 lg:grid-cols-5">
-            <div className={FIELD_CLASS}>
-              <label className={LABEL_CLASS}>
-                PO Type <span className="text-red-500">*</span>
-              </label>
-              <Select
-  disabled={isViewMode}
-                value={formData.poType}
-                onValueChange={(value) => handleInputChange("poType", value)}
+    return (
+      <div className="space-y-3">
+        <div className="mb-2 flex flex-wrap items-center justify-end gap-2 pb-3">
+          {orderStatus && (
+            <div className="mr-auto flex items-center gap-2">
+              <span className="text-muted-foreground text-[10px] font-medium tracking-wider uppercase">
+                Status:
+              </span>
+              <Badge
+                variant="outline"
+                className={cn(
+                  "h-6 px-3 text-[10px] font-bold tracking-wider uppercase",
+                  orderStatus === "Released" &&
+                    "border-green-200 bg-green-500/10 text-green-600",
+                  orderStatus === "Pending Approval" &&
+                    "border-yellow-200 bg-yellow-500/10 text-yellow-600",
+                  orderStatus === "Open" &&
+                    "border-blue-200 bg-blue-500/10 text-blue-600",
+                )}
               >
-                <SelectTrigger className={cn("h-7 text-xs", FIELD_INPUT_CLASS)}>
-                  <SelectValue placeholder={isViewMode ? "None" : "Select"} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Goods">Goods</SelectItem>
-                  <SelectItem value="Service">Service</SelectItem>
-                </SelectContent>
-              </Select>
+                {orderStatus}
+              </Badge>
             </div>
-            {formData.poType === "Service" && (
-              <div className={FIELD_CLASS}>
-                <label className={LABEL_CLASS}>Service Type</label>
-                <ClearableField
-                  value={formData.serviceType}
-                  onClear={() => handleInputChange("serviceType", "")}
-                  disabled={isViewMode}
-                >
-                  <Select
-  disabled={isViewMode}
-                    value={
-                      isViewMode &&
-                      formData.serviceType &&
-                      !["none", "Logistics"].includes(formData.serviceType)
-                        ? ""
-                        : formData.serviceType || ""
-                    }
-                    onValueChange={(value) =>
-                      handleInputChange(
-                        "serviceType",
-                        value === "none" ? "" : value,
-                      )
-                    }
-                  >
-                    <SelectTrigger className={cn("h-7 text-xs", FIELD_INPUT_CLASS)}>
-                      <SelectValue placeholder={isViewMode ? "None" : "Select"} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">None</SelectItem>
-                      <SelectItem value="Logistics">Logistics</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </ClearableField>
-              </div>
+          )}
+          {isCreateMode && !createdOrderNo && (
+            <Button
+              type="button"
+              onClick={handleCreateOrderHeader}
+              disabled={!isStep1Valid() || isCreatingHeader || isHydratingOrder}
+            >
+              {isCreatingHeader ? "Creating Order..." : "Create Purchase Order"}
+            </Button>
+          )}
+
+          {isViewMode && createdOrderNo && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-8"
+              onClick={onRequestEdit ?? noop}
+              disabled={isActionLoading}
+            >
+              Edit
+            </Button>
+          )}
+
+          {isViewMode &&
+            createdOrderNo &&
+            !isPendingApproval &&
+            !isReleased && (
+              <Button
+                type="button"
+                variant="destructive"
+                size="sm"
+                className="h-8"
+                onClick={handleDeleteOrder}
+                disabled={isActionLoading}
+              >
+                Delete
+              </Button>
             )}
-            <div className={FIELD_CLASS}>
-              <label className={LABEL_CLASS}>Invoice Type</label>
-              <ClearableField
-                value={formData.invoiceType}
-                onClear={() => handleInputChange("invoiceType", "")}
-                disabled={isViewMode}
-              >
-                <Select
-  disabled={isViewMode}
-                  value={
-                    isViewMode &&
-                    formData.invoiceType &&
-                    ![
-                      "none",
-                      "Self Invoice",
-                      "Debit Note",
-                      "Supplementary",
-                      "Non-GST",
-                    ].includes(formData.invoiceType)
-                      ? ""
-                      : formData.invoiceType || ""
-                  }
-                  onValueChange={(value) =>
-                    handleInputChange("invoiceType", value)
-                  }
-                >
-                  <SelectTrigger className={cn("h-7 text-xs", FIELD_INPUT_CLASS)}>
-                    <SelectValue placeholder={isViewMode ? "None" : "Select / None"} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">None</SelectItem>
-                    <SelectItem value="Self Invoice">Self Invoice</SelectItem>
-                    <SelectItem value="Debit Note">Debit Note</SelectItem>
-                    <SelectItem value="Supplementary">Supplementary</SelectItem>
-                    <SelectItem value="Non-GST">Non-GST</SelectItem>
-                  </SelectContent>
-                </Select>
-              </ClearableField>
-            </div>
-            <div className={FIELD_CLASS}>
-              <label className={LABEL_CLASS}>Purchaser Code</label>
-              <ClearableField
-                value={formData.purchasePersonCode}
-                onClear={() => handleInputChange("purchasePersonCode", "")}
-                disabled={isViewMode}
-              >
-                <PurchaserSelect
-                  value={formData.purchasePersonCode || ""}
-                  onChange={(val, sp) => {
-                    setFormData((prev) => ({
-                      ...prev,
-                      purchasePersonCode: val,
-                      purchasePersonName: sp?.Name || "",
-                    }));
-                  }}
-                  placeholder={isViewMode ? "None" : "Select Purchaser"}
-                  className={FIELD_INPUT_CLASS}
-                />
-              </ClearableField>
-              {formData.purchasePersonName && (
-                <p className="mt-0.5 truncate pl-1 text-[9px] font-medium text-green-600">
-                  {formData.purchasePersonName}
-                </p>
-              )}
-            </div>
 
-            {/* Dimensions */}
-            <div className={FIELD_CLASS}>
-              <label className={LABEL_CLASS}>
-                LOB <span className="text-red-500">*</span>
-              </label>
-              <ClearableField
-                value={formData.lob}
-                onClear={() => handleInputChange("lob", "")}
-                disabled={isViewMode}
-              >
-                <CascadingDimensionSelect
-                  dimensionType="LOB"
-                  value={formData.lob}
-                  onChange={(value) => handleInputChange("lob", value)}
-                  placeholder={isViewMode ? "None" : "Select LOB"}
-                  userId={userId}
-                  compactWhenSingle
-                  className={FIELD_INPUT_CLASS}
-                />
-              </ClearableField>
-            </div>
-            <div className={FIELD_CLASS}>
-              <label className={LABEL_CLASS}>
-                Branch <span className="text-red-500">*</span>
-              </label>
-              <ClearableField
-                value={formData.branch}
-                onClear={() => handleInputChange("branch", "")}
-                disabled={isViewMode}
-              >
-                <CascadingDimensionSelect
-                  dimensionType="BRANCH"
-                  value={formData.branch}
-                  onChange={(value) => handleInputChange("branch", value)}
-                  placeholder={isViewMode ? "None" : "Select Branch"}
-                  lobValue={formData.lob}
-                  userId={userId}
-                  compactWhenSingle
-                  className={FIELD_INPUT_CLASS}
-                />
-              </ClearableField>
-            </div>
-            <div className={FIELD_CLASS}>
-              <label className={LABEL_CLASS}>
-                LOC <span className="text-red-500">*</span>
-              </label>
-              <ClearableField
-                value={formData.loc}
-                onClear={() => handleInputChange("loc", "")}
-                disabled={isViewMode}
-              >
-                <CascadingDimensionSelect
-                  dimensionType="LOC"
-                  value={formData.loc}
-                  onChange={(value) => handleInputChange("loc", value)}
-                  placeholder={isViewMode ? "None" : "Select LOC"}
-                  lobValue={formData.lob}
-                  branchValue={formData.branch}
-                  userId={userId}
-                  compactWhenSingle
-                  className={FIELD_INPUT_CLASS}
-                />
-              </ClearableField>
-            </div>
-            <div className={FIELD_CLASS}>
-              <label className={LABEL_CLASS}>Location</label>
-              <Input
-                value={formData.locationCode || formData.loc || (isViewMode ? "None" : "")}
-                disabled
-                className={cn("bg-muted h-7 text-xs", FIELD_INPUT_CLASS)}
-                readOnly
-              />
-              {formData.locationCode && (
-                <p className="text-muted-foreground mt-0.5 overflow-hidden pl-1 text-[9px] text-ellipsis whitespace-nowrap">
-                  {formData.locationCode} Location
-                </p>
-              )}
-            </div>
-          </div>
-        </section>
+          {isViewMode && createdOrderNo && isOpen && (
+            <Button
+              type="button"
+              size="sm"
+              className="h-8"
+              onClick={handleSendForApproval}
+              disabled={isActionLoading}
+            >
+              Send For Approval
+            </Button>
+          )}
 
-        {/* 2. Vendor, Broker & Address */}
-        <section className="space-y-2">
-          <h3 className="bg-primary/5 border-primary/20 text-primary rounded-sm border px-2 py-1 text-[10px] font-bold tracking-wider uppercase">
-            2. Party Details
-          </h3>
-          <div className="grid grid-cols-1 gap-x-3 gap-y-2.5 sm:grid-cols-3 lg:grid-cols-5">
-            <div className={FIELD_CLASS}>
-              <label className={LABEL_CLASS}>
-                Vendor <span className="text-red-500">*</span>
-              </label>
-              <ClearableField
-                value={formData.vendorNo}
-                onClear={() => handleVendorChange("", undefined)}
-                disabled={isViewMode}
-              >
-                <VendorSelect
-                  value={formData.vendorNo}
-                  onChange={handleVendorChange}
-                  placeholder={isViewMode ? "None" : "Select Vendor"}
-                  className={FIELD_INPUT_CLASS}
-                />
-              </ClearableField>
-              {formData.vendorName && (
-                <p className="mt-0.5 truncate pl-1 text-[9px] font-medium text-green-600">
-                  {formData.vendorName}
-                </p>
-              )}
-            </div>
-            <div className={FIELD_CLASS}>
-              <label className={LABEL_CLASS}>Vendor GST No.</label>
-              <Input
-                value={formData.vendorGstRegNo || (isViewMode ? "None" : "")}
-                disabled
-                className={cn("bg-muted h-7 text-xs", FIELD_INPUT_CLASS)}
-                placeholder="Auto"
-                readOnly
-              />
-            </div>
-            <div className={FIELD_CLASS}>
-              <label className={LABEL_CLASS}>Vendor PAN</label>
-              <Input
-                value={formData.vendorPanNo || (isViewMode ? "None" : "")}
-                disabled
-                className={cn("bg-muted h-7 text-xs", FIELD_INPUT_CLASS)}
-                placeholder="Auto"
-                readOnly
-              />
-            </div>
-            <div className={FIELD_CLASS}>
-              <label className={LABEL_CLASS}>Vendor Invoice No.</label>
-              <ClearableField
-                value={formData.vendorInvoiceNo}
-                onClear={() => handleInputChange("vendorInvoiceNo", "")}
-                disabled={isViewMode}
-              >
-                <Input
-                  value={formData.vendorInvoiceNo || (isViewMode ? "None" : "")}
-                  onChange={(e) =>
-                    handleInputChange("vendorInvoiceNo", e.target.value)
-                  }
-                  placeholder={isViewMode ? "None" : "Optional"}
-                  className={cn("h-7 text-xs", FIELD_INPUT_CLASS)}
-                />
-              </ClearableField>
-            </div>
-            <div className={`${FIELD_CLASS} sm:col-span-2 lg:col-span-2`}>
-              <label className={LABEL_CLASS}>Order Address Select</label>
-              <OrderAddressSelect
-                vendorNo={formData.vendorNo}
-                value={formData.orderAddressCode}
-                onChange={(code, addr) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    orderAddressCode: code,
-                    orderAddressName: addr?.Name || "",
-                    orderAddressState: addr?.State || "",
-                  }))
-                }
-                placeholder={isViewMode ? "None" : "Select Address"}
-                disabled={!formData.vendorNo || isViewMode}
-                className={FIELD_INPUT_CLASS}
-              />
-            </div>
-            <div className={FIELD_CLASS}>
-              <label className={LABEL_CLASS}>Brokerage Code</label>
-              <ClearableField
-                value={formData.brokerNo}
-                onClear={() =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    brokerNo: "",
-                    brokerName: "",
-                  }))
-                }
-                disabled={isViewMode}
-              >
-                <BrokerSelect
-                  value={formData.brokerNo}
-                  onChange={(code, broker) =>
-                    setFormData((prev) => ({
-                      ...prev,
-                      brokerNo: code,
-                      brokerName: broker?.Name || "",
-                    }))
-                  }
-                  placeholder={isViewMode ? "None" : "Select Broker"}
-                  disabled={isViewMode}
-                  className={FIELD_INPUT_CLASS}
-                />
-              </ClearableField>
-              {formData.brokerName && (
-                <p className="mt-0.5 truncate pl-1 text-[9px] font-medium text-green-600">
-                  {formData.brokerName}
-                </p>
-              )}
-            </div>
-            <div className={FIELD_CLASS}>
-              <label className={LABEL_CLASS}>Brokerage Rate</label>
-              <ClearableField
-                value={formData.brokerageRate}
-                onClear={() => handleInputChange("brokerageRate", "")}
-                disabled={isViewMode}
-              >
-                <Input
-                  type="text"
-                  inputMode="decimal"
-                  value={formData.brokerageRate}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    if (val === "" || /^\d*\.?\d*$/.test(val)) {
-                      handleInputChange("brokerageRate", val);
-                    }
-                  }}
-                  className={cn("h-7 text-xs", FIELD_INPUT_CLASS)}
-                  placeholder={isViewMode ? "None" : "0.00"}
-                  disabled={isViewMode}
-                />
-              </ClearableField>
-            </div>
-          </div>
-        </section>
+          {isViewMode && createdOrderNo && isPendingApproval && (
+            <Button
+              type="button"
+              size="sm"
+              className="h-8"
+              onClick={handleCancelApproval}
+              disabled={isActionLoading}
+            >
+              Cancel Approval
+            </Button>
+          )}
 
-        {/* 3. Dates & Configurations */}
-        <section className="space-y-2">
-          <h3 className="bg-primary/5 border-primary/20 text-primary rounded-sm border px-2 py-1 text-[10px] font-bold tracking-wider uppercase">
-            3. Dates & Settings
-          </h3>
-          <div className="grid grid-cols-2 gap-x-3 gap-y-2.5 sm:grid-cols-4 lg:grid-cols-6">
-            <div className={FIELD_CLASS}>
-              <label className={LABEL_CLASS}>
-                Posting Date <span className="text-red-500">*</span>
-              </label>
-              <ClearableField
-                value={formData.postingDate}
-                onClear={() => handleInputChange("postingDate", "")}
-                disabled={isViewMode}
+          {isViewMode && createdOrderNo && isReleased && (
+            <PostGateEntryDialog
+              sourceNo={createdOrderNo}
+              disabled={isActionLoading}
+            />
+          )}
+
+          {isViewMode && createdOrderNo && isReleased && (
+            <Button
+              type="button"
+              size="sm"
+              className="h-8"
+              onClick={() => handlePendingAction("Purchase Receipts")}
+              disabled={isActionLoading}
+            >
+              Purchase Receipts
+            </Button>
+          )}
+
+          {isViewMode && createdOrderNo && isReleased && (
+            <Button
+              type="button"
+              size="sm"
+              className="h-8"
+              onClick={() => handlePendingAction("Post")}
+              disabled={isActionLoading}
+            >
+              Post
+            </Button>
+          )}
+
+          {isViewMode && createdOrderNo && isReleased && (
+            <Button
+              type="button"
+              size="sm"
+              className="h-8"
+              onClick={handleReopen}
+              disabled={isActionLoading}
+            >
+              Reopen
+            </Button>
+          )}
+
+          {isEditMode && (
+            <>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-8"
+                onClick={handleCancelEdit}
+                disabled={isSubmitting}
               >
-                <Input
-                  type="date"
-                  value={formData.postingDate}
-                  onChange={(e) =>
-                    handleInputChange("postingDate", e.target.value)
-                  }
-                  className={cn("h-7 text-xs", FIELD_INPUT_CLASS)}
-                />
-              </ClearableField>
-            </div>
-            <div className={FIELD_CLASS}>
-              <label className={LABEL_CLASS}>
-                Document Date <span className="text-red-500">*</span>
-              </label>
-              <ClearableField
-                value={formData.documentDate}
-                onClear={() => handleInputChange("documentDate", "")}
-                disabled={isViewMode}
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                className="h-8"
+                onClick={handleUpdateOrder}
+                disabled={!isDirty || isSubmitting}
               >
-                <Input
-                  type="date"
-                  value={formData.documentDate}
-                  onChange={(e) =>
-                    handleInputChange("documentDate", e.target.value)
-                  }
-                  className={cn("h-7 text-xs", FIELD_INPUT_CLASS)}
-                />
-              </ClearableField>
-            </div>
-            <div className={FIELD_CLASS}>
-              <label className={LABEL_CLASS}>Order Date</label>
-              <Input
-                type="date"
-                value={formData.orderDate}
-                onChange={(e) => handleInputChange("orderDate", e.target.value)}
-                disabled
-                className={cn("bg-muted h-7 text-xs", FIELD_INPUT_CLASS)}
-              />
-            </div>
-            <div className={FIELD_CLASS}>
-              <label className={LABEL_CLASS}>Due Date</label>
-              <ClearableField
-                value={formData.dueDate}
-                onClear={() => handleInputChange("dueDate", "")}
-                disabled={isViewMode}
+                {isSubmitting ? "Updating..." : "Update"}
+              </Button>
+            </>
+          )}
+
+          {!isEditMode && createdOrderNo && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-8"
+              onClick={() => setIsAttachmentDialogOpen(true)}
+              disabled={isActionLoading}
+            >
+              <Paperclip className="mr-1.5 h-3.5 w-3.5" />
+              Attachments
+            </Button>
+          )}
+        </div>
+
+        <Separator />
+
+        <Accordion
+          key={mode}
+          type="multiple"
+          defaultValue={defaultAccordionValue}
+          className="w-full space-y-2"
+        >
+          {/* 1. Core Order Info */}
+          <AccordionItem value="core" className="border-none">
+            <AccordionTrigger className="py-0 hover:no-underline [&>svg]:size-4">
+              <h3 className="px-2 py-1 text-left text-[10px] font-bold tracking-wider uppercase">
+                Core Information
+              </h3>
+            </AccordionTrigger>
+            <AccordionContent className="pb-2">
+              <fieldset
+                disabled={fieldsetDisabled}
+                className={cn(
+                  "pt-2",
+                  isCreateMode && Boolean(createdOrderNo) && "opacity-70",
+                )}
               >
-                <Input
-                  type="date"
-                  value={formData.dueDate}
-                  onChange={(e) => handleInputChange("dueDate", e.target.value)}
-                  className={cn("h-7 text-xs", FIELD_INPUT_CLASS)}
-                  disabled={isViewMode}
-                />
-              </ClearableField>
-            </div>
-            <div className={FIELD_CLASS}>
-              <label className={LABEL_CLASS}>Due Date Calc</label>
-              <Select
-                value={formData.dueDateCalculation}
-                onValueChange={(value) =>
-                  handleInputChange("dueDateCalculation", value)
-                }
-                disabled={isViewMode}
+                <div className="grid grid-cols-1 gap-x-3 gap-y-2.5 sm:grid-cols-3 lg:grid-cols-5">
+                  <div className={FIELD_CLASS}>
+                    <label className={LABEL_CLASS}>
+                      PO Type <span className="text-red-500">*</span>
+                    </label>
+                    <Select
+                      disabled={isViewMode}
+                      value={formData.poType}
+                      onValueChange={(value) =>
+                        handleInputChange("poType", value)
+                      }
+                    >
+                      <SelectTrigger
+                        className={cn("h-7 text-xs", FIELD_INPUT_CLASS)}
+                      >
+                        <SelectValue
+                          placeholder={isViewMode ? "None" : "Select"}
+                        />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Goods">Goods</SelectItem>
+                        <SelectItem value="Service">Service</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {formData.poType === "Service" && (
+                    <div className={FIELD_CLASS}>
+                      <label className={LABEL_CLASS}>Service Type</label>
+                      <ClearableField
+                        value={formData.serviceType}
+                        onClear={() => handleInputChange("serviceType", "")}
+                        disabled={isViewMode}
+                      >
+                        <Select
+                          disabled={isViewMode}
+                          value={
+                            isViewMode &&
+                            formData.serviceType &&
+                            !["none", "Logistics"].includes(
+                              formData.serviceType,
+                            )
+                              ? ""
+                              : formData.serviceType || ""
+                          }
+                          onValueChange={(value) =>
+                            handleInputChange(
+                              "serviceType",
+                              value === "none" ? "" : value,
+                            )
+                          }
+                        >
+                          <SelectTrigger
+                            className={cn("h-7 text-xs", FIELD_INPUT_CLASS)}
+                          >
+                            <SelectValue
+                              placeholder={isViewMode ? "None" : "Select"}
+                            />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">None</SelectItem>
+                            <SelectItem value="Logistics">Logistics</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </ClearableField>
+                    </div>
+                  )}
+                  <div className={FIELD_CLASS}>
+                    <label className={LABEL_CLASS}>Invoice Type</label>
+                    <ClearableField
+                      value={formData.invoiceType}
+                      onClear={() => handleInputChange("invoiceType", "")}
+                      disabled={isViewMode}
+                    >
+                      <Select
+                        disabled={isViewMode}
+                        value={
+                          isViewMode &&
+                          formData.invoiceType &&
+                          ![
+                            "none",
+                            "Self Invoice",
+                            "Debit Note",
+                            "Supplementary",
+                            "Non-GST",
+                          ].includes(formData.invoiceType)
+                            ? ""
+                            : formData.invoiceType || ""
+                        }
+                        onValueChange={(value) =>
+                          handleInputChange("invoiceType", value)
+                        }
+                      >
+                        <SelectTrigger
+                          className={cn("h-7 text-xs", FIELD_INPUT_CLASS)}
+                        >
+                          <SelectValue
+                            placeholder={isViewMode ? "None" : "Select / None"}
+                          />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">None</SelectItem>
+                          <SelectItem value="Self Invoice">
+                            Self Invoice
+                          </SelectItem>
+                          <SelectItem value="Debit Note">Debit Note</SelectItem>
+                          <SelectItem value="Supplementary">
+                            Supplementary
+                          </SelectItem>
+                          <SelectItem value="Non-GST">Non-GST</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </ClearableField>
+                  </div>
+                  <div className={FIELD_CLASS}>
+                    <label className={LABEL_CLASS}>Purchaser Code</label>
+                    <ClearableField
+                      value={formData.purchasePersonCode}
+                      onClear={() =>
+                        handleInputChange("purchasePersonCode", "")
+                      }
+                      disabled={isViewMode}
+                    >
+                      <PurchaserSelect
+                        value={formData.purchasePersonCode || ""}
+                        onChange={(val, sp) => {
+                          setFormData((prev) => ({
+                            ...prev,
+                            purchasePersonCode: val,
+                            purchasePersonName: sp?.Name || "",
+                          }));
+                        }}
+                        placeholder={isViewMode ? "None" : "Select Purchaser"}
+                        className={FIELD_INPUT_CLASS}
+                      />
+                    </ClearableField>
+                    {formData.purchasePersonName && (
+                      <p className="mt-0.5 truncate pl-1 text-[9px] font-medium text-green-600">
+                        {formData.purchasePersonName}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Dimensions */}
+                  <div className={FIELD_CLASS}>
+                    <label className={LABEL_CLASS}>
+                      LOB <span className="text-red-500">*</span>
+                    </label>
+                    <ClearableField
+                      value={formData.lob}
+                      onClear={() => handleInputChange("lob", "")}
+                      disabled={isViewMode}
+                    >
+                      <CascadingDimensionSelect
+                        dimensionType="LOB"
+                        value={formData.lob}
+                        onChange={(value) => handleInputChange("lob", value)}
+                        placeholder={isViewMode ? "None" : "Select LOB"}
+                        userId={userId}
+                        compactWhenSingle
+                        className={FIELD_INPUT_CLASS}
+                      />
+                    </ClearableField>
+                  </div>
+                  <div className={FIELD_CLASS}>
+                    <label className={LABEL_CLASS}>
+                      Branch <span className="text-red-500">*</span>
+                    </label>
+                    <ClearableField
+                      value={formData.branch}
+                      onClear={() => handleInputChange("branch", "")}
+                      disabled={isViewMode}
+                    >
+                      <CascadingDimensionSelect
+                        dimensionType="BRANCH"
+                        value={formData.branch}
+                        onChange={(value) => handleInputChange("branch", value)}
+                        placeholder={isViewMode ? "None" : "Select Branch"}
+                        lobValue={formData.lob}
+                        userId={userId}
+                        compactWhenSingle
+                        className={FIELD_INPUT_CLASS}
+                      />
+                    </ClearableField>
+                  </div>
+                  <div className={FIELD_CLASS}>
+                    <label className={LABEL_CLASS}>
+                      LOC <span className="text-red-500">*</span>
+                    </label>
+                    <ClearableField
+                      value={formData.loc}
+                      onClear={() => handleInputChange("loc", "")}
+                      disabled={isViewMode}
+                    >
+                      <CascadingDimensionSelect
+                        dimensionType="LOC"
+                        value={formData.loc}
+                        onChange={(value) => handleInputChange("loc", value)}
+                        placeholder={isViewMode ? "None" : "Select LOC"}
+                        lobValue={formData.lob}
+                        branchValue={formData.branch}
+                        userId={userId}
+                        compactWhenSingle
+                        className={FIELD_INPUT_CLASS}
+                      />
+                    </ClearableField>
+                  </div>
+                  <div className={FIELD_CLASS}>
+                    <label className={LABEL_CLASS}>Location</label>
+                    <Input
+                      value={
+                        formData.locationCode ||
+                        formData.loc ||
+                        (isViewMode ? "None" : "")
+                      }
+                      disabled
+                      className={cn("bg-muted h-7 text-xs", FIELD_INPUT_CLASS)}
+                      readOnly
+                    />
+                    {formData.locationCode && (
+                      <p className="text-muted-foreground mt-0.5 overflow-hidden pl-1 text-[9px] text-ellipsis whitespace-nowrap">
+                        {formData.locationCode} Location
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </fieldset>
+            </AccordionContent>
+          </AccordionItem>
+
+          <Separator />
+
+          {/* 2. Vendor, Broker & Address */}
+          <AccordionItem value="party" className="border-none">
+            <AccordionTrigger className="py-0 hover:no-underline [&>svg]:size-4">
+              <h3 className="px-2 py-1 text-left text-[10px] font-bold tracking-wider uppercase">
+                Party Details
+              </h3>
+            </AccordionTrigger>
+            <AccordionContent className="pb-2">
+              <fieldset
+                disabled={fieldsetDisabled}
+                className={cn(
+                  "pt-2",
+                  isCreateMode && Boolean(createdOrderNo) && "opacity-70",
+                )}
               >
-                <SelectTrigger className={cn("h-7 text-xs", FIELD_INPUT_CLASS)}>
-                  <SelectValue placeholder={isViewMode ? "None" : "Select"} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Posting Date">Posting Date</SelectItem>
-                  <SelectItem value="Document Date">Document Date</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className={FIELD_CLASS}>
-              <label className={LABEL_CLASS}>Rate Basis</label>
-              <Select
-                value={formData.rateBasis}
-                onValueChange={(value) => handleInputChange("rateBasis", value)}
-                disabled={isViewMode}
+                <div className="grid grid-cols-1 gap-x-3 gap-y-2.5 sm:grid-cols-3 lg:grid-cols-5">
+                  <div className={FIELD_CLASS}>
+                    <label className={LABEL_CLASS}>
+                      Vendor <span className="text-red-500">*</span>
+                    </label>
+                    <ClearableField
+                      value={formData.vendorNo}
+                      onClear={() => handleVendorChange("", undefined)}
+                      disabled={isViewMode}
+                    >
+                      <VendorSelect
+                        value={formData.vendorNo}
+                        onChange={handleVendorChange}
+                        placeholder={isViewMode ? "None" : "Select Vendor"}
+                        className={FIELD_INPUT_CLASS}
+                      />
+                    </ClearableField>
+                    {formData.vendorName && (
+                      <p className="mt-0.5 truncate pl-1 text-[9px] font-medium text-green-600">
+                        {formData.vendorName}
+                      </p>
+                    )}
+                  </div>
+                  <div className={FIELD_CLASS}>
+                    <label className={LABEL_CLASS}>Vendor GST No.</label>
+                    <Input
+                      value={
+                        formData.vendorGstRegNo || (isViewMode ? "None" : "")
+                      }
+                      disabled
+                      className={cn("bg-muted h-7 text-xs", FIELD_INPUT_CLASS)}
+                      placeholder="Auto"
+                      readOnly
+                    />
+                  </div>
+                  <div className={FIELD_CLASS}>
+                    <label className={LABEL_CLASS}>Vendor PAN</label>
+                    <Input
+                      value={formData.vendorPanNo || (isViewMode ? "None" : "")}
+                      disabled
+                      className={cn("bg-muted h-7 text-xs", FIELD_INPUT_CLASS)}
+                      placeholder="Auto"
+                      readOnly
+                    />
+                  </div>
+                  <div className={FIELD_CLASS}>
+                    <label className={LABEL_CLASS}>Vendor Invoice No.</label>
+                    <ClearableField
+                      value={formData.vendorInvoiceNo}
+                      onClear={() => handleInputChange("vendorInvoiceNo", "")}
+                      disabled={isViewMode}
+                    >
+                      <Input
+                        value={
+                          formData.vendorInvoiceNo || (isViewMode ? "None" : "")
+                        }
+                        onChange={(e) =>
+                          handleInputChange("vendorInvoiceNo", e.target.value)
+                        }
+                        placeholder={isViewMode ? "None" : "Optional"}
+                        className={cn("h-7 text-xs", FIELD_INPUT_CLASS)}
+                      />
+                    </ClearableField>
+                  </div>
+                  <div className={`${FIELD_CLASS} sm:col-span-2 lg:col-span-2`}>
+                    <label className={LABEL_CLASS}>Order Address Select</label>
+                    <OrderAddressSelect
+                      vendorNo={formData.vendorNo}
+                      value={formData.orderAddressCode}
+                      onChange={(code, addr) =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          orderAddressCode: code,
+                          orderAddressName: addr?.Name || "",
+                          orderAddressState: addr?.State || "",
+                        }))
+                      }
+                      placeholder={isViewMode ? "None" : "Select Address"}
+                      disabled={!formData.vendorNo || isViewMode}
+                      className={FIELD_INPUT_CLASS}
+                    />
+                  </div>
+                  <div className={FIELD_CLASS}>
+                    <label className={LABEL_CLASS}>Brokerage Code</label>
+                    <ClearableField
+                      value={formData.brokerNo}
+                      onClear={() =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          brokerNo: "",
+                          brokerName: "",
+                        }))
+                      }
+                      disabled={isViewMode}
+                    >
+                      <BrokerSelect
+                        value={formData.brokerNo}
+                        onChange={(code, broker) =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            brokerNo: code,
+                            brokerName: broker?.Name || "",
+                          }))
+                        }
+                        placeholder={isViewMode ? "None" : "Select Broker"}
+                        disabled={isViewMode}
+                        className={FIELD_INPUT_CLASS}
+                      />
+                    </ClearableField>
+                    {formData.brokerName && (
+                      <p className="mt-0.5 truncate pl-1 text-[9px] font-medium text-green-600">
+                        {formData.brokerName}
+                      </p>
+                    )}
+                  </div>
+                  <div className={FIELD_CLASS}>
+                    <label className={LABEL_CLASS}>Brokerage Rate</label>
+                    <ClearableField
+                      value={formData.brokerageRate}
+                      onClear={() => handleInputChange("brokerageRate", "")}
+                      disabled={isViewMode}
+                    >
+                      <Input
+                        type="text"
+                        inputMode="decimal"
+                        value={formData.brokerageRate}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          if (val === "" || /^\d*\.?\d*$/.test(val)) {
+                            handleInputChange("brokerageRate", val);
+                          }
+                        }}
+                        className={cn("h-7 text-xs", FIELD_INPUT_CLASS)}
+                        placeholder={isViewMode ? "None" : "0.00"}
+                        disabled={isViewMode}
+                      />
+                    </ClearableField>
+                  </div>
+                </div>
+              </fieldset>
+            </AccordionContent>
+          </AccordionItem>
+
+          <Separator />
+
+          {/* 3. Dates & Configurations */}
+          <AccordionItem value="dates" className="border-none">
+            <AccordionTrigger className="py-0 hover:no-underline [&>svg]:size-4">
+              <h3 className="px-2 py-1 text-left text-[10px] font-bold tracking-wider uppercase">
+                Dates & Settings
+              </h3>
+            </AccordionTrigger>
+            <AccordionContent className="pb-2">
+              <fieldset
+                disabled={fieldsetDisabled}
+                className={cn(
+                  "pt-2",
+                  isCreateMode && Boolean(createdOrderNo) && "opacity-70",
+                )}
               >
-                <SelectTrigger className={cn("h-7 text-xs", FIELD_INPUT_CLASS)}>
-                  <SelectValue placeholder={isViewMode ? "None" : "Select"} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="EX">EX</SelectItem>
-                  <SelectItem value="FOR">FOR</SelectItem>
-                  <SelectItem value="CIF">CIF</SelectItem>
-                  <SelectItem value="FOB">FOB</SelectItem>
-                  <SelectItem value="N/A">N/A</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className={FIELD_CLASS}>
-              <label className={LABEL_CLASS}>Creditor Type</label>
-              <SearchableSelect
-                value={formData.creditorType}
-                onChange={(value) => handleInputChange("creditorType", value)}
-                options={CREDITOR_TYPE_OPTIONS}
-                placeholder={isViewMode ? "None" : "Select creditor"}
-                disabled={isViewMode}
-                className={FIELD_INPUT_CLASS}
-              />
-            </div>
-            <div className={FIELD_CLASS}>
-              <label className={LABEL_CLASS}>QC Type</label>
-              <Select
-                value={formData.qcType}
-                onValueChange={(value) => handleInputChange("qcType", value)}
-                disabled={isViewMode}
-              >
-                <SelectTrigger className={cn("h-7 text-xs", FIELD_INPUT_CLASS)}>
-                  <SelectValue placeholder={isViewMode ? "None" : "Select"} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="_none">None</SelectItem>
-                  <SelectItem value="Ex Passing">Ex Passing</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className={FIELD_CLASS}>
-              <label className={LABEL_CLASS}>Term Code</label>
-              <SearchableSelect
-                value={formData.termCode}
-                onChange={(value) => handleInputChange("termCode", value)}
-                options={termList.map((t) => ({
-                  value: t.Terms,
-                  label: `${t.Terms} - ${t.Conditions}`,
-                }))}
-                placeholder={isViewMode ? "None" : "Select term"}
-                disabled={isViewMode}
-                className={FIELD_INPUT_CLASS}
-                loadMore={async (skip, searchValue) => {
-                  const rows =
-                    await purchaseDropdownsService.getTermsAndConditionsPage(
-                      skip,
-                      searchValue,
-                      MASTER_DROPDOWN_PAGE_SIZE,
-                    );
-                  return rows.map((t) => ({
-                    value: t.Terms,
-                    label: `${t.Terms} - ${t.Conditions}`,
-                  }));
-                }}
-              />
-            </div>
-            <div className={FIELD_CLASS}>
-              <label className={LABEL_CLASS}>Payment Term</label>
-              <SearchableSelect
-                value={formData.paymentTermCode}
-                onChange={(value) =>
-                  handleInputChange("paymentTermCode", value)
-                }
-                options={paymentTermList.map((p) => ({
-                  value: p.Code,
-                  label: `${p.Code} - ${p.Description}`,
-                }))}
-                placeholder={isViewMode ? "None" : "Select pmt term"}
-                disabled={isViewMode}
-                className={FIELD_INPUT_CLASS}
-                loadMore={async (skip, searchValue) => {
-                  const rows =
-                    await purchaseDropdownsService.getPaymentTermsPage(
-                      skip,
-                      searchValue,
-                      MASTER_DROPDOWN_PAGE_SIZE,
-                    );
-                  return rows.map((p) => ({
-                    value: p.Code,
-                    label: `${p.Code} - ${p.Description}`,
-                  }));
-                }}
-              />
-            </div>
-            <div className={FIELD_CLASS}>
-              <label className={LABEL_CLASS}>Mandi Name</label>
-              <SearchableSelect
-                value={formData.mandiName}
-                onChange={(value) => handleInputChange("mandiName", value)}
-                options={mandiList.map((m) => ({
-                  value: m.Code,
-                  label: `${m.Code} - ${m.Description}`,
-                }))}
-                placeholder={isViewMode ? "None" : "Select mandi"}
-                disabled={isViewMode}
-                className={FIELD_INPUT_CLASS}
-                loadMore={async (skip, searchValue) => {
-                  const rows =
-                    await purchaseDropdownsService.getMandiMastersPage(
-                      skip,
-                      searchValue,
-                      MASTER_DROPDOWN_PAGE_SIZE,
-                    );
-                  return rows.map((m) => ({
-                    value: m.Code,
-                    label: `${m.Code} - ${m.Description}`,
-                  }));
-                }}
-              />
-            </div>
-          </div>
-        </section>
-      </fieldset>
-    </div>
-  );
+                <div className="grid grid-cols-2 gap-x-3 gap-y-2.5 sm:grid-cols-4 lg:grid-cols-6">
+                  <div className={FIELD_CLASS}>
+                    <label className={LABEL_CLASS}>
+                      Posting Date <span className="text-red-500">*</span>
+                    </label>
+                    <ClearableField
+                      value={formData.postingDate}
+                      onClear={() => handleInputChange("postingDate", "")}
+                      disabled={isViewMode}
+                    >
+                      <Input
+                        type="date"
+                        value={formData.postingDate}
+                        onChange={(e) =>
+                          handleInputChange("postingDate", e.target.value)
+                        }
+                        className={cn("h-7 text-xs", FIELD_INPUT_CLASS)}
+                      />
+                    </ClearableField>
+                  </div>
+                  <div className={FIELD_CLASS}>
+                    <label className={LABEL_CLASS}>
+                      Document Date <span className="text-red-500">*</span>
+                    </label>
+                    <ClearableField
+                      value={formData.documentDate}
+                      onClear={() => handleInputChange("documentDate", "")}
+                      disabled={isViewMode}
+                    >
+                      <Input
+                        type="date"
+                        value={formData.documentDate}
+                        onChange={(e) =>
+                          handleInputChange("documentDate", e.target.value)
+                        }
+                        className={cn("h-7 text-xs", FIELD_INPUT_CLASS)}
+                      />
+                    </ClearableField>
+                  </div>
+                  <div className={FIELD_CLASS}>
+                    <label className={LABEL_CLASS}>Order Date</label>
+                    <Input
+                      type="date"
+                      value={formData.orderDate}
+                      onChange={(e) =>
+                        handleInputChange("orderDate", e.target.value)
+                      }
+                      disabled
+                      className={cn("bg-muted h-7 text-xs", FIELD_INPUT_CLASS)}
+                    />
+                  </div>
+                  <div className={FIELD_CLASS}>
+                    <label className={LABEL_CLASS}>Due Date</label>
+                    <ClearableField
+                      value={formData.dueDate}
+                      onClear={() => handleInputChange("dueDate", "")}
+                      disabled={isViewMode}
+                    >
+                      <Input
+                        type="date"
+                        value={formData.dueDate}
+                        onChange={(e) =>
+                          handleInputChange("dueDate", e.target.value)
+                        }
+                        className={cn("h-7 text-xs", FIELD_INPUT_CLASS)}
+                        disabled={isViewMode}
+                      />
+                    </ClearableField>
+                  </div>
+                  <div className={FIELD_CLASS}>
+                    <label className={LABEL_CLASS}>Due Date Calc</label>
+                    <Select
+                      value={formData.dueDateCalculation}
+                      onValueChange={(value) =>
+                        handleInputChange("dueDateCalculation", value)
+                      }
+                      disabled={isViewMode}
+                    >
+                      <SelectTrigger
+                        className={cn("h-7 text-xs", FIELD_INPUT_CLASS)}
+                      >
+                        <SelectValue
+                          placeholder={isViewMode ? "None" : "Select"}
+                        />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Posting Date">
+                          Posting Date
+                        </SelectItem>
+                        <SelectItem value="Document Date">
+                          Document Date
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className={FIELD_CLASS}>
+                    <label className={LABEL_CLASS}>Rate Basis</label>
+                    <Select
+                      value={formData.rateBasis}
+                      onValueChange={(value) =>
+                        handleInputChange("rateBasis", value)
+                      }
+                      disabled={isViewMode}
+                    >
+                      <SelectTrigger
+                        className={cn("h-7 text-xs", FIELD_INPUT_CLASS)}
+                      >
+                        <SelectValue
+                          placeholder={isViewMode ? "None" : "Select"}
+                        />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="EX">EX</SelectItem>
+                        <SelectItem value="FOR">FOR</SelectItem>
+                        <SelectItem value="CIF">CIF</SelectItem>
+                        <SelectItem value="FOB">FOB</SelectItem>
+                        <SelectItem value="N/A">N/A</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className={FIELD_CLASS}>
+                    <label className={LABEL_CLASS}>Creditor Type</label>
+                    <SearchableSelect
+                      value={formData.creditorType}
+                      onChange={(value) =>
+                        handleInputChange("creditorType", value)
+                      }
+                      options={CREDITOR_TYPE_OPTIONS}
+                      placeholder={isViewMode ? "None" : "Select creditor"}
+                      disabled={isViewMode}
+                      className={FIELD_INPUT_CLASS}
+                    />
+                  </div>
+                  <div className={FIELD_CLASS}>
+                    <label className={LABEL_CLASS}>QC Type</label>
+                    <Select
+                      value={formData.qcType}
+                      onValueChange={(value) =>
+                        handleInputChange("qcType", value)
+                      }
+                      disabled={isViewMode}
+                    >
+                      <SelectTrigger
+                        className={cn("h-7 text-xs", FIELD_INPUT_CLASS)}
+                      >
+                        <SelectValue
+                          placeholder={isViewMode ? "None" : "Select"}
+                        />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="_none">None</SelectItem>
+                        <SelectItem value="Ex Passing">Ex Passing</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className={FIELD_CLASS}>
+                    <label className={LABEL_CLASS}>Term Code</label>
+                    <SearchableSelect
+                      value={formData.termCode}
+                      onChange={(value) => handleInputChange("termCode", value)}
+                      options={termList.map((t) => ({
+                        value: t.Terms,
+                        label: `${t.Terms} - ${t.Conditions}`,
+                      }))}
+                      placeholder={isViewMode ? "None" : "Select term"}
+                      disabled={isViewMode}
+                      className={FIELD_INPUT_CLASS}
+                      loadMore={async (skip, searchValue) => {
+                        const rows =
+                          await purchaseDropdownsService.getTermsAndConditionsPage(
+                            skip,
+                            searchValue,
+                            MASTER_DROPDOWN_PAGE_SIZE,
+                          );
+                        return rows.map((t) => ({
+                          value: t.Terms,
+                          label: `${t.Terms} - ${t.Conditions}`,
+                        }));
+                      }}
+                    />
+                  </div>
+                  <div className={FIELD_CLASS}>
+                    <label className={LABEL_CLASS}>Payment Term</label>
+                    <SearchableSelect
+                      value={formData.paymentTermCode}
+                      onChange={(value) =>
+                        handleInputChange("paymentTermCode", value)
+                      }
+                      options={paymentTermList.map((p) => ({
+                        value: p.Code,
+                        label: `${p.Code} - ${p.Description}`,
+                      }))}
+                      placeholder={isViewMode ? "None" : "Select pmt term"}
+                      disabled={isViewMode}
+                      className={FIELD_INPUT_CLASS}
+                      loadMore={async (skip, searchValue) => {
+                        const rows =
+                          await purchaseDropdownsService.getPaymentTermsPage(
+                            skip,
+                            searchValue,
+                            MASTER_DROPDOWN_PAGE_SIZE,
+                          );
+                        return rows.map((p) => ({
+                          value: p.Code,
+                          label: `${p.Code} - ${p.Description}`,
+                        }));
+                      }}
+                    />
+                  </div>
+                  <div className={FIELD_CLASS}>
+                    <label className={LABEL_CLASS}>Mandi Name</label>
+                    <SearchableSelect
+                      value={formData.mandiName}
+                      onChange={(value) =>
+                        handleInputChange("mandiName", value)
+                      }
+                      options={mandiList.map((m) => ({
+                        value: m.Code,
+                        label: `${m.Code} - ${m.Description}`,
+                      }))}
+                      placeholder={isViewMode ? "None" : "Select mandi"}
+                      disabled={isViewMode}
+                      className={FIELD_INPUT_CLASS}
+                      loadMore={async (skip, searchValue) => {
+                        const rows =
+                          await purchaseDropdownsService.getMandiMastersPage(
+                            skip,
+                            searchValue,
+                            MASTER_DROPDOWN_PAGE_SIZE,
+                          );
+                        return rows.map((m) => ({
+                          value: m.Code,
+                          label: `${m.Code} - ${m.Description}`,
+                        }));
+                      }}
+                    />
+                  </div>
+                </div>
+              </fieldset>
+            </AccordionContent>
+          </AccordionItem>
+
+          <Separator />
+        </Accordion>
+      </div>
+    );
+  };
 
   const totalAmount = lineItems.reduce((sum, item) => sum + item.amount, 0);
 
@@ -2065,12 +2294,14 @@ export function PurchaseOrderFormContent({
       <div className="flex h-full min-h-0 flex-col">
         <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
           {isHydratingOrder && (
-            <div className="text-muted-foreground mb-4 text-sm">Loading order...</div>
+            <div className="text-muted-foreground mb-4 text-sm">
+              Loading order...
+            </div>
           )}
 
           {renderStep1()}
 
-          <section className="space-y-3 border-t pt-4">
+          <section className="space-y-3 pt-4">
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="bg-primary/5 border-primary/20 text-primary rounded-sm border px-2 py-1 text-[10px] font-bold tracking-wider uppercase">
@@ -2107,7 +2338,9 @@ export function PurchaseOrderFormContent({
 
             <div className="bg-primary/5 border-primary/20 flex justify-end rounded-md border px-3 py-2">
               <div className="flex items-baseline gap-2">
-                <span className="text-primary text-[10px] font-bold tracking-wider uppercase">Total Amount</span>
+                <span className="text-primary text-[10px] font-bold tracking-wider uppercase">
+                  Total Amount
+                </span>
                 <span className="text-primary text-base font-bold">
                   {totalAmount.toFixed(2)}
                 </span>
@@ -2115,7 +2348,6 @@ export function PurchaseOrderFormContent({
             </div>
           </section>
         </div>
-
       </div>
 
       {isLineDialogOpen && (
@@ -2140,7 +2372,7 @@ export function PurchaseOrderFormContent({
         <PurchaseOrderLineEditDialog
           open={!!selectedLine}
           onOpenChange={(open) => !open && setSelectedLine(null)}
-           line={selectedLine}
+          line={selectedLine}
           orderNo={createdOrderNo}
           vendorNo={formData.vendorNo}
           onAssignTracking={(line: PurchaseLine) => {
@@ -2196,12 +2428,14 @@ export function PurchaseOrderFormContent({
           <DialogHeader>
             <DialogTitle>Post Purchase Order</DialogTitle>
             <DialogHeader>
-              <span className="text-sm text-muted-foreground">Choose how you want to post this released order.</span>
+              <span className="text-muted-foreground text-sm">
+                Choose how you want to post this released order.
+              </span>
             </DialogHeader>
           </DialogHeader>
 
           <div className="grid gap-2 py-4">
-            <Label className="flex items-center gap-2 cursor-pointer">
+            <Label className="flex cursor-pointer items-center gap-2">
               <input
                 type="radio"
                 name="post-mode"
@@ -2210,7 +2444,7 @@ export function PurchaseOrderFormContent({
               />
               <span>Receive</span>
             </Label>
-            <Label className="flex items-center gap-2 cursor-pointer">
+            <Label className="flex cursor-pointer items-center gap-2">
               <input
                 type="radio"
                 name="post-mode"
@@ -2219,7 +2453,7 @@ export function PurchaseOrderFormContent({
               />
               <span>Invoice</span>
             </Label>
-            <Label className="flex items-center gap-2 cursor-pointer">
+            <Label className="flex cursor-pointer items-center gap-2">
               <input
                 type="radio"
                 name="post-mode"
@@ -2251,11 +2485,13 @@ export function PurchaseOrderFormContent({
           <DialogHeader>
             <DialogTitle>Post Details</DialogTitle>
             <DialogHeader>
-              <span className="text-sm text-muted-foreground">Fill in the posting details before confirming.</span>
+              <span className="text-muted-foreground text-sm">
+                Fill in the posting details before confirming.
+              </span>
             </DialogHeader>
           </DialogHeader>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 py-4">
+          <div className="grid grid-cols-1 gap-3 py-4 sm:grid-cols-2">
             <div className="space-y-1">
               <Label className="text-xs font-semibold">Posting Date *</Label>
               <Input
@@ -2318,7 +2554,9 @@ export function PurchaseOrderFormContent({
             {(postOption === "invoice" || postOption === "receive-invoice") && (
               <>
                 <div className="space-y-1">
-                  <Label className="text-xs font-semibold">Due Date Calculation</Label>
+                  <Label className="text-xs font-semibold">
+                    Due Date Calculation
+                  </Label>
                   <Select
                     value={postDetails.dueDateCalculation}
                     onValueChange={(val) =>
@@ -2333,7 +2571,9 @@ export function PurchaseOrderFormContent({
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="Posting Date">Posting Date</SelectItem>
-                      <SelectItem value="Document Date">Document Date</SelectItem>
+                      <SelectItem value="Document Date">
+                        Document Date
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -2355,7 +2595,9 @@ export function PurchaseOrderFormContent({
                 </div>
 
                 <div className="space-y-1 sm:col-span-2">
-                  <Label className="text-xs font-semibold">Line Narration</Label>
+                  <Label className="text-xs font-semibold">
+                    Line Narration
+                  </Label>
                   <Input
                     value={postDetails.lineNarration}
                     onChange={(e) =>
@@ -2402,7 +2644,7 @@ export function PurchaseOrderFormContent({
                   setReceiptDate(e.target.value);
                   loadReceipt(e.target.value);
                 }}
-                className={cn("w-40 h-8", FIELD_INPUT_CLASS)}
+                className={cn("h-8 w-40", FIELD_INPUT_CLASS)}
               />
               <Button
                 size="sm"
@@ -2414,7 +2656,7 @@ export function PurchaseOrderFormContent({
               </Button>
             </div>
 
-            <div className="rounded-md border max-h-[400px] overflow-auto">
+            <div className="max-h-[400px] overflow-auto rounded-md border">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -2423,20 +2665,23 @@ export function PurchaseOrderFormContent({
                     <TableHead className="text-xs">Posting Date</TableHead>
                     <TableHead className="text-xs">Vehicle No.</TableHead>
                     <TableHead className="text-xs">Gate Entry No.</TableHead>
+                    <TableHead className="text-right text-xs">
+                      Actions
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {isReceiptLoading ? (
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center py-10">
+                      <TableCell colSpan={6} className="py-10 text-center">
                         Loading...
                       </TableCell>
                     </TableRow>
                   ) : receiptShipments.length === 0 ? (
                     <TableRow>
                       <TableCell
-                        colSpan={5}
-                        className="text-center py-10 text-muted-foreground"
+                        colSpan={6}
+                        className="text-muted-foreground py-10 text-center"
                       >
                         No receipts found for this date.
                       </TableCell>
@@ -2459,6 +2704,28 @@ export function PurchaseOrderFormContent({
                         <TableCell className="text-xs">
                           {String(s.Gate_Entry_No || "-")}
                         </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="text-primary hover:bg-primary/10 h-7 w-7"
+                              title="Print MRN"
+                              onClick={() => handlePrintMRN(s.No)}
+                            >
+                              <FileText className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-7 w-7 text-green-600 hover:bg-green-50"
+                              title="Item Charge"
+                              onClick={() => handleOpenItemChargeForMrn(s.No)}
+                            >
+                              <PackagePlus className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        </TableCell>
                       </TableRow>
                     ))
                   )}
@@ -2474,9 +2741,7 @@ export function PurchaseOrderFormContent({
 
       <AlertDialog
         open={confirmDialog.open}
-        onOpenChange={(open) =>
-          setConfirmDialog((prev) => ({ ...prev, open }))
-        }
+        onOpenChange={(open) => setConfirmDialog((prev) => ({ ...prev, open }))}
       >
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -2516,6 +2781,14 @@ export function PurchaseOrderFormContent({
           itemChargeDescription={selectedItemChargeLine.Description || ""}
           totalAmount={selectedItemChargeLine.Line_Amount || 0}
           totalQuantity={selectedItemChargeLine.Quantity || 0}
+        />
+      )}
+
+      {selectedMrnNo && (
+        <ItemChargeMultiSelectDialog
+          open={itemChargeDialogOpen}
+          onOpenChange={setItemChargeDialogOpen}
+          mrnNo={selectedMrnNo}
         />
       )}
     </>

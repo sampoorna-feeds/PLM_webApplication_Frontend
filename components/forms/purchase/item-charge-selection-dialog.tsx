@@ -27,7 +27,7 @@ interface ItemChargeSelectionDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   type: SourceType;
-  onAddSelected: (lines: ItemChargeSourceLine[]) => void;
+  onAddSelected: (lines: ItemChargeSourceLine[]) => Promise<void> | void;
 }
 
 export function ItemChargeSelectionDialog({
@@ -40,6 +40,7 @@ export function ItemChargeSelectionDialog({
   const [sourceLines, setSourceLines] = useState<ItemChargeSourceLine[]>([]);
   const [selectedIndices, setSelectedIndices] = useState<Set<number>>(new Set());
   const [searchTerm, setSearchTerm] = useState("");
+  const [isAdding, setIsAdding] = useState(false);
 
   const fetchSourceLines = useCallback(async (search?: string) => {
     try {
@@ -83,10 +84,17 @@ export function ItemChargeSelectionDialog({
     setSelectedIndices(next);
   };
 
-  const handleAdd = () => {
-    const selected = Array.from(selectedIndices).map(i => sourceLines[i]);
-    onAddSelected(selected);
-    onOpenChange(false);
+  const handleAdd = async () => {
+    try {
+      setIsAdding(true);
+      const selected = Array.from(selectedIndices).map(i => sourceLines[i]);
+      await onAddSelected(selected);
+      onOpenChange(false);
+    } catch (error) {
+      console.error("Failed to add lines:", error);
+    } finally {
+      setIsAdding(false);
+    }
   };
 
   const titles: Record<SourceType, string> = {
@@ -202,9 +210,13 @@ export function ItemChargeSelectionDialog({
             <Button variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button onClick={handleAdd} disabled={selectedIndices.size === 0}>
-              <Check className="h-4 w-4 mr-2" />
-              Add Selected Lines
+            <Button onClick={handleAdd} disabled={selectedIndices.size === 0 || isAdding}>
+              {isAdding ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Check className="h-4 w-4 mr-2" />
+              )}
+              {isAdding ? "Adding..." : "Add Selected Lines"}
             </Button>
           </div>
         </DialogFooter>

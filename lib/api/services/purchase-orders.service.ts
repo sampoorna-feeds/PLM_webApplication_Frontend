@@ -62,6 +62,33 @@ export interface PurchaseOrder {
   [key: string]: unknown;
 }
 
+export interface PurchaseReceipt {
+  No: string;
+  Order_No: string;
+  Buy_from_Vendor_No?: string;
+  Buy_from_Vendor_Name?: string;
+  Posting_Date?: string;
+  Document_Date?: string;
+  Vendor_Shipment_No?: string;
+  [key: string]: unknown;
+}
+
+export interface PurchaseReceiptLine {
+  Document_No: string;
+  Line_No: number;
+  Type: string;
+  No: string;
+  Description: string;
+  Quantity: number;
+  [key: string]: unknown;
+}
+
+export interface ItemCharge {
+  No: string;
+  Description: string;
+  [key: string]: unknown;
+}
+
 export interface GetPurchaseOrdersParams {
   $select?: string;
   $filter?: string;
@@ -719,4 +746,100 @@ export async function getTaxComponents(
     console.error("Failed to parse tax components", err);
     return [];
   }
+}
+
+/**
+ * Get purchase receipts for a specific order number.
+ */
+export async function getPurchasereceipts(
+  orderNo: string,
+): Promise<PurchaseReceipt[]> {
+  const escaped = orderNo.replace(/'/g, "''");
+  const filter = `Order_No eq '${escaped}'`;
+  const query = buildODataQuery({ $filter: filter });
+  const endpoint = `/Purchasereceipt?company='${encodeURIComponent(COMPANY)}'&${query}`;
+  const response = await apiGet<ODataResponse<PurchaseReceipt>>(endpoint);
+  return response.value || [];
+}
+
+/**
+ * Get Purchase Order Report (Base64 PDF)
+ */
+export async function getPurchaseOrderReport(orderNo: string): Promise<string> {
+  const endpoint = `/API_GetPurchaseOrderReport?company='${encodeURIComponent(COMPANY)}'`;
+  const response = await apiPost<{ value: string }>(endpoint, { orderNo });
+  return response.value || "";
+}
+
+/**
+ * Get Purchase Receipt Report (MRN Report - Base64 PDF)
+ */
+export async function getPurchasereceiptReport(mrnNo: string): Promise<string> {
+  const endpoint = `/API_GetPurchasereceiptReport?company='${encodeURIComponent(COMPANY)}'`;
+  const response = await apiPost<{ value: string }>(endpoint, { mrnNo });
+  return response.value || "";
+}
+
+/**
+ * Get Item Charges list
+ */
+export async function getItemCharges(): Promise<ItemCharge[]> {
+  const endpoint = `/Itemcharge?company='${encodeURIComponent(COMPANY)}'`;
+  const response = await apiGet<ODataResponse<ItemCharge>>(endpoint);
+  return response.value || [];
+}
+
+/**
+ * Get Purchase Receipt Lines for a specific MRN.
+ * Filtered by Item type usually for charge assignment.
+ */
+export async function getPurchasereceiptLines(
+  mrnNo: string,
+  itemNo?: string,
+): Promise<PurchaseReceiptLine[]> {
+  const escapedMrn = mrnNo.replace(/'/g, "''");
+  let filter = `Document_No eq '${escapedMrn}' and Type eq 'Item'`;
+  if (itemNo) {
+    filter += ` and No eq '${itemNo.replace(/'/g, "''")}'`;
+  }
+  const query = buildODataQuery({ $filter: filter });
+  const endpoint = `/PurchasereceiptLine?company='${encodeURIComponent(COMPANY)}'&${query}`;
+  const response = await apiGet<ODataResponse<PurchaseReceiptLine>>(endpoint);
+  return response.value || [];
+}
+
+/**
+ * Assign Item Charge to a Purchase Receipt Line using API_TrackingAssign.
+ */
+export async function assignItemCharge(params: {
+  itemChargeNo: string;
+  mrnNo: string;
+  lineNo: number;
+  amount: number;
+  locationCode?: string;
+}): Promise<unknown> {
+  const endpoint = `/API_TrackingAssign?company='${encodeURIComponent(COMPANY)}'`;
+  // Using the structure provided by the user for item charge assignment via TrackingAssign
+  const payload = {
+    itemNo: params.itemChargeNo,
+    locationCode: params.locationCode || "",
+    quantity: params.amount,
+    qtytoHandle: params.amount,
+    sourceProdOrderLine: 0,
+    sourceType: 123, // 123 for Purchase Receipt Line in this context
+    sourceSubType: 0,
+    sourceID: params.mrnNo,
+    sourceBatch: "",
+    sourcerefNo: params.lineNo,
+    appliestoDocType: 1, // Order? or Receipt? User said appliestoDocNo is MRN
+    appliestoDocNo: params.mrnNo,
+    appliestoDocLineNo: params.lineNo,
+    lotNo: "",
+    expirationdate: "0001-01-01",
+    manufacuringdate: "0001-01-01",
+    newExpirationdate: "0001-01-01",
+    newManufacuringdate: "0001-01-01",
+    reservationStatus: 2,
+  };
+  return apiPost<unknown>(endpoint, payload);
 }

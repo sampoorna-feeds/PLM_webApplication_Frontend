@@ -22,6 +22,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ErrorDialog, ErrorDetail } from "@/components/ui/error-dialog";
 import { itemChargeAssignmentService, ItemChargeAssignment, SourceType, ItemChargeSourceLine } from "@/lib/api/services/item-charge-assignment.service";
 import { ItemChargeSelectionDialog } from "./item-charge-selection-dialog";
 import { cn } from "@/lib/utils";
@@ -62,6 +63,28 @@ export function ItemChargeAssignmentDialog({
   const [selectionOpen, setSelectionOpen] = useState(false);
   const [selectionType, setSelectionType] = useState<SourceType>("Receipt");
 
+  // Error Dialog State
+  const [errorDialogOpen, setErrorDialogOpen] = useState(false);
+  const [errorTitle, setErrorTitle] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
+  const [apiErrors, setApiErrors] = useState<ErrorDetail[]>([]);
+
+  const showError = (title: string, message: string, error?: any) => {
+    setErrorTitle(title);
+    setErrorMessage(message);
+    if (error) {
+      setApiErrors([{
+        message: error.message || "Unknown error occurred",
+        code: error.code,
+        status: error.status,
+        details: error.details
+      }]);
+    } else {
+      setApiErrors([]);
+    }
+    setErrorDialogOpen(true);
+  };
+
   const fetchAssignments = useCallback(async () => {
     try {
       setLoading(true);
@@ -72,9 +95,9 @@ export function ItemChargeAssignmentDialog({
         itemChargeNo,
       });
       setLines(data);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to fetch assignments:", error);
-      toast.error("Failed to load existing assignments");
+      showError("Fetch Failed", "Could not load assignments from the server.", error);
     } finally {
       setLoading(false);
     }
@@ -111,10 +134,10 @@ export function ItemChargeAssignmentDialog({
 
       toast.success(`Successfully added ${sourceLines.length} assignments`);
       await fetchAssignments();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to post assignments:", error);
-      toast.error("Failed to sync some assignments with the server");
-      fetchAssignments();
+      showError("Assignment Failed", "Failed to sync some assignments with the server.", error);
+      await fetchAssignments();
     } finally {
       setLoading(false);
     }
@@ -155,9 +178,9 @@ export function ItemChargeAssignmentDialog({
       nextSelected.delete(uniqueKey);
       setSelectedLines(nextSelected);
       toast.success("Assignment deleted");
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to delete assignment:", error);
-      toast.error("Failed to delete assignment from server");
+      showError("Deletion Failed", "Failed to delete assignment from server.", error);
     } finally {
       setLoading(false);
     }
@@ -512,6 +535,14 @@ export function ItemChargeAssignmentDialog({
         onOpenChange={setSelectionOpen}
         type={selectionType}
         onAddSelected={handleLinesAdded}
+      />
+
+      <ErrorDialog
+        open={errorDialogOpen}
+        onOpenChange={setErrorDialogOpen}
+        title={errorTitle}
+        message={errorMessage}
+        errors={apiErrors}
       />
     </>
   );

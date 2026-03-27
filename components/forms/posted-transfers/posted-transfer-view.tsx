@@ -8,7 +8,7 @@ import { PostedTransferPaginationControls } from "./pagination-controls";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, RefreshCcw } from "lucide-react";
 import { type SortDirection, loadVisibleColumns, saveVisibleColumns, getDefaultVisibleColumns, POSTED_TRANSFER_COLUMNS } from "./column-config";
-import { getPostedTransferShipments, getTransferReceipts, getTransferShipmentReport } from "@/lib/api/services/transfer-orders.service";
+import { getPostedTransferShipments, getTransferReceipts, getTransferShipmentReport, getDownloadRecordLink } from "@/lib/api/services/transfer-orders.service";
 import { toast } from "sonner";
 import { useFormStackContext } from "@/lib/form-stack/form-stack-context";
 
@@ -121,6 +121,50 @@ export function PostedTransferView({ type }: PostedTransferViewProps) {
     }
   };
 
+  const handleGetRecordLink = async (docNo: string, docType: string, reportName: string) => {
+    setActiveReportDocNo(docNo);
+    try {
+      const url = await getDownloadRecordLink({ documentType: docType, documentNo: docNo });
+      if (url) {
+        window.open(url, "_blank", "noopener,noreferrer");
+      } else {
+        toast.info(`No URL returned for ${reportName}`);
+      }
+    } catch (err: any) {
+      toast.error(err.message || `Failed to get ${reportName} link`);
+    } finally {
+      setActiveReportDocNo(null);
+    }
+  };
+
+  const handlePrintRecord = async (docNo: string, docType: string, reportName: string) => {
+    setActiveReportDocNo(docNo);
+    try {
+      const url = await getDownloadRecordLink({ documentType: docType, documentNo: docNo });
+      if (!url) {
+        toast.info(`No URL returned for ${reportName}`);
+        return;
+      }
+
+      const response = await fetch(url);
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+
+      const iframe = document.createElement("iframe");
+      iframe.style.display = "none";
+      iframe.src = blobUrl;
+      document.body.appendChild(iframe);
+      iframe.onload = () => {
+        iframe.contentWindow?.print();
+      };
+    } catch (err: any) {
+      toast.error(err.message || `Failed to print ${reportName}`);
+    } finally {
+      setActiveReportDocNo(null);
+    }
+  };
+
 
   const handleSort = (column: string) => {
     if (sortColumn === column) {
@@ -172,7 +216,9 @@ export function PostedTransferView({ type }: PostedTransferViewProps) {
         (item.No?.toLowerCase() || "").includes(q) ||
         (item.Transfer_from_Code?.toLowerCase() || "").includes(q) ||
         (item.Transfer_to_Code?.toLowerCase() || "").includes(q) ||
-        (item.Vehicle_No?.toLowerCase() || "").includes(q)
+        (item.Vehicle_No?.toLowerCase() || "").includes(q) ||
+        (item.E_Way_Bill_No?.toLowerCase() || "").includes(q) ||
+        (item.E_Invoice_No?.toLowerCase() || "").includes(q)
       );
     }
     // No more manual reset of currentPage here to avoid recursion, 
@@ -290,11 +336,12 @@ export function PostedTransferView({ type }: PostedTransferViewProps) {
           onSort={handleSort}
           columnFilters={columnFilters}
           onColumnFilter={handleColumnFilter}
-          onRowClick={(id) => {
-             // Open detailed view tab if needed
-             // For now, just a toast as details are not implemented
-             toast.info(`${type} ${id} selected. Detailed view coming soon.`);
-          }}
+           onRowClick={(id) => {
+              // For now, just a toast as details are not implemented
+              toast.info(`${type} ${id} selected. Detailed view coming soon.`);
+           }}
+           onDownloadRecord={handleGetRecordLink}
+           onPrintRecord={handlePrintRecord}
         />
       </div>
 

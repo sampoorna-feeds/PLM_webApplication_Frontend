@@ -74,6 +74,8 @@ export interface TransferReceipt {
   Posting_Date?: string;
   Vehicle_No?: string;
   External_Document_No?: string;
+  E_Way_Bill_No?: string;
+  E_Invoice_No?: string;
   [key: string]: unknown;
 }
 

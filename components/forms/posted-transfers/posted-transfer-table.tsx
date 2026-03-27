@@ -2,7 +2,7 @@
 
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { Eye, Loader2, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
+import { Eye, Loader2, ArrowUp, ArrowDown, ArrowUpDown, Download, Printer } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { POSTED_TRANSFER_COLUMNS, type SortDirection } from "./column-config";
 import { ColumnFilter } from "./column-filter";
@@ -19,6 +19,8 @@ interface PostedTransferTableProps {
   onSort?: (column: string) => void;
   columnFilters?: Record<string, { value: string; valueTo?: string }>;
   onColumnFilter?: (columnId: string, value: string, valueTo?: string) => void;
+  onDownloadRecord?: (docNo: string, docType: string, reportName: string) => void;
+  onPrintRecord?: (docNo: string, docType: string, reportName: string) => void;
 }
 
 export function PostedTransferTable({ 
@@ -32,7 +34,9 @@ export function PostedTransferTable({
   sortDirection,
   onSort,
   columnFilters = {},
-  onColumnFilter
+  onColumnFilter,
+  onDownloadRecord,
+  onPrintRecord
 }: PostedTransferTableProps) {
   const columns = visibleColumns 
     ? POSTED_TRANSFER_COLUMNS.filter(col => visibleColumns.includes(col.id))
@@ -138,7 +142,35 @@ export function PostedTransferTable({
                   )}
                   {columns.map(col => (
                     <td key={col.id} className="p-3 text-xs whitespace-nowrap">
-                      {formatValue(row[col.id], col.id)}
+                      {col.id === "E_Way_Bill_No" || col.id === "E_Invoice_No" ? (
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium">{row[col.id] || "false"}</span>
+                          {row.No && (
+                            <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                className="h-6 w-6 p-0 hover:bg-primary/20 hover:text-primary transition-colors"
+                                onClick={() => onDownloadRecord?.(row.No, col.id === "E_Way_Bill_No" ? "Transfer" : "Invoice", col.label)}
+                                title={`Download ${col.label}`}
+                              >
+                                <Download className="h-3 w-3" />
+                              </Button>
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                className="h-6 w-6 p-0 hover:bg-primary/20 hover:text-primary transition-colors"
+                                onClick={() => onPrintRecord?.(row.No, col.id === "E_Way_Bill_No" ? "Transfer" : "Invoice", col.label)}
+                                title={`Print ${col.label}`}
+                              >
+                                <Printer className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        formatValue(row[col.id], col.id)
+                      )}
                     </td>
                   ))}
                 </tr>
@@ -163,7 +195,10 @@ function getSortIcon(columnId: string, sortColumn?: string | null, sortDirection
 }
 
 function formatValue(value: any, columnId: string) {
-  if (value === null || value === undefined || value === "") return "-";
+  if (value === null || value === undefined || value === "") {
+    if (columnId === "E_Way_Bill_No" || columnId === "E_Invoice_No") return "false";
+    return "-";
+  }
   
   if (columnId === "Posting_Date" && typeof value === "string" && value !== "0001-01-01") {
     try {

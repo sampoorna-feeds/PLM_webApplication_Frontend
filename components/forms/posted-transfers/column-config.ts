@@ -44,6 +44,20 @@ export const POSTED_TRANSFER_COLUMNS: ColumnConfig[] = [
     defaultVisible: false,
     filterType: "text",
   },
+  {
+    id: "E_Way_Bill_No",
+    label: "E-way Bill No.",
+    sortable: true,
+    defaultVisible: false,
+    filterType: "text",
+  },
+  {
+    id: "E_Invoice_No",
+    label: "E-Invoice No.",
+    sortable: true,
+    defaultVisible: false,
+    filterType: "text",
+  },
 ];
 
 export const DEFAULT_COLUMNS = POSTED_TRANSFER_COLUMNS.filter(c => c.defaultVisible);

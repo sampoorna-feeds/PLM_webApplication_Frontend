@@ -24,6 +24,7 @@ import {
   getTransferLocationCodes,
   getPostedTransferShipmentsByOrder,
   getTransferShipmentReport,
+  getDownloadRecordLink,
   type PostedTransferShipment,
   type TransferLocationCode,
   type TransferLine,
@@ -707,6 +708,51 @@ export function TransferOrderForm({
       };
     } catch (err: any) {
       toast.error(err.message || "Failed to print report");
+    }
+  };
+
+  const handleGetRecordLink = async (docType: string, docNo: string, reportName: string) => {
+    setActiveReportDocNo(docNo);
+    try {
+      const url = await getDownloadRecordLink({ documentType: docType, documentNo: docNo });
+      if (url) {
+        window.open(url, "_blank", "noopener,noreferrer");
+      } else {
+        toast.info(`No URL returned for ${reportName}`);
+      }
+    } catch (err: any) {
+      toast.error(err.message || `Failed to get ${reportName} link`);
+    } finally {
+      setActiveReportDocNo(null);
+    }
+  };
+
+  const handlePrintRecord = async (docType: string, docNo: string, reportName: string) => {
+    setActiveReportDocNo(docNo);
+    try {
+      const url = await getDownloadRecordLink({ documentType: docType, documentNo: docNo });
+      if (!url) {
+        toast.info(`No URL returned for ${reportName}`);
+        return;
+      }
+
+      // Fetch the PDF to create a local blob for printing (handles CORS better in iframes)
+      const response = await fetch(url);
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+
+      const iframe = document.createElement("iframe");
+      iframe.style.display = "none";
+      iframe.src = blobUrl;
+      document.body.appendChild(iframe);
+      iframe.onload = () => {
+        iframe.contentWindow?.print();
+      };
+    } catch (err: any) {
+      toast.error(err.message || `Failed to print ${reportName}`);
+    } finally {
+      setActiveReportDocNo(null);
     }
   };
 
@@ -1491,8 +1537,10 @@ export function TransferOrderForm({
                   <TableHeader className="bg-muted">
                     <TableRow className="border-border">
                       <TableHead className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">No.</TableHead>
-                      <TableHead className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Posting Date</TableHead>
-                      <TableHead className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Vehicle No.</TableHead>
+                      <TableHead className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground whitespace-nowrap">Posting Date</TableHead>
+                      <TableHead className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground whitespace-nowrap">Vehicle No.</TableHead>
+                      <TableHead className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground whitespace-nowrap">E-way Bill</TableHead>
+                      <TableHead className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground whitespace-nowrap">E-Invoice</TableHead>
                       <TableHead className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -1501,9 +1549,63 @@ export function TransferOrderForm({
                       <TableRow key={s.No} className="border-border transition-colors hover:bg-muted">
                         <TableCell className="text-xs font-bold text-foreground">{s.No}</TableCell>
                         <TableCell className="text-xs text-muted-foreground">
-                          {s.Posting_Date ? new Date(s.Posting_Date).toLocaleDateString() : "-"}
+                          {s.Posting_Date ? new Date(s.Posting_Date).toLocaleDateString() : "false"}
                         </TableCell>
-                        <TableCell className="text-xs text-muted-foreground">{s.Vehicle_No || "-"}</TableCell>
+                        <TableCell className="text-xs text-muted-foreground whitespace-nowrap">{s.Vehicle_No || "false"}</TableCell>
+                        <TableCell className="text-xs text-muted-foreground">
+                          <div className="flex items-center gap-2">
+                             <span>{s.E_Way_Bill_No || "false"}</span>
+                             {s.No && (
+                               <div className="flex gap-1">
+                                 <Button 
+                                   variant="ghost" 
+                                   size="sm" 
+                                   className="h-7 px-2 text-[10px] gap-1 hover:bg-primary/10 transition-colors"
+                                   onClick={() => handleGetRecordLink("Transfer", s.No, "E-way Bill")}
+                                   title="Download E-way Bill"
+                                 >
+                                    <Download className="h-3 w-3" />
+                                 </Button>
+                                 <Button 
+                                   variant="ghost" 
+                                   size="sm" 
+                                   className="h-7 px-2 text-[10px] gap-1 hover:bg-primary/10 transition-colors"
+                                   onClick={() => handlePrintRecord("Transfer", s.No, "E-way Bill")}
+                                   title="Print E-way Bill"
+                                 >
+                                    <Printer className="h-3 w-3" />
+                                 </Button>
+                               </div>
+                             )}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground">
+                           <div className="flex items-center gap-2">
+                             <span>{s.E_Invoice_No || "false"}</span>
+                             {s.No && (
+                               <div className="flex gap-1">
+                                 <Button 
+                                   variant="ghost" 
+                                   size="sm" 
+                                   className="h-7 px-2 text-[10px] gap-1 hover:bg-primary/10 transition-colors"
+                                   onClick={() => handleGetRecordLink("Invoice", s.No, "E-Invoice")}
+                                   title="Download E-Invoice"
+                                 >
+                                    <Download className="h-3 w-3" />
+                                 </Button>
+                                 <Button 
+                                   variant="ghost" 
+                                   size="sm" 
+                                   className="h-7 px-2 text-[10px] gap-1 hover:bg-primary/10 transition-colors"
+                                   onClick={() => handlePrintRecord("Invoice", s.No, "E-Invoice")}
+                                   title="Print E-Invoice"
+                                 >
+                                    <Printer className="h-3 w-3" />
+                                 </Button>
+                               </div>
+                             )}
+                          </div>
+                        </TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-2">
                             <Button

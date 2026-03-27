@@ -4,10 +4,11 @@ import { useState, useEffect, useCallback } from "react";
 import { PostedTransferFilterForm, type PostedTransferFilters } from "./posted-transfer-filter-form";
 import { PostedTransferTable } from "./posted-transfer-table";
 import { TableFilterBar } from "./table-filter-bar";
+import { PostedTransferPaginationControls } from "./pagination-controls";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, RefreshCcw, Plus } from "lucide-react";
-import { type SortDirection } from "./column-config";
-import { getPostedTransferShipments, getTransferReceipts, getTransferShipmentReport } from "@/lib/api/services/transfer-orders.service";
+import { ChevronLeft, RefreshCcw } from "lucide-react";
+import { type SortDirection, loadVisibleColumns, saveVisibleColumns, getDefaultVisibleColumns, POSTED_TRANSFER_COLUMNS } from "./column-config";
+import { getPostedTransferShipments, getTransferReceipts, getTransferShipmentReport, getDownloadRecordLink } from "@/lib/api/services/transfer-orders.service";
 import { toast } from "sonner";
 import { useFormStackContext } from "@/lib/form-stack/form-stack-context";
 
@@ -28,6 +29,15 @@ export function PostedTransferView({ type }: PostedTransferViewProps) {
   const [columnFilters, setColumnFilters] = useState<Record<string, { value: string; valueTo?: string }>>({});
   const [sortColumn, setSortColumn] = useState<string | null>("No");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
+
+  // Pagination states
+  const [pageSize, setPageSize] = useState(10);
+  const [currentPage, setCurrentPage] = useState(1);
+
+  // Column Visibility state
+  const [visibleColumns, setVisibleColumns] = useState<string[]>(() => 
+    typeof window !== "undefined" ? loadVisibleColumns() : getDefaultVisibleColumns()
+  );
 
   const title = type === "shipment" ? "Posted Transfer Shipment" : "Posted Transfer Receipt";
   const description = `Enter details to find posted transfer ${type}s.`;
@@ -67,6 +77,7 @@ export function PostedTransferView({ type }: PostedTransferViewProps) {
   useEffect(() => {
     if (filters) {
       fetchData(filters);
+      setCurrentPage(1);
     }
     // Cleanup URLs on unmount
     return () => {
@@ -110,18 +121,50 @@ export function PostedTransferView({ type }: PostedTransferViewProps) {
     }
   };
 
-  const handleCreateOrder = () => {
-    openTab("transfer-order", {
-      title: "Create Transfer Order",
-      context: {
-        openedFromParent: true,
-        onOrderCreated: () => {
-          if (filters) fetchData(filters);
-        },
-      },
-      autoCloseOnSuccess: true,
-    });
+  const handleGetRecordLink = async (docNo: string, docType: string, reportName: string) => {
+    setActiveReportDocNo(docNo);
+    try {
+      const url = await getDownloadRecordLink({ documentType: docType, documentNo: docNo });
+      if (url) {
+        window.open(url, "_blank", "noopener,noreferrer");
+      } else {
+        toast.info(`No URL returned for ${reportName}`);
+      }
+    } catch (err: any) {
+      toast.error(err.message || `Failed to get ${reportName} link`);
+    } finally {
+      setActiveReportDocNo(null);
+    }
   };
+
+  const handlePrintRecord = async (docNo: string, docType: string, reportName: string) => {
+    setActiveReportDocNo(docNo);
+    try {
+      const url = await getDownloadRecordLink({ documentType: docType, documentNo: docNo });
+      if (!url) {
+        toast.info(`No URL returned for ${reportName}`);
+        return;
+      }
+
+      const response = await fetch(url);
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+
+      const iframe = document.createElement("iframe");
+      iframe.style.display = "none";
+      iframe.src = blobUrl;
+      document.body.appendChild(iframe);
+      iframe.onload = () => {
+        iframe.contentWindow?.print();
+      };
+    } catch (err: any) {
+      toast.error(err.message || `Failed to print ${reportName}`);
+    } finally {
+      setActiveReportDocNo(null);
+    }
+  };
+
 
   const handleSort = (column: string) => {
     if (sortColumn === column) {
@@ -138,6 +181,29 @@ export function PostedTransferView({ type }: PostedTransferViewProps) {
       ...prev,
       [columnId]: { value, valueTo }
     }));
+    setCurrentPage(1); // Reset to first page on filter change
+  };
+
+  const handleColumnToggle = (columnId: string) => {
+    setVisibleColumns(prev => {
+      const newColumns = prev.includes(columnId)
+        ? prev.filter(id => id !== columnId)
+        : [...prev, columnId];
+      saveVisibleColumns(newColumns);
+      return newColumns;
+    });
+  };
+
+  const handleResetColumns = () => {
+    const defaults = getDefaultVisibleColumns();
+    setVisibleColumns(defaults);
+    saveVisibleColumns(defaults);
+  };
+
+  const handleShowAllColumns = () => {
+    const allColumnIds = POSTED_TRANSFER_COLUMNS.map(c => c.id);
+    setVisibleColumns(allColumnIds);
+    saveVisibleColumns(allColumnIds);
   };
 
   const getFilteredAndSortedData = () => {
@@ -150,9 +216,13 @@ export function PostedTransferView({ type }: PostedTransferViewProps) {
         (item.No?.toLowerCase() || "").includes(q) ||
         (item.Transfer_from_Code?.toLowerCase() || "").includes(q) ||
         (item.Transfer_to_Code?.toLowerCase() || "").includes(q) ||
-        (item.Vehicle_No?.toLowerCase() || "").includes(q)
+        (item.Vehicle_No?.toLowerCase() || "").includes(q) ||
+        (item.E_Way_Bill_No?.toLowerCase() || "").includes(q) ||
+        (item.E_Invoice_No?.toLowerCase() || "").includes(q)
       );
     }
+    // No more manual reset of currentPage here to avoid recursion, 
+    // it's handled in handleSearch/handleColumnFilter
 
     // Column Filters
     Object.entries(columnFilters).forEach(([colId, filter]) => {
@@ -190,6 +260,21 @@ export function PostedTransferView({ type }: PostedTransferViewProps) {
   const filteredData = getFilteredAndSortedData();
   const hasActiveFilters = searchQuery !== "" || Object.values(columnFilters).some(f => f.value || f.valueTo);
 
+  // Pagination calculations
+  const totalCount = filteredData.length;
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+  const hasNextPage = currentPage < totalPages;
+  const pagedData = filteredData.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
+
+  const handlePageSizeChange = (size: number) => {
+    setPageSize(size);
+    setCurrentPage(1);
+  };
+
   if (!filters) {
     return (
       <PostedTransferFilterForm
@@ -210,10 +295,6 @@ export function PostedTransferView({ type }: PostedTransferViewProps) {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button onClick={handleCreateOrder} size="sm">
-            <Plus className="mr-2 h-4 w-4" />
-            Add Order
-          </Button>
           <Button variant="outline" size="sm" onClick={() => fetchData(filters)} disabled={isLoading}>
             <RefreshCcw className={`mr-2 h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
             Refresh
@@ -227,18 +308,27 @@ export function PostedTransferView({ type }: PostedTransferViewProps) {
       
       <TableFilterBar 
         searchQuery={searchQuery}
-        onSearch={setSearchQuery}
+        onSearch={(q) => {
+          setSearchQuery(q);
+          setCurrentPage(1);
+        }}
         onClearFilters={() => {
           setSearchQuery("");
           setColumnFilters({});
+          setCurrentPage(1);
         }}
         hasActiveFilters={hasActiveFilters}
+        visibleColumns={visibleColumns}
+        onColumnToggle={handleColumnToggle}
+        onResetColumns={handleResetColumns}
+        onShowAllColumns={handleShowAllColumns}
       />
       
-      <div className="flex-1 overflow-hidden px-4 pb-4">
+      <div className="min-h-0 flex-1 overflow-hidden px-4 pb-2">
         <PostedTransferTable 
-          data={filteredData} 
+          data={pagedData} 
           isLoading={isLoading} 
+          visibleColumns={visibleColumns}
           onViewReport={type === "shipment" ? handlePreviewReport : undefined}
           activeReportId={activeReportDocNo}
           sortColumn={sortColumn}
@@ -246,13 +336,24 @@ export function PostedTransferView({ type }: PostedTransferViewProps) {
           onSort={handleSort}
           columnFilters={columnFilters}
           onColumnFilter={handleColumnFilter}
-          onRowClick={(id) => {
-             // Open detailed view tab if needed
-             // For now, just a toast as details are not implemented
-             toast.info(`${type} ${id} selected. Detailed view coming soon.`);
-          }}
+           onRowClick={(id) => {
+              // For now, just a toast as details are not implemented
+              toast.info(`${type} ${id} selected. Detailed view coming soon.`);
+           }}
+           onDownloadRecord={handleGetRecordLink}
+           onPrintRecord={handlePrintRecord}
         />
       </div>
+
+      <PostedTransferPaginationControls
+        pageSize={pageSize}
+        currentPage={currentPage}
+        totalPages={totalPages}
+        totalCount={totalCount}
+        hasNextPage={hasNextPage}
+        onPageSizeChange={handlePageSizeChange}
+        onPageChange={handlePageChange}
+      />
     </div>
   );
 }

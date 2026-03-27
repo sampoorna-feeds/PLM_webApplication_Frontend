@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { PostedTransferFilterForm, type PostedTransferFilters } from "./posted-transfer-filter-form";
 import { PostedTransferTable } from "./posted-transfer-table";
 import { TableFilterBar } from "./table-filter-bar";
+import { PostedTransferPaginationControls } from "./pagination-controls";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, RefreshCcw } from "lucide-react";
 import { type SortDirection } from "./column-config";
@@ -28,6 +29,10 @@ export function PostedTransferView({ type }: PostedTransferViewProps) {
   const [columnFilters, setColumnFilters] = useState<Record<string, { value: string; valueTo?: string }>>({});
   const [sortColumn, setSortColumn] = useState<string | null>("No");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
+
+  // Pagination states
+  const [pageSize, setPageSize] = useState(10);
+  const [currentPage, setCurrentPage] = useState(1);
 
   const title = type === "shipment" ? "Posted Transfer Shipment" : "Posted Transfer Receipt";
   const description = `Enter details to find posted transfer ${type}s.`;
@@ -67,6 +72,7 @@ export function PostedTransferView({ type }: PostedTransferViewProps) {
   useEffect(() => {
     if (filters) {
       fetchData(filters);
+      setCurrentPage(1);
     }
     // Cleanup URLs on unmount
     return () => {
@@ -126,6 +132,7 @@ export function PostedTransferView({ type }: PostedTransferViewProps) {
       ...prev,
       [columnId]: { value, valueTo }
     }));
+    setCurrentPage(1); // Reset to first page on filter change
   };
 
   const getFilteredAndSortedData = () => {
@@ -141,6 +148,8 @@ export function PostedTransferView({ type }: PostedTransferViewProps) {
         (item.Vehicle_No?.toLowerCase() || "").includes(q)
       );
     }
+    // No more manual reset of currentPage here to avoid recursion, 
+    // it's handled in handleSearch/handleColumnFilter
 
     // Column Filters
     Object.entries(columnFilters).forEach(([colId, filter]) => {
@@ -178,6 +187,21 @@ export function PostedTransferView({ type }: PostedTransferViewProps) {
   const filteredData = getFilteredAndSortedData();
   const hasActiveFilters = searchQuery !== "" || Object.values(columnFilters).some(f => f.value || f.valueTo);
 
+  // Pagination calculations
+  const totalCount = filteredData.length;
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+  const hasNextPage = currentPage < totalPages;
+  const pagedData = filteredData.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
+
+  const handlePageSizeChange = (size: number) => {
+    setPageSize(size);
+    setCurrentPage(1);
+  };
+
   if (!filters) {
     return (
       <PostedTransferFilterForm
@@ -211,17 +235,21 @@ export function PostedTransferView({ type }: PostedTransferViewProps) {
       
       <TableFilterBar 
         searchQuery={searchQuery}
-        onSearch={setSearchQuery}
+        onSearch={(q) => {
+          setSearchQuery(q);
+          setCurrentPage(1);
+        }}
         onClearFilters={() => {
           setSearchQuery("");
           setColumnFilters({});
+          setCurrentPage(1);
         }}
         hasActiveFilters={hasActiveFilters}
       />
       
-      <div className="flex-1 overflow-hidden px-4 pb-4">
+      <div className="min-h-0 flex-1 overflow-hidden px-4 pb-2">
         <PostedTransferTable 
-          data={filteredData} 
+          data={pagedData} 
           isLoading={isLoading} 
           onViewReport={type === "shipment" ? handlePreviewReport : undefined}
           activeReportId={activeReportDocNo}
@@ -237,6 +265,16 @@ export function PostedTransferView({ type }: PostedTransferViewProps) {
           }}
         />
       </div>
+
+      <PostedTransferPaginationControls
+        pageSize={pageSize}
+        currentPage={currentPage}
+        totalPages={totalPages}
+        totalCount={totalCount}
+        hasNextPage={hasNextPage}
+        onPageSizeChange={handlePageSizeChange}
+        onPageChange={handlePageChange}
+      />
     </div>
   );
 }

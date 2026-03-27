@@ -11,6 +11,16 @@ export interface PostItemChargeAssignmentPayload {
   assignmentType: string; // Purchase, Sale
 }
 
+export interface SuggestAssignmentPayload {
+  docNo: string;
+  lineNo: number;
+  totalQtyToAssign: number;
+  tTotalAmtToAssign: number;
+  totalQtyToHandle: number;
+  totalAmtToHandle: number;
+  selectionTxt: string; // Equally,By Amount,By Weight,By Volume
+}
+
 export interface ItemChargeAssignment {
 // ... existing fields ...
   "@odata.etag"?: string;
@@ -113,13 +123,9 @@ export const itemChargeAssignmentService = {
     return GET_TYPE_MAP[type];
   },
 
-  async suggestAssignment(params: {
-    docType: string;
-    docNo: string;
-    docLineNo: number;
-    itemChargeNo: string;
-  }): Promise<void> {
-    console.log("Suggesting assignments for:", params);
+  async suggestAssignment(payload: SuggestAssignmentPayload): Promise<void> {
+    const endpoint = `/API_SuggestAssgnmt?company='${encodeURIComponent(COMPANY)}'`;
+    await apiPost(endpoint, payload);
   },
 
   async deleteAssignment(assignment: ItemChargeAssignment): Promise<void> {

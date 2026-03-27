@@ -11,6 +11,7 @@ import {
   ArrowDown,
   ArrowUpDown,
   Filter,
+  Zap,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -52,6 +53,12 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Label } from "@/components/ui/label";
 
 const FIELD_INPUT_CLASS =
@@ -331,6 +338,33 @@ export function ItemChargeAssignmentDialog({
     }
   };
 
+  const handleSuggest = async (criteria: string) => {
+    try {
+      setLoading(true);
+      await itemChargeAssignmentService.suggestAssignment({
+        docNo,
+        lineNo: docLineNo,
+        totalQtyToAssign: totalQuantity,
+        tTotalAmtToAssign: totalAmount,
+        totalQtyToHandle: totalQuantity,
+        totalAmtToHandle: totalAmount,
+        selectionTxt: criteria,
+      });
+
+      toast.success(`Successfully suggested assignments by ${criteria}`);
+      await fetchAssignments();
+    } catch (error: any) {
+      console.error("Failed to suggest assignments:", error);
+      showError(
+        "Suggestion Failed",
+        "Failed to suggest assignments. Please try again or assign manually.",
+        error,
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Filtered and Sorted Lines
   const filteredAndSortedLines = useMemo(() => {
     let result = lines;
@@ -584,6 +618,46 @@ export function ItemChargeAssignmentDialog({
                 <ChevronLeft className="h-3 w-3" />
                 Get Return Shipment Lines
               </Button>
+
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="hover:bg-primary hover:text-primary-foreground border-primary/50 text-primary flex h-7 items-center gap-1.5 px-3 text-[10px] font-bold tracking-wider uppercase transition-all"
+                    disabled={loading}
+                  >
+                    <Zap className="h-3 w-3 fill-current" />
+                    Suggest Assignment
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-48">
+                  <DropdownMenuItem
+                    className="text-xs font-medium"
+                    onClick={() => handleSuggest("Equally")}
+                  >
+                    Equally
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    className="text-xs font-medium"
+                    onClick={() => handleSuggest("By Amount")}
+                  >
+                    By Amount
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    className="text-xs font-medium"
+                    onClick={() => handleSuggest("By Weight")}
+                  >
+                    By Weight
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    className="text-xs font-medium"
+                    onClick={() => handleSuggest("By Volume")}
+                  >
+                    By Volume
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
 
             <div className="relative w-full">
@@ -668,7 +742,7 @@ export function ItemChargeAssignmentDialog({
                               return (
                                 <TableRow
                                   key={uniqueKey}
-                                  className="group border-b border-border h-9 cursor-pointer transition-colors"
+                                  className="group border-border h-9 cursor-pointer border-b transition-colors"
                                   onClick={() => toggleSelectLine(line)}
                                 >
                                   <TableCell
@@ -683,7 +757,7 @@ export function ItemChargeAssignmentDialog({
                                       className="mr-3 rounded-none shadow-none"
                                     />
                                   </TableCell>
-                                  <TableCell className="px-3 py-0 text-[10px] text-center align-middle whitespace-nowrap">
+                                  <TableCell className="px-3 py-0 text-center align-middle text-[10px] whitespace-nowrap">
                                     {line.Applies_toDocType || "—"}
                                   </TableCell>
                                   <TableCell className="text-primary px-3 py-0 text-center align-middle text-xs tabular-nums">
@@ -973,9 +1047,8 @@ export function ItemChargeAssignmentDialog({
 
           <DialogFooter className="border-border bg-background shadow-top-lg flex items-center justify-end gap-2 border-t px-4 py-2">
             <Button
-              variant="outline"
-              size="sm"
-              className="border-border/50 text-muted-foreground hover:text-foreground h-8 px-6 text-xs font-bold tracking-widest uppercase"
+              variant={"destructive"}
+              className="border-destructive/50 border-3 px-6"
               onClick={() => onOpenChange(false)}
             >
               Close

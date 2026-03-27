@@ -60,6 +60,8 @@ export interface PostedTransferShipment {
   Posting_Date?: string;
   Vehicle_No?: string;
   External_Document_No?: string;
+  E_Way_Bill_No?: string;
+  E_Invoice_No?: string;
   [key: string]: unknown;
 }
 
@@ -72,6 +74,8 @@ export interface TransferReceipt {
   Posting_Date?: string;
   Vehicle_No?: string;
   External_Document_No?: string;
+  E_Way_Bill_No?: string;
+  E_Invoice_No?: string;
   [key: string]: unknown;
 }
 
@@ -1002,4 +1006,18 @@ export async function getTransferShipmentReport(shipmentNo: string): Promise<str
   if (typeof response === "string") return response;
   return response?.value || "";
 }
-
+/**
+ * Get download record link for E-way Bill or E-Invoice
+ */
+export async function getDownloadRecordLink(params: { documentType: string; documentNo: string }): Promise<string> {
+  const encodedCompany = encodeURIComponent(COMPANY);
+  const endpoint = `/API_DownloadRecordLink?company='${encodedCompany}'`;
+  try {
+    const response = await apiPost<{ value: string } | string>(endpoint, params);
+    if (typeof response === "string") return response;
+    return response?.value || "";
+  } catch (error) {
+    console.error("Error fetching record link:", error);
+    throw error;
+  }
+}

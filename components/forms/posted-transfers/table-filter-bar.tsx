@@ -5,11 +5,17 @@ import { Search, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
+import { PostedTransferColumnVisibility } from "./column-visibility";
+
 interface TableFilterBarProps {
   searchQuery: string;
   onSearch: (query: string) => void;
   onClearFilters: () => void;
   hasActiveFilters: boolean;
+  visibleColumns: string[];
+  onColumnToggle: (columnId: string) => void;
+  onResetColumns: () => void;
+  onShowAllColumns: () => void;
 }
 
 export function TableFilterBar({
@@ -17,6 +23,10 @@ export function TableFilterBar({
   onSearch,
   onClearFilters,
   hasActiveFilters,
+  visibleColumns,
+  onColumnToggle,
+  onResetColumns,
+  onShowAllColumns,
 }: TableFilterBarProps) {
   const [localSearch, setLocalSearch] = useState(searchQuery);
 
@@ -56,6 +66,8 @@ export function TableFilterBar({
         )}
       </div>
 
+      <div className="flex-1" />
+
       {hasActiveFilters && (
         <Button
           variant="ghost"
@@ -67,6 +79,13 @@ export function TableFilterBar({
           Reset All Filters
         </Button>
       )}
+
+      <PostedTransferColumnVisibility
+        visibleColumns={visibleColumns}
+        onColumnToggle={onColumnToggle}
+        onResetColumns={onResetColumns}
+        onShowAllColumns={onShowAllColumns}
+      />
     </div>
   );
 }

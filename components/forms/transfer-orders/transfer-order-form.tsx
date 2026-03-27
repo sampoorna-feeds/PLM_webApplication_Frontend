@@ -1514,7 +1514,7 @@ export function TransferOrderForm({
       <Dialog open={isReportDialogOpen} onOpenChange={setIsReportDialogOpen}>
         <DialogContent className={cn(
           "transition-[max-width] duration-300 rounded-3xl border-border bg-background",
-          reportShipments.length > 0 ? "sm:max-w-4xl" : "sm:max-w-md"
+          reportShipments.length > 0 ? "sm:max-w-[95vw] lg:max-w-6xl" : "sm:max-w-md"
         )}>
           <DialogHeader>
             <DialogTitle className="text-xl font-bold tracking-tight">Shipment Report</DialogTitle>
@@ -1532,7 +1532,7 @@ export function TransferOrderForm({
             )}
 
             {reportShipments.length > 0 && (
-              <div className="animate-in fade-in slide-in-from-bottom-2 overflow-hidden rounded-2xl border border-border bg-muted/10 duration-500">
+              <div className="animate-in fade-in slide-in-from-bottom-2 overflow-x-auto rounded-2xl border border-border bg-muted/10 duration-500">
                 <Table>
                   <TableHeader className="bg-muted">
                     <TableRow className="border-border">
@@ -1548,11 +1548,11 @@ export function TransferOrderForm({
                     {reportShipments.map((s) => (
                       <TableRow key={s.No} className="border-border transition-colors hover:bg-muted">
                         <TableCell className="text-xs font-bold text-foreground">{s.No}</TableCell>
-                        <TableCell className="text-xs text-muted-foreground">
+                        <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
                           {s.Posting_Date ? new Date(s.Posting_Date).toLocaleDateString() : "false"}
                         </TableCell>
                         <TableCell className="text-xs text-muted-foreground whitespace-nowrap">{s.Vehicle_No || "false"}</TableCell>
-                        <TableCell className="text-xs text-muted-foreground">
+                        <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
                           <div className="flex items-center gap-2">
                              <span>{s.E_Way_Bill_No || "false"}</span>
                              {s.No && (
@@ -1579,7 +1579,7 @@ export function TransferOrderForm({
                              )}
                           </div>
                         </TableCell>
-                        <TableCell className="text-xs text-muted-foreground">
+                        <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
                            <div className="flex items-center gap-2">
                              <span>{s.E_Invoice_No || "false"}</span>
                              {s.No && (

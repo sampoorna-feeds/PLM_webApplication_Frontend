@@ -10,6 +10,7 @@ import { ColumnFilter } from "./column-filter";
 interface PostedTransferTableProps {
   data: any[];
   isLoading: boolean;
+  visibleColumns?: string[];
   onRowClick?: (id: string) => void;
   onViewReport?: (id: string) => void;
   activeReportId?: string | null;
@@ -23,6 +24,7 @@ interface PostedTransferTableProps {
 export function PostedTransferTable({ 
   data, 
   isLoading, 
+  visibleColumns,
   onRowClick, 
   onViewReport, 
   activeReportId,
@@ -32,7 +34,10 @@ export function PostedTransferTable({
   columnFilters = {},
   onColumnFilter
 }: PostedTransferTableProps) {
-  const columns = POSTED_TRANSFER_COLUMNS;
+  const columns = visibleColumns 
+    ? POSTED_TRANSFER_COLUMNS.filter(col => visibleColumns.includes(col.id))
+    : POSTED_TRANSFER_COLUMNS.filter(col => col.defaultVisible);
+
   return (
     <div className="bg-card flex h-full flex-1 flex-col overflow-hidden rounded-lg border shadow-sm">
       <div className="flex-1 overflow-auto">
@@ -84,8 +89,8 @@ export function PostedTransferTable({
               Array.from({ length: 5 }).map((_, i) => (
                 <tr key={i} className="border-b">
                   <td className="p-3 text-center"><Skeleton className="h-4 w-4 mx-auto" /></td>
-                  {columns.map(col => (
-                    <td key={col.id} className="p-3"><Skeleton className="h-4 w-full" /></td>
+                  {(onViewReport ? Array.from({ length: columns.length + 1 }) : Array.from({ length: columns.length })).map((_, idx) => (
+                    <td key={idx} className="p-3"><Skeleton className="h-4 w-full" /></td>
                   ))}
                 </tr>
               ))

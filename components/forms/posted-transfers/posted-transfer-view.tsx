@@ -7,7 +7,7 @@ import { TableFilterBar } from "./table-filter-bar";
 import { PostedTransferPaginationControls } from "./pagination-controls";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, RefreshCcw } from "lucide-react";
-import { type SortDirection } from "./column-config";
+import { type SortDirection, loadVisibleColumns, saveVisibleColumns, getDefaultVisibleColumns, POSTED_TRANSFER_COLUMNS } from "./column-config";
 import { getPostedTransferShipments, getTransferReceipts, getTransferShipmentReport } from "@/lib/api/services/transfer-orders.service";
 import { toast } from "sonner";
 import { useFormStackContext } from "@/lib/form-stack/form-stack-context";
@@ -33,6 +33,11 @@ export function PostedTransferView({ type }: PostedTransferViewProps) {
   // Pagination states
   const [pageSize, setPageSize] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
+
+  // Column Visibility state
+  const [visibleColumns, setVisibleColumns] = useState<string[]>(() => 
+    typeof window !== "undefined" ? loadVisibleColumns() : getDefaultVisibleColumns()
+  );
 
   const title = type === "shipment" ? "Posted Transfer Shipment" : "Posted Transfer Receipt";
   const description = `Enter details to find posted transfer ${type}s.`;
@@ -133,6 +138,28 @@ export function PostedTransferView({ type }: PostedTransferViewProps) {
       [columnId]: { value, valueTo }
     }));
     setCurrentPage(1); // Reset to first page on filter change
+  };
+
+  const handleColumnToggle = (columnId: string) => {
+    setVisibleColumns(prev => {
+      const newColumns = prev.includes(columnId)
+        ? prev.filter(id => id !== columnId)
+        : [...prev, columnId];
+      saveVisibleColumns(newColumns);
+      return newColumns;
+    });
+  };
+
+  const handleResetColumns = () => {
+    const defaults = getDefaultVisibleColumns();
+    setVisibleColumns(defaults);
+    saveVisibleColumns(defaults);
+  };
+
+  const handleShowAllColumns = () => {
+    const allColumnIds = POSTED_TRANSFER_COLUMNS.map(c => c.id);
+    setVisibleColumns(allColumnIds);
+    saveVisibleColumns(allColumnIds);
   };
 
   const getFilteredAndSortedData = () => {
@@ -245,12 +272,17 @@ export function PostedTransferView({ type }: PostedTransferViewProps) {
           setCurrentPage(1);
         }}
         hasActiveFilters={hasActiveFilters}
+        visibleColumns={visibleColumns}
+        onColumnToggle={handleColumnToggle}
+        onResetColumns={handleResetColumns}
+        onShowAllColumns={handleShowAllColumns}
       />
       
       <div className="min-h-0 flex-1 overflow-hidden px-4 pb-2">
         <PostedTransferTable 
           data={pagedData} 
           isLoading={isLoading} 
+          visibleColumns={visibleColumns}
           onViewReport={type === "shipment" ? handlePreviewReport : undefined}
           activeReportId={activeReportDocNo}
           sortColumn={sortColumn}

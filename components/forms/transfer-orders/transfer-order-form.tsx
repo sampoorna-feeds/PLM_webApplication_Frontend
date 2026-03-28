@@ -23,6 +23,7 @@ import {
   getTransferAllLocationCodes,
   getTransferLocationCodes,
   getPostedTransferShipmentsByOrder,
+  getPostedTransferReceiptsByOrder,
   getTransferShipmentReport,
   getDownloadRecordLink,
   type PostedTransferShipment,
@@ -147,6 +148,8 @@ export function TransferOrderForm({
   const [isReportLoading, setIsReportLoading] = useState(false);
   const [activeReportDocNo, setActiveReportDocNo] = useState<string | null>(null);
   const [reportPdfUrls, setReportPdfUrls] = useState<Record<string, string>>({});
+  const [reportType, setReportType] = useState<"shipment" | "receipt">("shipment");
+  const [reportDocuments, setReportDocuments] = useState<any[]>([]);
 
   // Success Dialog State
   const [successDialogOpen, setSuccessDialogOpen] = useState(false);
@@ -639,27 +642,30 @@ export function TransferOrderForm({
     }
   };
 
-  const handleOpenReportDialog = () => {
+  const handleOpenReportDialog = (type: "shipment" | "receipt" = "shipment") => {
+    setReportType(type);
     setIsReportDialogOpen(true);
-    setReportShipments([]);
-    // Automatically load shipments when the dialog opens
-    loadReportShipments(formState.No);
+    setReportDocuments([]);
+    // Automatically load data when the dialog opens
+    loadReportData(formState.No, type);
   };
 
-  const loadReportShipments = async (orderNo?: string) => {
+  const loadReportData = async (orderNo?: string, type: "shipment" | "receipt" = "shipment") => {
     const targetNo = orderNo || formState.No;
     if (!targetNo) return;
     
     setIsReportLoading(true);
     try {
-      // Removing the date filter, directly fetching by order number
-      const shipments = await getPostedTransferShipmentsByOrder(targetNo);
-      setReportShipments(shipments || []);
-      if (shipments.length === 0) {
-        toast.info("No shipments found for this order.");
+      const docs = type === "shipment" 
+        ? await getPostedTransferShipmentsByOrder(targetNo)
+        : await getPostedTransferReceiptsByOrder(targetNo);
+      
+      setReportDocuments(docs || []);
+      if (docs.length === 0) {
+        toast.info(`No ${type}s found for this order.`);
       }
     } catch (err: any) {
-      toast.error(err.message || "Failed to load shipments");
+      toast.error(err.message || `Failed to load ${type}s`);
     } finally {
       setIsReportLoading(false);
     }
@@ -823,12 +829,12 @@ export function TransferOrderForm({
 
                 {formState.No && (
                   <Button
-                    onClick={handleOpenReportDialog}
+                    onClick={() => handleOpenReportDialog("shipment")}
                     variant="outline"
                     size="sm"
                     className="border-primary text-primary hover:bg-primary/10 font-bold transition-all hover:scale-105 active:scale-95"
                   >
-                    View Shipment Report
+                    Shipment Reports
                   </Button>
                 )}
                 {(formState.Status === "Released" || formState.Status === "Open") && formState.No && (
@@ -1533,24 +1539,26 @@ export function TransferOrderForm({
       <Dialog open={isReportDialogOpen} onOpenChange={setIsReportDialogOpen}>
         <DialogContent className={cn(
           "transition-[max-width] duration-300 rounded-3xl border-border bg-background",
-          reportShipments.length > 0 ? "sm:max-w-[95vw] lg:max-w-6xl" : "sm:max-w-md"
+          reportDocuments.length > 0 ? "sm:max-w-[95vw] lg:max-w-6xl" : "sm:max-w-md"
         )}>
           <DialogHeader>
-            <DialogTitle className="text-xl font-bold tracking-tight">Shipment Report</DialogTitle>
+            <DialogTitle className="text-xl font-bold tracking-tight">
+              {reportType === "shipment" ? "Shipment" : "Receipt"} Reports
+            </DialogTitle>
             <DialogDescription className="text-muted-foreground">
-              Directly viewing all shipments for Transfer Order {formState.No}.
+              Directly viewing all {reportType}s for Transfer Order {formState.No}.
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-6 pt-4">
-            {isReportLoading && reportShipments.length === 0 && (
+            {isReportLoading && reportDocuments.length === 0 && (
               <div className="flex flex-col items-center justify-center py-12 space-y-4">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                <p className="text-sm text-muted-foreground animate-pulse">Searching for shipments...</p>
+                <p className="text-sm text-muted-foreground animate-pulse">Searching for {reportType}s...</p>
               </div>
             )}
 
-            {reportShipments.length > 0 && (
+            {reportDocuments.length > 0 && (
               <div className="animate-in fade-in slide-in-from-bottom-2 overflow-x-auto rounded-2xl border border-border bg-muted/10 duration-500">
                 <Table>
                   <TableHeader className="bg-muted">
@@ -1558,25 +1566,33 @@ export function TransferOrderForm({
                       <TableHead className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">No.</TableHead>
                       <TableHead className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground whitespace-nowrap">Posting Date</TableHead>
                       <TableHead className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground whitespace-nowrap">Vehicle No.</TableHead>
-                      <TableHead className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground whitespace-nowrap">E-way Bill</TableHead>
-                      <TableHead className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground whitespace-nowrap">E-Invoice</TableHead>
+                      {reportType === "shipment" && (
+                        <>
+                          <TableHead className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground whitespace-nowrap">E-way Bill</TableHead>
+                          <TableHead className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground whitespace-nowrap">E-Invoice</TableHead>
+                        </>
+                      )}
                       <TableHead className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {reportShipments.map((s) => (
+                    {reportDocuments.map((s) => (
                       <TableRow key={s.No} className="border-border transition-colors hover:bg-muted">
                         <TableCell className="text-xs font-bold text-foreground">{s.No}</TableCell>
                         <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
                           {s.Posting_Date ? new Date(s.Posting_Date).toLocaleDateString() : "false"}
                         </TableCell>
                         <TableCell className="text-xs text-muted-foreground whitespace-nowrap">{s.Vehicle_No || "false"}</TableCell>
-                        <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
-                          {s.E_Way_Bill_No || "false"}
-                        </TableCell>
-                        <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
-                           {s.E_Invoice_No || "false"}
-                        </TableCell>
+                        {reportType === "shipment" && (
+                          <>
+                            <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                              {s.E_Way_Bill_No || "false"}
+                            </TableCell>
+                            <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                               {s.E_Invoice_No || "false"}
+                            </TableCell>
+                          </>
+                        )}
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-2">
                             <Button
@@ -1593,16 +1609,18 @@ export function TransferOrderForm({
                               )}
                               <span className="ml-2 hidden sm:inline">View</span>
                             </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="h-8 border-primary/30 text-primary hover:bg-primary/5 rounded-lg transition-all active:scale-95"
-                              onClick={() => handlePrintRecord("Transfer", s.No, "E-way Bill")}
-                              disabled={activeReportDocNo === s.No}
-                            >
-                              <Printer className="h-3.5 w-3.5" />
-                              <span className="ml-2 hidden sm:inline">Print E-way Bill</span>
-                            </Button>
+                            {reportType === "shipment" && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-8 border-primary/30 text-primary hover:bg-primary/5 rounded-lg transition-all active:scale-95"
+                                onClick={() => handlePrintRecord("Transfer", s.No, "E-way Bill")}
+                                disabled={activeReportDocNo === s.No}
+                              >
+                                <Printer className="h-3.5 w-3.5" />
+                                <span className="ml-2 hidden sm:inline">Print E-way Bill</span>
+                              </Button>
+                            )}
                             <Button
                               variant="outline"
                               size="sm"

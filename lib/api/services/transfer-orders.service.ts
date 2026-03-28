@@ -927,6 +927,21 @@ export async function getPostedTransferShipmentsByOrder(orderNo: string, posting
 }
 
 /**
+ * Get posted transfer receipts by order number
+ */
+export async function getPostedTransferReceiptsByOrder(orderNo: string, postingDate?: string): Promise<TransferReceipt[]> {
+  const escaped = orderNo.replace(/'/g, "''");
+  let filter = `Transfer_Order_No eq '${escaped}'`;
+  if (postingDate) {
+    filter += ` and Posting_Date eq ${postingDate}`;
+  }
+  const query = buildODataQuery({ $filter: filter });
+  const endpoint = `/TransferReceipt?company='${encodeURIComponent(COMPANY)}'&${query}`;
+  const response = await apiGet<ODataResponse<TransferReceipt>>(endpoint);
+  return response.value || [];
+}
+
+/**
  * Get posted transfer receipts with count
  */
 export async function getTransferReceipts(params: GetTransferOrdersParams = {}): Promise<{ orders: TransferReceipt[], totalCount: number }> {

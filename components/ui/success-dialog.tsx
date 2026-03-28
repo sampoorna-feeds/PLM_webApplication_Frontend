@@ -1,13 +1,8 @@
 "use client";
 
-import React from "react";
-import {
-  Dialog,
-  DialogContent,
-} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { CheckCircle2 } from "lucide-react";
-import { cn } from "@/lib/utils";
 
 export interface SuccessDialogProps {
   open: boolean;
@@ -31,27 +26,27 @@ export function SuccessDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px] border-none bg-transparent shadow-none p-0 flex flex-col items-center justify-center pointer-events-none">
-        <div className="bg-background/95 backdrop-blur-md border border-green-500/20 shadow-[0_0_50px_-12px_rgba(34,197,94,0.3)] p-12 rounded-[2.5rem] flex flex-col items-center text-center space-y-8 animate-in zoom-in-95 duration-300 pointer-events-auto w-full">
+      <DialogContent className="pointer-events-none flex flex-col items-center justify-center border-none bg-transparent p-0 shadow-none sm:max-w-[500px]">
+        <div className="bg-background/95 animate-in zoom-in-95 pointer-events-auto flex w-full flex-col items-center space-y-8 rounded-[2.5rem] border border-green-500/20 p-12 text-center shadow-[0_0_50px_-12px_rgba(34,197,94,0.3)] backdrop-blur-md duration-300">
           <div className="relative">
-            <div className="absolute inset-0 bg-green-500/20 blur-3xl rounded-full animate-pulse" />
-            <div className="relative bg-green-500/10 p-6 rounded-full border border-green-500/20">
-              <CheckCircle2 className="h-16 w-16 text-green-500 stroke-[1.5px]" />
+            <div className="absolute inset-0 animate-pulse rounded-full bg-green-500/20 blur-3xl" />
+            <div className="relative rounded-full border border-green-500/20 bg-green-500/10 p-6">
+              <CheckCircle2 className="h-16 w-16 stroke-[1.5px] text-green-500" />
             </div>
           </div>
-          
+
           <div className="space-y-3">
-            <h2 className="text-4xl font-black tracking-tight text-foreground bg-linear-to-br from-foreground to-foreground/70 bg-clip-text">
+            <h2 className="text-foreground from-foreground to-foreground/70 bg-linear-to-br bg-clip-text text-4xl font-black tracking-tight">
               {title}
             </h2>
-            <p className="text-lg text-muted-foreground font-medium max-w-[320px] mx-auto leading-relaxed">
+            <p className="text-muted-foreground mx-auto max-w-[320px] text-lg leading-relaxed font-medium">
               {message}
             </p>
           </div>
 
-          <Button 
+          <Button
             onClick={handleClose}
-            className="w-full h-14 bg-green-600 hover:bg-green-700 text-white text-lg font-bold rounded-2xl transition-all active:scale-95 shadow-lg shadow-green-900/20 hover:shadow-green-900/30"
+            className="h-14 w-full rounded-2xl bg-green-600 text-lg font-bold text-white shadow-lg shadow-green-900/20 transition-all hover:bg-green-700 hover:shadow-green-900/30 active:scale-95"
           >
             Great!
           </Button>

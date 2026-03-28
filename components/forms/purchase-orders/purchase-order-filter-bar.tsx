@@ -22,8 +22,8 @@ interface PurchaseOrderFilterBarProps {
   onShowAllColumns: () => void;
   onAddAdditionalFilter: (filter: FilterCondition) => void;
   onRemoveAdditionalFilter: (index: number) => void;
-  poType: string;
-  onPoTypeChange: (value: string) => void;
+  poType?: string;
+  onPoTypeChange?: (value: string) => void;
   children?: React.ReactNode;
 }
 
@@ -111,23 +111,25 @@ export function PurchaseOrderFilterBar({
           </Button>
         )}
 
-        <Tabs
-          value={poType}
-          onValueChange={onPoTypeChange}
-          className="h-9 items-center"
-        >
-          <TabsList className="h-9">
-            <TabsTrigger value="Both" className="h-8 px-3">
-              Both
-            </TabsTrigger>
-            <TabsTrigger value="Service" className="h-8 px-3">
-              Service
-            </TabsTrigger>
-            <TabsTrigger value="Goods" className="h-8 px-3">
-              Goods
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
+        {poType !== undefined && onPoTypeChange && (
+          <Tabs
+            value={poType}
+            onValueChange={onPoTypeChange}
+            className="h-9 items-center"
+          >
+            <TabsList className="h-9">
+              <TabsTrigger value="Both" className="h-8 px-3">
+                Both
+              </TabsTrigger>
+              <TabsTrigger value="Service" className="h-8 px-3">
+                Service
+              </TabsTrigger>
+              <TabsTrigger value="Goods" className="h-8 px-3">
+                Goods
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+        )}
 
         <PurchaseOrderColumnVisibility
           visibleColumns={visibleColumns}

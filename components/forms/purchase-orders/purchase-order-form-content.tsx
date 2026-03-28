@@ -1637,7 +1637,7 @@ export function PurchaseOrderFormContent({
         >
           {/* 1. Core Order Info */}
           <AccordionItem value="core" className="border-none">
-            <AccordionTrigger className="py-0 hover:no-underline [&>svg]:size-4">
+            <AccordionTrigger className="data-[state=open]:border-b data-[state=open]:border-b-border data-[state=open]:pb-2 py-0 hover:no-underline [&>svg]:size-4">
               <h3 className="px-2 py-1 text-left text-[10px] font-bold tracking-wider uppercase">
                 Core Information
               </h3>
@@ -1883,7 +1883,7 @@ export function PurchaseOrderFormContent({
 
           {/* 2. Vendor, Broker & Address */}
           <AccordionItem value="party" className="border-none">
-            <AccordionTrigger className="py-0 hover:no-underline [&>svg]:size-4">
+            <AccordionTrigger className="data-[state=open]:border-b data-[state=open]:border-b-border data-[state=open]:pb-2 py-0 hover:no-underline [&>svg]:size-4">
               <h3 className="px-2 py-1 text-left text-[10px] font-bold tracking-wider uppercase">
                 Party Details
               </h3>
@@ -2043,7 +2043,7 @@ export function PurchaseOrderFormContent({
 
           {/* 3. Dates & Configurations */}
           <AccordionItem value="dates" className="border-none">
-            <AccordionTrigger className="py-0 hover:no-underline [&>svg]:size-4">
+            <AccordionTrigger className="data-[state=open]:border-b data-[state=open]:border-b-border data-[state=open]:pb-2 py-0 hover:no-underline [&>svg]:size-4">
               <h3 className="px-2 py-1 text-left text-[10px] font-bold tracking-wider uppercase">
                 Dates & Settings
               </h3>

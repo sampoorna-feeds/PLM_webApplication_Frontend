@@ -64,6 +64,7 @@ import { TransferOrderLineDialog } from "./transfer-order-line-dialog";
 import { TransferOrderLinesTable } from "./transfer-order-lines-table";
 import { TransferOrderLineDetailsDialog } from "./transfer-order-line-details-dialog";
 import { DateInput } from "@/components/ui/date-input";
+import { SuccessDialog } from "@/components/ui/success-dialog";
 
 interface TransferOrderFormProps {
   tabId: string;
@@ -146,6 +147,10 @@ export function TransferOrderForm({
   const [isReportLoading, setIsReportLoading] = useState(false);
   const [activeReportDocNo, setActiveReportDocNo] = useState<string | null>(null);
   const [reportPdfUrls, setReportPdfUrls] = useState<Record<string, string>>({});
+
+  // Success Dialog State
+  const [successDialogOpen, setSuccessDialogOpen] = useState(false);
+  const [successInfo, setSuccessInfo] = useState({ title: "", message: "" });
 
   // Debug: Monitor locations state changes
   useEffect(() => {
@@ -446,7 +451,11 @@ export function TransferOrderForm({
       console.log("Creating transfer order header with payload:", payload);
 
       const response = await createTransferOrder(payload);
-      toast.success(`Transfer Order ${response.No} created successfully`);
+      setSuccessInfo({
+        title: "Order Created!",
+        message: `Transfer Order ${response.No} has been created successfully.`
+      });
+      setSuccessDialogOpen(true);
 
       // Update local state to newly created order
       setFormState(response);
@@ -513,7 +522,11 @@ export function TransferOrderForm({
     setIsSubmitting(true);
     try {
       await patchTransferOrder(formState.No, diff);
-      toast.success("Transfer Order updated");
+      setSuccessInfo({
+        title: "Header Updated",
+        message: `Order ${formState.No} has been updated successfully.`
+      });
+      setSuccessDialogOpen(true);
       updateTab({ isSaved: true });
       fetchOrderData(formState.No);
     } catch (error: any) {
@@ -543,46 +556,52 @@ export function TransferOrderForm({
 
     setIsSubmitting(true);
     try {
-    // First, save any header changes before posting
-    const allowedToUpdate = [
-      "Transporter_Code",
-      "Transporter_Name",
-      "External_Document_No",
-      "Posting_Date",
-      "Vehicle_No",
-      "LR_RR_No",
-      "LR_RR_Date",
-      "Distance_Km",
-      "Freight_Value",
-      "Mode_of_Transport",
-    ];
+      // First, save any header changes before posting
+      const allowedToUpdate = [
+        "Transporter_Code",
+        "Transporter_Name",
+        "External_Document_No",
+        "Posting_Date",
+        "Vehicle_No",
+        "LR_RR_No",
+        "LR_RR_Date",
+        "Distance_Km",
+        "Freight_Value",
+        "Mode_of_Transport",
+      ];
 
-    const diff: Partial<TransferOrder> = {};
-    allowedToUpdate.forEach((k) => {
-      const key = k as keyof TransferOrder;
-      if (formState[key] !== originalState[key]) {
-        (diff as any)[key] = formState[key] || (typeof formState[key] === 'number' ? 0 : "");
+      const diff: Partial<TransferOrder> = {};
+      allowedToUpdate.forEach((k) => {
+        const key = k as keyof TransferOrder;
+        if (formState[key] !== originalState[key]) {
+          (diff as any)[key] = formState[key] || (typeof formState[key] === 'number' ? 0 : "");
+        }
+      });
+
+      let isHeaderUpdated = false;
+      if (Object.keys(diff).length > 0) {
+        await patchTransferOrder(formState.No, diff);
+        console.log("Header updated before posting:", diff);
+        isHeaderUpdated = true;
       }
-    });
 
+      await postTransferOrder({
+        docNo: formState.No,
+        postShipment: postSelection === "ship" ? "True" : "False",
+        postReceipt: postSelection === "receive" ? "True" : "False",
+      });
 
-    if (Object.keys(diff).length > 0) {
-      await patchTransferOrder(formState.No, diff);
-      console.log("Header updated before posting:", diff);
-    }
-
-    await postTransferOrder({
-      docNo: formState.No,
-      postShipment: postSelection === "ship" ? "True" : "False",
-      postReceipt: postSelection === "receive" ? "True" : "False",
-    });
-
-    toast.success("Transfer Order posted successfully");
-    setIsPostDialogOpen(false);
-    handleSuccess();
-  } catch (error: any) {
-    console.error("Error posting transfer order:", error);
-    toast.error(error.message || "Failed to post transfer order");
+      setSuccessInfo({
+        title: isHeaderUpdated ? "Header Updated & Order Posted!" : "Order Posted Successfully!",
+        message: isHeaderUpdated 
+          ? `Changes were saved and Order ${formState.No} has been posted.`
+          : `Transfer Order ${formState.No} has been posted successfully.`
+      });
+      setSuccessDialogOpen(true);
+      setIsPostDialogOpen(false);
+    } catch (error: any) {
+      console.error("Error posting transfer order:", error);
+      toast.error(error.message || "Failed to post transfer order");
     } finally {
       setIsSubmitting(false);
     }
@@ -1662,6 +1681,19 @@ export function TransferOrderForm({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <SuccessDialog 
+        open={successDialogOpen}
+        onOpenChange={setSuccessDialogOpen}
+        title={successInfo.title}
+        message={successInfo.message}
+        onClose={() => {
+          // If we just posted, we might want to trigger the original handleSuccess
+          if (successInfo.title === "Order Posted!") {
+            handleSuccess();
+          }
+        }}
+      />
     </div>
   );
 }

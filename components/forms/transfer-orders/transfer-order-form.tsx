@@ -23,6 +23,7 @@ import {
   getTransferAllLocationCodes,
   getTransferLocationCodes,
   getPostedTransferShipmentsByOrder,
+  getPostedTransferReceiptsByOrder,
   getTransferShipmentReport,
   getDownloadRecordLink,
   type PostedTransferShipment,
@@ -64,6 +65,7 @@ import { TransferOrderLineDialog } from "./transfer-order-line-dialog";
 import { TransferOrderLinesTable } from "./transfer-order-lines-table";
 import { TransferOrderLineDetailsDialog } from "./transfer-order-line-details-dialog";
 import { DateInput } from "@/components/ui/date-input";
+import { SuccessDialog } from "@/components/ui/success-dialog";
 
 interface TransferOrderFormProps {
   tabId: string;
@@ -146,6 +148,12 @@ export function TransferOrderForm({
   const [isReportLoading, setIsReportLoading] = useState(false);
   const [activeReportDocNo, setActiveReportDocNo] = useState<string | null>(null);
   const [reportPdfUrls, setReportPdfUrls] = useState<Record<string, string>>({});
+  const [reportType, setReportType] = useState<"shipment" | "receipt">("shipment");
+  const [reportDocuments, setReportDocuments] = useState<any[]>([]);
+
+  // Success Dialog State
+  const [successDialogOpen, setSuccessDialogOpen] = useState(false);
+  const [successInfo, setSuccessInfo] = useState({ title: "", message: "" });
 
   // Debug: Monitor locations state changes
   useEffect(() => {
@@ -446,7 +454,11 @@ export function TransferOrderForm({
       console.log("Creating transfer order header with payload:", payload);
 
       const response = await createTransferOrder(payload);
-      toast.success(`Transfer Order ${response.No} created successfully`);
+      setSuccessInfo({
+        title: "Order Created!",
+        message: `Transfer Order ${response.No} has been created successfully.`
+      });
+      setSuccessDialogOpen(true);
 
       // Update local state to newly created order
       setFormState(response);
@@ -513,7 +525,11 @@ export function TransferOrderForm({
     setIsSubmitting(true);
     try {
       await patchTransferOrder(formState.No, diff);
-      toast.success("Transfer Order updated");
+      setSuccessInfo({
+        title: "Header Updated",
+        message: `Order ${formState.No} has been updated successfully.`
+      });
+      setSuccessDialogOpen(true);
       updateTab({ isSaved: true });
       fetchOrderData(formState.No);
     } catch (error: any) {
@@ -543,46 +559,52 @@ export function TransferOrderForm({
 
     setIsSubmitting(true);
     try {
-    // First, save any header changes before posting
-    const allowedToUpdate = [
-      "Transporter_Code",
-      "Transporter_Name",
-      "External_Document_No",
-      "Posting_Date",
-      "Vehicle_No",
-      "LR_RR_No",
-      "LR_RR_Date",
-      "Distance_Km",
-      "Freight_Value",
-      "Mode_of_Transport",
-    ];
+      // First, save any header changes before posting
+      const allowedToUpdate = [
+        "Transporter_Code",
+        "Transporter_Name",
+        "External_Document_No",
+        "Posting_Date",
+        "Vehicle_No",
+        "LR_RR_No",
+        "LR_RR_Date",
+        "Distance_Km",
+        "Freight_Value",
+        "Mode_of_Transport",
+      ];
 
-    const diff: Partial<TransferOrder> = {};
-    allowedToUpdate.forEach((k) => {
-      const key = k as keyof TransferOrder;
-      if (formState[key] !== originalState[key]) {
-        (diff as any)[key] = formState[key] || (typeof formState[key] === 'number' ? 0 : "");
+      const diff: Partial<TransferOrder> = {};
+      allowedToUpdate.forEach((k) => {
+        const key = k as keyof TransferOrder;
+        if (formState[key] !== originalState[key]) {
+          (diff as any)[key] = formState[key] || (typeof formState[key] === 'number' ? 0 : "");
+        }
+      });
+
+      let isHeaderUpdated = false;
+      if (Object.keys(diff).length > 0) {
+        await patchTransferOrder(formState.No, diff);
+        console.log("Header updated before posting:", diff);
+        isHeaderUpdated = true;
       }
-    });
 
+      await postTransferOrder({
+        docNo: formState.No,
+        postShipment: postSelection === "ship" ? "True" : "False",
+        postReceipt: postSelection === "receive" ? "True" : "False",
+      });
 
-    if (Object.keys(diff).length > 0) {
-      await patchTransferOrder(formState.No, diff);
-      console.log("Header updated before posting:", diff);
-    }
-
-    await postTransferOrder({
-      docNo: formState.No,
-      postShipment: postSelection === "ship" ? "True" : "False",
-      postReceipt: postSelection === "receive" ? "True" : "False",
-    });
-
-    toast.success("Transfer Order posted successfully");
-    setIsPostDialogOpen(false);
-    handleSuccess();
-  } catch (error: any) {
-    console.error("Error posting transfer order:", error);
-    toast.error(error.message || "Failed to post transfer order");
+      setSuccessInfo({
+        title: isHeaderUpdated ? "Header Updated & Order Posted!" : "Order Posted Successfully!",
+        message: isHeaderUpdated 
+          ? `Changes were saved and Order ${formState.No} has been posted.`
+          : `Transfer Order ${formState.No} has been posted successfully.`
+      });
+      setSuccessDialogOpen(true);
+      setIsPostDialogOpen(false);
+    } catch (error: any) {
+      console.error("Error posting transfer order:", error);
+      toast.error(error.message || "Failed to post transfer order");
     } finally {
       setIsSubmitting(false);
     }
@@ -620,27 +642,30 @@ export function TransferOrderForm({
     }
   };
 
-  const handleOpenReportDialog = () => {
+  const handleOpenReportDialog = (type: "shipment" | "receipt" = "shipment") => {
+    setReportType(type);
     setIsReportDialogOpen(true);
-    setReportShipments([]);
-    // Automatically load shipments when the dialog opens
-    loadReportShipments(formState.No);
+    setReportDocuments([]);
+    // Automatically load data when the dialog opens
+    loadReportData(formState.No, type);
   };
 
-  const loadReportShipments = async (orderNo?: string) => {
+  const loadReportData = async (orderNo?: string, type: "shipment" | "receipt" = "shipment") => {
     const targetNo = orderNo || formState.No;
     if (!targetNo) return;
     
     setIsReportLoading(true);
     try {
-      // Removing the date filter, directly fetching by order number
-      const shipments = await getPostedTransferShipmentsByOrder(targetNo);
-      setReportShipments(shipments || []);
-      if (shipments.length === 0) {
-        toast.info("No shipments found for this order.");
+      const docs = type === "shipment" 
+        ? await getPostedTransferShipmentsByOrder(targetNo)
+        : await getPostedTransferReceiptsByOrder(targetNo);
+      
+      setReportDocuments(docs || []);
+      if (docs.length === 0) {
+        toast.info(`No ${type}s found for this order.`);
       }
     } catch (err: any) {
-      toast.error(err.message || "Failed to load shipments");
+      toast.error(err.message || `Failed to load ${type}s`);
     } finally {
       setIsReportLoading(false);
     }
@@ -804,12 +829,12 @@ export function TransferOrderForm({
 
                 {formState.No && (
                   <Button
-                    onClick={handleOpenReportDialog}
+                    onClick={() => handleOpenReportDialog("shipment")}
                     variant="outline"
                     size="sm"
                     className="border-primary text-primary hover:bg-primary/10 font-bold transition-all hover:scale-105 active:scale-95"
                   >
-                    View Shipment Report
+                    Shipment Reports
                   </Button>
                 )}
                 {(formState.Status === "Released" || formState.Status === "Open") && formState.No && (
@@ -1514,24 +1539,26 @@ export function TransferOrderForm({
       <Dialog open={isReportDialogOpen} onOpenChange={setIsReportDialogOpen}>
         <DialogContent className={cn(
           "transition-[max-width] duration-300 rounded-3xl border-border bg-background",
-          reportShipments.length > 0 ? "sm:max-w-[95vw] lg:max-w-6xl" : "sm:max-w-md"
+          reportDocuments.length > 0 ? "sm:max-w-[95vw] lg:max-w-6xl" : "sm:max-w-md"
         )}>
           <DialogHeader>
-            <DialogTitle className="text-xl font-bold tracking-tight">Shipment Report</DialogTitle>
+            <DialogTitle className="text-xl font-bold tracking-tight">
+              {reportType === "shipment" ? "Shipment" : "Receipt"} Reports
+            </DialogTitle>
             <DialogDescription className="text-muted-foreground">
-              Directly viewing all shipments for Transfer Order {formState.No}.
+              Directly viewing all {reportType}s for Transfer Order {formState.No}.
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-6 pt-4">
-            {isReportLoading && reportShipments.length === 0 && (
+            {isReportLoading && reportDocuments.length === 0 && (
               <div className="flex flex-col items-center justify-center py-12 space-y-4">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                <p className="text-sm text-muted-foreground animate-pulse">Searching for shipments...</p>
+                <p className="text-sm text-muted-foreground animate-pulse">Searching for {reportType}s...</p>
               </div>
             )}
 
-            {reportShipments.length > 0 && (
+            {reportDocuments.length > 0 && (
               <div className="animate-in fade-in slide-in-from-bottom-2 overflow-x-auto rounded-2xl border border-border bg-muted/10 duration-500">
                 <Table>
                   <TableHeader className="bg-muted">
@@ -1539,73 +1566,33 @@ export function TransferOrderForm({
                       <TableHead className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">No.</TableHead>
                       <TableHead className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground whitespace-nowrap">Posting Date</TableHead>
                       <TableHead className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground whitespace-nowrap">Vehicle No.</TableHead>
-                      <TableHead className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground whitespace-nowrap">E-way Bill</TableHead>
-                      <TableHead className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground whitespace-nowrap">E-Invoice</TableHead>
+                      {reportType === "shipment" && (
+                        <>
+                          <TableHead className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground whitespace-nowrap">E-way Bill</TableHead>
+                          <TableHead className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground whitespace-nowrap">E-Invoice</TableHead>
+                        </>
+                      )}
                       <TableHead className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {reportShipments.map((s) => (
+                    {reportDocuments.map((s) => (
                       <TableRow key={s.No} className="border-border transition-colors hover:bg-muted">
                         <TableCell className="text-xs font-bold text-foreground">{s.No}</TableCell>
                         <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
                           {s.Posting_Date ? new Date(s.Posting_Date).toLocaleDateString() : "false"}
                         </TableCell>
                         <TableCell className="text-xs text-muted-foreground whitespace-nowrap">{s.Vehicle_No || "false"}</TableCell>
-                        <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
-                          <div className="flex items-center gap-2">
-                             <span>{s.E_Way_Bill_No || "false"}</span>
-                             {s.No && (
-                               <div className="flex gap-1">
-                                 <Button 
-                                   variant="ghost" 
-                                   size="sm" 
-                                   className="h-7 px-2 text-[10px] gap-1 hover:bg-primary/10 transition-colors"
-                                   onClick={() => handleGetRecordLink("Transfer", s.No, "E-way Bill")}
-                                   title="Download E-way Bill"
-                                 >
-                                    <Download className="h-3 w-3" />
-                                 </Button>
-                                 <Button 
-                                   variant="ghost" 
-                                   size="sm" 
-                                   className="h-7 px-2 text-[10px] gap-1 hover:bg-primary/10 transition-colors"
-                                   onClick={() => handlePrintRecord("Transfer", s.No, "E-way Bill")}
-                                   title="Print E-way Bill"
-                                 >
-                                    <Printer className="h-3 w-3" />
-                                 </Button>
-                               </div>
-                             )}
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
-                           <div className="flex items-center gap-2">
-                             <span>{s.E_Invoice_No || "false"}</span>
-                             {s.No && (
-                               <div className="flex gap-1">
-                                 <Button 
-                                   variant="ghost" 
-                                   size="sm" 
-                                   className="h-7 px-2 text-[10px] gap-1 hover:bg-primary/10 transition-colors"
-                                   onClick={() => handleGetRecordLink("Invoice", s.No, "E-Invoice")}
-                                   title="Download E-Invoice"
-                                 >
-                                    <Download className="h-3 w-3" />
-                                 </Button>
-                                 <Button 
-                                   variant="ghost" 
-                                   size="sm" 
-                                   className="h-7 px-2 text-[10px] gap-1 hover:bg-primary/10 transition-colors"
-                                   onClick={() => handlePrintRecord("Invoice", s.No, "E-Invoice")}
-                                   title="Print E-Invoice"
-                                 >
-                                    <Printer className="h-3 w-3" />
-                                 </Button>
-                               </div>
-                             )}
-                          </div>
-                        </TableCell>
+                        {reportType === "shipment" && (
+                          <>
+                            <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                              {s.E_Way_Bill_No || "false"}
+                            </TableCell>
+                            <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                               {s.E_Invoice_No || "false"}
+                            </TableCell>
+                          </>
+                        )}
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-2">
                             <Button
@@ -1622,6 +1609,18 @@ export function TransferOrderForm({
                               )}
                               <span className="ml-2 hidden sm:inline">View</span>
                             </Button>
+                            {reportType === "shipment" && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-8 border-primary/30 text-primary hover:bg-primary/5 rounded-lg transition-all active:scale-95"
+                                onClick={() => handlePrintRecord("Transfer", s.No, "E-way Bill")}
+                                disabled={activeReportDocNo === s.No}
+                              >
+                                <Printer className="h-3.5 w-3.5" />
+                                <span className="ml-2 hidden sm:inline">Print E-way Bill</span>
+                              </Button>
+                            )}
                             <Button
                               variant="outline"
                               size="sm"
@@ -1639,7 +1638,7 @@ export function TransferOrderForm({
                               disabled={activeReportDocNo === s.No}
                             >
                               <Printer className="h-3.5 w-3.5" />
-                              <span className="ml-2 hidden sm:inline">Print</span>
+                              <span className="ml-2 hidden sm:inline">Print Report</span>
                             </Button>
                           </div>
                         </TableCell>
@@ -1662,6 +1661,19 @@ export function TransferOrderForm({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <SuccessDialog 
+        open={successDialogOpen}
+        onOpenChange={setSuccessDialogOpen}
+        title={successInfo.title}
+        message={successInfo.message}
+        onClose={() => {
+          // If we just posted, we might want to trigger the original handleSuccess
+          if (successInfo.title === "Order Posted!") {
+            handleSuccess();
+          }
+        }}
+      />
     </div>
   );
 }

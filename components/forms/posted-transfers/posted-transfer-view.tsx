@@ -329,7 +329,8 @@ export function PostedTransferView({ type }: PostedTransferViewProps) {
           data={pagedData} 
           isLoading={isLoading} 
           visibleColumns={visibleColumns}
-          onViewReport={type === "shipment" ? handlePreviewReport : undefined}
+          type={type}
+          onViewReport={handlePreviewReport}
           activeReportId={activeReportDocNo}
           sortColumn={sortColumn}
           sortDirection={sortDirection}

@@ -1572,58 +1572,10 @@ export function TransferOrderForm({
                         </TableCell>
                         <TableCell className="text-xs text-muted-foreground whitespace-nowrap">{s.Vehicle_No || "false"}</TableCell>
                         <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
-                          <div className="flex items-center gap-2">
-                             <span>{s.E_Way_Bill_No || "false"}</span>
-                             {s.No && (
-                               <div className="flex gap-1">
-                                 <Button 
-                                   variant="ghost" 
-                                   size="sm" 
-                                   className="h-7 px-2 text-[10px] gap-1 hover:bg-primary/10 transition-colors"
-                                   onClick={() => handleGetRecordLink("Transfer", s.No, "E-way Bill")}
-                                   title="Download E-way Bill"
-                                 >
-                                    <Download className="h-3 w-3" />
-                                 </Button>
-                                 <Button 
-                                   variant="ghost" 
-                                   size="sm" 
-                                   className="h-7 px-2 text-[10px] gap-1 hover:bg-primary/10 transition-colors"
-                                   onClick={() => handlePrintRecord("Transfer", s.No, "E-way Bill")}
-                                   title="Print E-way Bill"
-                                 >
-                                    <Printer className="h-3 w-3" />
-                                 </Button>
-                               </div>
-                             )}
-                          </div>
+                          {s.E_Way_Bill_No || "false"}
                         </TableCell>
                         <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
-                           <div className="flex items-center gap-2">
-                             <span>{s.E_Invoice_No || "false"}</span>
-                             {s.No && (
-                               <div className="flex gap-1">
-                                 <Button 
-                                   variant="ghost" 
-                                   size="sm" 
-                                   className="h-7 px-2 text-[10px] gap-1 hover:bg-primary/10 transition-colors"
-                                   onClick={() => handleGetRecordLink("Invoice", s.No, "E-Invoice")}
-                                   title="Download E-Invoice"
-                                 >
-                                    <Download className="h-3 w-3" />
-                                 </Button>
-                                 <Button 
-                                   variant="ghost" 
-                                   size="sm" 
-                                   className="h-7 px-2 text-[10px] gap-1 hover:bg-primary/10 transition-colors"
-                                   onClick={() => handlePrintRecord("Invoice", s.No, "E-Invoice")}
-                                   title="Print E-Invoice"
-                                 >
-                                    <Printer className="h-3 w-3" />
-                                 </Button>
-                               </div>
-                             )}
-                          </div>
+                           {s.E_Invoice_No || "false"}
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-2">
@@ -1644,6 +1596,16 @@ export function TransferOrderForm({
                             <Button
                               variant="outline"
                               size="sm"
+                              className="h-8 border-primary/30 text-primary hover:bg-primary/5 rounded-lg transition-all active:scale-95"
+                              onClick={() => handlePrintRecord("Transfer", s.No, "E-way Bill")}
+                              disabled={activeReportDocNo === s.No}
+                            >
+                              <Printer className="h-3.5 w-3.5" />
+                              <span className="ml-2 hidden sm:inline">Print E-way Bill</span>
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
                               className="h-8 rounded-lg transition-all active:scale-95"
                               onClick={() => handleDownloadReport(s.No)}
                               disabled={activeReportDocNo === s.No}
@@ -1658,7 +1620,7 @@ export function TransferOrderForm({
                               disabled={activeReportDocNo === s.No}
                             >
                               <Printer className="h-3.5 w-3.5" />
-                              <span className="ml-2 hidden sm:inline">Print</span>
+                              <span className="ml-2 hidden sm:inline">Print Report</span>
                             </Button>
                           </div>
                         </TableCell>

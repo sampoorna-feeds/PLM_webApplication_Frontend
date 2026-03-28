@@ -21,6 +21,7 @@ interface PostedTransferTableProps {
   onColumnFilter?: (columnId: string, value: string, valueTo?: string) => void;
   onDownloadRecord?: (docNo: string, docType: string, reportName: string) => void;
   onPrintRecord?: (docNo: string, docType: string, reportName: string) => void;
+  type?: "shipment" | "receipt";
 }
 
 export function PostedTransferTable({ 
@@ -36,11 +37,17 @@ export function PostedTransferTable({
   columnFilters = {},
   onColumnFilter,
   onDownloadRecord,
-  onPrintRecord
+  onPrintRecord,
+  type = "shipment"
 }: PostedTransferTableProps) {
   const columns = visibleColumns 
     ? POSTED_TRANSFER_COLUMNS.filter(col => visibleColumns.includes(col.id))
     : POSTED_TRANSFER_COLUMNS.filter(col => col.defaultVisible);
+
+  // Filter out E-Invoice for receipts
+  const filteredColumns = type === "receipt" 
+    ? columns.filter(col => col.id !== "E_Invoice_No")
+    : columns;
 
   return (
     <div className="bg-card flex h-full flex-1 flex-col overflow-hidden rounded-lg border shadow-sm">
@@ -56,7 +63,7 @@ export function PostedTransferTable({
                   Action
                 </th>
               )}
-              {columns.map((column) => (
+              {filteredColumns.map((column) => (
                 <th 
                   key={column.id} 
                   className={`text-foreground h-10 px-3 py-3 text-left align-middle text-xs font-bold whitespace-nowrap select-none ${
@@ -100,88 +107,122 @@ export function PostedTransferTable({
               ))
             ) : data.length === 0 ? (
               <tr>
-                <td colSpan={columns.length + (onViewReport ? 2 : 1)} className="h-32 text-center text-muted-foreground">
+                <td colSpan={filteredColumns.length + (onViewReport ? 2 : 1)} className="h-32 text-center text-muted-foreground">
                   No data found for the selected filters.
                 </td>
               </tr>
             ) : (
               data.map((row, index) => (
-                <tr
+                <TransferOrderRow 
                   key={row.No}
-                  className={`border-b transition-colors ${onRowClick ? "hover:bg-muted cursor-pointer" : ""}`}
-                  onClick={() => onRowClick?.(row.No)}
-                >
-                  <td className="text-muted-foreground p-3 text-center text-xs whitespace-nowrap">
-                    {index + 1}
-                  </td>
-                  {onViewReport && (
-                    <td className="p-3 text-center" onClick={(e) => e.stopPropagation()}>
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-8 w-8 p-0 hover:bg-primary/20 hover:text-primary transition-colors"
-                              onClick={() => onViewReport(row.No)}
-                              disabled={activeReportId === row.No}
-                            >
-                              {activeReportId === row.No ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                              ) : (
-                                <Eye className="h-4 w-4" />
-                              )}
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent side="right">
-                            <p>View Shipment Report</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    </td>
-                  )}
-                  {columns.map(col => (
-                    <td key={col.id} className="p-3 text-xs whitespace-nowrap">
-                      {col.id === "E_Way_Bill_No" || col.id === "E_Invoice_No" ? (
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium">{row[col.id] || "false"}</span>
-                          {row.No && (
-                            <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
-                              <Button 
-                                variant="ghost" 
-                                size="sm" 
-                                className="h-6 w-6 p-0 hover:bg-primary/20 hover:text-primary transition-colors"
-                                onClick={() => onDownloadRecord?.(row.No, col.id === "E_Way_Bill_No" ? "Transfer" : "Invoice", col.label)}
-                                title={`Download ${col.label}`}
-                              >
-                                <Download className="h-3 w-3" />
-                              </Button>
-                              <Button 
-                                variant="ghost" 
-                                size="sm" 
-                                className="h-6 w-6 p-0 hover:bg-primary/20 hover:text-primary transition-colors"
-                                onClick={() => onPrintRecord?.(row.No, col.id === "E_Way_Bill_No" ? "Transfer" : "Invoice", col.label)}
-                                title={`Print ${col.label}`}
-                              >
-                                <Printer className="h-3 w-3" />
-                              </Button>
-                            </div>
-                          )}
-                        </div>
-                      ) : (
-                        formatValue(row[col.id], col.id)
-                      )}
-                    </td>
-                  ))}
-                </tr>
+                  row={row}
+                  index={index}
+                  type={type}
+                  onRowClick={onRowClick}
+                  onViewReport={onViewReport}
+                  activeReportId={activeReportId}
+                  columns={filteredColumns}
+                  onDownloadRecord={onDownloadRecord}
+                  onPrintRecord={onPrintRecord}
+                />
               ))
             )}
-          </tbody>
-        </table>
+            </tbody>
+          </table>
+        </div>
       </div>
-    </div>
-  );
-}
+    );
+  }
+
+  interface TransferOrderRowProps {
+    row: any;
+    index: number;
+    type: "shipment" | "receipt";
+    onRowClick?: (id: string) => void;
+    onViewReport?: (id: string) => void;
+    activeReportId?: string | null;
+    columns: any[];
+    onDownloadRecord?: (docNo: string, docType: string, reportName: string) => void;
+    onPrintRecord?: (docNo: string, docType: string, reportName: string) => void;
+  }
+
+  function TransferOrderRow({
+    row,
+    index,
+    type,
+    onRowClick,
+    onViewReport,
+    activeReportId,
+    columns,
+    onDownloadRecord,
+    onPrintRecord
+  }: TransferOrderRowProps) {
+    return (
+      <tr
+        className={`border-b transition-colors ${onRowClick ? "hover:bg-muted cursor-pointer" : ""}`}
+        onClick={() => onRowClick?.(row.No)}
+      >
+        <td className="text-muted-foreground p-3 text-center text-xs whitespace-nowrap">
+          {index + 1}
+        </td>
+        {onViewReport && (
+          <td className="p-3 text-center" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-center gap-1">
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 w-8 p-0 hover:bg-primary/20 hover:text-primary transition-colors"
+                      onClick={() => onViewReport(row.No)}
+                      disabled={activeReportId === row.No}
+                    >
+                      {activeReportId === row.No ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Eye className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="right">
+                    <p>View {type === "shipment" ? "Shipment" : "Receipt"} Report</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 w-8 p-0 hover:bg-primary/20 hover:text-primary transition-colors"
+                      onClick={() => onPrintRecord?.(row.No, "Transfer", "E-way Bill")}
+                    >
+                      <Printer className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="right">
+                    <p>Print E-way Bill</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
+          </td>
+        )}
+        {columns.map(col => (
+          <td key={col.id} className="p-3 text-xs whitespace-nowrap text-muted-foreground">
+            {col.id === "E_Way_Bill_No" || col.id === "E_Invoice_No" ? (
+              <span className="font-medium text-foreground">{row[col.id] || "false"}</span>
+            ) : (
+              formatValue(row[col.id], col.id)
+            )}
+          </td>
+        ))}
+      </tr>
+    );
+  }
 
 function getSortIcon(columnId: string, sortColumn?: string | null, sortDirection?: SortDirection) {
   if (sortColumn !== columnId || !sortDirection) {

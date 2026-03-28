@@ -129,6 +129,7 @@ import {
   type PaymentTerm,
 } from "@/lib/api/services/purchase-dropdowns.service";
 import { Separator } from "@/components/ui/separator";
+import { getTransferAllLocationCodes } from "@/lib/api/services/transfer-orders.service";
 
 const CREDITOR_TYPE_OPTIONS = [
   "SOYA CREDITORS",
@@ -198,6 +199,7 @@ function purchaseLineToLineItem(line: PurchaseLine): LineItem {
     faPostingType: (line.FA_Posting_Type as string | undefined) ?? undefined,
     salvageValue: (line.Salvage_Value as number | undefined) ?? undefined,
     noOfBags: line.No_of_Bags,
+    gstCredit: line.GST_Credit,
   };
 }
 
@@ -647,6 +649,7 @@ export function PurchaseOrderFormContent({
   const [termList, setTermList] = useState<TermAndCondition[]>([]);
   const [mandiList, setMandiList] = useState<MandiMaster[]>([]);
   const [paymentTermList, setPaymentTermList] = useState<PaymentTerm[]>([]);
+  const [locationName, setLocationName] = useState<string>("");
 
   useEffect(() => {
     purchaseDropdownsService
@@ -787,6 +790,21 @@ export function PurchaseOrderFormContent({
       return prev;
     });
   }, [formData.loc]);
+
+  // Fetch location name whenever locationCode changes
+  useEffect(() => {
+    const code = formData.locationCode || formData.loc;
+    if (!code) {
+      setLocationName("");
+      return;
+    }
+    getTransferAllLocationCodes([code])
+      .then((results) => {
+        const match = results.find((r) => r.Code === code);
+        setLocationName(match?.Name || "");
+      })
+      .catch(() => setLocationName(""));
+  }, [formData.locationCode, formData.loc]);
 
   // Simple input change handler
   const handleInputChange = (field: string, value: string) => {
@@ -1850,9 +1868,9 @@ export function PurchaseOrderFormContent({
                       className={cn("bg-muted h-7 text-xs", FIELD_INPUT_CLASS)}
                       readOnly
                     />
-                    {formData.locationCode && (
-                      <p className="text-muted-foreground mt-0.5 overflow-hidden pl-1 text-[9px] text-ellipsis whitespace-nowrap">
-                        {formData.locationCode} Location
+                    {locationName && (
+                      <p className="mt-0.5 truncate pl-1 text-[9px] font-medium text-green-600">
+                        {locationName}
                       </p>
                     )}
                   </div>

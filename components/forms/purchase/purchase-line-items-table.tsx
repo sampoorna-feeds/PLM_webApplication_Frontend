@@ -83,6 +83,7 @@ export function PurchaseLineItemsTable({
               <TableHead className="w-32 text-right text-[10px] font-bold uppercase tracking-wider text-primary">Amount</TableHead>
               <TableHead className="w-32 text-[10px] font-bold uppercase tracking-wider text-primary">GST Group</TableHead>
               <TableHead className="w-32 text-[10px] font-bold uppercase tracking-wider text-primary">HSN/SAC</TableHead>
+              <TableHead className="w-32 text-[10px] font-bold uppercase tracking-wider text-primary">GST Credit</TableHead>
               <TableHead className="w-24 text-center text-[10px] font-bold uppercase tracking-wider text-primary">Exempt</TableHead>
               <TableHead className="w-20 text-right text-[10px] font-bold uppercase tracking-wider text-primary">Bags</TableHead>
             </TableRow>
@@ -122,6 +123,7 @@ export function PurchaseLineItemsTable({
                 </TableCell>
                 <TableCell>{item.gstGroupCode || "-"}</TableCell>
                 <TableCell>{item.hsnSacCode || "-"}</TableCell>
+                <TableCell>{item.gstCredit || "-"}</TableCell>
                 <TableCell className="text-center">{item.exempted ? "Yes" : "No"}</TableCell>
                 <TableCell className="text-right">{item.noOfBags || "-"}</TableCell>
               </TableRow>

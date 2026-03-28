@@ -58,6 +58,7 @@ export interface PurchaseOrderLineItem {
   faPostingType?: string;
   salvageValue?: number;
   noOfBags?: number;
+  gstCredit?: string;
 }
 
 export interface CreatePurchaseOrderResponse {
@@ -235,6 +236,9 @@ export async function addPurchaseOrderLineItems(
       if (lineItem.exempted !== undefined) {
         payload.Exempted = lineItem.exempted;
       }
+      if (lineItem.gstCredit) {
+        payload.GST_Credit = lineItem.gstCredit;
+      }
 
       await apiPost(endpoint, payload);
     }
@@ -290,6 +294,9 @@ export async function addSinglePurchaseOrderLine(
   if (lineItem.noOfBags !== undefined && lineItem.noOfBags !== null) {
     payload.No_of_Bags = lineItem.noOfBags;
   }
+  if (lineItem.gstCredit) {
+    payload.GST_Credit = lineItem.gstCredit;
+  }
 
   try {
     const response = await apiPost<{ Line_No: number; [key: string]: any }>(
@@ -336,6 +343,8 @@ export async function updateSinglePurchaseOrderLine(
   if (lineItem.exempted !== undefined) payload.Exempted = lineItem.exempted;
   if (lineItem.noOfBags !== undefined && lineItem.noOfBags !== null)
     payload.No_of_Bags = lineItem.noOfBags;
+  if (lineItem.gstCredit !== undefined)
+    payload.GST_Credit = lineItem.gstCredit;
 
   try {
     const response = await apiPatch<{ Line_No: number; [key: string]: any }>(

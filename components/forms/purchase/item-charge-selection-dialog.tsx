@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import {
   Loader2,
   Search,
@@ -10,16 +10,7 @@ import {
   ArrowUpDown,
   Filter,
   X,
-  ChevronLeft,
-  ChevronRight,
 } from "lucide-react";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -28,14 +19,6 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import {
@@ -50,6 +33,8 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Label } from "@/components/ui/label";
+
+const PAGE_SIZE = 200;
 
 type SortDirection = "asc" | "desc" | null;
 
@@ -117,6 +102,9 @@ const SELECTION_COLUMNS: ColumnConfig[] = [
   },
 ];
 
+// Number of header columns including S.No + checkbox col
+const TOTAL_COLS = SELECTION_COLUMNS.length + 1;
+
 interface ItemChargeSelectionDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -131,15 +119,35 @@ export function ItemChargeSelectionDialog({
   onAddSelected,
 }: ItemChargeSelectionDialogProps) {
   const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+
+  // All fetched records accumulated client-side
   const [sourceLines, setSourceLines] = useState<ItemChargeSourceLine[]>([]);
+  // Total record count from OData $count
+  const [totalCount, setTotalCount] = useState<number>(0);
+
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
   const [isAdding, setIsAdding] = useState(false);
 
-  // Debounce search effect
+  // Sentinel reference for IntersectionObserver
+  const sentinelRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  // Sorting + Filtering (client-side on fetched records)
+  const [sortColumn, setSortColumn] = useState<string | null>(null);
+  const [sortDirection, setSortDirection] = useState<SortDirection>(null);
+  const [columnFilters, setColumnFilters] = useState<
+    Record<string, { value: string; valueTo?: string }>
+  >({});
+
+  // Whether all server-side records have been fetched
+  const allFetched = sourceLines.length >= totalCount && totalCount > 0;
+  // Whether more can be fetched from the server
+  const canFetchMore = !allFetched && !loading && !loadingMore;
+
+  // Debounce search
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearchQuery(searchQuery);
@@ -147,57 +155,90 @@ export function ItemChargeSelectionDialog({
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  // Sorting State
-  const [sortColumn, setSortColumn] = useState<string | null>(null);
-  const [sortDirection, setSortDirection] = useState<SortDirection>(null);
-
-  // Filtering State
-  const [columnFilters, setColumnFilters] = useState<
-    Record<string, { value: string; valueTo?: string }>
-  >({});
-
-  const fetchSourceLines = useCallback(
-    async (search?: string) => {
-      try {
-        setLoading(true);
-        const data = await itemChargeAssignmentService.getSourceLines(
-          type,
-          undefined,
-          search,
-        );
-        setSourceLines(data || []);
-        setSelectedIds(new Set());
-      } catch (error) {
-        console.error(`Failed to fetch ${type} lines:`, error);
-      } finally {
-        setLoading(false);
+  // Initial fetch (reset everything)
+  const fetchInitial = useCallback(async () => {
+    try {
+      setLoading(true);
+      setSourceLines([]);
+      setTotalCount(0);
+      setSelectedIds(new Set());
+      if (scrollContainerRef.current) {
+        scrollContainerRef.current.scrollTop = 0;
       }
-    },
-    [type],
-  );
 
+      const result = await itemChargeAssignmentService.getSourceLines(type, {
+        search: debouncedSearchQuery || undefined,
+        skip: 0,
+        top: PAGE_SIZE,
+      });
+
+      setSourceLines(result.value);
+      setTotalCount(result.count);
+    } catch (error) {
+      console.error(`Failed to fetch ${type} lines:`, error);
+    } finally {
+      setLoading(false);
+    }
+  }, [type, debouncedSearchQuery]);
+
+  // Load more (append)
+  const fetchMore = useCallback(async () => {
+    if (!canFetchMore) return;
+    try {
+      setLoadingMore(true);
+      const result = await itemChargeAssignmentService.getSourceLines(type, {
+        search: debouncedSearchQuery || undefined,
+        skip: sourceLines.length,
+        top: PAGE_SIZE,
+      });
+      setSourceLines((prev) => [...prev, ...result.value]);
+      // Update count in case it changed (shouldn't, but defensive)
+      setTotalCount(result.count);
+    } catch (error) {
+      console.error(`Failed to fetch more ${type} lines:`, error);
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [canFetchMore, type, debouncedSearchQuery, sourceLines.length]);
+
+  // Trigger initial fetch whenever dialog opens or search changes
   useEffect(() => {
     if (open) {
-      fetchSourceLines(debouncedSearchQuery);
-      setCurrentPage(1);
+      fetchInitial();
     }
-  }, [open, debouncedSearchQuery, fetchSourceLines]);
+  }, [open, debouncedSearchQuery, fetchInitial]);
 
-  // Filtered and Sorted Lines
+  // IntersectionObserver — triggers server-side load more
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          fetchMore();
+        }
+      },
+      { threshold: 0.1 },
+    );
+
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [fetchMore]);
+
+  // Client-side filter + sort on already-fetched records
   const filteredAndSortedLines = useMemo(() => {
     let result = sourceLines;
 
-    // 1. Column filters
+    // Column filters
     Object.entries(columnFilters).forEach(([columnId, filter]) => {
       if (!filter.value && !filter.valueTo) return;
 
       result = result.filter((line) => {
         let value = (line as any)[columnId];
-        // Handle Item No. mapping (No or Item_No)
         if (columnId === "Item_No" && value === undefined) {
           value = line.No || line.Item_No;
         }
-
         if (value === null || value === undefined) return false;
 
         const stringValue = String(value).toLowerCase();
@@ -215,13 +256,12 @@ export function ItemChargeSelectionDialog({
       });
     });
 
-    // 2. Sorting
+    // Sorting
     if (sortColumn && sortDirection) {
       result = [...result].sort((a, b) => {
         let valA = (a as any)[sortColumn];
         let valB = (b as any)[sortColumn];
 
-        // Handle Item No. mapping
         if (sortColumn === "Item_No") {
           valA = a.No || a.Item_No || "";
           valB = b.No || b.Item_No || "";
@@ -238,14 +278,6 @@ export function ItemChargeSelectionDialog({
 
     return result;
   }, [sourceLines, columnFilters, sortColumn, sortDirection]);
-
-  // Paginated Lines
-  const paginatedLines = useMemo(() => {
-    const startIndex = (currentPage - 1) * pageSize;
-    return filteredAndSortedLines.slice(startIndex, startIndex + pageSize);
-  }, [filteredAndSortedLines, currentPage, pageSize]);
-
-  const totalPages = Math.ceil(filteredAndSortedLines.length / pageSize);
 
   const toggleSelectAll = () => {
     if (
@@ -273,10 +305,14 @@ export function ItemChargeSelectionDialog({
 
   const handleSort = (columnId: string) => {
     if (sortColumn === columnId) {
-      setSortDirection((prev) =>
-        prev === "asc" ? "desc" : prev === "desc" ? null : "asc",
-      );
-      if (sortDirection === "desc") setSortColumn(null);
+      setSortDirection((prev) => {
+        if (prev === "asc") return "desc";
+        return null;
+      });
+      setSortColumn((prev) => {
+        if (sortDirection === "desc") return null;
+        return prev;
+      });
     } else {
       setSortColumn(columnId);
       setSortDirection("asc");
@@ -295,7 +331,6 @@ export function ItemChargeSelectionDialog({
       }
       return { ...prev, [columnId]: { value, valueTo } };
     });
-    setCurrentPage(1);
   };
 
   const handleAdd = async () => {
@@ -353,206 +388,204 @@ export function ItemChargeSelectionDialog({
           </div>
         </DialogHeader>
 
-        <div className="bg-background/50 focus-within:ring-primary/10 flex flex-1 flex-col overflow-hidden transition-all focus-within:ring-1">
-          <div className="flex-1 overflow-hidden">
-            <div className="bg-background flex h-full flex-col overflow-hidden">
-              <div className="bg-background relative flex-1 overflow-auto">
-                <table className="relative w-full border-collapse border-separate border-spacing-0 text-sm">
-                  <TableHeader className="bg-muted border-border sticky top-0 z-30 border-b shadow-sm">
-                    <TableRow className="bg-muted h-10 hover:bg-transparent [&_th]:border-b">
-                      <TableHead className="bg-muted border-border sticky top-0 left-0 z-40 w-16 border-b px-4 text-center align-middle">
-                        <Checkbox
-                          checked={
-                            filteredAndSortedLines.length > 0 &&
-                            selectedIds.size === filteredAndSortedLines.length
-                          }
-                          onCheckedChange={toggleSelectAll}
-                          className="rounded-none shadow-none"
-                        />
-                      </TableHead>
-                      {SELECTION_COLUMNS.map((col) => (
-                        <SortableTableHead
-                          key={col.id}
-                          column={col}
-                          isActive={sortColumn === col.id}
-                          sortDirection={
-                            sortColumn === col.id ? sortDirection : null
-                          }
-                          filterValue={columnFilters[col.id]?.value ?? ""}
-                          onSort={handleSort}
-                          onFilter={handleColumnFilter}
-                        />
-                      ))}
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {loading ? (
-                      <TableRow className="hover:bg-transparent">
-                        <TableCell colSpan={8} className="h-96 text-center">
-                          <div className="flex flex-col items-center gap-4">
-                            <Loader2 className="text-primary/40 h-12 w-12 animate-spin" />
-                            <p className="text-muted-foreground animate-pulse font-medium italic">
-                              Fetching records...
-                            </p>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ) : filteredAndSortedLines.length === 0 ? (
-                      <TableRow className="hover:bg-transparent">
-                        <TableCell colSpan={8} className="h-96 text-center">
-                          <div className="flex flex-col items-center gap-2 opacity-40">
-                            <Search className="text-muted-foreground h-12 w-12" />
-                            <p className="text-muted-foreground font-medium italic">
-                              No lines found matching your selection.
-                            </p>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      paginatedLines.map((line, idx) => {
-                        const id = `${line.Document_No}-${line.Line_No}`;
-                        const isSelected = selectedIds.has(id);
-                        const itemNo = line.No || line.Item_No || "";
-                        return (
-                          <TableRow
-                            key={`${line.Document_No}-${line.Line_No}-${idx}`}
-                            className="group border-border h-10 cursor-pointer border-b transition-colors"
-                            onClick={() => toggleSelectLine(id)}
+        <div className="flex flex-1 flex-col overflow-hidden">
+          <div ref={scrollContainerRef} className="flex-1 overflow-auto">
+            <table className="relative w-full border-collapse text-sm">
+              {/* Sticky header */}
+              <thead className="sticky top-0 z-30">
+                <tr className="bg-muted border-b border-border whitespace-nowrap">
+                  {/* S.No + Checkbox sticky column */}
+                  <th className="bg-muted sticky left-0 z-40 w-20 px-3 text-center align-middle">
+                    <div className="flex items-center justify-center gap-2">
+                      <span className="text-primary w-6 text-[9px] font-black tracking-wider uppercase">
+                        #
+                      </span>
+                      <Checkbox
+                        checked={
+                          filteredAndSortedLines.length > 0 &&
+                          selectedIds.size === filteredAndSortedLines.length
+                        }
+                        onCheckedChange={toggleSelectAll}
+                        className="rounded-none shadow-none"
+                      />
+                    </div>
+                  </th>
+                  {SELECTION_COLUMNS.map((col) => (
+                    <SortableTableHead
+                      key={col.id}
+                      column={col}
+                      isActive={sortColumn === col.id}
+                      sortDirection={
+                        sortColumn === col.id ? sortDirection : null
+                      }
+                      filterValue={columnFilters[col.id]?.value ?? ""}
+                      onSort={handleSort}
+                      onFilter={handleColumnFilter}
+                    />
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {loading ? (
+                  <tr>
+                    <td colSpan={TOTAL_COLS} className="h-96 text-center">
+                      <div className="flex flex-col items-center gap-4">
+                        <Loader2 className="text-primary/40 h-12 w-12 animate-spin" />
+                        <p className="text-muted-foreground animate-pulse font-medium italic">
+                          Fetching records...
+                        </p>
+                      </div>
+                    </td>
+                  </tr>
+                ) : filteredAndSortedLines.length === 0 ? (
+                  <tr>
+                    <td colSpan={TOTAL_COLS} className="h-96 text-center">
+                      <div className="flex flex-col items-center gap-2 opacity-40">
+                        <Search className="text-muted-foreground h-12 w-12" />
+                        <p className="text-muted-foreground font-medium italic">
+                          No lines found matching your selection.
+                        </p>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  <>
+                    {filteredAndSortedLines.map((line, idx) => {
+                      const id = `${line.Document_No}-${line.Line_No}`;
+                      const isSelected = selectedIds.has(id);
+                      const itemNo = line.No || line.Item_No || "";
+                      return (
+                        <tr
+                          key={`${line.Document_No}-${line.Line_No}-${idx}`}
+                          className={cn(
+                            "border-border hover:bg-muted/50 h-9 cursor-pointer border-b whitespace-nowrap transition-colors",
+                            isSelected && "bg-primary/5",
+                          )}
+                          onClick={() => toggleSelectLine(id)}
+                        >
+                          {/* S.No + Checkbox sticky cell */}
+                          <td
+                            className="bg-card sticky left-0 z-20 w-20 px-3 text-center align-middle transition-colors"
+                            onClick={(e) => e.stopPropagation()}
                           >
-                            <TableCell
-                              className="bg-background sticky left-0 z-20 w-16 px-4 text-center align-middle transition-colors"
-                              onClick={(e) => e.stopPropagation()}
-                            >
+                            <div className="flex items-center justify-center gap-2">
+                              <span className="text-muted-foreground w-6 text-right text-[10px] tabular-nums">
+                                {idx + 1}
+                              </span>
                               <Checkbox
                                 checked={isSelected}
                                 onCheckedChange={() => toggleSelectLine(id)}
                                 className="rounded-none shadow-none"
                               />
-                            </TableCell>
-                            <TableCell className="text-primary px-3 py-0 text-center align-middle text-xs tabular-nums">
-                              {line.Document_No}
-                            </TableCell>
-                            <TableCell className="px-3 py-0 text-center align-middle text-[10px] tabular-nums">
-                              {line.Line_No}
-                            </TableCell>
-                            <TableCell className="px-3 py-0 text-center align-middle text-xs tabular-nums">
-                              {itemNo}
-                            </TableCell>
-                            <TableCell className="max-w-[300px] truncate px-3 py-0 text-center align-middle text-[10px]">
-                              {line.Description}
-                            </TableCell>
-                            <TableCell className="px-3 py-0 text-center align-middle text-[11px] tabular-nums">
-                              {line.Quantity.toLocaleString()}
-                            </TableCell>
-                            <TableCell className="px-3 py-0 text-center align-middle text-[10px] tabular-nums">
-                              {line.Unit_of_Measure || "—"}
-                            </TableCell>
-                            <TableCell className="px-3 py-0 text-center align-middle text-[10px] tabular-nums">
-                              {line.Posting_Date || "—"}
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })
-                    )}
-                  </TableBody>
-                </table>
-              </div>
+                            </div>
+                          </td>
+                          <td className="text-primary px-3 py-0 text-center align-middle text-xs font-medium tabular-nums">
+                            {line.Document_No}
+                          </td>
+                          <td className="text-muted-foreground px-3 py-0 text-center align-middle text-[10px] tabular-nums">
+                            {line.Line_No}
+                          </td>
+                          <td className="px-3 py-0 text-center align-middle text-xs tabular-nums">
+                            {itemNo}
+                          </td>
+                          <td className="max-w-[300px] truncate px-3 py-0 text-left align-middle text-[11px]">
+                            {line.Description}
+                          </td>
+                          <td className="px-3 py-0 text-right align-middle text-[11px] tabular-nums">
+                            {line.Quantity.toLocaleString()}
+                          </td>
+                          <td className="px-3 py-0 text-center align-middle text-[10px] tabular-nums">
+                            {line.Unit_of_Measure || "—"}
+                          </td>
+                          <td className="px-3 py-0 text-center align-middle text-[10px] tabular-nums">
+                            {line.Posting_Date || "—"}
+                          </td>
+                        </tr>
+                      );
+                    })}
 
-              {/* Pagination Section */}
-              <div className="bg-muted/20 flex items-center justify-between border-t px-4 py-1.5">
-                <div className="flex items-center gap-4">
-                  <div className="flex items-center gap-2">
-                    <span className="text-muted-foreground text-[10px] font-medium tracking-wider uppercase">
-                      Rows:
-                    </span>
-                    <Select
-                      value={pageSize.toString()}
-                      onValueChange={(val) => {
-                        setPageSize(Number(val));
-                        setCurrentPage(1);
-                      }}
-                    >
-                      <SelectTrigger className="bg-background h-7 w-14 text-[10px] font-bold">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent title="Rows per page">
-                        {[10, 20, 50, 100].map((size) => (
-                          <SelectItem
-                            key={size}
-                            value={size.toString()}
-                            className="text-[10px]"
+                    {/* Sentinel / end-of-list row */}
+                    <tr>
+                      <td colSpan={TOTAL_COLS} className="py-3 text-center">
+                        {allFetched ? (
+                          <span className="text-muted-foreground/50 text-[10px] font-medium italic">
+                            — No more records —
+                          </span>
+                        ) : (
+                          <div
+                            ref={sentinelRef}
+                            className="flex items-center justify-center gap-2 py-1"
                           >
-                            {size}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <span className="text-muted-foreground text-[10px] font-bold tracking-wider uppercase">
-                    {filteredAndSortedLines.length} Records
-                  </span>
-                </div>
+                            {loadingMore && (
+                              <>
+                                <Loader2 className="text-primary/40 h-4 w-4 animate-spin" />
+                                <span className="text-muted-foreground text-[10px]">
+                                  Loading more...
+                                </span>
+                              </>
+                            )}
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  </>
+                )}
+              </tbody>
+            </table>
+          </div>
 
-                <div className="flex items-center gap-3">
-                  <span className="text-muted-foreground text-[10px] font-bold tracking-wider uppercase">
-                    Page {currentPage} of {totalPages || 1}
-                  </span>
-                  <div className="flex items-center gap-1">
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      className="bg-background h-7 w-7"
-                      disabled={currentPage === 1}
-                      onClick={() => setCurrentPage((prev) => prev - 1)}
-                    >
-                      <ChevronLeft className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      className="bg-background h-7 w-7"
-                      disabled={currentPage === totalPages || totalPages === 0}
-                      onClick={() => setCurrentPage((prev) => prev + 1)}
-                    >
-                      <ChevronRight className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              </div>
+          {/* Status bar */}
+          <div className="bg-muted/20 flex items-center justify-between border-t px-4 py-1.5">
+            <span className="text-muted-foreground text-[10px] font-bold tracking-wider uppercase">
+              {loading ? (
+                "Loading..."
+              ) : (
+                <>
+                  {sourceLines.length.toLocaleString()}
+                  {totalCount > 0 && (
+                    <span className="text-foreground/50 ml-1">
+                      / {totalCount.toLocaleString()} total
+                    </span>
+                  )}
+                  {" "}Records
+                  {Object.keys(columnFilters).length > 0 && (
+                    <span className="text-primary ml-2">
+                      ({filteredAndSortedLines.length} filtered)
+                    </span>
+                  )}
+                </>
+              )}
+            </span>
+            <div className="bg-primary/5 border-primary/20 flex items-center gap-2 rounded-full border px-3 py-1 transition-all">
+              <div className="bg-primary h-1.5 w-1.5 animate-pulse rounded-full" />
+              <span className="text-primary text-[10px] font-black tracking-widest uppercase">
+                {selectedIds.size} Selected
+              </span>
             </div>
           </div>
         </div>
 
-        <DialogFooter className="border-border bg-background shadow-top-lg items-center justify-between gap-4 border-t px-5 py-4">
-          <div className="bg-primary/5 border-primary/20 hover:bg-primary/10 flex items-center gap-2 rounded-full border px-3 py-1.5 transition-all">
-            <div className="bg-primary h-2 w-2 animate-pulse rounded-full" />
-            <span className="text-primary text-xs font-black tracking-widest uppercase">
-              {selectedIds.size} Lines Selected
-            </span>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <Button
-              variant={"destructive"}
-              className="border-destructive/50 border-3 px-6"
-              onClick={() => onOpenChange(false)}
-            >
-              Cancel
-            </Button>
-            <Button
-              size="sm"
-              className="shadow-primary/20 group h-10 px-8 text-xs font-black tracking-widest uppercase shadow-xl transition-all hover:scale-[1.02] active:scale-[0.98]"
-              onClick={handleAdd}
-              disabled={selectedIds.size === 0 || isAdding}
-            >
-              {isAdding ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Check className="mr-2 h-4 w-4 transition-transform group-hover:scale-110" />
-              )}
-              {isAdding ? "Processing..." : "Add Selected"}
-            </Button>
-          </div>
+        <DialogFooter className="border-border bg-background shadow-top-lg items-center justify-end gap-3 border-t px-5 py-4">
+          <Button
+            variant={"destructive"}
+            className="border-destructive/50 border-3 px-6"
+            onClick={() => onOpenChange(false)}
+          >
+            Cancel
+          </Button>
+          <Button
+            size="sm"
+            className="shadow-primary/20 group h-10 px-8 text-xs font-black tracking-widest uppercase shadow-xl transition-all hover:scale-[1.02] active:scale-[0.98]"
+            onClick={handleAdd}
+            disabled={selectedIds.size === 0 || isAdding}
+          >
+            {isAdding ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Check className="mr-2 h-4 w-4 transition-transform group-hover:scale-110" />
+            )}
+            {isAdding ? "Processing..." : `Add ${selectedIds.size} Selected`}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -578,7 +611,7 @@ function SortableTableHead({
 }: SortableTableHeadProps) {
   const getSortIcon = () => {
     if (!isActive || !sortDirection) {
-      return <ArrowUpDown className="h-3 w-3 opacity-50" />;
+      return <ArrowUpDown className="h-3 w-3 opacity-40" />;
     }
     if (sortDirection === "asc") {
       return <ArrowUp className="h-3 w-3" />;
@@ -589,7 +622,9 @@ function SortableTableHead({
   return (
     <th
       className={cn(
-        "bg-muted text-foreground border-border sticky top-0 z-30 h-10 border-b px-3 py-3 text-left align-middle text-[10px] font-bold tracking-tight whitespace-nowrap uppercase select-none",
+        "bg-muted text-primary h-10 px-3 py-3 text-left align-middle text-[10px] font-bold tracking-wider whitespace-nowrap uppercase select-none",
+        column.align === "right" && "text-right",
+        column.align === "center" && "text-center",
         isActive && "text-primary",
       )}
       style={{ width: column.width }}
@@ -605,7 +640,7 @@ function SortableTableHead({
         )}
       >
         <span
-          className="hover:text-primary cursor-pointer transition-colors"
+          className="hover:text-primary/70 cursor-pointer transition-colors"
           onClick={() => column.sortable && onSort(column.id)}
         >
           {column.label}
@@ -613,7 +648,7 @@ function SortableTableHead({
         {column.sortable && (
           <button
             type="button"
-            className="hover:text-primary transition-colors"
+            className="hover:text-primary/70 transition-colors"
             onClick={() => onSort(column.id)}
           >
             {getSortIcon()}
@@ -666,7 +701,7 @@ function ColumnFilter({ column, value, onChange }: ColumnFilterProps) {
             "hover:bg-background/50 rounded p-0.5 transition-colors",
             hasFilter
               ? "text-primary"
-              : "text-muted-foreground/50 hover:text-muted-foreground",
+              : "text-primary/30 hover:text-primary/60",
           )}
           onClick={(e) => {
             e.stopPropagation();

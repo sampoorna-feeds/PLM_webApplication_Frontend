@@ -23,7 +23,6 @@ export interface SuggestAssignmentPayload {
 }
 
 export interface ItemChargeAssignment {
-  // ... existing fields ...
   "@odata.etag"?: string;
   Document_Type: string;
   Document_No: string;
@@ -84,26 +83,61 @@ const GET_TYPE_MAP: Record<SourceType, string> = {
   ReturnShipment: "GetReturnShipmentLine",
 };
 
+// Maps each source type to the field name used for its item number.
+// Different BC endpoints expose the item number under different OData field names.
+const ITEM_NO_FIELD_MAP: Record<SourceType, string> = {
+  Receipt: "No",           // PurchreceiptLine uses 'No'
+  SalesShipment: "No",     // SalesShipmentLine uses 'No'
+  Transfer: "Item_No",     // PostedTransferReceiptLine uses 'Item_No'
+  ReturnReceipt: "No",     // ReturnReceiptLine uses 'No'
+  ReturnShipment: "No",    // ReturnShipmentLine uses 'No'
+};
+
+export interface PagedResult<T> {
+  value: T[];
+  /** Total count from OData @odata.count (requires $count=true) */
+  count: number;
+}
+
 export const itemChargeAssignmentService = {
   async getAssignments(filters: {
     docType: string;
     docNo: string;
     docLineNo: number;
     itemChargeNo: string;
-  }): Promise<ItemChargeAssignment[]> {
-    // Exact match filter based on the curl example
+    skip?: number;
+    top?: number;
+  }): Promise<PagedResult<ItemChargeAssignment>> {
+    const { skip = 0, top = 200 } = filters;
     const filter = `Document_Type eq '${filters.docType}' and Document_No eq '${filters.docNo}' and Document_Line_No eq ${filters.docLineNo} and ItemChargeNo eq '${filters.itemChargeNo}'`;
-    const endpoint = `/ItemChargeAssignmentPurch?company='${encodeURIComponent(COMPANY)}'&$filter=${encodeURIComponent(filter)}`;
-    const response = await apiGet<{ value: ItemChargeAssignment[] }>(endpoint);
-    return response.value || [];
+    const endpoint =
+      `/ItemChargeAssignmentPurch?company='${encodeURIComponent(COMPANY)}'` +
+      `&$count=true` +
+      `&$filter=${encodeURIComponent(filter)}` +
+      `&$top=${top}` +
+      `&$skip=${skip}`;
+    const response = await apiGet<{
+      value: ItemChargeAssignment[];
+      "@odata.count"?: number;
+    }>(endpoint);
+    return {
+      value: response.value || [],
+      count: response["@odata.count"] ?? 0,
+    };
   },
 
   async getSourceLines(
     type: SourceType,
-    docNo?: string,
-    search?: string,
-  ): Promise<ItemChargeSourceLine[]> {
+    options: {
+      docNo?: string;
+      search?: string;
+      skip?: number;
+      top?: number;
+    } = {},
+  ): Promise<PagedResult<ItemChargeSourceLine>> {
+    const { docNo, search, skip = 0, top = 200 } = options;
     const endpointName = ENDPOINTS[type];
+    const itemNoField = ITEM_NO_FIELD_MAP[type];
     const filters: string[] = [];
 
     if (docNo) {
@@ -112,11 +146,9 @@ export const itemChargeAssignmentService = {
 
     if (search) {
       const s = search.replace(/'/g, "''"); // Escape single quotes for OData
-      // Try to search across multiple common fields.
-      // Note: Some BC environments might require different syntax for 'or',
-      // but 'contains' with 'or' is standard OData V4.
+      // Only search fields that exist on this specific endpoint.
       filters.push(
-        `(contains(Document_No, '${s}') or contains(No, '${s}') or contains(Item_No, '${s}'))`,
+        `(contains(Document_No,'${s}') or contains(${itemNoField},'${s}'))`,
       );
     }
 
@@ -124,9 +156,23 @@ export const itemChargeAssignmentService = {
       filters.length > 0
         ? `&$filter=${encodeURIComponent(filters.join(" and "))}`
         : "";
-    const endpoint = `/${endpointName}?company='${encodeURIComponent(COMPANY)}'${filterStr}&$top=50`;
-    const response = await apiGet<{ value: ItemChargeSourceLine[] }>(endpoint);
-    return response.value || [];
+
+    const endpoint =
+      `/${endpointName}?company='${encodeURIComponent(COMPANY)}'` +
+      `&$count=true` +
+      `${filterStr}` +
+      `&$top=${top}` +
+      `&$skip=${skip}`;
+
+    const response = await apiGet<{
+      value: ItemChargeSourceLine[];
+      "@odata.count"?: number;
+    }>(endpoint);
+
+    return {
+      value: response.value || [],
+      count: response["@odata.count"] ?? 0,
+    };
   },
 
   async postAssignment(

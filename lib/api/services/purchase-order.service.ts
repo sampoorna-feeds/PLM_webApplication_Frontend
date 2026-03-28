@@ -42,7 +42,7 @@ export interface PurchaseOrderData {
 }
 
 export interface PurchaseOrderLineItem {
-  type: "G/L Account" | "Item" | "Fixed Asset" | "Charge (Item)";
+  type: "" | "G/L Account" | "Item" | "Fixed Asset" | "Charge (Item)";
   no: string;
   description: string;
   uom?: string;

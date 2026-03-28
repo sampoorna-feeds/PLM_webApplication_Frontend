@@ -39,6 +39,7 @@ import {
   type ApiErrorState,
 } from "@/components/forms/production-orders/api-error-dialog";
 import { BardanaDialog } from "./bardana-dialog";
+import { cn } from "@/lib/utils";
 interface PurchaseOrderLineEditDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -79,6 +80,7 @@ export function PurchaseOrderLineEditDialog({
   const [noOfBags, setNoOfBags] = useState("");
   const [challanQty, setChallanQty] = useState("");
   const [weightQty, setWeightQty] = useState("");
+  const [gstCredit, setGstCredit] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [apiError, setApiError] = useState<ApiErrorState | null>(null);
 
@@ -106,6 +108,7 @@ export function PurchaseOrderLineEditDialog({
     setNoOfBags(line.No_of_Bags != null ? String(line.No_of_Bags) : "");
     setChallanQty(line.Challan_Qty != null ? String(line.Challan_Qty) : "");
     setWeightQty(line.Weight_Qty != null ? String(line.Weight_Qty) : "");
+    setGstCredit(line.GST_Credit || "Availment");
   }, [line]);
 
   const [tdsOptions, setTdsOptions] = useState<SearchableSelectOption[]>([]);
@@ -285,8 +288,11 @@ export function PurchaseOrderLineEditDialog({
         payload.GST_Group_Code = gstGroupCode.trim();
       if (hsnSacCode.trim() !== (line.HSN_SAC_Code || "").trim())
         payload.HSN_SAC_Code = hsnSacCode.trim();
-      if (tdsSection.trim() !== (line.TDS_Section_Code || "").trim())
-        payload.TDS_Section_Code = tdsSection.trim();
+      if (tdsSection !== (line.TDS_Section_Code || ""))
+        payload.TDS_Section_Code = tdsSection;
+      if (gstCredit !== (line.GST_Credit || "Availment"))
+        payload.GST_Credit = gstCredit;
+
       if ((line.Type || "").trim() === "Fixed Asset") {
         if (faPostingType.trim() !== (line.FA_Posting_Type || "").trim()) {
           payload.FA_Posting_Type = faPostingType.trim();
@@ -413,56 +419,60 @@ export function PurchaseOrderLineEditDialog({
 
           {/* ── Editable fields ── */}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            {/* Row 1 */}
-            <div className="space-y-1">
-              <Label htmlFor="po-line-qty" className="text-xs">
-                Quantity
-              </Label>
-              <Input
-                id="po-line-qty"
-                inputMode="decimal"
-                value={quantity}
-                onChange={(e) => {
-                  if (isValidNum(e.target.value)) setQuantity(e.target.value);
-                }}
-                className={fieldInputClass}
-              />
-            </div>
-
-            {(line.Type || "").trim() === "Item" && (
+            {(line.Type || "").trim() !== "" && (
               <>
+                {/* Row 1 */}
                 <div className="space-y-1">
-                  <Label htmlFor="po-line-challan-qty" className="text-xs">
-                    Challan Qty
+                  <Label htmlFor="po-line-qty" className="text-xs">
+                    Quantity
                   </Label>
                   <Input
-                    id="po-line-challan-qty"
+                    id="po-line-qty"
                     inputMode="decimal"
-                    value={challanQty}
+                    value={quantity}
                     onChange={(e) => {
-                      if (isValidNum(e.target.value)) setChallanQty(e.target.value);
+                      if (isValidNum(e.target.value)) setQuantity(e.target.value);
                     }}
                     className={fieldInputClass}
                   />
                 </div>
-                <div className="space-y-1">
-                  <Label htmlFor="po-line-weight-qty" className="text-xs">
-                    Weight Qty
-                  </Label>
-                  <Input
-                    id="po-line-weight-qty"
-                    inputMode="decimal"
-                    value={weightQty}
-                    onChange={(e) => {
-                      if (isValidNum(e.target.value)) setWeightQty(e.target.value);
-                    }}
-                    className={fieldInputClass}
-                  />
-                </div>
+
+                {(line.Type || "").trim() === "Item" && (
+                  <>
+                    <div className="space-y-1">
+                      <Label htmlFor="po-line-challan-qty" className="text-xs">
+                        Challan Qty
+                      </Label>
+                      <Input
+                        id="po-line-challan-qty"
+                        inputMode="decimal"
+                        value={challanQty}
+                        onChange={(e) => {
+                          if (isValidNum(e.target.value)) setChallanQty(e.target.value);
+                        }}
+                        className={fieldInputClass}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="po-line-weight-qty" className="text-xs">
+                        Weight Qty
+                      </Label>
+                      <Input
+                        id="po-line-weight-qty"
+                        inputMode="decimal"
+                        value={weightQty}
+                        onChange={(e) => {
+                          if (isValidNum(e.target.value)) setWeightQty(e.target.value);
+                        }}
+                        className={fieldInputClass}
+                      />
+                    </div>
+                  </>
+                )}
               </>
             )}
 
-            <div className="space-y-1">
+            <div className={cn("space-y-1", (line.Type || "").trim() === "" ? "sm:col-span-2" : "")}>
               <Label htmlFor="po-line-description" className="text-xs">
                 Description
               </Label>
@@ -474,163 +484,182 @@ export function PurchaseOrderLineEditDialog({
               />
             </div>
 
-            {(line.Type || "").trim() === "Fixed Asset" && (
+            {(line.Type || "").trim() !== "" && (
               <>
+                {(line.Type || "").trim() === "Fixed Asset" && (
+                  <>
+                    <div className="space-y-1">
+                      <Label htmlFor="po-line-fa-posting-type" className="text-xs">
+                        FA Posting Type
+                      </Label>
+                      <Select
+                        value={faPostingType || ""}
+                        onValueChange={setFaPostingType}
+                      >
+                        <SelectTrigger id="po-line-fa-posting-type" className={fieldInputClass}>
+                          <SelectValue placeholder="Select Type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Acquisition Cost">Acquisition Cost</SelectItem>
+                          <SelectItem value="Maintenance">Maintenance</SelectItem>
+                          <SelectItem value="Appreciation">Appreciation</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-1">
+                      <Label htmlFor="po-line-salvage-value" className="text-xs">
+                        Salvage Value
+                      </Label>
+                      <Input
+                        id="po-line-salvage-value"
+                        inputMode="decimal"
+                        value={salvageValue}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          if (value === "" || /^\d*\.?\d*$/.test(value)) {
+                            setSalvageValue(value);
+                          }
+                        }}
+                        placeholder="0.00"
+                        className={fieldInputClass}
+                      />
+                    </div>
+                  </>
+                )}
+
+                {canAddBardana && (
+                  <div className="space-y-1">
+                    <Label htmlFor="po-line-bags" className="text-xs">
+                      No. of Bags
+                    </Label>
+                    <Input
+                      id="po-line-bags"
+                      inputMode="numeric"
+                      placeholder="0"
+                      value={noOfBags}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        if (v === "" || /^[0-9]+$/.test(v)) setNoOfBags(v);
+                      }}
+                    />
+                  </div>
+                )}
+
+                {/* Row 2 */}
                 <div className="space-y-1">
-                  <Label htmlFor="po-line-fa-posting-type" className="text-xs">
-                    FA Posting Type
+                  <Label htmlFor="po-line-qty-receive" className="text-xs">
+                    Qty to Receive
                   </Label>
-                  <Select
-                    value={faPostingType || ""}
-                    onValueChange={setFaPostingType}
-                  >
-                    <SelectTrigger id="po-line-fa-posting-type" className={fieldInputClass}>
-                      <SelectValue placeholder="Select Type" />
+                  <Input
+                    id="po-line-qty-receive"
+                    inputMode="decimal"
+                    value={qtyToReceive}
+                    onChange={(e) => {
+                      if (isValidNum(e.target.value))
+                        setQtyToReceive(e.target.value);
+                    }}
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <Label htmlFor="po-line-qty-invoice" className="text-xs">
+                    Qty to Invoice
+                  </Label>
+                  <Input
+                    id="po-line-qty-invoice"
+                    inputMode="decimal"
+                    value={qtyToInvoice}
+                    onChange={(e) => {
+                      if (isValidNum(e.target.value))
+                        setQtyToInvoice(e.target.value);
+                    }}
+                  />
+                </div>
+
+                {/* Row 3 */}
+                <div className="space-y-1 overflow-hidden">
+                  <Label htmlFor="po-line-gst-group" className="text-xs">
+                    GST Group Code
+                  </Label>
+                  <SearchableSelect
+                    value={gstGroupCode}
+                    onValueChange={(val) => {
+                      setGstGroupCode(val);
+                      setHsnSacCode("");
+                    }}
+                    options={gstOptions}
+                    isLoading={loadingOptions.gst}
+                    placeholder="Select GST Group..."
+                    searchPlaceholder="Search GST Groups..."
+                    allowCustomValue={true}
+                  />
+                </div>
+
+                <div className="space-y-1 overflow-hidden">
+                  <Label htmlFor="po-line-hsn" className="text-xs">
+                    HSN/SAC Code
+                  </Label>
+                  <SearchableSelect
+                    value={hsnSacCode}
+                    onValueChange={setHsnSacCode}
+                    options={hsnOptions}
+                    isLoading={loadingOptions.hsn}
+                    placeholder={
+                      gstGroupCode ? "Select HSN/SAC..." : "Select GST Group first"
+                    }
+                    searchPlaceholder="Search HSN/SAC Codes..."
+                    disabled={!gstGroupCode}
+                    allowCustomValue={true}
+                  />
+                </div>
+
+                {/* Row 4 */}
+                <div className="space-y-1 overflow-hidden">
+                  <Label htmlFor="po-line-tds-section" className="text-xs">
+                    TDS Section
+                  </Label>
+                  <SearchableSelect
+                    value={tdsSection}
+                    onValueChange={setTdsSection}
+                    options={tdsOptions}
+                    isLoading={loadingOptions.tds}
+                    placeholder="Select TDS Section..."
+                    searchPlaceholder="Search TDS Section..."
+                    allowCustomValue={true}
+                  />
+                </div>
+
+                <div className="space-y-1 overflow-hidden">
+                  <Label htmlFor="po-line-gst-credit" className="text-xs">
+                    GST Credit
+                  </Label>
+                  <Select value={gstCredit} onValueChange={setGstCredit}>
+                    <SelectTrigger className={cn("h-8", fieldInputClass)}>
+                      <SelectValue placeholder="Select GST Credit" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Acquisition Cost">Acquisition Cost</SelectItem>
-                      <SelectItem value="Maintenance">Maintenance</SelectItem>
-                      <SelectItem value="Appreciation">Appreciation</SelectItem>
+                      <SelectItem value="Availment">Availment</SelectItem>
+                      <SelectItem value="Non-Availment">Non-Availment</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
 
-                <div className="space-y-1">
-                  <Label htmlFor="po-line-salvage-value" className="text-xs">
-                    Salvage Value
-                  </Label>
-                  <Input
-                    id="po-line-salvage-value"
-                    inputMode="decimal"
-                    value={salvageValue}
-                    onChange={(e) => {
-                      const value = e.target.value;
-                      if (value === "" || /^\d*\.?\d*$/.test(value)) {
-                        setSalvageValue(value);
-                      }
-                    }}
-                    placeholder="0.00"
-                    className={fieldInputClass}
+                <div className="flex items-center gap-2 pt-5">
+                  <Checkbox
+                    id="po-line-exempted"
+                    checked={exempted}
+                    onCheckedChange={(checked) => setExempted(checked === true)}
                   />
+                  <Label
+                    htmlFor="po-line-exempted"
+                    className="cursor-pointer text-sm"
+                  >
+                    Exempted
+                  </Label>
                 </div>
               </>
             )}
-
-            {canAddBardana && (
-              <div className="space-y-1">
-                <Label htmlFor="po-line-bags" className="text-xs">
-                  No. of Bags
-                </Label>
-                <Input
-                  id="po-line-bags"
-                  inputMode="numeric"
-                  placeholder="0"
-                  value={noOfBags}
-                  onChange={(e) => {
-                    const v = e.target.value;
-                    if (v === "" || /^[0-9]+$/.test(v)) setNoOfBags(v);
-                  }}
-                />
-              </div>
-            )}
-
-            {/* Row 2 */}
-            <div className="space-y-1">
-              <Label htmlFor="po-line-qty-receive" className="text-xs">
-                Qty to Receive
-              </Label>
-              <Input
-                id="po-line-qty-receive"
-                inputMode="decimal"
-                value={qtyToReceive}
-                onChange={(e) => {
-                  if (isValidNum(e.target.value))
-                    setQtyToReceive(e.target.value);
-                }}
-              />
-            </div>
-
-            <div className="space-y-1">
-              <Label htmlFor="po-line-qty-invoice" className="text-xs">
-                Qty to Invoice
-              </Label>
-              <Input
-                id="po-line-qty-invoice"
-                inputMode="decimal"
-                value={qtyToInvoice}
-                onChange={(e) => {
-                  if (isValidNum(e.target.value))
-                    setQtyToInvoice(e.target.value);
-                }}
-              />
-            </div>
-
-            {/* Row 3 */}
-            <div className="space-y-1 overflow-hidden">
-              <Label htmlFor="po-line-gst-group" className="text-xs">
-                GST Group Code
-              </Label>
-              <SearchableSelect
-                value={gstGroupCode}
-                onValueChange={(val) => {
-                  setGstGroupCode(val);
-                  setHsnSacCode("");
-                }}
-                options={gstOptions}
-                isLoading={loadingOptions.gst}
-                placeholder="Select GST Group..."
-                searchPlaceholder="Search GST Groups..."
-                allowCustomValue={true}
-              />
-            </div>
-
-            <div className="space-y-1 overflow-hidden">
-              <Label htmlFor="po-line-hsn" className="text-xs">
-                HSN/SAC Code
-              </Label>
-              <SearchableSelect
-                value={hsnSacCode}
-                onValueChange={setHsnSacCode}
-                options={hsnOptions}
-                isLoading={loadingOptions.hsn}
-                placeholder={
-                  gstGroupCode ? "Select HSN/SAC..." : "Select GST Group first"
-                }
-                searchPlaceholder="Search HSN/SAC Codes..."
-                disabled={!gstGroupCode}
-                allowCustomValue={true}
-              />
-            </div>
-
-            {/* Row 4 */}
-            <div className="space-y-1 overflow-hidden">
-              <Label htmlFor="po-line-tds-section" className="text-xs">
-                TDS Section
-              </Label>
-              <SearchableSelect
-                value={tdsSection}
-                onValueChange={setTdsSection}
-                options={tdsOptions}
-                isLoading={loadingOptions.tds}
-                placeholder="Select TDS Section..."
-                searchPlaceholder="Search TDS Section..."
-                allowCustomValue={true}
-              />
-            </div>
-
-            <div className="flex items-center gap-2 pt-5">
-              <Checkbox
-                id="po-line-exempted"
-                checked={exempted}
-                onCheckedChange={(checked) => setExempted(checked === true)}
-              />
-              <Label
-                htmlFor="po-line-exempted"
-                className="cursor-pointer text-sm"
-              >
-                Exempted
-              </Label>
-            </div>
           </div>
 
           <DialogFooter className="mt-2 gap-2">

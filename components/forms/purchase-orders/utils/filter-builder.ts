@@ -15,7 +15,10 @@ export interface PurchaseOrderFilterParams {
   columnFilters?: Record<string, { value: string; valueTo?: string }>;
   /** Additional dynamic filters from the DynamicFilterBuilder */
   additionalFilters?: FilterCondition[];
+  /** Filter by PO Type (Both/Service/Goods) */
+  poType?: string;
 }
+
 
 function escapeODataValue(value: string): string {
   return value.replace(/'/g, "''");
@@ -126,7 +129,9 @@ export function buildPurchaseOrderFilterString(
     statusFilter,
     columnFilters = {},
     additionalFilters = [],
+    poType = "Both",
   } = params;
+
   const filterParts: string[] = [];
 
   // API-level branch filter (Shortcut_Dimension_2_Code = branch codes)
@@ -146,6 +151,12 @@ export function buildPurchaseOrderFilterString(
   if (statusFilter?.trim()) {
     filterParts.push(`Status eq '${escapeODataValue(statusFilter.trim())}'`);
   }
+ 
+  // API-level PO Type filter
+  if (poType && poType !== "Both") {
+    filterParts.push(`PO_Type eq '${escapeODataValue(poType)}'`);
+  }
+
 
   // Column filters (skip Shortcut_Dimension_2_Code and Status when applied at API level)
   Object.entries(columnFilters).forEach(([columnId, filter]) => {

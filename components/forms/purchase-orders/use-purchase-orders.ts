@@ -53,6 +53,8 @@ export function usePurchaseOrders(options: UsePurchaseOrdersOptions = {}) {
   const [additionalFilters, setAdditionalFilters] = useState<FilterCondition[]>(
     [],
   );
+  const [poType, setPoType] = useState<string>("Both");
+
 
   const [visibleColumns, setVisibleColumns] = useState<string[]>(() =>
     typeof window !== "undefined"
@@ -122,7 +124,9 @@ export function usePurchaseOrders(options: UsePurchaseOrdersOptions = {}) {
         statusFilter,
         columnFilters,
         additionalFilters,
+        poType,
       });
+
 
       const commonParams = {
         $select: buildSelectQuery(visibleColumns),
@@ -158,8 +162,10 @@ export function usePurchaseOrders(options: UsePurchaseOrdersOptions = {}) {
     additionalFilters,
     userBranchCodes,
     statusFilter,
+    poType,
     getOrderByString,
   ]);
+
 
   // Reset to page 1 when status tab changes
   useEffect(() => {
@@ -227,10 +233,12 @@ export function usePurchaseOrders(options: UsePurchaseOrdersOptions = {}) {
     setSearchQuery("");
     setColumnFilters({});
     setAdditionalFilters([]);
+    setPoType("Both");
     setSortColumn("No");
     setSortDirection("desc");
     setCurrentPage(1);
   }, []);
+
 
   const handleAddAdditionalFilter = useCallback((filter: FilterCondition) => {
     setAdditionalFilters((prev) => [...prev, filter]);
@@ -255,6 +263,11 @@ export function usePurchaseOrders(options: UsePurchaseOrdersOptions = {}) {
     },
     [],
   );
+  const handlePoTypeChange = useCallback((value: string) => {
+    setPoType(value);
+    setCurrentPage(1);
+  }, []);
+
 
   return {
     orders,
@@ -269,6 +282,7 @@ export function usePurchaseOrders(options: UsePurchaseOrdersOptions = {}) {
     columnFilters,
     additionalFilters,
     visibleColumns,
+    poType,
     onPageSizeChange: handlePageSizeChange,
     onPageChange: handlePageChange,
     onSort: handleSort,
@@ -279,7 +293,9 @@ export function usePurchaseOrders(options: UsePurchaseOrdersOptions = {}) {
     onAddAdditionalFilter: handleAddAdditionalFilter,
     onRemoveAdditionalFilter: handleRemoveAdditionalFilter,
     onShowAllColumns: handleShowAllColumns,
+    onPoTypeChange: handlePoTypeChange,
     onClearFilters: handleClearFilters,
     refetch: fetchOrders,
   };
+
 }

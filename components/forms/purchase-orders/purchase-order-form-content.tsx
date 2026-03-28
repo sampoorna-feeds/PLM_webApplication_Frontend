@@ -14,6 +14,7 @@ import React, {
   useMemo,
   useRef,
   useCallback,
+  useTransition,
 } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -40,6 +41,7 @@ import {
   FileText,
   PackagePlus,
   Loader2,
+  LoaderCircleIcon,
 } from "lucide-react";
 import { PurchaseLineItemsTable } from "../purchase/purchase-line-items-table";
 import { POAttachmentDialog } from "../purchase/po-attachment-dialog";
@@ -561,7 +563,7 @@ export function PurchaseOrderFormContent({
   });
   const [isPostLoading, setIsPostLoading] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
-
+  const [printingMRN, startPrintMRN] = useTransition();
   // Receipt list state
   const [isReceiptOpen, setIsReceiptOpen] = useState(false);
   const [receiptDate, setReceiptDate] = useState(
@@ -1286,19 +1288,21 @@ export function PurchaseOrderFormContent({
   };
 
   const handlePrintMRN = async (mrnNo: string) => {
-    try {
-      const base64 = await getPurchasereceiptReport(mrnNo);
-      if (!base64) {
-        toast.error("No report data found.");
-        return;
+    startPrintMRN(async () => {
+      try {
+        const base64 = await getPurchasereceiptReport(mrnNo);
+        if (!base64) {
+          toast.error("No report data found.");
+          return;
+        }
+        const blob = base64ToPdfBlob(base64);
+        const url = URL.createObjectURL(blob);
+        window.open(url, "_blank");
+      } catch (error) {
+        console.error("Print MRN failed", error);
+        toast.error("Failed to generate MRN report.");
       }
-      const blob = base64ToPdfBlob(base64);
-      const url = URL.createObjectURL(blob);
-      window.open(url, "_blank");
-    } catch (error) {
-      console.error("Print MRN failed", error);
-      toast.error("Failed to generate MRN report.");
-    }
+    });
   };
 
   const handleOpenItemChargeForMrn = (mrnNo: string) => {
@@ -2713,7 +2717,11 @@ export function PurchaseOrderFormContent({
                               title="Print MRN"
                               onClick={() => handlePrintMRN(s.No)}
                             >
-                              <FileText className="h-3.5 w-3.5" />
+                              {printingMRN ? (
+                                <LoaderCircleIcon className="animate-spin h-3.5 w-3.5" />
+                              ) : (
+                                <FileText className="h-3.5 w-3.5" />
+                              )}
                             </Button>
                             {/* <Button
                               size="icon"

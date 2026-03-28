@@ -2,7 +2,8 @@ export type PurchaseLineType =
   | "G/L Account"
   | "Item"
   | "Fixed Asset"
-  | "Charge (Item)";
+  | "Charge (Item)"
+  | "";
 
 export interface LineItem {
   id: string;
@@ -30,4 +31,5 @@ export interface LineItem {
   noOfBags?: number;
   challanQty?: number;
   weightQty?: number;
+  gstCredit?: string;
 }

@@ -6,7 +6,9 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { PurchaseOrderColumnVisibility } from "./column-visibility";
 import { DynamicFilterBuilder } from "./dynamic-filter-builder";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { FilterCondition } from "./types";
+
 
 interface PurchaseOrderFilterBarProps {
   searchQuery: string;
@@ -20,8 +22,11 @@ interface PurchaseOrderFilterBarProps {
   onShowAllColumns: () => void;
   onAddAdditionalFilter: (filter: FilterCondition) => void;
   onRemoveAdditionalFilter: (index: number) => void;
+  poType: string;
+  onPoTypeChange: (value: string) => void;
   children?: React.ReactNode;
 }
+
 
 export function PurchaseOrderFilterBar({
   searchQuery,
@@ -35,8 +40,11 @@ export function PurchaseOrderFilterBar({
   onShowAllColumns,
   onAddAdditionalFilter,
   onRemoveAdditionalFilter,
+  poType,
+  onPoTypeChange,
   children,
 }: PurchaseOrderFilterBarProps) {
+
   const [localSearch, setLocalSearch] = useState(searchQuery);
 
   useEffect(() => {
@@ -102,6 +110,24 @@ export function PurchaseOrderFilterBar({
             Reset Filters
           </Button>
         )}
+
+        <Tabs
+          value={poType}
+          onValueChange={onPoTypeChange}
+          className="h-9 items-center"
+        >
+          <TabsList className="h-9">
+            <TabsTrigger value="Both" className="h-8 px-3">
+              Both
+            </TabsTrigger>
+            <TabsTrigger value="Service" className="h-8 px-3">
+              Service
+            </TabsTrigger>
+            <TabsTrigger value="Goods" className="h-8 px-3">
+              Goods
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
 
         <PurchaseOrderColumnVisibility
           visibleColumns={visibleColumns}

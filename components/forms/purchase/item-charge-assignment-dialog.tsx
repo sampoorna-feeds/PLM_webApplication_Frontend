@@ -12,6 +12,7 @@ import {
   ArrowUpDown,
   Filter,
   Zap,
+  Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -60,6 +61,17 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Label } from "@/components/ui/label";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+
 
 const FIELD_INPUT_CLASS =
   "disabled:opacity-100 disabled:text-foreground font-normal text-xs disabled:pointer-events-none disabled:bg-muted/30";
@@ -250,6 +262,9 @@ export function ItemChargeAssignmentDialog({
   const [errorTitle, setErrorTitle] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [apiErrors, setApiErrors] = useState<ErrorDetail[]>([]);
+  const [deleteConfirmLine, setDeleteConfirmLine] =
+    useState<ItemChargeAssignment | null>(null);
+
 
   const showError = (title: string, message: string, error?: any) => {
     setErrorTitle(title);
@@ -345,7 +360,7 @@ export function ItemChargeAssignmentDialog({
         docNo,
         lineNo: docLineNo,
         totalQtyToAssign: totalQuantity,
-        tTotalAmtToAssign: totalAmount,
+        totalAmtToAssign: totalAmount,
         totalQtyToHandle: totalQuantity,
         totalAmtToHandle: totalAmount,
         selectionTxt: criteria,
@@ -452,8 +467,10 @@ export function ItemChargeAssignmentDialog({
       );
     } finally {
       setLoading(false);
+      setDeleteConfirmLine(null);
     }
   };
+
 
   const handleUpdateLine = (
     lineNo: number,
@@ -697,16 +714,20 @@ export function ItemChargeAssignmentDialog({
                       <Table className="relative w-full border-collapse">
                         <TableHeader className="bg-muted border-border sticky top-0 z-30 border-b shadow-sm">
                           <TableRow className="h-9 hover:bg-transparent [&_th]:border-b">
-                            <TableHead className="bg-muted sticky left-0 z-40 w-16 px-4 text-center align-middle">
-                              <Checkbox
-                                checked={
-                                  filteredAndSortedLines.length > 0 &&
-                                  selectedLines.size ===
-                                    filteredAndSortedLines.length
-                                }
-                                onCheckedChange={toggleSelectAll}
-                                className="mr-3 rounded-none shadow-none"
-                              />
+                            <TableHead className="bg-muted sticky left-0 z-40 w-24 px-4 text-center align-middle">
+                              <div className="flex items-center justify-center gap-2">
+                                <Checkbox
+                                  checked={
+                                    filteredAndSortedLines.length > 0 &&
+                                    selectedLines.size ===
+                                      filteredAndSortedLines.length
+                                  }
+                                  onCheckedChange={toggleSelectAll}
+                                  className="rounded-none shadow-none"
+                                />
+                                <div className="w-8" />{" "}
+                                {/* Spacer for delete button column header */}
+                              </div>
                             </TableHead>
                             {ASSIGNMENT_COLUMNS.map((col) => (
                               <SortableTableHead
@@ -746,16 +767,30 @@ export function ItemChargeAssignmentDialog({
                                   onClick={() => toggleSelectLine(line)}
                                 >
                                   <TableCell
-                                    className="bg-background sticky left-0 z-20 w-16 px-4 text-center align-middle transition-colors"
+                                    className="bg-background sticky left-0 z-20 w-24 px-4 text-center align-middle transition-colors"
                                     onClick={(e) => e.stopPropagation()}
                                   >
-                                    <Checkbox
-                                      checked={isSelected}
-                                      onCheckedChange={() =>
-                                        toggleSelectLine(line)
-                                      }
-                                      className="mr-3 rounded-none shadow-none"
-                                    />
+                                    <div className="flex items-center justify-center gap-2">
+                                      <Checkbox
+                                        checked={isSelected}
+                                        onCheckedChange={() =>
+                                          toggleSelectLine(line)
+                                        }
+                                        className="rounded-none shadow-none"
+                                      />
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="text-destructive hover:bg-secondary/50 h-7 w-7 transition-colors"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setDeleteConfirmLine(line);
+                                        }}
+
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                      </Button>
+                                    </div>
                                   </TableCell>
                                   <TableCell className="px-3 py-0 text-center align-middle text-[10px] whitespace-nowrap">
                                     {line.Applies_toDocType || "—"}
@@ -1060,9 +1095,52 @@ export function ItemChargeAssignmentDialog({
       <ItemChargeSelectionDialog
         open={selectionOpen}
         onOpenChange={setSelectionOpen}
-        type={selectionType}
         onAddSelected={handleLinesAdded}
+        type={selectionType}
       />
+
+      <AlertDialog
+        open={!!deleteConfirmLine}
+        onOpenChange={(open) => !open && setDeleteConfirmLine(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete the assignment for item{" "}
+              <span className="text-foreground font-semibold">
+                {deleteConfirmLine?.ItemNo}
+              </span>{" "}
+              ({deleteConfirmLine?.Description}) from{" "}
+              <span className="text-foreground font-semibold">
+                {deleteConfirmLine?.Applies_toDocNo}
+              </span>
+              . This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={loading}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                if (deleteConfirmLine) handleDeleteLine(deleteConfirmLine);
+              }}
+              disabled={loading}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                "Delete"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
 
       <ErrorDialog
         open={errorDialogOpen}

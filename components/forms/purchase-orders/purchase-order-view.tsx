@@ -52,8 +52,11 @@ export function PurchaseOrderView({
     onShowAllColumns,
     onAddAdditionalFilter,
     onRemoveAdditionalFilter,
+    poType,
+    onPoTypeChange,
     onClearFilters,
   } = usePurchaseOrders({ statusFilter });
+
 
   useEffect(() => {
     registerRefetch?.(refetch);
@@ -88,7 +91,10 @@ export function PurchaseOrderView({
           onShowAllColumns={onShowAllColumns}
           onAddAdditionalFilter={onAddAdditionalFilter}
           onRemoveAdditionalFilter={onRemoveAdditionalFilter}
+          poType={poType}
+          onPoTypeChange={onPoTypeChange}
         >
+
           <Button onClick={handlePlaceOrder} size="sm">
             <Plus className="mr-2 h-4 w-4" />
             Place Order

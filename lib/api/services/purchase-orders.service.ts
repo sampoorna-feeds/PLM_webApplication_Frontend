@@ -115,7 +115,7 @@ export async function getPurchaseOrdersWithCount(
   params: GetPurchaseOrdersParams = {},
 ): Promise<PaginatedPurchaseOrdersResponse> {
   const {
-    $select = "No,Buy_from_Vendor_No,Buy_from_Vendor_Name,Order_Date,Posting_Date,Document_Date,Vendor_Order_No,Status",
+    $select = "No,Buy_from_Vendor_No,Buy_from_Vendor_Name,Order_Date,Posting_Date,Document_Date,Vendor_Order_No,Status,PO_Type",
     $filter,
     $orderby = "No desc",
     $top = 10,
@@ -241,6 +241,7 @@ export interface PurchaseLine {
   No_of_Bags?: number;
   Challan_Qty?: number;
   Weight_Qty?: number;
+  GST_Credit?: string;
   [key: string]: unknown;
 }
 
@@ -768,9 +769,9 @@ export async function getPurchaseOrderReport(orderNo: string): Promise<string> {
 /**
  * Get Purchase Receipt Report (MRN Report - Base64 PDF)
  */
-export async function getPurchasereceiptReport(mrnNo: string): Promise<string> {
+export async function getPurchasereceiptReport(mRNNo: string): Promise<string> {
   const endpoint = `/API_GetPurchasereceiptReport?company='${encodeURIComponent(COMPANY)}'`;
-  const response = await apiPost<{ value: string }>(endpoint, { mrnNo });
+  const response = await apiPost<{ value: string }>(endpoint, { mRNNo });
   return response.value || "";
 }
 
@@ -788,10 +789,10 @@ export async function getItemCharges(): Promise<ItemCharge[]> {
  * Filtered by Item type usually for charge assignment.
  */
 export async function getPurchasereceiptLines(
-  mrnNo: string,
+  mRNNo: string,
   itemNo?: string,
 ): Promise<PurchaseReceiptLine[]> {
-  const escapedMrn = mrnNo.replace(/'/g, "''");
+  const escapedMrn = mRNNo.replace(/'/g, "''");
   let filter = `Document_No eq '${escapedMrn}' and Type eq 'Item'`;
   if (itemNo) {
     filter += ` and No eq '${itemNo.replace(/'/g, "''")}'`;
@@ -807,7 +808,7 @@ export async function getPurchasereceiptLines(
  */
 export async function assignItemCharge(params: {
   itemChargeNo: string;
-  mrnNo: string;
+  mRNNo: string;
   lineNo: number;
   amount: number;
   locationCode?: string;
@@ -822,11 +823,11 @@ export async function assignItemCharge(params: {
     sourceProdOrderLine: 0,
     sourceType: 123, // 123 for Purchase Receipt Line in this context
     sourceSubType: 0,
-    sourceID: params.mrnNo,
+    sourceID: params.mRNNo,
     sourceBatch: "",
     sourcerefNo: params.lineNo,
     appliestoDocType: 1, // Order? or Receipt? User said appliestoDocNo is MRN
-    appliestoDocNo: params.mrnNo,
+    appliestoDocNo: params.mRNNo,
     appliestoDocLineNo: params.lineNo,
     lotNo: "",
     expirationdate: "0001-01-01",

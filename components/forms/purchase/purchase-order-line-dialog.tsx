@@ -66,7 +66,7 @@ import {
 } from "@/lib/api/services/purchase-orders.service";
 import type { LineItem } from "@/components/forms/purchase/purchase-line-item.type";
 
-type LineType = "G/L Account" | "Item" | "Fixed Asset" | "Charge (Item)";
+type LineType = "G/L Account" | "Item" | "Fixed Asset" | "Charge (Item)" | "";
 
 interface PurchaseOrderLineDialogProps {
   isOpen: boolean;
@@ -103,6 +103,7 @@ function getInitialLineState(lineItem?: LineItem | null): Partial<LineItem> {
     noOfBags: lineItem?.noOfBags,
     challanQty: lineItem?.challanQty,
     weightQty: lineItem?.weightQty,
+    gstCredit: lineItem?.gstCredit || "Availment",
   };
 }
 
@@ -281,6 +282,9 @@ export function PurchaseOrderLineDialog({
       exempted: false,
       gstGroupCode: "",
       hsnSacCode: "",
+      quantity: type === "" ? 0 : prev.quantity,
+      price: type === "" ? 0 : prev.price,
+      unitPrice: type === "" ? 0 : prev.unitPrice,
     }));
   }, []);
 
@@ -374,12 +378,17 @@ export function PurchaseOrderLineDialog({
   const handleSubmit = useCallback(() => {
     setValidationError(null);
 
-    if (!formState.no || !formState.description) {
-      setValidationError("Item and description are required.");
+    if (formState.type !== "" && !formState.no) {
+      setValidationError("Item or selection is required.");
       return;
     }
 
-    if (!formState.quantity || formState.quantity <= 0) {
+    if (!formState.description) {
+      setValidationError("Description is required.");
+      return;
+    }
+
+    if (formState.type !== "" && (!formState.quantity || formState.quantity <= 0)) {
       setValidationError("Quantity must be greater than zero.");
       return;
     }
@@ -388,9 +397,9 @@ export function PurchaseOrderLineDialog({
       id: lineItem?.id || createLineItemId(),
       lineNo: lineItem?.lineNo,
       type: (formState.type as LineType) || "Item",
-      no: formState.no,
-      description: formState.description,
-      uom: formState.uom,
+      no: formState.no || "",
+      description: formState.description || "",
+      uom: formState.uom || "",
       quantity: Number(formState.quantity) || 0,
       price: Number(formState.price) || 0,
       unitPrice: Number(formState.unitPrice) || 0,
@@ -413,6 +422,7 @@ export function PurchaseOrderLineDialog({
       noOfBags: canAddBardana ? formState.noOfBags : undefined,
       challanQty: isItemType ? Number(formState.challanQty) || 0 : undefined,
       weightQty: isItemType ? Number(formState.weightQty) || 0 : undefined,
+      gstCredit: formState.gstCredit,
     };
 
     onSave(normalizedLineItem);
@@ -437,8 +447,8 @@ export function PurchaseOrderLineDialog({
                 disabled={isEdit}
               >
                 <Select
-                  value={(formState.type as string) || "Item"}
-                  onValueChange={(value) => handleTypeChange(value as LineType)}
+                  value={formState.type === "" ? "None" : (formState.type || "Item")}
+                  onValueChange={(value) => handleTypeChange(value === "None" ? "" : (value as LineType))}
                   disabled={isEdit}
                 >
                   <SelectTrigger className={cn("h-8", fieldInputClass)}>
@@ -449,199 +459,214 @@ export function PurchaseOrderLineDialog({
                     <SelectItem value="Item">Item</SelectItem>
                     <SelectItem value="Fixed Asset">Fixed Asset</SelectItem>
                     <SelectItem value="Charge (Item)">Charge Item</SelectItem>
+                    <SelectItem value="None">None</SelectItem>
                   </SelectContent>
                 </Select>
               </ClearableField>
             </div>
 
-            <div className="space-y-1">
-              <FieldTitle>Select Item</FieldTitle>
-              {formState.type === "G/L Account" ? (
-                <ClearableField
-                  key="line-selector-gl-account"
-                  value={formState.no}
-                  onClear={() => handleGLAccountChange("", undefined)}
-                >
-                  <MasterSearchableSelect<GLPostingAccount>
-                    key="master-select-gl-account"
-                    value={formState.no || ""}
-                    onChange={handleGLAccountChange}
-                    placeholder="Select GL Account"
-                    loadInitial={() => getGLAccounts(20)}
-                    searchItems={searchGLAccounts}
-                    loadMore={(skip, search) => getGLAccountsPage(skip, search)}
-                    getDisplayValue={(item) => `${item.No} - ${item.Name}`}
-                    getItemValue={(item) => item.No}
-                    supportsDualSearch={true}
-                    searchByField={(query, field) =>
-                      searchGLAccountsByField(
-                        query,
-                        field === "No" ? "No" : "Name",
-                      )
-                    }
-                  />
-                </ClearableField>
-              ) : formState.type === "Fixed Asset" ? (
-                <ClearableField
-                  key="line-selector-fixed-asset"
-                  value={formState.no}
-                  onClear={() => {
-                    setFormState((prev) => ({
-                      ...prev,
-                      no: "",
-                      description: "",
-                      uom: "",
-                      exempted: false,
-                      gstGroupCode: "",
-                      hsnSacCode: "",
-                      faPostingType: "",
-                      salvageValue: undefined,
-                    }));
-                  }}
-                >
-                  <MasterSearchableSelect<FixedAsset>
-                    key="master-select-fixed-asset"
-                    value={formState.no || ""}
-                    onChange={(value, asset) => {
-                      if (value === "" && !asset) {
-                        setFormState((prev) => ({
-                          ...prev,
-                          no: "",
-                          description: "",
-                          uom: "",
-                          exempted: false,
-                          gstGroupCode: "",
-                          hsnSacCode: "",
-                          faPostingType: "",
-                          salvageValue: undefined,
-                        }));
-                        return;
+            {formState.type !== "" && (
+              <div className="space-y-1">
+                <FieldTitle>Select Item</FieldTitle>
+                {formState.type === "G/L Account" ? (
+                  <ClearableField
+                    key="line-selector-gl-account"
+                    value={formState.no}
+                    onClear={() => handleGLAccountChange("", undefined)}
+                  >
+                    <MasterSearchableSelect<GLPostingAccount>
+                      key="master-select-gl-account"
+                      value={formState.no || ""}
+                      onChange={handleGLAccountChange}
+                      placeholder="Select GL Account"
+                      loadInitial={() => getGLAccounts(20)}
+                      searchItems={searchGLAccounts}
+                      loadMore={(skip, search) => getGLAccountsPage(skip, search)}
+                      getDisplayValue={(item) => `${item.No} - ${item.Name}`}
+                      getItemValue={(item) => item.No}
+                      supportsDualSearch={true}
+                      searchByField={(query, field) =>
+                        searchGLAccountsByField(
+                          query,
+                          field === "No" ? "No" : "Name",
+                        )
                       }
-
-                      if (!asset) return;
+                    />
+                  </ClearableField>
+                ) : formState.type === "Fixed Asset" ? (
+                  <ClearableField
+                    key="line-selector-fixed-asset"
+                    value={formState.no}
+                    onClear={() => {
                       setFormState((prev) => ({
                         ...prev,
-                        no: asset.No,
-                        description: asset.Description,
+                        no: "",
+                        description: "",
                         uom: "",
+                        exempted: false,
+                        gstGroupCode: "",
+                        hsnSacCode: "",
+                        faPostingType: "",
+                        salvageValue: undefined,
                       }));
                     }}
-                    placeholder="Select Fixed Asset"
-                    loadInitial={() => getFixedAssets(20)}
-                    searchItems={searchFixedAssets}
-                    loadMore={(skip, search) =>
-                      getFixedAssetsPage(skip, search)
-                    }
-                    getDisplayValue={(asset) =>
-                      `${asset.No} - ${asset.Description}`
-                    }
-                    getItemValue={(asset) => asset.No}
-                    supportsDualSearch={true}
-                    searchByField={(query, field) =>
-                      searchFixedAssetsByField(
-                        query,
-                        field === "No" ? "No" : "Description",
-                      )
-                    }
-                  />
-                </ClearableField>
-              ) : formState.type === "Charge (Item)" ? (
-                <ClearableField
-                  key="line-selector-charge-item"
-                  value={formState.no}
-                  onClear={() => {
-                    setFormState((prev) => ({
-                      ...prev,
-                      no: "",
-                      description: "",
-                      uom: "",
-                      exempted: false,
-                      gstGroupCode: "",
-                      hsnSacCode: "",
-                    }));
-                  }}
-                >
-                  <MasterSearchableSelect<ItemCharge>
-                    key="master-select-charge-item"
-                    value={formState.no || ""}
-                    onChange={(value, charge) => {
-                      if (value === "" && !charge) {
+                  >
+                    <MasterSearchableSelect<FixedAsset>
+                      key="master-select-fixed-asset"
+                      value={formState.no || ""}
+                      onChange={(value, asset) => {
+                        if (value === "" && !asset) {
+                          setFormState((prev) => ({
+                            ...prev,
+                            no: "",
+                            description: "",
+                            uom: "",
+                            exempted: false,
+                            gstGroupCode: "",
+                            hsnSacCode: "",
+                            faPostingType: "",
+                            salvageValue: undefined,
+                          }));
+                          return;
+                        }
+
+                        if (!asset) return;
                         setFormState((prev) => ({
                           ...prev,
-                          no: "",
-                          description: "",
+                          no: asset.No,
+                          description: asset.Description,
                           uom: "",
-                          exempted: false,
-                          gstGroupCode: "",
-                          hsnSacCode: "",
                         }));
-                        return;
+                      }}
+                      placeholder="Select Fixed Asset"
+                      loadInitial={() => getFixedAssets(20)}
+                      searchItems={searchFixedAssets}
+                      loadMore={(skip, search) =>
+                        getFixedAssetsPage(skip, search)
                       }
-
-                      if (!charge) return;
+                      getDisplayValue={(asset) =>
+                        `${asset.No} - ${asset.Description}`
+                      }
+                      getItemValue={(asset) => asset.No}
+                      supportsDualSearch={true}
+                      searchByField={(query, field) =>
+                        searchFixedAssetsByField(
+                          query,
+                          field === "No" ? "No" : "Description",
+                        )
+                      }
+                    />
+                  </ClearableField>
+                ) : formState.type === "Charge (Item)" ? (
+                  <ClearableField
+                    key="line-selector-charge-item"
+                    value={formState.no}
+                    onClear={() => {
                       setFormState((prev) => ({
                         ...prev,
-                        no: charge.No,
-                        description: charge.Description || prev.description,
+                        no: "",
+                        description: "",
                         uom: "",
-                        exempted: charge.Exempted ?? prev.exempted,
-                        gstGroupCode:
-                          charge.GST_Group_Code || prev.gstGroupCode,
-                        hsnSacCode: charge.HSN_SAC_Code || prev.hsnSacCode,
+                        exempted: false,
+                        gstGroupCode: "",
+                        hsnSacCode: "",
                       }));
                     }}
-                    placeholder="Select Charge Item"
-                    loadInitial={() => getItemCharges(20)}
-                    searchItems={searchItemCharges}
-                    loadMore={(skip, search) =>
-                      getItemChargesPage(skip, search)
-                    }
-                    getDisplayValue={(charge) =>
-                      `${charge.No} - ${charge.Description || ""}`
-                    }
-                    getItemValue={(charge) => charge.No}
-                    supportsDualSearch={true}
-                    searchByField={(query, field) =>
-                      searchItemChargesByField(
-                        query,
-                        field === "No" ? "No" : "Description",
-                      )
-                    }
-                  />
-                </ClearableField>
-              ) : (
-                <ClearableField
-                  key="line-selector-item"
-                  value={formState.no}
-                  onClear={() => handleItemChange("", undefined)}
-                >
-                  <MasterSearchableSelect<Item>
-                    key="master-select-item"
-                    value={formState.no || ""}
-                    onChange={handleItemChange}
-                    placeholder="Select Item"
-                    loadInitial={() => getItems(20, locationCode)}
-                    searchItems={(query) => searchItems(query, locationCode)}
-                    loadMore={(skip, search) =>
-                      getItemsPage(skip, search, 20, locationCode)
-                    }
-                    getDisplayValue={(item) =>
-                      `${item.No} - ${item.Description}`
-                    }
-                    getItemValue={(item) => item.No}
-                    supportsDualSearch={true}
-                    searchByField={(query, field) =>
-                      searchItemsByField(query, field, locationCode)
-                    }
-                  />
-                </ClearableField>
-              )}
-              {formState.description && (
-                <p className="mt-1 pl-1 text-[10px] font-medium text-green-600">
-                  {formState.description}
-                </p>
-              )}
-            </div>
+                  >
+                    <MasterSearchableSelect<ItemCharge>
+                      key="master-select-charge-item"
+                      value={formState.no || ""}
+                      onChange={(value, charge) => {
+                        if (value === "" && !charge) {
+                          setFormState((prev) => ({
+                            ...prev,
+                            no: "",
+                            description: "",
+                            uom: "",
+                            exempted: false,
+                            gstGroupCode: "",
+                            hsnSacCode: "",
+                          }));
+                          return;
+                        }
+
+                        if (!charge) return;
+                        setFormState((prev) => ({
+                          ...prev,
+                          no: charge.No,
+                          description: charge.Description || prev.description,
+                          uom: "",
+                          exempted: charge.Exempted ?? prev.exempted,
+                          gstGroupCode:
+                            charge.GST_Group_Code || prev.gstGroupCode,
+                          hsnSacCode: charge.HSN_SAC_Code || prev.hsnSacCode,
+                        }));
+                      }}
+                      placeholder="Select Charge Item"
+                      loadInitial={() => getItemCharges(20)}
+                      searchItems={searchItemCharges}
+                      loadMore={(skip, search) =>
+                        getItemChargesPage(skip, search)
+                      }
+                      getDisplayValue={(charge) =>
+                        `${charge.No} - ${charge.Description || ""}`
+                      }
+                      getItemValue={(charge) => charge.No}
+                      supportsDualSearch={true}
+                      searchByField={(query, field) =>
+                        searchItemChargesByField(
+                          query,
+                          field === "No" ? "No" : "Description",
+                        )
+                      }
+                    />
+                  </ClearableField>
+                ) : (
+                  <ClearableField
+                    key="line-selector-item"
+                    value={formState.no}
+                    onClear={() => handleItemChange("", undefined)}
+                  >
+                    <MasterSearchableSelect<Item>
+                      key="master-select-item"
+                      value={formState.no || ""}
+                      onChange={handleItemChange}
+                      placeholder="Select Item"
+                      loadInitial={() => getItems(20, locationCode)}
+                      searchItems={(query) => searchItems(query, locationCode)}
+                      loadMore={(skip, search) =>
+                        getItemsPage(skip, search, 20, locationCode)
+                      }
+                      getDisplayValue={(item) =>
+                        `${item.No} - ${item.Description}`
+                      }
+                      getItemValue={(item) => item.No}
+                      supportsDualSearch={true}
+                      searchByField={(query, field) =>
+                        searchItemsByField(query, field, locationCode)
+                      }
+                    />
+                  </ClearableField>
+                )}
+                {formState.description && (
+                  <p className="mt-1 pl-1 text-[10px] font-medium text-green-600">
+                    {formState.description}
+                  </p>
+                )}
+              </div>
+            )}
+
+            {formState.type === "" && (
+              <div className="space-y-1 sm:col-span-2">
+                <FieldTitle>Description</FieldTitle>
+                <Input
+                  value={formState.description || ""}
+                  onChange={(e) => handleFieldChange("description", e.target.value)}
+                  placeholder="Enter description"
+                  className={fieldInputClass}
+                />
+              </div>
+            )}
 
             {isItemType && (
               <div className="space-y-1">
@@ -670,209 +695,223 @@ export function PurchaseOrderLineDialog({
               </div>
             )}
 
-            <div className="space-y-1">
-              <FieldTitle>TDS Section</FieldTitle>
-              <AppSearchableSelect
-                value={formState.tdsSectionCode || ""}
-                onValueChange={(value) =>
-                  handleFieldChange("tdsSectionCode", value)
-                }
-                options={tdsOptions}
-                isLoading={loadingOptions.tds}
-                placeholder="Select TDS Section"
-                searchPlaceholder="Search TDS Section..."
-              />
-            </div>
-          </div>
-
-          <div className="space-y-2 border-t pt-2">
-            <h3 className="text-foreground text-xs font-medium">Pricing</h3>
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 md:grid-cols-4">
+            {formState.type !== "" && (
               <div className="space-y-1">
-                <FieldTitle>Quantity</FieldTitle>
-                <Input
-                  type="text"
-                  inputMode="decimal"
-                  value={formatNumericValue(formState.quantity)}
-                  onChange={(e) =>
-                    handleNumericChange("quantity", e.target.value)
+                <FieldTitle>TDS Section</FieldTitle>
+                <AppSearchableSelect
+                  value={formState.tdsSectionCode || ""}
+                  onValueChange={(value) =>
+                    handleFieldChange("tdsSectionCode", value)
                   }
-                  onWheel={(e) => e.currentTarget.blur()}
-                  placeholder="0.00"
-                  className={cn("h-8 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none", fieldInputClass)}
+                  options={tdsOptions}
+                  isLoading={loadingOptions.tds}
+                  placeholder="Select TDS Section"
+                  searchPlaceholder="Search TDS Section..."
                 />
               </div>
+            )}
+          </div>
 
-              {canAddBardana && (
+          {formState.type !== "" && (
+            <div className="space-y-2 border-t pt-2">
+              <h3 className="text-foreground text-xs font-medium">Pricing</h3>
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 md:grid-cols-4">
                 <div className="space-y-1">
-                  <FieldTitle>No. of Bags</FieldTitle>
+                  <FieldTitle>Quantity</FieldTitle>
                   <Input
                     type="text"
-                    inputMode="numeric"
-                    value={
-                      formState.noOfBags != null
-                        ? String(formState.noOfBags)
-                        : ""
+                    inputMode="decimal"
+                    value={formatNumericValue(formState.quantity)}
+                    onChange={(e) =>
+                      handleNumericChange("quantity", e.target.value)
                     }
-                    onChange={(e) => {
-                      const v = e.target.value;
-                      if (v === "") {
-                        setFormState((prev) => ({
-                          ...prev,
-                          noOfBags: undefined,
-                        }));
-                      } else {
-                        const n = parseInt(v, 10);
-                        if (!isNaN(n) && n >= 0)
-                          setFormState((prev) => ({ ...prev, noOfBags: n }));
-                      }
-                    }}
                     onWheel={(e) => e.currentTarget.blur()}
-                    placeholder="0"
+                    placeholder="0.00"
                     className={cn("h-8 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none", fieldInputClass)}
                   />
                 </div>
-              )}
 
-
-              <div className="space-y-1">
-                <FieldTitle>Unit Price</FieldTitle>
-                <Input
-                  type="text"
-                  inputMode="decimal"
-                  value={formatNumericValue(formState.unitPrice)}
-                  onChange={(e) =>
-                    handleNumericChange("unitPrice", e.target.value)
-                  }
-                  onWheel={(e) => e.currentTarget.blur()}
-                  placeholder="0.00"
-                  className={cn("h-8 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none", fieldInputClass)}
-                />
-              </div>
-
-              <div className="space-y-1">
-                <FieldTitle>Discount</FieldTitle>
-                <Input
-                  type="text"
-                  inputMode="decimal"
-                  value={formatNumericValue(formState.discount)}
-                  onChange={(e) =>
-                    handleNumericChange("discount", e.target.value)
-                  }
-                  onWheel={(e) => e.currentTarget.blur()}
-                  placeholder="0.00"
-                  className={cn("h-8 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none", fieldInputClass)}
-                />
-              </div>
-
-              <div className="space-y-1">
-                <FieldTitle>Amount</FieldTitle>
-                <Input
-                  type="text"
-                  value={amount > 0 ? amount.toFixed(2) : ""}
-                  disabled
-                  className={cn("bg-muted h-8 font-medium", fieldInputClass)}
-                  readOnly
-                />
-              </div>
-
-              {formState.type === "Fixed Asset" && (
-                <>
+                {canAddBardana && (
                   <div className="space-y-1">
-                    <FieldTitle>FA Posting Type</FieldTitle>
-                    <ClearableField
-                      value={formState.faPostingType}
-                      onClear={() => handleFieldChange("faPostingType", "")}
-                    >
-                      <Select
-                        value={formState.faPostingType || ""}
-                        onValueChange={(val) => handleFieldChange("faPostingType", val)}
-                      >
-                        <SelectTrigger className={cn("h-8", fieldInputClass)}>
-                          <SelectValue placeholder="Select Type" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Acquisition Cost">Acquisition Cost</SelectItem>
-                          <SelectItem value="Maintenance">Maintenance</SelectItem>
-                          <SelectItem value="Appreciation">Appreciation</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </ClearableField>
-                  </div>
-
-                  <div className="space-y-1">
-                    <FieldTitle>Salvage Value</FieldTitle>
+                    <FieldTitle>No. of Bags</FieldTitle>
                     <Input
                       type="text"
-                      inputMode="decimal"
-                      value={formatNumericValue(formState.salvageValue)}
+                      inputMode="numeric"
+                      value={
+                        formState.noOfBags != null
+                          ? String(formState.noOfBags)
+                          : ""
+                      }
                       onChange={(e) => {
-                        const value = e.target.value;
-                        if (value === "") {
-                          handleFieldChange("salvageValue", undefined);
-                          return;
-                        }
-                        if (/^\d*\.?\d*$/.test(value)) {
-                          handleFieldChange("salvageValue", Number(value));
+                        const v = e.target.value;
+                        if (v === "") {
+                          setFormState((prev) => ({
+                            ...prev,
+                            noOfBags: undefined,
+                          }));
+                        } else {
+                          const n = parseInt(v, 10);
+                          if (!isNaN(n) && n >= 0)
+                            setFormState((prev) => ({ ...prev, noOfBags: n }));
                         }
                       }}
                       onWheel={(e) => e.currentTarget.blur()}
-                      placeholder="0.00"
+                      placeholder="0"
                       className={cn("h-8 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none", fieldInputClass)}
                     />
                   </div>
-                </>
-              )}
-            </div>
-          </div>
+                )}
 
-          <div className="space-y-2 border-t pt-2">
-            <h3 className="text-foreground text-xs font-medium">Tax Details</h3>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <div className="flex items-center gap-2 pt-5">
-                <Checkbox
-                  id="line-exempted"
-                  checked={formState.exempted}
-                  onCheckedChange={(checked) => handleFieldChange("exempted", checked === true)}
-                />
-                <Label htmlFor="line-exempted" className="cursor-pointer text-xs font-medium text-muted-foreground mr-1">
-                  Exempted
-                </Label>
-              </div>
-              <div className="space-y-1">
-                <FieldTitle>GST Group Code</FieldTitle>
-                <AppSearchableSelect
-                  value={formState.gstGroupCode || ""}
-                  onValueChange={(value) => {
-                    handleFieldChange("gstGroupCode", value);
-                    handleFieldChange("hsnSacCode", "");
-                  }}
-                  options={gstOptions}
-                  isLoading={loadingOptions.gst}
-                  placeholder="Select GST Group..."
-                  searchPlaceholder="Search GST Group..."
-                />
-              </div>
-              <div className="space-y-1">
-                <FieldTitle>HSN/SAC Code</FieldTitle>
-                <AppSearchableSelect
-                  value={formState.hsnSacCode || ""}
-                  onValueChange={(value) =>
-                    handleFieldChange("hsnSacCode", value)
-                  }
-                  options={hsnOptions}
-                  isLoading={loadingOptions.hsn}
-                  placeholder={
-                    formState.gstGroupCode
-                      ? "Select HSN/SAC..."
-                      : "Select GST Group first"
-                  }
-                  searchPlaceholder="Search HSN/SAC..."
-                  disabled={!formState.gstGroupCode}
-                />
+
+                <div className="space-y-1">
+                  <FieldTitle>Unit Price</FieldTitle>
+                  <Input
+                    type="text"
+                    inputMode="decimal"
+                    value={formatNumericValue(formState.unitPrice)}
+                    onChange={(e) =>
+                      handleNumericChange("unitPrice", e.target.value)
+                    }
+                    onWheel={(e) => e.currentTarget.blur()}
+                    placeholder="0.00"
+                    className={cn("h-8 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none", fieldInputClass)}
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <FieldTitle>Discount</FieldTitle>
+                  <Input
+                    type="text"
+                    inputMode="decimal"
+                    value={formatNumericValue(formState.discount)}
+                    onChange={(e) =>
+                      handleNumericChange("discount", e.target.value)
+                    }
+                    onWheel={(e) => e.currentTarget.blur()}
+                    placeholder="0.00"
+                    className={cn("h-8 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none", fieldInputClass)}
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <FieldTitle>Amount</FieldTitle>
+                  <Input
+                    type="text"
+                    value={amount > 0 ? amount.toFixed(2) : ""}
+                    disabled
+                    className={cn("bg-muted h-8 font-medium", fieldInputClass)}
+                    readOnly
+                  />
+                </div>
+
+                {formState.type === "Fixed Asset" && (
+                  <>
+                    <div className="space-y-1">
+                      <FieldTitle>FA Posting Type</FieldTitle>
+                      <ClearableField
+                        value={formState.faPostingType}
+                        onClear={() => handleFieldChange("faPostingType", "")}
+                      >
+                        <Select
+                          value={formState.faPostingType || ""}
+                          onValueChange={(val) => handleFieldChange("faPostingType", val)}
+                        >
+                          <SelectTrigger className={cn("h-8", fieldInputClass)}>
+                            <SelectValue placeholder="Select Type" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Acquisition Cost">Acquisition Cost</SelectItem>
+                            <SelectItem value="Maintenance">Maintenance</SelectItem>
+                            <SelectItem value="Appreciation">Appreciation</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </ClearableField>
+                    </div>
+
+                    <div className="space-y-1">
+                      <FieldTitle>Salvage Value</FieldTitle>
+                      <Input
+                        type="text"
+                        inputMode="decimal"
+                        value={formatNumericValue(formState.salvageValue)}
+                        onChange={(e) =>
+                          handleNumericChange("salvageValue", e.target.value)
+                        }
+                        onWheel={(e) => e.currentTarget.blur()}
+                        placeholder="0.00"
+                        className={cn("h-8 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none", fieldInputClass)}
+                      />
+                    </div>
+                  </>
+                )}
               </div>
             </div>
-          </div>
+          )}
+
+          {formState.type !== "" && (
+            <div className="space-y-2 border-t pt-2">
+              <h3 className="text-foreground text-xs font-medium">Tax Details</h3>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="flex items-center gap-2 pt-5">
+                  <Checkbox
+                    id="line-exempted"
+                    checked={formState.exempted}
+                    onCheckedChange={(checked) => handleFieldChange("exempted", checked === true)}
+                  />
+                  <Label htmlFor="line-exempted" className="cursor-pointer text-xs font-medium text-muted-foreground mr-1">
+                    Exempted
+                  </Label>
+                </div>
+                <div className="space-y-1">
+                  <FieldTitle>GST Group Code</FieldTitle>
+                  <AppSearchableSelect
+                    value={formState.gstGroupCode || ""}
+                    onValueChange={(value) => {
+                      handleFieldChange("gstGroupCode", value);
+                      handleFieldChange("hsnSacCode", "");
+                    }}
+                    options={gstOptions}
+                    isLoading={loadingOptions.gst}
+                    placeholder="Select GST Group..."
+                    searchPlaceholder="Search GST Group..."
+                  />
+                </div>
+                <div className="space-y-1">
+                  <FieldTitle>HSN/SAC Code</FieldTitle>
+                  <AppSearchableSelect
+                    value={formState.hsnSacCode || ""}
+                    onValueChange={(value) =>
+                      handleFieldChange("hsnSacCode", value)
+                    }
+                    options={hsnOptions}
+                    isLoading={loadingOptions.hsn}
+                    placeholder={
+                      formState.gstGroupCode
+                        ? "Select HSN/SAC..."
+                        : "Select GST Group first"
+                    }
+                    searchPlaceholder="Search HSN/SAC..."
+                    disabled={!formState.gstGroupCode}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <FieldTitle>GST Credit</FieldTitle>
+                  <Select
+                    value={formState.gstCredit || "Availment"}
+                    onValueChange={(value) => handleFieldChange("gstCredit", value)}
+                  >
+                    <SelectTrigger className={cn("h-8", fieldInputClass)}>
+                      <SelectValue placeholder="Select GST Credit" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Availment">Availment</SelectItem>
+                      <SelectItem value="Non-Availment">Non-Availment</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+          )}
 
           {validationError && (
             <p className="text-destructive text-xs">{validationError}</p>

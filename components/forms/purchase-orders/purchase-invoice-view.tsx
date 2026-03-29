@@ -61,7 +61,7 @@ export function PurchaseInvoiceView({
   const hasNextPage = currentPage < totalPages;
 
   const handlePlaceOrder = () => {
-    openTab("purchase-order", {
+    openTab("purchase-invoice", {
       title: "New Invoice",
       context: {
         mode: "create",
@@ -119,7 +119,7 @@ export function PurchaseInvoiceView({
             currentPage={currentPage}
             columnFilters={columnFilters}
             onRowClick={(orderNo) => {
-              openTab("purchase-order", {
+              openTab("purchase-invoice", {
                 title: `Invoice ${orderNo}`,
                 context: { mode: "view", orderNo, refetch },
                 autoCloseOnSuccess: false,

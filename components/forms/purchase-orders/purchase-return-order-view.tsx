@@ -61,7 +61,7 @@ export function PurchaseReturnOrderView({
   const hasNextPage = currentPage < totalPages;
 
   const handlePlaceOrder = () => {
-    openTab("purchase-order", {
+    openTab("purchase-return-order", {
       title: "New Return Order",
       context: {
         mode: "create",
@@ -119,7 +119,7 @@ export function PurchaseReturnOrderView({
             currentPage={currentPage}
             columnFilters={columnFilters}
             onRowClick={(orderNo) => {
-              openTab("purchase-order", {
+              openTab("purchase-return-order", {
                 title: `Return Order ${orderNo}`,
                 context: { mode: "view", orderNo, refetch },
                 autoCloseOnSuccess: false,

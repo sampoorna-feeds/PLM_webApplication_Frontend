@@ -61,7 +61,7 @@ export function PurchaseCreditMemoView({
   const hasNextPage = currentPage < totalPages;
 
   const handlePlaceOrder = () => {
-    openTab("purchase-order", {
+    openTab("purchase-credit-memo", {
       title: "New Credit Memo",
       context: {
         mode: "create",
@@ -119,7 +119,7 @@ export function PurchaseCreditMemoView({
             currentPage={currentPage}
             columnFilters={columnFilters}
             onRowClick={(orderNo) => {
-              openTab("purchase-order", {
+              openTab("purchase-credit-memo", {
                 title: `Credit Memo ${orderNo}`,
                 context: { mode: "view", orderNo, refetch },
                 autoCloseOnSuccess: false,

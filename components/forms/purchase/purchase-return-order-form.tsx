@@ -29,17 +29,18 @@ import { cn } from "@/lib/utils";
 import { ClearableField } from "@/components/ui/clearable-field";
 import { RequestFailedDialog } from "@/components/ui/request-failed-dialog";
 import { PurchaseOrderLineDialog } from "./purchase-order-line-dialog";
+import { PurchaseCopyDocumentDialog } from "./purchase-copy-document-dialog";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
 import {
-  createPurchaseOrder,
-  addPurchaseOrderLineItems,
-  type PurchaseOrderData,
-  type PurchaseOrderLineItem,
-} from "@/lib/api/services/purchase-order.service";
+  createPurchaseReturnOrder,
+  addPurchaseReturnOrderLineItems,
+  type PurchaseReturnOrderData as PurchaseOrderData,
+  type PurchaseReturnOrderLineItem as PurchaseOrderLineItem,
+} from "@/lib/api/services/purchase-return-order.service";
 import { getVendorDetails } from "@/lib/api/services/vendor.service";
 import {
   purchaseDropdownsService,
@@ -347,6 +348,7 @@ export function PurchaseOrderFormContent({
   const [isCreatingHeader, setIsCreatingHeader] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [placeOrderError, setPlaceOrderError] = useState<string | null>(null);
+  const [isCopyDocOpen, setIsCopyDocOpen] = useState(false);
 
   const [termList, setTermList] = useState<TermAndCondition[]>([]);
   const [mandiList, setMandiList] = useState<MandiMaster[]>([]);
@@ -514,7 +516,7 @@ export function PurchaseOrderFormContent({
 
     setIsCreatingHeader(true);
     try {
-      const orderResponse = await createPurchaseOrder(buildOrderData());
+      const orderResponse = await createPurchaseReturnOrder(buildOrderData());
       const orderNo = orderResponse.orderNo || orderResponse.orderId;
 
       if (!orderNo) {
@@ -629,7 +631,7 @@ export function PurchaseOrderFormContent({
       }));
 
       const locationCode = formData.locationCode || formData.loc || "";
-      await addPurchaseOrderLineItems(
+      await addPurchaseReturnOrderLineItems(
         createdOrderNo,
         lineItemsData,
         locationCode,
@@ -1194,10 +1196,20 @@ export function PurchaseOrderFormContent({
                     Order No: {createdOrderNo}
                   </p>
                 </div>
-                <Button onClick={handleAddLineItem} size="sm" className="h-8">
-                  <Plus className="mr-1.5 h-3.5 w-3.5" />
-                  Add Item
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8"
+                    onClick={() => setIsCopyDocOpen(true)}
+                  >
+                    Copy Document
+                  </Button>
+                  <Button onClick={handleAddLineItem} size="sm" className="h-8">
+                    <Plus className="mr-1.5 h-3.5 w-3.5" />
+                    Add Item
+                  </Button>
+                </div>
               </div>
 
               <PurchaseLineItemsTable
@@ -1261,6 +1273,16 @@ export function PurchaseOrderFormContent({
           vendorNo={formData.vendorNo}
           locationCode={formData.locationCode || formData.loc || ""}
           onSave={handleLineItemSave}
+        />
+      )}
+
+      {createdOrderNo && (
+        <PurchaseCopyDocumentDialog
+          open={isCopyDocOpen}
+          toDocNo={createdOrderNo}
+          toDocType="Return Order"
+          onOpenChange={setIsCopyDocOpen}
+          onSuccess={() => setLineItems([])}
         />
       )}
     </>

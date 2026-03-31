@@ -307,7 +307,10 @@ export function PurchaseOrderFormContent({
     postingDate: "",
     documentDate: "",
     orderDate: "",
-    vendorInvoiceNo: "",
+    vendorCrMemoNo: "",
+    vendorAuthorizationNo: "",
+    appliesToDocType: "Invoice",
+    appliesToDocNo: "",
     invoiceType: "",
     lob: "",
     branch: "",
@@ -486,7 +489,10 @@ export function PurchaseOrderFormContent({
     postingDate: formData.postingDate,
     documentDate: formData.documentDate,
     orderDate: formData.orderDate,
-    vendorInvoiceNo: formData.vendorInvoiceNo,
+    vendorCrMemoNo: formData.vendorCrMemoNo,
+    vendorAuthorizationNo: formData.vendorAuthorizationNo,
+    appliesToDocType: formData.appliesToDocType,
+    appliesToDocNo: formData.appliesToDocNo,
     invoiceType: formData.invoiceType,
     lob: formData.lob,
     branch: formData.branch,
@@ -890,22 +896,69 @@ export function PurchaseOrderFormContent({
               />
             </div>
             <div className={fieldClass}>
-              <label className={labelClass}>Vendor Invoice No.</label>
+              <label className={labelClass}>Vendor Cr. Memo No.</label>
               <ClearableField
-                value={formData.vendorInvoiceNo}
-                onClear={() => handleInputChange("vendorInvoiceNo", "")}
+                value={formData.vendorCrMemoNo}
+                onClear={() => handleInputChange("vendorCrMemoNo", "")}
               >
                 <Input
-                  value={formData.vendorInvoiceNo}
+                  value={formData.vendorCrMemoNo}
                   onChange={(e) =>
-                    handleInputChange("vendorInvoiceNo", e.target.value)
+                    handleInputChange("vendorCrMemoNo", e.target.value)
                   }
                   placeholder="Optional"
                   className="h-7 text-xs"
                 />
               </ClearableField>
             </div>
-            <div className={`${fieldClass} sm:col-span-2 lg:col-span-2`}>
+            <div className={fieldClass}>
+              <label className={labelClass}>Vendor Auth. No.</label>
+              <ClearableField
+                value={formData.vendorAuthorizationNo}
+                onClear={() => handleInputChange("vendorAuthorizationNo", "")}
+              >
+                <Input
+                  value={formData.vendorAuthorizationNo}
+                  onChange={(e) =>
+                    handleInputChange("vendorAuthorizationNo", e.target.value)
+                  }
+                  placeholder="Optional"
+                  className="h-7 text-xs"
+                />
+              </ClearableField>
+            </div>
+            <div className={fieldClass}>
+              <label className={labelClass}>Applies-to Doc. Type</label>
+              <Select
+                value={formData.appliesToDocType}
+                onValueChange={(val) => handleInputChange("appliesToDocType", val)}
+              >
+                <SelectTrigger className="h-7 text-xs font-semibold">
+                  <SelectValue placeholder="Select Type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Invoice">Invoice</SelectItem>
+                  <SelectItem value="Receipt">Receipt</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className={fieldClass}>
+              <label className={labelClass}>Applies-to Doc. No.</label>
+              <ClearableField
+                value={formData.appliesToDocNo}
+                onClear={() => handleInputChange("appliesToDocNo", "")}
+              >
+                <Input
+                  value={formData.appliesToDocNo}
+                  onChange={(e) =>
+                    handleInputChange("appliesToDocNo", e.target.value)
+                  }
+                  placeholder="Optional"
+                  className="h-7 text-xs"
+                />
+              </ClearableField>
+            </div>
+            <div className={`${fieldClass} sm:col-span-2 lg:col-span-1`}>
               <label className={labelClass}>Order Address Select</label>
               <OrderAddressSelect
                 vendorNo={formData.vendorNo}

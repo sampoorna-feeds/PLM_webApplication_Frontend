@@ -63,6 +63,10 @@ export async function createPurchaseReturnOrder(
     Posting_Date: data.postingDate,
     Order_Date: data.orderDate,
     Document_Date: data.documentDate,
+    Vendor_Cr_Memo_No: data.vendorCrMemoNo,
+    Vendor_Authorization_No: data.vendorAuthorizationNo,
+    Applies_to_Doc_Type: data.appliesToDocType || "Invoice",
+    Applies_to_Doc_No: data.appliesToDocNo,
     Purchaser_Code: data.purchasePersonCode,
     Due_Date_calculation: data.dueDateCalculation,
     Brokerage_Code: data.brokerNo,
@@ -89,6 +93,12 @@ export async function createPurchaseReturnOrder(
   };
 
   const filteredPayload = stripEmptyValues(payload);
+
+  // Re-inject the required fields even if empty, so AL parser doesn't crash on missing keys
+  filteredPayload.Vendor_Cr_Memo_No = data.vendorCrMemoNo || "";
+  filteredPayload.Vendor_Authorization_No = data.vendorAuthorizationNo || "";
+  filteredPayload.Applies_to_Doc_Type = data.appliesToDocType || "Invoice";
+  filteredPayload.Applies_to_Doc_No = data.appliesToDocNo || "";
 
   console.log("[PRO Create] Endpoint:", endpoint);
   console.log("[PRO Create] Payload:", JSON.stringify(filteredPayload, null, 2));

@@ -39,6 +39,10 @@ export interface PurchaseOrderData {
   creditorType?: string;
   qcType?: string;
   dueDate?: string;
+  vendorCrMemoNo?: string;
+  appliesToDocType?: string;
+  appliesToDocNo?: string;
+  vendorAuthorizationNo?: string;
 }
 
 export interface PurchaseOrderLineItem {

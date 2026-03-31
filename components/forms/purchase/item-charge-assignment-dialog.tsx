@@ -13,6 +13,13 @@ import {
   Trash2,
   ChevronLeft,
   ChevronRight,
+  Equal,
+  Coins,
+  Scale,
+  Package,
+  CheckCircle2,
+  AlertCircle,
+  MoreHorizontal,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -151,6 +158,10 @@ export function ItemChargeAssignmentDialog({
   const [deleteConfirmLine, setDeleteConfirmLine] =
     useState<ItemChargeAssignment | null>(null);
 
+  // Suggestion Flow States
+  const [isSuggestDialogOpen, setIsSuggestDialogOpen] = useState(false);
+  const [selectedSuggestMethod, setSelectedSuggestMethod] = useState("Equally");
+
   const allFetched = lines.length >= totalCount && totalCount > 0;
   const canFetchMore = !allFetched && !loading && !loadingMore;
 
@@ -261,18 +272,33 @@ export function ItemChargeAssignmentDialog({
     try {
       setLoading(true);
       await itemChargeAssignmentService.suggestAssignment({
-        docNo, lineNo: docLineNo,
-        totalQtyToAssign: totalQuantity, totalAmtToAssign: totalAmount,
-        totalQtyToHandle: totalQuantity, totalAmtToHandle: totalAmount,
+        docNo,
+        lineNo: docLineNo,
+        totalQtyToAssign: totalQuantity,
+        totalAmtToAssign: totalAmount,
+        totalQtyToHandle: totalQuantity,
+        totalAmtToHandle: totalAmount,
         selectionTxt: criteria,
       });
       toast.success(`Successfully suggested assignments by ${criteria}`);
+      setIsSuggestDialogOpen(false);
       await fetchInitial();
     } catch (error: any) {
       console.error("Failed to suggest assignments:", error);
       showError("Suggestion Failed", "Failed to suggest assignments. Please try again or assign manually.", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSuggestClick = () => {
+    if (lines.length === 0) return;
+
+    if (lines.length === 1) {
+      // Replicate Business Central logic: skip prompt if only one entry exists
+      handleSuggest("Equally");
+    } else {
+      setIsSuggestDialogOpen(true);
     }
   };
 
@@ -453,22 +479,14 @@ export function ItemChargeAssignmentDialog({
                 <ChevronLeft className="h-3 w-3" /> Get Return Shipment Lines
               </Button>
 
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm"
-                    className="hover:bg-primary hover:text-primary-foreground border-primary/50 text-primary flex h-7 items-center gap-1.5 px-3 text-[10px] font-bold tracking-wider uppercase transition-all"
-                    disabled={loading}>
-                    <Zap className="h-3 w-3 fill-current" /> Suggest Assignment
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="w-48">
-                  {["Equally", "By Amount", "By Weight", "By Volume"].map((c) => (
-                    <DropdownMenuItem key={c} className="text-xs font-medium" onClick={() => handleSuggest(c)}>
-                      {c}
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <Button
+                variant="outline"
+                size="sm"
+                className="hover:bg-primary-dark border-primary/50 text-primary flex h-7 items-center gap-1.5 px-3 text-[10px] font-bold tracking-wider uppercase transition-all hover:bg-primary hover:text-white"
+                onClick={handleSuggestClick}
+                disabled={loading || lines.length === 0}>
+                <Zap className="h-3 w-3 fill-current" /> Suggest Assignment
+              </Button>
             </div>
 
             {/* Search */}
@@ -778,6 +796,91 @@ export function ItemChargeAssignmentDialog({
         message={errorMessage}
         errors={apiErrors}
       />
+
+      {/* Suggestion Method Dialog */}
+      <Dialog open={isSuggestDialogOpen} onOpenChange={setIsSuggestDialogOpen}>
+        <DialogContent className="sm:max-w-[420px] p-0 overflow-hidden border-none shadow-2xl rounded-2xl">
+          <div className="bg-primary px-6 py-8 relative overflow-hidden">
+            {/* Glossy background effect */}
+            <div className="absolute inset-0 bg-white/5 opacity-20 pointer-events-none" />
+            <div className="relative z-10">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="bg-white/20 p-2 rounded-xl backdrop-blur-md border border-white/30">
+                  <Zap className="w-5 h-5 text-white fill-current" />
+                </div>
+                <h2 className="text-xl font-bold text-white tracking-tight">Suggest Assignment</h2>
+              </div>
+              <p className="text-primary-foreground/80 text-sm font-medium">Select a distribution method to automatically assign item charges.</p>
+            </div>
+            <button
+              onClick={() => setIsSuggestDialogOpen(false)}
+              className="absolute top-4 right-4 text-white/60 hover:text-white transition-colors">
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          <div className="p-6 bg-background space-y-4">
+            <div className="grid gap-3">
+              {[
+                { id: "Equally", icon: Equal, label: "Equally", desc: "Divide uniformly across all lines" },
+                { id: "By Amount", icon: Coins, label: "By Amount", desc: "Proportional to line item values" },
+                { id: "By Weight", icon: Scale, label: "By Weight", desc: "Based on gross weights of items" },
+                { id: "By Volume", icon: Package, label: "By Volume", desc: "Based on unit volumes of items" }
+              ].map((method) => {
+                const Icon = method.icon;
+                const isSelected = selectedSuggestMethod === method.id;
+                return (
+                  <button
+                    key={method.id}
+                    onClick={() => setSelectedSuggestMethod(method.id)}
+                    className={cn(
+                      "flex items-center gap-4 p-4 rounded-xl border-2 transition-all duration-200 text-left group",
+                      isSelected
+                        ? "border-primary bg-primary/5 shadow-sm ring-1 ring-primary/20"
+                        : "border-muted hover:border-primary/40 hover:bg-primary/5"
+                    )}
+                  >
+                    <div className={cn(
+                      "p-2.5 rounded-lg transition-colors shrink-0",
+                      isSelected ? "bg-primary text-white" : "bg-muted text-muted-foreground group-hover:bg-primary/10 group-hover:text-primary"
+                    )}>
+                      <Icon className="w-5 h-5" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-sm tracking-wide uppercase">{method.label}</span>
+                        {isSelected && (
+                          <div className="h-4 w-4 rounded-full bg-primary flex items-center justify-center">
+                            <div className="h-2 w-2 rounded-full bg-white" />
+                          </div>
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">{method.desc}</p>
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+
+            <div className="flex gap-3 pt-4">
+              <Button
+                variant="outline"
+                className="flex-1 font-bold tracking-wider uppercase h-11 rounded-xl"
+                onClick={() => setIsSuggestDialogOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                className="flex-1 font-bold tracking-wider uppercase h-11 rounded-xl shadow-lg shadow-primary/20"
+                onClick={() => handleSuggest(selectedSuggestMethod)}
+                disabled={loading}
+              >
+                {loading ? "Processing..." : "Confirm"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

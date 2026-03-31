@@ -308,6 +308,8 @@ export function PurchaseOrderFormContent({
     documentDate: "",
     orderDate: "",
     vendorInvoiceNo: "",
+    appliesToDocType: "Invoice",
+    appliesToDocNo: "",
     invoiceType: "",
     lob: "",
     branch: "",
@@ -899,6 +901,37 @@ export function PurchaseOrderFormContent({
                   value={formData.vendorInvoiceNo}
                   onChange={(e) =>
                     handleInputChange("vendorInvoiceNo", e.target.value)
+                  }
+                  placeholder="Optional"
+                  className="h-7 text-xs"
+                />
+              </ClearableField>
+            </div>
+            <div className={fieldClass}>
+              <label className={labelClass}>Applies-to Doc. Type</label>
+              <Select
+                value={formData.appliesToDocType}
+                onValueChange={(val) => handleInputChange("appliesToDocType", val)}
+              >
+                <SelectTrigger className="h-7 text-xs font-semibold">
+                  <SelectValue placeholder="Select Type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Invoice">Invoice</SelectItem>
+                  <SelectItem value="Receipt">Receipt</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className={fieldClass}>
+              <label className={labelClass}>Applies-to Doc. No.</label>
+              <ClearableField
+                value={formData.appliesToDocNo}
+                onClear={() => handleInputChange("appliesToDocNo", "")}
+              >
+                <Input
+                  value={formData.appliesToDocNo}
+                  onChange={(e) =>
+                    handleInputChange("appliesToDocNo", e.target.value)
                   }
                   placeholder="Optional"
                   className="h-7 text-xs"

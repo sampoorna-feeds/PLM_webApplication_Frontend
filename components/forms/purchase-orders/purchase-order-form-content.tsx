@@ -1285,7 +1285,7 @@ export function PurchaseOrderFormContent({
     return new Blob([bytes], { type: "application/pdf" });
   };
 
-  const handlePrintPO = async () => {
+  const handlePrintPOReport = async () => {
     if (!createdOrderNo) return;
     setIsActionLoading(true);
     try {
@@ -1613,17 +1613,29 @@ export function PurchaseOrderFormContent({
           )}
 
           {!isEditMode && createdOrderNo && (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="h-8"
-              onClick={() => setIsAttachmentDialogOpen(true)}
-              disabled={isActionLoading}
-            >
-              <Paperclip className="mr-1.5 h-3.5 w-3.5" />
-              Attachments
-            </Button>
+            <>
+              <Button
+                type="button"
+                size="sm"
+                className="h-8"
+                onClick={handlePrintPOReport}
+                disabled={isActionLoading}
+              >
+                <FileText className="mr-1.5 h-3.5 w-3.5" />
+                Print Report
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-8"
+                onClick={() => setIsAttachmentDialogOpen(true)}
+                disabled={isActionLoading}
+              >
+                <Paperclip className="mr-1.5 h-3.5 w-3.5" />
+                Attachments
+              </Button>
+            </>
           )}
         </div>
 
@@ -1637,7 +1649,7 @@ export function PurchaseOrderFormContent({
         >
           {/* 1. Core Order Info */}
           <AccordionItem value="core" className="border-none">
-            <AccordionTrigger className="data-[state=open]:border-b data-[state=open]:border-b-border data-[state=open]:pb-2 py-0 hover:no-underline [&>svg]:size-4">
+            <AccordionTrigger className="data-[state=open]:border-b-border py-0 hover:no-underline data-[state=open]:border-b data-[state=open]:pb-2 [&>svg]:size-4">
               <h3 className="px-2 py-1 text-left text-[10px] font-bold tracking-wider uppercase">
                 Core Information
               </h3>
@@ -1883,7 +1895,7 @@ export function PurchaseOrderFormContent({
 
           {/* 2. Vendor, Broker & Address */}
           <AccordionItem value="party" className="border-none">
-            <AccordionTrigger className="data-[state=open]:border-b data-[state=open]:border-b-border data-[state=open]:pb-2 py-0 hover:no-underline [&>svg]:size-4">
+            <AccordionTrigger className="data-[state=open]:border-b-border py-0 hover:no-underline data-[state=open]:border-b data-[state=open]:pb-2 [&>svg]:size-4">
               <h3 className="px-2 py-1 text-left text-[10px] font-bold tracking-wider uppercase">
                 Party Details
               </h3>
@@ -2043,7 +2055,7 @@ export function PurchaseOrderFormContent({
 
           {/* 3. Dates & Configurations */}
           <AccordionItem value="dates" className="border-none">
-            <AccordionTrigger className="data-[state=open]:border-b data-[state=open]:border-b-border data-[state=open]:pb-2 py-0 hover:no-underline [&>svg]:size-4">
+            <AccordionTrigger className="data-[state=open]:border-b-border py-0 hover:no-underline data-[state=open]:border-b data-[state=open]:pb-2 [&>svg]:size-4">
               <h3 className="px-2 py-1 text-left text-[10px] font-bold tracking-wider uppercase">
                 Dates & Settings
               </h3>
@@ -2736,7 +2748,7 @@ export function PurchaseOrderFormContent({
                               onClick={() => handlePrintMRN(s.No)}
                             >
                               {printingMRN ? (
-                                <LoaderCircleIcon className="animate-spin h-3.5 w-3.5" />
+                                <LoaderCircleIcon className="h-3.5 w-3.5 animate-spin" />
                               ) : (
                                 <FileText className="h-3.5 w-3.5" />
                               )}

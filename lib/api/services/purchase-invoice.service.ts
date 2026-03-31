@@ -63,6 +63,7 @@ export async function createPurchaseInvoice(
     Posting_Date: data.postingDate,
     Order_Date: data.orderDate,
     Document_Date: data.documentDate,
+    Vendor_Invoice_No: data.vendorInvoiceNo,
     Purchaser_Code: data.purchasePersonCode,
     Due_Date_calculation: data.dueDateCalculation,
     Brokerage_Code: data.brokerNo,
@@ -86,9 +87,16 @@ export async function createPurchaseInvoice(
     Order_Address_Code: data.orderAddressCode,
     GST_Order_Address_State: data.orderAddressState,
     Due_Date: data.dueDate,
+    Applies_to_Doc_Type: data.appliesToDocType || "Invoice",
+    Applies_to_Doc_No: data.appliesToDocNo || "",
   };
 
   const filteredPayload = stripEmptyValues(payload);
+
+  // Re-inject required keys even if empty to prevent BC AL parser crash
+  filteredPayload.Vendor_Invoice_No = data.vendorInvoiceNo || "";
+  filteredPayload.Applies_to_Doc_Type = data.appliesToDocType || "Invoice";
+  filteredPayload.Applies_to_Doc_No = data.appliesToDocNo || "";
 
   console.log("[PI Create] Endpoint:", endpoint);
   console.log("[PI Create] Payload:", JSON.stringify(filteredPayload, null, 2));

@@ -100,6 +100,7 @@ export function TransferOrderLinesTable({
             <TableHead className="text-right">Quantity Received</TableHead>
             <TableHead>GST Group Code</TableHead>
             <TableHead>HSN/SAC Code</TableHead>
+            <TableHead>GST Credit</TableHead>
             {!isReadOnly && <TableHead className="w-20 text-right pr-4 sticky right-0 bg-muted">Actions</TableHead>}
           </TableRow>
         </TableHeader>
@@ -153,6 +154,9 @@ export function TransferOrderLinesTable({
               </TableCell>
               <TableCell>
                 {line.HSN_SAC_Code || "-"}
+              </TableCell>
+              <TableCell>
+                {line.GST_Credit || "-"}
               </TableCell>
               {!isReadOnly && (
                 <TableCell className="text-right pr-4 sticky right-0 bg-background/80 backdrop-blur-sm">

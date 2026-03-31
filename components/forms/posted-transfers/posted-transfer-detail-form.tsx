@@ -169,6 +169,7 @@ export function PostedTransferDetailForm({
                   {type === "shipment" && (
                      <th className="px-4 py-3 text-right font-medium text-muted-foreground">Amount</th>
                   )}
+                  <th className="px-4 py-3 text-left font-medium text-muted-foreground">GST Credit</th>
                 </tr>
               </thead>
               <tbody>
@@ -194,6 +195,7 @@ export function PostedTransferDetailForm({
                       {type === "shipment" && (
                         <td className="px-4 py-3 text-right font-medium">{line.Amount != null ? line.Amount.toLocaleString(undefined, { minimumFractionDigits: 2 }) : "-"}</td>
                       )}
+                      <td className="px-4 py-3">{line.GST_Credit || "-"}</td>
                     </tr>
                   ))
                 )}

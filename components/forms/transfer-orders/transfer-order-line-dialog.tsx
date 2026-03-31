@@ -76,6 +76,7 @@ export function TransferOrderLineDialog({
     Shipment_Date: defaultDimensions.Shipment_Date,
     Receipt_Date: defaultDimensions.Receipt_Date,
     Appl_to_Item_Entry: 0,
+    GST_Credit: "Availment", // Default to Availment
   });
 
   useEffect(() => {
@@ -98,6 +99,7 @@ export function TransferOrderLineDialog({
         Shipment_Date: defaultDimensions.Shipment_Date,
         Receipt_Date: defaultDimensions.Receipt_Date,
         Appl_to_Item_Entry: 0,
+        GST_Credit: "Availment",
       });
     }
   }, [line, documentNo, defaultDimensions, isOpen]);
@@ -185,6 +187,7 @@ export function TransferOrderLineDialog({
       Item_No: formData.Item_No,
       Quantity: Number(formData.Quantity),
       Appl_to_Item_Entry: Number(formData.Appl_to_Item_Entry || 0),
+      GST_Credit: formData.GST_Credit,
     };
 
     setIsSubmitting(true);
@@ -270,7 +273,6 @@ export function TransferOrderLineDialog({
               className="bg-muted font-bold"
             />
           </div>
-
           {(ledgerEntries.length > 0 || (isEdit && formData.Appl_to_Item_Entry)) && (
             <div className="space-y-2">
               <FieldTitle>Appl.-to Item Entry</FieldTitle>
@@ -286,6 +288,19 @@ export function TransferOrderLineDialog({
               />
             </div>
           )}
+
+          <div className="space-y-2">
+            <FieldTitle>GST Credit</FieldTitle>
+            <SearchableSelect
+              options={[
+                { value: "Availment", label: "Availment" },
+                { value: "Non - Availment", label: "Non - Availment" },
+              ]}
+              value={formData.GST_Credit || "Availment"}
+              onValueChange={(v) => handleChange("GST_Credit", v)}
+              placeholder="Select GST Credit"
+            />
+          </div>
 
         </div>
 

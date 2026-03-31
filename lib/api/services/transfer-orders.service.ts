@@ -293,6 +293,7 @@ export interface PostedTransferShipmentLine {
   Description?: string;
   Quantity?: number;
   Unit_of_Measure?: string;
+  GST_Credit?: string;
   [key: string]: unknown;
 }
 
@@ -303,6 +304,7 @@ export interface TransferReceiptLine {
   Description?: string;
   Quantity?: number;
   Unit_of_Measure?: string;
+  GST_Credit?: string;
   [key: string]: unknown;
 }
 

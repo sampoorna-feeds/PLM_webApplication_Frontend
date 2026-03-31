@@ -914,6 +914,36 @@ export async function getPostedTransferShipments(params: GetTransferOrdersParams
 }
 
 /**
+ * Search posted transfer shipments across multiple fields
+ */
+export async function searchPostedTransferShipments(
+  params: SearchTransferOrdersParams = {},
+): Promise<{ orders: PostedTransferShipment[]; totalCount: number }> {
+  const { searchTerm, ...rest } = params;
+  if (!searchTerm || searchTerm.trim() === "") {
+    return getPostedTransferShipments(rest as GetTransferOrdersParams);
+  }
+
+  const escaped = searchTerm.replace(/'/g, "''");
+  const fieldsToSearch = [
+    "No",
+    "Transfer_from_Code",
+    "Transfer_to_Code",
+    "Vehicle_No",
+  ];
+
+  const searchFilter = fieldsToSearch
+    .map((field) => `contains(${field},'${escaped}')`)
+    .join(" or ");
+
+  const filter = rest.$filter
+    ? `(${rest.$filter}) and (${searchFilter})`
+    : searchFilter;
+
+  return getPostedTransferShipments({ ...rest, $filter: filter });
+}
+
+/**
  * Get posted transfer shipments by order number
  */
 export async function getPostedTransferShipmentsByOrder(orderNo: string, postingDate?: string): Promise<PostedTransferShipment[]> {
@@ -965,6 +995,36 @@ export async function getTransferReceipts(params: GetTransferOrdersParams = {}):
     orders: response.value || [],
     totalCount: response["@odata.count"] ?? 0,
   };
+}
+
+/**
+ * Search posted transfer receipts across multiple fields
+ */
+export async function searchTransferReceiptsExtended(
+  params: SearchTransferOrdersParams = {},
+): Promise<{ orders: TransferReceipt[]; totalCount: number }> {
+  const { searchTerm, ...rest } = params;
+  if (!searchTerm || searchTerm.trim() === "") {
+    return getTransferReceipts(rest as GetTransferOrdersParams);
+  }
+
+  const escaped = searchTerm.replace(/'/g, "''");
+  const fieldsToSearch = [
+    "No",
+    "Transfer_from_Code",
+    "Transfer_to_Code",
+    "Vehicle_No",
+  ];
+
+  const searchFilter = fieldsToSearch
+    .map((field) => `contains(${field},'${escaped}')`)
+    .join(" or ");
+
+  const filter = rest.$filter
+    ? `(${rest.$filter}) and (${searchFilter})`
+    : searchFilter;
+
+  return getTransferReceipts({ ...rest, $filter: filter });
 }
 
 /**

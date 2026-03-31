@@ -7,6 +7,8 @@ import type { ColumnConfig } from "../column-config";
 import { ALL_COLUMNS } from "../column-config";
 
 export interface TransferOrderFilterParams {
+  /** LOB codes to filter by at API level (Shortcut_Dimension_1_Code). */
+  lobCodes?: string[];
   /** Branch codes to filter by at API level (Shortcut_Dimension_2_Code). Required for listing only user's orders. */
   branchCodes?: string[];
   /** Status filter for tab (Open | Pending Approval | Released). Applied at API level. */
@@ -118,18 +120,40 @@ function buildColumnFilter(
 export function buildTransferOrderFilterString(
   params: TransferOrderFilterParams,
 ): string | undefined {
-  const { branchCodes = [], statusFilter, columnFilters = {} } = params;
+  const { lobCodes = [], branchCodes = [], statusFilter, columnFilters = {} } = params;
   const filterParts: string[] = [];
 
-  // API-level branch filter (Shortcut_Dimension_2_Code = branch codes)
-  if (branchCodes.length > 0) {
-    const branchFilter = branchCodes
-      .map((c) => `'${escapeODataValue(c.trim())}'`)
-      .filter(Boolean)
-      .join(",");
-    if (branchFilter) {
-      filterParts.push(`Shortcut_Dimension_2_Code in (${branchFilter})`);
+  // OData dimension access control
+  // LOB Filter (Shortcut_Dimension_1_Code)
+  if (lobCodes && lobCodes.length > 0) {
+    const activeLobs = lobCodes.filter(Boolean);
+    if (activeLobs.length === 1) {
+      filterParts.push(`Shortcut_Dimension_1_Code eq '${escapeODataValue(activeLobs[0])}'`);
+    } else if (activeLobs.length > 1) {
+      const lobGroup = activeLobs
+        .map((c) => `Shortcut_Dimension_1_Code eq '${escapeODataValue(c)}'`)
+        .join(" or ");
+      filterParts.push(`(${lobGroup})`);
     }
+  } else {
+    // If no authorized LOBs, return nothing
+    filterParts.push("Shortcut_Dimension_1_Code eq 'N/A'");
+  }
+
+  // Branch Filter (Shortcut_Dimension_2_Code)
+  if (branchCodes && branchCodes.length > 0) {
+    const activeBranches = branchCodes.filter(Boolean);
+    if (activeBranches.length === 1) {
+      filterParts.push(`Shortcut_Dimension_2_Code eq '${escapeODataValue(activeBranches[0])}'`);
+    } else if (activeBranches.length > 1) {
+      const branchGroup = activeBranches
+        .map((c) => `Shortcut_Dimension_2_Code eq '${escapeODataValue(c)}'`)
+        .join(" or ");
+      filterParts.push(`(${branchGroup})`);
+    }
+  } else {
+    // If no authorized branches, return nothing
+    filterParts.push("Shortcut_Dimension_2_Code eq 'N/A'");
   }
 
   // API-level status filter (tab: Open | Pending Approval | Released)
@@ -138,9 +162,9 @@ export function buildTransferOrderFilterString(
   }
 
 
-  // Column filters (skip Shortcut_Dimension_2_Code and Status when applied at API level)
+  // Column filters (skip dimensions and status applied at API level)
   Object.entries(columnFilters).forEach(([columnId, filter]) => {
-    if (columnId === "Shortcut_Dimension_2_Code") return;
+    if (columnId === "Shortcut_Dimension_1_Code" || columnId === "Shortcut_Dimension_2_Code") return;
     if (columnId === "Status" && statusFilter) return;
     const column = ALL_COLUMNS.find((c) => c.id === columnId);
     if (!column) return;

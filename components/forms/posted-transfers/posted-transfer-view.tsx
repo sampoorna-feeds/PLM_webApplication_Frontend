@@ -8,7 +8,7 @@ import { PostedTransferPaginationControls } from "./pagination-controls";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, RefreshCcw } from "lucide-react";
 import { type SortDirection, loadVisibleColumns, saveVisibleColumns, getDefaultVisibleColumns, POSTED_TRANSFER_COLUMNS } from "./column-config";
-import { getPostedTransferShipments, getTransferReceipts, getTransferShipmentReport, getDownloadRecordLink } from "@/lib/api/services/transfer-orders.service";
+import { getPostedTransferShipments, getTransferReceipts, getTransferShipmentReport, getDownloadRecordLink, searchPostedTransferShipments, searchTransferReceiptsExtended } from "@/lib/api/services/transfer-orders.service";
 import { toast } from "sonner";
 import { useFormStackContext } from "@/lib/form-stack/form-stack-context";
 
@@ -20,6 +20,7 @@ export function PostedTransferView({ type }: PostedTransferViewProps) {
   const { openTab } = useFormStackContext();
   const [filters, setFilters] = useState<PostedTransferFilters | null>(null);
   const [data, setData] = useState<any[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [activeReportDocNo, setActiveReportDocNo] = useState<string | null>(null);
   const [reportPdfUrls, setReportPdfUrls] = useState<Record<string, string>>({});
@@ -42,48 +43,67 @@ export function PostedTransferView({ type }: PostedTransferViewProps) {
   const title = type === "shipment" ? "Posted Transfer Shipment" : "Posted Transfer Receipt";
   const description = `Enter details to find posted transfer ${type}s.`;
 
-  const fetchData = useCallback(async (appliedFilters: PostedTransferFilters) => {
+  const fetchData = useCallback(async () => {
+    if (!filters) return;
     setIsLoading(true);
     try {
       const parts = [];
-      if (appliedFilters.fromDate) {
-        parts.push(`Posting_Date ge ${appliedFilters.fromDate}`);
-      }
-      if (appliedFilters.toDate) {
-        parts.push(`Posting_Date le ${appliedFilters.toDate}`);
-      }
-      if (appliedFilters.fromLocation) {
-        parts.push(`Transfer_from_Code eq '${appliedFilters.fromLocation}'`);
-      }
-      if (appliedFilters.toLocation) {
-        parts.push(`Transfer_to_Code eq '${appliedFilters.toLocation}'`);
-      }
+      // Initial Date/Location Filters
+      if (filters.fromDate) parts.push(`Posting_Date ge ${filters.fromDate}`);
+      if (filters.toDate) parts.push(`Posting_Date le ${filters.toDate}`);
+      if (filters.fromLocation) parts.push(`Transfer_from_Code eq '${filters.fromLocation}'`);
+      if (filters.toLocation) parts.push(`Transfer_to_Code eq '${filters.toLocation}'`);
       
+      // Column Filters (Server-side supported ones)
+      const allowedServerFilters = ["No", "Posting_Date", "Transfer_from_Code", "Transfer_to_Code", "Vehicle_No", "E_Way_Bill_No"];
+      
+      Object.entries(columnFilters).forEach(([colId, f]) => {
+        const { value, valueTo } = f;
+        if (!value && !valueTo) return;
+        
+        if (colId === "Posting_Date") {
+           if (value) parts.push(`Posting_Date ge ${value}`);
+           if (valueTo) parts.push(`Posting_Date le ${valueTo}`);
+        } else if (allowedServerFilters.includes(colId)) {
+          parts.push(`contains(${colId},'${value.replace(/'/g, "''")}')`);
+        }
+      });
+
       const filter = parts.join(" and ");
+      const orderby = sortColumn && sortDirection && ["No", "Posting_Date", "Transfer_from_Code", "Transfer_to_Code", "Vehicle_No", "E_Way_Bill_No"].includes(sortColumn) 
+        ? `${sortColumn} ${sortDirection}` 
+        : "No desc";
+        
+      const top = pageSize;
+      const skip = (currentPage - 1) * pageSize;
+
+      const params = { $filter: filter, $orderby: orderby, $top: top, $skip: skip, searchTerm: searchQuery };
       const result = type === "shipment" 
-        ? await getPostedTransferShipments({ $filter: filter, $top: 200 })
-        : await getTransferReceipts({ $filter: filter, $top: 200 });
+        ? await searchPostedTransferShipments(params)
+        : await searchTransferReceiptsExtended(params);
       
       setData(result.orders);
+      setTotalCount(result.totalCount);
     } catch (error) {
       console.error(`Error fetching posted transfer ${type}s:`, error);
       toast.error(`Failed to load posted ${type}s.`);
       setData([]);
+      setTotalCount(0);
     } finally {
       setIsLoading(false);
     }
-  }, [type]);
+  }, [type, filters, searchQuery, columnFilters, sortColumn, sortDirection, pageSize, currentPage]);
 
   useEffect(() => {
-    if (filters) {
-      fetchData(filters);
-      setCurrentPage(1);
-    }
+    fetchData();
+  }, [fetchData]);
+
+  useEffect(() => {
     // Cleanup URLs on unmount
     return () => {
       Object.values(reportPdfUrls).forEach(url => window.URL.revokeObjectURL(url));
     };
-  }, [filters, fetchData]);
+  }, [reportPdfUrls]);
 
   const base64ToPdfBlob = (base64Value: string) => {
     const normalized = base64Value.replace(/^data:application\/pdf;base64,/, "").replace(/\s/g, "");
@@ -206,65 +226,11 @@ export function PostedTransferView({ type }: PostedTransferViewProps) {
     saveVisibleColumns(allColumnIds);
   };
 
-  const getFilteredAndSortedData = () => {
-    let result = [...data];
-
-    // Global Search
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase();
-      result = result.filter(item => 
-        (item.No?.toLowerCase() || "").includes(q) ||
-        (item.Transfer_from_Code?.toLowerCase() || "").includes(q) ||
-        (item.Transfer_to_Code?.toLowerCase() || "").includes(q) ||
-        (item.Vehicle_No?.toLowerCase() || "").includes(q) ||
-        (item.E_Way_Bill_No?.toLowerCase() || "").includes(q) ||
-        (item.E_Invoice_No?.toLowerCase() || "").includes(q)
-      );
-    }
-    // No more manual reset of currentPage here to avoid recursion, 
-    // it's handled in handleSearch/handleColumnFilter
-
-    // Column Filters
-    Object.entries(columnFilters).forEach(([colId, filter]) => {
-      const { value, valueTo } = filter;
-      if (!value && !valueTo) return;
-
-      if (colId === "Posting_Date") {
-         if (value) {
-           result = result.filter(item => item.Posting_Date && item.Posting_Date >= value);
-         }
-         if (valueTo) {
-           result = result.filter(item => item.Posting_Date && item.Posting_Date <= valueTo);
-         }
-      } else {
-        const val = value.toLowerCase();
-        result = result.filter(item => (item[colId]?.toLowerCase() || "").includes(val));
-      }
-    });
-
-    // Sorting
-    if (sortColumn && sortDirection) {
-      result.sort((a, b) => {
-        const valA = a[sortColumn] || "";
-        const valB = b[sortColumn] || "";
-        
-        if (valA < valB) return sortDirection === "asc" ? -1 : 1;
-        if (valA > valB) return sortDirection === "asc" ? 1 : -1;
-        return 0;
-      });
-    }
-
-    return result;
-  };
-
-  const filteredData = getFilteredAndSortedData();
   const hasActiveFilters = searchQuery !== "" || Object.values(columnFilters).some(f => f.value || f.valueTo);
 
   // Pagination calculations
-  const totalCount = filteredData.length;
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
   const hasNextPage = currentPage < totalPages;
-  const pagedData = filteredData.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
@@ -295,7 +261,7 @@ export function PostedTransferView({ type }: PostedTransferViewProps) {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={() => fetchData(filters)} disabled={isLoading}>
+          <Button variant="outline" size="sm" onClick={() => fetchData()} disabled={isLoading}>
             <RefreshCcw className={`mr-2 h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
             Refresh
           </Button>
@@ -326,7 +292,7 @@ export function PostedTransferView({ type }: PostedTransferViewProps) {
       
       <div className="min-h-0 flex-1 overflow-hidden px-4 pb-2">
         <PostedTransferTable 
-          data={pagedData} 
+          data={data} 
           isLoading={isLoading} 
           visibleColumns={visibleColumns}
           type={type}

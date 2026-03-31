@@ -293,6 +293,7 @@ export interface PostedTransferShipmentLine {
   Description?: string;
   Quantity?: number;
   Unit_of_Measure?: string;
+  GST_Credit?: string;
   [key: string]: unknown;
 }
 
@@ -303,6 +304,7 @@ export interface TransferReceiptLine {
   Description?: string;
   Quantity?: number;
   Unit_of_Measure?: string;
+  GST_Credit?: string;
   [key: string]: unknown;
 }
 
@@ -892,7 +894,7 @@ export async function getTransferAllLocationCodes(
  */
 export async function getPostedTransferShipments(params: GetTransferOrdersParams = {}): Promise<{ orders: PostedTransferShipment[], totalCount: number }> {
   const {
-    $select = "No,Transfer_from_Code,Transfer_to_Code,Posting_Date,Vehicle_No",
+    $select = "No,Transfer_from_Code,Transfer_to_Code,Posting_Date,Vehicle_No,E_Way_Bill_No",
     $filter,
     $orderby = "No desc",
     $top = 10,
@@ -909,6 +911,37 @@ export async function getPostedTransferShipments(params: GetTransferOrdersParams
     orders: response.value || [],
     totalCount: response["@odata.count"] ?? 0,
   };
+}
+
+/**
+ * Search posted transfer shipments across multiple fields
+ */
+export async function searchPostedTransferShipments(
+  params: SearchTransferOrdersParams = {},
+): Promise<{ orders: PostedTransferShipment[]; totalCount: number }> {
+  const { searchTerm, ...rest } = params;
+  if (!searchTerm || searchTerm.trim() === "") {
+    return getPostedTransferShipments(rest as GetTransferOrdersParams);
+  }
+
+  const escaped = searchTerm.replace(/'/g, "''");
+  const fieldsToSearch = [
+    "No",
+    "Transfer_from_Code",
+    "Transfer_to_Code",
+    "Vehicle_No",
+    "E_Way_Bill_No",
+  ];
+
+  const searchFilter = fieldsToSearch
+    .map((field) => `contains(${field},'${escaped}')`)
+    .join(" or ");
+
+  const filter = rest.$filter
+    ? `(${rest.$filter}) and (${searchFilter})`
+    : searchFilter;
+
+  return getPostedTransferShipments({ ...rest, $filter: filter });
 }
 
 /**
@@ -946,7 +979,7 @@ export async function getPostedTransferReceiptsByOrder(orderNo: string, postingD
  */
 export async function getTransferReceipts(params: GetTransferOrdersParams = {}): Promise<{ orders: TransferReceipt[], totalCount: number }> {
   const {
-    $select = "No,Transfer_from_Code,Transfer_to_Code,Posting_Date,Vehicle_No",
+    $select = "No,Transfer_from_Code,Transfer_to_Code,Posting_Date,Vehicle_No,E_Way_Bill_No",
     $filter,
     $orderby = "No desc",
     $top = 10,
@@ -963,6 +996,37 @@ export async function getTransferReceipts(params: GetTransferOrdersParams = {}):
     orders: response.value || [],
     totalCount: response["@odata.count"] ?? 0,
   };
+}
+
+/**
+ * Search posted transfer receipts across multiple fields
+ */
+export async function searchTransferReceiptsExtended(
+  params: SearchTransferOrdersParams = {},
+): Promise<{ orders: TransferReceipt[]; totalCount: number }> {
+  const { searchTerm, ...rest } = params;
+  if (!searchTerm || searchTerm.trim() === "") {
+    return getTransferReceipts(rest as GetTransferOrdersParams);
+  }
+
+  const escaped = searchTerm.replace(/'/g, "''");
+  const fieldsToSearch = [
+    "No",
+    "Transfer_from_Code",
+    "Transfer_to_Code",
+    "Vehicle_No",
+    "E_Way_Bill_No",
+  ];
+
+  const searchFilter = fieldsToSearch
+    .map((field) => `contains(${field},'${escaped}')`)
+    .join(" or ");
+
+  const filter = rest.$filter
+    ? `(${rest.$filter}) and (${searchFilter})`
+    : searchFilter;
+
+  return getTransferReceipts({ ...rest, $filter: filter });
 }
 
 /**

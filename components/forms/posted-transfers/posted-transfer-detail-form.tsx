@@ -163,9 +163,9 @@ export function PostedTransferDetailForm({
                   <th className="px-4 py-3 text-left font-medium text-muted-foreground">Description</th>
                   <th className="px-4 py-3 text-right font-medium text-muted-foreground">Quantity</th>
                   <th className="px-4 py-3 text-left font-medium text-muted-foreground whitespace-nowrap">Unit of Measure</th>
-                  {type === "shipment" && (
-                    <th className="px-4 py-3 text-right font-medium text-muted-foreground whitespace-nowrap">Transfer Price</th>
-                  )}
+                  <th className="px-4 py-3 text-right font-medium text-muted-foreground whitespace-nowrap">GST Base Amt</th>
+                  <th className="px-4 py-3 text-right font-medium text-muted-foreground whitespace-nowrap">GST %</th>
+                  <th className="px-4 py-3 text-right font-medium text-muted-foreground whitespace-nowrap">Total GST</th>
                   {type === "shipment" && (
                      <th className="px-4 py-3 text-right font-medium text-muted-foreground">Amount</th>
                   )}
@@ -174,7 +174,7 @@ export function PostedTransferDetailForm({
               <tbody>
                 {lines.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="p-4 text-center text-muted-foreground">
+                    <td colSpan={10} className="p-4 text-center text-muted-foreground">
                       No line items found.
                     </td>
                   </tr>
@@ -188,9 +188,9 @@ export function PostedTransferDetailForm({
                       <td className="px-4 py-3">{line.Description || "-"}</td>
                       <td className="px-4 py-3 text-right font-medium">{line.Quantity?.toLocaleString() || 0}</td>
                       <td className="px-4 py-3">{line.Unit_of_Measure || "-"}</td>
-                      {type === "shipment" && (
-                        <td className="px-4 py-3 text-right">{line.Transfer_Price != null ? line.Transfer_Price.toLocaleString(undefined, { minimumFractionDigits: 2 }) : "-"}</td>
-                      )}
+                      <td className="px-4 py-3 text-right">{line.GSTBaseAmt?.toLocaleString(undefined, { minimumFractionDigits: 2 }) || "0.00"}</td>
+                      <td className="px-4 py-3 text-right">{line.GSTPer || 0}%</td>
+                      <td className="px-4 py-3 text-right font-medium">{line.TotalGSTAMt?.toLocaleString(undefined, { minimumFractionDigits: 2 }) || "0.00"}</td>
                       {type === "shipment" && (
                         <td className="px-4 py-3 text-right font-medium">{line.Amount != null ? line.Amount.toLocaleString(undefined, { minimumFractionDigits: 2 }) : "-"}</td>
                       )}

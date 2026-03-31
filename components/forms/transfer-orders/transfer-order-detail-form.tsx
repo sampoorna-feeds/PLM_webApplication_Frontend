@@ -162,6 +162,7 @@ export function TransferOrderDetailForm({
                   <th className="px-4 py-3 text-right font-medium text-muted-foreground whitespace-nowrap">Qty. Received</th>
                   <th className="px-4 py-3 text-left font-medium text-muted-foreground whitespace-nowrap">GST Group</th>
                   <th className="px-4 py-3 text-left font-medium text-muted-foreground whitespace-nowrap">HSN/SAC</th>
+                  <th className="px-4 py-3 text-left font-medium text-muted-foreground whitespace-nowrap">GST Credit</th>
                 </tr>
               </thead>
               <tbody>
@@ -189,6 +190,7 @@ export function TransferOrderDetailForm({
                       <td className="px-4 py-3 text-right">{line.Quantity_Received?.toLocaleString() || 0}</td>
                       <td className="px-4 py-3">{line.GST_Group_Code || "-"}</td>
                       <td className="px-4 py-3">{line.HSN_SAC_Code || "-"}</td>
+                      <td className="px-4 py-3">{line.GST_Credit || "-"}</td>
                     </tr>
                   ))
                 )}

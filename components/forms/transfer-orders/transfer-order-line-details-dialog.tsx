@@ -131,6 +131,7 @@ export function TransferOrderLineDetailsDialog({
         HSN_SAC_Code: formData.HSN_SAC_Code,
         Exempted: !!formData.Exempted,
         Appl_to_Item_Entry: formData.Appl_to_Item_Entry ? Number(formData.Appl_to_Item_Entry) : undefined,
+        GST_Credit: formData.GST_Credit,
       });
       toast.success("Line details updated successfully");
       onSuccess();
@@ -259,6 +260,20 @@ export function TransferOrderLineDetailsDialog({
                 value={formData.HSN_SAC_Code || ""}
                 readOnly
                 className="bg-muted/50 h-9 text-sm text-muted-foreground"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground">GST Credit</label>
+              <SearchableSelect
+                options={[
+                  { value: "Availment", label: "Availment" },
+                  { value: "Non - Availment", label: "Non - Availment" },
+                ]}
+                value={formData.GST_Credit || "Availment"}
+                onValueChange={(v) => handleChange("GST_Credit", v)}
+                placeholder="Select GST Credit"
+                className="h-9 transition-all focus:ring-1 focus:ring-red-500/50"
               />
             </div>
 

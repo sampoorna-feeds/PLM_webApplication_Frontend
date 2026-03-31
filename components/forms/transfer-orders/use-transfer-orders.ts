@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/contexts/auth-context";
-import { getAllBranchesFromUserSetup } from "@/lib/api/services/dimension.service";
+import { getAllBranchesFromUserSetup, getLOBsFromUserSetup } from "@/lib/api/services/dimension.service";
 import {
   getTransferOrdersWithCount,
   searchTransferOrders,
@@ -34,7 +34,9 @@ export function useTransferOrders(options: UseTransferOrdersOptions = {}) {
   const [pageSize, setPageSize] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
+  const [isSetupLoaded, setIsSetupLoaded] = useState(false);
 
+  const [userLobCodes, setUserLobCodes] = useState<string[]>([]);
   const [userBranchCodes, setUserBranchCodes] = useState<string[]>([]);
 
   const [sortColumn, setSortColumn] = useState<string | null>("No");
@@ -60,29 +62,43 @@ export function useTransferOrders(options: UseTransferOrdersOptions = {}) {
   useEffect(() => {
     if (!userID) return;
 
-    const fetchBranches = async () => {
+    const fetchUserSetup = async () => {
       try {
-        const branches = await getAllBranchesFromUserSetup(userID);
-        const bCodes = branches.map((b) => b.Code);
+        const [lobData, branchData] = await Promise.all([
+          getLOBsFromUserSetup(userID),
+          getAllBranchesFromUserSetup(userID),
+        ]);
+
+        const lCodes = lobData.map((l) => l.Code);
+        const bCodes = branchData.map((b) => b.Code);
+
+        setUserLobCodes(lCodes);
         setUserBranchCodes(bCodes);
-        if (bCodes.length > 0) {
-          setColumnFilters((prev) =>
-            prev.Shortcut_Dimension_2_Code !== undefined
-              ? prev
-              : {
-                  ...prev,
-                  Shortcut_Dimension_2_Code: { value: bCodes.join(",") },
-                },
-          );
+
+        const newFilters: Record<string, { value: string }> = {};
+
+        if (lCodes.length > 0 && columnFilters.Shortcut_Dimension_1_Code === undefined) {
+          newFilters.Shortcut_Dimension_1_Code = { value: lCodes.join(",") };
         }
+
+        if (bCodes.length > 0 && columnFilters.Shortcut_Dimension_2_Code === undefined) {
+          newFilters.Shortcut_Dimension_2_Code = { value: bCodes.join(",") };
+        }
+
+        if (Object.keys(newFilters).length > 0) {
+          setColumnFilters((prev) => ({ ...prev, ...newFilters }));
+        }
+        setIsSetupLoaded(true);
       } catch (error) {
-        console.error("Error fetching user branches:", error);
+        console.error("Error fetching user setup:", error);
         toast.error("Failed to load user settings. Using defaults.");
+        setUserLobCodes([]);
         setUserBranchCodes([]);
+        setIsSetupLoaded(true); // Still set to true to allow fallback fetching if needed, or we could keep it false
       }
     };
 
-    fetchBranches();
+    fetchUserSetup();
   }, [userID]);
 
   const getOrderByString = useCallback(() => {
@@ -91,20 +107,33 @@ export function useTransferOrders(options: UseTransferOrdersOptions = {}) {
   }, [sortColumn, sortDirection]);
 
   const fetchOrders = useCallback(async () => {
+    if (!isSetupLoaded) return;
+
+    const lobFilterValue = columnFilters["Shortcut_Dimension_1_Code"]?.value;
+    const effectiveLobCodes = lobFilterValue
+      ? lobFilterValue
+          .split(",")
+          .map((c) => c.trim())
+          .filter((c) => userLobCodes.includes(c))
+      : userLobCodes;
+
     const branchFilterValue = columnFilters["Shortcut_Dimension_2_Code"]?.value;
     const effectiveBranchCodes = branchFilterValue
       ? branchFilterValue
           .split(",")
           .map((c) => c.trim())
-          .filter(Boolean)
+          .filter((c) => userBranchCodes.includes(c))
       : userBranchCodes;
 
     setIsLoading(true);
     try {
       const filter = buildTransferOrderFilterString({
+        lobCodes: effectiveLobCodes,
         branchCodes: effectiveBranchCodes,
         statusFilter,
         columnFilters,
+        // We pass the authorized lists too if we want the builder to double-check, 
+        // but since we intersected here, the builder's lobCodes/branchCodes are already valid.
       });
 
       const commonParams = {
@@ -138,6 +167,7 @@ export function useTransferOrders(options: UseTransferOrdersOptions = {}) {
     visibleColumns,
     searchQuery,
     columnFilters,
+    userLobCodes,
     userBranchCodes,
     statusFilter,
     getOrderByString,

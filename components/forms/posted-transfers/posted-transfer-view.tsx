@@ -55,7 +55,7 @@ export function PostedTransferView({ type }: PostedTransferViewProps) {
       if (filters.toLocation) parts.push(`Transfer_to_Code eq '${filters.toLocation}'`);
       
       // Column Filters (Server-side supported ones)
-      const allowedServerFilters = ["No", "Transfer_from_Code", "Transfer_to_Code", "Vehicle_No"];
+      const allowedServerFilters = ["No", "Posting_Date", "Transfer_from_Code", "Transfer_to_Code", "Vehicle_No", "E_Way_Bill_No"];
       
       Object.entries(columnFilters).forEach(([colId, f]) => {
         const { value, valueTo } = f;
@@ -70,7 +70,7 @@ export function PostedTransferView({ type }: PostedTransferViewProps) {
       });
 
       const filter = parts.join(" and ");
-      const orderby = sortColumn && sortDirection && ["No", "Posting_Date", "Transfer_from_Code", "Transfer_to_Code", "Vehicle_No"].includes(sortColumn) 
+      const orderby = sortColumn && sortDirection && ["No", "Posting_Date", "Transfer_from_Code", "Transfer_to_Code", "Vehicle_No", "E_Way_Bill_No"].includes(sortColumn) 
         ? `${sortColumn} ${sortDirection}` 
         : "No desc";
         

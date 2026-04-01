@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev --webpack",
     "build": "next build",
-    "start": "next start",
+    "start": "next start -p 3000",
     "lint": "eslint",
     "format": "prettier --write --ignore-path .gitignore .",
     "format:check": "prettier --check --ignore-path .gitignore ."

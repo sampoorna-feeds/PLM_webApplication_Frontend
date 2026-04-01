@@ -117,6 +117,12 @@ export default function ProtectedLayout({
         { label: "Report Ledger", href: null },
       ];
     }
+    if (pathname === "/ledger/vendor-ledger") {
+      return [
+        { label: "Ledger", href: "#" },
+        { label: "Vendor Ledger", href: null },
+      ];
+    }
     if (pathname?.startsWith("/settings")) {
       if (pathname === "/settings/account") {
         return [
@@ -146,7 +152,8 @@ export default function ProtectedLayout({
     pathname !== "/report-ledger" &&
     pathname !== "/" &&
     !pathname.includes("/sales") &&
-    !pathname.includes("/purchase");
+    !pathname.includes("/purchase") &&
+    !pathname.includes("/ledger");
 
   const backLabel = "Return to Dashboard";
   const backHref = "/voucher-form";

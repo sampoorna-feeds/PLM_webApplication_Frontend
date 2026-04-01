@@ -96,6 +96,14 @@ const stockTransferSubItems = [
   },
 ];
 
+const ledgerSubItems = [
+  {
+    title: "Vendor Ledger",
+    url: "/ledger/vendor-ledger",
+    icon: BookOpenCheck,
+  },
+];
+
 const formsItems = [
   {
     title: "Voucher",
@@ -297,6 +305,41 @@ export function AppSidebar({
                   <CollapsibleContent>
                     <SidebarMenuSub>
                       {stockTransferSubItems.map((item) => (
+                        <SidebarMenuSubItem key={item.url}>
+                          <SidebarMenuSubButton
+                            asChild
+                            isActive={pathname === item.url}
+                          >
+                            <Link href={item.url}>
+                              {item.icon && <item.icon />}
+                              <span>{item.title}</span>
+                            </Link>
+                          </SidebarMenuSubButton>
+                        </SidebarMenuSubItem>
+                      ))}
+                    </SidebarMenuSub>
+                  </CollapsibleContent>
+                </Collapsible>
+
+                <Collapsible
+                  defaultOpen={pathname?.startsWith("/ledger")}
+                  className="group/ledger"
+                >
+                  <SidebarMenuItem>
+                    <CollapsibleTrigger asChild>
+                      <SidebarMenuButton
+                        isActive={pathname?.startsWith("/ledger")}
+                        className="w-full"
+                      >
+                        <BookOpenCheck />
+                        <span>Ledger</span>
+                        <ChevronDown className="ml-auto size-4 group-data-[state=closed]/ledger:-rotate-90 group-data-[state=open]/ledger:rotate-0" />
+                      </SidebarMenuButton>
+                    </CollapsibleTrigger>
+                  </SidebarMenuItem>
+                  <CollapsibleContent>
+                    <SidebarMenuSub>
+                      {ledgerSubItems.map((item) => (
                         <SidebarMenuSubItem key={item.url}>
                           <SidebarMenuSubButton
                             asChild

@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { toast } from "sonner";
 import {
   getVendorLedgerEntries,
+  getVendorBalance,
   type VendorLedgerEntry,
   type VendorLedgerFilters,
 } from "@/lib/api/services/vendor-ledger.service";
@@ -20,11 +21,17 @@ export function useVendorLedger(options: UseVendorLedgerOptions = {}) {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
 
+  const [openingBalance, setOpeningBalance] = useState(0);
+  const [closingBalance, setClosingBalance] = useState(0);
+
   const [filters, setFilters] = useState<VendorLedgerFilters>({
     fromDate: "",
     toDate: "",
     vendorNo: "",
     isOutstanding: options.isOutstanding || false,
+    columnFilters: {},
+    sortField: "Posting_Date",
+    sortOrder: "desc"
   });
 
   const totalPages = useMemo(
@@ -33,15 +40,32 @@ export function useVendorLedger(options: UseVendorLedgerOptions = {}) {
   );
 
   const fetchEntries = useCallback(async () => {
+    // Only fetch if vendor is selected
+    if (!filters.vendorNo) {
+      setEntries([]);
+      setTotalCount(0);
+      setOpeningBalance(0);
+      setClosingBalance(0);
+      return;
+    }
+
     setIsLoading(true);
     try {
-      const response = await getVendorLedgerEntries(
-        filters,
-        pageSize,
-        (currentPage - 1) * pageSize
-      );
-      setEntries(response.value);
-      setTotalCount(response["@odata.count"] || response.value.length);
+      // Fetch entries and balances in parallel
+      const [entriesRes, openingBal, closingBal] = await Promise.all([
+        getVendorLedgerEntries(
+          filters,
+          pageSize,
+          (currentPage - 1) * pageSize
+        ),
+        filters.fromDate ? getVendorBalance(filters.vendorNo, filters.fromDate, true) : Promise.resolve(0),
+        filters.toDate ? getVendorBalance(filters.vendorNo, filters.toDate, false) : getVendorBalance(filters.vendorNo)
+      ]);
+
+      setEntries(entriesRes.value);
+      setTotalCount(entriesRes["@odata.count"] || entriesRes.value.length);
+      setOpeningBalance(openingBal);
+      setClosingBalance(closingBal);
     } catch (error) {
       console.error("Error fetching vendor ledger entries:", error);
       toast.error("Failed to load vendor ledger entries.");
@@ -57,7 +81,37 @@ export function useVendorLedger(options: UseVendorLedgerOptions = {}) {
   }, [fetchEntries]);
 
   const handleFilterChange = useCallback((newFilters: Partial<VendorLedgerFilters>) => {
-    setFilters((prev) => ({ ...prev, ...newFilters }));
+    setFilters((prev) => ({ 
+      ...prev, 
+      ...newFilters,
+      // If vendorNo or isOutstanding changes, reset column filters
+      columnFilters: (newFilters.vendorNo !== undefined || newFilters.isOutstanding !== undefined) 
+        ? {} 
+        : prev.columnFilters 
+    }));
+    setCurrentPage(1);
+  }, []);
+
+  const handleColumnFilterChange = useCallback((field: string, value: string) => {
+    setFilters((prev) => ({
+      ...prev,
+      columnFilters: {
+        ...prev.columnFilters,
+        [field]: value
+      }
+    }));
+    setCurrentPage(1);
+  }, []);
+
+  const handleSort = useCallback((field: string) => {
+    setFilters((prev) => {
+      const isAsc = prev.sortField === field && prev.sortOrder === "asc";
+      return {
+        ...prev,
+        sortField: field,
+        sortOrder: isAsc ? "desc" : "asc"
+      };
+    });
     setCurrentPage(1);
   }, []);
 
@@ -78,9 +132,14 @@ export function useVendorLedger(options: UseVendorLedgerOptions = {}) {
     totalPages,
     totalCount,
     filters,
+    openingBalance,
+    closingBalance,
     onFilterChange: handleFilterChange,
+    onColumnFilterChange: handleColumnFilterChange,
+    onSort: handleSort,
     onPageChange: handlePageChange,
     onPageSizeChange: handlePageSizeChange,
     refetch: fetchEntries,
   };
 }
+

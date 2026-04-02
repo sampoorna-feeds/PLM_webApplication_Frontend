@@ -6,7 +6,7 @@ import { useVendorLedger } from "./use-vendor-ledger";
 import { VendorLedgerTable } from "./vendor-ledger-table";
 import { VendorLedgerFilterBar } from "./vendor-ledger-filter-bar";
 import { PaginationControls } from "../report-ledger/pagination-controls";
-import { Loader2, RefreshCcw } from "lucide-react";
+import { Loader2, RefreshCcw, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export function VendorLedgerView() {
@@ -64,10 +64,29 @@ export function VendorLedgerView() {
       />
 
       <div className="flex-1 min-h-0 overflow-hidden mt-2 border rounded-xl shadow-sm bg-background/50 backdrop-blur-sm p-1">
-        <VendorLedgerTable
-          entries={currentState.entries}
-          isLoading={currentState.isLoading}
-        />
+        {!currentState.filters.vendorNo ? (
+          <div className="flex h-full min-h-[300px] flex-col items-center justify-center text-center p-8 bg-muted/5">
+            <div className="rounded-full bg-primary/10 p-6 mb-4">
+              <Search className="h-10 w-10 text-primary animate-pulse" />
+            </div>
+            <h3 className="text-lg font-semibold text-foreground">No Vendor Selected</h3>
+            <p className="text-sm text-muted-foreground max-w-[280px] mt-2">
+              Please select a vendor code and date range above to view the ledger transaction history.
+            </p>
+          </div>
+        ) : (
+          <VendorLedgerTable
+            entries={currentState.entries}
+            isLoading={currentState.isLoading}
+            openingBalance={currentState.openingBalance}
+            closingBalance={currentState.closingBalance}
+            onSort={currentState.onSort}
+            onColumnFilterChange={currentState.onColumnFilterChange}
+            sortField={currentState.filters.sortField}
+            sortOrder={currentState.filters.sortOrder}
+            columnFilters={currentState.filters.columnFilters}
+          />
+        )}
       </div>
 
       <div className="border rounded-lg bg-card p-2 shadow-sm">

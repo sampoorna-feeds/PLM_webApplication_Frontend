@@ -32,6 +32,7 @@ export function buildODataQuery(params: {
   $skip?: number;
   $expand?: string;
   $count?: boolean;
+  $apply?: string;
 }): string {
   const queryParams = new URLSearchParams();
 
@@ -42,6 +43,8 @@ export function buildODataQuery(params: {
   if (params.$skip) queryParams.append("$skip", params.$skip.toString());
   if (params.$expand) queryParams.append("$expand", params.$expand);
   if (params.$count) queryParams.append("$count", "true");
+  if (params.$apply) queryParams.append("$apply", params.$apply);
 
   return queryParams.toString();
 }
+

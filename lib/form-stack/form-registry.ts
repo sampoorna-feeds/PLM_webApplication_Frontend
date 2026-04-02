@@ -22,10 +22,7 @@ let FinishedProductionOrderDetailForm: FormComponent | null = null;
 let ItemSelectorForm: FormComponent | null = null;
 let LineItemTabForm: FormComponent | null = null;
 
-let PurchaseOrderForm: FormComponent | null = null;
-let PurchaseInvoiceForm: FormComponent | null = null;
-let PurchaseReturnOrderForm: FormComponent | null = null;
-let PurchaseCreditMemoForm: FormComponent | null = null;
+let PurchaseDocumentForm: FormComponent | null = null;
 
 let TransferOrderDetailForm: FormComponent | null = null;
 let PostedTransferDetailForm: FormComponent | null = null;
@@ -158,37 +155,13 @@ export const formRegistry: Record<
     }
     return { default: LineItemTabForm! };
   },
-  "purchase-order": async () => {
-    if (!PurchaseOrderForm) {
+  "purchase-document": async () => {
+    if (!PurchaseDocumentForm) {
       const formModule =
-        await import("@/components/forms/purchase/purchase-order-form");
-      PurchaseOrderForm = formModule.PurchaseOrderForm;
+        await import("@/components/forms/purchase/purchase-document-form");
+      PurchaseDocumentForm = formModule.PurchaseDocumentForm;
     }
-    return { default: PurchaseOrderForm! };
-  },
-  "purchase-invoice": async () => {
-    if (!PurchaseInvoiceForm) {
-      const formModule =
-        await import("@/components/forms/purchase/purchase-invoice-form");
-      PurchaseInvoiceForm = formModule.PurchaseInvoiceForm;
-    }
-    return { default: PurchaseInvoiceForm! };
-  },
-  "purchase-return-order": async () => {
-    if (!PurchaseReturnOrderForm) {
-      const formModule =
-        await import("@/components/forms/purchase/purchase-return-order-form");
-      PurchaseReturnOrderForm = formModule.PurchaseReturnOrderForm;
-    }
-    return { default: PurchaseReturnOrderForm! };
-  },
-  "purchase-credit-memo": async () => {
-    if (!PurchaseCreditMemoForm) {
-      const formModule =
-        await import("@/components/forms/purchase/purchase-credit-memo-form");
-      PurchaseCreditMemoForm = formModule.PurchaseCreditMemoForm;
-    }
-    return { default: PurchaseCreditMemoForm! };
+    return { default: PurchaseDocumentForm! };
   },
   "transfer-order-detail": async () => {
     if (!TransferOrderDetailForm) {
@@ -205,18 +178,16 @@ export const formRegistry: Record<
   },
   "posted-transfer-shipment-detail": async () => {
     if (!PostedTransferDetailForm) {
-      const formModule = await import(
-        "@/components/forms/posted-transfers/posted-transfer-detail-form"
-      );
+      const formModule =
+        await import("@/components/forms/posted-transfers/posted-transfer-detail-form");
       PostedTransferDetailForm = formModule.PostedTransferDetailForm;
     }
     return { default: PostedTransferDetailForm! };
   },
   "posted-transfer-receipt-detail": async () => {
     if (!PostedTransferDetailForm) {
-      const formModule = await import(
-        "@/components/forms/posted-transfers/posted-transfer-detail-form"
-      );
+      const formModule =
+        await import("@/components/forms/posted-transfers/posted-transfer-detail-form");
       PostedTransferDetailForm = formModule.PostedTransferDetailForm;
     }
     return { default: PostedTransferDetailForm! };

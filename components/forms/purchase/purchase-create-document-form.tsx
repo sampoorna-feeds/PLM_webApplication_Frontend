@@ -36,7 +36,13 @@ import {
   useCreateOnlyPurchaseFormStack,
   type PurchaseDocumentFormMode,
 } from "./purchase-form-stack";
+import { getPurchaseDocumentCapabilities } from "./purchase-document-config";
 import { buildPurchaseCommonHeaderData } from "./purchase-document-header-data";
+import {
+  mapPurchaseHeaderToFormData,
+  mapPurchaseLineToLineItem,
+  toStringValue,
+} from "./purchase-document-hydration";
 import {
   buildPurchaseCommonLineItemsData,
   resolvePurchaseLocationCode,
@@ -53,6 +59,7 @@ import { PurchaseOrderLineDialog as PurchaseLineDialog } from "./purchase-order-
 import { PurchaseCopyDocumentDialog } from "./purchase-copy-document-dialog";
 import {
   createPurchaseCreditMemo,
+  createPurchaseCreditMemoCopyHeader,
   addPurchaseCreditMemoLineItems,
   getPurchaseCreditMemoByNo,
   getPurchaseCreditMemoLines,
@@ -62,6 +69,7 @@ import {
 } from "@/lib/api/services/purchase-credit-memo.service";
 import {
   createPurchaseInvoice,
+  createPurchaseInvoiceCopyHeader,
   addPurchaseInvoiceLineItems,
   getPurchaseInvoiceByNo,
   getPurchaseInvoiceLines,
@@ -71,6 +79,7 @@ import {
 } from "@/lib/api/services/purchase-invoice.service";
 import {
   createPurchaseReturnOrder,
+  createPurchaseReturnOrderCopyHeader,
   addPurchaseReturnOrderLineItems,
   getPurchaseReturnOrderByNo,
   getPurchaseReturnOrderLines,
@@ -82,6 +91,7 @@ import type {
   PurchaseOrderData,
   PurchaseOrderLineItem,
 } from "@/lib/api/services/purchase-order.service";
+import { buildPurchaseHeaderPayload } from "@/lib/api/services/purchase-header-payload";
 import {
   cancelApprovalRequest,
   reopenPurchaseOrder,
@@ -113,13 +123,16 @@ interface PurchaseCreateDocumentConfig {
   displayTitle: string;
   primaryVendorRefLabel: string;
   primaryVendorRefField: "vendorInvoiceNo" | "vendorCrMemoNo";
-  showVendorAuthorizationNo: boolean;
   orderAddressGridClass: string;
   buildHeaderData: (
     formData: PurchaseCreateDocumentFormState,
   ) => PurchaseOrderData;
   createHeader: (
     data: PurchaseOrderData,
+  ) => Promise<{ orderId: string; orderNo: string }>;
+  createCopyHeader: (
+    locationCode: string,
+    lobCode: string,
   ) => Promise<{ orderId: string; orderNo: string }>;
   addLineItems: (
     documentNo: string,
@@ -178,122 +191,6 @@ interface PurchaseCreateDocumentFormState {
   dueDate: string;
 }
 
-function toStringValue(value: unknown): string {
-  if (typeof value === "string") return value;
-  if (value === null || value === undefined) return "";
-  return String(value);
-}
-
-function toNumberValue(value: unknown): number | undefined {
-  if (typeof value === "number" && Number.isFinite(value)) return value;
-  if (typeof value === "string" && value.trim() !== "") {
-    const parsed = Number(value);
-    if (Number.isFinite(parsed)) return parsed;
-  }
-  return undefined;
-}
-
-function mapPurchaseHeaderToFormData(
-  header: PurchaseOrder,
-): PurchaseCreateDocumentFormState {
-  const rawHeader = header as unknown as Record<string, unknown>;
-
-  return {
-    vendorNo: toStringValue(header.Buy_from_Vendor_No),
-    vendorName: toStringValue(header.Buy_from_Vendor_Name),
-    purchasePersonCode: toStringValue(header.Purchaser_Code),
-    purchasePersonName: "",
-    locationCode: toStringValue(header.Location_Code),
-    postingDate: toStringValue(header.Posting_Date),
-    documentDate: toStringValue(header.Document_Date),
-    orderDate: toStringValue(header.Order_Date || header.Posting_Date),
-    vendorInvoiceNo: toStringValue(header.Vendor_Invoice_No),
-    vendorCrMemoNo: toStringValue(rawHeader["Vendor_Cr_Memo_No"]),
-    vendorAuthorizationNo: toStringValue(
-      rawHeader["Vendor_Authorization_No"],
-    ),
-    appliesToDocType:
-      toStringValue(rawHeader["Applies_to_Doc_Type"]) || "Invoice",
-    appliesToDocNo: toStringValue(rawHeader["Applies_to_Doc_No"]),
-    invoiceType: toStringValue(header.Invoice_Type),
-    lob: toStringValue(header.Shortcut_Dimension_1_Code),
-    branch: toStringValue(header.Shortcut_Dimension_2_Code),
-    loc: toStringValue(header.Shortcut_Dimension_3_Code),
-    poType: toStringValue(header.PO_Type) || "Goods",
-    serviceType: toStringValue(header.Service_Type),
-    vendorGstRegNo: toStringValue(header.Vendor_GST_Reg_No),
-    vendorPanNo: toStringValue(header.P_A_N_No),
-    brokerNo: toStringValue(header.Brokerage_Code),
-    brokerName: "",
-    brokerageRate:
-      header.Brokerage_Rate !== undefined && header.Brokerage_Rate !== null
-        ? String(header.Brokerage_Rate)
-        : "",
-    orderAddressCode: toStringValue(header.Order_Address_Code),
-    orderAddressName: "",
-    rateBasis: toStringValue(header.Rate_Basis),
-    termCode: toStringValue(header.Terms_Code),
-    mandiName: toStringValue(header.Mandi_Name),
-    paymentTermCode: toStringValue(header.Payment_Terms_Code),
-    dueDateCalculation:
-      toStringValue(header.Due_Date_calculation) || "Posting Date",
-    creditorType: toStringValue(header.Creditors_Type),
-    qcType: toStringValue(header.QCType),
-    dueDate: toStringValue(header.Due_Date),
-  };
-}
-
-function mapPurchaseLineToLineItem(line: PurchaseLine): LineItem {
-  const rawLine = line as unknown as Record<string, unknown>;
-  const lineNo = toNumberValue(line.Line_No) ?? 0;
-
-  const qtyToReceive = toNumberValue(line.Qty_to_Receive);
-  const qtyReceived = toNumberValue(line.Quantity_Received);
-  const qtyToInvoice = toNumberValue(line.Qty_to_Invoice);
-  const qtyInvoiced = toNumberValue(line.Quantity_Invoiced);
-  const returnQtyToShip =
-    toNumberValue(rawLine["Return_Qty_to_Ship"]) ??
-    toNumberValue(rawLine["Qty_to_Ship"]);
-  const returnQtyShipped =
-    toNumberValue(rawLine["Return_Qty_Shipped"]) ??
-    toNumberValue(rawLine["Qty_Shipped"]);
-
-  return {
-    id: lineNo > 0 ? `line-${lineNo}` : crypto.randomUUID(),
-    lineNo: lineNo > 0 ? lineNo : undefined,
-    type:
-      (line.Type as "Item" | "G/L Account" | "Fixed Asset" | "Charge (Item)") ||
-      "Item",
-    no: toStringValue(line.No),
-    description: [toStringValue(line.Description), toStringValue(line.Description_2)]
-      .filter(Boolean)
-      .join(" "),
-    uom: toStringValue(line.Unit_of_Measure_Code || line.Unit_of_Measure),
-    quantity: toNumberValue(line.Quantity) ?? 0,
-    qtyToReceive,
-    qtyReceived,
-    returnQtyToShip,
-    returnQtyShipped,
-    qtyToInvoice,
-    qtyInvoiced,
-    price: toNumberValue(line.Direct_Unit_Cost),
-    unitPrice: toNumberValue(line.Direct_Unit_Cost) ?? 0,
-    discount:
-      toNumberValue(line.Line_Discount_Percent) ??
-      toNumberValue(line.Line_Discount_Amount) ??
-      0,
-    amount: toNumberValue(line.Line_Amount) ?? 0,
-    exempted: Boolean(line.Exempted),
-    gstGroupCode: toStringValue(line.GST_Group_Code),
-    hsnSacCode: toStringValue(line.HSN_SAC_Code),
-    tdsSectionCode: toStringValue(line.TDS_Section_Code),
-    faPostingType: toStringValue(line.FA_Posting_Type) || undefined,
-    salvageValue: toNumberValue(line.Salvage_Value),
-    noOfBags: toNumberValue(line.No_of_Bags),
-    gstCredit: toStringValue(line.GST_Credit),
-  };
-}
-
 const PURCHASE_CREATE_DOCUMENT_CONFIG: Record<
   PurchaseCreateDocumentType,
   PurchaseCreateDocumentConfig
@@ -305,13 +202,13 @@ const PURCHASE_CREATE_DOCUMENT_CONFIG: Record<
     displayTitle: "Invoice",
     primaryVendorRefLabel: "Vendor Invoice No.",
     primaryVendorRefField: "vendorInvoiceNo",
-    showVendorAuthorizationNo: false,
     orderAddressGridClass: "sm:col-span-2 lg:col-span-2",
     buildHeaderData: (formData) => ({
       ...buildPurchaseCommonHeaderData(formData),
       vendorInvoiceNo: formData.vendorInvoiceNo,
     }),
     createHeader: createPurchaseInvoice,
+    createCopyHeader: createPurchaseInvoiceCopyHeader,
     addLineItems: addPurchaseInvoiceLineItems,
     updateHeader: patchPurchaseInvoiceHeader,
     deleteHeader: deletePurchaseInvoiceHeader,
@@ -331,7 +228,6 @@ const PURCHASE_CREATE_DOCUMENT_CONFIG: Record<
     displayTitle: "Return Order",
     primaryVendorRefLabel: "Vendor Cr. Memo No.",
     primaryVendorRefField: "vendorCrMemoNo",
-    showVendorAuthorizationNo: true,
     orderAddressGridClass: "sm:col-span-2 lg:col-span-1",
     buildHeaderData: (formData) => ({
       ...buildPurchaseCommonHeaderData(formData),
@@ -341,6 +237,7 @@ const PURCHASE_CREATE_DOCUMENT_CONFIG: Record<
       appliesToDocNo: formData.appliesToDocNo,
     }),
     createHeader: createPurchaseReturnOrder,
+    createCopyHeader: createPurchaseReturnOrderCopyHeader,
     addLineItems: addPurchaseReturnOrderLineItems,
     updateHeader: patchPurchaseReturnOrderHeader,
     deleteHeader: deletePurchaseReturnOrderHeader,
@@ -360,7 +257,6 @@ const PURCHASE_CREATE_DOCUMENT_CONFIG: Record<
     displayTitle: "Credit Memo",
     primaryVendorRefLabel: "Vendor Cr. Memo No.",
     primaryVendorRefField: "vendorCrMemoNo",
-    showVendorAuthorizationNo: true,
     orderAddressGridClass: "sm:col-span-2 lg:col-span-1",
     buildHeaderData: (formData) => ({
       ...buildPurchaseCommonHeaderData(formData),
@@ -369,6 +265,7 @@ const PURCHASE_CREATE_DOCUMENT_CONFIG: Record<
       appliesToDocNo: formData.appliesToDocNo,
     }),
     createHeader: createPurchaseCreditMemo,
+    createCopyHeader: createPurchaseCreditMemoCopyHeader,
     addLineItems: addPurchaseCreditMemoLineItems,
     updateHeader: patchPurchaseCreditMemoHeader,
     deleteHeader: deletePurchaseCreditMemoHeader,
@@ -408,6 +305,7 @@ export function PurchaseCreateDocumentFormContent({
   persistFormData,
 }: PurchaseCreateDocumentFormContentProps) {
   const config = PURCHASE_CREATE_DOCUMENT_CONFIG[documentType];
+  const capabilities = getPurchaseDocumentCapabilities(documentType);
   const isCreateMode = mode === "create";
   const isEditMode = mode === "edit";
   const isViewMode = mode === "view";
@@ -464,6 +362,8 @@ export function PurchaseCreateDocumentFormContent({
     null,
   );
   const [isCreatingHeader, setIsCreatingHeader] = useState(false);
+  const [isBootstrappingCopyHeader, setIsBootstrappingCopyHeader] =
+    useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isActionLoading, setIsActionLoading] = useState(false);
   const [isUpdatingHeader, setIsUpdatingHeader] = useState(false);
@@ -653,7 +553,7 @@ export function PurchaseCreateDocumentFormContent({
     }
   };
 
-  // Step 1 validation - all key fields mandatory except External Document No. and Vendor Invoice No. (optional). Invoice Type is now optional.
+  // Step 1 validation for required header fields.
   const isStep1Valid = (): boolean => {
     return !!(
       formData.lob &&
@@ -664,13 +564,41 @@ export function PurchaseCreateDocumentFormContent({
       (formData.locationCode || formData.loc) &&
       formData.postingDate &&
       formData.documentDate &&
-      formData.orderDate &&
-      formData.poType
+      (!capabilities.supportsOrderDate || formData.orderDate) &&
+      (!capabilities.supportsPoType || formData.poType)
     );
   };
 
-  const buildOrderData = (): PurchaseOrderData =>
-    config.buildHeaderData(formData);
+  const buildOrderData = (): PurchaseOrderData => {
+    const data = { ...config.buildHeaderData(formData) };
+
+    if (!capabilities.supportsPoType) {
+      delete data.poType;
+    }
+
+    if (!capabilities.supportsServiceType) {
+      delete data.serviceType;
+    }
+
+    if (!capabilities.supportsOrderDate) {
+      data.orderDate = "";
+    }
+
+    if (!capabilities.supportsInvoiceType) {
+      delete data.invoiceType;
+    }
+
+    if (!capabilities.supportsAppliesToFields) {
+      delete data.appliesToDocType;
+      delete data.appliesToDocNo;
+    }
+
+    if (!capabilities.supportsVendorAuthorizationNo) {
+      delete data.vendorAuthorizationNo;
+    }
+
+    return data;
+  };
 
   const handleCreateOrderHeader = async () => {
     if (!isCreateMode) return;
@@ -709,6 +637,77 @@ export function PurchaseCreateDocumentFormContent({
       );
     } finally {
       setIsCreatingHeader(false);
+    }
+  };
+
+  const handleOpenCopyDialog = async () => {
+    if (!isCreateMode) return;
+
+    if (createdOrderNo) {
+      setIsCopyDocOpen(true);
+      return;
+    }
+
+    const locationCode = resolvePurchaseLocationCode(
+      formData.locationCode,
+      formData.loc,
+    );
+
+    if (!locationCode) {
+      setPlaceOrderError(
+        "Select LOC / Location first. Copy flow requires location to create a document header.",
+      );
+      return;
+    }
+
+    const lobCode = formData.lob?.trim() || "";
+    if (!lobCode) {
+      setPlaceOrderError(
+        "Select LOB first. Copy flow requires LOB and Location to create a document header.",
+      );
+      return;
+    }
+
+    setIsBootstrappingCopyHeader(true);
+    setPlaceOrderError(null);
+    try {
+      const orderResponse = await config.createCopyHeader(
+        locationCode,
+        lobCode,
+      );
+      const orderNo = orderResponse.orderNo || orderResponse.orderId;
+
+      if (!orderNo) {
+        throw new Error(
+          "Failed to create copy header: No document number returned",
+        );
+      }
+
+      setFormData((previous) => ({
+        ...previous,
+        locationCode,
+      }));
+      setCreatedOrderNo(orderNo);
+      setDocumentStatus("Open");
+
+      persist({
+        ...formData,
+        locationCode,
+        lineItems,
+        createdOrderNo: orderNo,
+        status: "Open",
+      });
+
+      setIsCopyDocOpen(true);
+    } catch (error) {
+      setPlaceOrderError(
+        getErrorMessage(
+          error,
+          "Failed to create document for copy. Please try again.",
+        ),
+      );
+    } finally {
+      setIsBootstrappingCopyHeader(false);
     }
   };
 
@@ -795,11 +794,7 @@ export function PurchaseCreateDocumentFormContent({
         formData.locationCode,
         formData.loc,
       );
-      await config.addLineItems(
-        createdOrderNo,
-        lineItemsData,
-        locationCode,
-      );
+      await config.addLineItems(createdOrderNo, lineItemsData, locationCode);
       onSuccess(createdOrderNo);
     } catch (error) {
       console.error(
@@ -817,38 +812,17 @@ export function PurchaseCreateDocumentFormContent({
     }
   };
 
-  const buildHeaderPatchPayload = (): Record<string, unknown> => ({
-    PO_Type: formData.poType,
-    Service_Type: formData.serviceType,
-    Buy_from_Vendor_No: formData.vendorNo,
-    Posting_Date: formData.postingDate,
-    Order_Date: formData.orderDate,
-    Document_Date: formData.documentDate,
-    Purchaser_Code: formData.purchasePersonCode,
-    Due_Date_calculation: formData.dueDateCalculation,
-    Brokerage_Code: formData.brokerNo,
-    Brokerage_Rate:
-      formData.brokerageRate === "" ? 0 : Number(formData.brokerageRate),
-    Rate_Basis: formData.rateBasis,
-    QCType: formData.qcType === "_none" ? "" : formData.qcType,
-    Terms_Code: formData.termCode,
-    Mandi_Name: formData.mandiName,
-    Payment_Terms_Code: formData.paymentTermCode,
-    Location_Code: formData.locationCode || formData.loc,
-    Creditors_Type: formData.creditorType,
-    Shortcut_Dimension_3_Code: formData.loc,
-    Responsibility_Center: formData.lob,
-    Shortcut_Dimension_1_Code: formData.lob || "",
-    Shortcut_Dimension_2_Code: formData.branch || "",
-    Order_Address_Code: formData.orderAddressCode,
-    Due_Date: formData.dueDate,
-    Invoice_Type: formData.invoiceType,
-    Applies_to_Doc_Type: formData.appliesToDocType || "Invoice",
-    Applies_to_Doc_No: formData.appliesToDocNo || "",
-    Vendor_Invoice_No: formData.vendorInvoiceNo || "",
-    Vendor_Cr_Memo_No: formData.vendorCrMemoNo || "",
-    Vendor_Authorization_No: formData.vendorAuthorizationNo || "",
-  });
+  const buildHeaderPatchPayload = (): Record<string, unknown> => {
+    return buildPurchaseHeaderPayload(formData, {
+      includePoType: capabilities.supportsPoType,
+      includeServiceType: capabilities.supportsServiceType,
+      includeOrderDate: capabilities.supportsOrderDate,
+      includeInvoiceType: capabilities.supportsInvoiceType,
+      includeVendorAuthorizationNo: capabilities.supportsVendorAuthorizationNo,
+      includeAppliesToFields: capabilities.supportsAppliesToFields,
+      primaryVendorRefField: config.primaryVendorRefField,
+    });
+  };
 
   const refreshHydratedDocument = async () => {
     if (!createdOrderNo) return;
@@ -876,6 +850,20 @@ export function PurchaseCreateDocumentFormContent({
       createdOrderNo,
       status,
     });
+  };
+
+  const handleCopyDocumentSuccess = async () => {
+    try {
+      await refreshHydratedDocument();
+      toast.success(`${config.displayTitle} copied successfully.`);
+    } catch (error) {
+      const message = getErrorMessage(
+        error,
+        `Copied data loaded, but refreshing ${config.displayTitle} failed.`,
+      );
+      setPlaceOrderError(message);
+      throw new Error(message);
+    }
   };
 
   const handleUpdateDocument = async () => {
@@ -943,9 +931,7 @@ export function PurchaseCreateDocumentFormContent({
       await refreshHydratedDocument();
       toast.success("Sent for approval.");
     } catch (error) {
-      setPlaceOrderError(
-        getErrorMessage(error, "Send for approval failed."),
-      );
+      setPlaceOrderError(getErrorMessage(error, "Send for approval failed."));
     } finally {
       setIsActionLoading(false);
     }
@@ -961,9 +947,7 @@ export function PurchaseCreateDocumentFormContent({
       await refreshHydratedDocument();
       toast.success("Approval cancelled.");
     } catch (error) {
-      setPlaceOrderError(
-        getErrorMessage(error, "Cancel approval failed."),
-      );
+      setPlaceOrderError(getErrorMessage(error, "Cancel approval failed."));
     } finally {
       setIsActionLoading(false);
     }
@@ -1022,7 +1006,8 @@ export function PurchaseCreateDocumentFormContent({
       isCreateMode || isEditMode
         ? ["general", "tax-information", "vendor-statistics"]
         : ["general"];
-    const areFieldsReadOnly = isViewMode || (isCreateMode && Boolean(createdOrderNo));
+    const areFieldsReadOnly =
+      isViewMode || (isCreateMode && Boolean(createdOrderNo));
 
     return (
       <div className="space-y-3">
@@ -1116,17 +1101,13 @@ export function PurchaseCreateDocumentFormContent({
           </div>
         )}
 
-        {createdOrderNo && (
+        {createdOrderNo && isCreateMode && (
           <div className="bg-primary/5 text-primary rounded-md border px-3 py-1.5 text-xs font-medium">
-            {isCreateMode
-              ? `Header created: ${createdOrderNo}. Continue to Line Items.`
-              : `Viewing document: ${createdOrderNo}`}
+            {`Header created: ${createdOrderNo}. Continue to Line Items.`}
           </div>
         )}
 
-        <div
-          className={cn("space-y-4", areFieldsReadOnly && "pointer-events-none opacity-70")}
-        >
+        <div className="space-y-4">
           <Accordion
             key={mode}
             type="multiple"
@@ -1139,171 +1120,193 @@ export function PurchaseCreateDocumentFormContent({
                   General
                 </h3>
               </AccordionTrigger>
-              <AccordionContent className="pb-2">
+              <AccordionContent
+                className={cn(
+                  "pb-2",
+                  areFieldsReadOnly && "pointer-events-none opacity-70",
+                )}
+              >
                 <section className="space-y-2 pt-2">
-          <div className="grid grid-cols-1 gap-x-3 gap-y-2.5 sm:grid-cols-3 lg:grid-cols-5">
-            <div className={fieldClass}>
-              <label className={labelClass}>PO Type</label>
-              <Select
-                value={formData.poType}
-                onValueChange={(value) => handleInputChange("poType", value)}
-              >
-                <SelectTrigger className="h-7 text-xs">
-                  <SelectValue placeholder="Select" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Goods">Goods</SelectItem>
-                  <SelectItem value="Service">Service</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            {formData.poType === "Service" && (
-              <div className={fieldClass}>
-                <label className={labelClass}>Service Type</label>
-                <ClearableField
-                  value={formData.serviceType}
-                  onClear={() => handleInputChange("serviceType", "")}
-                >
-                  <Select
-                    value={formData.serviceType || ""}
-                    onValueChange={(value) =>
-                      handleInputChange(
-                        "serviceType",
-                        value === "none" ? "" : value,
-                      )
-                    }
-                  >
-                    <SelectTrigger className="h-7 text-xs">
-                      <SelectValue placeholder="Select" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">None</SelectItem>
-                      <SelectItem value="Logistics">Logistics</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </ClearableField>
-              </div>
-            )}
-            <div className={fieldClass}>
-              <label className={labelClass}>Invoice Type</label>
-              <ClearableField
-                value={formData.invoiceType}
-                onClear={() => handleInputChange("invoiceType", "")}
-              >
-                <Select
-                  value={formData.invoiceType || ""}
-                  onValueChange={(value) =>
-                    handleInputChange("invoiceType", value)
-                  }
-                >
-                  <SelectTrigger className="h-7 text-xs">
-                    <SelectValue placeholder="Select / None" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Bill of supply">
-                      Bill of supply
-                    </SelectItem>
-                    <SelectItem value="Export">Export</SelectItem>
-                    <SelectItem value="Supplementary">Supplementary</SelectItem>
-                    <SelectItem value="Debit Note">Debit Note</SelectItem>
-                    <SelectItem value="Non-GST">Non-GST</SelectItem>
-                    <SelectItem value="Taxable">Taxable</SelectItem>
-                  </SelectContent>
-                </Select>
-              </ClearableField>
-            </div>
-            <div className={fieldClass}>
-              <label className={labelClass}>Purchaser Code</label>
-              <ClearableField
-                value={formData.purchasePersonCode}
-                onClear={() => handleInputChange("purchasePersonCode", "")}
-              >
-                <PurchaserSelect
-                  value={formData.purchasePersonCode || ""}
-                  onChange={(val, sp) => {
-                    setFormData((prev) => ({
-                      ...prev,
-                      purchasePersonCode: val,
-                      purchasePersonName: sp?.Name || "",
-                    }));
-                  }}
-                  placeholder="Select Purchaser"
-                />
-              </ClearableField>
-              {formData.purchasePersonName && (
-                <p className="mt-0.5 truncate pl-1 text-[9px] font-medium text-green-600">
-                  {formData.purchasePersonName}
-                </p>
-              )}
-            </div>
+                  <div className="grid grid-cols-1 gap-x-3 gap-y-2.5 sm:grid-cols-3 lg:grid-cols-5">
+                    {capabilities.supportsPoType && (
+                      <div className={fieldClass}>
+                        <label className={labelClass}>PO Type</label>
+                        <Select
+                          value={formData.poType}
+                          onValueChange={(value) =>
+                            handleInputChange("poType", value)
+                          }
+                        >
+                          <SelectTrigger className="h-7 text-xs">
+                            <SelectValue placeholder="Select" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Goods">Goods</SelectItem>
+                            <SelectItem value="Service">Service</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+                    {capabilities.supportsServiceType &&
+                      formData.poType === "Service" && (
+                        <div className={fieldClass}>
+                          <label className={labelClass}>Service Type</label>
+                          <ClearableField
+                            value={formData.serviceType}
+                            onClear={() => handleInputChange("serviceType", "")}
+                          >
+                            <Select
+                              value={formData.serviceType || ""}
+                              onValueChange={(value) =>
+                                handleInputChange(
+                                  "serviceType",
+                                  value === "none" ? "" : value,
+                                )
+                              }
+                            >
+                              <SelectTrigger className="h-7 text-xs">
+                                <SelectValue placeholder="Select" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="none">None</SelectItem>
+                                <SelectItem value="Logistics">
+                                  Logistics
+                                </SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </ClearableField>
+                        </div>
+                      )}
+                    {capabilities.supportsInvoiceType && (
+                      <div className={fieldClass}>
+                        <label className={labelClass}>Invoice Type</label>
+                        <ClearableField
+                          value={formData.invoiceType}
+                          onClear={() => handleInputChange("invoiceType", "")}
+                        >
+                          <Select
+                            value={formData.invoiceType || ""}
+                            onValueChange={(value) =>
+                              handleInputChange("invoiceType", value)
+                            }
+                          >
+                            <SelectTrigger className="h-7 text-xs">
+                              <SelectValue placeholder="Select / None" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Bill of supply">
+                                Bill of supply
+                              </SelectItem>
+                              <SelectItem value="Export">Export</SelectItem>
+                              <SelectItem value="Supplementary">
+                                Supplementary
+                              </SelectItem>
+                              <SelectItem value="Debit Note">
+                                Debit Note
+                              </SelectItem>
+                              <SelectItem value="Non-GST">Non-GST</SelectItem>
+                              <SelectItem value="Taxable">Taxable</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </ClearableField>
+                      </div>
+                    )}
+                    <div className={fieldClass}>
+                      <label className={labelClass}>Purchaser Code</label>
+                      <ClearableField
+                        value={formData.purchasePersonCode}
+                        onClear={() =>
+                          handleInputChange("purchasePersonCode", "")
+                        }
+                      >
+                        <PurchaserSelect
+                          value={formData.purchasePersonCode || ""}
+                          onChange={(val, sp) => {
+                            setFormData((prev) => ({
+                              ...prev,
+                              purchasePersonCode: val,
+                              purchasePersonName: sp?.Name || "",
+                            }));
+                          }}
+                          placeholder="Select Purchaser"
+                        />
+                      </ClearableField>
+                      {formData.purchasePersonName && (
+                        <p className="mt-0.5 truncate pl-1 text-[9px] font-medium text-green-600">
+                          {formData.purchasePersonName}
+                        </p>
+                      )}
+                    </div>
 
-            {/* Dimensions */}
-            <div className={fieldClass}>
-              <label className={labelClass}>LOB</label>
-              <ClearableField
-                value={formData.lob}
-                onClear={() => handleInputChange("lob", "")}
-              >
-                <CascadingDimensionSelect
-                  dimensionType="LOB"
-                  value={formData.lob}
-                  onChange={(value) => handleInputChange("lob", value)}
-                  placeholder="Select LOB"
-                  userId={userId}
-                  compactWhenSingle
-                />
-              </ClearableField>
-            </div>
-            <div className={fieldClass}>
-              <label className={labelClass}>Branch</label>
-              <ClearableField
-                value={formData.branch}
-                onClear={() => handleInputChange("branch", "")}
-              >
-                <CascadingDimensionSelect
-                  dimensionType="BRANCH"
-                  value={formData.branch}
-                  onChange={(value) => handleInputChange("branch", value)}
-                  placeholder="Select Branch"
-                  lobValue={formData.lob}
-                  userId={userId}
-                  compactWhenSingle
-                />
-              </ClearableField>
-            </div>
-            <div className={fieldClass}>
-              <label className={labelClass}>LOC</label>
-              <ClearableField
-                value={formData.loc}
-                onClear={() => handleInputChange("loc", "")}
-              >
-                <CascadingDimensionSelect
-                  dimensionType="LOC"
-                  value={formData.loc}
-                  onChange={(value) => handleInputChange("loc", value)}
-                  placeholder="Select LOC"
-                  lobValue={formData.lob}
-                  branchValue={formData.branch}
-                  userId={userId}
-                  compactWhenSingle
-                />
-              </ClearableField>
-            </div>
-            <div className={fieldClass}>
-              <label className={labelClass}>Location</label>
-              <Input
-                value={formData.locationCode || formData.loc || ""}
-                disabled
-                className="bg-muted h-7 text-xs"
-                readOnly
-              />
-              {formData.locationCode && (
-                <p className="text-muted-foreground mt-0.5 overflow-hidden pl-1 text-[9px] text-ellipsis whitespace-nowrap">
-                  {formData.locationCode} Location
-                </p>
-              )}
-            </div>
-          </div>
+                    {/* Dimensions */}
+                    <div className={fieldClass}>
+                      <label className={labelClass}>LOB</label>
+                      <ClearableField
+                        value={formData.lob}
+                        onClear={() => handleInputChange("lob", "")}
+                      >
+                        <CascadingDimensionSelect
+                          dimensionType="LOB"
+                          value={formData.lob}
+                          onChange={(value) => handleInputChange("lob", value)}
+                          placeholder="Select LOB"
+                          userId={userId}
+                          compactWhenSingle
+                        />
+                      </ClearableField>
+                    </div>
+                    <div className={fieldClass}>
+                      <label className={labelClass}>Branch</label>
+                      <ClearableField
+                        value={formData.branch}
+                        onClear={() => handleInputChange("branch", "")}
+                      >
+                        <CascadingDimensionSelect
+                          dimensionType="BRANCH"
+                          value={formData.branch}
+                          onChange={(value) =>
+                            handleInputChange("branch", value)
+                          }
+                          placeholder="Select Branch"
+                          lobValue={formData.lob}
+                          userId={userId}
+                          compactWhenSingle
+                        />
+                      </ClearableField>
+                    </div>
+                    <div className={fieldClass}>
+                      <label className={labelClass}>LOC</label>
+                      <ClearableField
+                        value={formData.loc}
+                        onClear={() => handleInputChange("loc", "")}
+                      >
+                        <CascadingDimensionSelect
+                          dimensionType="LOC"
+                          value={formData.loc}
+                          onChange={(value) => handleInputChange("loc", value)}
+                          placeholder="Select LOC"
+                          lobValue={formData.lob}
+                          branchValue={formData.branch}
+                          userId={userId}
+                          compactWhenSingle
+                        />
+                      </ClearableField>
+                    </div>
+                    <div className={fieldClass}>
+                      <label className={labelClass}>Location</label>
+                      <Input
+                        value={formData.locationCode || formData.loc || ""}
+                        disabled
+                        className="bg-muted h-7 text-xs"
+                        readOnly
+                      />
+                      {formData.locationCode && (
+                        <p className="text-muted-foreground mt-0.5 overflow-hidden pl-1 text-[9px] text-ellipsis whitespace-nowrap">
+                          {formData.locationCode} Location
+                        </p>
+                      )}
+                    </div>
+                  </div>
                 </section>
               </AccordionContent>
             </AccordionItem>
@@ -1316,7 +1319,12 @@ export function PurchaseCreateDocumentFormContent({
                   Tax Information
                 </h3>
               </AccordionTrigger>
-              <AccordionContent className="pb-2">
+              <AccordionContent
+                className={cn(
+                  "pb-2",
+                  areFieldsReadOnly && "pointer-events-none opacity-70",
+                )}
+              >
                 <section className="space-y-2 pt-2">
                   <div className="grid grid-cols-1 gap-x-3 gap-y-2.5 sm:grid-cols-3 lg:grid-cols-5">
                     <div className={fieldClass}>
@@ -1358,7 +1366,9 @@ export function PurchaseCreateDocumentFormContent({
                       />
                     </div>
                     <div className={fieldClass}>
-                      <label className={labelClass}>{config.primaryVendorRefLabel}</label>
+                      <label className={labelClass}>
+                        {config.primaryVendorRefLabel}
+                      </label>
                       <ClearableField
                         value={formData[config.primaryVendorRefField]}
                         onClear={() =>
@@ -1378,7 +1388,7 @@ export function PurchaseCreateDocumentFormContent({
                         />
                       </ClearableField>
                     </div>
-                    {config.showVendorAuthorizationNo && (
+                    {capabilities.supportsVendorAuthorizationNo && (
                       <div className={fieldClass}>
                         <label className={labelClass}>Vendor Auth. No.</label>
                         <ClearableField
@@ -1401,40 +1411,55 @@ export function PurchaseCreateDocumentFormContent({
                         </ClearableField>
                       </div>
                     )}
-                    <div className={fieldClass}>
-                      <label className={labelClass}>Applies-to Doc. Type</label>
-                      <Select
-                        value={formData.appliesToDocType}
-                        onValueChange={(val) =>
-                          handleInputChange("appliesToDocType", val)
-                        }
-                      >
-                        <SelectTrigger className="h-7 text-xs font-semibold">
-                          <SelectValue placeholder="Select Type" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Invoice">Invoice</SelectItem>
-                          <SelectItem value="Receipt">Receipt</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className={fieldClass}>
-                      <label className={labelClass}>Applies-to Doc. No.</label>
-                      <ClearableField
-                        value={formData.appliesToDocNo}
-                        onClear={() => handleInputChange("appliesToDocNo", "")}
-                      >
-                        <Input
-                          value={formData.appliesToDocNo}
-                          onChange={(e) =>
-                            handleInputChange("appliesToDocNo", e.target.value)
+                    {capabilities.supportsAppliesToFields && (
+                      <div className={fieldClass}>
+                        <label className={labelClass}>
+                          Applies-to Doc. Type
+                        </label>
+                        <Select
+                          value={formData.appliesToDocType}
+                          onValueChange={(val) =>
+                            handleInputChange("appliesToDocType", val)
                           }
-                          placeholder="Optional"
-                          className="h-7 text-xs"
-                        />
-                      </ClearableField>
-                    </div>
-                    <div className={`${fieldClass} ${config.orderAddressGridClass}`}>
+                        >
+                          <SelectTrigger className="h-7 text-xs font-semibold">
+                            <SelectValue placeholder="Select Type" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Invoice">Invoice</SelectItem>
+                            <SelectItem value="Receipt">Receipt</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+                    {capabilities.supportsAppliesToFields && (
+                      <div className={fieldClass}>
+                        <label className={labelClass}>
+                          Applies-to Doc. No.
+                        </label>
+                        <ClearableField
+                          value={formData.appliesToDocNo}
+                          onClear={() =>
+                            handleInputChange("appliesToDocNo", "")
+                          }
+                        >
+                          <Input
+                            value={formData.appliesToDocNo}
+                            onChange={(e) =>
+                              handleInputChange(
+                                "appliesToDocNo",
+                                e.target.value,
+                              )
+                            }
+                            placeholder="Optional"
+                            className="h-7 text-xs"
+                          />
+                        </ClearableField>
+                      </div>
+                    )}
+                    <div
+                      className={`${fieldClass} ${config.orderAddressGridClass}`}
+                    >
                       <label className={labelClass}>Order Address Select</label>
                       <OrderAddressSelect
                         vendorNo={formData.vendorNo}
@@ -1512,199 +1537,224 @@ export function PurchaseCreateDocumentFormContent({
                   Vendor Statistics
                 </h3>
               </AccordionTrigger>
-              <AccordionContent className="pb-2">
+              <AccordionContent
+                className={cn(
+                  "pb-2",
+                  areFieldsReadOnly && "pointer-events-none opacity-70",
+                )}
+              >
                 <section className="space-y-2 pt-2">
                   <div className="grid grid-cols-2 gap-x-3 gap-y-2.5 sm:grid-cols-4 lg:grid-cols-6">
-            <div className={fieldClass}>
-              <label className={labelClass}>Posting Date</label>
-              <ClearableField
-                value={formData.postingDate}
-                onClear={() => handleInputChange("postingDate", "")}
-              >
-                <Input
-                  type="date"
-                  value={formData.postingDate}
-                  onChange={(e) =>
-                    handleInputChange("postingDate", e.target.value)
-                  }
-                  className="h-7 text-xs"
-                />
-              </ClearableField>
-            </div>
-            <div className={fieldClass}>
-              <label className={labelClass}>Document Date</label>
-              <ClearableField
-                value={formData.documentDate}
-                onClear={() => handleInputChange("documentDate", "")}
-              >
-                <Input
-                  type="date"
-                  value={formData.documentDate}
-                  onChange={(e) =>
-                    handleInputChange("documentDate", e.target.value)
-                  }
-                  className="h-7 text-xs"
-                />
-              </ClearableField>
-            </div>
-            <div className={fieldClass}>
-              <label className={labelClass}>Order Date</label>
-              <Input
-                type="date"
-                value={formData.orderDate}
-                onChange={(e) => handleInputChange("orderDate", e.target.value)}
-                disabled
-                className="bg-muted h-7 text-xs"
-              />
-            </div>
-            <div className={fieldClass}>
-              <label className={labelClass}>Due Date</label>
-              <ClearableField
-                value={formData.dueDate}
-                onClear={() => handleInputChange("dueDate", "")}
-              >
-                <Input
-                  type="date"
-                  value={formData.dueDate}
-                  onChange={(e) => handleInputChange("dueDate", e.target.value)}
-                  className="h-7 text-xs"
-                />
-              </ClearableField>
-            </div>
-            <div className={fieldClass}>
-              <label className={labelClass}>Due Date Calc</label>
-              <Select
-                value={formData.dueDateCalculation}
-                onValueChange={(value) =>
-                  handleInputChange("dueDateCalculation", value)
-                }
-              >
-                <SelectTrigger className="h-7 text-xs">
-                  <SelectValue placeholder="Select" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Posting Date">Posting Date</SelectItem>
-                  <SelectItem value="Document Date">Document Date</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className={fieldClass}>
-              <label className={labelClass}>Rate Basis</label>
-              <Select
-                value={formData.rateBasis}
-                onValueChange={(value) => handleInputChange("rateBasis", value)}
-              >
-                <SelectTrigger className="h-7 text-xs">
-                  <SelectValue placeholder="Select" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="EX">EX</SelectItem>
-                  <SelectItem value="FOR">FOR</SelectItem>
-                  <SelectItem value="CIF">CIF</SelectItem>
-                  <SelectItem value="FOB">FOB</SelectItem>
-                  <SelectItem value="N/A">N/A</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className={fieldClass}>
-              <label className={labelClass}>Creditor Type</label>
-              <PurchaseSearchableSelect
-                value={formData.creditorType}
-                onChange={(value) => handleInputChange("creditorType", value)}
-                options={CREDITOR_TYPE_OPTIONS}
-                placeholder="Select creditor"
-              />
-            </div>
-            <div className={fieldClass}>
-              <label className={labelClass}>QC Type</label>
-              <Select
-                value={formData.qcType}
-                onValueChange={(value) => handleInputChange("qcType", value)}
-              >
-                <SelectTrigger className="h-7 text-xs">
-                  <SelectValue placeholder="Select" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="_none">None</SelectItem>
-                  <SelectItem value="Ex Passing">Ex Passing</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className={fieldClass}>
-              <label className={labelClass}>Term Code</label>
-              <PurchaseSearchableSelect
-                value={formData.termCode}
-                onChange={(value) => handleInputChange("termCode", value)}
-                options={termList.map((t) => ({
-                  value: t.Terms,
-                  label: `${t.Terms} - ${t.Conditions}`,
-                }))}
-                placeholder="Select term"
-                loadMore={async (skip, searchValue) => {
-                  const rows =
-                    await purchaseDropdownsService.getTermsAndConditionsPage(
-                      skip,
-                      searchValue,
-                      MASTER_DROPDOWN_PAGE_SIZE,
-                    );
-                  return rows.map((t) => ({
-                    value: t.Terms,
-                    label: `${t.Terms} - ${t.Conditions}`,
-                  }));
-                }}
-              />
-            </div>
-            <div className={fieldClass}>
-              <label className={labelClass}>Payment Term</label>
-              <PurchaseSearchableSelect
-                value={formData.paymentTermCode}
-                onChange={(value) =>
-                  handleInputChange("paymentTermCode", value)
-                }
-                options={paymentTermList.map((p) => ({
-                  value: p.Code,
-                  label: `${p.Code} - ${p.Description}`,
-                }))}
-                placeholder="Select pmt term"
-                loadMore={async (skip, searchValue) => {
-                  const rows =
-                    await purchaseDropdownsService.getPaymentTermsPage(
-                      skip,
-                      searchValue,
-                      MASTER_DROPDOWN_PAGE_SIZE,
-                    );
-                  return rows.map((p) => ({
-                    value: p.Code,
-                    label: `${p.Code} - ${p.Description}`,
-                  }));
-                }}
-              />
-            </div>
-            <div className={fieldClass}>
-              <label className={labelClass}>Mandi Name</label>
-              <PurchaseSearchableSelect
-                value={formData.mandiName}
-                onChange={(value) => handleInputChange("mandiName", value)}
-                options={mandiList.map((m) => ({
-                  value: m.Code,
-                  label: `${m.Code} - ${m.Description}`,
-                }))}
-                placeholder="Select mandi"
-                loadMore={async (skip, searchValue) => {
-                  const rows =
-                    await purchaseDropdownsService.getMandiMastersPage(
-                      skip,
-                      searchValue,
-                      MASTER_DROPDOWN_PAGE_SIZE,
-                    );
-                  return rows.map((m) => ({
-                    value: m.Code,
-                    label: `${m.Code} - ${m.Description}`,
-                  }));
-                }}
-              />
-            </div>
-          </div>
+                    <div className={fieldClass}>
+                      <label className={labelClass}>Posting Date</label>
+                      <ClearableField
+                        value={formData.postingDate}
+                        onClear={() => handleInputChange("postingDate", "")}
+                      >
+                        <Input
+                          type="date"
+                          value={formData.postingDate}
+                          onChange={(e) =>
+                            handleInputChange("postingDate", e.target.value)
+                          }
+                          className="h-7 text-xs"
+                        />
+                      </ClearableField>
+                    </div>
+                    <div className={fieldClass}>
+                      <label className={labelClass}>Document Date</label>
+                      <ClearableField
+                        value={formData.documentDate}
+                        onClear={() => handleInputChange("documentDate", "")}
+                      >
+                        <Input
+                          type="date"
+                          value={formData.documentDate}
+                          onChange={(e) =>
+                            handleInputChange("documentDate", e.target.value)
+                          }
+                          className="h-7 text-xs"
+                        />
+                      </ClearableField>
+                    </div>
+                    {capabilities.supportsOrderDate && (
+                      <div className={fieldClass}>
+                        <label className={labelClass}>Order Date</label>
+                        <Input
+                          type="date"
+                          value={formData.orderDate}
+                          onChange={(e) =>
+                            handleInputChange("orderDate", e.target.value)
+                          }
+                          disabled
+                          className="bg-muted h-7 text-xs"
+                        />
+                      </div>
+                    )}
+                    <div className={fieldClass}>
+                      <label className={labelClass}>Due Date</label>
+                      <ClearableField
+                        value={formData.dueDate}
+                        onClear={() => handleInputChange("dueDate", "")}
+                      >
+                        <Input
+                          type="date"
+                          value={formData.dueDate}
+                          onChange={(e) =>
+                            handleInputChange("dueDate", e.target.value)
+                          }
+                          className="h-7 text-xs"
+                        />
+                      </ClearableField>
+                    </div>
+                    <div className={fieldClass}>
+                      <label className={labelClass}>Due Date Calc</label>
+                      <Select
+                        value={formData.dueDateCalculation}
+                        onValueChange={(value) =>
+                          handleInputChange("dueDateCalculation", value)
+                        }
+                      >
+                        <SelectTrigger className="h-7 text-xs">
+                          <SelectValue placeholder="Select" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Posting Date">
+                            Posting Date
+                          </SelectItem>
+                          <SelectItem value="Document Date">
+                            Document Date
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className={fieldClass}>
+                      <label className={labelClass}>Rate Basis</label>
+                      <Select
+                        value={formData.rateBasis}
+                        onValueChange={(value) =>
+                          handleInputChange("rateBasis", value)
+                        }
+                      >
+                        <SelectTrigger className="h-7 text-xs">
+                          <SelectValue placeholder="Select" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="EX">EX</SelectItem>
+                          <SelectItem value="FOR">FOR</SelectItem>
+                          <SelectItem value="CIF">CIF</SelectItem>
+                          <SelectItem value="FOB">FOB</SelectItem>
+                          <SelectItem value="N/A">N/A</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className={fieldClass}>
+                      <label className={labelClass}>Creditor Type</label>
+                      <PurchaseSearchableSelect
+                        value={formData.creditorType}
+                        onChange={(value) =>
+                          handleInputChange("creditorType", value)
+                        }
+                        options={CREDITOR_TYPE_OPTIONS}
+                        placeholder="Select creditor"
+                      />
+                    </div>
+                    <div className={fieldClass}>
+                      <label className={labelClass}>QC Type</label>
+                      <Select
+                        value={formData.qcType}
+                        onValueChange={(value) =>
+                          handleInputChange("qcType", value)
+                        }
+                      >
+                        <SelectTrigger className="h-7 text-xs">
+                          <SelectValue placeholder="Select" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="_none">None</SelectItem>
+                          <SelectItem value="Ex Passing">Ex Passing</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className={fieldClass}>
+                      <label className={labelClass}>Term Code</label>
+                      <PurchaseSearchableSelect
+                        value={formData.termCode}
+                        onChange={(value) =>
+                          handleInputChange("termCode", value)
+                        }
+                        options={termList.map((t) => ({
+                          value: t.Terms,
+                          label: `${t.Terms} - ${t.Conditions}`,
+                        }))}
+                        placeholder="Select term"
+                        loadMore={async (skip, searchValue) => {
+                          const rows =
+                            await purchaseDropdownsService.getTermsAndConditionsPage(
+                              skip,
+                              searchValue,
+                              MASTER_DROPDOWN_PAGE_SIZE,
+                            );
+                          return rows.map((t) => ({
+                            value: t.Terms,
+                            label: `${t.Terms} - ${t.Conditions}`,
+                          }));
+                        }}
+                      />
+                    </div>
+                    <div className={fieldClass}>
+                      <label className={labelClass}>Payment Term</label>
+                      <PurchaseSearchableSelect
+                        value={formData.paymentTermCode}
+                        onChange={(value) =>
+                          handleInputChange("paymentTermCode", value)
+                        }
+                        options={paymentTermList.map((p) => ({
+                          value: p.Code,
+                          label: `${p.Code} - ${p.Description}`,
+                        }))}
+                        placeholder="Select pmt term"
+                        loadMore={async (skip, searchValue) => {
+                          const rows =
+                            await purchaseDropdownsService.getPaymentTermsPage(
+                              skip,
+                              searchValue,
+                              MASTER_DROPDOWN_PAGE_SIZE,
+                            );
+                          return rows.map((p) => ({
+                            value: p.Code,
+                            label: `${p.Code} - ${p.Description}`,
+                          }));
+                        }}
+                      />
+                    </div>
+                    <div className={fieldClass}>
+                      <label className={labelClass}>Mandi Name</label>
+                      <PurchaseSearchableSelect
+                        value={formData.mandiName}
+                        onChange={(value) =>
+                          handleInputChange("mandiName", value)
+                        }
+                        options={mandiList.map((m) => ({
+                          value: m.Code,
+                          label: `${m.Code} - ${m.Description}`,
+                        }))}
+                        placeholder="Select mandi"
+                        loadMore={async (skip, searchValue) => {
+                          const rows =
+                            await purchaseDropdownsService.getMandiMastersPage(
+                              skip,
+                              searchValue,
+                              MASTER_DROPDOWN_PAGE_SIZE,
+                            );
+                          return rows.map((m) => ({
+                            value: m.Code,
+                            label: `${m.Code} - ${m.Description}`,
+                          }));
+                        }}
+                      />
+                    </div>
+                  </div>
                 </section>
               </AccordionContent>
             </AccordionItem>
@@ -1748,7 +1798,7 @@ export function PurchaseCreateDocumentFormContent({
                       variant="outline"
                       size="sm"
                       className="h-8"
-                      onClick={() => setIsCopyDocOpen(true)}
+                      onClick={handleOpenCopyDialog}
                     >
                       Copy Document
                     </Button>
@@ -1792,17 +1842,35 @@ export function PurchaseCreateDocumentFormContent({
             <div className="text-muted-foreground text-xs">
               {createdOrderNo
                 ? `Order ${createdOrderNo} ready for completion`
-                : "Create the header first to enable line items"}
+                : "Create header to add lines, or copy from another document (location required)."}
             </div>
 
             {!createdOrderNo ? (
-              <Button
-                type="button"
-                onClick={handleCreateOrderHeader}
-                disabled={!isStep1Valid() || isCreatingHeader}
-              >
-                {isCreatingHeader ? "Creating..." : config.createHeaderButtonLabel}
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleOpenCopyDialog}
+                  disabled={isBootstrappingCopyHeader || isCreatingHeader}
+                >
+                  {isBootstrappingCopyHeader
+                    ? "Preparing Copy..."
+                    : "Copy Document"}
+                </Button>
+                <Button
+                  type="button"
+                  onClick={handleCreateOrderHeader}
+                  disabled={
+                    !isStep1Valid() ||
+                    isCreatingHeader ||
+                    isBootstrappingCopyHeader
+                  }
+                >
+                  {isCreatingHeader
+                    ? "Creating..."
+                    : config.createHeaderButtonLabel}
+                </Button>
+              </div>
             ) : (
               <Button
                 onClick={handlePlaceOrder}
@@ -1838,7 +1906,7 @@ export function PurchaseCreateDocumentFormContent({
           toDocNo={createdOrderNo}
           toDocType={config.toDocType}
           onOpenChange={setIsCopyDocOpen}
-          onSuccess={() => setLineItems([])}
+          onSuccess={handleCopyDocumentSuccess}
         />
       )}
     </>
@@ -1871,10 +1939,7 @@ export function PurchaseCreateDocumentForm({
   onRequestEdit,
   onCancelEdit,
 }: PurchaseCreateDocumentFormProps) {
-  const createOnlyFormStack = useCreateOnlyPurchaseFormStack(
-    tabId,
-    context,
-  );
+  const createOnlyFormStack = useCreateOnlyPurchaseFormStack(tabId, context);
   const resolvedOnSuccess = onSuccessOverride ?? createOnlyFormStack.onSuccess;
   const resolvedPersistFormData =
     persistFormDataOverride ?? createOnlyFormStack.persistFormData;

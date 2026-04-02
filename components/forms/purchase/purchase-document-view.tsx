@@ -70,6 +70,7 @@ export function PurchaseDocumentView({
     openTab(config.formType, {
       title: config.createTabTitle,
       context: {
+        documentType,
         mode: "create",
         openedFromParent: true,
         onOrderPlaced: onPlaceOrder,
@@ -93,7 +94,9 @@ export function PurchaseDocumentView({
         onAddAdditionalFilter={onAddAdditionalFilter}
         onRemoveAdditionalFilter={onRemoveAdditionalFilter}
         poType={config.supportsPoTypeFilter ? poType : undefined}
-        onPoTypeChange={config.supportsPoTypeFilter ? onPoTypeChange : undefined}
+        onPoTypeChange={
+          config.supportsPoTypeFilter ? onPoTypeChange : undefined
+        }
       >
         <Button onClick={handleCreateDocument} size="sm">
           <Plus className="mr-2 h-4 w-4" />
@@ -122,7 +125,7 @@ export function PurchaseDocumentView({
           onRowClick={(orderNo) => {
             openTab(config.formType, {
               title: `${config.detailTitlePrefix} ${orderNo}`,
-              context: { mode: "view", orderNo, refetch },
+              context: { documentType, mode: "view", orderNo, refetch },
               autoCloseOnSuccess: false,
             });
           }}

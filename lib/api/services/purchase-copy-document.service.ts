@@ -3,30 +3,26 @@
  * Endpoint: PurchaseCopyDocument
  *
  * Flow:
- * 1. A document header is already created (via createPurchaseInvoice etc.) — we have a `toDocNo`.
- * 2. User picks a `fromDocType` and then selects a source document.
- * 3. We POST to PurchaseCopyDocument to copy the data from the source into our new document.
+ * 1. A non-order document header exists (or is bootstrap-created for copy flow).
+ * 2. User picks a source document type and selects a source document.
+ * 3. We POST to PurchaseCopyDocument with strict backend payload fields.
  */
 
 import { apiGet, apiPost } from "../client";
 import type { ApiError } from "../client";
+import { buildODataQuery } from "../endpoints";
 
 const COMPANY =
   process.env.NEXT_PUBLIC_API_COMPANY || "Sampoorna Feeds Pvt. Ltd";
 
-/** Valid "from" document types for the Copy Document action */
+const DEFAULT_PAGE_SIZE = 25;
+
+/** Valid source document types for non-order copy flow */
 export type PurchaseCopyFromDocType =
   | "Posted Invoice"
-  | "Posted Credit Memo"
-  | "Posted Return Shipment"
   | "Posted Receipt"
-  | "Posted Invoice (Manual)"
-  | "Invoice"
-  | "Credit Memo"
-  | "Return Order"
   | "Order"
-  | "Quote"
-  | "Blanket Order";
+  | "Posted Credit Memo";
 
 /** Valid "to" document types */
 export type PurchaseCopyToDocType =
@@ -36,23 +32,16 @@ export type PurchaseCopyToDocType =
   | "Order";
 
 export interface PurchaseCopyDocumentParams {
-  /** The "from" document type */
-  fromDocType: PurchaseCopyFromDocType;
-  /** The source document number to copy from */
+  /** Backend field: source document type */
+  fromDocType1: PurchaseCopyFromDocType;
+  /** Backend field: source document number */
   fromDocNo: string;
-  /** The target document type */
-  toDocType: PurchaseCopyToDocType;
-  /** The target document number (already created header) */
-  toDocNo: string;
-  /** Whether to recalculate lines. Defaults to false. */
-  recalculateLines?: boolean;
-  /** Whether to include header. Defaults to true. */
-  includeHeader?: boolean;
+  /** Backend field: target purchase header number */
+  purchaseHeaderNo: string;
 }
 
 /**
- * Execute copy document from one purchase document to another.
- * The target document must already exist (header created via create* functions).
+ * Execute copy document with strict payload contract.
  */
 export async function executePurchaseCopyDocument(
   params: PurchaseCopyDocumentParams,
@@ -60,12 +49,9 @@ export async function executePurchaseCopyDocument(
   const endpoint = `/PurchaseCopyDocument?company='${encodeURIComponent(COMPANY)}'`;
 
   const payload: Record<string, unknown> = {
-    fromDocType: params.fromDocType,
+    fromDocType1: params.fromDocType1,
     fromDocNo: params.fromDocNo,
-    toDocType: params.toDocType,
-    toDocNo: params.toDocNo,
-    recalculateLines: params.recalculateLines ?? false,
-    includeHeader: params.includeHeader ?? true,
+    purchaseHeaderNo: params.purchaseHeaderNo,
   };
 
   console.log("[CopyDoc] Endpoint:", endpoint);
@@ -74,7 +60,10 @@ export async function executePurchaseCopyDocument(
   try {
     await apiPost(endpoint, payload);
   } catch (error) {
-    console.error("Error executing purchase copy document:", JSON.stringify(error, null, 2));
+    console.error(
+      "Error executing purchase copy document:",
+      JSON.stringify(error, null, 2),
+    );
     throw error as ApiError;
   }
 }
@@ -88,32 +77,22 @@ export const COPY_FROM_DOC_TYPE_OPTIONS: Record<
   { value: PurchaseCopyFromDocType; label: string }[]
 > = {
   Invoice: [
-    { value: "Order", label: "Purchase Order" },
-    { value: "Posted Receipt", label: "Posted Receipt" },
     { value: "Posted Invoice", label: "Posted Invoice" },
+    { value: "Posted Receipt", label: "Posted Receipt" },
+    { value: "Order", label: "Purchase Order" },
     { value: "Posted Credit Memo", label: "Posted Credit Memo" },
-    { value: "Invoice", label: "Invoice" },
-    { value: "Credit Memo", label: "Credit Memo" },
-    { value: "Return Order", label: "Return Order" },
   ],
   "Credit Memo": [
     { value: "Posted Invoice", label: "Posted Invoice" },
-    { value: "Posted Credit Memo", label: "Posted Credit Memo" },
-    { value: "Posted Return Shipment", label: "Posted Return Shipment" },
-    { value: "Invoice", label: "Invoice" },
-    { value: "Credit Memo", label: "Credit Memo" },
-    { value: "Return Order", label: "Return Order" },
+    { value: "Posted Receipt", label: "Posted Receipt" },
     { value: "Order", label: "Purchase Order" },
+    { value: "Posted Credit Memo", label: "Posted Credit Memo" },
   ],
   "Return Order": [
     { value: "Posted Invoice", label: "Posted Invoice" },
     { value: "Posted Receipt", label: "Posted Receipt" },
-    { value: "Posted Return Shipment", label: "Posted Return Shipment" },
-    { value: "Posted Credit Memo", label: "Posted Credit Memo" },
-    { value: "Invoice", label: "Invoice" },
-    { value: "Credit Memo", label: "Credit Memo" },
-    { value: "Return Order", label: "Return Order" },
     { value: "Order", label: "Purchase Order" },
+    { value: "Posted Credit Memo", label: "Posted Credit Memo" },
   ],
   Order: [],
 };
@@ -128,95 +107,168 @@ export interface SourceDocumentRow {
 
 interface ODataListResponse<T> {
   value: T[];
+  "@odata.count"?: number;
 }
 
-/** OData entity + field mapping for each fromDocType */
+export type CopySourceSortColumn =
+  | "No"
+  | "Buy_from_Vendor_No"
+  | "Buy_from_Vendor_Name"
+  | "Posting_Date"
+  | "Amount";
+
+export type CopySourceSortDirection = "asc" | "desc";
+
+export interface CopySourceFilters {
+  documentNo?: string;
+  vendorNo?: string;
+  postingDateFrom?: string;
+  postingDateTo?: string;
+}
+
+export interface FetchSourceDocumentsForCopyParams {
+  fromDocType: PurchaseCopyFromDocType;
+  searchTerm?: string;
+  filters?: CopySourceFilters;
+  sortBy?: CopySourceSortColumn;
+  sortDirection?: CopySourceSortDirection;
+  skip?: number;
+  top?: number;
+}
+
+export interface FetchSourceDocumentsForCopyResult {
+  rows: SourceDocumentRow[];
+  totalCount: number;
+  hasMore: boolean;
+  nextSkip: number;
+}
+
+/** OData entity mapping for each copy source type */
 const FROM_DOC_TYPE_ENTITY_MAP: Record<
   PurchaseCopyFromDocType,
-  { entity: string; noField: string; docTypeFilter?: string }
+  { entity: string; defaultSort: CopySourceSortColumn }
 > = {
   "Posted Invoice": {
-    entity: "PurchInvHeader",
-    noField: "No",
-  },
-  "Posted Credit Memo": {
-    entity: "PurchCrMemoHdr",
-    noField: "No",
-  },
-  "Posted Return Shipment": {
-    entity: "ReturnShipmentHeader",
-    noField: "No",
+    entity: "PostedPurchaseInvoiceH",
+    defaultSort: "Posting_Date",
   },
   "Posted Receipt": {
-    entity: "PurchRcptHeader",
-    noField: "No",
-  },
-  "Posted Invoice (Manual)": {
-    entity: "PurchInvHeader",
-    noField: "No",
-  },
-  Invoice: {
-    entity: "PurchaseInvoiceHeader",
-    noField: "No",
-    docTypeFilter: "Invoice",
-  },
-  "Credit Memo": {
-    entity: "PurchaseCreditMemoHeader",
-    noField: "No",
-    docTypeFilter: "Credit Memo",
-  },
-  "Return Order": {
-    entity: "PurchaseReturnOrder",
-    noField: "No",
-    docTypeFilter: "Return Order",
+    entity: "PostedPurchaseReceiptH",
+    defaultSort: "Posting_Date",
   },
   Order: {
-    entity: "PurchaseHeader",
-    noField: "No",
-    docTypeFilter: "Order",
+    entity: "PurchaseOrder",
+    defaultSort: "No",
   },
-  Quote: {
-    entity: "PurchaseHeader",
-    noField: "No",
-    docTypeFilter: "Quote",
-  },
-  "Blanket Order": {
-    entity: "PurchaseHeader",
-    noField: "No",
-    docTypeFilter: "Blanket Order",
+  "Posted Credit Memo": {
+    entity: "PostedPurchaseCreditMemoH",
+    defaultSort: "Posting_Date",
   },
 };
 
-/**
- * Fetch a list of source documents for the Copy Document selection dialog.
- * Returns the first 50 documents for the given fromDocType.
- */
-export async function fetchSourceDocumentsForCopy(
-  fromDocType: PurchaseCopyFromDocType,
-): Promise<SourceDocumentRow[]> {
-  const mapping = FROM_DOC_TYPE_ENTITY_MAP[fromDocType];
-  if (!mapping) return [];
+function escapeODataValue(value: string): string {
+  return value.replace(/'/g, "''");
+}
 
-  let filter = "";
-  if (mapping.docTypeFilter) {
-    filter = `&$filter=Document_Type eq '${encodeURIComponent(mapping.docTypeFilter)}'`;
+function mapSourceRow(row: Record<string, unknown>): SourceDocumentRow {
+  return {
+    no: String(row["No"] ?? row["Document_No"] ?? ""),
+    vendorNo: String(row["Buy_from_Vendor_No"] ?? ""),
+    vendorName: String(row["Buy_from_Vendor_Name"] ?? ""),
+    postingDate: String(row["Posting_Date"] ?? row["Document_Date"] ?? ""),
+    amount: Number(
+      row["Amount"] ?? row["Amount_Including_VAT"] ?? row["Line_Amount"] ?? 0,
+    ),
+  };
+}
+
+function buildSourceFilters(
+  searchTerm?: string,
+  filters?: CopySourceFilters,
+): string | undefined {
+  const clauses: string[] = [];
+
+  if (searchTerm && searchTerm.trim()) {
+    const escapedSearch = escapeODataValue(searchTerm.trim());
+    clauses.push(
+      `contains(No,'${escapedSearch}') or contains(Buy_from_Vendor_No,'${escapedSearch}') or contains(Buy_from_Vendor_Name,'${escapedSearch}')`,
+    );
   }
 
-  const select = `$select=No,Buy_from_Vendor_No,Buy_from_Vendor_Name,Posting_Date,Amount`;
-  const top = `$top=50`;
-  const endpoint = `/${mapping.entity}?company='${encodeURIComponent(COMPANY)}'&${select}&${top}${filter}`;
+  if (filters?.documentNo?.trim()) {
+    const escapedDocNo = escapeODataValue(filters.documentNo.trim());
+    clauses.push(`contains(No,'${escapedDocNo}')`);
+  }
+
+  if (filters?.vendorNo?.trim()) {
+    const escapedVendorNo = escapeODataValue(filters.vendorNo.trim());
+    clauses.push(`contains(Buy_from_Vendor_No,'${escapedVendorNo}')`);
+  }
+
+  if (filters?.postingDateFrom) {
+    clauses.push(`Posting_Date ge ${filters.postingDateFrom}`);
+  }
+
+  if (filters?.postingDateTo) {
+    clauses.push(`Posting_Date le ${filters.postingDateTo}`);
+  }
+
+  if (clauses.length === 0) {
+    return undefined;
+  }
+
+  return clauses.map((clause) => `(${clause})`).join(" and ");
+}
+
+/**
+ * Fetch source documents with server-driven search/filter/sort/paging.
+ */
+export async function fetchSourceDocumentsForCopy(
+  params: FetchSourceDocumentsForCopyParams,
+): Promise<FetchSourceDocumentsForCopyResult> {
+  const mapping = FROM_DOC_TYPE_ENTITY_MAP[params.fromDocType];
+  if (!mapping) {
+    return { rows: [], totalCount: 0, hasMore: false, nextSkip: 0 };
+  }
+
+  const skip = Math.max(0, params.skip ?? 0);
+  const top = Math.max(1, params.top ?? DEFAULT_PAGE_SIZE);
+  const filter = buildSourceFilters(params.searchTerm, params.filters);
+  const sortBy = params.sortBy ?? mapping.defaultSort;
+  const sortDirection = params.sortDirection ?? "desc";
+
+  const query = buildODataQuery({
+    $select: "No,Buy_from_Vendor_No,Buy_from_Vendor_Name,Posting_Date,Amount",
+    $filter: filter,
+    $orderby: `${sortBy} ${sortDirection}`,
+    $top: top,
+    $skip: skip > 0 ? skip : undefined,
+    $count: true,
+  });
+  const endpoint = `/${mapping.entity}?company='${encodeURIComponent(COMPANY)}'&${query}`;
 
   try {
-    const response = await apiGet<ODataListResponse<Record<string, unknown>>>(endpoint);
-    return (response.value ?? []).map((row) => ({
-      no: String(row["No"] ?? row["Document_No"] ?? ""),
-      vendorNo: String(row["Buy_from_Vendor_No"] ?? ""),
-      vendorName: String(row["Buy_from_Vendor_Name"] ?? ""),
-      postingDate: String(row["Posting_Date"] ?? ""),
-      amount: Number(row["Amount"] ?? row["Amount_Including_VAT"] ?? 0),
-    }));
+    const response =
+      await apiGet<ODataListResponse<Record<string, unknown>>>(endpoint);
+    const rows = (response.value ?? []).map(mapSourceRow);
+    const totalCount = response["@odata.count"] ?? skip + rows.length;
+    const nextSkip = skip + rows.length;
+    const hasMore =
+      response["@odata.count"] !== undefined
+        ? nextSkip < response["@odata.count"]
+        : rows.length === top;
+
+    return {
+      rows,
+      totalCount,
+      hasMore,
+      nextSkip,
+    };
   } catch (error) {
-    console.error(`[CopyDoc] Error fetching source docs for ${fromDocType}:`, error);
+    console.error(
+      `[CopyDoc] Error fetching source docs for ${params.fromDocType}:`,
+      error,
+    );
     throw error as ApiError;
   }
 }

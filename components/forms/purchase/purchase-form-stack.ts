@@ -2,15 +2,38 @@
 
 import { useCallback } from "react";
 import { useFormStack } from "@/lib/form-stack/use-form-stack";
+import type { PurchaseDocumentType } from "./purchase-document-config";
 
 export type PurchaseDocumentFormMode = "create" | "edit" | "view";
 
 export interface PurchaseFormContext extends Record<string, unknown> {
+  documentType?: PurchaseDocumentType;
   mode?: PurchaseDocumentFormMode;
   orderNo?: string;
   onOrderPlaced?: () => void;
   onUpdated?: () => void;
   refetch?: () => void;
+}
+
+const PURCHASE_DOCUMENT_TYPES: ReadonlyArray<PurchaseDocumentType> = [
+  "order",
+  "invoice",
+  "return-order",
+  "credit-memo",
+];
+
+export function resolvePurchaseDocumentType(
+  context?: Record<string, unknown>,
+): PurchaseDocumentType | undefined {
+  const documentType = context?.documentType;
+  if (
+    typeof documentType === "string" &&
+    PURCHASE_DOCUMENT_TYPES.includes(documentType as PurchaseDocumentType)
+  ) {
+    return documentType as PurchaseDocumentType;
+  }
+
+  return undefined;
 }
 
 export function resolvePurchaseDocumentMode(

@@ -5,6 +5,11 @@
 
 import { apiPost, apiPatch } from "../client";
 import type { ApiError } from "../client";
+import { buildPurchaseHeaderPayload } from "./purchase-header-payload";
+import {
+  buildCreatePurchaseLinePayload,
+  buildUpdatePurchaseLinePayload,
+} from "./purchase-line-payload";
 
 export interface PurchaseOrderData {
   vendorNo: string;
@@ -85,28 +90,6 @@ const COMPANY =
   process.env.NEXT_PUBLIC_API_COMPANY || "Sampoorna Feeds Pvt. Ltd";
 
 /**
- * Remove properties whose value is undefined, null, or blank string.
- * Backend rejects payloads containing empty optional values.
- */
-function stripEmptyValues(
-  obj: Record<string, unknown>,
-): Record<string, unknown> {
-  return Object.entries(obj).reduce(
-    (acc, [key, value]) => {
-      if (
-        value !== undefined &&
-        value !== null &&
-        !(typeof value === "string" && value.trim() === "")
-      ) {
-        acc[key] = value;
-      }
-      return acc;
-    },
-    {} as Record<string, unknown>,
-  );
-}
-
-/**
  * Create a new purchase order
  * Returns the order ID and order number. API returns document number as "No".
  */
@@ -115,42 +98,14 @@ export async function createPurchaseOrder(
 ): Promise<CreatePurchaseOrderResponse> {
   try {
     const endpoint = `/PurchaseOrder?company='${encodeURIComponent(COMPANY)}'`;
-
-    const payload: Record<string, unknown> = {
-      Document_Type: "Order",
-      PO_Type: orderData.poType,
-      Service_Type: orderData.serviceType,
-      Buy_from_Vendor_No: orderData.vendorNo,
-      Posting_Date: orderData.postingDate,
-      Order_Date: orderData.orderDate,
-      Document_Date: orderData.documentDate,
-      Purchaser_Code: orderData.purchasePersonCode,
-      Due_Date_calculation: orderData.dueDateCalculation,
-      Brokerage_Code: orderData.brokerNo,
-      Brokerage_Rate:
-        orderData.brokerageRate === "" ||
-        orderData.brokerageRate === null ||
-        orderData.brokerageRate === undefined
-          ? 0
-          : Number(orderData.brokerageRate),
-      Rate_Basis: orderData.rateBasis,
-      QCType: orderData.qcType,
-      Terms_Code: orderData.termCode,
-      Mandi_Name: orderData.mandiName,
-      Payment_Terms_Code: orderData.paymentTermCode,
-      Location_Code: orderData.locationCode,
-      Creditors_Type: orderData.creditorType,
-      Shortcut_Dimension_3_Code: orderData.loc,
-      Responsibility_Center: orderData.lob,
-      Shortcut_Dimension_1_Code: orderData.lob || "",
-      Shortcut_Dimension_2_Code: orderData.branch || "",
-      Order_Address_Code: orderData.orderAddressCode,
-      GST_Order_Address_State: orderData.orderAddressState,
-      Due_Date: orderData.dueDate,
-    };
-
-    // Remove empty/null/undefined/blank fields before sending to backend
-    const filteredPayload = stripEmptyValues(payload);
+    const filteredPayload = buildPurchaseHeaderPayload(orderData, {
+      documentType: "Order",
+      includePoType: true,
+      includeServiceType: true,
+      includeOrderDate: true,
+      includeOrderAddressState: true,
+      stripEmpty: true,
+    });
 
     console.log("[PO Create] Endpoint:", endpoint);
     console.log(
@@ -194,7 +149,7 @@ export async function createPurchaseOrder(
 export async function addPurchaseOrderLineItems(
   documentNo: string,
   lineItems: PurchaseOrderLineItem[],
-  locationCode: string,
+  _locationCode: string,
 ): Promise<void> {
   if (!documentNo || lineItems.length === 0) {
     return;
@@ -204,45 +159,11 @@ export async function addPurchaseOrderLineItems(
 
   try {
     for (const lineItem of lineItems) {
-      const payload: Record<string, unknown> = {
-        Document_Type: "Order",
-        Document_No: documentNo,
-        Type: lineItem.type,
-        No: lineItem.no,
-        Quantity: lineItem.quantity,
-        Unit_of_Measure_Code: lineItem.uom || "",
-      };
-
-      if (lineItem.unitPrice !== undefined && lineItem.unitPrice !== null) {
-        payload.Direct_Unit_Cost = lineItem.unitPrice;
-      }
-      if (lineItem.discount !== undefined && lineItem.discount !== null) {
-        payload.Line_Discount_Percent = lineItem.discount;
-      }
-      if (lineItem.gstGroupCode) {
-        payload.GST_Group_Code = lineItem.gstGroupCode;
-      }
-      if (lineItem.hsnSacCode) {
-        payload.HSN_SAC_Code = lineItem.hsnSacCode;
-      }
-      if (lineItem.tdsSectionCode) {
-        payload.TDS_Section_Code = lineItem.tdsSectionCode;
-      }
-      if (lineItem.faPostingType) {
-        payload.FA_Posting_Type = lineItem.faPostingType;
-      }
-      if (
-        lineItem.salvageValue !== undefined &&
-        lineItem.salvageValue !== null
-      ) {
-        payload.Salvage_Value = lineItem.salvageValue;
-      }
-      if (lineItem.exempted !== undefined) {
-        payload.Exempted = lineItem.exempted;
-      }
-      if (lineItem.gstCredit) {
-        payload.GST_Credit = lineItem.gstCredit;
-      }
+      const payload = buildCreatePurchaseLinePayload(
+        "Order",
+        documentNo,
+        lineItem,
+      );
 
       await apiPost(endpoint, payload);
     }
@@ -259,48 +180,10 @@ export async function addPurchaseOrderLineItems(
 export async function addSinglePurchaseOrderLine(
   documentNo: string,
   lineItem: PurchaseOrderLineItem,
-  locationCode: string,
+  _locationCode: string,
 ): Promise<{ Line_No: number; [key: string]: any }> {
   const endpoint = `/PurchaseLine?company='${encodeURIComponent(COMPANY)}'`;
-  const payload: Record<string, unknown> = {
-    Document_Type: "Order",
-    Document_No: documentNo,
-    Type: lineItem.type,
-    No: lineItem.no,
-    Quantity: lineItem.quantity,
-    Unit_of_Measure_Code: lineItem.uom || "",
-  };
-
-  if (lineItem.unitPrice !== undefined && lineItem.unitPrice !== null) {
-    payload.Direct_Unit_Cost = lineItem.unitPrice;
-  }
-  if (lineItem.discount !== undefined && lineItem.discount !== null) {
-    payload.Line_Discount_Percent = lineItem.discount;
-  }
-  if (lineItem.gstGroupCode) {
-    payload.GST_Group_Code = lineItem.gstGroupCode;
-  }
-  if (lineItem.hsnSacCode) {
-    payload.HSN_SAC_Code = lineItem.hsnSacCode;
-  }
-  if (lineItem.tdsSectionCode) {
-    payload.TDS_Section_Code = lineItem.tdsSectionCode;
-  }
-  if (lineItem.faPostingType) {
-    payload.FA_Posting_Type = lineItem.faPostingType;
-  }
-  if (lineItem.salvageValue !== undefined && lineItem.salvageValue !== null) {
-    payload.Salvage_Value = lineItem.salvageValue;
-  }
-  if (lineItem.exempted !== undefined) {
-    payload.Exempted = lineItem.exempted;
-  }
-  if (lineItem.noOfBags !== undefined && lineItem.noOfBags !== null) {
-    payload.No_of_Bags = lineItem.noOfBags;
-  }
-  if (lineItem.gstCredit) {
-    payload.GST_Credit = lineItem.gstCredit;
-  }
+  const payload = buildCreatePurchaseLinePayload("Order", documentNo, lineItem);
 
   try {
     const response = await apiPost<{ Line_No: number; [key: string]: any }>(
@@ -324,31 +207,7 @@ export async function updateSinglePurchaseOrderLine(
 ): Promise<{ Line_No: number; [key: string]: any }> {
   const escapedNo = documentNo.replace(/'/g, "''");
   const endpoint = `/PurchaseLine(Document_Type='Order',Document_No='${encodeURIComponent(escapedNo)}',Line_No=${lineNo})?company='${encodeURIComponent(COMPANY)}'`;
-
-  const payload: Record<string, unknown> = {};
-  if (lineItem.type !== undefined) payload.Type = lineItem.type;
-  if (lineItem.no !== undefined) payload.No = lineItem.no;
-  if (lineItem.quantity !== undefined) payload.Quantity = lineItem.quantity;
-  if (lineItem.uom !== undefined) payload.Unit_of_Measure_Code = lineItem.uom;
-  if (lineItem.unitPrice !== undefined && lineItem.unitPrice !== null)
-    payload.Direct_Unit_Cost = lineItem.unitPrice;
-  if (lineItem.discount !== undefined && lineItem.discount !== null)
-    payload.Line_Discount_Percent = lineItem.discount;
-  if (lineItem.gstGroupCode !== undefined)
-    payload.GST_Group_Code = lineItem.gstGroupCode;
-  if (lineItem.hsnSacCode !== undefined)
-    payload.HSN_SAC_Code = lineItem.hsnSacCode;
-  if (lineItem.tdsSectionCode !== undefined)
-    payload.TDS_Section_Code = lineItem.tdsSectionCode;
-  if (lineItem.faPostingType !== undefined)
-    payload.FA_Posting_Type = lineItem.faPostingType;
-  if (lineItem.salvageValue !== undefined && lineItem.salvageValue !== null)
-    payload.Salvage_Value = lineItem.salvageValue;
-  if (lineItem.exempted !== undefined) payload.Exempted = lineItem.exempted;
-  if (lineItem.noOfBags !== undefined && lineItem.noOfBags !== null)
-    payload.No_of_Bags = lineItem.noOfBags;
-  if (lineItem.gstCredit !== undefined)
-    payload.GST_Credit = lineItem.gstCredit;
+  const payload = buildUpdatePurchaseLinePayload(lineItem);
 
   try {
     const response = await apiPatch<{ Line_No: number; [key: string]: any }>(

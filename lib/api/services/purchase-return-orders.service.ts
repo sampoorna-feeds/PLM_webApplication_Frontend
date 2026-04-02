@@ -1,88 +1,25 @@
 /**
  * Purchase Return Order API Service
- * Fetches purchase return orders from ERP OData V4 API
+ * Thin list wrapper over unified purchase-document list adapter.
  */
 
-import { apiGet } from "../client";
-import { buildODataQuery } from "../endpoints";
-import type { ODataResponse } from "../types";
 import type { PurchaseOrder } from "./purchase-orders.service";
-
-const COMPANY = process.env.NEXT_PUBLIC_API_COMPANY || "Sampoorna Feeds Pvt. Ltd";
-const HEADER_ENTITY = "PurchaseReturnOrderHeader";
+import {
+  getPurchaseDocumentListWithCount,
+  searchPurchaseDocumentList,
+  type GetPurchaseDocumentListParams,
+  type PaginatedPurchaseDocumentListResponse,
+  type SearchPurchaseDocumentListParams,
+} from "./purchase-document-list.service";
 
 export type PurchaseReturnOrderHeader = PurchaseOrder;
 
-function translateReturnOrderSelect(select: string): string {
-  const mapped = select
-    .split(",")
-    .map((field) => field.trim())
-    .filter(Boolean)
-    .flatMap((field) => {
-      // Return orders / credit memos don't have Order_Date, use Posting_Date
-      if (field === "Order_Date") return ["Posting_Date"];
-      if (field === "PO_Type") return [];
-      return [field];
-    });
+export type GetPurchaseReturnOrdersParams = GetPurchaseDocumentListParams;
 
-  return [...new Set(mapped)].join(",");
-}
+export type SearchPurchaseReturnOrdersParams = SearchPurchaseDocumentListParams;
 
-function translateReturnOrderFilter(filter?: string): string | undefined {
-  if (!filter) return filter;
-
-  return filter
-    .replace(/\bOrder_Date\b/g, "Posting_Date")
-    .replace(/\s+and\s+PO_Type\s+(eq|gt|lt|ge|le)\s+[^ )]+/g, "")
-    .replace(/PO_Type\s+(eq|gt|lt|ge|le)\s+[^ )]+\s+and\s+/g, "")
-    .replace(/\(\s*\)/g, "")
-    .trim();
-}
-
-function translateReturnOrderOrderBy(orderBy?: string): string | undefined {
-  if (!orderBy) return orderBy;
-
-  return orderBy
-    .split(",")
-    .map((part) => part.trim())
-    .filter(Boolean)
-    .flatMap((part) => {
-      if (part.startsWith("Order_Date")) {
-        return [part.replace("Order_Date", "Posting_Date")];
-      }
-      if (part.startsWith("PO_Type")) {
-        return [];
-      }
-      return [part];
-    })
-    .join(",");
-}
-
-function normalizeReturnOrderHeader(order: PurchaseReturnOrderHeader): PurchaseOrder {
-  return {
-    ...order,
-    Order_Date: order.Order_Date || order.Posting_Date || order.Document_Date,
-  };
-}
-
-export interface GetPurchaseReturnOrdersParams {
-  $select?: string;
-  $filter?: string;
-  $orderby?: string;
-  $top?: number;
-  $skip?: number;
-  $count?: boolean;
-}
-
-export interface SearchPurchaseReturnOrdersParams extends GetPurchaseReturnOrdersParams {
-  /** term to search across multiple columns (No, Buy_from_Vendor_No, Buy_from_Vendor_Name) */
-  searchTerm?: string;
-}
-
-export interface PaginatedPurchaseReturnOrdersResponse {
-  orders: PurchaseOrder[];
-  totalCount: number;
-}
+export type PaginatedPurchaseReturnOrdersResponse =
+  PaginatedPurchaseDocumentListResponse;
 
 /**
  * Get purchase return orders with pagination and optional count
@@ -90,37 +27,7 @@ export interface PaginatedPurchaseReturnOrdersResponse {
 export async function getPurchaseReturnOrdersWithCount(
   params: GetPurchaseReturnOrdersParams = {},
 ): Promise<PaginatedPurchaseReturnOrdersResponse> {
-  const {
-    $select = "No,Buy_from_Vendor_No,Buy_from_Vendor_Name,Order_Date,Posting_Date,Document_Date,Vendor_Order_No",
-    $filter,
-    $orderby = "No desc",
-    $top = 10,
-    $skip,
-  } = params;
-
-  const queryParams: Record<string, unknown> = {
-    $select: translateReturnOrderSelect($select),
-    $top,
-    $count: true,
-  };
-
-  const translatedFilter = translateReturnOrderFilter($filter);
-  const translatedOrderBy = translateReturnOrderOrderBy($orderby);
-
-  if (translatedFilter) queryParams.$filter = translatedFilter;
-  if (translatedOrderBy) queryParams.$orderby = translatedOrderBy;
-  if ($skip !== undefined) queryParams.$skip = $skip;
-
-  const query = buildODataQuery(
-    queryParams as Parameters<typeof buildODataQuery>[0],
-  );
-  const endpoint = `/${HEADER_ENTITY}?company='${encodeURIComponent(COMPANY)}'&${query}`;
-  const response = await apiGet<ODataResponse<PurchaseReturnOrderHeader>>(endpoint);
-
-  return {
-    orders: (response.value || []).map(normalizeReturnOrderHeader),
-    totalCount: response["@odata.count"] ?? 0,
-  };
+  return getPurchaseDocumentListWithCount("return-order", params);
 }
 
 /**
@@ -129,42 +36,5 @@ export async function getPurchaseReturnOrdersWithCount(
 export async function searchPurchaseReturnOrders(
   params: SearchPurchaseReturnOrdersParams = {},
 ): Promise<PaginatedPurchaseReturnOrdersResponse> {
-  const { searchTerm, $top, $skip, ...rest } = params;
-  if (!searchTerm || searchTerm.trim() === "") {
-    return getPurchaseReturnOrdersWithCount(rest as GetPurchaseReturnOrdersParams);
-  }
-
-  const escaped = searchTerm.replace(/'/g, "''");
-  const fieldsToSearch = ["No", "Buy_from_Vendor_No", "Buy_from_Vendor_Name"];
-
-  // perform one request per field
-  const responses = await Promise.all(
-    fieldsToSearch.map((field) => {
-      const filterPart = `contains(${field},'${escaped}')`;
-      const filter = rest.$filter
-        ? `${rest.$filter} and ${filterPart}`
-        : filterPart;
-      return getPurchaseReturnOrdersWithCount({ ...rest, $filter: filter });
-    }),
-  );
-
-  const map: Record<string, PurchaseOrder> = {};
-  responses.forEach((res) => {
-    res.orders.forEach((o) => {
-      map[o.No] = o;
-    });
-  });
-
-  const allOrders = Object.values(map);
-  const total = allOrders.length;
-
-  // apply paging after merge
-  let paged = allOrders;
-  if ($skip !== undefined || $top !== undefined) {
-    const start = $skip || 0;
-    const end = $top != null ? start + $top : undefined;
-    paged = allOrders.slice(start, end);
-  }
-
-  return { orders: paged, totalCount: total };
+  return searchPurchaseDocumentList("return-order", params);
 }

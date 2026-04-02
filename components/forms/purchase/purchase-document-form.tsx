@@ -5,7 +5,7 @@ import {
   type PurchaseDocumentFormMode,
 } from "./purchase-document-form-content";
 import {
-  PurchaseCreateDocumentForm,
+  PurchaseCreateDocumentFormContent,
   type PurchaseCreateDocumentType,
 } from "./purchase-create-document-form";
 import {
@@ -14,10 +14,13 @@ import {
 } from "./purchase-document-config";
 import { useFormStack } from "@/lib/form-stack/use-form-stack";
 import { useFormStackContext } from "@/lib/form-stack/form-stack-context";
-import { resolvePurchaseDocumentMode } from "./purchase-form-stack";
+import {
+  resolvePurchaseDocumentMode,
+  resolvePurchaseDocumentType,
+} from "./purchase-form-stack";
 
 interface PurchaseDocumentFormProps {
-  documentType: PurchaseDocumentType;
+  documentType?: PurchaseDocumentType;
   tabId: string;
   formData?: Record<string, unknown>;
   context?: Record<string, unknown>;
@@ -29,9 +32,11 @@ export function PurchaseDocumentForm({
   formData,
   context,
 }: PurchaseDocumentFormProps) {
+  const resolvedDocumentType =
+    documentType ?? resolvePurchaseDocumentType(context) ?? "order";
   const mode = resolvePurchaseDocumentMode(context) as PurchaseDocumentFormMode;
   const orderNo = typeof context?.orderNo === "string" ? context.orderNo : "";
-  const config = getPurchaseDocumentConfig(documentType);
+  const config = getPurchaseDocumentConfig(resolvedDocumentType);
 
   const { markAsSaved, closeTab, updateFormData } = useFormStack(tabId);
   const { updateTab } = useFormStackContext();
@@ -42,6 +47,7 @@ export function PurchaseDocumentForm({
       title: `${config.detailTitlePrefix} ${orderNo}`,
       context: {
         ...context,
+        documentType: resolvedDocumentType,
         mode: "view",
         orderNo,
       },
@@ -72,6 +78,7 @@ export function PurchaseDocumentForm({
       title: `${config.detailTitlePrefix} ${savedOrderNo}`,
       context: {
         ...context,
+        documentType: resolvedDocumentType,
         mode: "view",
         orderNo: savedOrderNo,
         refetch: onUpdated,
@@ -85,6 +92,7 @@ export function PurchaseDocumentForm({
       title: `Edit ${config.detailTitlePrefix} ${orderNo}`,
       context: {
         ...context,
+        documentType: resolvedDocumentType,
         mode: "edit",
         orderNo,
         onUpdated:
@@ -94,34 +102,34 @@ export function PurchaseDocumentForm({
     });
   };
 
-  if (documentType !== "order") {
-    return (
-      <PurchaseCreateDocumentForm
-        documentType={documentType as PurchaseCreateDocumentType}
-        tabId={tabId}
-        mode={mode}
-        orderNo={orderNo || undefined}
-        formData={formData}
-        context={context}
-        onSuccess={handleSuccess}
-        persistFormData={updateFormData}
-        onRequestEdit={handleRequestEdit}
-        onCancelEdit={handleCancelEdit}
-      />
-    );
-  }
-
   return (
     <div className="h-full min-h-0 overflow-y-auto">
-      <PurchaseDocumentFormContent
-        onSuccess={handleSuccess}
-        onRequestEdit={handleRequestEdit}
-        onCancelEdit={handleCancelEdit}
-        mode={mode}
-        orderNo={orderNo || undefined}
-        initialFormData={formData}
-        persistFormData={updateFormData}
-      />
+      {resolvedDocumentType === "order" ? (
+        <PurchaseDocumentFormContent
+          onSuccess={handleSuccess}
+          onRequestEdit={handleRequestEdit}
+          onCancelEdit={handleCancelEdit}
+          mode={mode}
+          orderNo={orderNo || undefined}
+          initialFormData={formData as Record<string, unknown> | undefined}
+          persistFormData={
+            updateFormData as (data: Record<string, unknown>) => void
+          }
+        />
+      ) : (
+        <PurchaseCreateDocumentFormContent
+          documentType={resolvedDocumentType as PurchaseCreateDocumentType}
+          onSuccess={handleSuccess}
+          onRequestEdit={handleRequestEdit}
+          onCancelEdit={handleCancelEdit}
+          mode={mode}
+          orderNo={orderNo || undefined}
+          initialFormData={formData as Record<string, unknown> | undefined}
+          persistFormData={
+            updateFormData as (data: Record<string, unknown>) => void
+          }
+        />
+      )}
     </div>
   );
 }

@@ -32,6 +32,10 @@ import { OrderAddressSelect } from "./order-address-select";
 import { PurchaserSelect } from "./purchaser-select";
 import { buildPurchaseCommonHeaderData } from "./purchase-document-header-data";
 import {
+  mapPurchaseHeaderToFormData,
+  mapPurchaseLineToLineItem,
+} from "./purchase-document-hydration";
+import {
   CREDITOR_TYPE_OPTIONS,
   MASTER_DROPDOWN_PAGE_SIZE,
 } from "./purchase-form-options";
@@ -63,6 +67,7 @@ import {
   type PurchaseOrderData,
   type PurchaseOrderLineItem,
 } from "@/lib/api/services/purchase-order.service";
+import { buildPurchaseHeaderPayload } from "@/lib/api/services/purchase-header-payload";
 import {
   getPurchaseOrderByNo,
   getPurchaseOrderLines,
@@ -137,75 +142,6 @@ const FIELD_INPUT_CLASS =
   "disabled:opacity-100 disabled:text-foreground font-medium text-xs disabled:pointer-events-none disabled:bg-muted/30";
 
 export type UnifiedPurchaseOrderMode = "create" | "edit" | "view";
-
-function purchaseLineToLineItem(line: PurchaseLine): LineItem {
-  const lineNo = line.Line_No ?? 0;
-  return {
-    id: `line-${lineNo || crypto.randomUUID()}`,
-    lineNo: lineNo > 0 ? lineNo : undefined,
-    type:
-      (line.Type as "Item" | "G/L Account" | "Fixed Asset" | "Charge (Item)") ||
-      "Item",
-    no: line.No ?? "",
-    description: [line.Description, line.Description_2]
-      .filter(Boolean)
-      .join(" "),
-    uom: line.Unit_of_Measure_Code ?? line.Unit_of_Measure ?? "",
-    quantity: line.Quantity ?? 0,
-    qtyToReceive: line.Qty_to_Receive,
-    qtyReceived: line.Quantity_Received,
-    qtyToInvoice: line.Qty_to_Invoice,
-    qtyInvoiced: line.Quantity_Invoiced,
-    price: line.Direct_Unit_Cost,
-    unitPrice: line.Direct_Unit_Cost ?? 0,
-    discount: line.Line_Discount_Percent ?? line.Line_Discount_Amount ?? 0,
-    amount: line.Line_Amount ?? 0,
-    exempted: line.Exempted || false,
-    gstGroupCode: line.GST_Group_Code || "",
-    hsnSacCode: line.HSN_SAC_Code || "",
-    tdsSectionCode: line.TDS_Section_Code || "",
-    faPostingType: (line.FA_Posting_Type as string | undefined) ?? undefined,
-    salvageValue: (line.Salvage_Value as number | undefined) ?? undefined,
-    noOfBags: line.No_of_Bags,
-    gstCredit: line.GST_Credit,
-  };
-}
-
-function mapOrderToFormData(order: PurchaseOrder): Record<string, string> {
-  return {
-    vendorNo: order.Buy_from_Vendor_No || "",
-    vendorName: order.Buy_from_Vendor_Name || "",
-    purchasePersonCode: order.Purchaser_Code || "",
-    purchasePersonName: "",
-    locationCode: order.Location_Code || "",
-    postingDate: order.Posting_Date || "",
-    documentDate: order.Document_Date || "",
-    orderDate: order.Order_Date || "",
-    vendorInvoiceNo: order.Vendor_Invoice_No || "",
-    invoiceType: order.Invoice_Type || "",
-    lob: order.Shortcut_Dimension_1_Code || "",
-    branch: order.Shortcut_Dimension_2_Code || "",
-    loc: order.Shortcut_Dimension_3_Code || "",
-    poType: order.PO_Type || "Goods",
-    serviceType: order.Service_Type || "",
-    vendorGstRegNo: order.Vendor_GST_Reg_No || "",
-    vendorPanNo: order.P_A_N_No || "",
-    brokerNo: order.Brokerage_Code || "",
-    brokerName: "",
-    brokerageRate:
-      order.Brokerage_Rate != null ? String(order.Brokerage_Rate) : "",
-    orderAddressCode: order.Order_Address_Code || "",
-    orderAddressState: "",
-    rateBasis: order.Rate_Basis || "",
-    termCode: order.Terms_Code || "",
-    mandiName: order.Mandi_Name || "",
-    paymentTermCode: order.Payment_Terms_Code || "",
-    dueDateCalculation: order.Due_Date_calculation || "Posting Date",
-    creditorType: order.Creditors_Type || "",
-    qcType: order.QCType || "",
-    dueDate: order.Due_Date || "",
-  };
-}
 
 export interface PurchaseOrderFormContentProps {
   /** Called when order is successfully placed */
@@ -476,7 +412,7 @@ export function PurchaseOrderFormContent({
     try {
       const lines = await getPurchaseOrderLines(no);
       setPurchaseLines(lines);
-      const mapped = lines.map(purchaseLineToLineItem);
+      const mapped = lines.map(mapPurchaseLineToLineItem);
       setLineItems(mapped);
       return mapped;
     } catch (error) {
@@ -508,7 +444,7 @@ export function PurchaseOrderFormContent({
           throw new Error("Order not found.");
         }
 
-        const mappedFormData = mapOrderToFormData(order);
+        const mappedFormData = mapPurchaseHeaderToFormData(order);
         setFormData((prev) => ({ ...prev, ...mappedFormData }));
         setInitialHeaderState(mappedFormData);
         setInitialLineItemsState(mappedLines);
@@ -621,35 +557,15 @@ export function PurchaseOrderFormContent({
     orderAddressState: formData.orderAddressState,
   });
 
-  const buildHeaderPatchPayload = (): Record<string, unknown> => ({
-    PO_Type: formData.poType,
-    Service_Type: formData.serviceType,
-    Buy_from_Vendor_No: formData.vendorNo,
-    Posting_Date: formData.postingDate,
-    Order_Date: formData.orderDate,
-    Document_Date: formData.documentDate,
-    Purchaser_Code: formData.purchasePersonCode,
-    Due_Date_calculation: formData.dueDateCalculation,
-    Brokerage_Code: formData.brokerNo,
-    Brokerage_Rate:
-      formData.brokerageRate === "" ? 0 : Number(formData.brokerageRate),
-    Rate_Basis: formData.rateBasis,
-    QCType: formData.qcType === "_none" ? "" : formData.qcType,
-    Terms_Code: formData.termCode,
-    Mandi_Name: formData.mandiName,
-    Payment_Terms_Code: formData.paymentTermCode,
-    Location_Code: formData.locationCode || formData.loc,
-    Creditors_Type: formData.creditorType,
-    Shortcut_Dimension_3_Code: formData.loc,
-    Responsibility_Center: formData.lob,
-    Shortcut_Dimension_1_Code: formData.lob || "",
-    Shortcut_Dimension_2_Code: formData.branch || "",
-    Order_Address_Code: formData.orderAddressCode,
-    GST_Order_Address_State: formData.orderAddressState,
-    Due_Date: formData.dueDate,
-    Vendor_Invoice_No: formData.vendorInvoiceNo,
-    Invoice_Type: formData.invoiceType,
-  });
+  const buildHeaderPatchPayload = (): Record<string, unknown> =>
+    buildPurchaseHeaderPayload(formData, {
+      includePoType: true,
+      includeServiceType: true,
+      includeOrderDate: true,
+      includeInvoiceType: true,
+      includeVendorInvoiceNo: true,
+      includeOrderAddressState: true,
+    });
 
   const handleCreateOrderHeader = async () => {
     if (!isCreateMode) return;
@@ -1050,8 +966,8 @@ export function PurchaseOrderFormContent({
       getPurchaseOrderLines(createdOrderNo),
     ]);
     if (order) {
-      const mappedFormData = mapOrderToFormData(order);
-      const mappedLines = lines.map(purchaseLineToLineItem);
+      const mappedFormData = mapPurchaseHeaderToFormData(order);
+      const mappedLines = lines.map(mapPurchaseLineToLineItem);
       setFormData((prev) => ({ ...prev, ...mappedFormData }));
       setLineItems(mappedLines);
       setOrderStatus(order.Status ?? "");
@@ -2148,7 +2064,7 @@ export function PurchaseOrderFormContent({
             if (createdOrderNo) {
               const lines = await getPurchaseOrderLines(createdOrderNo);
               setPurchaseLines(lines);
-              setLineItems(lines.map(purchaseLineToLineItem));
+              setLineItems(lines.map(mapPurchaseLineToLineItem));
             }
             setSelectedLine(null);
           }}

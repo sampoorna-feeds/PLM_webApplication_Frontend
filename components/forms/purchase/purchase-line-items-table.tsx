@@ -105,7 +105,7 @@ export function PurchaseLineItemsTable({
               <TableHead className="text-primary w-32 text-[10px] font-bold tracking-wider uppercase">
                 No
               </TableHead>
-              <TableHead className="text-primary min-w-[200px] text-[10px] font-bold tracking-wider uppercase">
+              <TableHead className="text-primary min-w-50 text-[10px] font-bold tracking-wider uppercase">
                 Description
               </TableHead>
               <TableHead className="text-primary w-24 text-[10px] font-bold tracking-wider uppercase">
@@ -178,7 +178,7 @@ export function PurchaseLineItemsTable({
                 </TableCell>
                 <TableCell>{item.type}</TableCell>
                 <TableCell>{item.no}</TableCell>
-                <TableCell className="max-w-[300px] truncate">
+                <TableCell className="max-w-75 truncate">
                   {item.description}
                 </TableCell>
                 <TableCell>{item.uom || "-"}</TableCell>

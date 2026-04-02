@@ -7,6 +7,41 @@ import type { FormStackState } from "./types";
 
 const STORAGE_PREFIX = "formStack_";
 
+const LEGACY_PURCHASE_FORM_TYPE_MAP: Readonly<Record<string, string>> = {
+  "purchase-order": "order",
+  "purchase-invoice": "invoice",
+  "purchase-return-order": "return-order",
+  "purchase-credit-memo": "credit-memo",
+};
+
+function migrateLegacyPurchaseTabs(state: FormStackState): FormStackState {
+  const tabs = state.tabs.map((tab) => {
+    const mappedDocumentType = LEGACY_PURCHASE_FORM_TYPE_MAP[tab.formType];
+
+    if (!mappedDocumentType) {
+      return tab;
+    }
+
+    return {
+      ...tab,
+      formType: "purchase-document",
+      formComponent: "purchase-document",
+      context: {
+        ...tab.context,
+        documentType:
+          typeof tab.context?.documentType === "string"
+            ? tab.context.documentType
+            : mappedDocumentType,
+      },
+    };
+  });
+
+  return {
+    ...state,
+    tabs,
+  };
+}
+
 /**
  * Get storage key for a form scope
  */
@@ -51,6 +86,10 @@ export function loadFormStack(formScope: string): FormStackState | null {
     // Validate state structure
     if (!state.tabs || !Array.isArray(state.tabs)) {
       return null;
+    }
+
+    if (formScope === "purchase") {
+      return migrateLegacyPurchaseTabs(state);
     }
 
     return state;

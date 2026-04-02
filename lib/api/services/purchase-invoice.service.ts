@@ -4,9 +4,12 @@
  * Entities: PurchaseInvoiceHeader, PurchaseInvoiceLine
  */
 
-import { apiPost, apiPatch, apiDelete } from "../client";
+import { apiGet, apiPost, apiPatch, apiDelete } from "../client";
 import type { ApiError } from "../client";
+import { buildODataQuery } from "../endpoints";
+import type { ODataResponse } from "../types";
 import type { PurchaseOrderData, PurchaseOrderLineItem } from "./purchase-order.service";
+import type { PurchaseOrder, PurchaseLine } from "./purchase-orders.service";
 
 export type { PurchaseOrderData as PurchaseInvoiceData };
 export type { PurchaseOrderLineItem as PurchaseInvoiceLineItem };
@@ -113,6 +116,60 @@ export async function createPurchaseInvoice(
     console.error("Error creating purchase invoice:", JSON.stringify(error, null, 2));
     throw error as ApiError;
   }
+}
+
+/**
+ * Get a single purchase invoice by document number.
+ */
+export async function getPurchaseInvoiceByNo(
+  documentNo: string,
+): Promise<PurchaseOrder | null> {
+  const escapedNo = documentNo.replace(/'/g, "''");
+  const filter = `No eq '${escapedNo}'`;
+  const query = buildODataQuery({ $filter: filter });
+  const endpoint = `/${HEADER_ENTITY}?company='${encodeURIComponent(COMPANY)}'&${query}`;
+  const response = await apiGet<ODataResponse<PurchaseOrder>>(endpoint);
+  const value = response.value;
+  return value && value.length > 0 ? value[0] : null;
+}
+
+/**
+ * Get purchase invoice lines by document number.
+ */
+export async function getPurchaseInvoiceLines(
+  documentNo: string,
+): Promise<PurchaseLine[]> {
+  const escapedNo = documentNo.replace(/'/g, "''");
+  const filter = `Document_No eq '${escapedNo}'`;
+  const query = buildODataQuery({ $filter: filter, $orderby: "Line_No asc" });
+  const endpoint = `/${LINE_ENTITY}?company='${encodeURIComponent(COMPANY)}'&${query}`;
+  const response = await apiGet<ODataResponse<PurchaseLine>>(endpoint);
+  return response.value || [];
+}
+
+/**
+ * Patch purchase invoice header fields by document number.
+ */
+export async function patchPurchaseInvoiceHeader(
+  documentNo: string,
+  body: Record<string, unknown>,
+): Promise<unknown> {
+  const escapedNo = documentNo.replace(/'/g, "''");
+  const endpoint = `/${HEADER_ENTITY}(Document_Type='Invoice',No='${encodeURIComponent(escapedNo)}')?company='${encodeURIComponent(COMPANY)}'`;
+  const payload = stripEmptyValues(body);
+  return apiPatch<unknown>(endpoint, payload);
+}
+
+/**
+ * Delete a purchase invoice header by key.
+ * Use only after deleting child purchase invoice lines.
+ */
+export async function deletePurchaseInvoiceHeader(
+  documentNo: string,
+): Promise<unknown> {
+  const escapedNo = documentNo.replace(/'/g, "''");
+  const endpoint = `/${HEADER_ENTITY}(Document_Type='Invoice',No='${encodeURIComponent(escapedNo)}')?company='${encodeURIComponent(COMPANY)}'`;
+  return apiDelete<unknown>(endpoint);
 }
 
 /**

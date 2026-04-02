@@ -1,12 +1,18 @@
 /**
  * Purchase Return Order API Service
  * Handles creating return order headers and managing return order line items.
- * Entities: PurchaseReturnOrder (header), PurchaseReturnOrderLine
+ * Entities: PurchaseReturnOrderHeader, PurchaseReturnOrderLine
  */
 
-import { apiPost, apiPatch, apiDelete } from "../client";
+import { apiGet, apiPost, apiPatch, apiDelete } from "../client";
 import type { ApiError } from "../client";
-import type { PurchaseOrderData, PurchaseOrderLineItem } from "./purchase-order.service";
+import { buildODataQuery } from "../endpoints";
+import type { ODataResponse } from "../types";
+import type {
+  PurchaseOrderData,
+  PurchaseOrderLineItem,
+} from "./purchase-order.service";
+import type { PurchaseOrder, PurchaseLine } from "./purchase-orders.service";
 
 export type { PurchaseOrderData as PurchaseReturnOrderData };
 export type { PurchaseOrderLineItem as PurchaseReturnOrderLineItem };
@@ -14,8 +20,7 @@ export type { PurchaseOrderLineItem as PurchaseReturnOrderLineItem };
 const COMPANY =
   process.env.NEXT_PUBLIC_API_COMPANY || "Sampoorna Feeds Pvt. Ltd";
 
-// Note: BC uses "PurchaseReturnOrder" for the header (not Header suffix)
-const HEADER_ENTITY = "PurchaseReturnOrder";
+const HEADER_ENTITY = "PurchaseReturnOrderHeader";
 const LINE_ENTITY = "PurchaseReturnOrderLine";
 
 export interface CreatePurchaseReturnOrderResponse {
@@ -101,7 +106,10 @@ export async function createPurchaseReturnOrder(
   filteredPayload.Applies_to_Doc_No = data.appliesToDocNo || "";
 
   console.log("[PRO Create] Endpoint:", endpoint);
-  console.log("[PRO Create] Payload:", JSON.stringify(filteredPayload, null, 2));
+  console.log(
+    "[PRO Create] Payload:",
+    JSON.stringify(filteredPayload, null, 2),
+  );
 
   try {
     const response = await apiPost<CreateReturnOrderApiResponse>(
@@ -112,9 +120,66 @@ export async function createPurchaseReturnOrder(
     const orderNo = response.No ?? response.Document_No ?? "";
     return { orderId: orderNo, orderNo };
   } catch (error) {
-    console.error("Error creating purchase return order:", JSON.stringify(error, null, 2));
+    console.error(
+      "Error creating purchase return order:",
+      JSON.stringify(error, null, 2),
+    );
     throw error as ApiError;
   }
+}
+
+/**
+ * Get a single purchase return order by document number.
+ */
+export async function getPurchaseReturnOrderByNo(
+  documentNo: string,
+): Promise<PurchaseOrder | null> {
+  const escapedNo = documentNo.replace(/'/g, "''");
+  const filter = `No eq '${escapedNo}'`;
+  const query = buildODataQuery({ $filter: filter });
+  const endpoint = `/${HEADER_ENTITY}?company='${encodeURIComponent(COMPANY)}'&${query}`;
+  const response = await apiGet<ODataResponse<PurchaseOrder>>(endpoint);
+  const value = response.value;
+  return value && value.length > 0 ? value[0] : null;
+}
+
+/**
+ * Get purchase return-order lines by document number.
+ */
+export async function getPurchaseReturnOrderLines(
+  documentNo: string,
+): Promise<PurchaseLine[]> {
+  const escapedNo = documentNo.replace(/'/g, "''");
+  const filter = `Document_No eq '${escapedNo}'`;
+  const query = buildODataQuery({ $filter: filter, $orderby: "Line_No asc" });
+  const endpoint = `/${LINE_ENTITY}?company='${encodeURIComponent(COMPANY)}'&${query}`;
+  const response = await apiGet<ODataResponse<PurchaseLine>>(endpoint);
+  return response.value || [];
+}
+
+/**
+ * Patch purchase return-order header fields by document number.
+ */
+export async function patchPurchaseReturnOrderHeader(
+  documentNo: string,
+  body: Record<string, unknown>,
+): Promise<unknown> {
+  const escapedNo = documentNo.replace(/'/g, "''");
+  const endpoint = `/${HEADER_ENTITY}(Document_Type='Return Order',No='${encodeURIComponent(escapedNo)}')?company='${encodeURIComponent(COMPANY)}'`;
+  const payload = stripEmptyValues(body);
+  return apiPatch<unknown>(endpoint, payload);
+}
+
+/**
+ * Delete a purchase return-order header by key.
+ * Use only after deleting child purchase return-order lines.
+ */
+export async function deletePurchaseReturnOrderHeader(
+  documentNo: string,
+): Promise<unknown> {
+  const escapedNo = documentNo.replace(/'/g, "''");
+  const endpoint = `/${HEADER_ENTITY}(Document_Type='Return Order',No='${encodeURIComponent(escapedNo)}')?company='${encodeURIComponent(COMPANY)}'`;
+  return apiDelete<unknown>(endpoint);
 }
 
 /**
@@ -142,7 +207,8 @@ export async function addSinglePurchaseReturnOrderLine(
     payload.Line_Discount_Percent = lineItem.discount;
   if (lineItem.gstGroupCode) payload.GST_Group_Code = lineItem.gstGroupCode;
   if (lineItem.hsnSacCode) payload.HSN_SAC_Code = lineItem.hsnSacCode;
-  if (lineItem.tdsSectionCode) payload.TDS_Section_Code = lineItem.tdsSectionCode;
+  if (lineItem.tdsSectionCode)
+    payload.TDS_Section_Code = lineItem.tdsSectionCode;
   if (lineItem.faPostingType) payload.FA_Posting_Type = lineItem.faPostingType;
   if (lineItem.salvageValue !== undefined && lineItem.salvageValue !== null)
     payload.Salvage_Value = lineItem.salvageValue;
@@ -152,7 +218,10 @@ export async function addSinglePurchaseReturnOrderLine(
   if (lineItem.gstCredit) payload.GST_Credit = lineItem.gstCredit;
 
   try {
-    return await apiPost<{ Line_No: number; [key: string]: any }>(endpoint, payload);
+    return await apiPost<{ Line_No: number; [key: string]: any }>(
+      endpoint,
+      payload,
+    );
   } catch (error) {
     console.error("Error adding purchase return order line:", error);
     throw error as ApiError;
@@ -179,10 +248,14 @@ export async function updateSinglePurchaseReturnOrderLine(
     payload.Direct_Unit_Cost = lineItem.unitPrice;
   if (lineItem.discount !== undefined && lineItem.discount !== null)
     payload.Line_Discount_Percent = lineItem.discount;
-  if (lineItem.gstGroupCode !== undefined) payload.GST_Group_Code = lineItem.gstGroupCode;
-  if (lineItem.hsnSacCode !== undefined) payload.HSN_SAC_Code = lineItem.hsnSacCode;
-  if (lineItem.tdsSectionCode !== undefined) payload.TDS_Section_Code = lineItem.tdsSectionCode;
-  if (lineItem.faPostingType !== undefined) payload.FA_Posting_Type = lineItem.faPostingType;
+  if (lineItem.gstGroupCode !== undefined)
+    payload.GST_Group_Code = lineItem.gstGroupCode;
+  if (lineItem.hsnSacCode !== undefined)
+    payload.HSN_SAC_Code = lineItem.hsnSacCode;
+  if (lineItem.tdsSectionCode !== undefined)
+    payload.TDS_Section_Code = lineItem.tdsSectionCode;
+  if (lineItem.faPostingType !== undefined)
+    payload.FA_Posting_Type = lineItem.faPostingType;
   if (lineItem.salvageValue !== undefined && lineItem.salvageValue !== null)
     payload.Salvage_Value = lineItem.salvageValue;
   if (lineItem.exempted !== undefined) payload.Exempted = lineItem.exempted;
@@ -191,7 +264,10 @@ export async function updateSinglePurchaseReturnOrderLine(
   if (lineItem.gstCredit !== undefined) payload.GST_Credit = lineItem.gstCredit;
 
   try {
-    return await apiPatch<{ Line_No: number; [key: string]: any }>(endpoint, payload);
+    return await apiPatch<{ Line_No: number; [key: string]: any }>(
+      endpoint,
+      payload,
+    );
   } catch (error) {
     console.error("Error updating purchase return order line:", error);
     throw error as ApiError;

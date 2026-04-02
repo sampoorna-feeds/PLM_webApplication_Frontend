@@ -40,10 +40,15 @@ import {
 } from "@/components/forms/production-orders/api-error-dialog";
 import { BardanaDialog } from "./bardana-dialog";
 import { cn } from "@/lib/utils";
+import {
+  getPurchaseLineQuantityConfig,
+  type PurchaseLineDocumentType,
+} from "./purchase-line-quantity-config";
 interface PurchaseOrderLineEditDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   line: PurchaseLine | null;
+  documentType?: PurchaseLineDocumentType;
   orderNo: string;
   vendorNo: string;
   onDelete?: (line: PurchaseLine) => void | Promise<void>;
@@ -57,6 +62,7 @@ export function PurchaseOrderLineEditDialog({
   open,
   onOpenChange,
   line,
+  documentType = "order",
   orderNo,
   vendorNo,
   onDelete,
@@ -84,10 +90,12 @@ export function PurchaseOrderLineEditDialog({
   const [isSaving, setIsSaving] = useState(false);
   const [apiError, setApiError] = useState<ApiErrorState | null>(null);
 
-  const fieldInputClass = "disabled:opacity-100 disabled:text-foreground font-medium text-xs disabled:pointer-events-none";
+  const fieldInputClass =
+    "disabled:opacity-100 disabled:text-foreground font-medium text-xs disabled:pointer-events-none";
   const [canAddBardana, setCanAddBardana] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isBardanaOpen, setIsBardanaOpen] = useState(false);
+  const quantityColumns = getPurchaseLineQuantityConfig(documentType);
 
   useEffect(() => {
     if (!line) return;
@@ -134,7 +142,10 @@ export function PurchaseOrderLineEditDialog({
       })
       .catch((error) => {
         const { message } = extractApiError(error);
-        console.error(`Error loading item bardana configuration for ${line.No}:`, message);
+        console.error(
+          `Error loading item bardana configuration for ${line.No}:`,
+          message,
+        );
         if (mounted) setCanAddBardana(false);
       });
 
@@ -378,40 +389,40 @@ export function PurchaseOrderLineEditDialog({
           </DialogHeader>
 
           {/* ── Info strip ── */}
-          <div className="bg-muted/40 grid grid-cols-2 rounded-md border text-sm sm:grid-cols-3 overflow-hidden">
-            <div className="p-2 border-r border-b">
+          <div className="bg-muted/40 grid grid-cols-2 overflow-hidden rounded-md border text-sm sm:grid-cols-3">
+            <div className="border-r border-b p-2">
               <p className="text-muted-foreground text-[10px] tracking-wide uppercase">
                 Line
               </p>
               <p className="font-medium">{line.Line_No}</p>
             </div>
-            <div className="p-2 border-b sm:border-r">
+            <div className="border-b p-2 sm:border-r">
               <p className="text-muted-foreground text-[10px] tracking-wide uppercase">
                 Item No
               </p>
               <p className="font-medium">{line.No || "—"}</p>
             </div>
-            <div className="p-2 border-r border-b sm:border-r-0">
+            <div className="border-r border-b p-2 sm:border-r-0">
               <p className="text-muted-foreground text-[10px] tracking-wide uppercase">
                 Type
               </p>
               <p>{line.Type || "—"}</p>
             </div>
-            <div className="p-2 border-b sm:border-b-0 sm:border-r">
+            <div className="border-b p-2 sm:border-r sm:border-b-0">
               <p className="text-muted-foreground text-[10px] tracking-wide uppercase">
                 UOM
               </p>
               <p>{line.Unit_of_Measure_Code || line.Unit_of_Measure || "—"}</p>
             </div>
-            <div className="p-2 border-r sm:border-b-0">
+            <div className="border-r p-2 sm:border-b-0">
               <p className="text-muted-foreground text-[10px] tracking-wide uppercase">
-                Qty Received
+                {quantityColumns.firstCompletedLabel}
               </p>
               <p>{line.Quantity_Received || "0"}</p>
             </div>
             <div className="p-2">
               <p className="text-muted-foreground text-[10px] tracking-wide uppercase">
-                Qty Invoiced
+                {quantityColumns.secondCompletedLabel}
               </p>
               <p>{line.Quantity_Invoiced || "0"}</p>
             </div>
@@ -431,7 +442,8 @@ export function PurchaseOrderLineEditDialog({
                     inputMode="decimal"
                     value={quantity}
                     onChange={(e) => {
-                      if (isValidNum(e.target.value)) setQuantity(e.target.value);
+                      if (isValidNum(e.target.value))
+                        setQuantity(e.target.value);
                     }}
                     className={fieldInputClass}
                   />
@@ -448,7 +460,8 @@ export function PurchaseOrderLineEditDialog({
                         inputMode="decimal"
                         value={challanQty}
                         onChange={(e) => {
-                          if (isValidNum(e.target.value)) setChallanQty(e.target.value);
+                          if (isValidNum(e.target.value))
+                            setChallanQty(e.target.value);
                         }}
                         className={fieldInputClass}
                       />
@@ -462,7 +475,8 @@ export function PurchaseOrderLineEditDialog({
                         inputMode="decimal"
                         value={weightQty}
                         onChange={(e) => {
-                          if (isValidNum(e.target.value)) setWeightQty(e.target.value);
+                          if (isValidNum(e.target.value))
+                            setWeightQty(e.target.value);
                         }}
                         className={fieldInputClass}
                       />
@@ -472,7 +486,12 @@ export function PurchaseOrderLineEditDialog({
               </>
             )}
 
-            <div className={cn("space-y-1", (line.Type || "").trim() === "" ? "sm:col-span-2" : "")}>
+            <div
+              className={cn(
+                "space-y-1",
+                (line.Type || "").trim() === "" ? "sm:col-span-2" : "",
+              )}
+            >
               <Label htmlFor="po-line-description" className="text-xs">
                 Description
               </Label>
@@ -489,26 +508,41 @@ export function PurchaseOrderLineEditDialog({
                 {(line.Type || "").trim() === "Fixed Asset" && (
                   <>
                     <div className="space-y-1">
-                      <Label htmlFor="po-line-fa-posting-type" className="text-xs">
+                      <Label
+                        htmlFor="po-line-fa-posting-type"
+                        className="text-xs"
+                      >
                         FA Posting Type
                       </Label>
                       <Select
                         value={faPostingType || ""}
                         onValueChange={setFaPostingType}
                       >
-                        <SelectTrigger id="po-line-fa-posting-type" className={fieldInputClass}>
+                        <SelectTrigger
+                          id="po-line-fa-posting-type"
+                          className={fieldInputClass}
+                        >
                           <SelectValue placeholder="Select Type" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="Acquisition Cost">Acquisition Cost</SelectItem>
-                          <SelectItem value="Maintenance">Maintenance</SelectItem>
-                          <SelectItem value="Appreciation">Appreciation</SelectItem>
+                          <SelectItem value="Acquisition Cost">
+                            Acquisition Cost
+                          </SelectItem>
+                          <SelectItem value="Maintenance">
+                            Maintenance
+                          </SelectItem>
+                          <SelectItem value="Appreciation">
+                            Appreciation
+                          </SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
 
                     <div className="space-y-1">
-                      <Label htmlFor="po-line-salvage-value" className="text-xs">
+                      <Label
+                        htmlFor="po-line-salvage-value"
+                        className="text-xs"
+                      >
                         Salvage Value
                       </Label>
                       <Input
@@ -549,7 +583,7 @@ export function PurchaseOrderLineEditDialog({
                 {/* Row 2 */}
                 <div className="space-y-1">
                   <Label htmlFor="po-line-qty-receive" className="text-xs">
-                    Qty to Receive
+                    {quantityColumns.firstPendingLabel}
                   </Label>
                   <Input
                     id="po-line-qty-receive"
@@ -564,7 +598,7 @@ export function PurchaseOrderLineEditDialog({
 
                 <div className="space-y-1">
                   <Label htmlFor="po-line-qty-invoice" className="text-xs">
-                    Qty to Invoice
+                    {quantityColumns.secondPendingLabel}
                   </Label>
                   <Input
                     id="po-line-qty-invoice"
@@ -606,7 +640,9 @@ export function PurchaseOrderLineEditDialog({
                     options={hsnOptions}
                     isLoading={loadingOptions.hsn}
                     placeholder={
-                      gstGroupCode ? "Select HSN/SAC..." : "Select GST Group first"
+                      gstGroupCode
+                        ? "Select HSN/SAC..."
+                        : "Select GST Group first"
                     }
                     searchPlaceholder="Search HSN/SAC Codes..."
                     disabled={!gstGroupCode}
@@ -640,7 +676,9 @@ export function PurchaseOrderLineEditDialog({
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="Availment">Availment</SelectItem>
-                      <SelectItem value="Non-Availment">Non-Availment</SelectItem>
+                      <SelectItem value="Non-Availment">
+                        Non-Availment
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -675,15 +713,16 @@ export function PurchaseOrderLineEditDialog({
                   Add Bardana
                 </Button>
               )}
-              {(line.Type || "").trim() === "Charge (Item)" && line?.Line_No && (
-                <Button
-                  variant="outline"
-                  onClick={() => onOpenItemCharge?.(line)}
-                >
-                  <Link2 className="mr-2 h-4 w-4" />
-                  Item Charge Assignment
-                </Button>
-              )}
+              {(line.Type || "").trim() === "Charge (Item)" &&
+                line?.Line_No && (
+                  <Button
+                    variant="outline"
+                    onClick={() => onOpenItemCharge?.(line)}
+                  >
+                    <Link2 className="mr-2 h-4 w-4" />
+                    Item Charge Assignment
+                  </Button>
+                )}
 
               {hasTracking && onAssignTracking && (
                 <Button
@@ -712,7 +751,9 @@ export function PurchaseOrderLineEditDialog({
               Cancel
             </Button>
             <Button onClick={handleSave} disabled={isSaving || isDeleting}>
-              {(isSaving || isDeleting) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {(isSaving || isDeleting) && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              )}
               Save
             </Button>
           </DialogFooter>

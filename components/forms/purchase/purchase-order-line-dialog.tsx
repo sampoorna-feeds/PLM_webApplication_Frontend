@@ -65,6 +65,11 @@ import {
   getHsnSacCodes,
 } from "@/lib/api/services/purchase-orders.service";
 import type { LineItem } from "@/components/forms/purchase/purchase-line-item.type";
+import {
+  getPurchaseLineQuantityConfig,
+  type PurchaseLineDocumentType,
+  type PurchaseLineQuantityKey,
+} from "@/components/forms/purchase/purchase-line-quantity-config";
 
 type LineType = "G/L Account" | "Item" | "Fixed Asset" | "Charge (Item)" | "";
 
@@ -72,6 +77,7 @@ interface PurchaseOrderLineDialogProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   lineItem?: LineItem | null;
+  documentType?: PurchaseLineDocumentType;
   vendorNo?: string;
   locationCode?: string;
   onSave: (lineItem: LineItem) => void | Promise<void>;
@@ -91,6 +97,12 @@ function getInitialLineState(lineItem?: LineItem | null): Partial<LineItem> {
     description: lineItem?.description || "",
     uom: lineItem?.uom || "",
     quantity: lineItem?.quantity || 0,
+    qtyToReceive: lineItem?.qtyToReceive || 0,
+    qtyReceived: lineItem?.qtyReceived || 0,
+    returnQtyToShip: lineItem?.returnQtyToShip || 0,
+    returnQtyShipped: lineItem?.returnQtyShipped || 0,
+    qtyToInvoice: lineItem?.qtyToInvoice || 0,
+    qtyInvoiced: lineItem?.qtyInvoiced || 0,
     price: lineItem?.price || 0,
     unitPrice: lineItem?.unitPrice || 0,
     discount: lineItem?.discount || 0,
@@ -111,6 +123,7 @@ export function PurchaseOrderLineDialog({
   isOpen,
   onOpenChange,
   lineItem,
+  documentType = "order",
   vendorNo,
   locationCode,
   onSave,
@@ -133,8 +146,13 @@ export function PurchaseOrderLineDialog({
   });
   const [canAddBardana, setCanAddBardana] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
+  const quantityColumns = useMemo(
+    () => getPurchaseLineQuantityConfig(documentType),
+    [documentType],
+  );
 
-  const fieldInputClass = "disabled:opacity-100 disabled:text-foreground font-medium text-xs disabled:pointer-events-none";
+  const fieldInputClass =
+    "disabled:opacity-100 disabled:text-foreground font-medium text-xs disabled:pointer-events-none";
 
   useEffect(() => {
     if (!isOpen || formState.type !== "Item" || !formState.no) {
@@ -283,6 +301,9 @@ export function PurchaseOrderLineDialog({
       gstGroupCode: "",
       hsnSacCode: "",
       quantity: type === "" ? 0 : prev.quantity,
+      qtyToReceive: 0,
+      returnQtyToShip: 0,
+      qtyToInvoice: 0,
       price: type === "" ? 0 : prev.price,
       unitPrice: type === "" ? 0 : prev.unitPrice,
     }));
@@ -305,6 +326,19 @@ export function PurchaseOrderLineDialog({
     if (value == null) return "";
     return String(value);
   }, []);
+
+  const getQuantityFieldDisplayValue = useCallback(
+    (key: PurchaseLineQuantityKey): string =>
+      formatNumericValue(formState[key as keyof LineItem]),
+    [formState, formatNumericValue],
+  );
+
+  const handleQuantityFieldChange = useCallback(
+    (key: PurchaseLineQuantityKey, value: string) => {
+      handleNumericChange(key as keyof LineItem, value);
+    },
+    [handleNumericChange],
+  );
 
   const handleGLAccountChange = useCallback(
     (value: string, account?: GLPostingAccount) => {
@@ -364,7 +398,10 @@ export function PurchaseOrderLineDialog({
             exempted: cardItem.Exempted ?? false,
             gstGroupCode: cardItem.GST_Group_Code ?? "",
             hsnSacCode: cardItem.HSN_SAC_Code ?? "",
-            uom: cardItem.Purch_Unit_of_Measure || cardItem.Sales_Unit_of_Measure || prev.uom,
+            uom:
+              cardItem.Purch_Unit_of_Measure ||
+              cardItem.Sales_Unit_of_Measure ||
+              prev.uom,
             noOfBags: isBardanaEnabled ? prev.noOfBags : undefined,
           }));
         }
@@ -388,7 +425,10 @@ export function PurchaseOrderLineDialog({
       return;
     }
 
-    if (formState.type !== "" && (!formState.quantity || formState.quantity <= 0)) {
+    if (
+      formState.type !== "" &&
+      (!formState.quantity || formState.quantity <= 0)
+    ) {
       setValidationError("Quantity must be greater than zero.");
       return;
     }
@@ -425,8 +465,27 @@ export function PurchaseOrderLineDialog({
       gstCredit: formState.gstCredit,
     };
 
+    const normalizedLineItemRecord = normalizedLineItem as unknown as Record<
+      string,
+      unknown
+    >;
+    const firstPendingQuantity = Number(
+      formState[quantityColumns.firstPendingKey as keyof LineItem],
+    );
+    const secondPendingQuantity = Number(
+      formState[quantityColumns.secondPendingKey as keyof LineItem],
+    );
+
+    normalizedLineItemRecord[quantityColumns.firstPendingKey] = Number.isFinite(
+      firstPendingQuantity,
+    )
+      ? firstPendingQuantity
+      : 0;
+    normalizedLineItemRecord[quantityColumns.secondPendingKey] =
+      Number.isFinite(secondPendingQuantity) ? secondPendingQuantity : 0;
+
     onSave(normalizedLineItem);
-  }, [amount, formState, lineItem, onSave]);
+  }, [amount, formState, lineItem, onSave, quantityColumns]);
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -447,8 +506,14 @@ export function PurchaseOrderLineDialog({
                 disabled={isEdit}
               >
                 <Select
-                  value={formState.type === "" ? "None" : (formState.type || "Item")}
-                  onValueChange={(value) => handleTypeChange(value === "None" ? "" : (value as LineType))}
+                  value={
+                    formState.type === "" ? "None" : formState.type || "Item"
+                  }
+                  onValueChange={(value) =>
+                    handleTypeChange(
+                      value === "None" ? "" : (value as LineType),
+                    )
+                  }
                   disabled={isEdit}
                 >
                   <SelectTrigger className={cn("h-8", fieldInputClass)}>
@@ -481,7 +546,9 @@ export function PurchaseOrderLineDialog({
                       placeholder="Select GL Account"
                       loadInitial={() => getGLAccounts(20)}
                       searchItems={searchGLAccounts}
-                      loadMore={(skip, search) => getGLAccountsPage(skip, search)}
+                      loadMore={(skip, search) =>
+                        getGLAccountsPage(skip, search)
+                      }
                       getDisplayValue={(item) => `${item.No} - ${item.Name}`}
                       getItemValue={(item) => item.No}
                       supportsDualSearch={true}
@@ -661,7 +728,9 @@ export function PurchaseOrderLineDialog({
                 <FieldTitle>Description</FieldTitle>
                 <Input
                   value={formState.description || ""}
-                  onChange={(e) => handleFieldChange("description", e.target.value)}
+                  onChange={(e) =>
+                    handleFieldChange("description", e.target.value)
+                  }
                   placeholder="Enter description"
                   className={fieldInputClass}
                 />
@@ -727,7 +796,56 @@ export function PurchaseOrderLineDialog({
                     }
                     onWheel={(e) => e.currentTarget.blur()}
                     placeholder="0.00"
-                    className={cn("h-8 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none", fieldInputClass)}
+                    className={cn(
+                      "h-8 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none",
+                      fieldInputClass,
+                    )}
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <FieldTitle>{quantityColumns.firstPendingLabel}</FieldTitle>
+                  <Input
+                    type="text"
+                    inputMode="decimal"
+                    value={getQuantityFieldDisplayValue(
+                      quantityColumns.firstPendingKey,
+                    )}
+                    onChange={(e) =>
+                      handleQuantityFieldChange(
+                        quantityColumns.firstPendingKey,
+                        e.target.value,
+                      )
+                    }
+                    onWheel={(e) => e.currentTarget.blur()}
+                    placeholder="0.00"
+                    className={cn(
+                      "h-8 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none",
+                      fieldInputClass,
+                    )}
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <FieldTitle>{quantityColumns.secondPendingLabel}</FieldTitle>
+                  <Input
+                    type="text"
+                    inputMode="decimal"
+                    value={getQuantityFieldDisplayValue(
+                      quantityColumns.secondPendingKey,
+                    )}
+                    onChange={(e) =>
+                      handleQuantityFieldChange(
+                        quantityColumns.secondPendingKey,
+                        e.target.value,
+                      )
+                    }
+                    onWheel={(e) => e.currentTarget.blur()}
+                    placeholder="0.00"
+                    className={cn(
+                      "h-8 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none",
+                      fieldInputClass,
+                    )}
                   />
                 </div>
 
@@ -757,11 +875,13 @@ export function PurchaseOrderLineDialog({
                       }}
                       onWheel={(e) => e.currentTarget.blur()}
                       placeholder="0"
-                      className={cn("h-8 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none", fieldInputClass)}
+                      className={cn(
+                        "h-8 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none",
+                        fieldInputClass,
+                      )}
                     />
                   </div>
                 )}
-
 
                 <div className="space-y-1">
                   <FieldTitle>Unit Price</FieldTitle>
@@ -774,7 +894,10 @@ export function PurchaseOrderLineDialog({
                     }
                     onWheel={(e) => e.currentTarget.blur()}
                     placeholder="0.00"
-                    className={cn("h-8 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none", fieldInputClass)}
+                    className={cn(
+                      "h-8 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none",
+                      fieldInputClass,
+                    )}
                   />
                 </div>
 
@@ -789,7 +912,10 @@ export function PurchaseOrderLineDialog({
                     }
                     onWheel={(e) => e.currentTarget.blur()}
                     placeholder="0.00"
-                    className={cn("h-8 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none", fieldInputClass)}
+                    className={cn(
+                      "h-8 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none",
+                      fieldInputClass,
+                    )}
                   />
                 </div>
 
@@ -814,15 +940,23 @@ export function PurchaseOrderLineDialog({
                       >
                         <Select
                           value={formState.faPostingType || ""}
-                          onValueChange={(val) => handleFieldChange("faPostingType", val)}
+                          onValueChange={(val) =>
+                            handleFieldChange("faPostingType", val)
+                          }
                         >
                           <SelectTrigger className={cn("h-8", fieldInputClass)}>
                             <SelectValue placeholder="Select Type" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="Acquisition Cost">Acquisition Cost</SelectItem>
-                            <SelectItem value="Maintenance">Maintenance</SelectItem>
-                            <SelectItem value="Appreciation">Appreciation</SelectItem>
+                            <SelectItem value="Acquisition Cost">
+                              Acquisition Cost
+                            </SelectItem>
+                            <SelectItem value="Maintenance">
+                              Maintenance
+                            </SelectItem>
+                            <SelectItem value="Appreciation">
+                              Appreciation
+                            </SelectItem>
                           </SelectContent>
                         </Select>
                       </ClearableField>
@@ -839,7 +973,10 @@ export function PurchaseOrderLineDialog({
                         }
                         onWheel={(e) => e.currentTarget.blur()}
                         placeholder="0.00"
-                        className={cn("h-8 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none", fieldInputClass)}
+                        className={cn(
+                          "h-8 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none",
+                          fieldInputClass,
+                        )}
                       />
                     </div>
                   </>
@@ -850,15 +987,22 @@ export function PurchaseOrderLineDialog({
 
           {formState.type !== "" && (
             <div className="space-y-2 border-t pt-2">
-              <h3 className="text-foreground text-xs font-medium">Tax Details</h3>
+              <h3 className="text-foreground text-xs font-medium">
+                Tax Details
+              </h3>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div className="flex items-center gap-2 pt-5">
                   <Checkbox
                     id="line-exempted"
                     checked={formState.exempted}
-                    onCheckedChange={(checked) => handleFieldChange("exempted", checked === true)}
+                    onCheckedChange={(checked) =>
+                      handleFieldChange("exempted", checked === true)
+                    }
                   />
-                  <Label htmlFor="line-exempted" className="cursor-pointer text-xs font-medium text-muted-foreground mr-1">
+                  <Label
+                    htmlFor="line-exempted"
+                    className="text-muted-foreground mr-1 cursor-pointer text-xs font-medium"
+                  >
                     Exempted
                   </Label>
                 </div>
@@ -898,14 +1042,18 @@ export function PurchaseOrderLineDialog({
                   <FieldTitle>GST Credit</FieldTitle>
                   <Select
                     value={formState.gstCredit || "Availment"}
-                    onValueChange={(value) => handleFieldChange("gstCredit", value)}
+                    onValueChange={(value) =>
+                      handleFieldChange("gstCredit", value)
+                    }
                   >
                     <SelectTrigger className={cn("h-8", fieldInputClass)}>
                       <SelectValue placeholder="Select GST Credit" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="Availment">Availment</SelectItem>
-                      <SelectItem value="Non-Availment">Non-Availment</SelectItem>
+                      <SelectItem value="Non-Availment">
+                        Non-Availment
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

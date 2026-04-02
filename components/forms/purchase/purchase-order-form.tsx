@@ -1,21 +1,22 @@
 "use client";
 
 import { PurchaseDocumentForm } from "./purchase-document-form";
+export type { PurchaseDocumentFormMode as PurchaseOrderFormMode } from "./purchase-document-form-content";
 
-interface PurchaseCreditMemoFormProps {
+interface PurchaseOrderFormProps {
   tabId: string;
   formData?: Record<string, unknown>;
   context?: Record<string, unknown>;
 }
 
-export function PurchaseCreditMemoForm({
+export function PurchaseOrderForm({
   tabId,
   formData,
   context,
-}: PurchaseCreditMemoFormProps) {
+}: PurchaseOrderFormProps) {
   return (
     <PurchaseDocumentForm
-      documentType="credit-memo"
+      documentType="order"
       tabId={tabId}
       formData={formData}
       context={context}

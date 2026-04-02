@@ -1,43 +1,45 @@
 "use client";
 
 import {
-  PurchaseOrderFormContent,
-  type UnifiedPurchaseOrderMode,
-} from "./purchase-order-form-content";
+  PurchaseDocumentFormContent,
+  type PurchaseDocumentFormMode,
+} from "./purchase-document-form-content";
+import {
+  PurchaseCreateDocumentForm,
+  type PurchaseCreateDocumentType,
+} from "./purchase-create-document-form";
+import {
+  getPurchaseDocumentConfig,
+  type PurchaseDocumentType,
+} from "./purchase-document-config";
 import { useFormStack } from "@/lib/form-stack/use-form-stack";
 import { useFormStackContext } from "@/lib/form-stack/form-stack-context";
+import { resolvePurchaseDocumentMode } from "./purchase-form-stack";
 
-export type PurchaseOrderFormMode = UnifiedPurchaseOrderMode;
-
-interface PurchaseOrderFormProps {
+interface PurchaseDocumentFormProps {
+  documentType: PurchaseDocumentType;
   tabId: string;
   formData?: Record<string, unknown>;
   context?: Record<string, unknown>;
 }
 
-function getMode(context?: Record<string, unknown>): PurchaseOrderFormMode {
-  const mode = context?.mode;
-  if (mode === "create" || mode === "view" || mode === "edit") {
-    return mode;
-  }
-  return context?.orderNo ? "view" : "create";
-}
-
-export function PurchaseOrderForm({
+export function PurchaseDocumentForm({
+  documentType,
   tabId,
   formData,
   context,
-}: PurchaseOrderFormProps) {
+}: PurchaseDocumentFormProps) {
+  const mode = resolvePurchaseDocumentMode(context) as PurchaseDocumentFormMode;
+  const orderNo = typeof context?.orderNo === "string" ? context.orderNo : "";
+  const config = getPurchaseDocumentConfig(documentType);
+
   const { markAsSaved, closeTab, updateFormData } = useFormStack(tabId);
   const { updateTab } = useFormStackContext();
-
-  const mode = getMode(context);
-  const orderNo = typeof context?.orderNo === "string" ? context.orderNo : "";
 
   const handleCancelEdit = () => {
     if (!orderNo) return;
     updateTab(tabId, {
-      title: `Order ${orderNo}`,
+      title: `${config.detailTitlePrefix} ${orderNo}`,
       context: {
         ...context,
         mode: "view",
@@ -55,7 +57,6 @@ export function PurchaseOrderForm({
     markAsSaved();
 
     if (mode === "view") {
-      // If onSuccess is called in view mode, it means a deletion occurred
       onUpdated?.();
       closeTab();
       return;
@@ -64,13 +65,11 @@ export function PurchaseOrderForm({
     if (mode === "edit") {
       onUpdated?.();
     } else {
-      // This was a "create" mode success
       onOrderPlaced?.();
     }
 
-    // Transition to view mode for the created/updated order
     updateTab(tabId, {
-      title: `Order ${savedOrderNo}`,
+      title: `${config.detailTitlePrefix} ${savedOrderNo}`,
       context: {
         ...context,
         mode: "view",
@@ -83,7 +82,7 @@ export function PurchaseOrderForm({
   const handleRequestEdit = () => {
     if (!orderNo) return;
     updateTab(tabId, {
-      title: `Edit Order ${orderNo}`,
+      title: `Edit ${config.detailTitlePrefix} ${orderNo}`,
       context: {
         ...context,
         mode: "edit",
@@ -95,9 +94,26 @@ export function PurchaseOrderForm({
     });
   };
 
+  if (documentType !== "order") {
+    return (
+      <PurchaseCreateDocumentForm
+        documentType={documentType as PurchaseCreateDocumentType}
+        tabId={tabId}
+        mode={mode}
+        orderNo={orderNo || undefined}
+        formData={formData}
+        context={context}
+        onSuccess={handleSuccess}
+        persistFormData={updateFormData}
+        onRequestEdit={handleRequestEdit}
+        onCancelEdit={handleCancelEdit}
+      />
+    );
+  }
+
   return (
     <div className="h-full min-h-0 overflow-y-auto">
-      <PurchaseOrderFormContent
+      <PurchaseDocumentFormContent
         onSuccess={handleSuccess}
         onRequestEdit={handleRequestEdit}
         onCancelEdit={handleCancelEdit}

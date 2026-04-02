@@ -5,10 +5,22 @@ import { toast } from "sonner";
 import { useAuth } from "@/lib/contexts/auth-context";
 import { getAllBranchesFromUserSetup } from "@/lib/api/services/dimension.service";
 import {
+  getPurchaseOrdersWithCount,
+  searchPurchaseOrders,
+  type PurchaseOrder,
+} from "@/lib/api/services/purchase-orders.service";
+import {
+  getPurchaseInvoicesWithCount,
+  searchPurchaseInvoices,
+} from "@/lib/api/services/purchase-invoices.service";
+import {
+  getPurchaseReturnOrdersWithCount,
+  searchPurchaseReturnOrders,
+} from "@/lib/api/services/purchase-return-orders.service";
+import {
   getPurchaseCreditMemosWithCount,
   searchPurchaseCreditMemos,
 } from "@/lib/api/services/purchase-credit-memos.service";
-import type { PurchaseOrder } from "@/lib/api/services/purchase-orders.service";
 import {
   type SortDirection,
   loadVisibleColumns,
@@ -16,43 +28,85 @@ import {
   getDefaultVisibleColumns,
   buildSelectQuery,
   ALL_COLUMNS,
-} from "./column-config";
-import { buildPurchaseOrderFilterString } from "./utils/filter-builder";
-import type { FilterCondition } from "./types";
+} from "@/components/forms/purchase/column-config";
+import { buildPurchaseOrderFilterString } from "@/components/forms/purchase/utils/filter-builder";
+import type { FilterCondition } from "@/components/forms/purchase/types";
+import {
+  type PurchaseDocumentType,
+  type PurchaseDocumentStatusTab,
+} from "./purchase-document-config";
 
-export type PurchaseCreditMemoStatusTab =
-  | "Open"
-  | "Pending Approval"
-  | "Released"
-  | "";
-
-export interface UsePurchaseCreditMemosOptions {
-  /** Status filter for tab (Open | Pending Approval | Released). Applied at API level. */
-  statusFilter?: PurchaseCreditMemoStatusTab;
+interface DocumentListParams {
+  $select?: string;
+  $filter?: string;
+  $orderby?: string;
+  $top?: number;
+  $skip?: number;
 }
 
-export function usePurchaseCreditMemos(options: UsePurchaseCreditMemosOptions = {}) {
-  const { statusFilter } = options;
+interface DocumentListResponse {
+  orders: PurchaseOrder[];
+  totalCount: number;
+}
+
+type FetchListFn = (
+  params: DocumentListParams,
+) => Promise<DocumentListResponse>;
+
+type SearchListFn = (
+  params: DocumentListParams & { searchTerm?: string },
+) => Promise<DocumentListResponse>;
+
+interface DocumentApiHandlers {
+  fetchWithCount: FetchListFn;
+  search: SearchListFn;
+}
+
+const DOCUMENT_API_HANDLERS: Record<PurchaseDocumentType, DocumentApiHandlers> = {
+  order: {
+    fetchWithCount: getPurchaseOrdersWithCount,
+    search: searchPurchaseOrders,
+  },
+  invoice: {
+    fetchWithCount: getPurchaseInvoicesWithCount,
+    search: searchPurchaseInvoices,
+  },
+  "return-order": {
+    fetchWithCount: getPurchaseReturnOrdersWithCount,
+    search: searchPurchaseReturnOrders,
+  },
+  "credit-memo": {
+    fetchWithCount: getPurchaseCreditMemosWithCount,
+    search: searchPurchaseCreditMemos,
+  },
+};
+
+export interface UsePurchaseDocumentsOptions {
+  documentType: PurchaseDocumentType;
+  statusFilter?: PurchaseDocumentStatusTab;
+}
+
+export function usePurchaseDocuments(options: UsePurchaseDocumentsOptions) {
+  const { documentType, statusFilter } = options;
   const { userID } = useAuth();
+
   const [orders, setOrders] = useState<PurchaseOrder[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [pageSize, setPageSize] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
-
   const [userBranchCodes, setUserBranchCodes] = useState<string[]>([]);
 
   const [sortColumn, setSortColumn] = useState<string | null>("No");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
-
   const [searchQuery, setSearchQuery] = useState("");
   const [columnFilters, setColumnFilters] = useState<
     Record<string, { value: string; valueTo?: string }>
   >({});
-
   const [additionalFilters, setAdditionalFilters] = useState<FilterCondition[]>(
     [],
   );
+  const [poType, setPoType] = useState<string>("Both");
 
   const [visibleColumns, setVisibleColumns] = useState<string[]>(() =>
     typeof window !== "undefined"
@@ -65,22 +119,22 @@ export function usePurchaseCreditMemos(options: UsePurchaseCreditMemosOptions = 
     [totalCount, pageSize],
   );
 
-  // Fetch user branch codes and default column filter to all branches
   useEffect(() => {
     if (!userID) return;
 
     const fetchBranches = async () => {
       try {
         const branches = await getAllBranchesFromUserSetup(userID);
-        const bCodes = branches.map((b) => b.Code);
-        setUserBranchCodes(bCodes);
-        if (bCodes.length > 0) {
+        const branchCodes = branches.map((branch) => branch.Code);
+        setUserBranchCodes(branchCodes);
+
+        if (branchCodes.length > 0) {
           setColumnFilters((prev) =>
             prev.Shortcut_Dimension_2_Code !== undefined
               ? prev
               : {
                   ...prev,
-                  Shortcut_Dimension_2_Code: { value: bCodes.join(",") },
+                  Shortcut_Dimension_2_Code: { value: branchCodes.join(",") },
                 },
           );
         }
@@ -104,7 +158,7 @@ export function usePurchaseCreditMemos(options: UsePurchaseCreditMemosOptions = 
     const effectiveBranchCodes = branchFilterValue
       ? branchFilterValue
           .split(",")
-          .map((c) => c.trim())
+          .map((code) => code.trim())
           .filter(Boolean)
       : userBranchCodes;
 
@@ -115,6 +169,8 @@ export function usePurchaseCreditMemos(options: UsePurchaseCreditMemosOptions = 
       return;
     }
 
+    const { fetchWithCount, search } = DOCUMENT_API_HANDLERS[documentType];
+
     setIsLoading(true);
     try {
       const filter = buildPurchaseOrderFilterString({
@@ -122,9 +178,10 @@ export function usePurchaseCreditMemos(options: UsePurchaseCreditMemosOptions = 
         statusFilter,
         columnFilters,
         additionalFilters,
+        poType: documentType === "order" ? poType : "Both",
       });
 
-      const commonParams = {
+      const commonParams: DocumentListParams = {
         $select: buildSelectQuery(visibleColumns),
         $filter: filter,
         $orderby: getOrderByString(),
@@ -133,35 +190,33 @@ export function usePurchaseCreditMemos(options: UsePurchaseCreditMemosOptions = 
       };
 
       const result = searchQuery
-        ? await searchPurchaseCreditMemos({
-            ...commonParams,
-            searchTerm: searchQuery,
-          })
-        : await getPurchaseCreditMemosWithCount(commonParams);
+        ? await search({ ...commonParams, searchTerm: searchQuery })
+        : await fetchWithCount(commonParams);
 
       setOrders(result.orders);
       setTotalCount(result.totalCount);
     } catch (error) {
-      console.error("Error fetching purchase credit memos:", error);
-      toast.error("Failed to load purchase credit memos. Please try again.");
+      console.error("Error fetching purchase documents:", error);
+      toast.error("Failed to load purchase documents. Please try again.");
       setOrders([]);
       setTotalCount(0);
     } finally {
       setIsLoading(false);
     }
   }, [
-    currentPage,
-    pageSize,
-    visibleColumns,
-    searchQuery,
-    columnFilters,
     additionalFilters,
-    userBranchCodes,
-    statusFilter,
+    columnFilters,
+    currentPage,
+    documentType,
     getOrderByString,
+    pageSize,
+    poType,
+    searchQuery,
+    statusFilter,
+    userBranchCodes,
+    visibleColumns,
   ]);
 
-  // Reset to page 1 when status tab changes
   useEffect(() => {
     setCurrentPage(1);
   }, [statusFilter]);
@@ -180,18 +235,18 @@ export function usePurchaseCreditMemos(options: UsePurchaseCreditMemosOptions = 
   }, []);
 
   const handleSort = useCallback((column: string) => {
-    setSortColumn((prevColumn) => {
-      if (prevColumn === column) {
-        setSortDirection((prevDir) => {
-          if (prevDir === "asc") return "desc";
-          if (prevDir === "desc") return null;
+    setSortColumn((previousColumn) => {
+      if (previousColumn === column) {
+        setSortDirection((previousDirection) => {
+          if (previousDirection === "asc") return "desc";
+          if (previousDirection === "desc") return null;
           return "asc";
         });
         return column;
-      } else {
-        setSortDirection("asc");
-        return column;
       }
+
+      setSortDirection("asc");
+      return column;
     });
     setCurrentPage(1);
   }, []);
@@ -202,12 +257,12 @@ export function usePurchaseCreditMemos(options: UsePurchaseCreditMemosOptions = 
   }, []);
 
   const handleColumnToggle = useCallback((columnId: string) => {
-    setVisibleColumns((prev) => {
-      const newColumns = prev.includes(columnId)
-        ? prev.filter((id) => id !== columnId)
-        : [...prev, columnId];
-      saveVisibleColumns(newColumns);
-      return newColumns;
+    setVisibleColumns((previousColumns) => {
+      const nextColumns = previousColumns.includes(columnId)
+        ? previousColumns.filter((id) => id !== columnId)
+        : [...previousColumns, columnId];
+      saveVisibleColumns(nextColumns);
+      return nextColumns;
     });
   }, []);
 
@@ -218,7 +273,7 @@ export function usePurchaseCreditMemos(options: UsePurchaseCreditMemosOptions = 
   }, []);
 
   const handleShowAllColumns = useCallback(() => {
-    const allColumnIds = ALL_COLUMNS.map((c) => c.id);
+    const allColumnIds = ALL_COLUMNS.map((column) => column.id);
     setVisibleColumns(allColumnIds);
     saveVisibleColumns(allColumnIds);
   }, []);
@@ -227,24 +282,43 @@ export function usePurchaseCreditMemos(options: UsePurchaseCreditMemosOptions = 
     setSearchQuery("");
     setColumnFilters({});
     setAdditionalFilters([]);
+    setPoType("Both");
     setSortColumn("No");
     setSortDirection("desc");
     setCurrentPage(1);
   }, []);
 
+  const handleAddAdditionalFilter = useCallback((filter: FilterCondition) => {
+    setAdditionalFilters((previousFilters) => [...previousFilters, filter]);
+    setCurrentPage(1);
+  }, []);
+
+  const handleRemoveAdditionalFilter = useCallback((index: number) => {
+    setAdditionalFilters((previousFilters) =>
+      previousFilters.filter((_, filterIndex) => filterIndex !== index),
+    );
+    setCurrentPage(1);
+  }, []);
+
   const handleColumnFilter = useCallback(
     (columnId: string, value: string, valueTo?: string) => {
-      setColumnFilters((prev) => {
+      setColumnFilters((previousFilters) => {
         if (!value && !valueTo) {
-          const { [columnId]: _, ...rest } = prev;
+          const { [columnId]: _removed, ...rest } = previousFilters;
           return rest;
         }
-        return { ...prev, [columnId]: { value, valueTo } };
+
+        return { ...previousFilters, [columnId]: { value, valueTo } };
       });
       setCurrentPage(1);
     },
     [],
   );
+
+  const handlePoTypeChange = useCallback((value: string) => {
+    setPoType(value);
+    setCurrentPage(1);
+  }, []);
 
   return {
     orders,
@@ -259,6 +333,7 @@ export function usePurchaseCreditMemos(options: UsePurchaseCreditMemosOptions = 
     columnFilters,
     additionalFilters,
     visibleColumns,
+    poType,
     onPageSizeChange: handlePageSizeChange,
     onPageChange: handlePageChange,
     onSort: handleSort,
@@ -266,9 +341,11 @@ export function usePurchaseCreditMemos(options: UsePurchaseCreditMemosOptions = 
     onColumnFilter: handleColumnFilter,
     onColumnToggle: handleColumnToggle,
     onResetColumns: handleResetColumns,
+    onAddAdditionalFilter: handleAddAdditionalFilter,
+    onRemoveAdditionalFilter: handleRemoveAdditionalFilter,
     onShowAllColumns: handleShowAllColumns,
+    onPoTypeChange: handlePoTypeChange,
     onClearFilters: handleClearFilters,
-    setAdditionalFilters,
     refetch: fetchOrders,
   };
 }

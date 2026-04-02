@@ -16,6 +16,8 @@ export interface LineItem {
   quantity: number;
   qtyToReceive?: number;
   qtyReceived?: number;
+  returnQtyToShip?: number;
+  returnQtyShipped?: number;
   qtyToInvoice?: number;
   qtyInvoiced?: number;
   price?: number;

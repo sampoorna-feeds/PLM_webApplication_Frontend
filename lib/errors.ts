@@ -17,3 +17,25 @@ export function cleanApiErrorMessage(
   if (message == null || typeof message !== "string") return "";
   return message.replace(CORRELATION_ID_PATTERN, "").trim();
 }
+
+/**
+ * Builds a user-safe error message from unknown thrown values.
+ * Supports API-shaped objects with optional `message` and `details` fields.
+ */
+export function getErrorMessage(error: unknown, fallback: string): string {
+  if (error && typeof error === "object") {
+    const errObj = error as Record<string, unknown>;
+    if (typeof errObj.message === "string") {
+      if (typeof errObj.details === "string") {
+        return `${cleanApiErrorMessage(errObj.message)}\n${cleanApiErrorMessage(errObj.details)}`;
+      }
+      return cleanApiErrorMessage(errObj.message) || fallback;
+    }
+  }
+
+  if (error instanceof Error) {
+    return cleanApiErrorMessage(error.message) || fallback;
+  }
+
+  return fallback;
+}

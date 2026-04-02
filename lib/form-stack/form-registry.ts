@@ -161,7 +161,7 @@ export const formRegistry: Record<
   "purchase-order": async () => {
     if (!PurchaseOrderForm) {
       const formModule =
-        await import("@/components/forms/purchase-orders/purchase-order-form");
+        await import("@/components/forms/purchase/purchase-order-form");
       PurchaseOrderForm = formModule.PurchaseOrderForm;
     }
     return { default: PurchaseOrderForm! };

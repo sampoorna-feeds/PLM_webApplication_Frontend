@@ -4,9 +4,12 @@
  * Entities: PurchaseCreditMemoHeader, PurchaseCreditMemoLine
  */
 
-import { apiPost, apiPatch, apiDelete } from "../client";
+import { apiGet, apiPost, apiPatch, apiDelete } from "../client";
 import type { ApiError } from "../client";
+import { buildODataQuery } from "../endpoints";
+import type { ODataResponse } from "../types";
 import type { PurchaseOrderData, PurchaseOrderLineItem } from "./purchase-order.service";
+import type { PurchaseOrder, PurchaseLine } from "./purchase-orders.service";
 
 export type { PurchaseOrderData as PurchaseCreditMemoData };
 export type { PurchaseOrderLineItem as PurchaseCreditMemoLineItem };
@@ -114,6 +117,60 @@ export async function createPurchaseCreditMemo(
     console.error("Error creating purchase credit memo:", JSON.stringify(error, null, 2));
     throw error as ApiError;
   }
+}
+
+/**
+ * Get a single purchase credit memo by document number.
+ */
+export async function getPurchaseCreditMemoByNo(
+  documentNo: string,
+): Promise<PurchaseOrder | null> {
+  const escapedNo = documentNo.replace(/'/g, "''");
+  const filter = `No eq '${escapedNo}'`;
+  const query = buildODataQuery({ $filter: filter });
+  const endpoint = `/${HEADER_ENTITY}?company='${encodeURIComponent(COMPANY)}'&${query}`;
+  const response = await apiGet<ODataResponse<PurchaseOrder>>(endpoint);
+  const value = response.value;
+  return value && value.length > 0 ? value[0] : null;
+}
+
+/**
+ * Get purchase credit-memo lines by document number.
+ */
+export async function getPurchaseCreditMemoLines(
+  documentNo: string,
+): Promise<PurchaseLine[]> {
+  const escapedNo = documentNo.replace(/'/g, "''");
+  const filter = `Document_No eq '${escapedNo}'`;
+  const query = buildODataQuery({ $filter: filter, $orderby: "Line_No asc" });
+  const endpoint = `/${LINE_ENTITY}?company='${encodeURIComponent(COMPANY)}'&${query}`;
+  const response = await apiGet<ODataResponse<PurchaseLine>>(endpoint);
+  return response.value || [];
+}
+
+/**
+ * Patch purchase credit-memo header fields by document number.
+ */
+export async function patchPurchaseCreditMemoHeader(
+  documentNo: string,
+  body: Record<string, unknown>,
+): Promise<unknown> {
+  const escapedNo = documentNo.replace(/'/g, "''");
+  const endpoint = `/${HEADER_ENTITY}(Document_Type='Credit Memo',No='${encodeURIComponent(escapedNo)}')?company='${encodeURIComponent(COMPANY)}'`;
+  const payload = stripEmptyValues(body);
+  return apiPatch<unknown>(endpoint, payload);
+}
+
+/**
+ * Delete a purchase credit-memo header by key.
+ * Use only after deleting child purchase credit-memo lines.
+ */
+export async function deletePurchaseCreditMemoHeader(
+  documentNo: string,
+): Promise<unknown> {
+  const escapedNo = documentNo.replace(/'/g, "''");
+  const endpoint = `/${HEADER_ENTITY}(Document_Type='Credit Memo',No='${encodeURIComponent(escapedNo)}')?company='${encodeURIComponent(COMPANY)}'`;
+  return apiDelete<unknown>(endpoint);
 }
 
 /**

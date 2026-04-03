@@ -1,28 +1,25 @@
 import * as XLSX from "xlsx";
-import type { ItemLedgerEntry } from "@/lib/api/services/report-ledger.service";
-import {
-  ALL_COLUMNS,
-  type ColumnConfig,
-} from "@/components/forms/report-ledger/column-config";
 
 /**
- * Exports an array of ItemLedgerEntries to an Excel (.xlsx) file.
+ * Exports an array of entries to an Excel (.xlsx) file.
  *
  * @param entries The data to export
- * @param exportColumnIds The IDs of the columns to include in the export
+ * @param exportColumnIds The IDs of the columns to include in the export (order and selection)
  * @param appliedFilters Array of string descriptions of the active filters
  * @param filename The desired filename (without extension)
+ * @param allColumns The full column configuration (ID and Label) for mapping
  */
 export function exportToExcel(
-  entries: ItemLedgerEntry[],
+  entries: any[],
   exportColumnIds: string[],
   appliedFilters: string[],
-  filename: string = "Report_Ledger_Export",
+  filename: string = "Ledger_Export",
+  allColumns: { id: string; label: string }[]
 ) {
   // 1. Map column IDs to their corresponding config objects for headers
-  const exportColumns: ColumnConfig[] = exportColumnIds
-    .map((id) => ALL_COLUMNS.find((col) => col.id === id))
-    .filter((col): col is ColumnConfig => col !== undefined);
+  const exportColumns = exportColumnIds
+    .map((id) => allColumns.find((col) => col.id === id))
+    .filter((col): col is { id: string; label: string } => col !== undefined);
 
   // 2. Transform the raw data into an array of objects matching the selected columns
   const exportData = entries.map((entry) => {

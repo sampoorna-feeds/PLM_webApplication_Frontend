@@ -99,6 +99,7 @@ export function VendorLedgerExportDialog({
         expectedColumns,
         humanReadableFilters,
         filename,
+        ALL_COLUMNS
       );
       toast.success(
         `Successfully exported ${accumulatedEntries.length} records.`,

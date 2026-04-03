@@ -7,8 +7,16 @@ import {
   getVendorBalance,
   type VendorLedgerEntry,
   type VendorLedgerFilters,
+  buildVendorFilterString,
+  buildHumanReadableVendorFilters,
 } from "@/lib/api/services/vendor-ledger.service";
-import { type PageSize } from "@/components/forms/report-ledger/types";
+import { type PageSize, type FilterCondition } from "@/components/forms/report-ledger/types";
+import { 
+  getDefaultVisibleColumns, 
+  loadVisibleColumns, 
+  saveVisibleColumns,
+  ALL_COLUMNS,
+} from "./vendor-ledger-column-config";
 
 export interface UseVendorLedgerOptions {
   isOutstanding?: boolean;
@@ -28,11 +36,19 @@ export function useVendorLedger(options: UseVendorLedgerOptions = {}) {
     fromDate: "",
     toDate: "",
     vendorNo: "",
-    isOutstanding: options.isOutstanding || false,
+    search: "",
+    additionalFilters: [],
     columnFilters: {},
     sortField: "Posting_Date",
     sortOrder: "desc"
   });
+
+
+  const [visibleColumns, setVisibleColumns] = useState<string[]>(() =>
+    typeof window !== "undefined"
+      ? loadVisibleColumns(options.isOutstanding)
+      : getDefaultVisibleColumns(options.isOutstanding),
+  );
 
   const totalPages = useMemo(
     () => Math.max(1, Math.ceil(totalCount / pageSize)),
@@ -115,6 +131,22 @@ export function useVendorLedger(options: UseVendorLedgerOptions = {}) {
     setCurrentPage(1);
   }, []);
 
+  const handleAddAdditionalFilter = useCallback((filter: FilterCondition) => {
+    setFilters((prev) => ({
+      ...prev,
+      additionalFilters: [...(prev.additionalFilters || []), filter]
+    }));
+    setCurrentPage(1);
+  }, []);
+
+  const handleRemoveAdditionalFilter = useCallback((index: number) => {
+    setFilters((prev) => ({
+      ...prev,
+      additionalFilters: (prev.additionalFilters || []).filter((_, i) => i !== index)
+    }));
+    setCurrentPage(1);
+  }, []);
+
   const handlePageChange = useCallback((page: number) => {
     setCurrentPage(page);
   }, []);
@@ -123,6 +155,28 @@ export function useVendorLedger(options: UseVendorLedgerOptions = {}) {
     setPageSize(size);
     setCurrentPage(1);
   }, []);
+
+  const handleColumnToggle = useCallback((columnId: string) => {
+    setVisibleColumns((prev) => {
+      const newColumns = prev.includes(columnId)
+        ? prev.filter((id) => id !== columnId)
+        : [...prev, columnId];
+      saveVisibleColumns(newColumns, options.isOutstanding);
+      return newColumns;
+    });
+  }, [options.isOutstanding]);
+
+  const handleResetColumns = useCallback(() => {
+    const defaultColumns = getDefaultVisibleColumns(options.isOutstanding);
+    setVisibleColumns(defaultColumns);
+    saveVisibleColumns(defaultColumns, options.isOutstanding);
+  }, [options.isOutstanding]);
+
+  const handleShowAllColumns = useCallback(() => {
+    const allColumnIds = ALL_COLUMNS.map((col) => col.id);
+    setVisibleColumns(allColumnIds);
+    saveVisibleColumns(allColumnIds, options.isOutstanding);
+  }, [options.isOutstanding]);
 
   return {
     entries,
@@ -134,11 +188,19 @@ export function useVendorLedger(options: UseVendorLedgerOptions = {}) {
     filters,
     openingBalance,
     closingBalance,
+    visibleColumns,
     onFilterChange: handleFilterChange,
     onColumnFilterChange: handleColumnFilterChange,
     onSort: handleSort,
+    onAddAdditionalFilter: handleAddAdditionalFilter,
+    onRemoveAdditionalFilter: handleRemoveAdditionalFilter,
     onPageChange: handlePageChange,
     onPageSizeChange: handlePageSizeChange,
+    onColumnToggle: handleColumnToggle,
+    onResetColumns: handleResetColumns,
+    onShowAllColumns: handleShowAllColumns,
+    currentFilterString: buildVendorFilterString(filters),
+    humanReadableFilters: buildHumanReadableVendorFilters(filters),
     refetch: fetchEntries,
   };
 }

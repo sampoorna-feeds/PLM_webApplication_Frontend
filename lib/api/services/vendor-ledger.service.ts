@@ -3,9 +3,10 @@
  * Handles fetching vendor ledger entries from ERP OData V4 API
  */
 
-import { apiGet } from "../client";
+import { apiGet, apiPost } from "../client";
 import { buildODataQuery } from "../endpoints";
 import type { ODataResponse } from "../types";
+import type { FilterCondition } from "@/components/forms/report-ledger/types";
 
 export interface VendorLedgerEntry {
   "@odata.etag": string;
@@ -37,7 +38,9 @@ export interface VendorLedgerFilters {
   toDate?: string;
   vendorNo?: string;
   isOutstanding?: boolean;
+  search?: string;
   columnFilters?: Record<string, string>;
+  additionalFilters?: FilterCondition[];
   sortField?: string;
   sortOrder?: "asc" | "desc";
 }
@@ -50,6 +53,27 @@ export async function getVendorLedgerEntries(
   top: number = 50,
   skip: number = 0
 ): Promise<ODataResponse<VendorLedgerEntry>> {
+  const filterString = buildVendorFilterString(filters);
+  const orderby = filters.sortField 
+    ? `${filters.sortField} ${filters.sortOrder || "asc"}`
+    : "Posting_Date desc, Entry_No desc";
+
+  const query = buildODataQuery({
+    $filter: filterString || undefined,
+    $orderby: orderby,
+    $top: top,
+    $skip: skip,
+    $count: true,
+  });
+
+  const endpoint = `/VendorLedgerEntry?company='${encodeURIComponent(COMPANY)}'&${query}`;
+  return await apiGet<ODataResponse<VendorLedgerEntry>>(endpoint);
+}
+
+/**
+ * Builds OData filter string from VendorLedgerFilters
+ */
+export function buildVendorFilterString(filters: VendorLedgerFilters): string {
   const filterParts: string[] = [];
 
   if (filters.vendorNo) {
@@ -68,37 +92,81 @@ export async function getVendorLedgerEntries(
     filterParts.push(`Remaining_Amount ne 0`);
   }
 
-  // Add column filters
-  if (filters.columnFilters) {
-    Object.entries(filters.columnFilters).forEach(([field, value]) => {
-      if (value) {
-        // Simple contains for strings, eq for numbers/booleans if needed
-        // For now, let's assume most are strings or we use contains for flexibility
-        if (field === "Entry_No" || field === "Amount" || field === "Debit_Amount" || field === "Credit_Amount" || field === "Remaining_Amount") {
-          filterParts.push(`${field} eq ${value}`);
-        } else if (field === "Open") {
-          filterParts.push(`${field} eq ${value === "true"}`);
+  // Add universal search filter
+  if (filters.search) {
+    const s = filters.search.replace(/'/g, "''");
+    const searchParts = [
+      `contains(Document_No,'${s}')`,
+      `contains(External_Document_No,'${s}')`,
+      `contains(VendorName,'${s}')`,
+      `contains(Description,'${s}')`,
+    ];
+    
+    // For numeric fields, we use eq if the search looks like a number
+    if (!isNaN(Number(s))) {
+      searchParts.push(`Entry_No eq ${s}`);
+    }
+    
+    filterParts.push(`(${searchParts.join(" or ")})`);
+  }
+
+  // Add additional structured filters
+  if (filters.additionalFilters && filters.additionalFilters.length > 0) {
+    filters.additionalFilters.forEach((f) => {
+      const v = f.value.replace(/'/g, "''");
+      if (f.operator === "contains") {
+        filterParts.push(`contains(${f.field},'${v}')`);
+      } else if (f.operator === "startswith") {
+        filterParts.push(`startswith(${f.field},'${v}')`);
+      } else if (f.operator === "endswith") {
+        filterParts.push(`endswith(${f.field},'${v}')`);
+      } else {
+        // eq, ne, gt, ge, lt, le
+        if (f.type === "number" || f.type === "boolean") {
+          filterParts.push(`${f.field} ${f.operator} ${f.value}`);
         } else {
-          filterParts.push(`contains(${field},'${value.replace(/'/g, "''")}')`);
+          filterParts.push(`${f.field} ${f.operator} '${v}'`);
         }
       }
     });
   }
 
-  const orderby = filters.sortField 
-    ? `${filters.sortField} ${filters.sortOrder || "asc"}`
-    : "Posting_Date desc, Entry_No desc";
+  return filterParts.join(" and ");
+}
 
-  const query = buildODataQuery({
-    $filter: filterParts.length > 0 ? filterParts.join(" and ") : undefined,
-    $orderby: orderby,
-    $top: top,
-    $skip: skip,
-    $count: true,
-  });
+/**
+ * Builds human readable filter descriptions
+ */
+export function buildHumanReadableVendorFilters(filters: VendorLedgerFilters): string[] {
+  const lines: string[] = [];
 
-  const endpoint = `/VendorLedgerEntry?company='${encodeURIComponent(COMPANY)}'&${query}`;
-  return await apiGet<ODataResponse<VendorLedgerEntry>>(endpoint);
+  if (filters.vendorNo) {
+    lines.push(`Vendor No: ${filters.vendorNo}`);
+  }
+
+  if (filters.fromDate && filters.toDate) {
+    lines.push(`Date Range: ${filters.fromDate} to ${filters.toDate}`);
+  } else if (filters.fromDate) {
+    lines.push(`Date From: ${filters.fromDate}`);
+  } else if (filters.toDate) {
+    lines.push(`Date To: ${filters.toDate}`);
+  }
+
+  if (filters.isOutstanding) {
+    lines.push(`Outstanding Only`);
+  }
+
+  if (filters.search) {
+    lines.push(`Search: "${filters.search}"`);
+  }
+
+  if (filters.additionalFilters) {
+    filters.additionalFilters.forEach(f => {
+      lines.push(`${f.field.replace(/_/g, ' ')} ${f.operator} ${f.value}`);
+    });
+  }
+
+  return lines;
 }
 
 /**
@@ -150,5 +218,35 @@ export async function getVendorBalance(
     const response = await apiGet<ODataResponse<{ Amount: number }>>(endpoint);
     return response.value.reduce((sum, entry) => sum + (entry.Amount || 0), 0);
   }
+}
+
+/**
+ * Create a new vendor ledger entry (direct POST)
+ * Note: Check ERP documentation if direct creation is allowed or if it should go through journals.
+ */
+export async function createVendorLedgerEntry(
+  payload: Partial<VendorLedgerEntry>
+): Promise<VendorLedgerEntry> {
+  const endpoint = `/VendorLedgerEntry?company='${encodeURIComponent(COMPANY)}'`;
+  return await apiPost<VendorLedgerEntry>(endpoint, payload);
+}
+
+/**
+ * Get vendor ledger entries with custom OData params
+ */
+export async function getVendorLedgerEntriesRaw(
+  params: {
+    $filter?: string;
+    $select?: string;
+    $orderby?: string;
+    $top?: number;
+    $skip?: number;
+    $count?: boolean;
+    $apply?: string;
+  } = {}
+): Promise<ODataResponse<VendorLedgerEntry>> {
+  const query = buildODataQuery(params);
+  const endpoint = `/VendorLedgerEntry?company='${encodeURIComponent(COMPANY)}'&${query}`;
+  return await apiGet<ODataResponse<VendorLedgerEntry>>(endpoint);
 }
 

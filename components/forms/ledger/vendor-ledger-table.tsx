@@ -64,7 +64,7 @@ export function VendorLedgerTable({
     className?: string;
     isSortable?: boolean;
   }) => (
-    <TableHead className={cn("px-4 py-4 sticky top-0 z-20 bg-muted/95 backdrop-blur-sm transition-colors border-b shadow-[0_1px_0_0_rgba(0,0,0,0.05)]", className)}>
+    <th className={cn("px-4 py-4 z-40 bg-muted transition-colors border-b shadow-sm text-left align-middle font-medium whitespace-nowrap", className)}>
       <div 
         className={cn(
           "flex items-center cursor-pointer hover:text-primary transition-colors gap-2",
@@ -75,7 +75,7 @@ export function VendorLedgerTable({
         <span className="font-bold text-xs uppercase tracking-wider text-muted-foreground whitespace-nowrap">{label}</span>
         {isSortable && <SortIcon field={field} />}
       </div>
-    </TableHead>
+    </th>
   );
 
   if (isLoading && entries.length === 0) {
@@ -95,9 +95,9 @@ export function VendorLedgerTable({
   return (
     <div className="border rounded-md overflow-hidden bg-background shadow-sm flex flex-col flex-1 min-h-0 h-full">
       <div className="flex-1 min-h-0 overflow-auto scrollbar-thin scrollbar-thumb-muted-foreground/20">
-        <Table className="relative min-w-full border-separate border-spacing-0 whitespace-nowrap">
-          <TableHeader className="bg-muted/80 backdrop-blur-md sticky top-0 z-30 shadow-sm border-b">
-            <TableRow className="hover:bg-transparent border-b-0">
+        <table className="relative min-w-full border-collapse border-spacing-0 whitespace-nowrap text-sm">
+          <thead className="sticky top-0 z-50 bg-muted shadow-sm shadow-black/10">
+            <tr className="hover:bg-transparent border-b-0">
               {visibleColumns.includes("Entry_No") && <HeaderCell field="Entry_No" label="Entry No." className="w-[100px]" />}
               {visibleColumns.includes("Posting_Date") && <HeaderCell field="Posting_Date" label="Posting Date" className="w-[120px]" />}
               {visibleColumns.includes("Document_Type") && <HeaderCell field="Document_Type" label="Doc Type" className="w-[120px]" />}
@@ -115,41 +115,41 @@ export function VendorLedgerTable({
               {visibleColumns.includes("Closed_at_Date") && <HeaderCell field="Closed_at_Date" label="Closed Date" className="w-[120px]" />}
               {visibleColumns.includes("Vendor_No") && <HeaderCell field="Vendor_No" label="Vendor No" className="w-[100px]" />}
               {visibleColumns.includes("Invoice_Received_Date") && <HeaderCell field="Invoice_Received_Date" label="Inv. Rec. Date" className="w-[130px]" />}
-            </TableRow>
-          </TableHeader>
-          <TableBody>
+            </tr>
+          </thead>
+          <tbody className="bg-background">
             {/* Opening Balance Row - Hide if Outstanding */}
             {!isOutstanding && (
-              <TableRow className="bg-muted/10 font-semibold italic border-b-2">
-                <TableCell 
+              <tr className="bg-muted/10 font-semibold italic border-b-2">
+                <td 
                   colSpan={visibleColumns.filter(c => ["Entry_No", "Posting_Date", "Document_Type", "Document_No", "External_Document_No", "VendorName", "Debit_Amount", "Credit_Amount"].includes(c)).length} 
-                  className="text-right text-xs py-2 text-muted-foreground highlight"
+                  className="text-right text-xs py-2 px-4 text-muted-foreground highlight"
                 >
                   Opening Balance
-                </TableCell>
+                </td>
                 {visibleColumns.includes("Amount") ? (
-                  <TableCell className={cn(
-                    "text-right text-xs font-bold",
+                  <td className={cn(
+                    "text-right text-xs font-bold px-4",
                     openingBalance < 0 ? "text-red-500" : openingBalance > 0 ? "text-green-600" : ""
                   )}>
                     {openingBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                  </TableCell>
+                  </td>
                 ) : (
-                  <TableCell />
+                  <td className="px-4" />
                 )}
-                <TableCell colSpan={visibleColumns.filter(c => ["Remaining_Amount", "Open", "Due_Date", "Description", "Document_Date", "Closed_at_Date", "Vendor_No", "Invoice_Received_Date"].includes(c)).length} />
-              </TableRow>
+                <td colSpan={visibleColumns.filter(c => ["Remaining_Amount", "Open", "Due_Date", "Description", "Document_Date", "Closed_at_Date", "Vendor_No", "Invoice_Received_Date"].includes(c)).length} className="px-4" />
+              </tr>
             )}
 
             {entries.length === 0 ? (
-               <TableRow>
-                <TableCell colSpan={visibleColumns.length} className="h-24 text-center text-muted-foreground italic">
+               <tr className="border-b">
+                <td colSpan={visibleColumns.length} className="h-24 text-center text-muted-foreground italic px-4">
                   No transaction history found for the selected period.
-                </TableCell>
-              </TableRow>
+                </td>
+              </tr>
             ) : (
               entries.map((entry) => (
-                <TableRow key={entry.Entry_No} className="hover:bg-muted/30 transition-colors border-b">
+                <tr key={entry.Entry_No} className="hover:bg-muted/30 transition-colors border-b">
                   {visibleColumns.includes("Entry_No") && <TableCell className="font-medium text-xs whitespace-nowrap">{entry.Entry_No}</TableCell>}
                   {visibleColumns.includes("Posting_Date") && (
                     <TableCell className="text-xs whitespace-nowrap">
@@ -240,34 +240,34 @@ export function VendorLedgerTable({
                         : "-"}
                     </TableCell>
                   )}
-                </TableRow>
+                </tr>
               ))
             )}
 
             {/* Closing Balance Row - Hide if Outstanding */}
             {!isOutstanding && (
-              <TableRow className="bg-primary/5 font-bold border-t-2">
-                <TableCell 
+              <tr className="bg-primary/5 font-bold border-t-2">
+                <td 
                   colSpan={visibleColumns.filter(c => ["Entry_No", "Posting_Date", "Document_Type", "Document_No", "External_Document_No", "VendorName", "Debit_Amount", "Credit_Amount"].includes(c)).length} 
-                  className="text-right text-xs py-3 text-primary uppercase tracking-wider"
+                  className="text-right text-xs py-3 px-4 text-primary uppercase tracking-wider"
                 >
                   Closing Balance
-                </TableCell>
+                </td>
                 {visibleColumns.includes("Amount") ? (
-                  <TableCell className={cn(
-                    "text-right text-xs font-black",
+                  <td className={cn(
+                    "text-right text-xs font-black px-4",
                     closingBalance < 0 ? "text-red-600" : "text-green-700"
                   )}>
                     {closingBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                  </TableCell>
+                  </td>
                 ) : (
-                  <TableCell />
+                  <td className="px-4" />
                 )}
-                <TableCell colSpan={visibleColumns.filter(c => ["Remaining_Amount", "Open", "Due_Date", "Description", "Document_Date", "Closed_at_Date", "Vendor_No", "Invoice_Received_Date"].includes(c)).length} />
-              </TableRow>
+                <td colSpan={visibleColumns.filter(c => ["Remaining_Amount", "Open", "Due_Date", "Description", "Document_Date", "Closed_at_Date", "Vendor_No", "Invoice_Received_Date"].includes(c)).length} className="px-4" />
+              </tr>
             )}
-          </TableBody>
-        </Table>
+          </tbody>
+        </table>
       </div>
     </div>
   );

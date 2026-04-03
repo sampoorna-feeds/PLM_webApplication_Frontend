@@ -155,7 +155,7 @@ export function VendorLedgerFilterBar({
         <Search className="h-4 w-4 text-muted-foreground mr-1" />
         <input
           type="text"
-          placeholder="Search items..."
+          placeholder="Search ledger entries..."
           value={filters.search || ""}
           onChange={(e) => handleSearchChange(e.target.value)}
           className="bg-transparent border-none focus:ring-0 text-sm h-8 w-full placeholder:text-muted-foreground/60"
@@ -175,7 +175,7 @@ export function VendorLedgerFilterBar({
           filters={filters.additionalFilters || []}
           onAddFilter={onAddAdditionalFilter}
           onRemoveFilter={onRemoveAdditionalFilter}
-          columns={VENDOR_LEDGER_COLUMNS}
+          columnConfig={VENDOR_LEDGER_COLUMNS}
           excludedFields={["Vendor_No", "Posting_Date", "Entry_No"]}
         />
       </div>

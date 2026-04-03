@@ -6,12 +6,16 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { DateInput } from "@/components/ui/date-input";
 import type { VendorLedgerFilters } from "@/lib/api/services/vendor-ledger.service";
-import { ColumnVisibility } from "../report-ledger/column-visibility";
+import { VendorColumnVisibility } from "./vendor-ledger-column-visibility";
+import { 
+  LEDGER_DEFAULT_COLUMNS, 
+  OUTSTANDING_DEFAULT_COLUMNS, 
+  OPTIONAL_COLUMNS 
+} from "./vendor-ledger-column-config";
 import { VendorLedgerExportDialog } from "./vendor-ledger-export-dialog";
-import { NewVendorEntryDialog } from "./new-vendor-entry-dialog";
 import { DynamicFilterBuilder } from "../report-ledger/dynamic-filter-builder";
 import type { FilterCondition } from "../report-ledger/types";
-import { VENDOR_LEDGER_COLUMNS } from "./column-config";
+import { VENDOR_LEDGER_COLUMNS } from "@/components/forms/ledger/column-config";
 import { useState, useMemo } from "react";
 import {
   Popover,
@@ -181,9 +185,6 @@ export function VendorLedgerFilterBar({
       </div>
 
       <div className="flex items-center gap-2 shrink-0 ml-4">
-        <NewVendorEntryDialog onSuccess={onSuccess} defaultVendorNo={filters.vendorNo} />
-
-        <div className="h-6 w-px bg-border/60 mx-1" />
 
         <Button
           variant="outline"
@@ -196,8 +197,10 @@ export function VendorLedgerFilterBar({
           Export
         </Button>
 
-        <ColumnVisibility
+        <VendorColumnVisibility
           visibleColumns={visibleColumns}
+          defaultColumns={filters.isOutstanding ? OUTSTANDING_DEFAULT_COLUMNS : LEDGER_DEFAULT_COLUMNS}
+          optionalColumns={OPTIONAL_COLUMNS}
           onColumnToggle={onColumnToggle}
           onResetColumns={onResetColumns}
           onShowAllColumns={onShowAllColumns}

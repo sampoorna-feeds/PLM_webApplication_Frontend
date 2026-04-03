@@ -174,49 +174,65 @@ export function buildHumanReadableVendorFilters(filters: VendorLedgerFilters): s
  */
 export async function getVendorBalance(
   vendorNo: string,
-  date?: string, // If provided, balance up to this date (inclusive). If omitted, total balance.
+  date?: string, // If provided, balance up to this date (lt/le). If omitted, total balance.
   isOpening: boolean = false
 ): Promise<number> {
   if (!vendorNo) return 0;
 
-  const filterParts: string[] = [`Vendor_No eq '${vendorNo}'`];
+  const filterParts: string[] = [`Vendor_No eq '${vendorNo.replace(/'/g, "''")}'`];
   if (date) {
+    // For OData V4, date literals should be yyyy-mm-dd
     filterParts.push(`Posting_Date ${isOpening ? "lt" : "le"} ${date}`);
   }
 
-  const query = buildODataQuery({
+  const queryParams: any = {
     $filter: filterParts.join(" and "),
-    $select: "Amount",
-    $apply: "aggregate(Amount with sum as TotalAmount)",
-  });
+  };
 
-  // OData aggregate might not be supported by all BC versions without customization, 
-  // so we might need to fetch all and sum if aggregation fails. 
-  // However, buildODataQuery might not handle $apply.
-  
-  // Alternative: fetch with $select=Amount and sum on client side if only few entries, 
-  // but for balance we want the total.
-  
-  // Let's try a simpler approach if $apply is not supported:
-  // Fetch all amounts... wait, that's slow.
-  
-  // Actually, many BC OData V4 endpoints support $apply. 
-  // If not, we'll have to use a different strategy.
-  
   try {
-    const endpoint = `/VendorLedgerEntry?company='${encodeURIComponent(COMPANY)}'&${query}`;
-    const response = await apiGet<any>(endpoint);
-    return response.value?.[0]?.TotalAmount || 0;
-  } catch (error) {
-    console.error("Aggregation failed, falling back to manual sum", error);
-    // Fallback: This is not ideal for large ledgers but works as a last resort
-    const simpleQuery = buildODataQuery({
-      $filter: filterParts.join(" and "),
-      $select: "Amount",
+    // Try aggregation first - it's more efficient
+    const aggregationQuery = buildODataQuery({
+      ...queryParams,
+      $apply: "aggregate(Amount with sum as TotalAmount)",
     });
-    const endpoint = `/VendorLedgerEntry?company='${encodeURIComponent(COMPANY)}'&${simpleQuery}`;
-    const response = await apiGet<ODataResponse<{ Amount: number }>>(endpoint);
-    return response.value.reduce((sum, entry) => sum + (entry.Amount || 0), 0);
+    
+    const endpoint = `/VendorLedgerEntry?company='${encodeURIComponent(COMPANY)}'&${aggregationQuery}`;
+    const response = await apiGet<any>(endpoint);
+    
+    // OData V4 aggregation results are in value[0].Property
+    if (response?.value?.[0] && typeof response.value[0].TotalAmount !== 'undefined') {
+      return Number(response.value[0].TotalAmount) || 0;
+    }
+    
+    // If we reach here, aggregation returned an unexpected structure, fall back
+    throw new Error("Unexpected aggregation response structure");
+  } catch (error) {
+    console.warn("Aggregation failed or unsupported, falling back to manual sum", error);
+    
+    // Fallback: Fetch only necessary fields for efficiency
+    const fallbackQuery = buildODataQuery({
+      ...queryParams,
+      $select: "Amount,Debit_Amount,Credit_Amount,Amount_LCY",
+      $top: 10000, // Reasonable limit
+    });
+    
+    const endpoint = `/VendorLedgerEntry?company='${encodeURIComponent(COMPANY)}'&${fallbackQuery}`;
+    const response = await apiGet<ODataResponse<VendorLedgerEntry>>(endpoint);
+    
+    if (!response?.value) return 0;
+    
+    return response.value.reduce((sum, entry) => {
+      // Use Amount_LCY if available, then Amount, finally calculate from Debit/Credit
+      let amount = 0;
+      if (typeof entry.Amount_LCY !== 'undefined') {
+        amount = Number(entry.Amount_LCY) || 0;
+      } else if (typeof entry.Amount !== 'undefined') {
+        amount = Number(entry.Amount) || 0;
+      } else {
+        amount = (Number(entry.Debit_Amount) || 0) - (Number(entry.Credit_Amount) || 0);
+      }
+      return sum + amount;
+    }, 0);
   }
 }
 

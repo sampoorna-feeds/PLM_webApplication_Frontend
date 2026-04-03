@@ -107,7 +107,13 @@ export function VendorLedgerTable({
               {visibleColumns.includes("Debit_Amount") && <HeaderCell field="Debit_Amount" label="Debit" className="w-[120px] text-right" />}
               {visibleColumns.includes("Credit_Amount") && <HeaderCell field="Credit_Amount" label="Credit" className="w-[120px] text-right" />}
               {visibleColumns.includes("Amount") && <HeaderCell field="Amount" label="Amount" className="w-[120px] text-right" />}
+              {visibleColumns.includes("Amount_LCY") && <HeaderCell field="Amount_LCY" label="Amount (LCY)" className="w-[120px] text-right" />}
+              {visibleColumns.includes("Debit_Amount_LCY") && <HeaderCell field="Debit_Amount_LCY" label="Debit (LCY)" className="w-[120px] text-right" />}
+              {visibleColumns.includes("Credit_Amount_LCY") && <HeaderCell field="Credit_Amount_LCY" label="Credit (LCY)" className="w-[120px] text-right" />}
               {visibleColumns.includes("Remaining_Amount") && <HeaderCell field="Remaining_Amount" label="Remaining" className="w-[120px] text-right" />}
+              {visibleColumns.includes("Global_Dimension_1_Code") && <HeaderCell field="Global_Dimension_1_Code" label="LOB" className="w-[100px]" />}
+              {visibleColumns.includes("Global_Dimension_2_Code") && <HeaderCell field="Global_Dimension_2_Code" label="Branch" className="w-[100px]" />}
+              {visibleColumns.includes("TDS_Section_Code") && <HeaderCell field="TDS_Section_Code" label="TDS" className="w-[100px]" />}
               {visibleColumns.includes("Open") && <HeaderCell field="Open" label="Status" className="w-[100px] text-center" />}
               {visibleColumns.includes("Due_Date") && <HeaderCell field="Due_Date" label="Due Date" className="w-[120px]" />}
               {visibleColumns.includes("Description") && <HeaderCell field="Description" label="Description" className="w-[200px]" />}
@@ -122,7 +128,7 @@ export function VendorLedgerTable({
             {!isOutstanding && (
               <tr className="bg-muted/10 font-semibold italic border-b-2">
                 <td 
-                  colSpan={visibleColumns.filter(c => ["Entry_No", "Posting_Date", "Document_Type", "Document_No", "External_Document_No", "VendorName", "Debit_Amount", "Credit_Amount"].includes(c)).length} 
+                  colSpan={visibleColumns.filter(c => !["Amount", "Amount_LCY", "Debit_Amount_LCY", "Credit_Amount_LCY", "Remaining_Amount", "Global_Dimension_1_Code", "Global_Dimension_2_Code", "TDS_Section_Code", "Open", "Due_Date", "Description", "Document_Date", "Closed_at_Date", "Vendor_No", "Invoice_Received_Date"].includes(c)).length} 
                   className="text-right text-xs py-2 px-4 text-muted-foreground highlight"
                 >
                   Opening Balance
@@ -135,9 +141,9 @@ export function VendorLedgerTable({
                     {openingBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                   </td>
                 ) : (
-                  <td className="px-4" />
+                  visibleColumns.length > 0 && <td className="px-4" />
                 )}
-                <td colSpan={visibleColumns.filter(c => ["Remaining_Amount", "Open", "Due_Date", "Description", "Document_Date", "Closed_at_Date", "Vendor_No", "Invoice_Received_Date"].includes(c)).length} className="px-4" />
+                <td colSpan={visibleColumns.filter(c => ["Amount_LCY", "Debit_Amount_LCY", "Credit_Amount_LCY", "Remaining_Amount", "Global_Dimension_1_Code", "Global_Dimension_2_Code", "TDS_Section_Code", "Open", "Due_Date", "Description", "Document_Date", "Closed_at_Date", "Vendor_No", "Invoice_Received_Date"].includes(c)).length} className="px-4" />
               </tr>
             )}
 
@@ -192,6 +198,24 @@ export function VendorLedgerTable({
                       {entry.Amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                     </TableCell>
                   )}
+                  {visibleColumns.includes("Amount_LCY") && (
+                    <TableCell className={cn(
+                      "text-right text-xs",
+                      entry.Amount_LCY < 0 ? "text-red-500" : "text-green-600"
+                    )}>
+                      {entry.Amount_LCY?.toLocaleString(undefined, { minimumFractionDigits: 2 }) || "-"}
+                    </TableCell>
+                  )}
+                  {visibleColumns.includes("Debit_Amount_LCY") && (
+                    <TableCell className="text-right text-xs">
+                      {entry.Debit_Amount_LCY !== 0 ? entry.Debit_Amount_LCY?.toLocaleString(undefined, { minimumFractionDigits: 2 }) : "-"}
+                    </TableCell>
+                  )}
+                  {visibleColumns.includes("Credit_Amount_LCY") && (
+                    <TableCell className="text-right text-xs">
+                      {entry.Credit_Amount_LCY !== 0 ? entry.Credit_Amount_LCY?.toLocaleString(undefined, { minimumFractionDigits: 2 }) : "-"}
+                    </TableCell>
+                  )}
                   {visibleColumns.includes("Remaining_Amount") && (
                     <TableCell className="text-right text-xs font-semibold text-primary">
                       {entry.Remaining_Amount !== 0 
@@ -199,6 +223,9 @@ export function VendorLedgerTable({
                         : "0.00"}
                     </TableCell>
                   )}
+                  {visibleColumns.includes("Global_Dimension_1_Code") && <TableCell className="text-xs uppercase font-medium">{entry.Global_Dimension_1_Code}</TableCell>}
+                  {visibleColumns.includes("Global_Dimension_2_Code") && <TableCell className="text-xs uppercase font-medium">{entry.Global_Dimension_2_Code}</TableCell>}
+                  {visibleColumns.includes("TDS_Section_Code") && <TableCell className="text-xs font-mono">{entry.TDS_Section_Code || "-"}</TableCell>}
                   {visibleColumns.includes("Open") && (
                     <TableCell className="text-center">
                       <Badge variant={entry.Open ? "outline" : "secondary"} className="text-[10px] h-5 py-0">
@@ -248,7 +275,7 @@ export function VendorLedgerTable({
             {!isOutstanding && (
               <tr className="bg-primary/5 font-bold border-t-2">
                 <td 
-                  colSpan={visibleColumns.filter(c => ["Entry_No", "Posting_Date", "Document_Type", "Document_No", "External_Document_No", "VendorName", "Debit_Amount", "Credit_Amount"].includes(c)).length} 
+                  colSpan={visibleColumns.filter(c => !["Amount", "Amount_LCY", "Debit_Amount_LCY", "Credit_Amount_LCY", "Remaining_Amount", "Global_Dimension_1_Code", "Global_Dimension_2_Code", "TDS_Section_Code", "Open", "Due_Date", "Description", "Document_Date", "Closed_at_Date", "Vendor_No", "Invoice_Received_Date"].includes(c)).length} 
                   className="text-right text-xs py-3 px-4 text-primary uppercase tracking-wider"
                 >
                   Closing Balance
@@ -261,9 +288,9 @@ export function VendorLedgerTable({
                     {closingBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                   </td>
                 ) : (
-                  <td className="px-4" />
+                  visibleColumns.length > 0 && <td className="px-4" />
                 )}
-                <td colSpan={visibleColumns.filter(c => ["Remaining_Amount", "Open", "Due_Date", "Description", "Document_Date", "Closed_at_Date", "Vendor_No", "Invoice_Received_Date"].includes(c)).length} className="px-4" />
+                <td colSpan={visibleColumns.filter(c => ["Amount_LCY", "Debit_Amount_LCY", "Credit_Amount_LCY", "Remaining_Amount", "Global_Dimension_1_Code", "Global_Dimension_2_Code", "TDS_Section_Code", "Open", "Due_Date", "Description", "Document_Date", "Closed_at_Date", "Vendor_No", "Invoice_Received_Date"].includes(c)).length} className="px-4" />
               </tr>
             )}
           </tbody>

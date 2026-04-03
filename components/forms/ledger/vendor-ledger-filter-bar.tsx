@@ -6,7 +6,12 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { DateInput } from "@/components/ui/date-input";
 import type { VendorLedgerFilters } from "@/lib/api/services/vendor-ledger.service";
-import { ColumnVisibility } from "../report-ledger/column-visibility";
+import { VendorColumnVisibility } from "./vendor-ledger-column-visibility";
+import { 
+  LEDGER_DEFAULT_COLUMNS, 
+  OUTSTANDING_DEFAULT_COLUMNS, 
+  OPTIONAL_COLUMNS 
+} from "./vendor-ledger-column-config";
 import { VendorLedgerExportDialog } from "./vendor-ledger-export-dialog";
 import { DynamicFilterBuilder } from "../report-ledger/dynamic-filter-builder";
 import type { FilterCondition } from "../report-ledger/types";
@@ -192,8 +197,10 @@ export function VendorLedgerFilterBar({
           Export
         </Button>
 
-        <ColumnVisibility
+        <VendorColumnVisibility
           visibleColumns={visibleColumns}
+          defaultColumns={filters.isOutstanding ? OUTSTANDING_DEFAULT_COLUMNS : LEDGER_DEFAULT_COLUMNS}
+          optionalColumns={OPTIONAL_COLUMNS}
           onColumnToggle={onColumnToggle}
           onResetColumns={onResetColumns}
           onShowAllColumns={onShowAllColumns}

@@ -186,37 +186,25 @@ export async function getVendorBalance(
 
   const query = buildODataQuery({
     $filter: filterParts.join(" and "),
-    $select: "Amount",
     $apply: "aggregate(Amount with sum as TotalAmount)",
   });
 
-  // OData aggregate might not be supported by all BC versions without customization, 
-  // so we might need to fetch all and sum if aggregation fails. 
-  // However, buildODataQuery might not handle $apply.
-  
-  // Alternative: fetch with $select=Amount and sum on client side if only few entries, 
-  // but for balance we want the total.
-  
-  // Let's try a simpler approach if $apply is not supported:
-  // Fetch all amounts... wait, that's slow.
-  
-  // Actually, many BC OData V4 endpoints support $apply. 
-  // If not, we'll have to use a different strategy.
-  
   try {
     const endpoint = `/VendorLedgerEntry?company='${encodeURIComponent(COMPANY)}'&${query}`;
     const response = await apiGet<any>(endpoint);
+    // OData aggregate results are typically returned in a 'value' array
     return response.value?.[0]?.TotalAmount || 0;
   } catch (error) {
     console.error("Aggregation failed, falling back to manual sum", error);
-    // Fallback: This is not ideal for large ledgers but works as a last resort
+    // Fallback: This is limited to the first 1000 entries if aggregation fails
     const simpleQuery = buildODataQuery({
       $filter: filterParts.join(" and "),
       $select: "Amount",
+      $top: 10000,
     });
-    const endpoint = `/VendorLedgerEntry?company='${encodeURIComponent(COMPANY)}'&${simpleQuery}`;
+    const endpoint = `/VendorLedgerEntry?company='${encodeURIComponent(COMPANY)}'&$count=true&${simpleQuery}`;
     const response = await apiGet<ODataResponse<{ Amount: number }>>(endpoint);
-    return response.value.reduce((sum, entry) => sum + (entry.Amount || 0), 0);
+    return response.value?.reduce((sum, entry) => sum + (Number(entry.Amount) || 0), 0) || 0;
   }
 }
 

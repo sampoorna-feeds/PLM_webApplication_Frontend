@@ -16,7 +16,7 @@ import {
   loadVisibleColumns, 
   saveVisibleColumns,
   ALL_COLUMNS,
-} from "./vendor-ledger-column-config";
+} from "@/components/forms/ledger/vendor-ledger-column-config";
 
 export interface UseVendorLedgerOptions {
   isOutstanding?: boolean;

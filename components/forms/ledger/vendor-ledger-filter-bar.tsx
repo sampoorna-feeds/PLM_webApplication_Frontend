@@ -11,7 +11,7 @@ import { VendorLedgerExportDialog } from "./vendor-ledger-export-dialog";
 import { NewVendorEntryDialog } from "./new-vendor-entry-dialog";
 import { DynamicFilterBuilder } from "../report-ledger/dynamic-filter-builder";
 import type { FilterCondition } from "../report-ledger/types";
-import { VENDOR_LEDGER_COLUMNS } from "./column-config";
+import { VENDOR_LEDGER_COLUMNS } from "@/components/forms/ledger/column-config";
 import { useState, useMemo } from "react";
 import {
   Popover,

@@ -64,7 +64,7 @@ export function VendorLedgerTable({
     className?: string;
     isSortable?: boolean;
   }) => (
-    <TableHead className={cn("px-4 py-4 bg-muted/50 transition-colors", className)}>
+    <TableHead className={cn("px-4 py-4 sticky top-0 z-20 bg-muted/95 backdrop-blur-sm transition-colors border-b shadow-[0_1px_0_0_rgba(0,0,0,0.05)]", className)}>
       <div 
         className={cn(
           "flex items-center cursor-pointer hover:text-primary transition-colors gap-2",

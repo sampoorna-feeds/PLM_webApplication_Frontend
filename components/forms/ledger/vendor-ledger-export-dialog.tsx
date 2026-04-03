@@ -15,7 +15,7 @@ import {
 } from "@/lib/api/services/vendor-ledger.service";
 import { exportToExcel } from "@/lib/utils/export";
 import { toast } from "sonner";
-import { ALL_COLUMNS } from "./vendor-ledger-column-config";
+import { ALL_COLUMNS } from "@/components/forms/ledger/vendor-ledger-column-config";
 
 interface VendorLedgerExportDialogProps {
   open: boolean;

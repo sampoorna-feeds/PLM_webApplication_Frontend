@@ -1,17 +1,19 @@
 "use client";
 
-import React, { useState } from "react";
-import { useVendorLedger } from "./use-vendor-ledger";
-import { VendorLedgerTable } from "./vendor-ledger-table";
-import { VendorLedgerFilterBar } from "./vendor-ledger-filter-bar";
-import { PaginationControls } from "../report-ledger/pagination-controls";
-import { Loader2, RefreshCcw } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { AccountSelect } from "@/components/forms/account-select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Loader2, RefreshCcw } from "lucide-react";
+import { useState } from "react";
+import { PaginationControls } from "../report-ledger/pagination-controls";
+import { useVendorLedger } from "./use-vendor-ledger";
+import { VendorLedgerFilterBar } from "./vendor-ledger-filter-bar";
+import { VendorLedgerTable } from "./vendor-ledger-table";
 
 export function VendorLedgerView() {
-  const [activeTab, setActiveTab] = useState<"ledger" | "outstanding">("ledger");
+  const [activeTab, setActiveTab] = useState<"ledger" | "outstanding">(
+    "ledger",
+  );
 
   const ledgerState = useVendorLedger({ isOutstanding: false });
   const outstandingState = useVendorLedger({ isOutstanding: true });
@@ -23,53 +25,63 @@ export function VendorLedgerView() {
   };
 
   return (
-    <div className="flex flex-col gap-4 w-full h-full p-4 overflow-hidden bg-background/30 backdrop-blur-sm">
-      <div className="flex items-center justify-between gap-4">
-        <h1 className="text-2xl font-bold tracking-tight text-foreground/90 shrink-0">Vendor Ledger</h1>
-        
+    <div className="bg-background/30 flex h-full w-full flex-col gap-4 overflow-hidden p-4 backdrop-blur-sm">
+      <div className="flex items-center justify-end gap-4">
         <div className="flex items-center gap-3">
-          <Tabs value={activeTab} onValueChange={handleTabChange} className="w-[360px]">
-            <TabsList className="grid w-full grid-cols-2 h-9 shadow-sm border p-1 bg-muted/30">
-              <TabsTrigger value="ledger" className="text-xs font-semibold transition-all data-[state=active]:bg-primary data-[state=active]:text-primary-foreground h-7">
+          <Tabs
+            value={activeTab}
+            onValueChange={handleTabChange}
+            className="w-[360px]"
+          >
+            <TabsList className="bg-muted/30 grid h-9 w-full grid-cols-2 border p-1 shadow-sm">
+              <TabsTrigger
+                value="ledger"
+                className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground h-7 text-xs font-semibold transition-all"
+              >
                 Ledger
               </TabsTrigger>
-              <TabsTrigger value="outstanding" className="text-xs font-semibold transition-all data-[state=active]:bg-primary data-[state=active]:text-primary-foreground h-7">
+              <TabsTrigger
+                value="outstanding"
+                className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground h-7 text-xs font-semibold transition-all"
+              >
                 Outstanding
               </TabsTrigger>
             </TabsList>
           </Tabs>
 
-          <div className="h-6 w-px bg-border/60 mx-1" />
+          <div className="bg-border/60 mx-1 h-6 w-px" />
 
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={() => currentState.refetch()} 
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => currentState.refetch()}
             disabled={currentState.isLoading}
-            className="h-9 px-3 border shadow-sm hover:bg-muted font-medium"
+            className="hover:bg-muted h-9 border px-3 font-medium shadow-sm"
           >
             {currentState.isLoading ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
-              <RefreshCcw className="h-4 w-4 mr-2" />
+              <RefreshCcw className="mr-2 h-4 w-4" />
             )}
             {!currentState.isLoading && "Refresh"}
           </Button>
         </div>
       </div>
 
-      <div className="flex items-center gap-4 bg-card/60 p-3 border rounded-xl shadow-sm">
-        <div className="flex-1 max-w-sm">
+      <div className="bg-card/60 flex items-center gap-4 rounded-xl border p-3 shadow-sm">
+        <div className="max-w-sm flex-1">
           <AccountSelect
             accountType="Vendor"
             value={currentState.filters.vendorNo || ""}
-            onChange={(val: string) => currentState.onFilterChange({ vendorNo: val })}
+            onChange={(val: string) =>
+              currentState.onFilterChange({ vendorNo: val })
+            }
             placeholder="Select vendor code..."
-            className="w-full h-10 border-primary/20 hover:border-primary/50 transition-colors shadow-none"
+            className="border-primary/20 hover:border-primary/50 h-10 w-full shadow-none transition-colors"
           />
         </div>
 
-        <div className="h-6 w-px bg-border/60" />
+        <div className="bg-border/60 h-6 w-px" />
 
         <VendorLedgerFilterBar
           filters={currentState.filters}
@@ -91,14 +103,14 @@ export function VendorLedgerView() {
               vendorNo: "",
               search: "",
               columnFilters: {},
-              additionalFilters: []
+              additionalFilters: [],
             });
           }}
           isLoading={currentState.isLoading}
         />
       </div>
 
-      <div className="flex-1 min-h-0 overflow-hidden mt-1 border rounded-xl shadow-sm bg-background/50 p-1 flex flex-col">
+      <div className="bg-background/50 mt-1 flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border p-1 shadow-sm">
         <VendorLedgerTable
           entries={currentState.entries}
           isLoading={currentState.isLoading}
@@ -114,7 +126,7 @@ export function VendorLedgerView() {
         />
       </div>
 
-      <div className="border rounded-lg bg-card p-2 shadow-sm">
+      <div className="bg-card rounded-lg border p-2 shadow-sm">
         <PaginationControls
           currentPage={currentState.currentPage}
           totalPages={currentState.totalPages}

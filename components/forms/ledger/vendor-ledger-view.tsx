@@ -114,6 +114,9 @@ export function VendorLedgerView() {
         <VendorLedgerTable
           entries={currentState.entries}
           isLoading={currentState.isLoading}
+          isFetchingNextPage={currentState.isFetchingNextPage}
+          hasMore={currentState.hasMore}
+          loadMore={currentState.loadMore}
           openingBalance={currentState.openingBalance}
           closingBalance={currentState.closingBalance}
           onSort={currentState.onSort}
@@ -123,18 +126,6 @@ export function VendorLedgerView() {
           columnFilters={currentState.filters.columnFilters}
           visibleColumns={currentState.visibleColumns}
           isOutstanding={activeTab === "outstanding"}
-        />
-      </div>
-
-      <div className="bg-card rounded-lg border p-2 shadow-sm">
-        <PaginationControls
-          currentPage={currentState.currentPage}
-          totalPages={currentState.totalPages}
-          pageSize={currentState.pageSize}
-          totalCount={currentState.totalCount}
-          hasNextPage={currentState.currentPage < currentState.totalPages}
-          onPageChange={currentState.onPageChange}
-          onPageSizeChange={currentState.onPageSizeChange}
         />
       </div>
     </div>

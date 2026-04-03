@@ -8,7 +8,6 @@ import { DateInput } from "@/components/ui/date-input";
 import type { VendorLedgerFilters } from "@/lib/api/services/vendor-ledger.service";
 import { ColumnVisibility } from "../report-ledger/column-visibility";
 import { VendorLedgerExportDialog } from "./vendor-ledger-export-dialog";
-import { NewVendorEntryDialog } from "./new-vendor-entry-dialog";
 import { DynamicFilterBuilder } from "../report-ledger/dynamic-filter-builder";
 import type { FilterCondition } from "../report-ledger/types";
 import { VENDOR_LEDGER_COLUMNS } from "@/components/forms/ledger/column-config";
@@ -181,9 +180,6 @@ export function VendorLedgerFilterBar({
       </div>
 
       <div className="flex items-center gap-2 shrink-0 ml-4">
-        <NewVendorEntryDialog onSuccess={onSuccess} defaultVendorNo={filters.vendorNo} />
-
-        <div className="h-6 w-px bg-border/60 mx-1" />
 
         <Button
           variant="outline"

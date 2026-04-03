@@ -26,7 +26,7 @@ interface DynamicFilterBuilderProps {
   onRemoveFilter: (index: number) => void;
   excludedFields?: string[];
   topFields?: string[];
-  columns?: any[]; // Allow custom column list
+  columnConfig?: any[]; // Allow custom column list
 }
 
 export function DynamicFilterBuilder({
@@ -35,7 +35,7 @@ export function DynamicFilterBuilder({
   onRemoveFilter,
   excludedFields = ["Location_Code", "Item_No", "Posting_Date"],
   topFields = [],
-  columns = ALL_COLUMNS,
+  columnConfig = ALL_COLUMNS,
 }: DynamicFilterBuilderProps) {
   const [open, setOpen] = useState(false);
   const [selectedField, setSelectedField] = useState("");
@@ -45,7 +45,7 @@ export function DynamicFilterBuilder({
   const [fieldSearch, setFieldSearch] = useState("");
 
   const AVAILABLE_COLUMNS = useMemo(() => {
-    return columns.filter((col) => !excludedFields.includes(col.id)).sort(
+    return columnConfig.filter((col) => !excludedFields.includes(col.id)).sort(
       (a, b) => {
         const aIsTop = topFields.includes(a.id);
         const bIsTop = topFields.includes(b.id);
@@ -54,7 +54,7 @@ export function DynamicFilterBuilder({
         return a.label.localeCompare(b.label);
       },
     );
-  }, [columns, excludedFields, topFields]);
+  }, [columnConfig, excludedFields, topFields]);
 
   // Filter columns by search query (matches label or id)
   const filteredColumns = useMemo(() => {

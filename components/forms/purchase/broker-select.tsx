@@ -121,7 +121,7 @@ export function BrokerSelect({
           className={`h-9 w-full justify-between font-normal ${className || ""}`}
         >
           <span className="truncate text-left">
-            {value ? displayText : (disabled ? "None" : placeholder)}
+            {value ? displayText : disabled ? "None" : placeholder}
           </span>
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
@@ -147,7 +147,7 @@ export function BrokerSelect({
           </div>
         </div>
 
-        <div className="max-h-[200px] overflow-y-auto">
+        <div className="max-h-50 overflow-y-auto">
           {isLoading ? (
             <div className="text-muted-foreground py-4 text-center text-sm">
               Loading...

@@ -19,6 +19,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
+import { Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { TaxInfoPopover } from "./tax-info-popover";
 import type { LineItem } from "./purchase-line-item.type";
@@ -67,6 +69,7 @@ export function PurchaseLineItemsTable({
 }: PurchaseLineItemsTableProps) {
   const [itemToRemove, setItemToRemove] = useState<string | null>(null);
   const quantityColumns = getPurchaseLineQuantityConfig(documentType);
+  const showQtyColumns = documentType === "order" || documentType === "return-order";
 
   const handleRemoveClick = useCallback((itemId: string) => {
     setItemToRemove(itemId);
@@ -114,18 +117,22 @@ export function PurchaseLineItemsTable({
               <TableHead className="text-primary w-24 text-right text-[10px] font-bold tracking-wider uppercase">
                 Quantity
               </TableHead>
-              <TableHead className="text-primary w-24 text-right text-[10px] font-bold tracking-wider uppercase">
-                {quantityColumns.firstPendingLabel}
-              </TableHead>
-              <TableHead className="text-primary w-24 text-right text-[10px] font-bold tracking-wider uppercase">
-                {quantityColumns.firstCompletedLabel}
-              </TableHead>
-              <TableHead className="text-primary w-24 text-right text-[10px] font-bold tracking-wider uppercase">
-                {quantityColumns.secondPendingLabel}
-              </TableHead>
-              <TableHead className="text-primary w-24 text-right text-[10px] font-bold tracking-wider uppercase">
-                {quantityColumns.secondCompletedLabel}
-              </TableHead>
+              {showQtyColumns && (
+                <>
+                  <TableHead className="text-primary w-24 text-right text-[10px] font-bold tracking-wider uppercase">
+                    {quantityColumns.firstPendingLabel}
+                  </TableHead>
+                  <TableHead className="text-primary w-24 text-right text-[10px] font-bold tracking-wider uppercase">
+                    {quantityColumns.firstCompletedLabel}
+                  </TableHead>
+                  <TableHead className="text-primary w-24 text-right text-[10px] font-bold tracking-wider uppercase">
+                    {quantityColumns.secondPendingLabel}
+                  </TableHead>
+                  <TableHead className="text-primary w-24 text-right text-[10px] font-bold tracking-wider uppercase">
+                    {quantityColumns.secondCompletedLabel}
+                  </TableHead>
+                </>
+              )}
               <TableHead className="text-primary w-32 text-right text-[10px] font-bold tracking-wider uppercase">
                 Unit Price
               </TableHead>
@@ -150,6 +157,11 @@ export function PurchaseLineItemsTable({
               <TableHead className="text-primary w-20 text-right text-[10px] font-bold tracking-wider uppercase">
                 Bags
               </TableHead>
+              {onRemove && (
+                <TableHead className="text-primary w-12 text-center text-[10px] font-bold tracking-wider uppercase">
+                  Del
+                </TableHead>
+              )}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -185,30 +197,34 @@ export function PurchaseLineItemsTable({
                 <TableCell className="text-right font-medium">
                   {item.quantity}
                 </TableCell>
-                <TableCell className="text-right">
-                  {getQuantityDisplayValue(
-                    item,
-                    quantityColumns.firstPendingKey,
-                  )}
-                </TableCell>
-                <TableCell className="text-right">
-                  {getQuantityDisplayValue(
-                    item,
-                    quantityColumns.firstCompletedKey,
-                  )}
-                </TableCell>
-                <TableCell className="text-right">
-                  {getQuantityDisplayValue(
-                    item,
-                    quantityColumns.secondPendingKey,
-                  )}
-                </TableCell>
-                <TableCell className="text-right">
-                  {getQuantityDisplayValue(
-                    item,
-                    quantityColumns.secondCompletedKey,
-                  )}
-                </TableCell>
+                {showQtyColumns && (
+                  <>
+                    <TableCell className="text-right">
+                      {getQuantityDisplayValue(
+                        item,
+                        quantityColumns.firstPendingKey,
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {getQuantityDisplayValue(
+                        item,
+                        quantityColumns.firstCompletedKey,
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {getQuantityDisplayValue(
+                        item,
+                        quantityColumns.secondPendingKey,
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {getQuantityDisplayValue(
+                        item,
+                        quantityColumns.secondCompletedKey,
+                      )}
+                    </TableCell>
+                  </>
+                )}
                 <TableCell className="text-right">
                   {(item.unitPrice || 0).toLocaleString(undefined, {
                     minimumFractionDigits: 2,
@@ -233,6 +249,21 @@ export function PurchaseLineItemsTable({
                 <TableCell className="text-right">
                   {item.noOfBags || "-"}
                 </TableCell>
+                {onRemove && (
+                  <TableCell
+                    className="text-center"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="text-destructive hover:text-destructive hover:bg-destructive/10 h-7 w-7"
+                      onClick={() => handleRemoveClick(item.id)}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </TableCell>
+                )}
               </TableRow>
             ))}
           </TableBody>

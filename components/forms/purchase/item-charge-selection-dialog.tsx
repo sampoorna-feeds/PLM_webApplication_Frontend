@@ -393,7 +393,7 @@ export function ItemChargeSelectionDialog({
             <table className="relative w-full border-collapse text-sm">
               {/* Sticky header */}
               <thead className="sticky top-0 z-30">
-                <tr className="bg-muted border-b border-border whitespace-nowrap">
+                <tr className="bg-muted border-border border-b whitespace-nowrap">
                   {/* S.No + Checkbox sticky column */}
                   <th className="bg-muted sticky left-0 z-40 w-20 px-3 text-center align-middle">
                     <div className="flex items-center justify-center gap-2">
@@ -488,7 +488,7 @@ export function ItemChargeSelectionDialog({
                           <td className="px-3 py-0 text-center align-middle text-xs tabular-nums">
                             {itemNo}
                           </td>
-                          <td className="max-w-[300px] truncate px-3 py-0 text-left align-middle text-[11px]">
+                          <td className="max-w-75 truncate px-3 py-0 text-left align-middle text-[11px]">
                             {line.Description}
                           </td>
                           <td className="px-3 py-0 text-right align-middle text-[11px] tabular-nums">
@@ -546,8 +546,8 @@ export function ItemChargeSelectionDialog({
                     <span className="text-foreground/50 ml-1">
                       / {totalCount.toLocaleString()} total
                     </span>
-                  )}
-                  {" "}Records
+                  )}{" "}
+                  Records
                   {Object.keys(columnFilters).length > 0 && (
                     <span className="text-primary ml-2">
                       ({filteredAndSortedLines.length} filtered)

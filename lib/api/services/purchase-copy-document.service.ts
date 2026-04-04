@@ -46,7 +46,7 @@ export interface PurchaseCopyDocumentParams {
 export async function executePurchaseCopyDocument(
   params: PurchaseCopyDocumentParams,
 ): Promise<void> {
-  const endpoint = `/PurchaseCopyDocument?company='${encodeURIComponent(COMPANY)}'`;
+  const endpoint = `/API_PurchaseCopyDocument?company='${encodeURIComponent(COMPANY)}'`;
 
   const payload: Record<string, unknown> = {
     fromDocType1: params.fromDocType1,
@@ -102,7 +102,6 @@ export interface SourceDocumentRow {
   vendorNo: string;
   vendorName: string;
   postingDate: string;
-  amount: string | number;
 }
 
 interface ODataListResponse<T> {
@@ -113,9 +112,9 @@ interface ODataListResponse<T> {
 export type CopySourceSortColumn =
   | "No"
   | "Buy_from_Vendor_No"
+  | "Pay_to_Vendor_No"
   | "Buy_from_Vendor_Name"
-  | "Posting_Date"
-  | "Amount";
+  | "Posting_Date";
 
 export type CopySourceSortDirection = "asc" | "desc";
 
@@ -147,25 +146,47 @@ export interface FetchSourceDocumentsForCopyResult {
 /** OData entity mapping for each copy source type */
 const FROM_DOC_TYPE_ENTITY_MAP: Record<
   PurchaseCopyFromDocType,
-  { entity: string; defaultSort: CopySourceSortColumn }
+  {
+    entity: string;
+    defaultSort: CopySourceSortColumn;
+    selectFields: string;
+    /** OData field name for the vendor number (differs across entities) */
+    vendorNoField: string;
+  }
 > = {
   "Posted Invoice": {
     entity: "PostedPurchaseInvoiceH",
     defaultSort: "Posting_Date",
+    selectFields: "No,Pay_to_Vendor_No,Buy_from_Vendor_Name,Posting_Date",
+    vendorNoField: "Pay_to_Vendor_No",
   },
   "Posted Receipt": {
-    entity: "PostedPurchaseReceiptH",
+    entity: "Purchasereceipt",
     defaultSort: "Posting_Date",
+    selectFields: "No,Buy_from_Vendor_No,Buy_from_Vendor_Name,Posting_Date",
+    vendorNoField: "Buy_from_Vendor_No",
   },
   Order: {
     entity: "PurchaseOrder",
     defaultSort: "No",
+    selectFields: "No,Buy_from_Vendor_No,Buy_from_Vendor_Name,Posting_Date",
+    vendorNoField: "Buy_from_Vendor_No",
   },
   "Posted Credit Memo": {
     entity: "PostedPurchaseCreditMemoH",
     defaultSort: "Posting_Date",
+    selectFields: "No,Pay_to_Vendor_No,Buy_from_Vendor_Name,Posting_Date",
+    vendorNoField: "Pay_to_Vendor_No",
   },
 };
+
+/** Returns the OData vendor number field name for a given source doc type */
+export function getVendorNoSortField(
+  fromDocType: PurchaseCopyFromDocType,
+): CopySourceSortColumn {
+  return (FROM_DOC_TYPE_ENTITY_MAP[fromDocType]?.vendorNoField ??
+    "Buy_from_Vendor_No") as CopySourceSortColumn;
+}
 
 function escapeODataValue(value: string): string {
   return value.replace(/'/g, "''");
@@ -174,25 +195,23 @@ function escapeODataValue(value: string): string {
 function mapSourceRow(row: Record<string, unknown>): SourceDocumentRow {
   return {
     no: String(row["No"] ?? row["Document_No"] ?? ""),
-    vendorNo: String(row["Buy_from_Vendor_No"] ?? ""),
+    vendorNo: String(row["Buy_from_Vendor_No"] ?? row["Pay_to_Vendor_No"] ?? ""),
     vendorName: String(row["Buy_from_Vendor_Name"] ?? ""),
     postingDate: String(row["Posting_Date"] ?? row["Document_Date"] ?? ""),
-    amount: Number(
-      row["Amount"] ?? row["Amount_Including_VAT"] ?? row["Line_Amount"] ?? 0,
-    ),
   };
 }
 
 function buildSourceFilters(
   searchTerm?: string,
   filters?: CopySourceFilters,
+  vendorNoField: string = "Buy_from_Vendor_No",
 ): string | undefined {
   const clauses: string[] = [];
 
   if (searchTerm && searchTerm.trim()) {
     const escapedSearch = escapeODataValue(searchTerm.trim());
     clauses.push(
-      `contains(No,'${escapedSearch}') or contains(Buy_from_Vendor_No,'${escapedSearch}') or contains(Buy_from_Vendor_Name,'${escapedSearch}')`,
+      `(contains(No,'${escapedSearch}') or contains(${vendorNoField},'${escapedSearch}') or contains(Buy_from_Vendor_Name,'${escapedSearch}'))`,
     );
   }
 
@@ -203,7 +222,7 @@ function buildSourceFilters(
 
   if (filters?.vendorNo?.trim()) {
     const escapedVendorNo = escapeODataValue(filters.vendorNo.trim());
-    clauses.push(`contains(Buy_from_Vendor_No,'${escapedVendorNo}')`);
+    clauses.push(`contains(${vendorNoField},'${escapedVendorNo}')`);
   }
 
   if (filters?.postingDateFrom) {
@@ -239,12 +258,16 @@ export async function fetchSourceDocumentsForCopy(
 
   const skip = Math.max(0, params.skip ?? 0);
   const top = Math.max(1, params.top ?? DEFAULT_PAGE_SIZE);
-  const filter = buildSourceFilters(params.searchTerm, params.filters);
+  const filter = buildSourceFilters(
+    params.searchTerm,
+    params.filters,
+    mapping.vendorNoField,
+  );
   const sortBy = params.sortBy ?? mapping.defaultSort;
   const sortDirection = params.sortDirection ?? "desc";
 
   const query = buildODataQuery({
-    $select: "No,Buy_from_Vendor_No,Buy_from_Vendor_Name,Posting_Date,Amount",
+    $select: mapping.selectFields,
     $filter: filter,
     $orderby: `${sortBy} ${sortDirection}`,
     $top: top,

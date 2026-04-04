@@ -26,6 +26,12 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import {
   Select,
   SelectContent,
@@ -33,24 +39,27 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Loader2,
   ChevronLeft,
   Copy,
   Search,
-  X,
   ArrowDown,
   ArrowUp,
   ArrowUpDown,
+  Filter,
+  X,
 } from "lucide-react";
-import { DimensionSelect } from "@/components/forms/dimension-select";
+import { CascadingDimensionSelect } from "@/components/forms/cascading-dimension-select";
 import {
   COPY_FROM_DOC_TYPE_OPTIONS,
+  fetchSourceDocumentsForCopy,
+  executePurchaseCopyDocument,
+  getVendorNoSortField,
   type CopySourceFilters,
   type CopySourceSortColumn,
   type CopySourceSortDirection,
-  fetchSourceDocumentsForCopy,
-  executePurchaseCopyDocument,
   type PurchaseCopyFromDocType,
   type PurchaseCopyToDocType,
   type SourceDocumentRow,
@@ -62,11 +71,19 @@ interface PurchaseCopyDocumentDialogProps {
   toDocNo?: string;
   toDocType: PurchaseCopyToDocType;
   onOpenChange: (open: boolean) => void;
-  onSuccess: () => void | Promise<void>;
-  onCreateHeader?: (locCode: string) => Promise<string>;
+  onSuccess: (docNo?: string) => void | Promise<void>;
+  onCreateHeader?: (
+    locCode: string,
+    lobCode: string,
+    branchCode: string,
+  ) => Promise<string>;
+  userId?: string;
+  lobValue?: string;
+  branchValue?: string;
 }
 
 const PAGE_SIZE = 25;
+const SEARCH_DEBOUNCE_MS = 300;
 
 const EMPTY_FILTERS: CopySourceFilters = {
   documentNo: "",
@@ -90,13 +107,203 @@ function getSortIcon(
   direction: CopySourceSortDirection,
 ) {
   if (column !== activeColumn) {
-    return <ArrowUpDown className="h-3.5 w-3.5 opacity-50" />;
+    return <ArrowUpDown className="h-3 w-3 opacity-50" />;
   }
 
   return direction === "asc" ? (
-    <ArrowUp className="h-3.5 w-3.5" />
+    <ArrowUp className="h-3 w-3" />
   ) : (
-    <ArrowDown className="h-3.5 w-3.5" />
+    <ArrowDown className="h-3 w-3" />
+  );
+}
+
+// ── Column filter popover (matches main table filter pattern) ──────────────
+
+interface TextFilterProps {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+}
+
+interface DateFilterProps {
+  label: string;
+  valueFrom: string;
+  valueTo: string;
+  onChange: (from: string, to: string) => void;
+}
+
+function CopyDocTextFilter({ label, value, onChange }: TextFilterProps) {
+  const [open, setOpen] = useState(false);
+  const [local, setLocal] = useState(value);
+  const hasFilter = !!value;
+
+  useEffect(() => {
+    setLocal(value);
+  }, [value]);
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className={cn(
+            "hover:bg-background/50 rounded p-0.5 transition-colors",
+            hasFilter
+              ? "text-primary"
+              : "text-muted-foreground/50 hover:text-muted-foreground",
+          )}
+          onClick={(e) => {
+            e.stopPropagation();
+            setOpen(!open);
+          }}
+        >
+          <Filter className={cn("h-3 w-3", hasFilter && "fill-current")} />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        className="w-52 p-3"
+        align="start"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="space-y-2">
+          <Label className="text-xs font-medium">Filter {label}</Label>
+          <Input
+            placeholder="Enter value..."
+            value={local}
+            onChange={(e) => setLocal(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                onChange(local);
+                setOpen(false);
+              }
+            }}
+            className="h-8 text-sm"
+            autoFocus
+          />
+        </div>
+        <div className="mt-3 flex gap-2">
+          <Button
+            size="sm"
+            className="h-7 flex-1 text-xs"
+            onClick={() => {
+              onChange(local);
+              setOpen(false);
+            }}
+          >
+            Apply
+          </Button>
+          {hasFilter && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 px-2 text-xs"
+              onClick={() => {
+                setLocal("");
+                onChange("");
+                setOpen(false);
+              }}
+            >
+              <X className="h-3 w-3" />
+            </Button>
+          )}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+function CopyDocDateFilter({
+  label,
+  valueFrom,
+  valueTo,
+  onChange,
+}: DateFilterProps) {
+  const [open, setOpen] = useState(false);
+  const [localFrom, setLocalFrom] = useState(valueFrom);
+  const [localTo, setLocalTo] = useState(valueTo);
+  const hasFilter = !!(valueFrom || valueTo);
+
+  useEffect(() => {
+    setLocalFrom(valueFrom);
+    setLocalTo(valueTo);
+  }, [valueFrom, valueTo]);
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className={cn(
+            "hover:bg-background/50 rounded p-0.5 transition-colors",
+            hasFilter
+              ? "text-primary"
+              : "text-muted-foreground/50 hover:text-muted-foreground",
+          )}
+          onClick={(e) => {
+            e.stopPropagation();
+            setOpen(!open);
+          }}
+        >
+          <Filter className={cn("h-3 w-3", hasFilter && "fill-current")} />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        className="w-56 p-3"
+        align="start"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="space-y-3">
+          <Label className="text-xs font-medium">Filter {label}</Label>
+          <div className="space-y-2">
+            <div>
+              <Label className="text-muted-foreground text-xs">From</Label>
+              <Input
+                type="date"
+                value={localFrom}
+                onChange={(e) => setLocalFrom(e.target.value)}
+                className="h-8 text-sm"
+              />
+            </div>
+            <div>
+              <Label className="text-muted-foreground text-xs">To</Label>
+              <Input
+                type="date"
+                value={localTo}
+                onChange={(e) => setLocalTo(e.target.value)}
+                className="h-8 text-sm"
+              />
+            </div>
+          </div>
+        </div>
+        <div className="mt-3 flex gap-2">
+          <Button
+            size="sm"
+            className="h-7 flex-1 text-xs"
+            onClick={() => {
+              onChange(localFrom, localTo);
+              setOpen(false);
+            }}
+          >
+            Apply
+          </Button>
+          {hasFilter && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 px-2 text-xs"
+              onClick={() => {
+                setLocalFrom("");
+                setLocalTo("");
+                onChange("", "");
+                setOpen(false);
+              }}
+            >
+              <X className="h-3 w-3" />
+            </Button>
+          )}
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 }
 
@@ -107,9 +314,13 @@ export function PurchaseCopyDocumentDialog({
   onOpenChange,
   onSuccess,
   onCreateHeader,
-  ...props
+  userId,
+  lobValue,
+  branchValue,
 }: PurchaseCopyDocumentDialogProps) {
   const [step, setStep] = useState<1 | 2>(1);
+  const [lobCode, setLobCode] = useState(lobValue || "");
+  const [branchCode, setBranchCode] = useState(branchValue || "");
   const [locationCode, setLocationCode] = useState("");
   const [fromDocType, setFromDocType] = useState<PurchaseCopyFromDocType | "">(
     "",
@@ -122,7 +333,8 @@ export function PurchaseCopyDocumentDialog({
   const [isFetchingMore, setIsFetchingMore] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [selectedDocNo, setSelectedDocNo] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchInput, setSearchInput] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
   const [filters, setFilters] = useState<CopySourceFilters>(EMPTY_FILTERS);
   const [sortBy, setSortBy] = useState<CopySourceSortColumn>("Posting_Date");
   const [sortDirection, setSortDirection] =
@@ -133,17 +345,13 @@ export function PurchaseCopyDocumentDialog({
   const requestCounterRef = useRef(0);
 
   const fromDocOptions = COPY_FROM_DOC_TYPE_OPTIONS[toDocType] ?? [];
-  const hasActiveFilters =
-    Boolean(searchQuery.trim()) ||
-    Boolean(filters.documentNo) ||
-    Boolean(filters.vendorNo) ||
-    Boolean(filters.postingDateFrom) ||
-    Boolean(filters.postingDateTo);
 
   // Reset when dialog opens/closes
   useEffect(() => {
     if (!open) {
       setStep(1);
+      setLobCode("");
+      setBranchCode("");
       setLocationCode("");
       setFromDocType("");
       setDocs([]);
@@ -152,13 +360,17 @@ export function PurchaseCopyDocumentDialog({
       setNextSkip(0);
       setFetchError(null);
       setSelectedDocNo(null);
-      setSearchQuery("");
+      setSearchInput("");
+      setSearchTerm("");
       setFilters(EMPTY_FILTERS);
       setSortBy("Posting_Date");
       setSortDirection("desc");
       setCopyError(null);
+    } else {
+      setLobCode(lobValue || "");
+      setBranchCode(branchValue || "");
     }
-  }, [open]);
+  }, [open, lobValue, branchValue]);
 
   useEffect(() => {
     return () => {
@@ -166,6 +378,17 @@ export function PurchaseCopyDocumentDialog({
         clearTimeout(debounceRef.current);
       }
     };
+  }, []);
+
+  const handleLobChange = useCallback((value: string) => {
+    setLobCode(value);
+    setBranchCode("");
+    setLocationCode("");
+  }, []);
+
+  const handleBranchChange = useCallback((value: string) => {
+    setBranchCode(value);
+    setLocationCode("");
   }, []);
 
   const fetchDocs = useCallback(
@@ -182,8 +405,11 @@ export function PurchaseCopyDocumentDialog({
       try {
         const result = await fetchSourceDocumentsForCopy({
           fromDocType: fromDocType as PurchaseCopyFromDocType,
-          searchTerm: searchQuery.trim() || undefined,
-          filters: { ...normalizeFilters(filters), locationCode },
+          searchTerm: searchTerm.trim() || undefined,
+          filters: {
+            ...normalizeFilters(filters),
+            locationCode,
+          },
           sortBy,
           sortDirection,
           skip,
@@ -225,7 +451,7 @@ export function PurchaseCopyDocumentDialog({
         }
       }
     },
-    [filters, fromDocType, searchQuery, sortBy, sortDirection, locationCode],
+    [fromDocType, locationCode, searchTerm, filters, sortBy, sortDirection],
   );
 
   useEffect(() => {
@@ -242,7 +468,7 @@ export function PurchaseCopyDocumentDialog({
       setHasMore(false);
       setNextSkip(0);
       void fetchDocs(0, false);
-    }, 250);
+    }, SEARCH_DEBOUNCE_MS);
 
     return () => {
       if (debounceRef.current) {
@@ -252,36 +478,49 @@ export function PurchaseCopyDocumentDialog({
   }, [
     step,
     fromDocType,
-    searchQuery,
+    locationCode,
+    searchTerm,
     filters.documentNo,
     filters.vendorNo,
     filters.postingDateFrom,
     filters.postingDateTo,
     sortBy,
     sortDirection,
-    locationCode,
     fetchDocs,
   ]);
 
   const handleProceedToStep2 = useCallback(() => {
-    if (!fromDocType || !locationCode) return;
+    if (!fromDocType || !locationCode || !lobCode || !branchCode) return;
     setStep(2);
-    setSearchQuery("");
-    setFilters(EMPTY_FILTERS);
-    setSortBy("Posting_Date");
-    setSortDirection("desc");
     setDocs([]);
     setTotalCount(0);
     setHasMore(false);
     setNextSkip(0);
     setFetchError(null);
     setSelectedDocNo(null);
-  }, [fromDocType, locationCode]);
+    setSearchInput("");
+    setSearchTerm("");
+    setFilters(EMPTY_FILTERS);
+    setSortBy("Posting_Date");
+    setSortDirection("desc");
+  }, [fromDocType, locationCode, lobCode, branchCode]);
 
   const handleLoadMore = useCallback(() => {
     if (!hasMore || isFetchingDocs || isFetchingMore) return;
     void fetchDocs(nextSkip, true);
   }, [fetchDocs, hasMore, isFetchingDocs, isFetchingMore, nextSkip]);
+
+  const handleTableScroll = (event: React.UIEvent<HTMLDivElement>) => {
+    if (!hasMore || isFetchingDocs || isFetchingMore) return;
+
+    const target = event.currentTarget;
+    const nearBottom =
+      target.scrollTop + target.clientHeight >= target.scrollHeight - 60;
+
+    if (nearBottom) {
+      handleLoadMore();
+    }
+  };
 
   const handleSort = (column: CopySourceSortColumn) => {
     setSortBy((previousColumn) => {
@@ -297,27 +536,15 @@ export function PurchaseCopyDocumentDialog({
     });
   };
 
-  const handleResetFilters = () => {
-    setSearchQuery("");
-    setFilters(EMPTY_FILTERS);
-    setSortBy("Posting_Date");
-    setSortDirection("desc");
-  };
-
-  const handleTableScroll = (event: React.UIEvent<HTMLDivElement>) => {
-    if (!hasMore || isFetchingDocs || isFetchingMore) return;
-
-    const target = event.currentTarget;
-    const nearBottom =
-      target.scrollTop + target.clientHeight >= target.scrollHeight - 60;
-
-    if (nearBottom) {
-      handleLoadMore();
-    }
-  };
-
   const handleConfirmCopy = useCallback(async () => {
-    if (!selectedDocNo || !fromDocType || !locationCode) return;
+    if (
+      !selectedDocNo ||
+      !fromDocType ||
+      !locationCode ||
+      !lobCode ||
+      !branchCode
+    )
+      return;
 
     setIsCopying(true);
     setCopyError(null);
@@ -330,7 +557,7 @@ export function PurchaseCopyDocumentDialog({
         if (!onCreateHeader) {
           throw new Error("Missing callback to create document header.");
         }
-        targetDocNo = await onCreateHeader(locationCode);
+        targetDocNo = await onCreateHeader(locationCode, lobCode, branchCode);
         if (!targetDocNo) {
           throw new Error("Failed to get document number after creation.");
         }
@@ -342,7 +569,7 @@ export function PurchaseCopyDocumentDialog({
         purchaseHeaderNo: targetDocNo,
       });
 
-      await Promise.resolve(onSuccess());
+      await Promise.resolve(onSuccess(targetDocNo));
       onOpenChange(false);
     } catch (err: unknown) {
       const msg =
@@ -357,6 +584,8 @@ export function PurchaseCopyDocumentDialog({
     fromDocType,
     toDocNo,
     locationCode,
+    lobCode,
+    branchCode,
     onCreateHeader,
     onSuccess,
     onOpenChange,
@@ -364,7 +593,12 @@ export function PurchaseCopyDocumentDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent
+        className={cn(
+          "w-[95vw] overflow-hidden",
+          step === 1 ? "max-h-[90vh] sm:max-w-2xl" : "h-[90vh] sm:max-w-7xl",
+        )}
+      >
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-base">
             <Copy className="h-4 w-4" />
@@ -387,13 +621,46 @@ export function PurchaseCopyDocumentDialog({
           <div className="space-y-4 py-2">
             <div className="space-y-1.5">
               <label className="text-muted-foreground text-xs font-medium">
+                LOB
+              </label>
+              <CascadingDimensionSelect
+                dimensionType="LOB"
+                value={lobCode}
+                onChange={handleLobChange}
+                placeholder="Select LOB"
+                userId={userId}
+                compactWhenSingle
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-muted-foreground text-xs font-medium">
+                Branch
+              </label>
+              <CascadingDimensionSelect
+                dimensionType="BRANCH"
+                value={branchCode}
+                onChange={handleBranchChange}
+                placeholder="Select Branch"
+                lobValue={lobCode}
+                userId={userId}
+                compactWhenSingle
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-muted-foreground text-xs font-medium">
                 Location
               </label>
-              <DimensionSelect
+              <CascadingDimensionSelect
                 dimensionType="LOC"
                 value={locationCode}
                 onChange={setLocationCode}
                 placeholder="Select Location"
+                lobValue={lobCode}
+                branchValue={branchCode}
+                userId={userId}
+                compactWhenSingle
               />
             </div>
             <div className="space-y-1.5">
@@ -418,18 +685,15 @@ export function PurchaseCopyDocumentDialog({
                 </SelectContent>
               </Select>
             </div>
-
-            {fetchError && (
-              <p className="text-destructive text-xs">{fetchError}</p>
-            )}
           </div>
         )}
 
         {/* ── Step 2: select a specific document ── */}
         {step === 2 && (
-          <div className="space-y-3 py-2">
+          <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden py-2">
             <div className="flex items-center gap-2">
               <Button
+                type="button"
                 variant="ghost"
                 size="sm"
                 className="h-7 gap-1 px-2 text-xs"
@@ -448,202 +712,261 @@ export function PurchaseCopyDocumentDialog({
               <span className="text-muted-foreground text-xs">{`(${totalCount} found)`}</span>
             </div>
 
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-              <div className="relative sm:col-span-2">
-                <Search className="text-muted-foreground absolute top-1/2 left-2.5 h-4 w-4 -translate-y-1/2" />
-                <Input
-                  value={searchQuery}
-                  onChange={(event) => setSearchQuery(event.target.value)}
-                  placeholder="Search by document no or vendor..."
-                  className="h-8 pr-8 pl-8 text-xs"
-                />
-                {searchQuery && (
-                  <button
-                    type="button"
-                    onClick={() => setSearchQuery("")}
-                    className="text-muted-foreground hover:text-foreground absolute top-1/2 right-2 -translate-y-1/2"
-                  >
-                    <X className="h-3.5 w-3.5" />
-                  </button>
-                )}
-              </div>
-
+            <div className="relative">
+              <Search className="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
               <Input
-                value={filters.documentNo ?? ""}
-                onChange={(event) =>
-                  setFilters((previous) => ({
-                    ...previous,
-                    documentNo: event.target.value,
-                  }))
-                }
-                placeholder="Filter: Document No"
-                className="h-8 text-xs"
-              />
-              <Input
-                value={filters.vendorNo ?? ""}
-                onChange={(event) =>
-                  setFilters((previous) => ({
-                    ...previous,
-                    vendorNo: event.target.value,
-                  }))
-                }
-                placeholder="Filter: Vendor No"
-                className="h-8 text-xs"
-              />
-              <Input
-                type="date"
-                value={filters.postingDateFrom ?? ""}
-                onChange={(event) =>
-                  setFilters((previous) => ({
-                    ...previous,
-                    postingDateFrom: event.target.value,
-                  }))
-                }
-                className="h-8 text-xs"
-              />
-              <Input
-                type="date"
-                value={filters.postingDateTo ?? ""}
-                onChange={(event) =>
-                  setFilters((previous) => ({
-                    ...previous,
-                    postingDateTo: event.target.value,
-                  }))
-                }
-                className="h-8 text-xs"
+                value={searchInput}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  setSearchInput(value);
+                  setSearchTerm(value);
+                }}
+                placeholder="Search by document no, vendor no, or vendor name"
+                className="h-9 pl-9 text-xs"
               />
             </div>
 
-            {hasActiveFilters && (
-              <div className="flex justify-end">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-7 px-2 text-xs"
-                  onClick={handleResetFilters}
-                >
-                  Reset filters
-                </Button>
-              </div>
-            )}
-
-            {isFetchingDocs ? (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="text-muted-foreground h-5 w-5 animate-spin" />
-              </div>
-            ) : docs.length === 0 ? (
-              <p className="text-muted-foreground py-6 text-center text-xs">
-                No documents found.
-              </p>
-            ) : (
-              <div className="overflow-hidden rounded-md border">
-                <div
-                  className="max-h-80 overflow-y-auto"
-                  onScroll={handleTableScroll}
-                >
-                  <table className="w-full text-xs">
-                    <thead className="bg-muted/60 sticky top-0 z-10">
-                      <tr>
-                        <th className="text-muted-foreground w-8 px-3 py-2 text-left font-medium"></th>
-                        <th className="text-muted-foreground px-3 py-2 text-left font-medium">
-                          <button
-                            type="button"
-                            className="inline-flex items-center gap-1"
+            <div className="bg-card flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border">
+              <div
+                className="min-h-0 flex-1 overflow-auto"
+                onScroll={handleTableScroll}
+              >
+                <table className="w-full caption-bottom text-sm">
+                  <thead className="bg-muted sticky top-0 z-10 [&_tr]:border-b">
+                    <tr className="border-b transition-colors">
+                      <th className="text-foreground h-10 w-12 px-3 py-3 text-center align-middle text-xs font-bold whitespace-nowrap select-none">
+                        S.No
+                      </th>
+                      {/* Document No */}
+                      <th
+                        className={cn(
+                          "text-foreground h-10 px-3 py-3 text-left align-middle text-xs font-bold whitespace-nowrap select-none",
+                          sortBy === "No" && "text-primary",
+                        )}
+                      >
+                        <div className="flex items-center gap-1.5">
+                          <span
+                            className="hover:text-primary cursor-pointer transition-colors"
                             onClick={() => handleSort("No")}
                           >
-                            Document No.
-                            {getSortIcon("No", sortBy, sortDirection)}
-                          </button>
-                        </th>
-                        <th className="text-muted-foreground px-3 py-2 text-left font-medium">
+                            Document No
+                          </span>
                           <button
                             type="button"
-                            className="inline-flex items-center gap-1"
+                            className="hover:text-primary transition-colors"
+                            onClick={() => handleSort("No")}
+                          >
+                            {getSortIcon("No", sortBy, sortDirection)}
+                          </button>
+                          <CopyDocTextFilter
+                            label="Document No"
+                            value={filters.documentNo ?? ""}
+                            onChange={(v) =>
+                              setFilters((prev) => ({
+                                ...prev,
+                                documentNo: v,
+                              }))
+                            }
+                          />
+                        </div>
+                      </th>
+                      {/* Vendor No */}
+                      {(() => {
+                        const vendorSortField =
+                          fromDocType
+                            ? getVendorNoSortField(
+                                fromDocType as PurchaseCopyFromDocType,
+                              )
+                            : "Buy_from_Vendor_No";
+                        return (
+                          <th
+                            className={cn(
+                              "text-foreground h-10 px-3 py-3 text-left align-middle text-xs font-bold whitespace-nowrap select-none",
+                              sortBy === vendorSortField && "text-primary",
+                            )}
+                          >
+                            <div className="flex items-center gap-1.5">
+                              <span
+                                className="hover:text-primary cursor-pointer transition-colors"
+                                onClick={() => handleSort(vendorSortField)}
+                              >
+                                Vendor No
+                              </span>
+                              <button
+                                type="button"
+                                className="hover:text-primary transition-colors"
+                                onClick={() => handleSort(vendorSortField)}
+                              >
+                                {getSortIcon(
+                                  vendorSortField,
+                                  sortBy,
+                                  sortDirection,
+                                )}
+                              </button>
+                              <CopyDocTextFilter
+                                label="Vendor No"
+                                value={filters.vendorNo ?? ""}
+                                onChange={(v) =>
+                                  setFilters((prev) => ({
+                                    ...prev,
+                                    vendorNo: v,
+                                  }))
+                                }
+                              />
+                            </div>
+                          </th>
+                        );
+                      })()}
+                      {/* Vendor Name */}
+                      <th
+                        className={cn(
+                          "text-foreground h-10 px-3 py-3 text-left align-middle text-xs font-bold whitespace-nowrap select-none",
+                          sortBy === "Buy_from_Vendor_Name" && "text-primary",
+                        )}
+                      >
+                        <div className="flex items-center gap-1.5">
+                          <span
+                            className="hover:text-primary cursor-pointer transition-colors"
                             onClick={() => handleSort("Buy_from_Vendor_Name")}
                           >
-                            Vendor
+                            Vendor Name
+                          </span>
+                          <button
+                            type="button"
+                            className="hover:text-primary transition-colors"
+                            onClick={() => handleSort("Buy_from_Vendor_Name")}
+                          >
                             {getSortIcon(
                               "Buy_from_Vendor_Name",
                               sortBy,
                               sortDirection,
                             )}
                           </button>
-                        </th>
-                        <th className="text-muted-foreground px-3 py-2 text-left font-medium">
-                          <button
-                            type="button"
-                            className="inline-flex items-center gap-1"
+                        </div>
+                      </th>
+                      {/* Posting Date */}
+                      <th
+                        className={cn(
+                          "text-foreground h-10 px-3 py-3 text-left align-middle text-xs font-bold whitespace-nowrap select-none",
+                          sortBy === "Posting_Date" && "text-primary",
+                        )}
+                      >
+                        <div className="flex items-center gap-1.5">
+                          <span
+                            className="hover:text-primary cursor-pointer transition-colors"
                             onClick={() => handleSort("Posting_Date")}
                           >
                             Posting Date
-                            {getSortIcon("Posting_Date", sortBy, sortDirection)}
-                          </button>
-                        </th>
-                        <th className="text-muted-foreground px-3 py-2 text-right font-medium">
+                          </span>
                           <button
                             type="button"
-                            className="ml-auto inline-flex items-center gap-1"
-                            onClick={() => handleSort("Amount")}
+                            className="hover:text-primary transition-colors"
+                            onClick={() => handleSort("Posting_Date")}
                           >
-                            Amount
-                            {getSortIcon("Amount", sortBy, sortDirection)}
+                            {getSortIcon("Posting_Date", sortBy, sortDirection)}
                           </button>
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {docs.map((doc) => (
+                          <CopyDocDateFilter
+                            label="Posting Date"
+                            valueFrom={filters.postingDateFrom ?? ""}
+                            valueTo={filters.postingDateTo ?? ""}
+                            onChange={(from, to) =>
+                              setFilters((prev) => ({
+                                ...prev,
+                                postingDateFrom: from,
+                                postingDateTo: to,
+                              }))
+                            }
+                          />
+                        </div>
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="[&_tr:last-child]:border-0">
+                    {isFetchingDocs &&
+                      Array.from({ length: 8 }).map((_, i) => (
                         <tr
-                          key={doc.no}
-                          className={cn(
-                            "hover:bg-muted/40 cursor-pointer border-t transition-colors",
-                            selectedDocNo === doc.no && "bg-primary/5",
-                          )}
-                          onClick={() => setSelectedDocNo(doc.no)}
+                          key={`skel-${i}`}
+                          className="border-b transition-colors"
                         >
-                          <td className="px-3 py-2">
-                            <div
-                              className={cn(
-                                "h-3.5 w-3.5 rounded-full border-2 transition-colors",
-                                selectedDocNo === doc.no
-                                  ? "border-primary bg-primary"
-                                  : "border-muted-foreground/40",
-                              )}
-                            />
+                          <td className="px-3 py-3 text-center">
+                            <Skeleton className="mx-auto h-3 w-6" />
                           </td>
-                          <td className="px-3 py-2 font-medium">{doc.no}</td>
-                          <td className="text-muted-foreground px-3 py-2">
-                            {doc.vendorName || doc.vendorNo || "—"}
+                          <td className="px-3 py-3">
+                            <Skeleton className="h-3 w-24" />
                           </td>
-                          <td className="text-muted-foreground px-3 py-2">
-                            {doc.postingDate || "—"}
+                          <td className="px-3 py-3">
+                            <Skeleton className="h-3 w-20" />
                           </td>
-                          <td className="px-3 py-2 text-right tabular-nums">
-                            {typeof doc.amount === "number"
-                              ? doc.amount.toFixed(2)
-                              : doc.amount || "—"}
+                          <td className="px-3 py-3">
+                            <Skeleton className="h-3 w-32" />
+                          </td>
+                          <td className="px-3 py-3">
+                            <Skeleton className="h-3 w-20" />
                           </td>
                         </tr>
                       ))}
 
-                      {isFetchingMore && (
-                        <tr className="border-t">
+                    {!isFetchingDocs && docs.length === 0 && (
+                      <tr className="border-b transition-colors">
+                        <td
+                          colSpan={5}
+                          className="text-muted-foreground h-24 p-2 text-center align-middle"
+                        >
+                          No purchase documents found
+                        </td>
+                      </tr>
+                    )}
+
+                    {!isFetchingDocs &&
+                      docs.map((doc, index) => (
+                        <tr
+                          key={doc.no}
+                          className={cn(
+                            "hover:bg-muted cursor-pointer border-b transition-colors",
+                            selectedDocNo === doc.no && "bg-muted",
+                          )}
+                          onClick={() => setSelectedDocNo(doc.no)}
+                        >
+                          <td className="text-muted-foreground px-3 py-3 text-center align-middle text-xs whitespace-nowrap">
+                            {index + 1}
+                          </td>
                           <td
-                            colSpan={5}
-                            className="text-muted-foreground px-3 py-2 text-center text-xs"
+                            className={cn(
+                              "px-3 py-3 align-middle text-xs font-medium whitespace-nowrap",
+                              selectedDocNo === doc.no && "text-primary",
+                            )}
                           >
-                            <span className="inline-flex items-center gap-1.5">
-                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                              Loading more...
-                            </span>
+                            {doc.no || "-"}
+                          </td>
+                          <td className="px-3 py-3 align-middle text-xs whitespace-nowrap">
+                            {doc.vendorNo || "-"}
+                          </td>
+                          <td className="px-3 py-3 align-middle text-xs whitespace-nowrap">
+                            {doc.vendorName || "-"}
+                          </td>
+                          <td className="px-3 py-3 align-middle text-xs whitespace-nowrap">
+                            {doc.postingDate || "-"}
                           </td>
                         </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
+                      ))}
+
+                    {isFetchingMore && (
+                      <tr className="border-b transition-colors">
+                        <td
+                          colSpan={5}
+                          className="text-muted-foreground px-3 py-3 text-center text-xs"
+                        >
+                          <span className="inline-flex items-center gap-1.5">
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            Loading more…
+                          </span>
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
               </div>
-            )}
+            </div>
 
             {fetchError && (
               <p className="text-destructive text-xs">{fetchError}</p>
@@ -657,6 +980,7 @@ export function PurchaseCopyDocumentDialog({
 
         <DialogFooter>
           <Button
+            type="button"
             variant="outline"
             size="sm"
             onClick={() => onOpenChange(false)}
@@ -667,21 +991,18 @@ export function PurchaseCopyDocumentDialog({
 
           {step === 1 ? (
             <Button
+              type="button"
               size="sm"
               onClick={handleProceedToStep2}
-              disabled={!fromDocType || !locationCode || isFetchingDocs}
+              disabled={
+                !fromDocType || !locationCode || !lobCode || !branchCode
+              }
             >
-              {isFetchingDocs ? (
-                <>
-                  <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-                  Loading...
-                </>
-              ) : (
-                "Next"
-              )}
+              Next
             </Button>
           ) : (
             <Button
+              type="button"
               size="sm"
               onClick={handleConfirmCopy}
               disabled={!selectedDocNo || isCopying}

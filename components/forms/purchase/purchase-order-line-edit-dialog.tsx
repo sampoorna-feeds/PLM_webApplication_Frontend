@@ -96,6 +96,7 @@ export function PurchaseOrderLineEditDialog({
   const [isDeleting, setIsDeleting] = useState(false);
   const [isBardanaOpen, setIsBardanaOpen] = useState(false);
   const quantityColumns = getPurchaseLineQuantityConfig(documentType);
+  const showQtyColumns = documentType === "order" || documentType === "return-order";
 
   useEffect(() => {
     if (!line) return;
@@ -414,18 +415,22 @@ export function PurchaseOrderLineEditDialog({
               </p>
               <p>{line.Unit_of_Measure_Code || line.Unit_of_Measure || "—"}</p>
             </div>
-            <div className="border-r p-2 sm:border-b-0">
-              <p className="text-muted-foreground text-[10px] tracking-wide uppercase">
-                {quantityColumns.firstCompletedLabel}
-              </p>
-              <p>{line.Quantity_Received || "0"}</p>
-            </div>
-            <div className="p-2">
-              <p className="text-muted-foreground text-[10px] tracking-wide uppercase">
-                {quantityColumns.secondCompletedLabel}
-              </p>
-              <p>{line.Quantity_Invoiced || "0"}</p>
-            </div>
+            {showQtyColumns && (
+              <>
+                <div className="border-r p-2 sm:border-b-0">
+                  <p className="text-muted-foreground text-[10px] tracking-wide uppercase">
+                    {quantityColumns.firstCompletedLabel}
+                  </p>
+                  <p>{line.Quantity_Received || "0"}</p>
+                </div>
+                <div className="p-2">
+                  <p className="text-muted-foreground text-[10px] tracking-wide uppercase">
+                    {quantityColumns.secondCompletedLabel}
+                  </p>
+                  <p>{line.Quantity_Invoiced || "0"}</p>
+                </div>
+              </>
+            )}
           </div>
 
           {/* ── Editable fields ── */}
@@ -580,36 +585,40 @@ export function PurchaseOrderLineEditDialog({
                   </div>
                 )}
 
-                {/* Row 2 */}
-                <div className="space-y-1">
-                  <Label htmlFor="po-line-qty-receive" className="text-xs">
-                    {quantityColumns.firstPendingLabel}
-                  </Label>
-                  <Input
-                    id="po-line-qty-receive"
-                    inputMode="decimal"
-                    value={qtyToReceive}
-                    onChange={(e) => {
-                      if (isValidNum(e.target.value))
-                        setQtyToReceive(e.target.value);
-                    }}
-                  />
-                </div>
+                {/* Row 2 — qty pending fields (order / return-order only) */}
+                {showQtyColumns && (
+                  <>
+                    <div className="space-y-1">
+                      <Label htmlFor="po-line-qty-receive" className="text-xs">
+                        {quantityColumns.firstPendingLabel}
+                      </Label>
+                      <Input
+                        id="po-line-qty-receive"
+                        inputMode="decimal"
+                        value={qtyToReceive}
+                        onChange={(e) => {
+                          if (isValidNum(e.target.value))
+                            setQtyToReceive(e.target.value);
+                        }}
+                      />
+                    </div>
 
-                <div className="space-y-1">
-                  <Label htmlFor="po-line-qty-invoice" className="text-xs">
-                    {quantityColumns.secondPendingLabel}
-                  </Label>
-                  <Input
-                    id="po-line-qty-invoice"
-                    inputMode="decimal"
-                    value={qtyToInvoice}
-                    onChange={(e) => {
-                      if (isValidNum(e.target.value))
-                        setQtyToInvoice(e.target.value);
-                    }}
-                  />
-                </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="po-line-qty-invoice" className="text-xs">
+                        {quantityColumns.secondPendingLabel}
+                      </Label>
+                      <Input
+                        id="po-line-qty-invoice"
+                        inputMode="decimal"
+                        value={qtyToInvoice}
+                        onChange={(e) => {
+                          if (isValidNum(e.target.value))
+                            setQtyToInvoice(e.target.value);
+                        }}
+                      />
+                    </div>
+                  </>
+                )}
 
                 {/* Row 3 */}
                 <div className="space-y-1 overflow-hidden">
@@ -733,17 +742,6 @@ export function PurchaseOrderLineEditDialog({
                   }}
                 >
                   Item Tracking
-                </Button>
-              )}
-              {onDelete && (
-                <Button
-                  variant="secondary"
-                  className="text-destructive hover:bg-destructive/10 hover:text-destructive h-8 px-2"
-                  onClick={handleDelete}
-                  disabled={isSaving || isDeleting}
-                >
-                  <Trash2 className="mr-2 h-4 w-4" />
-                  Delete Line
                 </Button>
               )}
             </div>

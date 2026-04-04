@@ -57,7 +57,7 @@ import { getAuthCredentials } from "@/lib/auth/storage";
 import { getErrorMessage } from "@/lib/errors";
 import type { LineItem } from "@/components/forms/purchase/purchase-line-item.type";
 import { PurchaseLineItemsTable } from "./purchase-line-items-table";
-import { Plus, FileText, Paperclip, LoaderCircleIcon } from "lucide-react";
+import { Plus, FileText, Paperclip, LoaderCircleIcon, Copy } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ClearableField } from "@/components/ui/clearable-field";
 import { RequestFailedDialog } from "@/components/ui/request-failed-dialog";
@@ -375,7 +375,7 @@ const PURCHASE_CREATE_DOCUMENT_CONFIG: Record<
       orderDate: formData.orderDate,
     }),
     createHeader: createPurchaseOrder,
-    createCopyHeader: async (locationCode, lobCode) => {
+    createCopyHeader: async (_locationCode: string) => {
       throw new Error("Copy document not supported for purchase orders");
     },
     addLineItems: addPurchaseOrderLineItems,
@@ -478,7 +478,6 @@ export function PurchaseCreateDocumentFormContent({
     null,
   );
   const [isCreatingHeader, setIsCreatingHeader] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSavingLine, setIsSavingLine] = useState(false);
   const [isActionLoading, setIsActionLoading] = useState(false);
   const [isUpdatingHeader, setIsUpdatingHeader] = useState(false);
@@ -539,9 +538,8 @@ export function PurchaseCreateDocumentFormContent({
   const [mandiList, setMandiList] = useState<MandiMaster[]>([]);
   const [paymentTermList, setPaymentTermList] = useState<PaymentTerm[]>([]);
 
-  // Fetch location name for order documents
+  // Fetch location name for all document types
   useEffect(() => {
-    if (documentType !== "order") return;
     const locCode = formData.locationCode || formData.loc;
     if (!locCode) {
       setLocationName("");
@@ -554,7 +552,7 @@ export function PurchaseCreateDocumentFormContent({
       })
       .catch(() => setLocationName(""));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [documentType, formData.locationCode, formData.loc]);
+  }, [formData.locationCode, formData.loc]);
 
   useEffect(() => {
     purchaseDropdownsService
@@ -823,6 +821,8 @@ export function PurchaseCreateDocumentFormContent({
 
   const handleOpenCopyDialog = () => {
     if (!isCreateMode) return;
+
+    setPlaceOrderError(null);
     setIsCopyDocOpen(true);
   };
 
@@ -955,48 +955,6 @@ export function PurchaseCreateDocumentFormContent({
     }
   };
 
-  // Final submission (line-item creation after header creation)
-  const handlePlaceOrder = async () => {
-    if (!isCreateMode) return;
-
-    if (!createdOrderNo) {
-      setPlaceOrderError(
-        "Create the document header before submitting line items.",
-      );
-      return;
-    }
-
-    if (lineItems.length === 0) {
-      setPlaceOrderError("Add at least one line item before completing order.");
-      return;
-    }
-
-    setIsSubmitting(true);
-    try {
-      const lineItemsData =
-        buildPurchaseCommonLineItemsData<PurchaseOrderLineItem>(lineItems);
-      const locationCode = resolvePurchaseLocationCode(
-        formData.locationCode,
-        formData.loc,
-      );
-      await config.addLineItems(createdOrderNo, lineItemsData, locationCode);
-      onSuccess(createdOrderNo);
-    } catch (error) {
-      console.error(
-        "Error submitting purchase document lines:",
-        JSON.stringify(error, null, 2),
-      );
-      setPlaceOrderError(
-        getErrorMessage(
-          error,
-          "Failed to submit line items. Please try again.",
-        ),
-      );
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
   const buildHeaderPatchPayload = (): Record<string, unknown> => {
     return buildPurchaseHeaderPayload(formData, {
       includePoType: capabilities.supportsPoType,
@@ -1009,12 +967,13 @@ export function PurchaseCreateDocumentFormContent({
     });
   };
 
-  const refreshHydratedDocument = async () => {
-    if (!createdOrderNo) return;
+  const refreshHydratedDocument = async (overrideDocNo?: string) => {
+    const docNo = overrideDocNo || createdOrderNo;
+    if (!docNo) return;
 
     const [header, lines] = await Promise.all([
-      config.fetchHeader(createdOrderNo),
-      config.fetchLines(createdOrderNo),
+      config.fetchHeader(docNo),
+      config.fetchLines(docNo),
     ]);
 
     if (!header) {
@@ -1028,24 +987,24 @@ export function PurchaseCreateDocumentFormContent({
     setFormData((prev) => ({ ...prev, ...mappedFormData }));
     setLineItems(mappedLineItems);
     setDocumentStatus(status);
+    if (!createdOrderNo && docNo) setCreatedOrderNo(docNo);
 
     persist({
       ...mappedFormData,
       lineItems: mappedLineItems,
-      createdOrderNo,
+      createdOrderNo: docNo,
       status,
     });
   };
 
-  const handleCopyDocumentSuccess = async () => {
-    try {
-      await refreshHydratedDocument();
-      toast.success(`${config.displayTitle} copied successfully.`);
-    } catch (error) {
-      const message = getErrorMessage(
-        error,
-        `Copied data loaded, but refreshing ${config.displayTitle} failed.`,
-      );
+  const handleCopyDocumentSuccess = (docNo?: string) => {
+    toast.success(`${config.displayTitle} copied successfully.`);
+    if (docNo) {
+      onSuccess(docNo);
+    } else if (createdOrderNo) {
+      onSuccess(createdOrderNo);
+    } else {
+      const message = "Copy succeeded but document number is missing.";
       setPlaceOrderError(message);
       throw new Error(message);
     }
@@ -1281,20 +1240,22 @@ export function PurchaseCreateDocumentFormContent({
   };
   // ────────────────────────────────────────────────────────────────────────
 
+  // Status helpers (used in action bar and renderStep1)
+  const isOpenStatus = documentStatus === "Open";
+  const isPendingApprovalStatus = documentStatus === "Pending Approval";
+  const isReleasedStatus = documentStatus === "Released";
+  const statusActions = isOpenStatus
+    ? config.statusActions.open
+    : isPendingApprovalStatus
+      ? config.statusActions.pending
+      : isReleasedStatus
+        ? config.statusActions.released
+        : [];
+
   // Step 1: Order Information
-  const fieldClass = "min-w-0 space-y-0.5";
-  const labelClass = "text-muted-foreground block text-[11px] font-medium";
+  const fieldClass = "min-w-0 space-y-1";
+  const labelClass = "text-muted-foreground block text-xs font-medium";
   const renderStep1 = () => {
-    const isOpenStatus = documentStatus === "Open";
-    const isPendingApprovalStatus = documentStatus === "Pending Approval";
-    const isReleasedStatus = documentStatus === "Released";
-    const statusActions = isOpenStatus
-      ? config.statusActions.open
-      : isPendingApprovalStatus
-        ? config.statusActions.pending
-        : isReleasedStatus
-          ? config.statusActions.released
-          : [];
     const defaultAccordionValue =
       isCreateMode || isEditMode
         ? ["general", "tax-information", "vendor-statistics"]
@@ -1304,137 +1265,6 @@ export function PurchaseCreateDocumentFormContent({
 
     return (
       <div className="space-y-3">
-        {createdOrderNo && !isCreateMode && (
-          <div className="mb-1 flex flex-wrap items-center justify-end gap-2 pb-1">
-            {documentStatus && (
-              <div className="mr-auto flex items-center gap-2">
-                <span className="text-muted-foreground text-[10px] font-medium tracking-wider uppercase">
-                  Status:
-                </span>
-                <Badge
-                  variant="outline"
-                  className={cn(
-                    "h-6 px-3 text-[10px] font-bold tracking-wider uppercase",
-                    documentStatus === "Released" &&
-                      "border-green-200 bg-green-500/10 text-green-600",
-                    documentStatus === "Pending Approval" &&
-                      "border-yellow-200 bg-yellow-500/10 text-yellow-600",
-                    documentStatus === "Open" &&
-                      "border-blue-200 bg-blue-500/10 text-blue-600",
-                  )}
-                >
-                  {documentStatus}
-                </Badge>
-              </div>
-            )}
-
-            {isViewMode && (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="h-8"
-                onClick={onRequestEdit}
-                disabled={isActionLoading || !onRequestEdit}
-              >
-                Edit
-              </Button>
-            )}
-
-            {isViewMode && !isPendingApprovalStatus && !isReleasedStatus && (
-              <Button
-                type="button"
-                variant="destructive"
-                size="sm"
-                className="h-8"
-                onClick={handleDeleteDocument}
-                disabled={isActionLoading}
-              >
-                Delete
-              </Button>
-            )}
-
-            {isViewMode &&
-              statusActions.map((action) =>
-                action === "Gate Entry" && documentType === "order" ? (
-                  <PostGateEntryDialog
-                    key={action}
-                    sourceNo={createdOrderNo!}
-                    disabled={isActionLoading}
-                  />
-                ) : (
-                  <Button
-                    key={action}
-                    type="button"
-                    size="sm"
-                    className="h-8"
-                    onClick={() => handleStatusAction(action)}
-                    disabled={isActionLoading}
-                  >
-                    {action}
-                  </Button>
-                ),
-              )}
-
-            {/* PO-only: Print Report + Attachments */}
-            {isViewMode && documentType === "order" && createdOrderNo && (
-              <>
-                <Button
-                  type="button"
-                  size="sm"
-                  className="h-8"
-                  onClick={handlePrintPOReport}
-                  disabled={isActionLoading}
-                >
-                  <FileText className="mr-1.5 h-3.5 w-3.5" />
-                  Print Report
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="h-8"
-                  onClick={() => setIsAttachmentDialogOpen(true)}
-                  disabled={isActionLoading}
-                >
-                  <Paperclip className="mr-1.5 h-3.5 w-3.5" />
-                  Attachments
-                </Button>
-              </>
-            )}
-
-            {isEditMode && (
-              <>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="h-8"
-                  onClick={onCancelEdit}
-                  disabled={isUpdatingHeader || !onCancelEdit}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  className="h-8"
-                  onClick={handleUpdateDocument}
-                  disabled={isUpdatingHeader}
-                >
-                  {isUpdatingHeader ? "Updating..." : "Update"}
-                </Button>
-              </>
-            )}
-          </div>
-        )}
-
-        {createdOrderNo && isCreateMode && (
-          <div className="bg-primary/5 text-primary rounded-md border px-3 py-1.5 text-xs font-medium">
-            {`Header created: ${createdOrderNo}. Continue to Line Items.`}
-          </div>
-        )}
-
         <div className="space-y-4">
           <Accordion
             key={mode}
@@ -1443,7 +1273,7 @@ export function PurchaseCreateDocumentFormContent({
             className="w-full space-y-2"
           >
             <AccordionItem value="general" className="border-none">
-              <AccordionTrigger className="data-[state=open]:border-b-border py-0 hover:no-underline data-[state=open]:border-b data-[state=open]:pb-2 [&>svg]:size-4">
+              <AccordionTrigger className="py-0 hover:no-underline [&>svg]:size-4">
                 <h3 className="px-2 py-1 text-left text-[10px] font-bold tracking-wider uppercase">
                   General
                 </h3>
@@ -1454,8 +1284,9 @@ export function PurchaseCreateDocumentFormContent({
                   areFieldsReadOnly && "pointer-events-none opacity-70",
                 )}
               >
-                <section className="space-y-2 pt-2">
-                  <div className="grid grid-cols-1 gap-x-3 gap-y-2.5 sm:grid-cols-3 lg:grid-cols-5">
+                <Separator className="mb-3" />
+                <section className="space-y-2">
+                  <div className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
                     {capabilities.supportsPoType && (
                       <div className={fieldClass}>
                         <label className={labelClass}>PO Type</label>
@@ -1465,7 +1296,7 @@ export function PurchaseCreateDocumentFormContent({
                             handleInputChange("poType", value)
                           }
                         >
-                          <SelectTrigger className="h-7 text-xs">
+                          <SelectTrigger className="h-8 text-xs">
                             <SelectValue placeholder="Select" />
                           </SelectTrigger>
                           <SelectContent>
@@ -1492,7 +1323,7 @@ export function PurchaseCreateDocumentFormContent({
                                 )
                               }
                             >
-                              <SelectTrigger className="h-7 text-xs">
+                              <SelectTrigger className="h-8 text-xs">
                                 <SelectValue placeholder="Select" />
                               </SelectTrigger>
                               <SelectContent>
@@ -1518,7 +1349,7 @@ export function PurchaseCreateDocumentFormContent({
                               handleInputChange("invoiceType", value)
                             }
                           >
-                            <SelectTrigger className="h-7 text-xs">
+                            <SelectTrigger className="h-8 text-xs">
                               <SelectValue placeholder="Select / None" />
                             </SelectTrigger>
                             <SelectContent>
@@ -1619,18 +1450,23 @@ export function PurchaseCreateDocumentFormContent({
                           compactWhenSingle
                         />
                       </ClearableField>
+                      {formData.loc && locationName && (
+                        <p className="mt-0.5 truncate pl-1 text-[10px] font-medium text-green-600">
+                          {locationName}
+                        </p>
+                      )}
                     </div>
                     <div className={fieldClass}>
-                      <label className={labelClass}>Location</label>
+                      <label className={labelClass}>Location Code</label>
                       <Input
                         value={formData.locationCode || formData.loc || ""}
                         disabled
-                        className="bg-muted h-7 text-xs"
+                        className="bg-muted h-8 text-xs"
                         readOnly
                       />
-                      {formData.locationCode && (
-                        <p className="text-muted-foreground mt-0.5 overflow-hidden pl-1 text-[9px] text-ellipsis whitespace-nowrap">
-                          {formData.locationCode} Location
+                      {locationName && (formData.locationCode || formData.loc) && (
+                        <p className="mt-0.5 truncate pl-1 text-[10px] font-medium text-green-600">
+                          {locationName}
                         </p>
                       )}
                     </div>
@@ -1642,7 +1478,7 @@ export function PurchaseCreateDocumentFormContent({
             <Separator />
 
             <AccordionItem value="tax-information" className="border-none">
-              <AccordionTrigger className="data-[state=open]:border-b-border py-0 hover:no-underline data-[state=open]:border-b data-[state=open]:pb-2 [&>svg]:size-4">
+              <AccordionTrigger className="py-0 hover:no-underline [&>svg]:size-4">
                 <h3 className="px-2 py-1 text-left text-[10px] font-bold tracking-wider uppercase">
                   Tax Information
                 </h3>
@@ -1653,8 +1489,9 @@ export function PurchaseCreateDocumentFormContent({
                   areFieldsReadOnly && "pointer-events-none opacity-70",
                 )}
               >
-                <section className="space-y-2 pt-2">
-                  <div className="grid grid-cols-1 gap-x-3 gap-y-2.5 sm:grid-cols-3 lg:grid-cols-5">
+                <Separator className="mb-3" />
+                <section className="space-y-2">
+                  <div className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
                     <div className={fieldClass}>
                       <label className={labelClass}>Vendor</label>
                       <ClearableField
@@ -1678,7 +1515,7 @@ export function PurchaseCreateDocumentFormContent({
                       <Input
                         value={formData.vendorGstRegNo}
                         disabled
-                        className="bg-muted h-7 text-xs"
+                        className="bg-muted h-8 text-xs"
                         placeholder="Auto"
                         readOnly
                       />
@@ -1688,7 +1525,7 @@ export function PurchaseCreateDocumentFormContent({
                       <Input
                         value={formData.vendorPanNo}
                         disabled
-                        className="bg-muted h-7 text-xs"
+                        className="bg-muted h-8 text-xs"
                         placeholder="Auto"
                         readOnly
                       />
@@ -1712,7 +1549,7 @@ export function PurchaseCreateDocumentFormContent({
                             )
                           }
                           placeholder="Optional"
-                          className="h-7 text-xs"
+                          className="h-8 text-xs"
                         />
                       </ClearableField>
                     </div>
@@ -1734,7 +1571,7 @@ export function PurchaseCreateDocumentFormContent({
                               )
                             }
                             placeholder="Optional"
-                            className="h-7 text-xs"
+                            className="h-8 text-xs"
                           />
                         </ClearableField>
                       </div>
@@ -1750,7 +1587,7 @@ export function PurchaseCreateDocumentFormContent({
                             handleInputChange("appliesToDocType", val)
                           }
                         >
-                          <SelectTrigger className="h-7 text-xs font-semibold">
+                          <SelectTrigger className="h-8 text-xs">
                             <SelectValue placeholder="Select Type" />
                           </SelectTrigger>
                           <SelectContent>
@@ -1780,7 +1617,7 @@ export function PurchaseCreateDocumentFormContent({
                               )
                             }
                             placeholder="Optional"
-                            className="h-7 text-xs"
+                            className="h-8 text-xs"
                           />
                         </ClearableField>
                       </div>
@@ -1847,7 +1684,7 @@ export function PurchaseCreateDocumentFormContent({
                               handleInputChange("brokerageRate", val);
                             }
                           }}
-                          className="h-7 text-xs"
+                          className="h-8 text-xs"
                           placeholder="0.00"
                         />
                       </ClearableField>
@@ -1860,7 +1697,7 @@ export function PurchaseCreateDocumentFormContent({
             <Separator />
 
             <AccordionItem value="vendor-statistics" className="border-none">
-              <AccordionTrigger className="data-[state=open]:border-b-border py-0 hover:no-underline data-[state=open]:border-b data-[state=open]:pb-2 [&>svg]:size-4">
+              <AccordionTrigger className="py-0 hover:no-underline [&>svg]:size-4">
                 <h3 className="px-2 py-1 text-left text-[10px] font-bold tracking-wider uppercase">
                   Vendor Statistics
                 </h3>
@@ -1871,8 +1708,9 @@ export function PurchaseCreateDocumentFormContent({
                   areFieldsReadOnly && "pointer-events-none opacity-70",
                 )}
               >
-                <section className="space-y-2 pt-2">
-                  <div className="grid grid-cols-2 gap-x-3 gap-y-2.5 sm:grid-cols-4 lg:grid-cols-6">
+                <Separator className="mb-3" />
+                <section className="space-y-2">
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
                     <div className={fieldClass}>
                       <label className={labelClass}>Posting Date</label>
                       <ClearableField
@@ -1885,7 +1723,7 @@ export function PurchaseCreateDocumentFormContent({
                           onChange={(e) =>
                             handleInputChange("postingDate", e.target.value)
                           }
-                          className="h-7 text-xs"
+                          className="h-8 text-xs"
                         />
                       </ClearableField>
                     </div>
@@ -1901,7 +1739,7 @@ export function PurchaseCreateDocumentFormContent({
                           onChange={(e) =>
                             handleInputChange("documentDate", e.target.value)
                           }
-                          className="h-7 text-xs"
+                          className="h-8 text-xs"
                         />
                       </ClearableField>
                     </div>
@@ -1915,7 +1753,7 @@ export function PurchaseCreateDocumentFormContent({
                             handleInputChange("orderDate", e.target.value)
                           }
                           disabled
-                          className="bg-muted h-7 text-xs"
+                          className="bg-muted h-8 text-xs"
                         />
                       </div>
                     )}
@@ -1931,7 +1769,7 @@ export function PurchaseCreateDocumentFormContent({
                           onChange={(e) =>
                             handleInputChange("dueDate", e.target.value)
                           }
-                          className="h-7 text-xs"
+                          className="h-8 text-xs"
                         />
                       </ClearableField>
                     </div>
@@ -1943,7 +1781,7 @@ export function PurchaseCreateDocumentFormContent({
                           handleInputChange("dueDateCalculation", value)
                         }
                       >
-                        <SelectTrigger className="h-7 text-xs">
+                        <SelectTrigger className="h-8 text-xs">
                           <SelectValue placeholder="Select" />
                         </SelectTrigger>
                         <SelectContent>
@@ -1964,7 +1802,7 @@ export function PurchaseCreateDocumentFormContent({
                           handleInputChange("rateBasis", value)
                         }
                       >
-                        <SelectTrigger className="h-7 text-xs">
+                        <SelectTrigger className="h-8 text-xs">
                           <SelectValue placeholder="Select" />
                         </SelectTrigger>
                         <SelectContent>
@@ -1995,7 +1833,7 @@ export function PurchaseCreateDocumentFormContent({
                           handleInputChange("qcType", value)
                         }
                       >
-                        <SelectTrigger className="h-7 text-xs">
+                        <SelectTrigger className="h-8 text-xs">
                           <SelectValue placeholder="Select" />
                         </SelectTrigger>
                         <SelectContent>
@@ -2102,6 +1940,175 @@ export function PurchaseCreateDocumentFormContent({
         onOpenChange={(open) => !open && setPlaceOrderError(null)}
       />
       <div className="flex h-full flex-col">
+        {/* ── Action Bar ── */}
+        <div className="flex flex-wrap items-center justify-end gap-2 border-b px-4 py-2">
+          {/* Left: status badge (view/edit) or contextual info (create) */}
+          {documentStatus && createdOrderNo && !isCreateMode && (
+            <div className="mr-auto flex items-center gap-2">
+              <span className="text-muted-foreground text-[10px] font-medium tracking-wider uppercase">
+                Status:
+              </span>
+              <Badge
+                variant="outline"
+                className={cn(
+                  "h-6 px-3 text-[10px] font-bold tracking-wider uppercase",
+                  documentStatus === "Released" &&
+                    "border-green-200 bg-green-500/10 text-green-600",
+                  documentStatus === "Pending Approval" &&
+                    "border-yellow-200 bg-yellow-500/10 text-yellow-600",
+                  documentStatus === "Open" &&
+                    "border-blue-200 bg-blue-500/10 text-blue-600",
+                )}
+              >
+                {documentStatus}
+              </Badge>
+            </div>
+          )}
+          {isCreateMode && (
+            <div className="mr-auto">
+              {createdOrderNo ? (
+                <span className="text-primary text-xs font-medium">
+                  {config.displayTitle} {createdOrderNo} — Add line items to complete
+                </span>
+              ) : (
+                <span className="text-muted-foreground text-xs">
+                  Fill in header fields to create the document.
+                </span>
+              )}
+            </div>
+          )}
+
+          {/* View mode */}
+          {isViewMode && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-8"
+              onClick={onRequestEdit}
+              disabled={isActionLoading || !onRequestEdit}
+            >
+              Edit
+            </Button>
+          )}
+          {isViewMode && !isPendingApprovalStatus && !isReleasedStatus && (
+            <Button
+              type="button"
+              variant="destructive"
+              size="sm"
+              className="h-8"
+              onClick={handleDeleteDocument}
+              disabled={isActionLoading}
+            >
+              Delete
+            </Button>
+          )}
+          {isViewMode &&
+            statusActions.map((action) =>
+              action === "Gate Entry" && documentType === "order" ? (
+                <PostGateEntryDialog
+                  key={action}
+                  sourceNo={createdOrderNo!}
+                  disabled={isActionLoading}
+                />
+              ) : (
+                <Button
+                  key={action}
+                  type="button"
+                  size="sm"
+                  className="h-8"
+                  onClick={() => handleStatusAction(action)}
+                  disabled={isActionLoading}
+                >
+                  {action}
+                </Button>
+              ),
+            )}
+          {isViewMode && documentType === "order" && createdOrderNo && (
+            <>
+              <Button
+                type="button"
+                size="sm"
+                className="h-8"
+                onClick={handlePrintPOReport}
+                disabled={isActionLoading}
+              >
+                <FileText className="mr-1.5 h-3.5 w-3.5" />
+                Print Report
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-8"
+                onClick={() => setIsAttachmentDialogOpen(true)}
+                disabled={isActionLoading}
+              >
+                <Paperclip className="mr-1.5 h-3.5 w-3.5" />
+                Attachments
+              </Button>
+            </>
+          )}
+
+          {/* Edit mode */}
+          {isEditMode && (
+            <>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-8"
+                onClick={onCancelEdit}
+                disabled={isUpdatingHeader || !onCancelEdit}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                className="h-8"
+                onClick={handleUpdateDocument}
+                disabled={isUpdatingHeader}
+              >
+                {isUpdatingHeader ? "Updating..." : "Update"}
+              </Button>
+            </>
+          )}
+
+          {/* Create mode */}
+          {isCreateMode && documentType !== "order" && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-8"
+              onClick={handleOpenCopyDialog}
+              disabled={isCreatingHeader}
+            >
+              <Copy className="mr-1.5 h-3.5 w-3.5" />
+              Copy Document
+            </Button>
+          )}
+          {isCreateMode && !createdOrderNo && (
+            <Button
+              type="button"
+              size="sm"
+              className="h-8"
+              onClick={handleCreateOrderHeader}
+              disabled={!isStep1Valid() || isCreatingHeader}
+            >
+              {isCreatingHeader ? (
+                <>
+                  <LoaderCircleIcon className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                  Creating...
+                </>
+              ) : (
+                config.createHeaderButtonLabel
+              )}
+            </Button>
+          )}
+        </div>
+
         <div className="flex-1 overflow-y-auto px-4 py-4">
           {isHydratingDocument && (
             <div className="text-muted-foreground mb-4 text-sm">
@@ -2126,16 +2133,6 @@ export function PurchaseCreateDocumentFormContent({
                 )}
               </div>
               <div className="flex items-center gap-2">
-                {isCreateMode && createdOrderNo && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-8"
-                    onClick={handleOpenCopyDialog}
-                  >
-                    Copy Document
-                  </Button>
-                )}
                 <Button
                   onClick={handleAddLineItem}
                   size="sm"
@@ -2177,44 +2174,6 @@ export function PurchaseCreateDocumentFormContent({
           </section>
         </div>
 
-        {isCreateMode && (
-          <div className="bg-muted/20 flex items-center justify-between border-t px-4 py-3">
-            <div className="text-muted-foreground text-xs">
-              {createdOrderNo
-                ? `${config.displayTitle} ${createdOrderNo} ready for completion`
-                : "Create header to add lines, or copy from another document."}
-            </div>
-
-            {!createdOrderNo ? (
-              <div className="flex items-center gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handleOpenCopyDialog}
-                  disabled={isCreatingHeader}
-                >
-                  Copy Document
-                </Button>
-                <Button
-                  type="button"
-                  onClick={handleCreateOrderHeader}
-                  disabled={!isStep1Valid() || isCreatingHeader}
-                >
-                  {isCreatingHeader
-                    ? "Creating..."
-                    : config.createHeaderButtonLabel}
-                </Button>
-              </div>
-            ) : (
-              <Button
-                onClick={handlePlaceOrder}
-                disabled={isSubmitting || lineItems.length === 0}
-              >
-                {isSubmitting ? "Saving Line Items..." : "Complete Document"}
-              </Button>
-            )}
-          </div>
-        )}
       </div>
 
       {isLineDialogOpen && (
@@ -2243,12 +2202,17 @@ export function PurchaseCreateDocumentFormContent({
           toDocType={config.toDocType}
           onOpenChange={setIsCopyDocOpen}
           onSuccess={handleCopyDocumentSuccess}
-          onCreateHeader={async (locCode) => {
+          userId={userId}
+          lobValue={formData.lob}
+          branchValue={formData.branch}
+          onCreateHeader={async (locCode, lobCode, branchCode) => {
             const resp = await config.createCopyHeader(locCode);
             const returnedNo = resp.orderNo || resp.orderId;
             if (returnedNo) {
               setFormData((prev) => ({
                 ...prev,
+                lob: lobCode,
+                branch: branchCode,
                 locationCode: locCode,
                 loc: locCode,
               }));
@@ -2256,6 +2220,8 @@ export function PurchaseCreateDocumentFormContent({
               setDocumentStatus("Open");
               persist({
                 ...formData,
+                lob: lobCode,
+                branch: branchCode,
                 locationCode: locCode,
                 loc: locCode,
                 lineItems,

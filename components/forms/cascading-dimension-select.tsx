@@ -62,10 +62,12 @@ export function CascadingDimensionSelect({
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [focusedIndex, setFocusedIndex] = useState(-1);
 
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const listRef = useRef<HTMLDivElement | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const itemRefs = useRef<(HTMLDivElement | null)[]>([]);
 
   // Load items based on dimension type and parent values
   const loadItems = useCallback(async () => {
@@ -221,6 +223,19 @@ export function CascadingDimensionSelect({
       ? "None"
       : value || "";
 
+  // Reset focusedIndex when filteredItems changes or dropdown closes
+  useEffect(() => {
+    setFocusedIndex(-1);
+    itemRefs.current = [];
+  }, [searchQuery, isOpen]);
+
+  // Scroll focused item into view
+  useEffect(() => {
+    if (focusedIndex >= 0 && itemRefs.current[focusedIndex]) {
+      itemRefs.current[focusedIndex]?.scrollIntoView({ block: "nearest" });
+    }
+  }, [focusedIndex]);
+
   // Filter items based on search query
   const filteredItems =
     searchQuery.length >= MIN_SEARCH_LENGTH
@@ -253,6 +268,9 @@ export function CascadingDimensionSelect({
           variant="outline"
           role="combobox"
           disabled={isFieldDisabled}
+          aria-expanded={isOpen}
+          aria-haspopup="listbox"
+          aria-label={placeholder || dimensionType}
           className={cn(
             "h-9 w-full justify-between text-sm font-normal shadow-sm",
             !value && "text-muted-foreground",
@@ -298,12 +316,43 @@ export function CascadingDimensionSelect({
                 setSearchQuery(query);
                 performSearch(query);
               }}
+              onKeyDown={(e) => {
+                if (e.key === "ArrowDown") {
+                  e.preventDefault();
+                  setFocusedIndex((prev) =>
+                    Math.min(prev + 1, filteredItems.length - 1),
+                  );
+                } else if (e.key === "ArrowUp") {
+                  e.preventDefault();
+                  setFocusedIndex((prev) => Math.max(prev - 1, 0));
+                } else if (e.key === "Enter" && focusedIndex >= 0) {
+                  e.preventDefault();
+                  const item = filteredItems[focusedIndex];
+                  if (item) {
+                    onChange(item.Code);
+                    setIsOpen(false);
+                  }
+                } else if (e.key === "Escape") {
+                  e.preventDefault();
+                  setIsOpen(false);
+                }
+              }}
               className="h-8 text-sm"
               autoFocus
+              aria-autocomplete="list"
+              aria-controls="cascading-select-listbox"
+              aria-activedescendant={
+                focusedIndex >= 0
+                  ? `cascading-option-${filteredItems[focusedIndex]?.Code}`
+                  : undefined
+              }
             />
           </div>
           <div
             ref={listRef}
+            id="cascading-select-listbox"
+            role="listbox"
+            aria-label={placeholder || dimensionType}
             className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto"
           >
             {isLoading && items.length === 0 ? (
@@ -324,12 +373,19 @@ export function CascadingDimensionSelect({
               </div>
             ) : (
               <>
-                {filteredItems.map((item) => (
+                {filteredItems.map((item, index) => (
                   <div
                     key={item.Code}
+                    id={`cascading-option-${item.Code}`}
+                    role="option"
+                    aria-selected={value === item.Code}
+                    ref={(el) => {
+                      itemRefs.current[index] = el;
+                    }}
                     className={cn(
                       "hover:bg-muted/50 relative flex cursor-default items-start rounded-sm px-2 py-2 text-sm outline-none select-none",
                       value === item.Code && "bg-muted",
+                      focusedIndex === index && "bg-accent text-accent-foreground",
                     )}
                     onClick={() => {
                       onChange(item.Code);

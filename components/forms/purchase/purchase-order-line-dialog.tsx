@@ -150,6 +150,7 @@ export function PurchaseOrderLineDialog({
     () => getPurchaseLineQuantityConfig(documentType),
     [documentType],
   );
+  const showQtyColumns = documentType === "order" || documentType === "return-order";
 
   const fieldInputClass =
     "disabled:opacity-100 disabled:text-foreground font-medium text-xs disabled:pointer-events-none";
@@ -803,51 +804,55 @@ export function PurchaseOrderLineDialog({
                   />
                 </div>
 
-                <div className="space-y-1">
-                  <FieldTitle>{quantityColumns.firstPendingLabel}</FieldTitle>
-                  <Input
-                    type="text"
-                    inputMode="decimal"
-                    value={getQuantityFieldDisplayValue(
-                      quantityColumns.firstPendingKey,
-                    )}
-                    onChange={(e) =>
-                      handleQuantityFieldChange(
-                        quantityColumns.firstPendingKey,
-                        e.target.value,
-                      )
-                    }
-                    onWheel={(e) => e.currentTarget.blur()}
-                    placeholder="0.00"
-                    className={cn(
-                      "h-8 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none",
-                      fieldInputClass,
-                    )}
-                  />
-                </div>
+                {showQtyColumns && (
+                  <>
+                    <div className="space-y-1">
+                      <FieldTitle>{quantityColumns.firstPendingLabel}</FieldTitle>
+                      <Input
+                        type="text"
+                        inputMode="decimal"
+                        value={getQuantityFieldDisplayValue(
+                          quantityColumns.firstPendingKey,
+                        )}
+                        onChange={(e) =>
+                          handleQuantityFieldChange(
+                            quantityColumns.firstPendingKey,
+                            e.target.value,
+                          )
+                        }
+                        onWheel={(e) => e.currentTarget.blur()}
+                        placeholder="0.00"
+                        className={cn(
+                          "h-8 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none",
+                          fieldInputClass,
+                        )}
+                      />
+                    </div>
 
-                <div className="space-y-1">
-                  <FieldTitle>{quantityColumns.secondPendingLabel}</FieldTitle>
-                  <Input
-                    type="text"
-                    inputMode="decimal"
-                    value={getQuantityFieldDisplayValue(
-                      quantityColumns.secondPendingKey,
-                    )}
-                    onChange={(e) =>
-                      handleQuantityFieldChange(
-                        quantityColumns.secondPendingKey,
-                        e.target.value,
-                      )
-                    }
-                    onWheel={(e) => e.currentTarget.blur()}
-                    placeholder="0.00"
-                    className={cn(
-                      "h-8 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none",
-                      fieldInputClass,
-                    )}
-                  />
-                </div>
+                    <div className="space-y-1">
+                      <FieldTitle>{quantityColumns.secondPendingLabel}</FieldTitle>
+                      <Input
+                        type="text"
+                        inputMode="decimal"
+                        value={getQuantityFieldDisplayValue(
+                          quantityColumns.secondPendingKey,
+                        )}
+                        onChange={(e) =>
+                          handleQuantityFieldChange(
+                            quantityColumns.secondPendingKey,
+                            e.target.value,
+                          )
+                        }
+                        onWheel={(e) => e.currentTarget.blur()}
+                        placeholder="0.00"
+                        className={cn(
+                          "h-8 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none",
+                          fieldInputClass,
+                        )}
+                      />
+                    </div>
+                  </>
+                )}
 
                 {canAddBardana && (
                   <div className="space-y-1">

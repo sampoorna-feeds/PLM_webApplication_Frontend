@@ -6,6 +6,7 @@ import { format } from "date-fns";
 import { ArrowUpDown, ChevronDown, ChevronUp, Loader2 } from "lucide-react";
 import { useCallback, useEffect, useRef, useMemo } from "react";
 import { ALL_COLUMNS, type ColumnConfig } from "./vendor-ledger-column-config";
+import { ColumnFilter } from "@/components/forms/report-ledger/column-filter";
 
 interface VendorLedgerTableProps {
   entries: VendorLedgerEntry[];
@@ -16,7 +17,7 @@ interface VendorLedgerTableProps {
   openingBalance: number;
   closingBalance: number;
   onSort: (field: string) => void;
-  onColumnFilterChange: (field: string, value: string) => void;
+  onColumnFilterChange: (field: string, value: string, valueTo?: string) => void;
   sortField?: string;
   sortOrder?: "asc" | "desc";
   columnFilters?: Record<string, string>;
@@ -107,27 +108,57 @@ export function VendorLedgerTable({
     label: string;
     className?: string;
     isSortable?: boolean;
-  }) => (
-    <th
-      className={cn(
-        "bg-muted z-40 border-b px-4 py-4 text-left align-middle font-medium whitespace-nowrap shadow-sm transition-colors",
-        className,
-      )}
-    >
-      <div
+  }) => {
+    const colConfig = ALL_COLUMNS.find((c) => c.id === field);
+    const filterState = columnFilters[field] || "";
+    const hasActiveFilter = !!filterState;
+
+    // Parse value and valueTo if it's a comma-separated string (for ranges)
+    const [val, valTo] = filterState.includes(",")
+      ? filterState.split(",")
+      : [filterState, ""];
+
+    return (
+      <th
         className={cn(
-          "hover:text-primary flex cursor-pointer items-center gap-2 transition-colors",
-          !isSortable && "cursor-default hover:text-inherit",
+          "bg-muted z-40 border-b px-4 py-4 text-left align-middle font-medium whitespace-nowrap shadow-sm transition-colors",
+          hasActiveFilter && "bg-primary/5 border-b-primary",
+          className,
         )}
-        onClick={() => isSortable && onSort(field)}
       >
-        <span className="text-muted-foreground text-xs font-bold tracking-wider whitespace-nowrap uppercase">
-          {label}
-        </span>
-        {isSortable && <SortIcon field={field} />}
-      </div>
-    </th>
-  );
+        <div className="flex items-center justify-between gap-2">
+          <div
+            className={cn(
+              "hover:text-primary flex cursor-pointer items-center gap-2 transition-colors",
+              !isSortable && "cursor-default hover:text-inherit",
+            )}
+            onClick={() => isSortable && onSort(field)}
+          >
+            <span
+              className={cn(
+                "text-muted-foreground text-xs font-bold tracking-wider whitespace-nowrap uppercase",
+                hasActiveFilter && "text-primary",
+              )}
+            >
+              {label}
+            </span>
+            {isSortable && <SortIcon field={field} />}
+          </div>
+
+          <div className="flex items-center">
+            {colConfig?.filterType && (
+              <ColumnFilter
+                column={colConfig}
+                value={val}
+                valueTo={valTo}
+                onChange={(v, vTo) => onColumnFilterChange(field, v, vTo)}
+              />
+            )}
+          </div>
+        </div>
+      </th>
+    );
+  };
 
   const renderCell = (col: ColumnConfig, entry: any) => {
     const value = entry[col.id];

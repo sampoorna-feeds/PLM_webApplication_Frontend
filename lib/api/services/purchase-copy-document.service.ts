@@ -124,6 +124,7 @@ export interface CopySourceFilters {
   vendorNo?: string;
   postingDateFrom?: string;
   postingDateTo?: string;
+  locationCode?: string;
 }
 
 export interface FetchSourceDocumentsForCopyParams {
@@ -211,6 +212,11 @@ function buildSourceFilters(
 
   if (filters?.postingDateTo) {
     clauses.push(`Posting_Date le ${filters.postingDateTo}`);
+  }
+
+  if (filters?.locationCode?.trim()) {
+    const escapedLocationCode = escapeODataValue(filters.locationCode.trim());
+    clauses.push(`Location_Code eq '${escapedLocationCode}'`);
   }
 
   if (clauses.length === 0) {

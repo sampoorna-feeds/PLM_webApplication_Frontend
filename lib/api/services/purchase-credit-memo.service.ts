@@ -48,17 +48,15 @@ export async function createPurchaseCreditMemo(
 }
 
 /**
- * Create purchase credit-memo header for copy-first flow using location and LOB.
+ * Create purchase credit-memo header for copy-first flow using location.
  */
 export async function createPurchaseCreditMemoCopyHeader(
   locationCode: string,
-  lobCode: string,
 ): Promise<CreatePurchaseCreditMemoResponse> {
   try {
     return await createPurchaseDocumentCopyBootstrapHeader(
       "credit-memo",
       locationCode,
-      lobCode,
     );
   } catch (error) {
     console.error(

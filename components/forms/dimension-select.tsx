@@ -390,7 +390,7 @@ export function DimensionSelect({
         </Button>
       </PopoverTrigger>
       <PopoverContent
-        className="flex max-h-[var(--radix-popover-content-available-height,80vh)] min-h-0 w-auto max-w-[500px] min-w-[280px] flex-col overflow-hidden p-0"
+        className="flex max-h-(--radix-popover-content-available-height,80vh) min-h-0 w-auto max-w-125 min-w-70 flex-col overflow-hidden p-0"
         align="start"
         style={{ width: calculateDropdownWidth() }}
         onOpenAutoFocus={(e) => {
@@ -404,7 +404,7 @@ export function DimensionSelect({
       >
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
           {supportsSearch && (
-            <div className="flex-shrink-0 border-b p-2">
+            <div className="shrink-0 border-b p-2">
               <Input
                 placeholder="Search by Code or Name..."
                 value={searchQuery}
@@ -469,7 +469,7 @@ export function DimensionSelect({
                         {item.Code}
                       </div>
                       {item.Name && (
-                        <div className="text-muted-foreground mt-0.5 text-xs break-words">
+                        <div className="text-muted-foreground mt-0.5 text-xs wrap-break-word">
                           {item.Name}
                         </div>
                       )}

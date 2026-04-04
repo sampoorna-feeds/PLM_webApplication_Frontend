@@ -48,17 +48,15 @@ export async function createPurchaseInvoice(
 }
 
 /**
- * Create purchase invoice header for copy-first flow using location and LOB.
+ * Create purchase invoice header for copy-first flow using location.
  */
 export async function createPurchaseInvoiceCopyHeader(
   locationCode: string,
-  lobCode: string,
 ): Promise<CreatePurchaseInvoiceResponse> {
   try {
     return await createPurchaseDocumentCopyBootstrapHeader(
       "invoice",
       locationCode,
-      lobCode,
     );
   } catch (error) {
     console.error(

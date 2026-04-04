@@ -118,19 +118,15 @@ export async function createPurchaseDocumentHeader(
 }
 
 /**
- * Create a lightweight header for copy-first flow using location and LOB.
+ * Create a lightweight header for copy-first flow using location.
  */
 export async function createPurchaseDocumentCopyBootstrapHeader(
   documentType: PurchaseDocumentAdapterType,
   locationCode: string,
-  lobCode: string,
 ): Promise<{ orderId: string; orderNo: string }> {
   const config = PURCHASE_DOCUMENT_ADAPTER_CONFIG[documentType];
   const endpoint = `/${config.headerEntity}?company='${encodeURIComponent(COMPANY)}'`;
-  // Some BC custom validations on Location_Code expect LOB fields to be set first.
   const payload = stripEmptyValues({
-    Responsibility_Center: lobCode,
-    Shortcut_Dimension_1_Code: lobCode,
     Location_Code: locationCode,
   });
 

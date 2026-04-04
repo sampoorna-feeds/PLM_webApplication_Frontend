@@ -276,7 +276,7 @@ export function CascadingDimensionSelect({
         </Button>
       </PopoverTrigger>
       <PopoverContent
-        className="flex max-h-[var(--radix-popover-content-available-height,80vh)] min-h-0 w-[var(--radix-popover-trigger-width)] max-w-[calc(100vw-2rem)] min-w-[320px] flex-col overflow-hidden p-0"
+        className="flex max-h-(--radix-popover-content-available-height,80vh) min-h-0 w-(--radix-popover-trigger-width) max-w-[calc(100vw-2rem)] min-w-[320px] flex-col overflow-hidden p-0"
         align="start"
         collisionPadding={8}
         onOpenAutoFocus={(e) => {
@@ -289,7 +289,7 @@ export function CascadingDimensionSelect({
         }}
       >
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-          <div className="flex-shrink-0 border-b p-2">
+          <div className="shrink-0 border-b p-2">
             <Input
               placeholder="Search by Code or Name..."
               value={searchQuery}
@@ -343,11 +343,11 @@ export function CascadingDimensionSelect({
                       )}
                     />
                     <div className="min-w-0 flex-1">
-                      <div className="text-foreground font-medium break-words">
+                      <div className="text-foreground font-medium wrap-break-word">
                         {item.Code}
                       </div>
                       {item.Name && (
-                        <div className="text-muted-foreground mt-0.5 text-xs break-words">
+                        <div className="text-muted-foreground mt-0.5 text-xs wrap-break-word">
                           {item.Name}
                         </div>
                       )}

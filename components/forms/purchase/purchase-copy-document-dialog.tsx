@@ -43,6 +43,7 @@ import {
   ArrowUp,
   ArrowUpDown,
 } from "lucide-react";
+import { DimensionSelect } from "@/components/forms/dimension-select";
 import {
   COPY_FROM_DOC_TYPE_OPTIONS,
   type CopySourceFilters,
@@ -58,10 +59,11 @@ import { cn } from "@/lib/utils";
 
 interface PurchaseCopyDocumentDialogProps {
   open: boolean;
-  toDocNo: string;
+  toDocNo?: string;
   toDocType: PurchaseCopyToDocType;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void | Promise<void>;
+  onCreateHeader?: (locCode: string) => Promise<string>;
 }
 
 const PAGE_SIZE = 25;
@@ -104,8 +106,11 @@ export function PurchaseCopyDocumentDialog({
   toDocType,
   onOpenChange,
   onSuccess,
+  onCreateHeader,
+  ...props
 }: PurchaseCopyDocumentDialogProps) {
   const [step, setStep] = useState<1 | 2>(1);
+  const [locationCode, setLocationCode] = useState("");
   const [fromDocType, setFromDocType] = useState<PurchaseCopyFromDocType | "">(
     "",
   );
@@ -139,6 +144,7 @@ export function PurchaseCopyDocumentDialog({
   useEffect(() => {
     if (!open) {
       setStep(1);
+      setLocationCode("");
       setFromDocType("");
       setDocs([]);
       setTotalCount(0);
@@ -177,7 +183,7 @@ export function PurchaseCopyDocumentDialog({
         const result = await fetchSourceDocumentsForCopy({
           fromDocType: fromDocType as PurchaseCopyFromDocType,
           searchTerm: searchQuery.trim() || undefined,
-          filters: normalizeFilters(filters),
+          filters: { ...normalizeFilters(filters), locationCode },
           sortBy,
           sortDirection,
           skip,
@@ -219,11 +225,11 @@ export function PurchaseCopyDocumentDialog({
         }
       }
     },
-    [filters, fromDocType, searchQuery, sortBy, sortDirection],
+    [filters, fromDocType, searchQuery, sortBy, sortDirection, locationCode],
   );
 
   useEffect(() => {
-    if (step !== 2 || !fromDocType) return;
+    if (step !== 2 || !fromDocType || !locationCode) return;
 
     if (debounceRef.current) {
       clearTimeout(debounceRef.current);
@@ -253,11 +259,12 @@ export function PurchaseCopyDocumentDialog({
     filters.postingDateTo,
     sortBy,
     sortDirection,
+    locationCode,
     fetchDocs,
   ]);
 
   const handleProceedToStep2 = useCallback(() => {
-    if (!fromDocType) return;
+    if (!fromDocType || !locationCode) return;
     setStep(2);
     setSearchQuery("");
     setFilters(EMPTY_FILTERS);
@@ -269,7 +276,7 @@ export function PurchaseCopyDocumentDialog({
     setNextSkip(0);
     setFetchError(null);
     setSelectedDocNo(null);
-  }, [fromDocType]);
+  }, [fromDocType, locationCode]);
 
   const handleLoadMore = useCallback(() => {
     if (!hasMore || isFetchingDocs || isFetchingMore) return;
@@ -310,15 +317,31 @@ export function PurchaseCopyDocumentDialog({
   };
 
   const handleConfirmCopy = useCallback(async () => {
-    if (!selectedDocNo || !fromDocType) return;
+    if (!selectedDocNo || !fromDocType || !locationCode) return;
+
     setIsCopying(true);
     setCopyError(null);
+
     try {
+      let targetDocNo = toDocNo;
+
+      // Handle header creation if not already created
+      if (!targetDocNo) {
+        if (!onCreateHeader) {
+          throw new Error("Missing callback to create document header.");
+        }
+        targetDocNo = await onCreateHeader(locationCode);
+        if (!targetDocNo) {
+          throw new Error("Failed to get document number after creation.");
+        }
+      }
+
       await executePurchaseCopyDocument({
         fromDocType1: fromDocType as PurchaseCopyFromDocType,
         fromDocNo: selectedDocNo,
-        purchaseHeaderNo: toDocNo,
+        purchaseHeaderNo: targetDocNo,
       });
+
       await Promise.resolve(onSuccess());
       onOpenChange(false);
     } catch (err: unknown) {
@@ -329,7 +352,15 @@ export function PurchaseCopyDocumentDialog({
     } finally {
       setIsCopying(false);
     }
-  }, [selectedDocNo, fromDocType, toDocNo, onSuccess, onOpenChange]);
+  }, [
+    selectedDocNo,
+    fromDocType,
+    toDocNo,
+    locationCode,
+    onCreateHeader,
+    onSuccess,
+    onOpenChange,
+  ]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -340,14 +371,31 @@ export function PurchaseCopyDocumentDialog({
             Copy Document
           </DialogTitle>
           <DialogDescription className="text-xs">
-            Copy lines and header data from another purchase document into{" "}
-            <span className="text-foreground font-medium">{toDocNo}</span>.
+            {toDocNo ? (
+              <>
+                Copy lines and header data from another purchase document into{" "}
+                <span className="text-foreground font-medium">{toDocNo}</span>.
+              </>
+            ) : (
+              "Select location and document type to copy from."
+            )}
           </DialogDescription>
         </DialogHeader>
 
         {/* ── Step 1: choose fromDocType ── */}
         {step === 1 && (
           <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <label className="text-muted-foreground text-xs font-medium">
+                Location
+              </label>
+              <DimensionSelect
+                dimensionType="LOC"
+                value={locationCode}
+                onChange={setLocationCode}
+                placeholder="Select Location"
+              />
+            </div>
             <div className="space-y-1.5">
               <label className="text-muted-foreground text-xs font-medium">
                 Copy from document type
@@ -621,7 +669,7 @@ export function PurchaseCopyDocumentDialog({
             <Button
               size="sm"
               onClick={handleProceedToStep2}
-              disabled={!fromDocType || isFetchingDocs}
+              disabled={!fromDocType || !locationCode || isFetchingDocs}
             >
               {isFetchingDocs ? (
                 <>

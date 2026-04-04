@@ -5,7 +5,13 @@
 
 "use client";
 
-import React, { useState, useEffect, useCallback, useMemo, useTransition } from "react";
+import React, {
+  useState,
+  useEffect,
+  useCallback,
+  useMemo,
+  useTransition,
+} from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -51,12 +57,7 @@ import { getAuthCredentials } from "@/lib/auth/storage";
 import { getErrorMessage } from "@/lib/errors";
 import type { LineItem } from "@/components/forms/purchase/purchase-line-item.type";
 import { PurchaseLineItemsTable } from "./purchase-line-items-table";
-import {
-  Plus,
-  FileText,
-  Paperclip,
-  LoaderCircleIcon,
-} from "lucide-react";
+import { Plus, FileText, Paperclip, LoaderCircleIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ClearableField } from "@/components/ui/clearable-field";
 import { RequestFailedDialog } from "@/components/ui/request-failed-dialog";
@@ -196,7 +197,6 @@ interface PurchaseCreateDocumentConfig {
   ) => Promise<{ orderId: string; orderNo: string }>;
   createCopyHeader: (
     locationCode: string,
-    lobCode: string,
   ) => Promise<{ orderId: string; orderNo: string }>;
   addLineItems: (
     documentNo: string,
@@ -478,8 +478,6 @@ export function PurchaseCreateDocumentFormContent({
     null,
   );
   const [isCreatingHeader, setIsCreatingHeader] = useState(false);
-  const [isBootstrappingCopyHeader, setIsBootstrappingCopyHeader] =
-    useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSavingLine, setIsSavingLine] = useState(false);
   const [isActionLoading, setIsActionLoading] = useState(false);
@@ -501,23 +499,36 @@ export function PurchaseCreateDocumentFormContent({
   const [isPostDialogOpen, setIsPostDialogOpen] = useState(false);
   const [isPostDetailsOpen, setIsPostDetailsOpen] = useState(false);
   const [isPostLoading, setIsPostLoading] = useState(false);
-  const [postOption, setPostOption] = useState<"receive" | "invoice" | "receive-invoice" | null>(null);
+  const [postOption, setPostOption] = useState<
+    "receive" | "invoice" | "receive-invoice" | null
+  >(null);
   const [postDetails, setPostDetails] = useState({
-    postingDate: "", documentDate: "", vehicleNo: "",
-    vendorInvoiceNo: "", dueDateCalculation: "Posting Date",
-    freight: "", lineNarration: "",
+    postingDate: "",
+    documentDate: "",
+    vehicleNo: "",
+    vendorInvoiceNo: "",
+    dueDateCalculation: "Posting Date",
+    freight: "",
+    lineNarration: "",
   });
   const [isReceiptOpen, setIsReceiptOpen] = useState(false);
   const [isReceiptLoading, setIsReceiptLoading] = useState(false);
-  const [receiptShipments, setReceiptShipments] = useState<PurchaseReceipt[]>([]);
+  const [receiptShipments, setReceiptShipments] = useState<PurchaseReceipt[]>(
+    [],
+  );
   const [receiptDate, setReceiptDate] = useState("");
   const [isTrackingOpen, setIsTrackingOpen] = useState(false);
   const [trackingLine, setTrackingLine] = useState<PurchaseLine | null>(null);
   const [isItemChargeOpen, setIsItemChargeOpen] = useState(false);
-  const [selectedItemChargeLine, setSelectedItemChargeLine] = useState<PurchaseLine | null>(null);
+  const [selectedItemChargeLine, setSelectedItemChargeLine] =
+    useState<PurchaseLine | null>(null);
   const [confirmDialog, setConfirmDialog] = useState({
-    open: false, title: "", description: "", action: async () => {},
-    actionLabel: "", cancelLabel: "",
+    open: false,
+    title: "",
+    description: "",
+    action: async () => {},
+    actionLabel: "",
+    cancelLabel: "",
     variant: "default" as "default" | "destructive",
   });
   const [, startPrintMRN] = useTransition();
@@ -532,14 +543,17 @@ export function PurchaseCreateDocumentFormContent({
   useEffect(() => {
     if (documentType !== "order") return;
     const locCode = formData.locationCode || formData.loc;
-    if (!locCode) { setLocationName(""); return; }
+    if (!locCode) {
+      setLocationName("");
+      return;
+    }
     getTransferAllLocationCodes()
       .then((locs) => {
         const found = locs.find((l) => l.Code === locCode);
         setLocationName(found?.Name || "");
       })
       .catch(() => setLocationName(""));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [documentType, formData.locationCode, formData.loc]);
 
   useEffect(() => {
@@ -807,75 +821,9 @@ export function PurchaseCreateDocumentFormContent({
     }
   };
 
-  const handleOpenCopyDialog = async () => {
+  const handleOpenCopyDialog = () => {
     if (!isCreateMode) return;
-
-    if (createdOrderNo) {
-      setIsCopyDocOpen(true);
-      return;
-    }
-
-    const locationCode = resolvePurchaseLocationCode(
-      formData.locationCode,
-      formData.loc,
-    );
-
-    if (!locationCode) {
-      setPlaceOrderError(
-        "Select LOC / Location first. Copy flow requires location to create a document header.",
-      );
-      return;
-    }
-
-    const lobCode = formData.lob?.trim() || "";
-    if (!lobCode) {
-      setPlaceOrderError(
-        "Select LOB first. Copy flow requires LOB and Location to create a document header.",
-      );
-      return;
-    }
-
-    setIsBootstrappingCopyHeader(true);
-    setPlaceOrderError(null);
-    try {
-      const orderResponse = await config.createCopyHeader(
-        locationCode,
-        lobCode,
-      );
-      const orderNo = orderResponse.orderNo || orderResponse.orderId;
-
-      if (!orderNo) {
-        throw new Error(
-          "Failed to create copy header: No document number returned",
-        );
-      }
-
-      setFormData((previous) => ({
-        ...previous,
-        locationCode,
-      }));
-      setCreatedOrderNo(orderNo);
-      setDocumentStatus("Open");
-
-      persist({
-        ...formData,
-        locationCode,
-        lineItems,
-        createdOrderNo: orderNo,
-        status: "Open",
-      });
-
-      setIsCopyDocOpen(true);
-    } catch (error) {
-      setPlaceOrderError(
-        getErrorMessage(
-          error,
-          "Failed to create document for copy. Please try again.",
-        ),
-      );
-    } finally {
-      setIsBootstrappingCopyHeader(false);
-    }
+    setIsCopyDocOpen(true);
   };
 
   // Line Items management
@@ -895,7 +843,9 @@ export function PurchaseCreateDocumentFormContent({
     // For orders: if this line is persisted on the server (has a lineNo), open the
     // richer PurchaseLineEditDialog. Otherwise use the standard dialog.
     if (documentType === "order" && lineItem.lineNo && createdOrderNo) {
-      const serverLine = purchaseLines.find((l) => l.Line_No === lineItem.lineNo);
+      const serverLine = purchaseLines.find(
+        (l) => l.Line_No === lineItem.lineNo,
+      );
       if (serverLine) {
         setSelectedLine(serverLine);
         return;
@@ -1205,15 +1155,29 @@ export function PurchaseCreateDocumentFormContent({
   };
 
   const handleStatusAction = async (action: string) => {
-    if (action === "Send For Approval") { await handleSendForApproval(); return; }
-    if (action === "Cancel Approval") { await handleCancelApproval(); return; }
-    if (action === "Reopen") { await handleReopenDocument(); return; }
-    if (action === "Post") {
-      if (documentType === "order") { setPostOption(null); setIsPostDialogOpen(true); }
-      else toast.info(`Post flow for ${config.displayTitle} will be wired next.`);
+    if (action === "Send For Approval") {
+      await handleSendForApproval();
       return;
     }
-    if (action === "Gate Entry") { return; } // handled inline via PostGateEntryDialog
+    if (action === "Cancel Approval") {
+      await handleCancelApproval();
+      return;
+    }
+    if (action === "Reopen") {
+      await handleReopenDocument();
+      return;
+    }
+    if (action === "Post") {
+      if (documentType === "order") {
+        setPostOption(null);
+        setIsPostDialogOpen(true);
+      } else
+        toast.info(`Post flow for ${config.displayTitle} will be wired next.`);
+      return;
+    }
+    if (action === "Gate Entry") {
+      return;
+    } // handled inline via PostGateEntryDialog
     if (action === "Purchase Receipts") {
       setIsReceiptOpen(true);
       if (createdOrderNo) {
@@ -1234,7 +1198,8 @@ export function PurchaseCreateDocumentFormContent({
   }, []);
 
   const base64ToPdfBlob = (b64: string) => {
-    const bin = atob(b64); const bytes = new Uint8Array(bin.length);
+    const bin = atob(b64);
+    const bytes = new Uint8Array(bin.length);
     for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
     return new Blob([bytes], { type: "application/pdf" });
   };
@@ -1244,40 +1209,65 @@ export function PurchaseCreateDocumentFormContent({
     setIsActionLoading(true);
     try {
       const b64 = await getPurchaseOrderReport(createdOrderNo);
-      if (!b64) { toast.error("No report data found."); return; }
+      if (!b64) {
+        toast.error("No report data found.");
+        return;
+      }
       window.open(URL.createObjectURL(base64ToPdfBlob(b64)), "_blank");
-    } catch { toast.error("Failed to generate report."); }
-    finally { setIsActionLoading(false); }
+    } catch {
+      toast.error("Failed to generate report.");
+    } finally {
+      setIsActionLoading(false);
+    }
   };
 
   const handlePrintMRN = async (mrnNo: string) => {
     startPrintMRN(async () => {
       try {
         const b64 = await getPurchasereceiptReport(mrnNo);
-        if (!b64) { toast.error("No report data found."); return; }
+        if (!b64) {
+          toast.error("No report data found.");
+          return;
+        }
         window.open(URL.createObjectURL(base64ToPdfBlob(b64)), "_blank");
-      } catch { toast.error("Failed to generate MRN report."); }
+      } catch {
+        toast.error("Failed to generate MRN report.");
+      }
     });
   };
 
   const handlePostDetailsSubmit = async () => {
     if (!createdOrderNo || !postOption) return;
-    if (!postDetails.postingDate) { toast.error("Posting Date is required."); return; }
-    if (!postDetails.documentDate) { toast.error("Document Date is required."); return; }
+    if (!postDetails.postingDate) {
+      toast.error("Posting Date is required.");
+      return;
+    }
+    if (!postDetails.documentDate) {
+      toast.error("Document Date is required.");
+      return;
+    }
     setIsPostLoading(true);
     try {
-      const isInvoiceOption = postOption === "invoice" || postOption === "receive-invoice";
+      const isInvoiceOption =
+        postOption === "invoice" || postOption === "receive-invoice";
       const patchPayload: Record<string, unknown> = {
-        Posting_Date: postDetails.postingDate, Document_Date: postDetails.documentDate,
-        Vehicle_No: postDetails.vehicleNo || "", Vendor_Invoice_No: postDetails.vendorInvoiceNo || "",
+        Posting_Date: postDetails.postingDate,
+        Document_Date: postDetails.documentDate,
+        Vehicle_No: postDetails.vehicleNo || "",
+        Vendor_Invoice_No: postDetails.vendorInvoiceNo || "",
       };
       if (isInvoiceOption) {
-        patchPayload.Due_Date_calculation = postDetails.dueDateCalculation || "Posting Date";
+        patchPayload.Due_Date_calculation =
+          postDetails.dueDateCalculation || "Posting Date";
         patchPayload.Line_Narration1 = postDetails.lineNarration || "";
         patchPayload.Freight = postDetails.freight || "0";
       }
       await patchPurchaseOrderHeader(createdOrderNo, patchPayload);
-      const optMap: Record<string, "1" | "2" | "3"> = { receive: "1", invoice: "2", "receive-invoice": "3" };
+      const optMap: Record<string, "1" | "2" | "3"> = {
+        receive: "1",
+        invoice: "2",
+        "receive-invoice": "3",
+      };
       await postPurchaseOrder(createdOrderNo, optMap[postOption]);
       toast.success("Order posted successfully.");
       setIsPostDetailsOpen(false);
@@ -1285,7 +1275,9 @@ export function PurchaseCreateDocumentFormContent({
       onSuccess(createdOrderNo);
     } catch (err) {
       setPlaceOrderError((err as Error).message ?? "Post failed.");
-    } finally { setIsPostLoading(false); }
+    } finally {
+      setIsPostLoading(false);
+    }
   };
   // ────────────────────────────────────────────────────────────────────────
 
@@ -1436,7 +1428,6 @@ export function PurchaseCreateDocumentFormContent({
             )}
           </div>
         )}
-
 
         {createdOrderNo && isCreateMode && (
           <div className="bg-primary/5 text-primary rounded-md border px-3 py-1.5 text-xs font-medium">
@@ -2191,7 +2182,7 @@ export function PurchaseCreateDocumentFormContent({
             <div className="text-muted-foreground text-xs">
               {createdOrderNo
                 ? `${config.displayTitle} ${createdOrderNo} ready for completion`
-                : "Create header to add lines, or copy from another document (location required)."}
+                : "Create header to add lines, or copy from another document."}
             </div>
 
             {!createdOrderNo ? (
@@ -2200,20 +2191,14 @@ export function PurchaseCreateDocumentFormContent({
                   type="button"
                   variant="outline"
                   onClick={handleOpenCopyDialog}
-                  disabled={isBootstrappingCopyHeader || isCreatingHeader}
+                  disabled={isCreatingHeader}
                 >
-                  {isBootstrappingCopyHeader
-                    ? "Preparing Copy..."
-                    : "Copy Document"}
+                  Copy Document
                 </Button>
                 <Button
                   type="button"
                   onClick={handleCreateOrderHeader}
-                  disabled={
-                    !isStep1Valid() ||
-                    isCreatingHeader ||
-                    isBootstrappingCopyHeader
-                  }
+                  disabled={!isStep1Valid() || isCreatingHeader}
                 >
                   {isCreatingHeader
                     ? "Creating..."
@@ -2251,13 +2236,35 @@ export function PurchaseCreateDocumentFormContent({
         />
       )}
 
-      {isCreateMode && createdOrderNo && documentType !== "order" && (
+      {isCreateMode && documentType !== "order" && (
         <PurchaseCopyDocumentDialog
           open={isCopyDocOpen}
-          toDocNo={createdOrderNo}
+          toDocNo={createdOrderNo || undefined}
           toDocType={config.toDocType}
           onOpenChange={setIsCopyDocOpen}
           onSuccess={handleCopyDocumentSuccess}
+          onCreateHeader={async (locCode) => {
+            const resp = await config.createCopyHeader(locCode);
+            const returnedNo = resp.orderNo || resp.orderId;
+            if (returnedNo) {
+              setFormData((prev) => ({
+                ...prev,
+                locationCode: locCode,
+                loc: locCode,
+              }));
+              setCreatedOrderNo(returnedNo);
+              setDocumentStatus("Open");
+              persist({
+                ...formData,
+                locationCode: locCode,
+                loc: locCode,
+                lineItems,
+                createdOrderNo: returnedNo,
+                status: "Open",
+              });
+            }
+            return returnedNo;
+          }}
         />
       )}
 
@@ -2270,8 +2277,14 @@ export function PurchaseCreateDocumentFormContent({
           documentType="order"
           orderNo={createdOrderNo}
           vendorNo={formData.vendorNo}
-          onAssignTracking={(line) => { setTrackingLine(line); setIsTrackingOpen(true); }}
-          onOpenItemCharge={(line) => { setSelectedItemChargeLine(line); setIsItemChargeOpen(true); }}
+          onAssignTracking={(line) => {
+            setTrackingLine(line);
+            setIsTrackingOpen(true);
+          }}
+          onOpenItemCharge={(line) => {
+            setSelectedItemChargeLine(line);
+            setIsItemChargeOpen(true);
+          }}
           onDelete={async (line) => {
             if (line.Line_No && createdOrderNo) {
               await config.deleteLine(createdOrderNo, line.Line_No);
@@ -2300,23 +2313,27 @@ export function PurchaseCreateDocumentFormContent({
           line={trackingLine}
           orderNo={createdOrderNo}
           locationCode={formData.locationCode || formData.loc || ""}
-          onSave={() => { if (createdOrderNo) fetchLines(createdOrderNo); }}
+          onSave={() => {
+            if (createdOrderNo) fetchLines(createdOrderNo);
+          }}
         />
       )}
 
-      {documentType === "order" && isItemChargeOpen && selectedItemChargeLine && (
-        <ItemChargeAssignmentDialog
-          open={isItemChargeOpen}
-          onOpenChange={setIsItemChargeOpen}
-          docType={selectedItemChargeLine.Document_Type || "Order"}
-          docNo={createdOrderNo || ""}
-          docLineNo={selectedItemChargeLine.Line_No!}
-          itemChargeNo={selectedItemChargeLine.No || ""}
-          itemChargeDescription={selectedItemChargeLine.Description || ""}
-          totalAmount={selectedItemChargeLine.Line_Amount || 0}
-          totalQuantity={selectedItemChargeLine.Quantity || 0}
-        />
-      )}
+      {documentType === "order" &&
+        isItemChargeOpen &&
+        selectedItemChargeLine && (
+          <ItemChargeAssignmentDialog
+            open={isItemChargeOpen}
+            onOpenChange={setIsItemChargeOpen}
+            docType={selectedItemChargeLine.Document_Type || "Order"}
+            docNo={createdOrderNo || ""}
+            docLineNo={selectedItemChargeLine.Line_No!}
+            itemChargeNo={selectedItemChargeLine.No || ""}
+            itemChargeDescription={selectedItemChargeLine.Description || ""}
+            totalAmount={selectedItemChargeLine.Line_Amount || 0}
+            totalQuantity={selectedItemChargeLine.Quantity || 0}
+          />
+        )}
 
       {/* Post Option Dialog */}
       {documentType === "order" && (
@@ -2326,24 +2343,56 @@ export function PurchaseCreateDocumentFormContent({
               <DialogTitle>Post Purchase Order</DialogTitle>
             </DialogHeader>
             <div className="grid gap-2 py-4">
-              {(["receive", "invoice", "receive-invoice"] as const).map((opt) => (
-                <Label key={opt} className="flex cursor-pointer items-center gap-2">
-                  <input type="radio" name="post-mode" checked={postOption === opt}
-                    onChange={() => setPostOption(opt)} />
-                  <span>{opt === "receive" ? "Receive" : opt === "invoice" ? "Invoice" : "Receive & Invoice"}</span>
-                </Label>
-              ))}
+              {(["receive", "invoice", "receive-invoice"] as const).map(
+                (opt) => (
+                  <Label
+                    key={opt}
+                    className="flex cursor-pointer items-center gap-2"
+                  >
+                    <input
+                      type="radio"
+                      name="post-mode"
+                      checked={postOption === opt}
+                      onChange={() => setPostOption(opt)}
+                    />
+                    <span>
+                      {opt === "receive"
+                        ? "Receive"
+                        : opt === "invoice"
+                          ? "Invoice"
+                          : "Receive & Invoice"}
+                    </span>
+                  </Label>
+                ),
+              )}
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setIsPostDialogOpen(false)}>Cancel</Button>
-              <Button disabled={!postOption} onClick={() => {
-                if (!postOption) return;
-                const today = new Date().toISOString().split("T")[0];
-                setPostDetails({ postingDate: today, documentDate: formData.documentDate || today,
-                  vehicleNo: "", vendorInvoiceNo: formData.vendorInvoiceNo || "",
-                  dueDateCalculation: "Posting Date", freight: "", lineNarration: "" });
-                setIsPostDialogOpen(false); setIsPostDetailsOpen(true);
-              }}>Continue</Button>
+              <Button
+                variant="outline"
+                onClick={() => setIsPostDialogOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                disabled={!postOption}
+                onClick={() => {
+                  if (!postOption) return;
+                  const today = new Date().toISOString().split("T")[0];
+                  setPostDetails({
+                    postingDate: today,
+                    documentDate: formData.documentDate || today,
+                    vehicleNo: "",
+                    vendorInvoiceNo: formData.vendorInvoiceNo || "",
+                    dueDateCalculation: "Posting Date",
+                    freight: "",
+                    lineNarration: "",
+                  });
+                  setIsPostDialogOpen(false);
+                  setIsPostDetailsOpen(true);
+                }}
+              >
+                Continue
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -2353,63 +2402,133 @@ export function PurchaseCreateDocumentFormContent({
       {documentType === "order" && (
         <Dialog open={isPostDetailsOpen} onOpenChange={setIsPostDetailsOpen}>
           <DialogContent className="sm:max-w-lg">
-            <DialogHeader><DialogTitle>Post Details</DialogTitle></DialogHeader>
+            <DialogHeader>
+              <DialogTitle>Post Details</DialogTitle>
+            </DialogHeader>
             <div className="grid grid-cols-1 gap-3 py-4 sm:grid-cols-2">
               <div className="space-y-1">
                 <Label className="text-xs font-semibold">Posting Date *</Label>
-                <Input type="date" value={postDetails.postingDate}
-                  onChange={(e) => setPostDetails((p) => ({ ...p, postingDate: e.target.value }))}
-                  className="h-8" />
+                <Input
+                  type="date"
+                  value={postDetails.postingDate}
+                  onChange={(e) =>
+                    setPostDetails((p) => ({
+                      ...p,
+                      postingDate: e.target.value,
+                    }))
+                  }
+                  className="h-8"
+                />
               </div>
               <div className="space-y-1">
                 <Label className="text-xs font-semibold">Document Date *</Label>
-                <Input type="date" value={postDetails.documentDate}
-                  onChange={(e) => setPostDetails((p) => ({ ...p, documentDate: e.target.value }))}
-                  className="h-8" />
+                <Input
+                  type="date"
+                  value={postDetails.documentDate}
+                  onChange={(e) =>
+                    setPostDetails((p) => ({
+                      ...p,
+                      documentDate: e.target.value,
+                    }))
+                  }
+                  className="h-8"
+                />
               </div>
               <div className="space-y-1">
                 <Label className="text-xs font-semibold">Vehicle No</Label>
-                <Input value={postDetails.vehicleNo}
-                  onChange={(e) => setPostDetails((p) => ({ ...p, vehicleNo: e.target.value }))}
-                  className="h-8" />
+                <Input
+                  value={postDetails.vehicleNo}
+                  onChange={(e) =>
+                    setPostDetails((p) => ({ ...p, vehicleNo: e.target.value }))
+                  }
+                  className="h-8"
+                />
               </div>
               <div className="space-y-1">
-                <Label className="text-xs font-semibold">Vendor Invoice No</Label>
-                <Input value={postDetails.vendorInvoiceNo}
-                  onChange={(e) => setPostDetails((p) => ({ ...p, vendorInvoiceNo: e.target.value }))}
-                  className="h-8" />
+                <Label className="text-xs font-semibold">
+                  Vendor Invoice No
+                </Label>
+                <Input
+                  value={postDetails.vendorInvoiceNo}
+                  onChange={(e) =>
+                    setPostDetails((p) => ({
+                      ...p,
+                      vendorInvoiceNo: e.target.value,
+                    }))
+                  }
+                  className="h-8"
+                />
               </div>
-              {(postOption === "invoice" || postOption === "receive-invoice") && (
+              {(postOption === "invoice" ||
+                postOption === "receive-invoice") && (
                 <>
                   <div className="space-y-1">
-                    <Label className="text-xs font-semibold">Due Date Calculation</Label>
-                    <Select value={postDetails.dueDateCalculation}
-                      onValueChange={(v) => setPostDetails((p) => ({ ...p, dueDateCalculation: v }))}>
-                      <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
+                    <Label className="text-xs font-semibold">
+                      Due Date Calculation
+                    </Label>
+                    <Select
+                      value={postDetails.dueDateCalculation}
+                      onValueChange={(v) =>
+                        setPostDetails((p) => ({ ...p, dueDateCalculation: v }))
+                      }
+                    >
+                      <SelectTrigger className="h-8">
+                        <SelectValue />
+                      </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="Posting Date">Posting Date</SelectItem>
-                        <SelectItem value="Document Date">Document Date</SelectItem>
+                        <SelectItem value="Posting Date">
+                          Posting Date
+                        </SelectItem>
+                        <SelectItem value="Document Date">
+                          Document Date
+                        </SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
                   <div className="space-y-1">
                     <Label className="text-xs font-semibold">Freight</Label>
-                    <Input type="text" inputMode="decimal" value={postDetails.freight}
-                      onChange={(e) => { const v = e.target.value; if (v === "" || /^\d*\.?\d*$/.test(v)) setPostDetails((p) => ({ ...p, freight: v })); }}
-                      className="h-8" />
+                    <Input
+                      type="text"
+                      inputMode="decimal"
+                      value={postDetails.freight}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        if (v === "" || /^\d*\.?\d*$/.test(v))
+                          setPostDetails((p) => ({ ...p, freight: v }));
+                      }}
+                      className="h-8"
+                    />
                   </div>
                   <div className="space-y-1 sm:col-span-2">
-                    <Label className="text-xs font-semibold">Line Narration</Label>
-                    <Input value={postDetails.lineNarration}
-                      onChange={(e) => setPostDetails((p) => ({ ...p, lineNarration: e.target.value }))}
-                      className="h-8" />
+                    <Label className="text-xs font-semibold">
+                      Line Narration
+                    </Label>
+                    <Input
+                      value={postDetails.lineNarration}
+                      onChange={(e) =>
+                        setPostDetails((p) => ({
+                          ...p,
+                          lineNarration: e.target.value,
+                        }))
+                      }
+                      className="h-8"
+                    />
                   </div>
                 </>
               )}
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setIsPostDetailsOpen(false)} disabled={isPostLoading}>Cancel</Button>
-              <Button onClick={handlePostDetailsSubmit} disabled={isPostLoading}>
+              <Button
+                variant="outline"
+                onClick={() => setIsPostDetailsOpen(false)}
+                disabled={isPostLoading}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handlePostDetailsSubmit}
+                disabled={isPostLoading}
+              >
                 {isPostLoading ? "Posting..." : "Post"}
               </Button>
             </DialogFooter>
@@ -2421,7 +2540,9 @@ export function PurchaseCreateDocumentFormContent({
       {documentType === "order" && (
         <Dialog open={isReceiptOpen} onOpenChange={setIsReceiptOpen}>
           <DialogContent className="sm:max-w-4xl">
-            <DialogHeader><DialogTitle>Purchase Receipts – {createdOrderNo}</DialogTitle></DialogHeader>
+            <DialogHeader>
+              <DialogTitle>Purchase Receipts – {createdOrderNo}</DialogTitle>
+            </DialogHeader>
             <div className="max-h-96 overflow-auto rounded-md border">
               <Table>
                 <TableHeader>
@@ -2430,52 +2551,92 @@ export function PurchaseCreateDocumentFormContent({
                     <TableHead className="text-xs">Vendor No.</TableHead>
                     <TableHead className="text-xs">Posting Date</TableHead>
                     <TableHead className="text-xs">Vehicle No.</TableHead>
-                    <TableHead className="text-right text-xs">Actions</TableHead>
+                    <TableHead className="text-right text-xs">
+                      Actions
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {isReceiptLoading ? (
-                    <TableRow><TableCell colSpan={5} className="py-10 text-center">Loading...</TableCell></TableRow>
-                  ) : receiptShipments.length === 0 ? (
-                    <TableRow><TableCell colSpan={5} className="text-muted-foreground py-10 text-center">No receipts found.</TableCell></TableRow>
-                  ) : receiptShipments.map((s) => (
-                    <TableRow key={s.No}>
-                      <TableCell className="text-xs font-medium">{s.No}</TableCell>
-                      <TableCell className="text-xs">{s.Buy_from_Vendor_No}</TableCell>
-                      <TableCell className="text-xs">{s.Posting_Date}</TableCell>
-                      <TableCell className="text-xs">{String(s.Vehicle_No || "-")}</TableCell>
-                      <TableCell className="text-right">
-                        <Button size="icon" variant="ghost" className="h-7 w-7" title="Print MRN"
-                          onClick={() => handlePrintMRN(s.No)}>
-                          {printingMRN
-                            ? <LoaderCircleIcon className="h-3.5 w-3.5 animate-spin" />
-                            : <FileText className="h-3.5 w-3.5" />}
-                        </Button>
+                    <TableRow>
+                      <TableCell colSpan={5} className="py-10 text-center">
+                        Loading...
                       </TableCell>
                     </TableRow>
-                  ))}
+                  ) : receiptShipments.length === 0 ? (
+                    <TableRow>
+                      <TableCell
+                        colSpan={5}
+                        className="text-muted-foreground py-10 text-center"
+                      >
+                        No receipts found.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    receiptShipments.map((s) => (
+                      <TableRow key={s.No}>
+                        <TableCell className="text-xs font-medium">
+                          {s.No}
+                        </TableCell>
+                        <TableCell className="text-xs">
+                          {s.Buy_from_Vendor_No}
+                        </TableCell>
+                        <TableCell className="text-xs">
+                          {s.Posting_Date}
+                        </TableCell>
+                        <TableCell className="text-xs">
+                          {String(s.Vehicle_No || "-")}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-7 w-7"
+                            title="Print MRN"
+                            onClick={() => handlePrintMRN(s.No)}
+                          >
+                            {printingMRN ? (
+                              <LoaderCircleIcon className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <FileText className="h-3.5 w-3.5" />
+                            )}
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
                 </TableBody>
               </Table>
             </div>
-            <DialogFooter><Button onClick={() => setIsReceiptOpen(false)}>Close</Button></DialogFooter>
+            <DialogFooter>
+              <Button onClick={() => setIsReceiptOpen(false)}>Close</Button>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
       )}
 
       {/* Confirm / AlertDialog */}
-      <AlertDialog open={confirmDialog.open}
-        onOpenChange={(open) => setConfirmDialog((p) => ({ ...p, open }))}>
+      <AlertDialog
+        open={confirmDialog.open}
+        onOpenChange={(open) => setConfirmDialog((p) => ({ ...p, open }))}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>{confirmDialog.title}</AlertDialogTitle>
-            <AlertDialogDescription>{confirmDialog.description}</AlertDialogDescription>
+            <AlertDialogDescription>
+              {confirmDialog.description}
+            </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setConfirmDialog((p) => ({ ...p, open: false }))}>
+            <AlertDialogCancel
+              onClick={() => setConfirmDialog((p) => ({ ...p, open: false }))}
+            >
               {confirmDialog.cancelLabel || "Cancel"}
             </AlertDialogCancel>
-            <AlertDialogAction variant={confirmDialog.variant || "default"}
-              onClick={() => confirmDialog.action()}>
+            <AlertDialogAction
+              variant={confirmDialog.variant || "default"}
+              onClick={() => confirmDialog.action()}
+            >
               {confirmDialog.actionLabel}
             </AlertDialogAction>
           </AlertDialogFooter>

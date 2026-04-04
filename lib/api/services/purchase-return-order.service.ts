@@ -48,17 +48,15 @@ export async function createPurchaseReturnOrder(
 }
 
 /**
- * Create purchase return-order header for copy-first flow using location and LOB.
+ * Create purchase return-order header for copy-first flow using location.
  */
 export async function createPurchaseReturnOrderCopyHeader(
   locationCode: string,
-  lobCode: string,
 ): Promise<CreatePurchaseReturnOrderResponse> {
   try {
     return await createPurchaseDocumentCopyBootstrapHeader(
       "return-order",
       locationCode,
-      lobCode,
     );
   } catch (error) {
     console.error(

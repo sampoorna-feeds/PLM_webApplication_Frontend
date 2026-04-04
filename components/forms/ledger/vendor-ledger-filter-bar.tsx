@@ -40,6 +40,8 @@ interface VendorLedgerFilterBarProps {
   onRemoveAdditionalFilter: (index: number) => void;
   onSuccess?: () => void;
   isLoading?: boolean;
+  openingBalance?: number;
+  closingBalance?: number;
 }
 
 export function VendorLedgerFilterBar({
@@ -57,6 +59,8 @@ export function VendorLedgerFilterBar({
   onRemoveAdditionalFilter,
   onSuccess,
   isLoading = false,
+  openingBalance,
+  closingBalance,
 }: VendorLedgerFilterBarProps) {
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
   const [filterPopoverOpen, setFilterPopoverOpen] = useState(false);
@@ -216,6 +220,8 @@ export function VendorLedgerFilterBar({
         humanReadableFilters={humanReadableFilters}
         title={filters.isOutstanding ? "Outstanding Amount" : "Vendor Ledger"}
         filename={filters.isOutstanding ? "Vendor_Outstanding" : "Vendor_Ledger"}
+        openingBalance={openingBalance}
+        closingBalance={closingBalance}
       />
     </div>
   );

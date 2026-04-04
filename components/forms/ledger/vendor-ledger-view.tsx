@@ -107,6 +107,8 @@ export function VendorLedgerView() {
             });
           }}
           isLoading={currentState.isLoading}
+          openingBalance={currentState.openingBalance}
+          closingBalance={currentState.closingBalance}
         />
       </div>
 

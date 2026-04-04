@@ -26,6 +26,8 @@ interface VendorLedgerExportDialogProps {
   humanReadableFilters: string[];
   title?: string;
   filename?: string;
+  openingBalance?: number;
+  closingBalance?: number;
 }
 
 const BATCH_SIZE = 5000;
@@ -39,6 +41,8 @@ export function VendorLedgerExportDialog({
   humanReadableFilters,
   title = "Vendor Ledger",
   filename = "Vendor_Ledger",
+  openingBalance,
+  closingBalance,
 }: VendorLedgerExportDialogProps) {
   const [exportMode, setExportMode] = useState<"visible" | "all">("visible");
   const [progress, setProgress] = useState(0);
@@ -99,7 +103,11 @@ export function VendorLedgerExportDialog({
         expectedColumns,
         humanReadableFilters,
         filename,
-        ALL_COLUMNS
+        ALL_COLUMNS,
+        {
+          opening: openingBalance,
+          closing: closingBalance,
+        }
       );
       toast.success(
         `Successfully exported ${accumulatedEntries.length} records.`,

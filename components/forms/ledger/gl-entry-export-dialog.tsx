@@ -22,6 +22,7 @@ interface GLEntryExportDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   filterString: string;
+  searchString?: string;
   totalRecords: number;
   visibleColumns: string[];
   currentEntries?: GLEntry[];
@@ -33,6 +34,7 @@ export function GLEntryExportDialog({
   open,
   onOpenChange,
   filterString,
+  searchString,
   totalRecords,
   visibleColumns,
   currentEntries = [],
@@ -87,6 +89,7 @@ export function GLEntryExportDialog({
           const result = await getGLEntriesRaw({
             $select: expectedColumns.join(","),
             $filter: filterString,
+            $search: searchString,
             $top: BATCH_SIZE,
             $skip: currentSkip,
           });

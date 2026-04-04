@@ -21,6 +21,7 @@ export function GLEntryView() {
     handleSearch,
     handleSort,
     handleColumnFilterChange,
+    handleAdditionalFiltersChange,
     clearFilters,
     visibleColumns,
     setVisibleColumns,
@@ -69,9 +70,11 @@ export function GLEntryView() {
           visibleColumns={visibleColumns}
           totalCount={totalCount}
           currentFilterString={currentFilterString}
+          searchString={filters.search}
           onFilterChange={(newFilters) => {
             if (newFilters.search !== undefined) handleSearch(newFilters.search);
           }}
+          onAdditionalFiltersChange={handleAdditionalFiltersChange}
           onClearFilters={clearFilters}
           onColumnToggle={setVisibleColumns}
           onResetColumns={handleResetColumns}

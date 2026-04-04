@@ -8,6 +8,7 @@ import {
   type GLEntryFilters,
   buildGLFilterString,
 } from "@/lib/api/services/gl-entry.service";
+import type { FilterCondition } from "@/components/forms/report-ledger/types";
 import { 
   loadVisibleColumns, 
   saveVisibleColumns,
@@ -27,6 +28,7 @@ export function useGLEntry(options: UseGLEntryOptions = {}) {
   const [filters, setFilters] = useState<GLEntryFilters>({
     search: "",
     columnFilters: {},
+    additionalFilters: [],
     sortField: "Entry_No",
     sortOrder: "desc"
   });
@@ -102,6 +104,13 @@ export function useGLEntry(options: UseGLEntryOptions = {}) {
     }));
   }, []);
 
+  const handleAdditionalFiltersChange = useCallback((additionalFilters: FilterCondition[]) => {
+    setFilters((prev) => ({
+      ...prev,
+      additionalFilters
+    }));
+  }, []);
+
   const handleColumnToggle = useCallback((columnId: string) => {
     setVisibleColumns((prev) => {
       const newColumns = prev.includes(columnId)
@@ -122,6 +131,7 @@ export function useGLEntry(options: UseGLEntryOptions = {}) {
     setFilters({
       search: "",
       columnFilters: {},
+      additionalFilters: [],
       sortField: "Entry_No",
       sortOrder: "desc"
     });
@@ -141,6 +151,7 @@ export function useGLEntry(options: UseGLEntryOptions = {}) {
     handleSearch,
     handleSort,
     handleColumnFilterChange,
+    handleAdditionalFiltersChange,
     clearFilters,
     
     // Columns

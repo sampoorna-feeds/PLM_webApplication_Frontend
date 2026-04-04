@@ -6,6 +6,7 @@
 import { apiGet } from "../client";
 import { buildODataQuery } from "../endpoints";
 import type { ODataResponse } from "../types";
+import type { FilterCondition } from "@/components/forms/report-ledger/types";
 
 export interface GLEntry {
   "@odata.etag": string;
@@ -24,6 +25,7 @@ const COMPANY = process.env.NEXT_PUBLIC_API_COMPANY || "Sampoorna Feeds Pvt. Ltd
 export interface GLEntryFilters {
   search?: string;
   columnFilters?: Record<string, string>;
+  additionalFilters?: FilterCondition[];
   sortField?: string;
   sortOrder?: "asc" | "desc";
 }
@@ -59,20 +61,37 @@ export async function getGLEntries(
 export function buildGLFilterString(filters: GLEntryFilters): string {
   const filterParts: string[] = [];
 
-  // Add universal search filter
+  // Universal search filter
+  // IMPORTANT: For G/L Entry, 'AccName' is a FlowField while 'Descr' is a real field.
+  // Business Central OData V4 does not support 'OR' between real fields and FlowFields
+  // on distinct fields. To ensure search works for account names (like 'Ingredients'),
+  // we target AccName primarily. For multi-field searches, users should use the 
+  // Analytical Filter Builder or Column Filters.
   if (filters.search) {
     const s = filters.search.replace(/'/g, "''");
-    const searchParts = [
-      `contains(AccNo,'${s}')`,
-      `contains(AccName,'${s}')`,
-      `contains(Descr,'${s}')`,
-    ];
-    
-    if (!isNaN(Number(s))) {
-      searchParts.push(`Entry_No eq ${s}`);
-    }
-    
-    filterParts.push(`(${searchParts.join(" or ")})`);
+    filterParts.push(`contains(AccName,'${s}')`);
+  }
+
+  // Add additional structured filters (Dynamic Filter Builder)
+  if (filters.additionalFilters && filters.additionalFilters.length > 0) {
+    filters.additionalFilters.forEach((f) => {
+      if (!f.value) return;
+      const v = f.value.replace(/'/g, "''");
+      if (f.operator === "contains") {
+        filterParts.push(`contains(${f.field},'${v}')`);
+      } else if (f.operator === "startswith") {
+        filterParts.push(`startswith(${f.field},'${v}')`);
+      } else if (f.operator === "endswith") {
+        filterParts.push(`endswith(${f.field},'${v}')`);
+      } else {
+        // eq, ne, gt, ge, lt, le
+        if (f.type === "number" || f.type === "boolean") {
+          filterParts.push(`${f.field} ${f.operator} ${f.value}`);
+        } else {
+          filterParts.push(`${f.field} ${f.operator} '${v}'`);
+        }
+      }
+    });
   }
 
   // Add column-specific filters
@@ -126,6 +145,7 @@ export async function getGLEntriesRaw(
     $skip?: number;
     $count?: boolean;
     $apply?: string;
+    $search?: string;
   } = {}
 ): Promise<ODataResponse<GLEntry>> {
   const query = buildODataQuery(params);

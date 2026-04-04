@@ -5,7 +5,7 @@ import { Search, X, Download, Plus, Filter, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { DateInput } from "@/components/ui/date-input";
-import type { VendorLedgerFilters } from "@/lib/api/services/vendor-ledger.service";
+import type { VendorLedgerFilters, VendorLedgerEntry } from "@/lib/api/services/vendor-ledger.service";
 import { VendorColumnVisibility } from "./vendor-ledger-column-visibility";
 import { 
   LEDGER_DEFAULT_COLUMNS, 
@@ -42,6 +42,7 @@ interface VendorLedgerFilterBarProps {
   isLoading?: boolean;
   openingBalance?: number;
   closingBalance?: number;
+  currentEntries?: VendorLedgerEntry[];
 }
 
 export function VendorLedgerFilterBar({
@@ -61,6 +62,7 @@ export function VendorLedgerFilterBar({
   isLoading = false,
   openingBalance,
   closingBalance,
+  currentEntries = [],
 }: VendorLedgerFilterBarProps) {
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
   const [filterPopoverOpen, setFilterPopoverOpen] = useState(false);
@@ -233,6 +235,7 @@ export function VendorLedgerFilterBar({
         filename={filters.isOutstanding ? "Vendor_Outstanding" : "Vendor_Ledger"}
         openingBalance={openingBalance}
         closingBalance={closingBalance}
+        currentEntries={currentEntries}
       />
     </div>
   );

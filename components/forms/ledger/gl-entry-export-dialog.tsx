@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { Download, Loader2 } from "lucide-react";
+import { ALL_COLUMNS } from "@/components/forms/ledger/gl-entry-column-config";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -8,45 +8,35 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
-import { Button } from "@/components/ui/button";
 import {
-  getVendorLedgerEntriesRaw,
-  type VendorLedgerEntry,
-} from "@/lib/api/services/vendor-ledger.service";
-import { exportToExcel } from "@/lib/utils/export";
-import { toast } from "sonner";
-import { ALL_COLUMNS } from "@/components/forms/ledger/vendor-ledger-column-config";
+  getGLEntriesRaw,
+  type GLEntry,
+} from "@/lib/api/services/gl-entry.service";
 import { cn } from "@/lib/utils";
+import { exportToExcel } from "@/lib/utils/export";
+import { Download } from "lucide-react";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
 
-interface VendorLedgerExportDialogProps {
+interface GLEntryExportDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   filterString: string;
   totalRecords: number;
   visibleColumns: string[];
-  humanReadableFilters: string[];
-  title?: string;
-  filename?: string;
-  openingBalance?: number;
-  closingBalance?: number;
-  currentEntries?: VendorLedgerEntry[];
+  currentEntries?: GLEntry[];
 }
 
 const BATCH_SIZE = 5000;
 
-export function VendorLedgerExportDialog({
+export function GLEntryExportDialog({
   open,
   onOpenChange,
   filterString,
   totalRecords,
   visibleColumns,
-  humanReadableFilters,
-  title = "Vendor Ledger",
-  filename = "Vendor_Ledger",
-  openingBalance,
-  closingBalance,
   currentEntries = [],
-}: VendorLedgerExportDialogProps) {
+}: GLEntryExportDialogProps) {
   const [exportMode, setExportMode] = useState<"visible" | "all">("visible");
   const [progress, setProgress] = useState(0);
   const [fetchedCount, setFetchedCount] = useState(0);
@@ -67,20 +57,23 @@ export function VendorLedgerExportDialog({
   };
 
   const startExportProcess = async () => {
+    // If 'visible' is selected, we export currently displayed items ONLY (as per user request)
+    // If 'all' is selected, we fetch everything from the server
     const isVisibleOnly = exportMode === "visible";
     const effectiveTotal = isVisibleOnly ? currentEntries.length : totalRecords;
-    
+
     if (effectiveTotal === 0) {
       toast.error("No records found to export.");
       onOpenChange(false);
       return;
     }
 
-    const expectedColumns =
-      isVisibleOnly ? visibleColumns : ALL_COLUMNS.map((c) => c.id);
+    const expectedColumns = isVisibleOnly
+      ? visibleColumns
+      : ALL_COLUMNS.map((c) => c.id);
 
     try {
-      let accumulatedEntries: VendorLedgerEntry[] = [];
+      let accumulatedEntries: GLEntry[] = [];
 
       if (isVisibleOnly) {
         accumulatedEntries = currentEntries;
@@ -91,7 +84,7 @@ export function VendorLedgerExportDialog({
         while (currentSkip < totalRecords) {
           if (!open) return;
 
-          const result = await getVendorLedgerEntriesRaw({
+          const result = await getGLEntriesRaw({
             $select: expectedColumns.join(","),
             $filter: filterString,
             $top: BATCH_SIZE,
@@ -113,13 +106,9 @@ export function VendorLedgerExportDialog({
       exportToExcel(
         accumulatedEntries,
         expectedColumns,
-        humanReadableFilters,
-        filename,
+        ["GL Entry Report"],
+        "GL_Entry_Export",
         ALL_COLUMNS,
-        {
-          opening: openingBalance,
-          closing: closingBalance,
-        }
       );
       toast.success(
         `Successfully exported ${accumulatedEntries.length} records.`,
@@ -127,7 +116,7 @@ export function VendorLedgerExportDialog({
       onOpenChange(false);
     } catch (error) {
       console.error("Export failed:", error);
-      toast.error("Failed to export records. Please try again.");
+      toast.error("Failed to export GL records. Please try again.");
       onOpenChange(false);
     }
   };
@@ -135,27 +124,31 @@ export function VendorLedgerExportDialog({
   return (
     <Dialog open={open} onOpenChange={isExporting ? undefined : onOpenChange}>
       <DialogContent
-        className="sm:max-w-md border-border/50 bg-background/95 backdrop-blur-3xl rounded-2xl shadow-2xl overflow-hidden"
+        className="border-border/50 bg-background/95 overflow-hidden rounded-2xl shadow-2xl backdrop-blur-3xl sm:max-w-md"
         onInteractOutside={(e) => isExporting && e.preventDefault()}
       >
         <DialogHeader className="space-y-4">
-          <DialogTitle className="text-xl font-extrabold tracking-tight">Export {title}</DialogTitle>
+          <DialogTitle className="text-xl font-extrabold tracking-tight">
+            Financial Export: GL Entry
+          </DialogTitle>
           <DialogDescription className="text-muted-foreground/80 font-medium">
             {isExporting
-              ? "Please wait while we prepare your file. Do not close this window."
-              : "Select your preferred layout for the financial data extraction."}
+              ? "Preparing your encrypted financial export. Please remain on this screen."
+              : "Select your preferred layout for the general ledger data extraction."}
           </DialogDescription>
         </DialogHeader>
         {!isExporting ? (
           <div className="space-y-8 py-6">
             <div className="space-y-4">
-              <div className="bg-muted/30 p-1.5 rounded-xl border border-border/40 grid grid-cols-2 gap-2">
+              <div className="bg-muted/30 border-border/40 grid grid-cols-2 gap-2 rounded-xl border p-1.5">
                 <Button
                   type="button"
                   variant={exportMode === "visible" ? "default" : "ghost"}
                   className={cn(
-                    "h-10 text-[10px] font-black uppercase tracking-widest transition-all rounded-lg shadow-none",
-                    exportMode === "visible" ? "bg-primary shadow-lg shadow-primary/20" : "text-muted-foreground hover:bg-muted"
+                    "h-10 rounded-lg text-[10px] font-black tracking-widest uppercase shadow-none transition-all",
+                    exportMode === "visible"
+                      ? "bg-primary shadow-primary/20 shadow-lg"
+                      : "text-muted-foreground hover:bg-muted",
                   )}
                   onClick={() => setExportMode("visible")}
                 >
@@ -165,8 +158,10 @@ export function VendorLedgerExportDialog({
                   type="button"
                   variant={exportMode === "all" ? "default" : "ghost"}
                   className={cn(
-                    "h-10 text-[10px] font-black uppercase tracking-widest transition-all rounded-lg shadow-none",
-                    exportMode === "all" ? "bg-primary shadow-lg shadow-primary/20" : "text-muted-foreground hover:bg-muted"
+                    "h-10 rounded-lg text-[10px] font-black tracking-widest uppercase shadow-none transition-all",
+                    exportMode === "all"
+                      ? "bg-primary shadow-primary/20 shadow-lg"
+                      : "text-muted-foreground hover:bg-muted",
                   )}
                   onClick={() => setExportMode("all")}
                 >
@@ -175,36 +170,43 @@ export function VendorLedgerExportDialog({
               </div>
             </div>
             <div className="flex justify-end gap-3 pt-2">
-              <Button 
-                variant="ghost" 
-                className="h-11 px-6 text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:bg-muted transition-all rounded-xl"
+              <Button
+                variant="ghost"
+                className="text-muted-foreground hover:bg-muted h-11 rounded-xl px-6 text-[10px] font-black tracking-widest uppercase transition-all"
                 onClick={() => onOpenChange(false)}
               >
                 Cancel
               </Button>
-              <Button 
-                onClick={handleStart} 
-                className="h-11 px-8 gap-3 font-black text-[10px] uppercase tracking-widest shadow-xl shadow-primary/20 rounded-xl transition-all hover:scale-[1.02] active:scale-[0.98]"
+              <Button
+                onClick={handleStart}
+                className="shadow-primary/20 h-11 gap-3 rounded-xl px-8 text-[10px] font-black tracking-widest uppercase shadow-xl transition-all hover:scale-[1.02] active:scale-[0.98]"
               >
                 <Download className="h-4 w-4" />
-                Start Export
+                Initialize Export
               </Button>
             </div>
           </div>
         ) : (
-          <div className="flex flex-col items-center justify-center space-y-8 py-10 animate-in fade-in zoom-in duration-500">
-             <div className="relative h-20 w-20">
-               <div className="absolute inset-0 rounded-full border-4 border-primary/10" />
-               <div className="absolute inset-0 rounded-full border-4 border-primary border-t-transparent animate-spin" />
+          <div className="animate-in fade-in zoom-in flex flex-col items-center justify-center space-y-8 py-10 duration-500">
+            <div className="relative h-20 w-20">
+              <div className="border-primary/10 absolute inset-0 rounded-full border-4" />
+              <div className="border-primary absolute inset-0 animate-spin rounded-full border-4 border-t-transparent" />
             </div>
-            <div className="flex-1 space-y-4 w-full">
-               <div className="flex justify-between items-end mb-1 px-1">
-                <span className="text-[10px] font-extrabold uppercase tracking-widest text-primary italic">Processing Batch</span>
-                <span className="text-[10px] font-bold text-muted-foreground">{Math.round(progress)}%</span>
+            <div className="w-full space-y-4">
+              <div className="mb-1 flex items-end justify-between px-1">
+                <span className="text-primary text-[10px] font-extrabold tracking-widest uppercase italic">
+                  Syncing Ledger
+                </span>
+                <span className="text-muted-foreground text-[10px] font-bold">
+                  {Math.round(progress)}%
+                </span>
               </div>
-              <Progress value={progress} className="h-2 w-full bg-muted/30 border border-border/20 rounded-full" />
-              <div className="text-muted-foreground flex justify-between text-[10px] font-bold uppercase tracking-widest opacity-60">
-                <span>{fetchedCount.toLocaleString()} items fetched</span>
+              <Progress
+                value={progress}
+                className="bg-muted/30 border-border/20 h-2 w-full rounded-full border"
+              />
+              <div className="text-muted-foreground/60 flex justify-between text-[10px] font-bold tracking-widest uppercase">
+                <span>{fetchedCount.toLocaleString()} Entries Buffer</span>
                 <span>{totalRecords.toLocaleString()} System Total</span>
               </div>
             </div>

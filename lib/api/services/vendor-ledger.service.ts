@@ -81,6 +81,7 @@ export function buildVendorFilterString(filters: VendorLedgerFilters): string {
   }
 
   if (filters.fromDate && filters.toDate) {
+    // For OData V4, date literals should be yyyy-mm-dd
     filterParts.push(`Posting_Date ge ${filters.fromDate} and Posting_Date le ${filters.toDate}`);
   } else if (filters.fromDate) {
     filterParts.push(`Posting_Date ge ${filters.fromDate}`);
@@ -110,7 +111,7 @@ export function buildVendorFilterString(filters: VendorLedgerFilters): string {
     filterParts.push(`(${searchParts.join(" or ")})`);
   }
 
-  // Add additional structured filters
+  // Add additional structured filters (Dynamic Filter Builder)
   if (filters.additionalFilters && filters.additionalFilters.length > 0) {
     filters.additionalFilters.forEach((f) => {
       const v = f.value.replace(/'/g, "''");
@@ -127,6 +128,59 @@ export function buildVendorFilterString(filters: VendorLedgerFilters): string {
         } else {
           filterParts.push(`${f.field} ${f.operator} '${v}'`);
         }
+      }
+    });
+  }
+
+  // Add column-specific filters
+  if (filters.columnFilters && Object.keys(filters.columnFilters).length > 0) {
+    Object.entries(filters.columnFilters).forEach(([field, value]) => {
+      if (!value) return;
+      
+      const s = value.toString().replace(/'/g, "''");
+      
+      // Handle prefixed numeric operators (from ColumnFilter eq:100, gt:50, lt:200)
+      if (s.includes(":") && !s.includes("/")) { 
+        const [op, val] = s.split(":");
+        const validOps = ["eq", "ne", "gt", "ge", "lt", "le"];
+        if (validOps.includes(op)) {
+          if (!val) return;
+          filterParts.push(`${field} ${op} ${val}`);
+          return;
+        }
+      }
+
+      // Handle comma-separated ranges (min,max) or multi-select
+      if (s.includes(",")) {
+        const parts = s.split(",");
+        if (parts.length === 2 && field.toLowerCase().includes('date')) {
+            const [start, end] = parts;
+            if (start) filterParts.push(`${field} ge ${start}`);
+            if (end) filterParts.push(`${field} le ${end}`);
+            return;
+        } else if (parts.length === 2 && !isNaN(Number(parts[0])) && !isNaN(Number(parts[1]))) {
+            const [min, max] = parts;
+            if (min) filterParts.push(`${field} ge ${min}`);
+            if (max) filterParts.push(`${field} le ${max}`);
+            return;
+        } else {
+          // Multi-select (OR) for text/enum
+          const orParts = parts.filter(Boolean).map(p => `contains(${field},'${p}')`);
+          if (orParts.length > 0) {
+            filterParts.push(`(${orParts.join(" or ")})`);
+          }
+          return;
+        }
+      }
+
+      // Default: infer type and use appropriate operator
+      if (!isNaN(Number(s)) && s.trim() !== "" && !field.toLowerCase().includes("date") && !field.toLowerCase().includes("no")) {
+        filterParts.push(`${field} eq ${s}`);
+      } else if (s.toLowerCase() === "true" || s.toLowerCase() === "false") {
+        filterParts.push(`${field} eq ${s.toLowerCase()}`);
+      } else {
+        // Default to contains for text
+        filterParts.push(`contains(${field},'${s}')`);
       }
     });
   }

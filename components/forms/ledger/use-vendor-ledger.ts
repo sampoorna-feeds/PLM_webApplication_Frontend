@@ -127,12 +127,12 @@ export function useVendorLedger(options: UseVendorLedgerOptions = {}) {
     }));
   }, []);
 
-  const handleColumnFilterChange = useCallback((field: string, value: string) => {
+  const handleColumnFilterChange = useCallback((field: string, value: string, valueTo?: string) => {
     setFilters((prev) => ({
       ...prev,
       columnFilters: {
         ...prev.columnFilters,
-        [field]: value
+        [field]: valueTo ? `${value},${valueTo}` : value
       }
     }));
   }, []);

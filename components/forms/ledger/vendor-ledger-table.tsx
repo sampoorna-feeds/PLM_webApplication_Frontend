@@ -4,7 +4,9 @@ import type { VendorLedgerEntry } from "@/lib/api/services/vendor-ledger.service
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { ArrowUpDown, ChevronDown, ChevronUp, Loader2 } from "lucide-react";
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useMemo } from "react";
+import { ALL_COLUMNS, type ColumnConfig } from "./vendor-ledger-column-config";
+import { ColumnFilter } from "@/components/forms/report-ledger/column-filter";
 
 interface VendorLedgerTableProps {
   entries: VendorLedgerEntry[];
@@ -15,13 +17,27 @@ interface VendorLedgerTableProps {
   openingBalance: number;
   closingBalance: number;
   onSort: (field: string) => void;
-  onColumnFilterChange: (field: string, value: string) => void;
+  onColumnFilterChange: (field: string, value: string, valueTo?: string) => void;
   sortField?: string;
   sortOrder?: "asc" | "desc";
   columnFilters?: Record<string, string>;
   visibleColumns: string[];
   isOutstanding?: boolean;
 }
+
+const balanceColumnIds = [
+  "Amount",
+  "Amount_LCY",
+  "Debit_Amount_LCY",
+  "Credit_Amount_LCY",
+  "Remaining_Amount",
+  "Original_Amount",
+  "Original_Amt_LCY",
+  "Remaining_Amt_LCY",
+  "RunningBalanceLCY",
+  "Debit_Amount",
+  "Credit_Amount",
+];
 
 export function VendorLedgerTable({
   entries,
@@ -40,6 +56,10 @@ export function VendorLedgerTable({
   isOutstanding = false,
 }: VendorLedgerTableProps) {
   const observerTarget = useRef<HTMLDivElement>(null);
+
+  const activeColumns = useMemo(() => {
+    return ALL_COLUMNS.filter((col) => visibleColumns.includes(col.id));
+  }, [visibleColumns]);
 
   const handleObserver = useCallback(
     (entries: IntersectionObserverEntry[]) => {
@@ -62,7 +82,7 @@ export function VendorLedgerTable({
 
     const observer = new IntersectionObserver(handleObserver, {
       threshold: 0.1,
-      rootMargin: "100px", // Load more when 100px from bottom
+      rootMargin: "100px",
     });
 
     observer.observe(element);
@@ -71,7 +91,7 @@ export function VendorLedgerTable({
 
   const SortIcon = ({ field }: { field: string }) => {
     if (sortField !== field)
-      return <ArrowUpDown className="ml-2 h-3.5 w-3.5 opacity-50" />;
+      return <ArrowUpDown className="ml-2 h-3.5 w-3.5 opacity-30" />;
     return sortOrder === "asc" ? (
       <ChevronUp className="text-primary ml-2 h-3.5 w-3.5" />
     ) : (
@@ -89,569 +109,276 @@ export function VendorLedgerTable({
     label: string;
     className?: string;
     isSortable?: boolean;
-  }) => (
-    <th
-      className={cn(
-        "bg-muted z-40 border-b px-4 py-4 text-left align-middle font-medium whitespace-nowrap shadow-sm transition-colors",
-        className,
-      )}
-    >
-      <div
-        className={cn(
-          "hover:text-primary flex cursor-pointer items-center gap-2 transition-colors",
-          !isSortable && "cursor-default hover:text-inherit",
-        )}
-        onClick={() => isSortable && onSort(field)}
-      >
-        <span className="text-muted-foreground text-xs font-bold tracking-wider whitespace-nowrap uppercase">
-          {label}
-        </span>
-        {isSortable && <SortIcon field={field} />}
-      </div>
-    </th>
-  );
+  }) => {
+    const colConfig = ALL_COLUMNS.find((c) => c.id === field);
+    const filterState = columnFilters[field] || "";
+    const hasActiveFilter = !!filterState;
 
-  if (isLoading && entries.length === 0) {
+    const [val, valTo] = filterState.includes(",")
+      ? filterState.split(",")
+      : [filterState, ""];
+
     return (
-      <div className="bg-muted/5 flex h-64 items-center justify-center rounded-md border">
-        <div className="flex flex-col items-center gap-2">
-          <div className="border-primary h-8 w-8 animate-spin rounded-full border-4 border-t-transparent" />
-          <span className="text-muted-foreground text-sm font-medium">
-            Fetching ledger data...
-          </span>
+      <th
+        className={cn(
+          "bg-background z-40 border-b-2 border-border/60 px-4 py-4 text-left align-middle font-bold whitespace-nowrap sticky top-0 transition-all duration-200 group/header shadow-sm",
+          hasActiveFilter && "bg-primary/5 border-b-primary/60",
+          className,
+        )}
+      >
+        <div className="flex items-center justify-between gap-3">
+          <div
+            className={cn(
+              "flex cursor-pointer items-center gap-1.5 transition-all duration-300",
+              !isSortable && "cursor-default",
+              sortField === field ? "text-primary translate-x-0.5" : "text-muted-foreground hover:text-foreground"
+            )}
+            onClick={() => isSortable && onSort(field)}
+          >
+            <span
+              className={cn(
+                "text-[10px] font-black tracking-[0.1em] whitespace-nowrap uppercase leading-none",
+                hasActiveFilter && "text-primary",
+              )}
+            >
+              {label}
+            </span>
+            {isSortable && <SortIcon field={field} />}
+          </div>
+
+          <div className={cn(
+            "flex items-center transition-opacity duration-300",
+            hasActiveFilter ? "opacity-100" : "opacity-40 group-hover/header:opacity-100"
+          )}>
+            {colConfig?.filterType && (
+              <ColumnFilter
+                column={colConfig}
+                value={val}
+                valueTo={valTo}
+                onChange={(v, vTo) => onColumnFilterChange(field, v, vTo)}
+              />
+            )}
+          </div>
         </div>
+      </th>
+    );
+  };
+
+  const renderCell = (col: ColumnConfig, entry: any) => {
+    const value = entry[col.id];
+
+    if (value === null || value === undefined || value === "") {
+      return (
+        <TableCell key={col.id} className="text-center text-muted-foreground/20 px-4 py-4">
+          <span className="text-[10px]">●</span>
+        </TableCell>
+      );
+    }
+
+    if (col.id === "Entry_No") {
+      return (
+        <TableCell key={col.id} className="text-xs font-bold whitespace-nowrap text-primary px-4 py-4">
+          {value}
+        </TableCell>
+      );
+    }
+
+    switch (col.filterType) {
+      case "date":
+        return (
+          <TableCell key={col.id} className="text-xs font-bold text-foreground/80 px-4 py-4 whitespace-nowrap">
+            {value && value !== "0001-01-01" ? format(new Date(value), "MMM dd, yyyy") : "-"}
+          </TableCell>
+        );
+      case "number": {
+        const numValue = Number(value) || 0;
+        return (
+          <TableCell
+            key={col.id}
+            className={cn(
+              "text-right text-xs font-mono font-bold px-4 py-4 tabular-nums tracking-tight",
+              numValue < 0 ? "text-red-500" : numValue > 0 ? "text-primary" : "text-muted-foreground/40",
+            )}
+          >
+            {numValue === 0 ? "-" : numValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </TableCell>
+        );
+      }
+      case "boolean":
+        return (
+          <TableCell key={col.id} className="text-center px-4 py-4">
+            <Badge
+              variant={value ? "default" : "secondary"}
+              className={cn(
+                "h-5 px-2 text-[9px] font-black uppercase tracking-widest",
+                value ? "bg-primary/20 text-primary border-primary/20 shadow-sm" : "bg-muted text-muted-foreground border-transparent"
+              )}
+            >
+              {value ? "Open" : "Closed"}
+            </Badge>
+          </TableCell>
+        );
+      default:
+        return (
+          <TableCell
+            key={col.id}
+            className={cn(
+              "text-xs px-4 py-4 max-w-[240px] truncate transition-colors font-medium",
+              col.id === "Document_No" ? "font-bold text-primary hover:text-primary/80 cursor-default" : "text-foreground/70"
+            )}
+            title={String(value)}
+          >
+            {String(value)}
+          </TableCell>
+        );
+    }
+  };
+
+  const balancePrefixColSpan = useMemo(() => {
+    const firstBalanceColIndex = activeColumns.findIndex((col) =>
+      balanceColumnIds.includes(col.id),
+    );
+    return firstBalanceColIndex === -1 ? activeColumns.length : firstBalanceColIndex;
+  }, [activeColumns]);
+
+  if (!entries.length && !isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center p-20 text-center h-full min-h-[400px]">
+        <div className="bg-primary/5 p-8 rounded-full mb-6 relative animate-pulse">
+          <div className="absolute inset-0 bg-primary/10 rounded-full blur-xl" />
+          <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-primary relative z-10"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+        </div>
+        <h3 className="text-xl font-black text-foreground/90 uppercase tracking-tight mb-2">
+          {columnFilters && Object.keys(columnFilters).length > 0 ? "No results found" : "Select a Vendor"}
+        </h3>
+        <p className="text-sm text-muted-foreground max-w-sm font-medium">
+          {columnFilters && Object.keys(columnFilters).length > 0 
+            ? "Try adjusting your filters to find what you are looking for." 
+            : "Use the search bar above to select a vendor and view their complete transaction ledger."}
+        </p>
       </div>
     );
   }
 
   return (
-    <div className="bg-background flex h-full min-h-0 flex-1 flex-col overflow-hidden rounded-md border shadow-sm">
-      <div className="scrollbar-thin scrollbar-thumb-muted-foreground/20 min-h-0 flex-1 overflow-auto">
-        <table className="relative min-w-full border-collapse border-spacing-0 text-sm whitespace-nowrap">
-          <thead className="bg-muted sticky top-0 z-50 shadow-sm shadow-black/10">
-            <tr className="border-b-0 hover:bg-transparent">
-              {visibleColumns.includes("Entry_No") && (
-                <HeaderCell
-                  field="Entry_No"
-                  label="Entry No."
-                  className="w-[100px]"
-                />
-              )}
-              {visibleColumns.includes("Posting_Date") && (
-                <HeaderCell
-                  field="Posting_Date"
-                  label="Posting Date"
-                  className="w-[120px]"
-                />
-              )}
-              {visibleColumns.includes("Document_Type") && (
-                <HeaderCell
-                  field="Document_Type"
-                  label="Doc Type"
-                  className="w-[120px]"
-                />
-              )}
-              {visibleColumns.includes("Document_No") && (
-                <HeaderCell
-                  field="Document_No"
-                  label="Doc No."
-                  className="w-[150px]"
-                />
-              )}
-              {visibleColumns.includes("External_Document_No") && (
-                <HeaderCell
-                  field="External_Document_No"
-                  label="Ext. Doc No."
-                  className="w-[150px]"
-                />
-              )}
-              {visibleColumns.includes("VendorName") && (
-                <HeaderCell
-                  field="VendorName"
-                  label="Vendor Name"
-                  className="w-[200px]"
-                />
-              )}
-              {visibleColumns.includes("Debit_Amount") && (
-                <HeaderCell
-                  field="Debit_Amount"
-                  label="Debit"
-                  className="w-[120px] text-right"
-                />
-              )}
-              {visibleColumns.includes("Credit_Amount") && (
-                <HeaderCell
-                  field="Credit_Amount"
-                  label="Credit"
-                  className="w-[120px] text-right"
-                />
-              )}
-              {visibleColumns.includes("Amount") && (
-                <HeaderCell
-                  field="Amount"
-                  label="Amount"
-                  className="w-[120px] text-right"
-                />
-              )}
-              {visibleColumns.includes("Amount_LCY") && (
-                <HeaderCell
-                  field="Amount_LCY"
-                  label="Amount (LCY)"
-                  className="w-[120px] text-right"
-                />
-              )}
-              {visibleColumns.includes("Debit_Amount_LCY") && (
-                <HeaderCell
-                  field="Debit_Amount_LCY"
-                  label="Debit (LCY)"
-                  className="w-[120px] text-right"
-                />
-              )}
-              {visibleColumns.includes("Credit_Amount_LCY") && (
-                <HeaderCell
-                  field="Credit_Amount_LCY"
-                  label="Credit (LCY)"
-                  className="w-[120px] text-right"
-                />
-              )}
-              {visibleColumns.includes("Remaining_Amount") && (
-                <HeaderCell
-                  field="Remaining_Amount"
-                  label="Remaining"
-                  className="w-[120px] text-right"
-                />
-              )}
-              {visibleColumns.includes("Global_Dimension_1_Code") && (
-                <HeaderCell
-                  field="Global_Dimension_1_Code"
-                  label="Dim 1"
-                  className="w-[100px]"
-                />
-              )}
-              {visibleColumns.includes("Global_Dimension_2_Code") && (
-                <HeaderCell
-                  field="Global_Dimension_2_Code"
-                  label="Dim 2"
-                  className="w-[100px]"
-                />
-              )}
-              {visibleColumns.includes("TDS_Section_Code") && (
-                <HeaderCell
-                  field="TDS_Section_Code"
-                  label="TDS"
-                  className="w-[100px]"
-                />
-              )}
-              {visibleColumns.includes("Open") && (
-                <HeaderCell
-                  field="Open"
-                  label="Status"
-                  className="w-[100px] text-center"
-                />
-              )}
-              {visibleColumns.includes("Due_Date") && (
-                <HeaderCell
-                  field="Due_Date"
-                  label="Due Date"
-                  className="w-[120px]"
-                />
-              )}
-              {visibleColumns.includes("Description") && (
-                <HeaderCell
-                  field="Description"
-                  label="Description"
-                  className="w-[200px]"
-                />
-              )}
-              {visibleColumns.includes("Document_Date") && (
-                <HeaderCell
-                  field="Document_Date"
-                  label="Doc Date"
-                  className="w-[120px]"
-                />
-              )}
-              {visibleColumns.includes("Closed_at_Date") && (
-                <HeaderCell
-                  field="Closed_at_Date"
-                  label="Closed Date"
-                  className="w-[120px]"
-                />
-              )}
-              {visibleColumns.includes("Vendor_No") && (
-                <HeaderCell
-                  field="Vendor_No"
-                  label="Vendor No"
-                  className="w-[100px]"
-                />
-              )}
-              {visibleColumns.includes("Invoice_Received_Date") && (
-                <HeaderCell
-                  field="Invoice_Received_Date"
-                  label="Inv. Rec. Date"
-                  className="w-[130px]"
-                />
-              )}
+    <div className="relative flex-1 overflow-hidden flex flex-col group/table bg-card/10">
+      <div className="flex-1 overflow-auto custom-scrollbar">
+        <table className="w-full text-sm border-separate border-spacing-0">
+          <thead className="bg-muted sticky top-0 z-50">
+            <tr className="hover:bg-transparent">
+              {activeColumns.map((col) => (
+                <HeaderCell key={col.id} field={col.id} label={col.label} />
+              ))}
             </tr>
           </thead>
-          <tbody className="bg-background">
-            {!isOutstanding && (
-              <tr className="bg-muted/10 border-b-2 font-semibold italic">
-                <td
-                  colSpan={
-                    visibleColumns.filter(
-                      (c) =>
-                        ![
-                          "Amount",
-                          "Amount_LCY",
-                          "Debit_Amount_LCY",
-                          "Credit_Amount_LCY",
-                          "Remaining_Amount",
-                        ].includes(c),
-                    ).length
-                  }
-                  className="text-muted-foreground px-4 py-2 text-right text-xs"
-                >
-                  Opening Balance
-                </td>
-                {visibleColumns.includes("Amount") && (
+          <tbody className="divide-y divide-border/20">
+            {/* Opening Balance Row */}
+            {!isLoading && entries.length > 0 && !isOutstanding && (
+              <tr className="bg-primary/[0.03] hover:bg-primary/[0.06] transition-colors group/balance border-b-2 border-primary/10">
+                {balancePrefixColSpan > 0 && (
                   <td
-                    className={cn(
-                      "px-4 text-right text-xs font-bold whitespace-nowrap",
-                      openingBalance < 0
-                        ? "text-red-500"
-                        : openingBalance > 0
-                          ? "text-green-600"
-                          : "",
-                    )}
+                    colSpan={balancePrefixColSpan}
+                    className="px-6 py-4 text-left font-black text-[10px] uppercase tracking-[2px] text-primary/60"
                   >
-                    {openingBalance.toLocaleString(undefined, {
-                      minimumFractionDigits: 2,
-                    })}
+                    <div className="flex items-center gap-2">
+                      <div className="w-1.5 h-1.5 rounded-full bg-primary/30 group-hover/balance:animate-ping" />
+                      Opening Balance
+                    </div>
                   </td>
                 )}
-                {visibleColumns.includes("Amount_LCY") && (
-                  <td className="px-4" />
-                )}
-                {visibleColumns.includes("Debit_Amount_LCY") && (
-                  <td className="px-4" />
-                )}
-                {visibleColumns.includes("Credit_Amount_LCY") && (
-                  <td className="px-4" />
-                )}
-                {visibleColumns.includes("Remaining_Amount") && (
-                  <td className="px-4" />
-                )}
-                <td
-                  colSpan={
-                    visibleColumns.filter(
-                      (c) =>
-                        ![
-                          "Entry_No",
-                          "Posting_Date",
-                          "Document_Type",
-                          "Document_No",
-                          "External_Document_No",
-                          "VendorName",
-                          "Debit_Amount",
-                          "Credit_Amount",
-                          "Amount",
-                          "Amount_LCY",
-                          "Debit_Amount_LCY",
-                          "Credit_Amount_LCY",
-                          "Remaining_Amount",
-                        ].includes(c),
-                    ).length + (visibleColumns.includes("Amount") ? 0 : 1)
-                  }
-                  className="px-4"
-                />
-              </tr>
-            )}
-
-            {entries.length === 0 ? (
-              <tr className="border-b">
-                <td
-                  colSpan={visibleColumns.length}
-                  className="text-muted-foreground h-24 px-4 text-center italic"
-                >
-                  No transaction history found for the selected period.
-                </td>
-              </tr>
-            ) : (
-              entries.map((entry) => (
-                <tr
-                  key={entry.id || entry.Entry_No}
-                  className="hover:bg-muted/30 border-b transition-colors"
-                >
-                  {visibleColumns.includes("Entry_No") && (
-                    <TableCell className="text-xs font-medium whitespace-nowrap">
-                      {entry.Entry_No}
-                    </TableCell>
-                  )}
-                  {visibleColumns.includes("Posting_Date") && (
-                    <TableCell className="text-xs whitespace-nowrap">
-                      {entry.Posting_Date && entry.Posting_Date !== "0001-01-01"
-                        ? format(new Date(entry.Posting_Date), "PP")
-                        : "-"}
-                    </TableCell>
-                  )}
-                  {visibleColumns.includes("Document_Type") && (
-                    <TableCell className="text-xs">
-                      {entry.Document_Type || "Journal"}
-                    </TableCell>
-                  )}
-                  {visibleColumns.includes("Document_No") && (
-                    <TableCell className="text-primary font-mono text-xs font-medium whitespace-nowrap">
-                      {entry.Document_No}
-                    </TableCell>
-                  )}
-                  {visibleColumns.includes("External_Document_No") && (
-                    <TableCell
-                      className="max-w-[120px] truncate text-xs"
-                      title={entry.External_Document_No}
-                    >
-                      {entry.External_Document_No || "-"}
-                    </TableCell>
-                  )}
-                  {visibleColumns.includes("VendorName") && (
-                    <TableCell
-                      className="max-w-[180px] truncate text-xs font-medium"
-                      title={entry.VendorName}
-                    >
-                      {entry.VendorName}
-                    </TableCell>
-                  )}
-                  {visibleColumns.includes("Debit_Amount") && (
-                    <TableCell className="text-right text-xs">
-                      {entry.Debit_Amount !== 0
-                        ? entry.Debit_Amount.toLocaleString(undefined, {
-                            minimumFractionDigits: 2,
-                          })
-                        : "-"}
-                    </TableCell>
-                  )}
-                  {visibleColumns.includes("Credit_Amount") && (
-                    <TableCell className="text-right text-xs">
-                      {entry.Credit_Amount !== 0
-                        ? entry.Credit_Amount.toLocaleString(undefined, {
-                            minimumFractionDigits: 2,
-                          })
-                        : "-"}
-                    </TableCell>
-                  )}
-                  {visibleColumns.includes("Amount") && (
-                    <TableCell
-                      className={cn(
-                        "text-right text-xs font-medium",
-                        entry.Amount < 0 ? "text-red-500" : "text-green-600",
-                      )}
-                    >
-                      {entry.Amount.toLocaleString(undefined, {
-                        minimumFractionDigits: 2,
-                      })}
-                    </TableCell>
-                  )}
-                  {visibleColumns.includes("Amount_LCY") && (
-                    <TableCell
-                      className={cn(
-                        "text-right text-xs",
-                        entry.Amount_LCY < 0
-                          ? "text-red-500"
-                          : "text-green-600",
-                      )}
-                    >
-                      {entry.Amount_LCY?.toLocaleString(undefined, {
-                        minimumFractionDigits: 2,
-                      }) || "-"}
-                    </TableCell>
-                  )}
-                  {visibleColumns.includes("Debit_Amount_LCY") && (
-                    <TableCell className="text-right text-xs">
-                      {entry.Debit_Amount_LCY !== 0
-                        ? entry.Debit_Amount_LCY?.toLocaleString(undefined, {
-                            minimumFractionDigits: 2,
-                          })
-                        : "-"}
-                    </TableCell>
-                  )}
-                  {visibleColumns.includes("Credit_Amount_LCY") && (
-                    <TableCell className="text-right text-xs">
-                      {entry.Credit_Amount_LCY !== 0
-                        ? entry.Credit_Amount_LCY?.toLocaleString(undefined, {
-                            minimumFractionDigits: 2,
-                          })
-                        : "-"}
-                    </TableCell>
-                  )}
-                  {visibleColumns.includes("Remaining_Amount") && (
-                    <TableCell className="text-primary text-right text-xs font-semibold">
-                      {entry.Remaining_Amount !== 0
-                        ? entry.Remaining_Amount.toLocaleString(undefined, {
-                            minimumFractionDigits: 2,
-                          })
-                        : "0.00"}
-                    </TableCell>
-                  )}
-                  {visibleColumns.includes("Global_Dimension_1_Code") && (
-                    <TableCell className="text-xs font-medium uppercase">
-                      {entry.Global_Dimension_1_Code}
-                    </TableCell>
-                  )}
-                  {visibleColumns.includes("Global_Dimension_2_Code") && (
-                    <TableCell className="text-xs font-medium uppercase">
-                      {entry.Global_Dimension_2_Code}
-                    </TableCell>
-                  )}
-                  {visibleColumns.includes("TDS_Section_Code") && (
-                    <TableCell className="font-mono text-xs">
-                      {entry.TDS_Section_Code || "-"}
-                    </TableCell>
-                  )}
-                  {visibleColumns.includes("Open") && (
-                    <TableCell className="text-center">
-                      <Badge
-                        variant={entry.Open ? "outline" : "secondary"}
-                        className="h-5 py-0 text-[10px]"
+                {activeColumns.slice(balancePrefixColSpan).map((col) => {
+                  if (col.id === "Amount" || col.id === "Amount_LCY") {
+                    return (
+                      <td
+                        key={col.id}
+                        className="px-4 py-4 text-right text-xs font-mono font-black tabular-nums text-primary/80 border-l border-border/10"
                       >
-                        {entry.Open ? "Open" : "Closed"}
-                      </Badge>
-                    </TableCell>
-                  )}
-                  {visibleColumns.includes("Due_Date") && (
-                    <TableCell className="text-xs whitespace-nowrap">
-                      {entry.Due_Date && entry.Due_Date !== "0001-01-01"
-                        ? format(new Date(entry.Due_Date), "PP")
-                        : "-"}
-                    </TableCell>
-                  )}
-                  {visibleColumns.includes("Description") && (
-                    <TableCell
-                      className="max-w-[200px] truncate text-xs"
-                      title={entry.Description}
-                    >
-                      {entry.Description || "-"}
-                    </TableCell>
-                  )}
-                  {visibleColumns.includes("Document_Date") && (
-                    <TableCell className="text-xs whitespace-nowrap">
-                      {entry.Document_Date &&
-                      entry.Document_Date !== "0001-01-01"
-                        ? format(new Date(entry.Document_Date), "PP")
-                        : "-"}
-                    </TableCell>
-                  )}
-                  {visibleColumns.includes("Closed_at_Date") && (
-                    <TableCell className="text-xs whitespace-nowrap">
-                      {entry.Closed_at_Date &&
-                      entry.Closed_at_Date !== "0001-01-01"
-                        ? format(new Date(entry.Closed_at_Date), "PP")
-                        : "-"}
-                    </TableCell>
-                  )}
-                  {visibleColumns.includes("Vendor_No") && (
-                    <TableCell className="text-xs">{entry.Vendor_No}</TableCell>
-                  )}
-                  {visibleColumns.includes("Invoice_Received_Date") && (
-                    <TableCell className="text-xs whitespace-nowrap">
-                      {entry.Invoice_Received_Date &&
-                      entry.Invoice_Received_Date !== "0001-01-01"
-                        ? format(new Date(entry.Invoice_Received_Date), "PP")
-                        : "-"}
-                    </TableCell>
-                  )}
-                </tr>
-              ))
+                        {openingBalance.toLocaleString(undefined, {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}
+                      </td>
+                    );
+                  }
+                  return <td key={col.id} className="px-4 py-4 border-l border-border/5" />;
+                })}
+              </tr>
             )}
 
-            {/* Infinite Scroll Trigger & Loader */}
-            <tr className="border-none">
-              <td colSpan={visibleColumns.length} className="p-0">
-                <div ref={observerTarget} className="h-4 w-full" />
+            {/* Data Rows */}
+            {entries.map((entry, index) => (
+              <tr
+                key={entry.Entry_No || index}
+                className={cn(
+                  "group hover:bg-primary/[0.02] transition-all duration-150 relative",
+                  index % 2 === 1 ? "bg-muted/5" : "bg-transparent"
+                )}
+              >
+                {activeColumns.map((col) => renderCell(col, entry))}
+              </tr>
+            ))}
+
+            {/* Infinite Load Target */}
+            <tr className="h-10 pointer-events-none border-none">
+              <td colSpan={activeColumns.length} className="p-0 border-none">
+                <div ref={observerTarget} className="h-full w-full" />
                 {isFetchingNextPage && (
-                  <div className="bg-muted/5 flex items-center justify-center py-4">
-                    <Loader2 className="text-primary h-6 w-6 animate-spin" />
-                    <span className="text-muted-foreground ml-2 text-sm font-medium">
-                      Loading more entries...
-                    </span>
+                  <div className="flex items-center justify-center py-6 gap-3 text-muted-foreground/40 animate-pulse">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span className="text-[10px] font-black uppercase tracking-widest">Fetching Next Page</span>
                   </div>
                 )}
               </td>
             </tr>
 
-            {!isOutstanding && (
-              <tr className="sticky bottom-0 z-40 border-t-2 bg-[#0d0d0d]/90 font-bold shadow-[0_-2px_4px_rgba(0,0,0,0.05)]">
-                <td
-                  colSpan={
-                    visibleColumns.filter(
-                      (c) =>
-                        ![
-                          "Amount",
-                          "Amount_LCY",
-                          "Debit_Amount_LCY",
-                          "Credit_Amount_LCY",
-                          "Remaining_Amount",
-                        ].includes(c),
-                    ).length
-                  }
-                  className="text-primary bg-primary/5 px-4 py-3 text-right text-xs tracking-wider uppercase"
-                >
-                  <span className="bg-[#0d0d0d] p-3 text-white">
-                    Closing Balance
-                  </span>
-                </td>
-                {visibleColumns.includes("Amount") && (
+            {/* Closing Balance Row */}
+            {!isLoading && entries.length > 0 && !isOutstanding && (
+              <tr className="bg-background hover:bg-muted/5 transition-colors border-t-2 border-primary group/balance sticky bottom-0 z-40 shadow-[0_-8px_30px_rgba(0,0,0,0.6)]">
+                {balancePrefixColSpan > 0 && (
                   <td
-                    className={cn(
-                      "bg-primary/5 px-4 text-right text-xs font-black whitespace-nowrap",
-                      closingBalance < 0 ? "text-red-600" : "text-green-700",
-                    )}
+                    colSpan={balancePrefixColSpan}
+                    className="px-6 py-5 text-left font-black text-[11px] uppercase tracking-[3px] text-primary"
                   >
-                    <span className="bg-[#0d0d0d] p-3 text-white">
-                      {closingBalance.toLocaleString(undefined, {
-                        minimumFractionDigits: 2,
-                      })}
-                    </span>
+                    <div className="flex items-center gap-3">
+                      <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+                      Closing Balance
+                    </div>
                   </td>
                 )}
-                {visibleColumns.includes("Amount_LCY") && (
-                  <td className="bg-primary/5 px-4" />
-                )}
-                {visibleColumns.includes("Debit_Amount_LCY") && (
-                  <td className="bg-primary/5 px-4" />
-                )}
-                {visibleColumns.includes("Credit_Amount_LCY") && (
-                  <td className="bg-primary/5 px-4" />
-                )}
-                {visibleColumns.includes("Remaining_Amount") && (
-                  <td className="bg-primary/5 px-4" />
-                )}
-                <td
-                  colSpan={
-                    visibleColumns.filter(
-                      (c) =>
-                        ![
-                          "Entry_No",
-                          "Posting_Date",
-                          "Document_Type",
-                          "Document_No",
-                          "External_Document_No",
-                          "VendorName",
-                          "Debit_Amount",
-                          "Credit_Amount",
-                          "Amount",
-                          "Amount_LCY",
-                          "Debit_Amount_LCY",
-                          "Credit_Amount_LCY",
-                          "Remaining_Amount",
-                        ].includes(c),
-                    ).length + (visibleColumns.includes("Amount") ? 0 : 1)
+                {activeColumns.slice(balancePrefixColSpan).map((col) => {
+                  if (col.id === "Amount" || col.id === "Amount_LCY") {
+                    return (
+                      <td
+                        key={col.id}
+                        className="px-4 py-5 text-right text-sm font-mono font-black tabular-nums border-l border-primary/10 text-primary"
+                      >
+                        {closingBalance.toLocaleString(undefined, {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}
+                      </td>
+                    );
                   }
-                  className="bg-primary/5 px-4"
-                />
+                  return <td key={col.id} className="px-4 py-5 border-l border-border/5" />;
+                })}
               </tr>
             )}
           </tbody>
         </table>
       </div>
+      
+      {isLoading && entries.length === 0 && (
+        <div className="absolute inset-0 bg-background/40 backdrop-blur-sm z-50 flex flex-col items-center justify-center space-y-6 animate-in fade-in duration-500">
+          <div className="relative h-16 w-16">
+             <div className="absolute inset-0 rounded-full border-4 border-primary/10" />
+             <div className="absolute inset-0 rounded-full border-4 border-primary border-t-transparent animate-spin" />
+          </div>
+          <div className="flex flex-col items-center gap-1">
+            <h4 className="text-xs font-black uppercase tracking-[0.3em] text-primary animate-pulse">Synchronizing</h4>
+            <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">Accessing Real-time Ledger Data</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

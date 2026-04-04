@@ -53,6 +53,11 @@ export async function getVendorLedgerEntries(
   top: number = 50,
   skip: number = 0
 ): Promise<ODataResponse<VendorLedgerEntry>> {
+  // Use parallel search strategy if search term is present to avoid "OR" restrictions
+  if (filters.search && filters.search.trim() !== "") {
+    return await searchVendorLedgerEntries(filters, top, skip);
+  }
+
   const filterString = buildVendorFilterString(filters);
   const orderby = filters.sortField 
     ? `${filters.sortField} ${filters.sortOrder || "asc"}`
@@ -68,6 +73,79 @@ export async function getVendorLedgerEntries(
 
   const endpoint = `/VendorLedgerEntry?company='${encodeURIComponent(COMPANY)}'&${query}`;
   return await apiGet<ODataResponse<VendorLedgerEntry>>(endpoint);
+}
+
+/**
+ * Parallel search strategy for Vendor Ledger.
+ * Combines results from multiple single-field queries to avoid OData "OR" limitations.
+ */
+async function searchVendorLedgerEntries(
+  filters: VendorLedgerFilters,
+  top: number,
+  skip: number
+): Promise<ODataResponse<VendorLedgerEntry>> {
+  const { search, ...rest } = filters;
+  const escaped = (search || "").replace(/'/g, "''");
+  
+  // Fields to search (mix of real and flow fields)
+  const fieldsToSearch = ["Document_No", "External_Document_No", "VendorName", "Description"];
+  
+  const responses = await Promise.all(
+    fieldsToSearch.map(async (field) => {
+      const fieldFilter = `contains(${field},'${escaped}')`;
+      const baseFilter = buildVendorFilterString(rest);
+      const combinedFilter = baseFilter 
+        ? `(${baseFilter}) and (${fieldFilter})` 
+        : fieldFilter;
+
+      const orderby = filters.sortField 
+        ? `${filters.sortField} ${filters.sortOrder || "asc"}`
+        : "Posting_Date desc, Entry_No desc";
+
+      const query = buildODataQuery({
+        $filter: combinedFilter,
+        $orderby: orderby,
+        $top: top + skip, 
+        $count: false,
+      });
+
+      const endpoint = `/VendorLedgerEntry?company='${encodeURIComponent(COMPANY)}'&${query}`;
+      try {
+        const res = await apiGet<ODataResponse<VendorLedgerEntry>>(endpoint);
+        return res.value || [];
+      } catch (err) {
+        console.warn(`Search failed for ${field}:`, err);
+        return [];
+      }
+    })
+  );
+
+  // Merge and de-dupe
+  const entryMap = new Map<number, VendorLedgerEntry>();
+  responses.forEach(entries => {
+    entries.forEach(e => entryMap.set(e.Entry_No, e));
+  });
+
+  const allResults = Array.from(entryMap.values());
+  
+  // Sort
+  const field = filters.sortField || "Posting_Date";
+  const order = filters.sortOrder || "desc";
+  allResults.sort((a, b) => {
+    const valA = a[field];
+    const valB = b[field];
+    if (valA < valB) return order === "asc" ? -1 : 1;
+    if (valA > valB) return order === "asc" ? 1 : -1;
+    return 0;
+  });
+
+  const paged = allResults.slice(skip, skip + top);
+
+  return {
+    value: paged,
+    "@odata.count": allResults.length,
+    "@odata.context": "",
+  };
 }
 
 /**
@@ -93,23 +171,7 @@ export function buildVendorFilterString(filters: VendorLedgerFilters): string {
     filterParts.push(`Remaining_Amount ne 0`);
   }
 
-  // Add universal search filter
-  if (filters.search) {
-    const s = filters.search.replace(/'/g, "''");
-    const searchParts = [
-      `contains(Document_No,'${s}')`,
-      `contains(External_Document_No,'${s}')`,
-      `contains(VendorName,'${s}')`,
-      `contains(Description,'${s}')`,
-    ];
-    
-    // For numeric fields, we use eq if the search looks like a number
-    if (!isNaN(Number(s))) {
-      searchParts.push(`Entry_No eq ${s}`);
-    }
-    
-    filterParts.push(`(${searchParts.join(" or ")})`);
-  }
+  // Universal search filter is now handled in searchVendorLedgerEntries
 
   // Add additional structured filters (Dynamic Filter Builder)
   if (filters.additionalFilters && filters.additionalFilters.length > 0) {

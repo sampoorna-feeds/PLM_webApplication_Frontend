@@ -177,7 +177,7 @@ export function VendorLedgerFilterBar({
         <Search className="h-4 w-4 text-muted-foreground/60 group-focus-within:text-primary transition-colors" />
         <input
           type="text"
-          placeholder="Search in transactions..."
+          placeholder="Search entries..."
           value={filters.search || ""}
           onChange={(e) => handleSearchChange(e.target.value)}
           className="bg-transparent border-none focus:ring-0 text-sm h-7 w-full placeholder:text-muted-foreground/40 font-medium outline-none"

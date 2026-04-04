@@ -38,6 +38,11 @@ export async function getGLEntries(
   top: number = 50,
   skip: number = 0
 ): Promise<ODataResponse<GLEntry>> {
+  // If search is present, we use the parallel search strategy to avoid "OR" restrictions
+  if (filters.search && filters.search.trim() !== "") {
+    return await searchGLEntries(filters, top, skip);
+  }
+
   const filterString = buildGLFilterString(filters);
   const orderby = filters.sortField 
     ? `${filters.sortField} ${filters.sortOrder || "asc"}`
@@ -56,21 +61,92 @@ export async function getGLEntries(
 }
 
 /**
+ * Parallel search strategy to overcome "OR on distinct fields" limitation.
+ * Executes concurrent queries for different fields and merges results.
+ */
+async function searchGLEntries(
+  filters: GLEntryFilters,
+  top: number,
+  skip: number
+): Promise<ODataResponse<GLEntry>> {
+  const { search, ...rest } = filters;
+  const escaped = (search || "").replace(/'/g, "''");
+  
+  // Fields that we want to search across
+  const fieldsToSearch = ["AccNo", "AccName", "Descr"];
+  
+  // Perform OData queries in parallel
+  const responses = await Promise.all(
+    fieldsToSearch.map(async (field) => {
+      // Build filter for this specific field
+      const fieldFilter = `contains(${field},'${escaped}')`;
+      const baseFilter = buildGLFilterString(rest);
+      const combinedFilter = baseFilter 
+        ? `(${baseFilter}) and (${fieldFilter})` 
+        : fieldFilter;
+
+      const orderby = filters.sortField 
+        ? `${filters.sortField} ${filters.sortOrder || "asc"}`
+        : "Entry_No desc";
+
+      const query = buildODataQuery({
+        $filter: combinedFilter,
+        $orderby: orderby,
+        $top: top + skip, // Fetch enough to handle merging
+        $count: false,
+      });
+
+      const endpoint = `/GLEntry?company='${encodeURIComponent(COMPANY)}'&${query}`;
+      try {
+        const res = await apiGet<ODataResponse<GLEntry>>(endpoint);
+        return res.value || [];
+      } catch (err) {
+        console.warn(`Search failed for field ${field}:`, err);
+        return [];
+      }
+    })
+  );
+
+  // Merge and deduplicate results
+  const entryMap = new Map<number, GLEntry>();
+  responses.forEach((entries) => {
+    entries.forEach((entry) => {
+      entryMap.set(entry.Entry_No, entry);
+    });
+  });
+
+  // Convert map to array and sort (since we lost order during merging)
+  const allResults = Array.from(entryMap.values());
+  
+  // Apply sorting
+  const field = filters.sortField || "Entry_No";
+  const order = filters.sortOrder || "desc";
+  allResults.sort((a, b) => {
+    const valA = a[field];
+    const valB = b[field];
+    if (valA < valB) return order === "asc" ? -1 : 1;
+    if (valA > valB) return order === "asc" ? 1 : -1;
+    return 0;
+  });
+
+  // Apply pagination
+  const pagedResults = allResults.slice(skip, skip + top);
+
+  return {
+    value: pagedResults,
+    "@odata.count": allResults.length, // Approximate count for pagination
+    "@odata.context": "",
+  };
+}
+
+/**
  * Builds OData filter string from GLEntryFilters
  */
 export function buildGLFilterString(filters: GLEntryFilters): string {
   const filterParts: string[] = [];
 
-  // Universal search filter
-  // IMPORTANT: For G/L Entry, 'AccName' is a FlowField while 'Descr' is a real field.
-  // Business Central OData V4 does not support 'OR' between real fields and FlowFields
-  // on distinct fields. To ensure search works for account names (like 'Ingredients'),
-  // we target AccName primarily. For multi-field searches, users should use the 
-  // Analytical Filter Builder or Column Filters.
-  if (filters.search) {
-    const s = filters.search.replace(/'/g, "''");
-    filterParts.push(`contains(AccName,'${s}')`);
-  }
+  // Universal search is now handled in searchGLEntries / getGLEntries
+  // using a parallel query strategy to avoid OR restrictions.
 
   // Add additional structured filters (Dynamic Filter Builder)
   if (filters.additionalFilters && filters.additionalFilters.length > 0) {

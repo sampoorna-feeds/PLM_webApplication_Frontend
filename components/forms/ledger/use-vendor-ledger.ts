@@ -7,8 +7,16 @@ import {
   getVendorBalance,
   type VendorLedgerEntry,
   type VendorLedgerFilters,
+  buildVendorFilterString,
+  buildHumanReadableVendorFilters,
 } from "@/lib/api/services/vendor-ledger.service";
-import { type PageSize } from "@/components/forms/report-ledger/types";
+import { type PageSize, type FilterCondition } from "@/components/forms/report-ledger/types";
+import { 
+  getDefaultVisibleColumns, 
+  loadVisibleColumns, 
+  saveVisibleColumns,
+  ALL_COLUMNS,
+} from "@/components/forms/ledger/vendor-ledger-column-config";
 
 export interface UseVendorLedgerOptions {
   isOutstanding?: boolean;
@@ -17,8 +25,7 @@ export interface UseVendorLedgerOptions {
 export function useVendorLedger(options: UseVendorLedgerOptions = {}) {
   const [entries, setEntries] = useState<VendorLedgerEntry[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [pageSize, setPageSize] = useState<PageSize>(20);
-  const [currentPage, setCurrentPage] = useState(1);
+  const [isFetchingNextPage, setIsFetchingNextPage] = useState(false);
   const [totalCount, setTotalCount] = useState(0);
 
   const [openingBalance, setOpeningBalance] = useState(0);
@@ -28,18 +35,27 @@ export function useVendorLedger(options: UseVendorLedgerOptions = {}) {
     fromDate: "",
     toDate: "",
     vendorNo: "",
-    isOutstanding: options.isOutstanding || false,
+    search: "",
+    additionalFilters: [],
     columnFilters: {},
     sortField: "Posting_Date",
     sortOrder: "desc"
   });
 
-  const totalPages = useMemo(
-    () => Math.max(1, Math.ceil(totalCount / pageSize)),
-    [totalCount, pageSize]
+  const LIMIT = 50;
+
+  const [visibleColumns, setVisibleColumns] = useState<string[]>(() =>
+    typeof window !== "undefined"
+      ? loadVisibleColumns(options.isOutstanding)
+      : getDefaultVisibleColumns(options.isOutstanding),
   );
 
-  const fetchEntries = useCallback(async () => {
+  const hasMore = useMemo(
+    () => entries.length < totalCount,
+    [entries.length, totalCount]
+  );
+
+  const fetchEntries = useCallback(async (isAppending = false) => {
     // Only fetch if vendor is selected
     if (!filters.vendorNo) {
       setEntries([]);
@@ -49,58 +65,76 @@ export function useVendorLedger(options: UseVendorLedgerOptions = {}) {
       return;
     }
 
-    setIsLoading(true);
+    if (isAppending) {
+      setIsFetchingNextPage(true);
+    } else {
+      setIsLoading(true);
+    }
+
     try {
-      // Fetch entries and balances in parallel
+      const skip = isAppending ? entries.length : 0;
+      
+      // Fetch entries and balances
       const [entriesRes, openingBal, closingBal] = await Promise.all([
-        getVendorLedgerEntries(
-          filters,
-          pageSize,
-          (currentPage - 1) * pageSize
-        ),
-        filters.fromDate ? getVendorBalance(filters.vendorNo, filters.fromDate, true) : Promise.resolve(0),
-        filters.toDate ? getVendorBalance(filters.vendorNo, filters.toDate, false) : getVendorBalance(filters.vendorNo)
+        getVendorLedgerEntries(filters, LIMIT, skip),
+        // Only fetch balances on first load
+        !isAppending && filters.fromDate 
+          ? getVendorBalance(filters.vendorNo, filters.fromDate, true) 
+          : !isAppending ? Promise.resolve(0) : Promise.resolve(openingBalance),
+        !isAppending 
+          ? (filters.toDate ? getVendorBalance(filters.vendorNo, filters.toDate, false) : getVendorBalance(filters.vendorNo))
+          : Promise.resolve(closingBalance)
       ]);
 
-      setEntries(entriesRes.value);
+      if (isAppending) {
+        setEntries(prev => [...prev, ...entriesRes.value]);
+      } else {
+        setEntries(entriesRes.value);
+        setOpeningBalance(openingBal);
+        setClosingBalance(closingBal);
+      }
       setTotalCount(entriesRes["@odata.count"] || entriesRes.value.length);
-      setOpeningBalance(openingBal);
-      setClosingBalance(closingBal);
     } catch (error) {
       console.error("Error fetching vendor ledger entries:", error);
       toast.error("Failed to load vendor ledger entries.");
-      setEntries([]);
-      setTotalCount(0);
+      if (!isAppending) {
+        setEntries([]);
+        setTotalCount(0);
+      }
     } finally {
       setIsLoading(false);
+      setIsFetchingNextPage(false);
     }
-  }, [filters, pageSize, currentPage]);
+  }, [filters, entries.length, openingBalance, closingBalance]);
 
+  // Initial fetch on filter change
   useEffect(() => {
-    fetchEntries();
-  }, [fetchEntries]);
+    fetchEntries(false);
+  }, [filters]);
+
+  const loadMore = useCallback(() => {
+    if (!hasMore || isLoading || isFetchingNextPage) return;
+    fetchEntries(true);
+  }, [hasMore, isLoading, isFetchingNextPage, fetchEntries]);
 
   const handleFilterChange = useCallback((newFilters: Partial<VendorLedgerFilters>) => {
     setFilters((prev) => ({ 
       ...prev, 
       ...newFilters,
-      // If vendorNo or isOutstanding changes, reset column filters
       columnFilters: (newFilters.vendorNo !== undefined || newFilters.isOutstanding !== undefined) 
         ? {} 
         : prev.columnFilters 
     }));
-    setCurrentPage(1);
   }, []);
 
-  const handleColumnFilterChange = useCallback((field: string, value: string) => {
+  const handleColumnFilterChange = useCallback((field: string, value: string, valueTo?: string) => {
     setFilters((prev) => ({
       ...prev,
       columnFilters: {
         ...prev.columnFilters,
-        [field]: value
+        [field]: valueTo ? `${value},${valueTo}` : value
       }
     }));
-    setCurrentPage(1);
   }, []);
 
   const handleSort = useCallback((field: string) => {
@@ -112,34 +146,66 @@ export function useVendorLedger(options: UseVendorLedgerOptions = {}) {
         sortOrder: isAsc ? "desc" : "asc"
       };
     });
-    setCurrentPage(1);
   }, []);
 
-  const handlePageChange = useCallback((page: number) => {
-    setCurrentPage(page);
+  const handleAddAdditionalFilter = useCallback((filter: FilterCondition) => {
+    setFilters((prev) => ({
+      ...prev,
+      additionalFilters: [...(prev.additionalFilters || []), filter]
+    }));
   }, []);
 
-  const handlePageSizeChange = useCallback((size: PageSize) => {
-    setPageSize(size);
-    setCurrentPage(1);
+  const handleRemoveAdditionalFilter = useCallback((index: number) => {
+    setFilters((prev) => ({
+      ...prev,
+      additionalFilters: (prev.additionalFilters || []).filter((_, i) => i !== index)
+    }));
   }, []);
+
+  const handleColumnToggle = useCallback((columnId: string) => {
+    setVisibleColumns((prev) => {
+      const newColumns = prev.includes(columnId)
+        ? prev.filter((id) => id !== columnId)
+        : [...prev, columnId];
+      saveVisibleColumns(newColumns, options.isOutstanding);
+      return newColumns;
+    });
+  }, [options.isOutstanding]);
+
+  const handleResetColumns = useCallback(() => {
+    const defaultColumns = getDefaultVisibleColumns(options.isOutstanding);
+    setVisibleColumns(defaultColumns);
+    saveVisibleColumns(defaultColumns, options.isOutstanding);
+  }, [options.isOutstanding]);
+
+  const handleShowAllColumns = useCallback(() => {
+    const allColumnIds = ALL_COLUMNS.map((col) => col.id);
+    setVisibleColumns(allColumnIds);
+    saveVisibleColumns(allColumnIds, options.isOutstanding);
+  }, [options.isOutstanding]);
 
   return {
     entries,
     isLoading,
-    pageSize,
-    currentPage,
-    totalPages,
+    isFetchingNextPage,
+    hasMore,
     totalCount,
     filters,
     openingBalance,
     closingBalance,
+    visibleColumns,
     onFilterChange: handleFilterChange,
     onColumnFilterChange: handleColumnFilterChange,
     onSort: handleSort,
-    onPageChange: handlePageChange,
-    onPageSizeChange: handlePageSizeChange,
-    refetch: fetchEntries,
+    onAddAdditionalFilter: handleAddAdditionalFilter,
+    onRemoveAdditionalFilter: handleRemoveAdditionalFilter,
+    loadMore,
+    onColumnToggle: handleColumnToggle,
+    onResetColumns: handleResetColumns,
+    onShowAllColumns: handleShowAllColumns,
+    currentFilterString: buildVendorFilterString(filters),
+    humanReadableFilters: buildHumanReadableVendorFilters(filters),
+    refetch: () => fetchEntries(false),
   };
 }
 

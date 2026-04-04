@@ -2,7 +2,7 @@
  * Type definitions for Report Ledger components
  */
 
-export type PageSize = 10 | 20 | 30 | 40 | 50;
+export type PageSize = 10 | 20 | 30 | 40 | 50 | 200;
 
 export type ReportMode = "summary" | "ledger";
 

@@ -100,6 +100,7 @@ export function ExportProgressDialog({
         expectedColumns,
         humanReadableFilters,
         "Report_Ledger",
+        ALL_COLUMNS
       );
       toast.success(
         `Successfully exported ${accumulatedEntries.length} records.`,

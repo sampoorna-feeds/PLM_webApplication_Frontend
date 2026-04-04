@@ -102,6 +102,11 @@ const ledgerSubItems = [
     url: "/ledger/vendor-ledger",
     icon: BookOpenCheck,
   },
+  {
+    title: "GL Entry",
+    url: "/ledger/gl-entry",
+    icon: BookOpenCheck,
+  },
 ];
 
 const formsItems = [

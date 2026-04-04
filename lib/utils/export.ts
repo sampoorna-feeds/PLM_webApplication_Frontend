@@ -1,38 +1,78 @@
 import * as XLSX from "xlsx";
-import type { ItemLedgerEntry } from "@/lib/api/services/report-ledger.service";
-import {
-  ALL_COLUMNS,
-  type ColumnConfig,
-} from "@/components/forms/report-ledger/column-config";
 
 /**
- * Exports an array of ItemLedgerEntries to an Excel (.xlsx) file.
+ * Exports an array of entries to an Excel (.xlsx) file.
  *
  * @param entries The data to export
- * @param exportColumnIds The IDs of the columns to include in the export
+ * @param exportColumnIds The IDs of the columns to include in the export (order and selection)
  * @param appliedFilters Array of string descriptions of the active filters
  * @param filename The desired filename (without extension)
+ * @param allColumns The full column configuration (ID and Label) for mapping
+ * @param balances Optional financial balances to include as rows
  */
 export function exportToExcel(
-  entries: ItemLedgerEntry[],
+  entries: any[],
   exportColumnIds: string[],
   appliedFilters: string[],
-  filename: string = "Report_Ledger_Export",
+  filename: string = "Ledger_Export",
+  allColumns: { id: string; label: string }[],
+  balances?: {
+    opening?: number;
+    closing?: number;
+  }
 ) {
   // 1. Map column IDs to their corresponding config objects for headers
-  const exportColumns: ColumnConfig[] = exportColumnIds
-    .map((id) => ALL_COLUMNS.find((col) => col.id === id))
-    .filter((col): col is ColumnConfig => col !== undefined);
+  const exportColumns = exportColumnIds
+    .map((id) => allColumns.find((col) => col.id === id))
+    .filter((col): col is { id: string; label: string } => col !== undefined);
 
   // 2. Transform the raw data into an array of objects matching the selected columns
-  const exportData = entries.map((entry) => {
+  const exportData: Record<string, any>[] = [];
+
+  // Helper to create a balance row
+  const createBalanceRow = (label: string, balance: number) => {
+    const row: Record<string, any> = {};
+    let labelAssigned = false;
+
+    exportColumns.forEach((col) => {
+      if (col.id === "Amount" || col.id === "Amount_LCY") {
+        row[col.label] = balance;
+      } else if (!labelAssigned && (col.id === "Description" || col.id === "VendorName" || col.id === "Posting_Date")) {
+        row[col.label] = label;
+        labelAssigned = true;
+      } else {
+        row[col.label] = "";
+      }
+    });
+
+    // Fallback if none of the preferred columns are visible
+    if (!labelAssigned && exportColumns.length > 0) {
+      // Find the first column that isn't Amount to put the label
+      const fallbackCol = exportColumns.find(c => c.id !== "Amount" && c.id !== "Amount_LCY") || exportColumns[0];
+      row[fallbackCol.label] = label;
+    }
+
+    return row;
+  };
+
+  // Add Opening Balance Row
+  if (balances?.opening !== undefined) {
+    exportData.push(createBalanceRow("Opening Balance", balances.opening));
+  }
+
+  // Add Entries
+  entries.forEach((entry) => {
     const row: Record<string, any> = {};
     exportColumns.forEach((col) => {
-      // Map the user-friendly label to the raw data value
       row[col.label] = entry[col.id];
     });
-    return row;
+    exportData.push(row);
   });
+
+  // Add Closing Balance Row
+  if (balances?.closing !== undefined) {
+    exportData.push(createBalanceRow("Closing Balance", balances.closing));
+  }
 
   // 3. Create a worksheet and add metadata strings at the top
   const metadataRows = [

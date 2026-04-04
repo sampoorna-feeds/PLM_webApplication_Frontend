@@ -1,12 +1,12 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Loader2, RefreshCcw, LayoutGrid } from "lucide-react";
-import { useGLEntry } from "./use-gl-entry";
+import { buildGLFilterString } from "@/lib/api/services/gl-entry.service";
+import { Loader2, RefreshCcw } from "lucide-react";
+import { useMemo } from "react";
 import { GLEntryFilterBar } from "./gl-entry-filter-bar";
 import { GLEntryTable } from "./gl-entry-table";
-import { buildGLFilterString } from "@/lib/api/services/gl-entry.service";
-import { useMemo } from "react";
+import { useGLEntry } from "./use-gl-entry";
 
 export function GLEntryView() {
   const {
@@ -28,33 +28,35 @@ export function GLEntryView() {
     handleResetColumns,
   } = useGLEntry();
 
-  const currentFilterString = useMemo(() => buildGLFilterString(filters), [filters]);
+  const currentFilterString = useMemo(
+    () => buildGLFilterString(filters),
+    [filters],
+  );
 
   return (
-    <div className="flex flex-col h-full w-full gap-5 p-6 bg-background/40 overflow-hidden">
+    <div className="bg-background/40 flex h-full w-full flex-col gap-5 overflow-hidden p-6">
       {/* Page Header */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 px-1">
+      <div className="flex flex-col justify-between gap-4 px-1 md:flex-row md:items-end">
         <div className="space-y-1">
-          <div className="flex items-center gap-2 text-primary">
-            <LayoutGrid className="h-5 w-5" />
-            <span className="text-[10px] font-black uppercase tracking-[0.2em]">Financial Ledger</span>
-          </div>
-          <h1 className="text-3xl font-extrabold tracking-tight text-foreground/90 uppercase">GL Entry</h1>
-          <p className="text-sm text-muted-foreground font-medium max-w-lg">
-            Complete general ledger transaction history with real-time tracking and advanced analytical filtering
+          <h1 className="text-foreground/90 text-3xl font-extrabold tracking-tight uppercase">
+            GL Entry
+          </h1>
+          <p className="text-muted-foreground max-w-lg text-sm font-medium">
+            Complete general ledger transaction history with real-time tracking
+            and advanced analytical filtering
           </p>
         </div>
-        
-        <div className="flex items-center gap-3 bg-muted/20 p-1.5 rounded-xl border border-border/40 backdrop-blur-md shadow-sm">
+
+        <div className="bg-muted/20 border-border/40 flex items-center gap-3 rounded-xl border p-1.5 shadow-sm backdrop-blur-md">
           <Button
             variant="ghost"
             size="sm"
             onClick={() => refetch()}
             disabled={isLoading}
-            className="h-8 px-4 text-[10px] font-black uppercase tracking-widest hover:bg-primary/10 hover:text-primary transition-all duration-300 rounded-lg"
+            className="hover:bg-primary/10 hover:text-primary h-8 rounded-lg px-4 text-[10px] font-black tracking-widest uppercase transition-all duration-300"
           >
             {isLoading ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin mr-2" />
+              <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
             ) : (
               <RefreshCcw className="mr-2 h-3.5 w-3.5" />
             )}
@@ -64,7 +66,7 @@ export function GLEntryView() {
       </div>
 
       {/* Filter Orchestration Bar */}
-      <div className="flex items-center gap-4 bg-card/40 backdrop-blur-xl border border-border/50 p-4 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-500">
+      <div className="bg-card/40 border-border/50 flex items-center gap-4 rounded-2xl border p-4 shadow-xl backdrop-blur-xl transition-all duration-500 hover:shadow-2xl">
         <GLEntryFilterBar
           filters={filters}
           visibleColumns={visibleColumns}
@@ -72,7 +74,8 @@ export function GLEntryView() {
           currentFilterString={currentFilterString}
           searchString={filters.search}
           onFilterChange={(newFilters) => {
-            if (newFilters.search !== undefined) handleSearch(newFilters.search);
+            if (newFilters.search !== undefined)
+              handleSearch(newFilters.search);
           }}
           onAdditionalFiltersChange={handleAdditionalFiltersChange}
           onClearFilters={clearFilters}
@@ -84,7 +87,7 @@ export function GLEntryView() {
       </div>
 
       {/* Main Table Container */}
-      <div className="flex-1 min-h-0 bg-card/10 backdrop-blur-md rounded-2xl border border-border/40 shadow-2xl overflow-hidden flex flex-col group">
+      <div className="bg-card/10 border-border/40 group flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border shadow-2xl backdrop-blur-md">
         <GLEntryTable
           entries={entries}
           isLoading={isLoading}

@@ -5,7 +5,7 @@
 
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -51,46 +51,107 @@ import { getAuthCredentials } from "@/lib/auth/storage";
 import { getErrorMessage } from "@/lib/errors";
 import type { LineItem } from "@/components/forms/purchase/purchase-line-item.type";
 import { PurchaseLineItemsTable } from "./purchase-line-items-table";
-import { Plus } from "lucide-react";
+import {
+  Plus,
+  FileText,
+  Paperclip,
+  LoaderCircleIcon,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ClearableField } from "@/components/ui/clearable-field";
 import { RequestFailedDialog } from "@/components/ui/request-failed-dialog";
 import { PurchaseOrderLineDialog as PurchaseLineDialog } from "./purchase-order-line-dialog";
+import { PurchaseOrderLineEditDialog as PurchaseLineEditDialog } from "./purchase-order-line-edit-dialog";
+import { POAttachmentDialog } from "./po-attachment-dialog";
+import { PurchaseItemTrackingDialog } from "./purchase-item-tracking-dialog";
+import { ItemChargeAssignmentDialog } from "./item-charge-assignment-dialog";
+import { ItemChargeMultiSelectDialog } from "./item-charge-multi-select-dialog";
+import { PostGateEntryDialog } from "./post-gate-entry-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Label } from "@/components/ui/label";
 import { PurchaseCopyDocumentDialog } from "./purchase-copy-document-dialog";
 import {
   createPurchaseCreditMemo,
   createPurchaseCreditMemoCopyHeader,
+  addSinglePurchaseCreditMemoLine,
   addPurchaseCreditMemoLineItems,
   getPurchaseCreditMemoByNo,
   getPurchaseCreditMemoLines,
   patchPurchaseCreditMemoHeader,
+  updateSinglePurchaseCreditMemoLine,
   deletePurchaseCreditMemoHeader,
   deleteSinglePurchaseCreditMemoLine,
 } from "@/lib/api/services/purchase-credit-memo.service";
 import {
   createPurchaseInvoice,
   createPurchaseInvoiceCopyHeader,
+  addSinglePurchaseInvoiceLine,
   addPurchaseInvoiceLineItems,
   getPurchaseInvoiceByNo,
   getPurchaseInvoiceLines,
   patchPurchaseInvoiceHeader,
+  updateSinglePurchaseInvoiceLine,
   deletePurchaseInvoiceHeader,
   deleteSinglePurchaseInvoiceLine,
 } from "@/lib/api/services/purchase-invoice.service";
 import {
   createPurchaseReturnOrder,
   createPurchaseReturnOrderCopyHeader,
+  addSinglePurchaseReturnOrderLine,
   addPurchaseReturnOrderLineItems,
   getPurchaseReturnOrderByNo,
   getPurchaseReturnOrderLines,
   patchPurchaseReturnOrderHeader,
+  updateSinglePurchaseReturnOrderLine,
   deletePurchaseReturnOrderHeader,
   deleteSinglePurchaseReturnOrderLine,
 } from "@/lib/api/services/purchase-return-order.service";
-import type {
-  PurchaseOrderData,
-  PurchaseOrderLineItem,
+import {
+  createPurchaseOrder,
+  addPurchaseOrderLineItems,
+  addSinglePurchaseOrderLine,
+  updateSinglePurchaseOrderLine,
+  deleteSinglePurchaseOrderLine,
+  type PurchaseOrderData,
+  type PurchaseOrderLineItem,
 } from "@/lib/api/services/purchase-order.service";
+import {
+  getPurchaseOrderByNo,
+  getPurchaseOrderLines,
+  patchPurchaseOrderHeader,
+  deletePurchaseOrderHeader,
+  deletePurchaseOrderLine,
+  postPurchaseOrder,
+  getPurchasereceipts,
+  getPurchaseOrderReport,
+  getPurchasereceiptReport,
+  type PurchaseReceipt,
+} from "@/lib/api/services/purchase-orders.service";
+import { getTransferAllLocationCodes } from "@/lib/api/services/transfer-orders.service";
 import { buildPurchaseHeaderPayload } from "@/lib/api/services/purchase-header-payload";
 import {
   cancelApprovalRequest,
@@ -112,6 +173,7 @@ import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 
 export type PurchaseCreateDocumentType =
+  | "order"
   | "invoice"
   | "return-order"
   | "credit-memo";
@@ -124,6 +186,8 @@ interface PurchaseCreateDocumentConfig {
   primaryVendorRefLabel: string;
   primaryVendorRefField: "vendorInvoiceNo" | "vendorCrMemoNo";
   orderAddressGridClass: string;
+  /** When true, onSuccess is called immediately after header creation (no line staging). Used for 'order' type. */
+  immediateSuccess?: boolean;
   buildHeaderData: (
     formData: PurchaseCreateDocumentFormState,
   ) => PurchaseOrderData;
@@ -139,6 +203,16 @@ interface PurchaseCreateDocumentConfig {
     lineItems: PurchaseOrderLineItem[],
     locationCode: string,
   ) => Promise<void>;
+  addSingleLine: (
+    documentNo: string,
+    lineItem: PurchaseOrderLineItem,
+    locationCode: string,
+  ) => Promise<{ Line_No: number; [key: string]: unknown }>;
+  updateSingleLine: (
+    documentNo: string,
+    lineNo: number,
+    lineItem: Partial<PurchaseOrderLineItem>,
+  ) => Promise<{ Line_No: number; [key: string]: unknown }>;
   updateHeader: (
     documentNo: string,
     body: Record<string, unknown>,
@@ -210,6 +284,8 @@ const PURCHASE_CREATE_DOCUMENT_CONFIG: Record<
     createHeader: createPurchaseInvoice,
     createCopyHeader: createPurchaseInvoiceCopyHeader,
     addLineItems: addPurchaseInvoiceLineItems,
+    addSingleLine: addSinglePurchaseInvoiceLine,
+    updateSingleLine: updateSinglePurchaseInvoiceLine,
     updateHeader: patchPurchaseInvoiceHeader,
     deleteHeader: deletePurchaseInvoiceHeader,
     deleteLine: deleteSinglePurchaseInvoiceLine,
@@ -239,6 +315,8 @@ const PURCHASE_CREATE_DOCUMENT_CONFIG: Record<
     createHeader: createPurchaseReturnOrder,
     createCopyHeader: createPurchaseReturnOrderCopyHeader,
     addLineItems: addPurchaseReturnOrderLineItems,
+    addSingleLine: addSinglePurchaseReturnOrderLine,
+    updateSingleLine: updateSinglePurchaseReturnOrderLine,
     updateHeader: patchPurchaseReturnOrderHeader,
     deleteHeader: deletePurchaseReturnOrderHeader,
     deleteLine: deleteSinglePurchaseReturnOrderLine,
@@ -267,6 +345,8 @@ const PURCHASE_CREATE_DOCUMENT_CONFIG: Record<
     createHeader: createPurchaseCreditMemo,
     createCopyHeader: createPurchaseCreditMemoCopyHeader,
     addLineItems: addPurchaseCreditMemoLineItems,
+    addSingleLine: addSinglePurchaseCreditMemoLine,
+    updateSingleLine: updateSinglePurchaseCreditMemoLine,
     updateHeader: patchPurchaseCreditMemoHeader,
     deleteHeader: deletePurchaseCreditMemoHeader,
     deleteLine: deleteSinglePurchaseCreditMemoLine,
@@ -277,6 +357,42 @@ const PURCHASE_CREATE_DOCUMENT_CONFIG: Record<
     },
     fetchHeader: getPurchaseCreditMemoByNo,
     fetchLines: getPurchaseCreditMemoLines,
+  },
+  order: {
+    documentType: "order",
+    createHeaderButtonLabel: "Create Purchase Order",
+    toDocType: "Order",
+    displayTitle: "Purchase Order",
+    primaryVendorRefLabel: "Vendor Invoice No.",
+    primaryVendorRefField: "vendorInvoiceNo",
+    orderAddressGridClass: "sm:col-span-2 lg:col-span-2",
+    immediateSuccess: true,
+    buildHeaderData: (formData) => ({
+      ...buildPurchaseCommonHeaderData(formData),
+      vendorInvoiceNo: formData.vendorInvoiceNo,
+      poType: formData.poType,
+      serviceType: formData.serviceType,
+      orderDate: formData.orderDate,
+    }),
+    createHeader: createPurchaseOrder,
+    createCopyHeader: async (locationCode, lobCode) => {
+      throw new Error("Copy document not supported for purchase orders");
+    },
+    addLineItems: addPurchaseOrderLineItems,
+    addSingleLine: addSinglePurchaseOrderLine,
+    updateSingleLine: updateSinglePurchaseOrderLine,
+    updateHeader: patchPurchaseOrderHeader,
+    deleteHeader: deletePurchaseOrderHeader,
+    deleteLine: async (documentNo: string, lineNo: number) => {
+      await deletePurchaseOrderLine(documentNo, lineNo);
+    },
+    statusActions: {
+      open: ["Send For Approval"],
+      pending: ["Cancel Approval"],
+      released: ["Gate Entry", "Purchase Receipts", "Post", "Reopen"],
+    },
+    fetchHeader: getPurchaseOrderByNo,
+    fetchLines: getPurchaseOrderLines,
   },
 };
 
@@ -365,6 +481,7 @@ export function PurchaseCreateDocumentFormContent({
   const [isBootstrappingCopyHeader, setIsBootstrappingCopyHeader] =
     useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSavingLine, setIsSavingLine] = useState(false);
   const [isActionLoading, setIsActionLoading] = useState(false);
   const [isUpdatingHeader, setIsUpdatingHeader] = useState(false);
   const [documentStatus, setDocumentStatus] = useState<string>(
@@ -376,9 +493,54 @@ export function PurchaseCreateDocumentFormContent({
   const [placeOrderError, setPlaceOrderError] = useState<string | null>(null);
   const [isCopyDocOpen, setIsCopyDocOpen] = useState(false);
 
+  // ── PO Advanced State (used only when documentType === 'order') ────────────
+  const [locationName, setLocationName] = useState("");
+  const [selectedLine, setSelectedLine] = useState<PurchaseLine | null>(null);
+  const [purchaseLines, setPurchaseLines] = useState<PurchaseLine[]>([]);
+  const [isAttachmentDialogOpen, setIsAttachmentDialogOpen] = useState(false);
+  const [isPostDialogOpen, setIsPostDialogOpen] = useState(false);
+  const [isPostDetailsOpen, setIsPostDetailsOpen] = useState(false);
+  const [isPostLoading, setIsPostLoading] = useState(false);
+  const [postOption, setPostOption] = useState<"receive" | "invoice" | "receive-invoice" | null>(null);
+  const [postDetails, setPostDetails] = useState({
+    postingDate: "", documentDate: "", vehicleNo: "",
+    vendorInvoiceNo: "", dueDateCalculation: "Posting Date",
+    freight: "", lineNarration: "",
+  });
+  const [isReceiptOpen, setIsReceiptOpen] = useState(false);
+  const [isReceiptLoading, setIsReceiptLoading] = useState(false);
+  const [receiptShipments, setReceiptShipments] = useState<PurchaseReceipt[]>([]);
+  const [receiptDate, setReceiptDate] = useState("");
+  const [isTrackingOpen, setIsTrackingOpen] = useState(false);
+  const [trackingLine, setTrackingLine] = useState<PurchaseLine | null>(null);
+  const [isItemChargeOpen, setIsItemChargeOpen] = useState(false);
+  const [selectedItemChargeLine, setSelectedItemChargeLine] = useState<PurchaseLine | null>(null);
+  const [confirmDialog, setConfirmDialog] = useState({
+    open: false, title: "", description: "", action: async () => {},
+    actionLabel: "", cancelLabel: "",
+    variant: "default" as "default" | "destructive",
+  });
+  const [, startPrintMRN] = useTransition();
+  const [printingMRN] = useState(false);
+  // ─────────────────────────────────────────────────────────────────────────
+
   const [termList, setTermList] = useState<TermAndCondition[]>([]);
   const [mandiList, setMandiList] = useState<MandiMaster[]>([]);
   const [paymentTermList, setPaymentTermList] = useState<PaymentTerm[]>([]);
+
+  // Fetch location name for order documents
+  useEffect(() => {
+    if (documentType !== "order") return;
+    const locCode = formData.locationCode || formData.loc;
+    if (!locCode) { setLocationName(""); return; }
+    getTransferAllLocationCodes()
+      .then((locs) => {
+        const found = locs.find((l) => l.Code === locCode);
+        setLocationName(found?.Name || "");
+      })
+      .catch(() => setLocationName(""));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [documentType, formData.locationCode, formData.loc]);
 
   useEffect(() => {
     purchaseDropdownsService
@@ -624,6 +786,11 @@ export function PurchaseCreateDocumentFormContent({
         createdOrderNo: orderNo,
         status: "Open",
       });
+
+      // For purchase orders, navigate to view mode immediately (no line staging)
+      if (config.immediateSuccess) {
+        onSuccess(orderNo);
+      }
     } catch (error) {
       console.error(
         "Error creating purchase document header:",
@@ -713,8 +880,6 @@ export function PurchaseCreateDocumentFormContent({
 
   // Line Items management
   const handleAddLineItem = () => {
-    if (!isCreateMode) return;
-
     if (!createdOrderNo) {
       setPlaceOrderError(
         "Create the document header first, then add line items.",
@@ -727,47 +892,117 @@ export function PurchaseCreateDocumentFormContent({
   };
 
   const handleEditLineItem = (lineItem: LineItem) => {
-    if (!isCreateMode) return;
-
+    // For orders: if this line is persisted on the server (has a lineNo), open the
+    // richer PurchaseLineEditDialog. Otherwise use the standard dialog.
+    if (documentType === "order" && lineItem.lineNo && createdOrderNo) {
+      const serverLine = purchaseLines.find((l) => l.Line_No === lineItem.lineNo);
+      if (serverLine) {
+        setSelectedLine(serverLine);
+        return;
+      }
+    }
     setSelectedLineItem(lineItem);
     setIsLineDialogOpen(true);
   };
 
-  const handleLineItemSave = (lineItem: LineItem) => {
-    if (!isCreateMode) return;
+  const handleLineItemSave = async (lineItem: LineItem) => {
+    if (!createdOrderNo) return;
 
-    const updated = selectedLineItem
-      ? lineItems.map((item) =>
-          item.id === selectedLineItem.id ? lineItem : item,
-        )
-      : [...lineItems, lineItem];
+    if (isCreateMode) {
+      const updated = selectedLineItem
+        ? lineItems.map((item) =>
+            item.id === selectedLineItem.id ? lineItem : item,
+          )
+        : [...lineItems, lineItem];
 
-    setLineItems(updated);
-    setSelectedLineItem(null);
-    setIsLineDialogOpen(false);
-    persist({
-      ...formData,
-      lineItems: updated,
-      createdOrderNo,
-    });
-  };
+      setLineItems(updated);
+      setSelectedLineItem(null);
+      setIsLineDialogOpen(false);
+      persist({
+        ...formData,
+        lineItems: updated,
+        createdOrderNo,
+      });
+      return;
+    }
 
-  const handleRemoveLineItem = (lineItemId: string) => {
-    if (!isCreateMode) return;
+    setIsSavingLine(true);
+    setPlaceOrderError(null);
 
-    const updated = lineItems.filter((item) => item.id !== lineItemId);
-    setLineItems(updated);
-    persist({ ...formData, lineItems: updated, createdOrderNo });
-  };
+    const apiItem: PurchaseOrderLineItem = {
+      type: lineItem.type,
+      no: lineItem.no,
+      description: lineItem.description,
+      uom: lineItem.uom,
+      quantity: lineItem.quantity,
+      price: lineItem.price,
+      unitPrice: lineItem.unitPrice,
+      discount: lineItem.discount,
+      amount: lineItem.amount,
+      exempted: lineItem.exempted,
+      gstGroupCode: lineItem.gstGroupCode,
+      hsnSacCode: lineItem.hsnSacCode,
+      tdsSectionCode: lineItem.tdsSectionCode,
+      faPostingType: lineItem.faPostingType,
+      salvageValue: lineItem.salvageValue,
+      noOfBags: lineItem.noOfBags,
+    };
 
-  const handleUpdateLineItem = (lineItem: LineItem) => {
-    if (!isCreateMode) return;
-
-    const updated = lineItems.map((item) =>
-      item.id === lineItem.id ? lineItem : item,
+    const locationCode = resolvePurchaseLocationCode(
+      formData.locationCode,
+      formData.loc,
     );
-    setLineItems(updated);
-    persist({ ...formData, lineItems: updated, createdOrderNo });
+
+    try {
+      if (lineItem.lineNo) {
+        await config.updateSingleLine(createdOrderNo, lineItem.lineNo, apiItem);
+        toast.success("Line item updated.");
+      } else {
+        await config.addSingleLine(createdOrderNo, apiItem, locationCode);
+        toast.success("Line item added.");
+      }
+
+      await refreshHydratedDocument();
+      setSelectedLineItem(null);
+      setIsLineDialogOpen(false);
+    } catch (error) {
+      setPlaceOrderError(
+        getErrorMessage(error, "Failed to save line item. Please try again."),
+      );
+    } finally {
+      setIsSavingLine(false);
+    }
+  };
+
+  const handleRemoveLineItem = async (lineItemId: string) => {
+    const itemToRemove = lineItems.find((item) => item.id === lineItemId);
+    if (!itemToRemove) return;
+
+    if (isCreateMode) {
+      const updated = lineItems.filter((item) => item.id !== lineItemId);
+      setLineItems(updated);
+      persist({ ...formData, lineItems: updated, createdOrderNo });
+      return;
+    }
+
+    if (!createdOrderNo || !itemToRemove.lineNo) {
+      return;
+    }
+
+    setIsSavingLine(true);
+    setPlaceOrderError(null);
+
+    try {
+      await config.deleteLine(createdOrderNo, itemToRemove.lineNo);
+      await refreshHydratedDocument();
+      toast.success("Line item removed.");
+    } catch (error) {
+      setPlaceOrderError(
+        getErrorMessage(error, "Failed to delete line item. Please try again."),
+      );
+    } finally {
+      setIsSavingLine(false);
+    }
   };
 
   // Final submission (line-item creation after header creation)
@@ -970,23 +1205,89 @@ export function PurchaseCreateDocumentFormContent({
   };
 
   const handleStatusAction = async (action: string) => {
-    if (action === "Send For Approval") {
-      await handleSendForApproval();
-      return;
-    }
-    if (action === "Cancel Approval") {
-      await handleCancelApproval();
-      return;
-    }
-    if (action === "Reopen") {
-      await handleReopenDocument();
-      return;
-    }
+    if (action === "Send For Approval") { await handleSendForApproval(); return; }
+    if (action === "Cancel Approval") { await handleCancelApproval(); return; }
+    if (action === "Reopen") { await handleReopenDocument(); return; }
     if (action === "Post") {
-      toast.info(`Post flow for ${config.displayTitle} will be wired next.`);
+      if (documentType === "order") { setPostOption(null); setIsPostDialogOpen(true); }
+      else toast.info(`Post flow for ${config.displayTitle} will be wired next.`);
       return;
+    }
+    if (action === "Gate Entry") { return; } // handled inline via PostGateEntryDialog
+    if (action === "Purchase Receipts") {
+      setIsReceiptOpen(true);
+      if (createdOrderNo) {
+        setIsReceiptLoading(true);
+        getPurchasereceipts(createdOrderNo)
+          .then(setReceiptShipments)
+          .catch(() => toast.error("Failed to load receipts"))
+          .finally(() => setIsReceiptLoading(false));
+      }
     }
   };
+
+  // ── PO-only Handlers ─────────────────────────────────────────────────
+  const fetchLines = useCallback(async (docNo: string) => {
+    const lines = await getPurchaseOrderLines(docNo);
+    setPurchaseLines(lines);
+    setLineItems(lines.map(mapPurchaseLineToLineItem));
+  }, []);
+
+  const base64ToPdfBlob = (b64: string) => {
+    const bin = atob(b64); const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return new Blob([bytes], { type: "application/pdf" });
+  };
+
+  const handlePrintPOReport = async () => {
+    if (!createdOrderNo) return;
+    setIsActionLoading(true);
+    try {
+      const b64 = await getPurchaseOrderReport(createdOrderNo);
+      if (!b64) { toast.error("No report data found."); return; }
+      window.open(URL.createObjectURL(base64ToPdfBlob(b64)), "_blank");
+    } catch { toast.error("Failed to generate report."); }
+    finally { setIsActionLoading(false); }
+  };
+
+  const handlePrintMRN = async (mrnNo: string) => {
+    startPrintMRN(async () => {
+      try {
+        const b64 = await getPurchasereceiptReport(mrnNo);
+        if (!b64) { toast.error("No report data found."); return; }
+        window.open(URL.createObjectURL(base64ToPdfBlob(b64)), "_blank");
+      } catch { toast.error("Failed to generate MRN report."); }
+    });
+  };
+
+  const handlePostDetailsSubmit = async () => {
+    if (!createdOrderNo || !postOption) return;
+    if (!postDetails.postingDate) { toast.error("Posting Date is required."); return; }
+    if (!postDetails.documentDate) { toast.error("Document Date is required."); return; }
+    setIsPostLoading(true);
+    try {
+      const isInvoiceOption = postOption === "invoice" || postOption === "receive-invoice";
+      const patchPayload: Record<string, unknown> = {
+        Posting_Date: postDetails.postingDate, Document_Date: postDetails.documentDate,
+        Vehicle_No: postDetails.vehicleNo || "", Vendor_Invoice_No: postDetails.vendorInvoiceNo || "",
+      };
+      if (isInvoiceOption) {
+        patchPayload.Due_Date_calculation = postDetails.dueDateCalculation || "Posting Date";
+        patchPayload.Line_Narration1 = postDetails.lineNarration || "";
+        patchPayload.Freight = postDetails.freight || "0";
+      }
+      await patchPurchaseOrderHeader(createdOrderNo, patchPayload);
+      const optMap: Record<string, "1" | "2" | "3"> = { receive: "1", invoice: "2", "receive-invoice": "3" };
+      await postPurchaseOrder(createdOrderNo, optMap[postOption]);
+      toast.success("Order posted successfully.");
+      setIsPostDetailsOpen(false);
+      await refreshHydratedDocument();
+      onSuccess(createdOrderNo);
+    } catch (err) {
+      setPlaceOrderError((err as Error).message ?? "Post failed.");
+    } finally { setIsPostLoading(false); }
+  };
+  // ────────────────────────────────────────────────────────────────────────
 
   // Step 1: Order Information
   const fieldClass = "min-w-0 space-y-0.5";
@@ -1062,18 +1363,53 @@ export function PurchaseCreateDocumentFormContent({
             )}
 
             {isViewMode &&
-              statusActions.map((action) => (
+              statusActions.map((action) =>
+                action === "Gate Entry" && documentType === "order" ? (
+                  <PostGateEntryDialog
+                    key={action}
+                    sourceNo={createdOrderNo!}
+                    disabled={isActionLoading}
+                  />
+                ) : (
+                  <Button
+                    key={action}
+                    type="button"
+                    size="sm"
+                    className="h-8"
+                    onClick={() => handleStatusAction(action)}
+                    disabled={isActionLoading}
+                  >
+                    {action}
+                  </Button>
+                ),
+              )}
+
+            {/* PO-only: Print Report + Attachments */}
+            {isViewMode && documentType === "order" && createdOrderNo && (
+              <>
                 <Button
-                  key={action}
                   type="button"
                   size="sm"
                   className="h-8"
-                  onClick={() => handleStatusAction(action)}
+                  onClick={handlePrintPOReport}
                   disabled={isActionLoading}
                 >
-                  {action}
+                  <FileText className="mr-1.5 h-3.5 w-3.5" />
+                  Print Report
                 </Button>
-              ))}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-8"
+                  onClick={() => setIsAttachmentDialogOpen(true)}
+                  disabled={isActionLoading}
+                >
+                  <Paperclip className="mr-1.5 h-3.5 w-3.5" />
+                  Attachments
+                </Button>
+              </>
+            )}
 
             {isEditMode && (
               <>
@@ -1100,6 +1436,7 @@ export function PurchaseCreateDocumentFormContent({
             )}
           </div>
         )}
+
 
         {createdOrderNo && isCreateMode && (
           <div className="bg-primary/5 text-primary rounded-md border px-3 py-1.5 text-xs font-medium">
@@ -1783,65 +2120,77 @@ export function PurchaseCreateDocumentFormContent({
 
           {renderStep1()}
 
-          {createdOrderNo && (
-            <section className="space-y-3 border-t pt-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-sm font-semibold">Line Items</h3>
+          <section className="space-y-3 border-t pt-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-semibold">Line Items</h3>
+                {createdOrderNo ? (
                   <p className="text-muted-foreground text-xs">
                     Document No: {createdOrderNo}
                   </p>
-                </div>
-                {isCreateMode && (
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-8"
-                      onClick={handleOpenCopyDialog}
-                    >
-                      Copy Document
-                    </Button>
-                    <Button
-                      onClick={handleAddLineItem}
-                      size="sm"
-                      className="h-8"
-                    >
-                      <Plus className="mr-1.5 h-3.5 w-3.5" />
-                      Add Item
-                    </Button>
-                  </div>
+                ) : (
+                  <p className="text-muted-foreground text-xs">
+                    Create header first to enable line items.
+                  </p>
                 )}
               </div>
+              <div className="flex items-center gap-2">
+                {isCreateMode && createdOrderNo && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8"
+                    onClick={handleOpenCopyDialog}
+                  >
+                    Copy Document
+                  </Button>
+                )}
+                <Button
+                  onClick={handleAddLineItem}
+                  size="sm"
+                  className="h-8"
+                  disabled={!createdOrderNo}
+                >
+                  <Plus className="mr-1.5 h-3.5 w-3.5" />
+                  Add Line
+                </Button>
+              </div>
+            </div>
 
+            {createdOrderNo ? (
               <PurchaseLineItemsTable
                 lineItems={lineItems}
-                onEdit={isCreateMode ? handleEditLineItem : undefined}
-                onRemove={isCreateMode ? handleRemoveLineItem : undefined}
-                onRowClick={isCreateMode ? handleEditLineItem : undefined}
-                showRowActions={isCreateMode}
+                onEdit={handleEditLineItem}
+                onRemove={handleRemoveLineItem}
+                onRowClick={handleEditLineItem}
+                showRowActions={Boolean(createdOrderNo)}
+                documentNo={createdOrderNo}
                 documentType={documentType}
               />
-
-              <div className="bg-muted/20 flex justify-end rounded-lg border px-3 py-2">
-                <div className="flex items-baseline gap-2">
-                  <span className="text-muted-foreground text-sm">
-                    Total Amount
-                  </span>
-                  <span className="text-base font-semibold">
-                    {totalAmount.toFixed(2)}
-                  </span>
-                </div>
+            ) : (
+              <div className="text-muted-foreground rounded-md border border-dashed px-3 py-4 text-xs">
+                Create the header first to enable line items.
               </div>
-            </section>
-          )}
+            )}
+
+            <div className="bg-muted/20 flex justify-end rounded-lg border px-3 py-2">
+              <div className="flex items-baseline gap-2">
+                <span className="text-muted-foreground text-sm">
+                  Total Amount
+                </span>
+                <span className="text-base font-semibold">
+                  {totalAmount.toFixed(2)}
+                </span>
+              </div>
+            </div>
+          </section>
         </div>
 
         {isCreateMode && (
           <div className="bg-muted/20 flex items-center justify-between border-t px-4 py-3">
             <div className="text-muted-foreground text-xs">
               {createdOrderNo
-                ? `Order ${createdOrderNo} ready for completion`
+                ? `${config.displayTitle} ${createdOrderNo} ready for completion`
                 : "Create header to add lines, or copy from another document (location required)."}
             </div>
 
@@ -1883,7 +2232,7 @@ export function PurchaseCreateDocumentFormContent({
         )}
       </div>
 
-      {isCreateMode && isLineDialogOpen && (
+      {isLineDialogOpen && (
         <PurchaseLineDialog
           isOpen={isLineDialogOpen}
           onOpenChange={(open) => {
@@ -1897,10 +2246,12 @@ export function PurchaseCreateDocumentFormContent({
           vendorNo={formData.vendorNo}
           locationCode={formData.locationCode || formData.loc || ""}
           onSave={handleLineItemSave}
+          onRemove={(line) => handleRemoveLineItem(line.id)}
+          isSaving={isSavingLine}
         />
       )}
 
-      {isCreateMode && createdOrderNo && (
+      {isCreateMode && createdOrderNo && documentType !== "order" && (
         <PurchaseCopyDocumentDialog
           open={isCopyDocOpen}
           toDocNo={createdOrderNo}
@@ -1909,6 +2260,227 @@ export function PurchaseCreateDocumentFormContent({
           onSuccess={handleCopyDocumentSuccess}
         />
       )}
+
+      {/* ── PO Advanced Dialogs (order only) ───────────────────────────── */}
+      {documentType === "order" && selectedLine && (
+        <PurchaseLineEditDialog
+          open={!!selectedLine}
+          onOpenChange={(open) => !open && setSelectedLine(null)}
+          line={selectedLine}
+          documentType="order"
+          orderNo={createdOrderNo}
+          vendorNo={formData.vendorNo}
+          onAssignTracking={(line) => { setTrackingLine(line); setIsTrackingOpen(true); }}
+          onOpenItemCharge={(line) => { setSelectedItemChargeLine(line); setIsItemChargeOpen(true); }}
+          onDelete={async (line) => {
+            if (line.Line_No && createdOrderNo) {
+              await config.deleteLine(createdOrderNo, line.Line_No);
+              await fetchLines(createdOrderNo);
+            }
+          }}
+          onSave={async () => {
+            if (createdOrderNo) await fetchLines(createdOrderNo);
+            setSelectedLine(null);
+          }}
+        />
+      )}
+
+      {documentType === "order" && createdOrderNo && (
+        <POAttachmentDialog
+          isOpen={isAttachmentDialogOpen}
+          onOpenChange={setIsAttachmentDialogOpen}
+          orderNo={createdOrderNo}
+        />
+      )}
+
+      {documentType === "order" && isTrackingOpen && trackingLine && (
+        <PurchaseItemTrackingDialog
+          open={isTrackingOpen}
+          onOpenChange={setIsTrackingOpen}
+          line={trackingLine}
+          orderNo={createdOrderNo}
+          locationCode={formData.locationCode || formData.loc || ""}
+          onSave={() => { if (createdOrderNo) fetchLines(createdOrderNo); }}
+        />
+      )}
+
+      {documentType === "order" && isItemChargeOpen && selectedItemChargeLine && (
+        <ItemChargeAssignmentDialog
+          open={isItemChargeOpen}
+          onOpenChange={setIsItemChargeOpen}
+          docType={selectedItemChargeLine.Document_Type || "Order"}
+          docNo={createdOrderNo || ""}
+          docLineNo={selectedItemChargeLine.Line_No!}
+          itemChargeNo={selectedItemChargeLine.No || ""}
+          itemChargeDescription={selectedItemChargeLine.Description || ""}
+          totalAmount={selectedItemChargeLine.Line_Amount || 0}
+          totalQuantity={selectedItemChargeLine.Quantity || 0}
+        />
+      )}
+
+      {/* Post Option Dialog */}
+      {documentType === "order" && (
+        <Dialog open={isPostDialogOpen} onOpenChange={setIsPostDialogOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Post Purchase Order</DialogTitle>
+            </DialogHeader>
+            <div className="grid gap-2 py-4">
+              {(["receive", "invoice", "receive-invoice"] as const).map((opt) => (
+                <Label key={opt} className="flex cursor-pointer items-center gap-2">
+                  <input type="radio" name="post-mode" checked={postOption === opt}
+                    onChange={() => setPostOption(opt)} />
+                  <span>{opt === "receive" ? "Receive" : opt === "invoice" ? "Invoice" : "Receive & Invoice"}</span>
+                </Label>
+              ))}
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsPostDialogOpen(false)}>Cancel</Button>
+              <Button disabled={!postOption} onClick={() => {
+                if (!postOption) return;
+                const today = new Date().toISOString().split("T")[0];
+                setPostDetails({ postingDate: today, documentDate: formData.documentDate || today,
+                  vehicleNo: "", vendorInvoiceNo: formData.vendorInvoiceNo || "",
+                  dueDateCalculation: "Posting Date", freight: "", lineNarration: "" });
+                setIsPostDialogOpen(false); setIsPostDetailsOpen(true);
+              }}>Continue</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Post Details Dialog */}
+      {documentType === "order" && (
+        <Dialog open={isPostDetailsOpen} onOpenChange={setIsPostDetailsOpen}>
+          <DialogContent className="sm:max-w-lg">
+            <DialogHeader><DialogTitle>Post Details</DialogTitle></DialogHeader>
+            <div className="grid grid-cols-1 gap-3 py-4 sm:grid-cols-2">
+              <div className="space-y-1">
+                <Label className="text-xs font-semibold">Posting Date *</Label>
+                <Input type="date" value={postDetails.postingDate}
+                  onChange={(e) => setPostDetails((p) => ({ ...p, postingDate: e.target.value }))}
+                  className="h-8" />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs font-semibold">Document Date *</Label>
+                <Input type="date" value={postDetails.documentDate}
+                  onChange={(e) => setPostDetails((p) => ({ ...p, documentDate: e.target.value }))}
+                  className="h-8" />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs font-semibold">Vehicle No</Label>
+                <Input value={postDetails.vehicleNo}
+                  onChange={(e) => setPostDetails((p) => ({ ...p, vehicleNo: e.target.value }))}
+                  className="h-8" />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs font-semibold">Vendor Invoice No</Label>
+                <Input value={postDetails.vendorInvoiceNo}
+                  onChange={(e) => setPostDetails((p) => ({ ...p, vendorInvoiceNo: e.target.value }))}
+                  className="h-8" />
+              </div>
+              {(postOption === "invoice" || postOption === "receive-invoice") && (
+                <>
+                  <div className="space-y-1">
+                    <Label className="text-xs font-semibold">Due Date Calculation</Label>
+                    <Select value={postDetails.dueDateCalculation}
+                      onValueChange={(v) => setPostDetails((p) => ({ ...p, dueDateCalculation: v }))}>
+                      <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Posting Date">Posting Date</SelectItem>
+                        <SelectItem value="Document Date">Document Date</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs font-semibold">Freight</Label>
+                    <Input type="text" inputMode="decimal" value={postDetails.freight}
+                      onChange={(e) => { const v = e.target.value; if (v === "" || /^\d*\.?\d*$/.test(v)) setPostDetails((p) => ({ ...p, freight: v })); }}
+                      className="h-8" />
+                  </div>
+                  <div className="space-y-1 sm:col-span-2">
+                    <Label className="text-xs font-semibold">Line Narration</Label>
+                    <Input value={postDetails.lineNarration}
+                      onChange={(e) => setPostDetails((p) => ({ ...p, lineNarration: e.target.value }))}
+                      className="h-8" />
+                  </div>
+                </>
+              )}
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsPostDetailsOpen(false)} disabled={isPostLoading}>Cancel</Button>
+              <Button onClick={handlePostDetailsSubmit} disabled={isPostLoading}>
+                {isPostLoading ? "Posting..." : "Post"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Receipts Dialog */}
+      {documentType === "order" && (
+        <Dialog open={isReceiptOpen} onOpenChange={setIsReceiptOpen}>
+          <DialogContent className="sm:max-w-4xl">
+            <DialogHeader><DialogTitle>Purchase Receipts – {createdOrderNo}</DialogTitle></DialogHeader>
+            <div className="max-h-96 overflow-auto rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="text-xs">No.</TableHead>
+                    <TableHead className="text-xs">Vendor No.</TableHead>
+                    <TableHead className="text-xs">Posting Date</TableHead>
+                    <TableHead className="text-xs">Vehicle No.</TableHead>
+                    <TableHead className="text-right text-xs">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {isReceiptLoading ? (
+                    <TableRow><TableCell colSpan={5} className="py-10 text-center">Loading...</TableCell></TableRow>
+                  ) : receiptShipments.length === 0 ? (
+                    <TableRow><TableCell colSpan={5} className="text-muted-foreground py-10 text-center">No receipts found.</TableCell></TableRow>
+                  ) : receiptShipments.map((s) => (
+                    <TableRow key={s.No}>
+                      <TableCell className="text-xs font-medium">{s.No}</TableCell>
+                      <TableCell className="text-xs">{s.Buy_from_Vendor_No}</TableCell>
+                      <TableCell className="text-xs">{s.Posting_Date}</TableCell>
+                      <TableCell className="text-xs">{String(s.Vehicle_No || "-")}</TableCell>
+                      <TableCell className="text-right">
+                        <Button size="icon" variant="ghost" className="h-7 w-7" title="Print MRN"
+                          onClick={() => handlePrintMRN(s.No)}>
+                          {printingMRN
+                            ? <LoaderCircleIcon className="h-3.5 w-3.5 animate-spin" />
+                            : <FileText className="h-3.5 w-3.5" />}
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+            <DialogFooter><Button onClick={() => setIsReceiptOpen(false)}>Close</Button></DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Confirm / AlertDialog */}
+      <AlertDialog open={confirmDialog.open}
+        onOpenChange={(open) => setConfirmDialog((p) => ({ ...p, open }))}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{confirmDialog.title}</AlertDialogTitle>
+            <AlertDialogDescription>{confirmDialog.description}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setConfirmDialog((p) => ({ ...p, open: false }))}>
+              {confirmDialog.cancelLabel || "Cancel"}
+            </AlertDialogCancel>
+            <AlertDialogAction variant={confirmDialog.variant || "default"}
+              onClick={() => confirmDialog.action()}>
+              {confirmDialog.actionLabel}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

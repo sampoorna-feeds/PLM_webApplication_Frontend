@@ -117,6 +117,8 @@ export function mapPurchaseLineToLineItem(line: PurchaseLine): LineItem {
     faPostingType: toStringValue(line.FA_Posting_Type) || undefined,
     salvageValue: toNumberValue(line.Salvage_Value),
     noOfBags: toNumberValue(line.No_of_Bags),
+    challanQty: toNumberValue(line.Challan_Qty),
+    weightQty: toNumberValue(line.Weight_Qty),
     gstCredit: toStringValue(line.GST_Credit),
   };
 }

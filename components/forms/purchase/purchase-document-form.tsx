@@ -1,10 +1,6 @@
 "use client";
 
 import {
-  PurchaseDocumentFormContent,
-  type PurchaseDocumentFormMode,
-} from "./purchase-document-form-content";
-import {
   PurchaseCreateDocumentFormContent,
   type PurchaseCreateDocumentType,
 } from "./purchase-create-document-form";
@@ -18,6 +14,7 @@ import {
   resolvePurchaseDocumentMode,
   resolvePurchaseDocumentType,
 } from "./purchase-form-stack";
+import type { PurchaseDocumentFormMode } from "./purchase-form-stack";
 
 interface PurchaseDocumentFormProps {
   documentType?: PurchaseDocumentType;
@@ -104,32 +101,18 @@ export function PurchaseDocumentForm({
 
   return (
     <div className="h-full min-h-0 overflow-y-auto">
-      {resolvedDocumentType === "order" ? (
-        <PurchaseDocumentFormContent
-          onSuccess={handleSuccess}
-          onRequestEdit={handleRequestEdit}
-          onCancelEdit={handleCancelEdit}
-          mode={mode}
-          orderNo={orderNo || undefined}
-          initialFormData={formData as Record<string, unknown> | undefined}
-          persistFormData={
-            updateFormData as (data: Record<string, unknown>) => void
-          }
-        />
-      ) : (
-        <PurchaseCreateDocumentFormContent
-          documentType={resolvedDocumentType as PurchaseCreateDocumentType}
-          onSuccess={handleSuccess}
-          onRequestEdit={handleRequestEdit}
-          onCancelEdit={handleCancelEdit}
-          mode={mode}
-          orderNo={orderNo || undefined}
-          initialFormData={formData as Record<string, unknown> | undefined}
-          persistFormData={
-            updateFormData as (data: Record<string, unknown>) => void
-          }
-        />
-      )}
+      <PurchaseCreateDocumentFormContent
+        documentType={resolvedDocumentType as PurchaseCreateDocumentType}
+        onSuccess={handleSuccess}
+        onRequestEdit={handleRequestEdit}
+        onCancelEdit={handleCancelEdit}
+        mode={mode}
+        orderNo={orderNo || undefined}
+        initialFormData={formData as Record<string, unknown> | undefined}
+        persistFormData={
+          updateFormData as (data: Record<string, unknown>) => void
+        }
+      />
     </div>
   );
 }

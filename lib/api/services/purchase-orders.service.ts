@@ -6,6 +6,7 @@
 import { apiGet, apiPost, apiPatch, apiDelete } from "../client";
 import { buildODataQuery } from "../endpoints";
 import type { ODataResponse } from "../types";
+import { stripEmptyValues } from "./purchase-header-payload";
 
 const COMPANY =
   process.env.NEXT_PUBLIC_API_COMPANY || "Sampoorna Feeds Pvt. Ltd";
@@ -409,28 +410,7 @@ export async function attachGateEntry(
   return apiPost<unknown>(endpoint, payload);
 }
 
-/**
- * Remove properties whose value is `undefined`, `null` or an empty string.
- * This is useful when constructing patch payloads where the API should only
- * receive the fields that the user has actually entered.
- */
-export function stripEmptyValues(
-  obj: Record<string, unknown>,
-): Record<string, unknown> {
-  return Object.entries(obj).reduce(
-    (acc, [key, value]) => {
-      if (
-        value !== undefined &&
-        value !== null &&
-        !(typeof value === "string" && value.trim() === "")
-      ) {
-        acc[key] = value;
-      }
-      return acc;
-    },
-    {} as Record<string, unknown>,
-  );
-}
+
 
 function escapeODataValue(value: string): string {
   return value.replace(/'/g, "''");

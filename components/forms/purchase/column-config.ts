@@ -151,7 +151,7 @@ export const OPTIONAL_COLUMNS: ColumnConfig[] = [
     filterType: "text",
   },
   {
-    id: "Vendor_PAN_No",
+    id: "P_A_N_No",
     label: "Vendor PAN",
     sortable: true,
     defaultVisible: false,

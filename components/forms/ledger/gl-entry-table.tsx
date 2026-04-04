@@ -1,0 +1,268 @@
+import { Badge } from "@/components/ui/badge";
+import { TableCell } from "@/components/ui/table";
+import { type GLEntry } from "@/lib/api/services/gl-entry.service";
+import { cn } from "@/lib/utils";
+import { ArrowUpDown, ChevronDown, ChevronUp, Loader2 } from "lucide-react";
+import { useCallback, useEffect, useRef, useMemo } from "react";
+import { ALL_COLUMNS, type ColumnConfig } from "./gl-entry-column-config";
+import { ColumnFilter } from "@/components/forms/report-ledger/column-filter";
+
+interface GLEntryTableProps {
+  entries: GLEntry[];
+  isLoading: boolean;
+  isFetchingNextPage: boolean;
+  hasMore: boolean;
+  loadMore: () => void;
+  onSort: (field: string) => void;
+  onColumnFilterChange: (field: string, value: string, valueTo?: string) => void;
+  sortField?: string;
+  sortOrder?: "asc" | "desc";
+  columnFilters?: Record<string, string>;
+  visibleColumns: string[];
+}
+
+export function GLEntryTable({
+  entries,
+  isLoading,
+  isFetchingNextPage,
+  hasMore,
+  loadMore,
+  onSort,
+  onColumnFilterChange,
+  sortField,
+  sortOrder,
+  columnFilters = {},
+  visibleColumns,
+}: GLEntryTableProps) {
+  const observerTarget = useRef<HTMLDivElement>(null);
+
+  const activeColumns = useMemo(() => {
+    return ALL_COLUMNS.filter((col) => visibleColumns.includes(col.id));
+  }, [visibleColumns]);
+
+  const handleObserver = useCallback(
+    (entries: IntersectionObserverEntry[]) => {
+      const [target] = entries;
+      if (
+        target.isIntersecting &&
+        hasMore &&
+        !isFetchingNextPage &&
+        !isLoading
+      ) {
+        loadMore();
+      }
+    },
+    [hasMore, isFetchingNextPage, isLoading, loadMore],
+  );
+
+  useEffect(() => {
+    const element = observerTarget.current;
+    if (!element) return;
+
+    const observer = new IntersectionObserver(handleObserver, {
+      threshold: 0.1,
+      rootMargin: "100px",
+    });
+
+    observer.observe(element);
+    return () => observer.unobserve(element);
+  }, [handleObserver]);
+
+  const SortIcon = ({ field }: { field: string }) => {
+    if (sortField !== field)
+      return <ArrowUpDown className="ml-2 h-3.5 w-3.5 opacity-30" />;
+    return sortOrder === "asc" ? (
+      <ChevronUp className="text-primary ml-2 h-3.5 w-3.5" />
+    ) : (
+      <ChevronDown className="text-primary ml-2 h-3.5 w-3.5" />
+    );
+  };
+
+  const HeaderCell = ({
+    field,
+    label,
+    className,
+    isSortable = true,
+  }: {
+    field: string;
+    label: string;
+    className?: string;
+    isSortable?: boolean;
+  }) => {
+    const colConfig = ALL_COLUMNS.find((c) => c.id === field);
+    const filterState = columnFilters[field] || "";
+    const hasActiveFilter = !!filterState;
+
+    const [val, valTo] = filterState.includes(",")
+      ? filterState.split(",")
+      : [filterState, ""];
+
+    return (
+      <th
+        className={cn(
+          "bg-background z-40 border-b-2 border-border/60 px-4 py-4 text-left align-middle font-bold whitespace-nowrap sticky top-0 transition-all duration-200 group/header shadow-sm",
+          hasActiveFilter && "bg-primary/5 border-b-primary/60",
+          className,
+        )}
+      >
+        <div className="flex items-center justify-between gap-3">
+          <div
+            className={cn(
+              "flex cursor-pointer items-center gap-1.5 transition-all duration-300",
+              !isSortable && "cursor-default",
+              sortField === field ? "text-primary translate-x-0.5" : "text-muted-foreground hover:text-foreground"
+            )}
+            onClick={() => isSortable && onSort(field)}
+          >
+            <span
+              className={cn(
+                "text-[10px] font-black tracking-[0.1em] whitespace-nowrap uppercase leading-none",
+                hasActiveFilter && "text-primary",
+              )}
+            >
+              {label}
+            </span>
+            {isSortable && <SortIcon field={field} />}
+          </div>
+
+          <div className={cn(
+            "flex items-center transition-opacity duration-300",
+            hasActiveFilter ? "opacity-100" : "opacity-40 group-hover/header:opacity-100"
+          )}>
+            {colConfig?.filterType && (
+              <ColumnFilter
+                column={colConfig}
+                value={val}
+                valueTo={valTo}
+                onChange={(v, vTo) => onColumnFilterChange(field, v, vTo)}
+              />
+            )}
+          </div>
+        </div>
+      </th>
+    );
+  };
+
+  const renderCell = (col: ColumnConfig, entry: any) => {
+    const value = entry[col.id];
+
+    if (value === null || value === undefined || value === "") {
+      return (
+        <TableCell key={col.id} className="text-center text-muted-foreground/20 px-4 py-4">
+          <span className="text-[10px]">●</span>
+        </TableCell>
+      );
+    }
+
+    if (col.id === "Entry_No") {
+      return (
+        <TableCell key={col.id} className="text-xs font-bold whitespace-nowrap text-primary px-4 py-4">
+          {value}
+        </TableCell>
+      );
+    }
+
+    switch (col.filterType) {
+      case "number": {
+        const numValue = Number(value) || 0;
+        return (
+          <TableCell
+            key={col.id}
+            className={cn(
+              "text-right text-xs font-mono font-bold px-4 py-4 tabular-nums tracking-tight",
+              numValue < 0 ? "text-red-500" : numValue > 0 ? "text-primary" : "text-muted-foreground/40",
+            )}
+          >
+            {numValue === 0 ? "-" : numValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </TableCell>
+        );
+      }
+      default:
+        return (
+          <TableCell
+            key={col.id}
+            className={cn(
+              "text-xs px-4 py-4 max-w-[300px] truncate transition-colors font-medium text-foreground/70",
+              col.id === "AccNo" && "text-primary font-bold"
+            )}
+            title={String(value)}
+          >
+            {String(value)}
+          </TableCell>
+        );
+    }
+  };
+
+  if (!entries.length && !isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center p-20 text-center h-full min-h-[400px]">
+        <div className="bg-primary/5 p-8 rounded-full mb-6 relative animate-pulse">
+          <div className="absolute inset-0 bg-primary/10 rounded-full blur-xl" />
+          <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-primary relative z-10"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+        </div>
+        <h3 className="text-xl font-black text-foreground/90 uppercase tracking-tight mb-2">
+          No Results Found
+        </h3>
+        <p className="text-sm text-muted-foreground max-w-sm font-medium">
+          Try adjusting your filters or checking the ERP connection.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative flex-1 overflow-hidden flex flex-col group/table bg-card/5 border rounded-lg">
+      <div className="flex-1 overflow-auto custom-scrollbar">
+        <table className="w-full text-sm border-separate border-spacing-0">
+          <thead className="bg-muted sticky top-0 z-50">
+            <tr className="hover:bg-transparent">
+              {activeColumns.map((col) => (
+                <HeaderCell key={col.id} field={col.id} label={col.label} />
+              ))}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border/20">
+            {/* Data Rows */}
+            {entries.map((entry, index) => (
+              <tr
+                key={entry.Entry_No || index}
+                className={cn(
+                  "group hover:bg-primary/[0.02] transition-all duration-150 relative",
+                  index % 2 === 1 ? "bg-muted/5" : "bg-transparent"
+                )}
+              >
+                {activeColumns.map((col) => renderCell(col, entry))}
+              </tr>
+            ))}
+
+            {/* Infinite Load Target */}
+            <tr className="h-10 pointer-events-none border-none">
+              <td colSpan={activeColumns.length} className="p-0 border-none">
+                <div ref={observerTarget} className="h-full w-full" />
+                {isFetchingNextPage && (
+                  <div className="flex items-center justify-center py-6 gap-3 text-muted-foreground/40 animate-pulse">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span className="text-[10px] font-black uppercase tracking-widest">Fetching Next Records</span>
+                  </div>
+                )}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      
+      {isLoading && entries.length === 0 && (
+        <div className="absolute inset-0 bg-background/40 backdrop-blur-sm z-50 flex flex-col items-center justify-center space-y-6 animate-in fade-in duration-500">
+          <div className="relative h-16 w-16">
+             <div className="absolute inset-0 rounded-full border-4 border-primary/10" />
+             <div className="absolute inset-0 rounded-full border-4 border-primary border-t-transparent animate-spin" />
+          </div>
+          <div className="flex flex-col items-center gap-1">
+            <h4 className="text-xs font-black uppercase tracking-[0.3em] text-primary animate-pulse">Synchronizing</h4>
+            <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">Accessing Real-time GL Data</p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

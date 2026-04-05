@@ -8,11 +8,15 @@ import { PurchaseOrderColumnVisibility } from "./column-visibility";
 import { DynamicFilterBuilder } from "./dynamic-filter-builder";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { FilterCondition } from "./types";
+import type { ColumnConfig } from "./column-config";
 
 
 interface PurchaseOrderFilterBarProps {
   searchQuery: string;
   visibleColumns: string[];
+  allColumns: ColumnConfig[];
+  defaultColumns: ColumnConfig[];
+  optionalColumns: ColumnConfig[];
   columnFilters: Record<string, { value: string; valueTo?: string }>;
   additionalFilters: FilterCondition[];
   onSearch: (query: string) => void;
@@ -31,6 +35,9 @@ interface PurchaseOrderFilterBarProps {
 export function PurchaseOrderFilterBar({
   searchQuery,
   visibleColumns,
+  allColumns,
+  defaultColumns,
+  optionalColumns,
   columnFilters,
   additionalFilters,
   onSearch,
@@ -93,6 +100,7 @@ export function PurchaseOrderFilterBar({
 
         <DynamicFilterBuilder
           filters={additionalFilters}
+          allColumns={allColumns}
           onAddFilter={onAddAdditionalFilter}
           onRemoveFilter={onRemoveAdditionalFilter}
         />
@@ -133,6 +141,8 @@ export function PurchaseOrderFilterBar({
 
         <PurchaseOrderColumnVisibility
           visibleColumns={visibleColumns}
+          defaultColumns={defaultColumns}
+          optionalColumns={optionalColumns}
           onColumnToggle={onColumnToggle}
           onResetColumns={onResetColumns}
           onShowAllColumns={onShowAllColumns}

@@ -23,11 +23,7 @@ import {
 } from "@/lib/api/services/purchase-credit-memos.service";
 import {
   type SortDirection,
-  loadVisibleColumns,
-  saveVisibleColumns,
-  getDefaultVisibleColumns,
-  buildSelectQuery,
-  ALL_COLUMNS,
+  getColumnConfig,
 } from "@/components/forms/purchase/column-config";
 import { buildPurchaseOrderFilterString } from "@/components/forms/purchase/utils/filter-builder";
 import type { FilterCondition } from "@/components/forms/purchase/types";
@@ -90,6 +86,8 @@ export function usePurchaseDocuments(options: UsePurchaseDocumentsOptions) {
   const { documentType, statusFilter } = options;
   const { userID } = useAuth();
 
+  const columnConfig = useMemo(() => getColumnConfig(documentType), [documentType]);
+
   const [orders, setOrders] = useState<PurchaseOrder[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [pageSize, setPageSize] = useState(10);
@@ -110,8 +108,8 @@ export function usePurchaseDocuments(options: UsePurchaseDocumentsOptions) {
 
   const [visibleColumns, setVisibleColumns] = useState<string[]>(() =>
     typeof window !== "undefined"
-      ? loadVisibleColumns()
-      : getDefaultVisibleColumns(),
+      ? getColumnConfig(documentType).loadVisibleColumns()
+      : getColumnConfig(documentType).getDefaultVisibleColumns(),
   );
 
   const totalPages = useMemo(
@@ -182,7 +180,7 @@ export function usePurchaseDocuments(options: UsePurchaseDocumentsOptions) {
       });
 
       const commonParams: DocumentListParams = {
-        $select: buildSelectQuery(visibleColumns),
+        $select: columnConfig.buildSelectQuery(visibleColumns),
         $filter: filter,
         $orderby: getOrderByString(),
         $top: pageSize,
@@ -261,22 +259,22 @@ export function usePurchaseDocuments(options: UsePurchaseDocumentsOptions) {
       const nextColumns = previousColumns.includes(columnId)
         ? previousColumns.filter((id) => id !== columnId)
         : [...previousColumns, columnId];
-      saveVisibleColumns(nextColumns);
+      columnConfig.saveVisibleColumns(nextColumns);
       return nextColumns;
     });
-  }, []);
+  }, [columnConfig]);
 
   const handleResetColumns = useCallback(() => {
-    const defaults = getDefaultVisibleColumns();
+    const defaults = columnConfig.getDefaultVisibleColumns();
     setVisibleColumns(defaults);
-    saveVisibleColumns(defaults);
-  }, []);
+    columnConfig.saveVisibleColumns(defaults);
+  }, [columnConfig]);
 
   const handleShowAllColumns = useCallback(() => {
-    const allColumnIds = ALL_COLUMNS.map((column) => column.id);
+    const allColumnIds = columnConfig.allColumns.map((column) => column.id);
     setVisibleColumns(allColumnIds);
-    saveVisibleColumns(allColumnIds);
-  }, []);
+    columnConfig.saveVisibleColumns(allColumnIds);
+  }, [columnConfig]);
 
   const handleClearFilters = useCallback(() => {
     setSearchQuery("");
@@ -333,6 +331,9 @@ export function usePurchaseDocuments(options: UsePurchaseDocumentsOptions) {
     columnFilters,
     additionalFilters,
     visibleColumns,
+    allColumns: columnConfig.allColumns,
+    defaultColumns: columnConfig.defaultColumns,
+    optionalColumns: columnConfig.optionalColumns,
     poType,
     onPageSizeChange: handlePageSizeChange,
     onPageChange: handlePageChange,

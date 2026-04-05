@@ -456,7 +456,9 @@ export function PurchaseOrderLineEditDialog({
                   />
                 </div>
 
-                {(line.Type || "").trim() === "Item" && (
+                {(line.Type || "").trim() === "Item" &&
+                  documentType !== "invoice" &&
+                  documentType !== "credit-memo" && (
                   <>
                     <div className="space-y-1">
                       <Label htmlFor="po-line-challan-qty" className="text-xs">

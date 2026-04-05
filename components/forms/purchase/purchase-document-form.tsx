@@ -10,6 +10,7 @@ import {
 } from "./purchase-document-config";
 import { useFormStack } from "@/lib/form-stack/use-form-stack";
 import { useFormStackContext } from "@/lib/form-stack/form-stack-context";
+import { useEffect } from "react";
 import {
   resolvePurchaseDocumentMode,
   resolvePurchaseDocumentType,
@@ -37,6 +38,13 @@ export function PurchaseDocumentForm({
 
   const { markAsSaved, closeTab, updateFormData } = useFormStack(tabId);
   const { updateTab } = useFormStackContext();
+
+  // View-mode tabs have no unsaved changes — mark saved on mount and whenever mode reverts to view
+  useEffect(() => {
+    if (mode === "view") {
+      markAsSaved();
+    }
+  }, [mode]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleCancelEdit = () => {
     if (!orderNo) return;

@@ -15,6 +15,7 @@ import React, {
 } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Select,
   SelectContent,
@@ -2107,26 +2108,46 @@ export function PurchaseCreateDocumentFormContent({
         </div>
 
         <div className="flex-1 overflow-y-auto px-4 py-4">
-          {isHydratingDocument && (
-            <div className="text-muted-foreground mb-4 text-sm">
-              Loading document...
+          {isHydratingDocument ? (
+            <div className="space-y-4">
+              {/* Header skeleton — mimics the accordion sections */}
+              {Array.from({ length: 3 }).map((_, sectionIdx) => (
+                <div key={sectionIdx} className="rounded-md border p-4 space-y-3">
+                  <Skeleton className="h-4 w-32" />
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+                    {Array.from({ length: 8 }).map((_, i) => (
+                      <div key={i} className="space-y-1.5">
+                        <Skeleton className="h-3 w-20" />
+                        <Skeleton className="h-8 w-full" />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+              <div className="rounded-md border p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-8 w-20" />
+                </div>
+                <div className="space-y-2">
+                  {Array.from({ length: 4 }).map((_, i) => (
+                    <Skeleton key={i} className="h-9 w-full" />
+                  ))}
+                </div>
+              </div>
             </div>
-          )}
-
-          {renderStep1()}
+          ) : (
+            <>
+              {renderStep1()}
 
           <section className="space-y-3 border-t pt-4">
             <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-sm font-semibold">Line Items</h3>
-                {createdOrderNo ? (
-                  <p className="text-muted-foreground text-xs">
-                    Document No: {createdOrderNo}
-                  </p>
-                ) : (
-                  <p className="text-muted-foreground text-xs">
-                    Create header first to enable line items.
-                  </p>
+              <div className="flex items-center gap-2">
+                <h3 className="text-[10px] font-bold tracking-wider uppercase text-foreground">Line Items</h3>
+                {createdOrderNo && (
+                  <span className="text-[10px] text-muted-foreground font-mono bg-muted px-1.5 py-0.5 rounded">
+                    {createdOrderNo}
+                  </span>
                 )}
               </div>
               <div className="flex items-center gap-2">
@@ -2134,7 +2155,7 @@ export function PurchaseCreateDocumentFormContent({
                   <Button
                     variant="outline"
                     size="sm"
-                    className="h-8"
+                    className="h-7 px-2.5 text-xs"
                     onClick={() => setIsGetPostedLineOpen(true)}
                   >
                     <FileText className="mr-1.5 h-3.5 w-3.5" />
@@ -2144,7 +2165,7 @@ export function PurchaseCreateDocumentFormContent({
                 <Button
                   onClick={handleAddLineItem}
                   size="sm"
-                  className="h-8"
+                  className="h-7 px-2.5 text-xs"
                   disabled={!createdOrderNo}
                 >
                   <Plus className="mr-1.5 h-3.5 w-3.5" />
@@ -2162,24 +2183,30 @@ export function PurchaseCreateDocumentFormContent({
                 showRowActions={Boolean(createdOrderNo)}
                 documentNo={createdOrderNo}
                 documentType={documentType}
+                isLoading={isHydratingDocument}
               />
             ) : (
-              <div className="text-muted-foreground rounded-md border border-dashed px-3 py-4 text-xs">
-                Create the header first to enable line items.
+              <div className="text-muted-foreground rounded-md border border-dashed px-3 py-6 text-xs text-center">
+                Create the document header first to enable line items.
               </div>
             )}
 
-            <div className="bg-muted/20 flex justify-end rounded-lg border px-3 py-2">
-              <div className="flex items-baseline gap-2">
-                <span className="text-muted-foreground text-sm">
-                  Total Amount
+            {createdOrderNo && (
+              <div className="flex items-center justify-between rounded-lg border bg-muted/20 px-4 py-2.5">
+                <span className="text-[10px] text-muted-foreground font-bold tracking-wider uppercase">
+                  {lineItems.length} Line{lineItems.length !== 1 ? "s" : ""}
                 </span>
-                <span className="text-base font-semibold">
-                  {totalAmount.toFixed(2)}
-                </span>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-xs text-muted-foreground">Total Amount</span>
+                  <span className="text-sm font-bold tabular-nums">
+                    {totalAmount.toFixed(2)}
+                  </span>
+                </div>
               </div>
-            </div>
+            )}
           </section>
+            </>
+          )}
         </div>
 
       </div>

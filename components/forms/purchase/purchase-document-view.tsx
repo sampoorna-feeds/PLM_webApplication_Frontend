@@ -45,6 +45,9 @@ export function PurchaseDocumentView({
     columnFilters,
     additionalFilters,
     visibleColumns,
+    allColumns,
+    defaultColumns,
+    optionalColumns,
     poType,
     onPageSizeChange,
     onPageChange,
@@ -84,6 +87,9 @@ export function PurchaseDocumentView({
       <PurchaseOrderFilterBar
         searchQuery={searchQuery}
         visibleColumns={visibleColumns}
+        allColumns={allColumns}
+        defaultColumns={defaultColumns}
+        optionalColumns={optionalColumns}
         columnFilters={columnFilters}
         additionalFilters={additionalFilters}
         onSearch={onSearch}
@@ -107,6 +113,7 @@ export function PurchaseDocumentView({
       <PurchaseOrderActiveFilters
         searchQuery={searchQuery}
         columnFilters={columnFilters}
+        allColumns={allColumns}
         onSearch={onSearch}
         onColumnFilter={onColumnFilter}
         onClearFilters={onClearFilters}
@@ -117,6 +124,7 @@ export function PurchaseDocumentView({
           orders={orders}
           isLoading={isLoading}
           visibleColumns={visibleColumns}
+          allColumns={allColumns}
           sortColumn={sortColumn}
           sortDirection={sortDirection}
           pageSize={pageSize}

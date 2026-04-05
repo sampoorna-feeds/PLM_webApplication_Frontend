@@ -17,23 +17,22 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ALL_COLUMNS } from "./column-config";
+import type { ColumnConfig } from "./column-config";
 import type { FilterCondition } from "./types";
+
+// Exclude fields that are already handled by the primary filter bar
+const EXCLUDED_FIELDS = ["Shortcut_Dimension_2_Code", "Status"];
 
 interface DynamicFilterBuilderProps {
   filters: FilterCondition[];
+  allColumns: ColumnConfig[];
   onAddFilter: (filter: FilterCondition) => void;
   onRemoveFilter: (index: number) => void;
 }
 
-// Exclude fields that are already handled by the primary filter bar
-const EXCLUDED_FIELDS = ["Shortcut_Dimension_2_Code", "Status"];
-const AVAILABLE_COLUMNS = ALL_COLUMNS.filter(
-  (col) => !EXCLUDED_FIELDS.includes(col.id),
-).sort((a, b) => a.label.localeCompare(b.label));
-
 export function DynamicFilterBuilder({
   filters,
+  allColumns,
   onAddFilter,
   onRemoveFilter,
 }: DynamicFilterBuilderProps) {
@@ -44,17 +43,25 @@ export function DynamicFilterBuilder({
   const [value, setValue] = useState("");
   const [fieldSearch, setFieldSearch] = useState("");
 
+  const availableColumns = useMemo(
+    () =>
+      allColumns
+        .filter((col) => !EXCLUDED_FIELDS.includes(col.id))
+        .sort((a, b) => a.label.localeCompare(b.label)),
+    [allColumns],
+  );
+
   // Filter columns by search query (matches label or id)
   const filteredColumns = useMemo(() => {
-    if (!fieldSearch.trim()) return AVAILABLE_COLUMNS;
+    if (!fieldSearch.trim()) return availableColumns;
     const q = fieldSearch.toLowerCase();
-    return AVAILABLE_COLUMNS.filter(
+    return availableColumns.filter(
       (col) =>
         col.label.toLowerCase().includes(q) || col.id.toLowerCase().includes(q),
     );
-  }, [fieldSearch]);
+  }, [fieldSearch, availableColumns]);
 
-  const selectedCol = AVAILABLE_COLUMNS.find((c) => c.id === selectedField);
+  const selectedCol = availableColumns.find((c) => c.id === selectedField);
 
   const handleAdd = () => {
     if (!selectedField || !value.trim()) return;
@@ -174,7 +181,7 @@ export function DynamicFilterBuilder({
                       type="button"
                       onClick={() => {
                         setSelectedField(col.id);
-                        const colDef = AVAILABLE_COLUMNS.find(
+                        const colDef = availableColumns.find(
                           (c) => c.id === col.id,
                         );
                         setOperator(
@@ -220,7 +227,7 @@ export function DynamicFilterBuilder({
         <div className="ml-2 flex flex-wrap items-center gap-2">
           {filters.map((f, i) => {
             const colLabel =
-              AVAILABLE_COLUMNS.find((c) => c.id === f.field)?.label || f.field;
+              availableColumns.find((c) => c.id === f.field)?.label || f.field;
             return (
               <div
                 key={i}

@@ -4,7 +4,6 @@ import { ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 import type { PurchaseOrder } from "@/lib/api/services/purchase-orders.service";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  ALL_COLUMNS,
   type SortDirection,
   type ColumnConfig,
 } from "./column-config";
@@ -14,6 +13,7 @@ interface PurchaseOrdersTableProps {
   orders: PurchaseOrder[];
   isLoading: boolean;
   visibleColumns: string[];
+  allColumns: ColumnConfig[];
   sortColumn: string | null;
   sortDirection: SortDirection;
   pageSize: number;
@@ -28,6 +28,7 @@ export function PurchaseOrdersTable({
   orders,
   isLoading,
   visibleColumns,
+  allColumns,
   sortColumn,
   sortDirection,
   pageSize,
@@ -37,7 +38,7 @@ export function PurchaseOrdersTable({
   onSort,
   onColumnFilter,
 }: PurchaseOrdersTableProps) {
-  const columns = ALL_COLUMNS.filter((col) => visibleColumns.includes(col.id));
+  const columns = allColumns.filter((col) => visibleColumns.includes(col.id));
   const startingSerialNo = (currentPage - 1) * pageSize;
 
   return (

@@ -22,6 +22,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Skeleton } from "@/components/ui/skeleton";
 import { TaxInfoPopover } from "./tax-info-popover";
 import type { LineItem } from "./purchase-line-item.type";
 import {
@@ -56,6 +57,7 @@ interface PurchaseLineItemsTableProps {
   showRowActions?: boolean;
   documentNo?: string;
   documentType?: PurchaseLineDocumentType;
+  isLoading?: boolean;
 }
 
 export function PurchaseLineItemsTable({
@@ -66,6 +68,7 @@ export function PurchaseLineItemsTable({
   showRowActions = false,
   documentNo,
   documentType = "order",
+  isLoading = false,
 }: PurchaseLineItemsTableProps) {
   const [itemToRemove, setItemToRemove] = useState<string | null>(null);
   const quantityColumns = getPurchaseLineQuantityConfig(documentType);
@@ -82,6 +85,31 @@ export function PurchaseLineItemsTable({
       setItemToRemove(null);
     }
   }, [itemToRemove, onRemove]);
+
+  if (isLoading) {
+    return (
+      <div className="overflow-x-auto rounded-md border">
+        <Table>
+          <TableHeader>
+            <TableRow className="bg-muted border-b whitespace-nowrap">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <TableHead key={i}><Skeleton className="h-3 w-16" /></TableHead>
+              ))}
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {Array.from({ length: 5 }).map((_, i) => (
+              <TableRow key={i}>
+                {Array.from({ length: 8 }).map((_, j) => (
+                  <TableCell key={j}><Skeleton className="h-3 w-full min-w-12" /></TableCell>
+                ))}
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+    );
+  }
 
   if (lineItems.length === 0) {
     return (

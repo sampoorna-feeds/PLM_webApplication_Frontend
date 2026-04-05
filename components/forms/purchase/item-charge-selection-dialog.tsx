@@ -323,7 +323,6 @@ export function ItemChargeSelectionDialog({
                         )}
                         onMouseDown={(e) => handleRowMouseDown(id, e)}
                         onMouseEnter={() => handleRowMouseEnter(id)}
-                        onClick={() => toggleSelectLine(id)}
                       >
                         <td className="bg-card sticky left-0 z-20 w-16 px-3 py-2 text-center align-middle" onClick={(e) => e.stopPropagation()}>
                           <div className="flex items-center justify-center gap-1.5">

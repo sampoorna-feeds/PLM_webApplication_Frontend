@@ -11,13 +11,13 @@ import {
 } from "@/components/ui/popover";
 import { Separator } from "@/components/ui/separator";
 import {
-  DEFAULT_COLUMNS,
-  OPTIONAL_COLUMNS,
   type ColumnConfig,
 } from "./column-config";
 
 interface ColumnVisibilityProps {
   visibleColumns: string[];
+  defaultColumns: ColumnConfig[];
+  optionalColumns: ColumnConfig[];
   onColumnToggle: (columnId: string) => void;
   onResetColumns: () => void;
   onShowAllColumns: () => void;
@@ -25,6 +25,8 @@ interface ColumnVisibilityProps {
 
 export function PurchaseOrderColumnVisibility({
   visibleColumns,
+  defaultColumns,
+  optionalColumns,
   onColumnToggle,
   onResetColumns,
   onShowAllColumns,
@@ -32,7 +34,7 @@ export function PurchaseOrderColumnVisibility({
   const [open, setOpen] = useState(false);
 
   const visibleCount = visibleColumns.length;
-  const totalCount = DEFAULT_COLUMNS.length + OPTIONAL_COLUMNS.length;
+  const totalCount = defaultColumns.length + optionalColumns.length;
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -73,7 +75,7 @@ export function PurchaseOrderColumnVisibility({
             <span className="text-muted-foreground px-2 text-xs">
               Default Columns
             </span>
-            {DEFAULT_COLUMNS.map((column) => (
+            {defaultColumns.map((column) => (
               <ColumnToggleItem
                 key={column.id}
                 column={column}
@@ -89,7 +91,7 @@ export function PurchaseOrderColumnVisibility({
             <span className="text-muted-foreground px-2 text-xs">
               Additional Columns
             </span>
-            {OPTIONAL_COLUMNS.map((column) => (
+            {optionalColumns.map((column) => (
               <ColumnToggleItem
                 key={column.id}
                 column={column}

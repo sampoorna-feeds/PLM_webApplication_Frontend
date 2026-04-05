@@ -2,11 +2,12 @@
 
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { ALL_COLUMNS } from "./column-config";
+import type { ColumnConfig } from "./column-config";
 
 interface PurchaseOrderActiveFiltersProps {
   searchQuery: string;
   columnFilters: Record<string, { value: string; valueTo?: string }>;
+  allColumns: ColumnConfig[];
   onSearch: (query: string) => void;
   onColumnFilter: (columnId: string, value: string, valueTo?: string) => void;
   onClearFilters: () => void;
@@ -15,6 +16,7 @@ interface PurchaseOrderActiveFiltersProps {
 export function PurchaseOrderActiveFilters({
   searchQuery,
   columnFilters,
+  allColumns,
   onSearch,
   onColumnFilter,
   onClearFilters,
@@ -33,7 +35,7 @@ export function PurchaseOrderActiveFilters({
   Object.entries(columnFilters).forEach(([columnId, filter]) => {
     if (columnId === "Shortcut_Dimension_2_Code") return; // API-level branch filter, not shown as active filter
     if (!filter.value && !filter.valueTo) return;
-    const column = ALL_COLUMNS.find((c) => c.id === columnId);
+    const column = allColumns.find((c) => c.id === columnId);
     if (!column) return;
 
     let displayValue = filter.value;

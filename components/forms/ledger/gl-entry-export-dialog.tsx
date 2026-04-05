@@ -26,6 +26,8 @@ interface GLEntryExportDialogProps {
   totalRecords: number;
   visibleColumns: string[];
   currentEntries?: GLEntry[];
+  openingBalance?: number;
+  closingBalance?: number;
 }
 
 const BATCH_SIZE = 5000;
@@ -38,6 +40,8 @@ export function GLEntryExportDialog({
   totalRecords,
   visibleColumns,
   currentEntries = [],
+  openingBalance,
+  closingBalance,
 }: GLEntryExportDialogProps) {
   const [exportMode, setExportMode] = useState<"visible" | "all">("visible");
   const [progress, setProgress] = useState(0);
@@ -112,6 +116,10 @@ export function GLEntryExportDialog({
         ["GL Entry Report"],
         "GL_Entry_Export",
         ALL_COLUMNS,
+        {
+          opening: openingBalance,
+          closing: closingBalance,
+        }
       );
       toast.success(
         `Successfully exported ${accumulatedEntries.length} records.`,

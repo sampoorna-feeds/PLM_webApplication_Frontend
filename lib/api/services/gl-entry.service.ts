@@ -11,18 +11,70 @@ import type { FilterCondition } from "@/components/forms/report-ledger/types";
 export interface GLEntry {
   "@odata.etag": string;
   Entry_No: number;
-  AccNo: string;
-  AccName: string;
-  Descr: string;
-  Amt: number;
-  DebAmt: number;
-  CredAmt: number;
+  Posting_Date: string;
+  Document_Type: string;
+  Document_No: string;
+  G_L_Account_No: string;
+  G_L_Account_Name: string;
+  Description: string;
+  Job_No: string;
+  Global_Dimension_1_Code: string;
+  Global_Dimension_2_Code: string;
+  IC_Partner_Code: string;
+  Gen_Posting_Type: string;
+  Gen_Bus_Posting_Group: string;
+  Gen_Prod_Posting_Group: string;
+  VAT_Bus_Posting_Group: string;
+  VAT_Prod_Posting_Group: string;
+  Quantity: number;
+  Amount: number;
+  Document_Date: string;
+  Comment: string;
+  Bal_Account_Name: string;
+  Line_Narration: string;
+  Flock_Code: string;
+  FEED_Freight_Charge: boolean;
+  Entry_Date: string;
+  Group_By: string;
+  Group_by_Shorting: number;
+  Debit_Amount: number;
+  Credit_Amount: number;
+  RunningBalance: number;
+  Additional_Currency_Amount: number;
+  RunningBalanceACY: number;
+  VAT_Amount: number;
+  NonDeductibleVATAmount: number;
+  Bal_Account_Type: string;
+  Bal_Account_No: string;
+  VAT_Reporting_Date: string;
+  User_ID: string;
+  Source_Code: string;
+  Source_Type: string;
+  Source_No: string;
+  Reason_Code: string;
+  Reversed: boolean;
+  Reversed_by_Entry_No: number;
+  Reversed_Entry_No: number;
+  FA_Entry_Type: string;
+  FA_Entry_No: number;
+  Dimension_Set_ID: number;
+  External_Document_No: string;
+  Business_Unit_Code: string;
+  Shortcut_Dimension_3_Code: string;
+  Shortcut_Dimension_4_Code: string;
+  Shortcut_Dimension_5_Code: string;
+  Shortcut_Dimension_6_Code: string;
+  Shortcut_Dimension_7_Code: string;
+  Shortcut_Dimension_8_Code: string;
   [key: string]: any;
 }
 
 const COMPANY = process.env.NEXT_PUBLIC_API_COMPANY || "Sampoorna Feeds Pvt. Ltd";
 
 export interface GLEntryFilters {
+  fromDate?: string;
+  toDate?: string;
+  accountNo?: string;
   search?: string;
   columnFilters?: Record<string, string>;
   additionalFilters?: FilterCondition[];
@@ -61,6 +113,53 @@ export async function getGLEntries(
 }
 
 /**
+ * Get opening or closing balance for a GL Account
+ */
+export async function getGLBalance(
+  accountNo: string,
+  date?: string,
+  isOpening: boolean = false
+): Promise<number> {
+  if (!accountNo) return 0;
+
+  // For opening balance, we want anything strictly before the date
+  // For closing balance, we want anything up to and including the date
+  let filterString = `G_L_Account_No eq '${accountNo.replace(/'/g, "''")}'`;
+  if (date) {
+    filterString += ` and Posting_Date ${isOpening ? "lt" : "le"} ${date}`;
+  }
+
+  try {
+    const aggregationQuery = buildODataQuery({
+      $filter: filterString,
+      $apply: "aggregate(Amount with sum as TotalAmount)",
+    });
+    
+    const endpoint = `/GLEntry?company='${encodeURIComponent(COMPANY)}'&${aggregationQuery}`;
+    const response = await apiGet<any>(endpoint);
+    
+    if (response?.value?.[0] && typeof response.value[0].TotalAmount !== 'undefined') {
+      return Number(response.value[0].TotalAmount) || 0;
+    }
+    throw new Error("Aggregation failed");
+  } catch (error) {
+    console.warn("Aggregation failed for GL Balance, falling back", error);
+    
+    const fallbackQuery = buildODataQuery({
+      $filter: filterString,
+      $select: "Amount",
+      $top: 10000,
+    });
+    
+    const endpoint = `/GLEntry?company='${encodeURIComponent(COMPANY)}'&${fallbackQuery}`;
+    const response = await apiGet<ODataResponse<GLEntry>>(endpoint);
+    
+    if (!response?.value) return 0;
+    return response.value.reduce((sum, entry) => sum + (Number(entry.Amount) || 0), 0);
+  }
+}
+
+/**
  * Parallel search strategy to overcome "OR on distinct fields" limitation.
  * Executes concurrent queries for different fields and merges results.
  */
@@ -73,7 +172,15 @@ async function searchGLEntries(
   const escaped = (search || "").replace(/'/g, "''");
   
   // Fields that we want to search across
-  const fieldsToSearch = ["AccNo", "AccName", "Descr"];
+  const fieldsToSearch = [
+    "G_L_Account_No", 
+    "G_L_Account_Name", 
+    "Description", 
+    "Document_No", 
+    "External_Document_No",
+    "Line_Narration",
+    "Comment"
+  ];
   
   // Perform OData queries in parallel
   const responses = await Promise.all(
@@ -145,8 +252,17 @@ async function searchGLEntries(
 export function buildGLFilterString(filters: GLEntryFilters): string {
   const filterParts: string[] = [];
 
-  // Universal search is now handled in searchGLEntries / getGLEntries
-  // using a parallel query strategy to avoid OR restrictions.
+  if (filters.accountNo) {
+    filterParts.push(`G_L_Account_No eq '${filters.accountNo.replace(/'/g, "''")}'`);
+  }
+
+  if (filters.fromDate && filters.toDate) {
+    filterParts.push(`Posting_Date ge ${filters.fromDate} and Posting_Date le ${filters.toDate}`);
+  } else if (filters.fromDate) {
+    filterParts.push(`Posting_Date ge ${filters.fromDate}`);
+  } else if (filters.toDate) {
+    filterParts.push(`Posting_Date le ${filters.toDate}`);
+  }
 
   // Add additional structured filters (Dynamic Filter Builder)
   if (filters.additionalFilters && filters.additionalFilters.length > 0) {
@@ -198,7 +314,11 @@ export function buildGLFilterString(filters: GLEntryFilters): string {
       }
 
       // Default type inference
-      if (!isNaN(Number(s)) && s.trim() !== "" && !field.toLowerCase().includes("no")) {
+      const isNumericValue = !isNaN(Number(s)) && s.trim() !== "";
+      const isEntryNo = field === "Entry_No";
+      const isCodeField = field.toLowerCase().includes("no") && !isEntryNo;
+
+      if (isNumericValue && !isCodeField) {
         filterParts.push(`${field} eq ${s}`);
       } else {
         filterParts.push(`contains(${field},'${s}')`);

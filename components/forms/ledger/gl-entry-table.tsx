@@ -2,7 +2,8 @@ import { Badge } from "@/components/ui/badge";
 import { TableCell } from "@/components/ui/table";
 import { type GLEntry } from "@/lib/api/services/gl-entry.service";
 import { cn } from "@/lib/utils";
-import { ArrowUpDown, ChevronDown, ChevronUp, Loader2 } from "lucide-react";
+import { format } from "date-fns";
+import { ArrowUpDown, ChevronDown, ChevronUp, Loader2, BookOpen } from "lucide-react";
 import { useCallback, useEffect, useRef, useMemo } from "react";
 import { ALL_COLUMNS, type ColumnConfig } from "./gl-entry-column-config";
 import { ColumnFilter } from "@/components/forms/report-ledger/column-filter";
@@ -13,13 +14,25 @@ interface GLEntryTableProps {
   isFetchingNextPage: boolean;
   hasMore: boolean;
   loadMore: () => void;
+  openingBalance: number;
+  closingBalance: number;
   onSort: (field: string) => void;
   onColumnFilterChange: (field: string, value: string, valueTo?: string) => void;
   sortField?: string;
   sortOrder?: "asc" | "desc";
   columnFilters?: Record<string, string>;
   visibleColumns: string[];
+  accountNo?: string;
 }
+
+const balanceColumnIds = [
+  "Amount",
+  "Debit_Amount",
+  "Credit_Amount",
+  "VAT_Amount",
+  "RunningBalance",
+  "Additional_Currency_Amount",
+];
 
 export function GLEntryTable({
   entries,
@@ -27,12 +40,15 @@ export function GLEntryTable({
   isFetchingNextPage,
   hasMore,
   loadMore,
+  openingBalance,
+  closingBalance,
   onSort,
   onColumnFilterChange,
   sortField,
   sortOrder,
   columnFilters = {},
   visibleColumns,
+  accountNo,
 }: GLEntryTableProps) {
   const observerTarget = useRef<HTMLDivElement>(null);
 
@@ -163,6 +179,14 @@ export function GLEntryTable({
     }
 
     switch (col.filterType) {
+      case "date":
+        return (
+          <TableCell key={col.id} className="text-xs font-bold text-foreground/80 px-4 py-4 whitespace-nowrap">
+            {value && value !== "0001-01-01" && value !== "0001-01-01T00:00:00Z" 
+              ? format(new Date(value), "MMM dd, yyyy") 
+              : "-"}
+          </TableCell>
+        );
       case "number": {
         const numValue = Number(value) || 0;
         return (
@@ -177,13 +201,27 @@ export function GLEntryTable({
           </TableCell>
         );
       }
+      case "boolean":
+        return (
+          <TableCell key={col.id} className="text-center px-4 py-4">
+            <Badge
+              variant={value ? "default" : "secondary"}
+              className={cn(
+                "h-5 px-2 text-[9px] font-black uppercase tracking-widest",
+                value ? "bg-primary/20 text-primary border-primary/20 shadow-sm" : "bg-muted text-muted-foreground border-transparent"
+              )}
+            >
+              {value ? "Yes" : "No"}
+            </Badge>
+          </TableCell>
+        );
       default:
         return (
           <TableCell
             key={col.id}
             className={cn(
               "text-xs px-4 py-4 max-w-[300px] truncate transition-colors font-medium text-foreground/70",
-              col.id === "AccNo" && "text-primary font-bold"
+              col.id === "G_L_Account_No" && "text-primary font-bold"
             )}
             title={String(value)}
           >
@@ -192,6 +230,31 @@ export function GLEntryTable({
         );
     }
   };
+
+  const balancePrefixColSpan = useMemo(() => {
+    const firstBalanceColIndex = activeColumns.findIndex((col) =>
+      balanceColumnIds.includes(col.id),
+    );
+    return firstBalanceColIndex === -1 ? activeColumns.length : firstBalanceColIndex;
+  }, [activeColumns]);
+
+  // Handle "Select Account" placeholder state
+  if (!accountNo) {
+    return (
+      <div className="flex flex-col items-center justify-center p-20 text-center h-full min-h-[400px]">
+        <div className="bg-primary/5 p-8 rounded-full mb-6 relative animate-pulse">
+          <div className="absolute inset-0 bg-primary/10 rounded-full blur-xl" />
+          <BookOpen className="h-12 w-12 text-primary relative z-10 opacity-70" />
+        </div>
+        <h3 className="text-xl font-black text-foreground/90 uppercase tracking-tight mb-2">
+          Select G/L Account
+        </h3>
+        <p className="text-sm text-muted-foreground max-w-sm font-medium">
+          Choose a general ledger account from the search bar above to load transaction history and balances.
+        </p>
+      </div>
+    );
+  }
 
   if (!entries.length && !isLoading) {
     return (
@@ -222,6 +285,39 @@ export function GLEntryTable({
             </tr>
           </thead>
           <tbody className="divide-y divide-border/20">
+            {/* Opening Balance Row */}
+            {!isLoading && entries.length > 0 && Math.abs(openingBalance) > 0 && (
+              <tr className="bg-primary/5 hover:bg-primary/10 transition-colors group/balance border-b-2 border-primary/10 font-bold">
+                {balancePrefixColSpan > 0 && (
+                  <td
+                    colSpan={balancePrefixColSpan}
+                    className="px-6 py-4 text-left font-black text-[10px] uppercase tracking-[2px] text-primary/60"
+                  >
+                    <div className="flex items-center gap-2">
+                      <div className="w-1.5 h-1.5 rounded-full bg-primary/30 group-hover/balance:animate-ping" />
+                      Opening Balance
+                    </div>
+                  </td>
+                )}
+                {activeColumns.slice(balancePrefixColSpan).map((col) => {
+                  if (col.id === "Amount" || col.id === "RunningBalance") {
+                    return (
+                      <td
+                        key={col.id}
+                        className="px-4 py-4 text-right text-xs font-mono font-black tabular-nums text-primary/80 border-l border-border/10"
+                      >
+                        {openingBalance.toLocaleString(undefined, {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}
+                      </td>
+                    );
+                  }
+                  return <td key={col.id} className="px-4 py-4 border-l border-border/5" />;
+                })}
+              </tr>
+            )}
+
             {/* Data Rows */}
             {entries.map((entry, index) => (
               <tr
@@ -247,6 +343,39 @@ export function GLEntryTable({
                 )}
               </td>
             </tr>
+
+            {/* Closing Balance Row */}
+            {!isLoading && entries.length > 0 && Math.abs(closingBalance) > 0 && (
+              <tr className="bg-background hover:bg-muted/5 transition-colors border-t-2 border-primary group/balance sticky bottom-0 z-40 shadow-[0_-8px_30px_rgba(0,0,0,0.6)]">
+                {balancePrefixColSpan > 0 && (
+                  <td
+                    colSpan={balancePrefixColSpan}
+                    className="px-6 py-5 text-left font-black text-[11px] uppercase tracking-[3px] text-primary"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+                      Closing Balance
+                    </div>
+                  </td>
+                )}
+                {activeColumns.slice(balancePrefixColSpan).map((col) => {
+                  if (col.id === "Amount" || col.id === "RunningBalance") {
+                    return (
+                      <td
+                        key={col.id}
+                        className="px-4 py-5 text-right text-sm font-mono font-black tabular-nums border-l border-primary/10 text-primary"
+                      >
+                        {closingBalance.toLocaleString(undefined, {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}
+                      </td>
+                    );
+                  }
+                  return <td key={col.id} className="px-4 py-5 border-l border-border/5" />;
+                })}
+              </tr>
+            )}
           </tbody>
         </table>
       </div>

@@ -123,14 +123,14 @@ export const GL_ENTRY_COLUMNS: ColumnConfig[] = [
   // ── Dimensions & Classification ──
   {
     id: "Global_Dimension_1_Code",
-    label: "Global Dim 1",
+    label: "LOB",
     sortable: true,
     defaultVisible: false,
     filterType: "text",
   },
   {
     id: "Global_Dimension_2_Code",
-    label: "Global Dim 2",
+    label: "Branch",
     sortable: true,
     defaultVisible: false,
     filterType: "text",

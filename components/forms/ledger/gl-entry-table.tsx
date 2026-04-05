@@ -2,6 +2,7 @@ import { Badge } from "@/components/ui/badge";
 import { TableCell } from "@/components/ui/table";
 import { type GLEntry } from "@/lib/api/services/gl-entry.service";
 import { cn } from "@/lib/utils";
+import { format } from "date-fns";
 import { ArrowUpDown, ChevronDown, ChevronUp, Loader2 } from "lucide-react";
 import { useCallback, useEffect, useRef, useMemo } from "react";
 import { ALL_COLUMNS, type ColumnConfig } from "./gl-entry-column-config";
@@ -163,6 +164,14 @@ export function GLEntryTable({
     }
 
     switch (col.filterType) {
+      case "date":
+        return (
+          <TableCell key={col.id} className="text-xs font-bold text-foreground/80 px-4 py-4 whitespace-nowrap">
+            {value && value !== "0001-01-01" && value !== "0001-01-01T00:00:00Z" 
+              ? format(new Date(value), "MMM dd, yyyy") 
+              : "-"}
+          </TableCell>
+        );
       case "number": {
         const numValue = Number(value) || 0;
         return (
@@ -177,6 +186,20 @@ export function GLEntryTable({
           </TableCell>
         );
       }
+      case "boolean":
+        return (
+          <TableCell key={col.id} className="text-center px-4 py-4">
+            <Badge
+              variant={value ? "default" : "secondary"}
+              className={cn(
+                "h-5 px-2 text-[9px] font-black uppercase tracking-widest",
+                value ? "bg-primary/20 text-primary border-primary/20 shadow-sm" : "bg-muted text-muted-foreground border-transparent"
+              )}
+            >
+              {value ? "Yes" : "No"}
+            </Badge>
+          </TableCell>
+        );
       default:
         return (
           <TableCell
@@ -191,6 +214,7 @@ export function GLEntryTable({
           </TableCell>
         );
     }
+
   };
 
   if (!entries.length && !isLoading) {

@@ -12,15 +12,60 @@ export interface GLEntry {
   "@odata.etag": string;
   Entry_No: number;
   Posting_Date: string;
+  Document_Type: string;
   Document_No: string;
   G_L_Account_No: string;
   G_L_Account_Name: string;
   Description: string;
+  Job_No: string;
+  Global_Dimension_1_Code: string;
+  Global_Dimension_2_Code: string;
+  IC_Partner_Code: string;
+  Gen_Posting_Type: string;
+  Gen_Bus_Posting_Group: string;
+  Gen_Prod_Posting_Group: string;
+  VAT_Bus_Posting_Group: string;
+  VAT_Prod_Posting_Group: string;
+  Quantity: number;
   Amount: number;
+  Document_Date: string;
+  Comment: string;
+  Bal_Account_Name: string;
+  Line_Narration: string;
+  Flock_Code: string;
+  FEED_Freight_Charge: boolean;
+  Entry_Date: string;
+  Group_By: string;
+  Group_by_Shorting: number;
   Debit_Amount: number;
   Credit_Amount: number;
+  RunningBalance: number;
+  Additional_Currency_Amount: number;
+  RunningBalanceACY: number;
+  VAT_Amount: number;
+  NonDeductibleVATAmount: number;
+  Bal_Account_Type: string;
+  Bal_Account_No: string;
+  VAT_Reporting_Date: string;
   User_ID: string;
   Source_Code: string;
+  Source_Type: string;
+  Source_No: string;
+  Reason_Code: string;
+  Reversed: boolean;
+  Reversed_by_Entry_No: number;
+  Reversed_Entry_No: number;
+  FA_Entry_Type: string;
+  FA_Entry_No: number;
+  Dimension_Set_ID: number;
+  External_Document_No: string;
+  Business_Unit_Code: string;
+  Shortcut_Dimension_3_Code: string;
+  Shortcut_Dimension_4_Code: string;
+  Shortcut_Dimension_5_Code: string;
+  Shortcut_Dimension_6_Code: string;
+  Shortcut_Dimension_7_Code: string;
+  Shortcut_Dimension_8_Code: string;
   [key: string]: any;
 }
 
@@ -77,7 +122,15 @@ async function searchGLEntries(
   const escaped = (search || "").replace(/'/g, "''");
   
   // Fields that we want to search across
-  const fieldsToSearch = ["G_L_Account_No", "G_L_Account_Name", "Description", "Document_No"];
+  const fieldsToSearch = [
+    "G_L_Account_No", 
+    "G_L_Account_Name", 
+    "Description", 
+    "Document_No", 
+    "External_Document_No",
+    "Line_Narration",
+    "Comment"
+  ];
   
   // Perform OData queries in parallel
   const responses = await Promise.all(

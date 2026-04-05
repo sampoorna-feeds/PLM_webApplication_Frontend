@@ -72,6 +72,9 @@ export interface GLEntry {
 const COMPANY = process.env.NEXT_PUBLIC_API_COMPANY || "Sampoorna Feeds Pvt. Ltd";
 
 export interface GLEntryFilters {
+  fromDate?: string;
+  toDate?: string;
+  accountNo?: string;
   search?: string;
   columnFilters?: Record<string, string>;
   additionalFilters?: FilterCondition[];
@@ -107,6 +110,53 @@ export async function getGLEntries(
 
   const endpoint = `/GLEntry?company='${encodeURIComponent(COMPANY)}'&${query}`;
   return await apiGet<ODataResponse<GLEntry>>(endpoint);
+}
+
+/**
+ * Get opening or closing balance for a GL Account
+ */
+export async function getGLBalance(
+  accountNo: string,
+  date?: string,
+  isOpening: boolean = false
+): Promise<number> {
+  if (!accountNo) return 0;
+
+  // For opening balance, we want anything strictly before the date
+  // For closing balance, we want anything up to and including the date
+  let filterString = `G_L_Account_No eq '${accountNo.replace(/'/g, "''")}'`;
+  if (date) {
+    filterString += ` and Posting_Date ${isOpening ? "lt" : "le"} ${date}`;
+  }
+
+  try {
+    const aggregationQuery = buildODataQuery({
+      $filter: filterString,
+      $apply: "aggregate(Amount with sum as TotalAmount)",
+    });
+    
+    const endpoint = `/GLEntry?company='${encodeURIComponent(COMPANY)}'&${aggregationQuery}`;
+    const response = await apiGet<any>(endpoint);
+    
+    if (response?.value?.[0] && typeof response.value[0].TotalAmount !== 'undefined') {
+      return Number(response.value[0].TotalAmount) || 0;
+    }
+    throw new Error("Aggregation failed");
+  } catch (error) {
+    console.warn("Aggregation failed for GL Balance, falling back", error);
+    
+    const fallbackQuery = buildODataQuery({
+      $filter: filterString,
+      $select: "Amount",
+      $top: 10000,
+    });
+    
+    const endpoint = `/GLEntry?company='${encodeURIComponent(COMPANY)}'&${fallbackQuery}`;
+    const response = await apiGet<ODataResponse<GLEntry>>(endpoint);
+    
+    if (!response?.value) return 0;
+    return response.value.reduce((sum, entry) => sum + (Number(entry.Amount) || 0), 0);
+  }
 }
 
 /**
@@ -202,8 +252,17 @@ async function searchGLEntries(
 export function buildGLFilterString(filters: GLEntryFilters): string {
   const filterParts: string[] = [];
 
-  // Universal search is now handled in searchGLEntries / getGLEntries
-  // using a parallel query strategy to avoid OR restrictions.
+  if (filters.accountNo) {
+    filterParts.push(`G_L_Account_No eq '${filters.accountNo.replace(/'/g, "''")}'`);
+  }
+
+  if (filters.fromDate && filters.toDate) {
+    filterParts.push(`Posting_Date ge ${filters.fromDate} and Posting_Date le ${filters.toDate}`);
+  } else if (filters.fromDate) {
+    filterParts.push(`Posting_Date ge ${filters.fromDate}`);
+  } else if (filters.toDate) {
+    filterParts.push(`Posting_Date le ${filters.toDate}`);
+  }
 
   // Add additional structured filters (Dynamic Filter Builder)
   if (filters.additionalFilters && filters.additionalFilters.length > 0) {
@@ -266,7 +325,6 @@ export function buildGLFilterString(filters: GLEntryFilters): string {
       }
     });
   }
-
 
   return filterParts.join(" and ");
 }

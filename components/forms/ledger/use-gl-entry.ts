@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { toast } from "sonner";
 import {
   getGLEntries,
+  getGLBalance,
   type GLEntry,
   type GLEntryFilters,
   buildGLFilterString,
@@ -25,7 +26,13 @@ export function useGLEntry(options: UseGLEntryOptions = {}) {
   const [isFetchingNextPage, setIsFetchingNextPage] = useState(false);
   const [totalCount, setTotalCount] = useState(0);
 
+  const [openingBalance, setOpeningBalance] = useState(0);
+  const [closingBalance, setClosingBalance] = useState(0);
+
   const [filters, setFilters] = useState<GLEntryFilters>({
+    fromDate: "",
+    toDate: "",
+    accountNo: "",
     search: "",
     columnFilters: {},
     additionalFilters: [],
@@ -47,6 +54,19 @@ export function useGLEntry(options: UseGLEntryOptions = {}) {
   );
 
   const fetchEntries = useCallback(async (isAppending = false) => {
+    // If no account is selected, we don't fetch anything
+    const accountNo = filters.accountNo || filters.columnFilters?.["G_L_Account_No"];
+    
+    if (!accountNo) {
+      setEntries([]);
+      setTotalCount(0);
+      setOpeningBalance(0);
+      setClosingBalance(0);
+      setIsLoading(false);
+      setIsFetchingNextPage(false);
+      return;
+    }
+
     if (isAppending) {
       setIsFetchingNextPage(true);
     } else {
@@ -55,14 +75,26 @@ export function useGLEntry(options: UseGLEntryOptions = {}) {
 
     try {
       const skip = isAppending ? entries.length : 0;
-      const response = await getGLEntries(filters, LIMIT, skip);
+      
+      const [response, openingBal, closingBal] = await Promise.all([
+        getGLEntries(filters, LIMIT, skip),
+        // Fetch balances on initial load if account is selected
+        !isAppending && accountNo && filters.fromDate 
+          ? getGLBalance(accountNo, filters.fromDate, true)
+          : !isAppending ? Promise.resolve(0) : Promise.resolve(openingBalance),
+        !isAppending && accountNo 
+          ? (filters.toDate ? getGLBalance(accountNo, filters.toDate, false) : getGLBalance(accountNo))
+          : !isAppending ? Promise.resolve(0) : Promise.resolve(closingBalance)
+      ]);
 
       if (isAppending) {
         setEntries(prev => [...prev, ...response.value]);
       } else {
         setEntries(response.value);
+        setOpeningBalance(openingBal);
+        setClosingBalance(closingBal);
       }
-      setTotalCount(response["@odata.count"] || (response.value.length < LIMIT ? entries.length + response.value.length : 1000000));
+      setTotalCount(response["@odata.count"] || (response.value.length < LIMIT ? entries.length + (isAppending ? entries.length : 0) + response.value.length : 1000000));
     } catch (error) {
       console.error("Error fetching GL entries:", error);
       toast.error("Failed to load general ledger entries.");
@@ -70,7 +102,7 @@ export function useGLEntry(options: UseGLEntryOptions = {}) {
       setIsLoading(false);
       setIsFetchingNextPage(false);
     }
-  }, [filters, entries.length, LIMIT]);
+  }, [filters, entries.length, LIMIT, openingBalance, closingBalance]);
 
   useEffect(() => {
     fetchEntries(false);
@@ -81,6 +113,14 @@ export function useGLEntry(options: UseGLEntryOptions = {}) {
     if (isLoading || isFetchingNextPage) return;
     fetchEntries(true);
   }, [entries.length, totalCount, isLoading, isFetchingNextPage, fetchEntries]);
+
+  const handleFilterChange = useCallback((newFilters: Partial<GLEntryFilters>) => {
+    setFilters((prev) => ({ 
+      ...prev, 
+      ...newFilters,
+      columnFilters: newFilters.accountNo !== undefined ? {} : prev.columnFilters
+    }));
+  }, []);
 
   const handleSearch = useCallback((search: string) => {
     setFilters((prev) => ({ ...prev, search }));
@@ -95,13 +135,20 @@ export function useGLEntry(options: UseGLEntryOptions = {}) {
   }, []);
 
   const handleColumnFilterChange = useCallback((field: string, value: string, valueTo?: string) => {
-    setFilters((prev) => ({
-      ...prev,
-      columnFilters: {
-        ...prev.columnFilters,
-        [field]: valueTo ? `${value},${valueTo}` : value
-      }
-    }));
+    const filterValue = valueTo ? `${value},${valueTo}` : value;
+    
+    setFilters((prev) => {
+      const isAccountFilter = field === "G_L_Account_No";
+      
+      return {
+        ...prev,
+        accountNo: isAccountFilter ? value : prev.accountNo,
+        columnFilters: {
+          ...prev.columnFilters,
+          [field]: filterValue
+        }
+      };
+    });
   }, []);
 
   const handleAdditionalFiltersChange = useCallback((additionalFilters: FilterCondition[]) => {
@@ -129,12 +176,17 @@ export function useGLEntry(options: UseGLEntryOptions = {}) {
 
   const clearFilters = useCallback(() => {
     setFilters({
+      fromDate: "",
+      toDate: "",
+      accountNo: "",
       search: "",
       columnFilters: {},
       additionalFilters: [],
       sortField: "Entry_No",
       sortOrder: "desc"
     });
+    setOpeningBalance(0);
+    setClosingBalance(0);
   }, []);
 
   return {
@@ -143,11 +195,14 @@ export function useGLEntry(options: UseGLEntryOptions = {}) {
     isFetchingNextPage,
     hasNextPage,
     totalCount,
+    openingBalance,
+    closingBalance,
     loadMore,
     refetch: () => fetchEntries(false),
     
     // Filters
     filters,
+    onFilterChange: handleFilterChange,
     handleSearch,
     handleSort,
     handleColumnFilterChange,
@@ -158,5 +213,6 @@ export function useGLEntry(options: UseGLEntryOptions = {}) {
     visibleColumns,
     setVisibleColumns: handleColumnToggle,
     handleResetColumns,
+    currentFilterString: buildGLFilterString(filters),
   };
 }

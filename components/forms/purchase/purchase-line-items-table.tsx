@@ -70,6 +70,7 @@ export function PurchaseLineItemsTable({
   const [itemToRemove, setItemToRemove] = useState<string | null>(null);
   const quantityColumns = getPurchaseLineQuantityConfig(documentType);
   const showQtyColumns = documentType === "order" || documentType === "return-order";
+  const showBagsColumn = documentType !== "invoice";
 
   const handleRemoveClick = useCallback((itemId: string) => {
     setItemToRemove(itemId);
@@ -154,9 +155,11 @@ export function PurchaseLineItemsTable({
               <TableHead className="text-primary w-24 text-center text-[10px] font-bold tracking-wider uppercase">
                 Exempt
               </TableHead>
-              <TableHead className="text-primary w-20 text-right text-[10px] font-bold tracking-wider uppercase">
-                Bags
-              </TableHead>
+              {showBagsColumn && (
+                <TableHead className="text-primary w-20 text-right text-[10px] font-bold tracking-wider uppercase">
+                  Bags
+                </TableHead>
+              )}
               {onRemove && (
                 <TableHead className="text-primary w-12 text-center text-[10px] font-bold tracking-wider uppercase">
                   Del
@@ -246,9 +249,11 @@ export function PurchaseLineItemsTable({
                 <TableCell className="text-center">
                   {item.exempted ? "Yes" : "No"}
                 </TableCell>
-                <TableCell className="text-right">
-                  {item.noOfBags || "-"}
-                </TableCell>
+                {showBagsColumn && (
+                  <TableCell className="text-right">
+                    {item.noOfBags || "-"}
+                  </TableCell>
+                )}
                 {onRemove && (
                   <TableCell
                     className="text-center"

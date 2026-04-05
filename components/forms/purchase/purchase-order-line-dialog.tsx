@@ -168,7 +168,9 @@ export function PurchaseOrderLineDialog({
     getItemByNo(formState.no)
       .then((item) => {
         if (!mounted) return;
-        const isBardanaEnabled = item?.Bardana_Generation_Enable === true;
+        const isBardanaEnabled =
+          item?.Bardana_Generation_Enable === true &&
+          documentType !== "invoice";
         setCanAddBardana(isBardanaEnabled);
         if (!isBardanaEnabled) {
           setFormState((prev) =>
@@ -392,7 +394,9 @@ export function PurchaseOrderLineDialog({
     getItemByNo(item.No)
       .then((cardItem) => {
         if (cardItem) {
-          const isBardanaEnabled = cardItem.Bardana_Generation_Enable === true;
+          const isBardanaEnabled =
+            cardItem.Bardana_Generation_Enable === true &&
+            documentType !== "invoice";
           setCanAddBardana(isBardanaEnabled);
           setFormState((prev) => ({
             ...prev,

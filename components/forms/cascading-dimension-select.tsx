@@ -28,6 +28,8 @@ interface CascadingDimensionSelectProps {
   dimensionType: CascadingDimensionType;
   value: string;
   onChange: (value: string) => void;
+  /** Called with the full item when the user selects an option (includes Name) */
+  onSelectItem?: (item: DimensionValue) => void;
   placeholder?: string;
   disabled?: boolean;
   className?: string;
@@ -48,6 +50,7 @@ export function CascadingDimensionSelect({
   dimensionType,
   value,
   onChange,
+  onSelectItem,
   placeholder = "",
   disabled = false,
   className,
@@ -131,8 +134,9 @@ export function CascadingDimensionSelect({
   useEffect(() => {
     if (compactWhenSingle && items.length === 1 && !value && items[0]?.Code) {
       onChange(items[0].Code);
+      onSelectItem?.(items[0]);
     }
-  }, [compactWhenSingle, items, value, onChange]);
+  }, [compactWhenSingle, items, value, onChange, onSelectItem]);
 
   // Search with debounce
   const performSearch = useCallback(
@@ -330,6 +334,7 @@ export function CascadingDimensionSelect({
                   const item = filteredItems[focusedIndex];
                   if (item) {
                     onChange(item.Code);
+                    onSelectItem?.(item);
                     setIsOpen(false);
                   }
                 } else if (e.key === "Escape") {
@@ -389,6 +394,7 @@ export function CascadingDimensionSelect({
                     )}
                     onClick={() => {
                       onChange(item.Code);
+                      onSelectItem?.(item);
                       setIsOpen(false);
                     }}
                   >

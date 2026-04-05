@@ -12,16 +12,41 @@ export type PurchaseDocumentStatusTab =
   | "Released"
   | "";
 
+export interface InvoiceTypeOption {
+  value: string;
+  label: string;
+}
+
+const STANDARD_INVOICE_TYPE_OPTIONS: InvoiceTypeOption[] = [
+  { value: "Bill of supply", label: "Bill of supply" },
+  { value: "Export", label: "Export" },
+  { value: "Supplementary", label: "Supplementary" },
+  { value: "Debit Note", label: "Debit Note" },
+  { value: "Non-GST", label: "Non-GST" },
+  { value: "Taxable", label: "Taxable" },
+];
+
+const INVOICE_INVOICE_TYPE_OPTIONS: InvoiceTypeOption[] = [
+  { value: "Self Invoice", label: "Self Invoice" },
+  { value: "Debit Note", label: "Debit Note" },
+  { value: "Supplementary", label: "Supplementary" },
+  { value: "Non-GST", label: "Non-GST" },
+];
+
 export interface PurchaseDocumentCapabilities {
   supportsPoType: boolean;
   supportsServiceType: boolean;
   supportsInvoiceType: boolean;
+  invoiceTypeOptions: InvoiceTypeOption[];
   supportsVendorInvoiceNo: boolean;
   supportsVendorCrMemoNo: boolean;
   supportsVendorAuthorizationNo: boolean;
   supportsAppliesToFields: boolean;
   supportsOrderDate: boolean;
   supportsAdvancedOperations: boolean;
+  supportsQcType: boolean;
+  supportsRateBasis: boolean;
+  supportsGetPostedLine: boolean;
 }
 
 export interface PurchaseDocumentConfig {
@@ -53,12 +78,16 @@ const PURCHASE_DOCUMENT_CONFIG: Record<
       supportsPoType: true,
       supportsServiceType: true,
       supportsInvoiceType: true,
+      invoiceTypeOptions: STANDARD_INVOICE_TYPE_OPTIONS,
       supportsVendorInvoiceNo: true,
       supportsVendorCrMemoNo: false,
       supportsVendorAuthorizationNo: false,
       supportsAppliesToFields: false,
       supportsOrderDate: true,
       supportsAdvancedOperations: true,
+      supportsQcType: true,
+      supportsRateBasis: true,
+      supportsGetPostedLine: false,
     },
   },
   invoice: {
@@ -73,13 +102,17 @@ const PURCHASE_DOCUMENT_CONFIG: Record<
     capabilities: {
       supportsPoType: false,
       supportsServiceType: false,
-      supportsInvoiceType: false,
+      supportsInvoiceType: true,
+      invoiceTypeOptions: INVOICE_INVOICE_TYPE_OPTIONS,
       supportsVendorInvoiceNo: true,
       supportsVendorCrMemoNo: false,
       supportsVendorAuthorizationNo: false,
       supportsAppliesToFields: false,
       supportsOrderDate: false,
       supportsAdvancedOperations: false,
+      supportsQcType: false,
+      supportsRateBasis: false,
+      supportsGetPostedLine: true,
     },
   },
   "return-order": {
@@ -95,12 +128,16 @@ const PURCHASE_DOCUMENT_CONFIG: Record<
       supportsPoType: false,
       supportsServiceType: false,
       supportsInvoiceType: false,
+      invoiceTypeOptions: [],
       supportsVendorInvoiceNo: false,
       supportsVendorCrMemoNo: true,
       supportsVendorAuthorizationNo: true,
       supportsAppliesToFields: true,
       supportsOrderDate: false,
       supportsAdvancedOperations: false,
+      supportsQcType: true,
+      supportsRateBasis: true,
+      supportsGetPostedLine: false,
     },
   },
   "credit-memo": {
@@ -116,12 +153,16 @@ const PURCHASE_DOCUMENT_CONFIG: Record<
       supportsPoType: false,
       supportsServiceType: false,
       supportsInvoiceType: true,
+      invoiceTypeOptions: STANDARD_INVOICE_TYPE_OPTIONS,
       supportsVendorInvoiceNo: false,
       supportsVendorCrMemoNo: true,
       supportsVendorAuthorizationNo: false,
       supportsAppliesToFields: true,
       supportsOrderDate: false,
       supportsAdvancedOperations: false,
+      supportsQcType: true,
+      supportsRateBasis: true,
+      supportsGetPostedLine: true,
     },
   },
 };

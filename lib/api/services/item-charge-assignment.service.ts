@@ -133,15 +133,20 @@ export const itemChargeAssignmentService = {
       search?: string;
       skip?: number;
       top?: number;
+      extraFilters?: string[];
     } = {},
   ): Promise<PagedResult<ItemChargeSourceLine>> {
-    const { docNo, search, skip = 0, top = 200 } = options;
+    const { docNo, search, skip = 0, top = 200, extraFilters } = options;
     const endpointName = ENDPOINTS[type];
     const itemNoField = ITEM_NO_FIELD_MAP[type];
     const filters: string[] = [];
 
     if (docNo) {
       filters.push(`Document_No eq '${docNo}'`);
+    }
+
+    if (extraFilters?.length) {
+      filters.push(...extraFilters);
     }
 
     if (search) {

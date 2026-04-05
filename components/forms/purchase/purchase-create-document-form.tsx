@@ -95,6 +95,7 @@ import {
 } from "@/components/ui/table";
 import { Label } from "@/components/ui/label";
 import { PurchaseCopyDocumentDialog } from "./purchase-copy-document-dialog";
+import { PurchaseGetPostedLineDialog } from "./purchase-get-posted-line-dialog";
 import {
   createPurchaseCreditMemo,
   createPurchaseCreditMemoCopyHeader,
@@ -519,6 +520,7 @@ export function PurchaseCreateDocumentFormContent({
   const [isTrackingOpen, setIsTrackingOpen] = useState(false);
   const [trackingLine, setTrackingLine] = useState<PurchaseLine | null>(null);
   const [isItemChargeOpen, setIsItemChargeOpen] = useState(false);
+  const [isGetPostedLineOpen, setIsGetPostedLineOpen] = useState(false);
   const [selectedItemChargeLine, setSelectedItemChargeLine] =
     useState<PurchaseLine | null>(null);
   const [confirmDialog, setConfirmDialog] = useState({
@@ -649,6 +651,7 @@ export function PurchaseCreateDocumentFormContent({
 
         setFormData((prev) => ({ ...prev, ...mappedFormData }));
         setLineItems(mappedLineItems);
+        setPurchaseLines(lines);
 
         const hydratedDocumentNo = header.No || orderNo;
         setCreatedOrderNo(hydratedDocumentNo);
@@ -734,7 +737,6 @@ export function PurchaseCreateDocumentFormContent({
       formData.branch &&
       formData.loc &&
       formData.vendorNo &&
-      formData.purchasePersonCode &&
       (formData.locationCode || formData.loc) &&
       formData.postingDate &&
       formData.documentDate &&
@@ -840,9 +842,9 @@ export function PurchaseCreateDocumentFormContent({
   };
 
   const handleEditLineItem = (lineItem: LineItem) => {
-    // For orders: if this line is persisted on the server (has a lineNo), open the
+    // If this line is persisted on the server (has a lineNo), open the
     // richer PurchaseLineEditDialog. Otherwise use the standard dialog.
-    if (documentType === "order" && lineItem.lineNo && createdOrderNo) {
+    if (lineItem.lineNo && createdOrderNo) {
       const serverLine = purchaseLines.find(
         (l) => l.Line_No === lineItem.lineNo,
       );
@@ -1151,10 +1153,10 @@ export function PurchaseCreateDocumentFormContent({
 
   // ── PO-only Handlers ─────────────────────────────────────────────────
   const fetchLines = useCallback(async (docNo: string) => {
-    const lines = await getPurchaseOrderLines(docNo);
+    const lines = await config.fetchLines(docNo);
     setPurchaseLines(lines);
     setLineItems(lines.map(mapPurchaseLineToLineItem));
-  }, []);
+  }, [config]);
 
   const base64ToPdfBlob = (b64: string) => {
     const bin = atob(b64);
@@ -1336,67 +1338,6 @@ export function PurchaseCreateDocumentFormContent({
                           </ClearableField>
                         </div>
                       )}
-                    {capabilities.supportsInvoiceType && (
-                      <div className={fieldClass}>
-                        <label className={labelClass}>Invoice Type</label>
-                        <ClearableField
-                          value={formData.invoiceType}
-                          onClear={() => handleInputChange("invoiceType", "")}
-                        >
-                          <Select
-                            value={formData.invoiceType || ""}
-                            onValueChange={(value) =>
-                              handleInputChange("invoiceType", value)
-                            }
-                          >
-                            <SelectTrigger className="h-8 text-xs">
-                              <SelectValue placeholder="Select / None" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="Bill of supply">
-                                Bill of supply
-                              </SelectItem>
-                              <SelectItem value="Export">Export</SelectItem>
-                              <SelectItem value="Supplementary">
-                                Supplementary
-                              </SelectItem>
-                              <SelectItem value="Debit Note">
-                                Debit Note
-                              </SelectItem>
-                              <SelectItem value="Non-GST">Non-GST</SelectItem>
-                              <SelectItem value="Taxable">Taxable</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </ClearableField>
-                      </div>
-                    )}
-                    <div className={fieldClass}>
-                      <label className={labelClass}>Purchaser Code</label>
-                      <ClearableField
-                        value={formData.purchasePersonCode}
-                        onClear={() =>
-                          handleInputChange("purchasePersonCode", "")
-                        }
-                      >
-                        <PurchaserSelect
-                          value={formData.purchasePersonCode || ""}
-                          onChange={(val, sp) => {
-                            setFormData((prev) => ({
-                              ...prev,
-                              purchasePersonCode: val,
-                              purchasePersonName: sp?.Name || "",
-                            }));
-                          }}
-                          placeholder="Select Purchaser"
-                        />
-                      </ClearableField>
-                      {formData.purchasePersonName && (
-                        <p className="mt-0.5 truncate pl-1 text-[9px] font-medium text-green-600">
-                          {formData.purchasePersonName}
-                        </p>
-                      )}
-                    </div>
-
                     {/* Dimensions */}
                     <div className={fieldClass}>
                       <label className={labelClass}>LOB</label>
@@ -1443,6 +1384,7 @@ export function PurchaseCreateDocumentFormContent({
                           dimensionType="LOC"
                           value={formData.loc}
                           onChange={(value) => handleInputChange("loc", value)}
+                          onSelectItem={(item) => setLocationName(item.Name || "")}
                           placeholder="Select LOC"
                           lobValue={formData.lob}
                           branchValue={formData.branch}
@@ -1492,6 +1434,33 @@ export function PurchaseCreateDocumentFormContent({
                 <Separator className="mb-3" />
                 <section className="space-y-2">
                   <div className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+                    {capabilities.supportsInvoiceType && (
+                      <div className={fieldClass}>
+                        <label className={labelClass}>Invoice Type</label>
+                        <ClearableField
+                          value={formData.invoiceType}
+                          onClear={() => handleInputChange("invoiceType", "")}
+                        >
+                          <Select
+                            value={formData.invoiceType || ""}
+                            onValueChange={(value) =>
+                              handleInputChange("invoiceType", value)
+                            }
+                          >
+                            <SelectTrigger className="h-8 text-xs">
+                              <SelectValue placeholder="Select / None" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {capabilities.invoiceTypeOptions.map((opt) => (
+                                <SelectItem key={opt.value} value={opt.value}>
+                                  {opt.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </ClearableField>
+                      </div>
+                    )}
                     <div className={fieldClass}>
                       <label className={labelClass}>Vendor</label>
                       <ClearableField
@@ -1712,6 +1681,32 @@ export function PurchaseCreateDocumentFormContent({
                 <section className="space-y-2">
                   <div className="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
                     <div className={fieldClass}>
+                      <label className={labelClass}>Purchaser Code</label>
+                      <ClearableField
+                        value={formData.purchasePersonCode}
+                        onClear={() =>
+                          handleInputChange("purchasePersonCode", "")
+                        }
+                      >
+                        <PurchaserSelect
+                          value={formData.purchasePersonCode || ""}
+                          onChange={(val, sp) => {
+                            setFormData((prev) => ({
+                              ...prev,
+                              purchasePersonCode: val,
+                              purchasePersonName: sp?.Name || "",
+                            }));
+                          }}
+                          placeholder="Select Purchaser"
+                        />
+                      </ClearableField>
+                      {formData.purchasePersonName && (
+                        <p className="mt-0.5 truncate pl-1 text-[9px] font-medium text-green-600">
+                          {formData.purchasePersonName}
+                        </p>
+                      )}
+                    </div>
+                    <div className={fieldClass}>
                       <label className={labelClass}>Posting Date</label>
                       <ClearableField
                         value={formData.postingDate}
@@ -1794,26 +1789,28 @@ export function PurchaseCreateDocumentFormContent({
                         </SelectContent>
                       </Select>
                     </div>
-                    <div className={fieldClass}>
-                      <label className={labelClass}>Rate Basis</label>
-                      <Select
-                        value={formData.rateBasis}
-                        onValueChange={(value) =>
-                          handleInputChange("rateBasis", value)
-                        }
-                      >
-                        <SelectTrigger className="h-8 text-xs">
-                          <SelectValue placeholder="Select" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="EX">EX</SelectItem>
-                          <SelectItem value="FOR">FOR</SelectItem>
-                          <SelectItem value="CIF">CIF</SelectItem>
-                          <SelectItem value="FOB">FOB</SelectItem>
-                          <SelectItem value="N/A">N/A</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
+                    {capabilities.supportsRateBasis && (
+                      <div className={fieldClass}>
+                        <label className={labelClass}>Rate Basis</label>
+                        <Select
+                          value={formData.rateBasis}
+                          onValueChange={(value) =>
+                            handleInputChange("rateBasis", value)
+                          }
+                        >
+                          <SelectTrigger className="h-8 text-xs">
+                            <SelectValue placeholder="Select" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="EX">EX</SelectItem>
+                            <SelectItem value="FOR">FOR</SelectItem>
+                            <SelectItem value="CIF">CIF</SelectItem>
+                            <SelectItem value="FOB">FOB</SelectItem>
+                            <SelectItem value="N/A">N/A</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
                     <div className={fieldClass}>
                       <label className={labelClass}>Creditor Type</label>
                       <PurchaseSearchableSelect
@@ -1825,23 +1822,25 @@ export function PurchaseCreateDocumentFormContent({
                         placeholder="Select creditor"
                       />
                     </div>
-                    <div className={fieldClass}>
-                      <label className={labelClass}>QC Type</label>
-                      <Select
-                        value={formData.qcType}
-                        onValueChange={(value) =>
-                          handleInputChange("qcType", value)
-                        }
-                      >
-                        <SelectTrigger className="h-8 text-xs">
-                          <SelectValue placeholder="Select" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="_none">None</SelectItem>
-                          <SelectItem value="Ex Passing">Ex Passing</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
+                    {capabilities.supportsQcType && (
+                      <div className={fieldClass}>
+                        <label className={labelClass}>QC Type</label>
+                        <Select
+                          value={formData.qcType}
+                          onValueChange={(value) =>
+                            handleInputChange("qcType", value)
+                          }
+                        >
+                          <SelectTrigger className="h-8 text-xs">
+                            <SelectValue placeholder="Select" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="_none">None</SelectItem>
+                            <SelectItem value="Ex Passing">Ex Passing</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
                     <div className={fieldClass}>
                       <label className={labelClass}>Term Code</label>
                       <PurchaseSearchableSelect
@@ -2133,6 +2132,17 @@ export function PurchaseCreateDocumentFormContent({
                 )}
               </div>
               <div className="flex items-center gap-2">
+                {capabilities.supportsGetPostedLine && createdOrderNo && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8"
+                    onClick={() => setIsGetPostedLineOpen(true)}
+                  >
+                    <FileText className="mr-1.5 h-3.5 w-3.5" />
+                    Get Posted Line
+                  </Button>
+                )}
                 <Button
                   onClick={handleAddLineItem}
                   size="sm"
@@ -2234,19 +2244,31 @@ export function PurchaseCreateDocumentFormContent({
         />
       )}
 
-      {/* ── PO Advanced Dialogs (order only) ───────────────────────────── */}
-      {documentType === "order" && selectedLine && (
+      {/* ── Get Posted Line Dialog ─────────────────────────────────────── */}
+      {capabilities.supportsGetPostedLine && createdOrderNo && (
+        <PurchaseGetPostedLineDialog
+          open={isGetPostedLineOpen}
+          onOpenChange={setIsGetPostedLineOpen}
+          documentNo={createdOrderNo}
+          docType={documentType === "invoice" ? "Invoice" : "CreditMemo"}
+          vendorNo={formData.vendorNo || undefined}
+          onSuccess={() => { void refreshHydratedDocument(); }}
+        />
+      )}
+
+      {/* ── Edit Line Dialog ────────────────────────────────────────────── */}
+      {selectedLine && (
         <PurchaseLineEditDialog
           open={!!selectedLine}
           onOpenChange={(open) => !open && setSelectedLine(null)}
           line={selectedLine}
-          documentType="order"
+          documentType={documentType}
           orderNo={createdOrderNo}
           vendorNo={formData.vendorNo}
-          onAssignTracking={(line) => {
+          onAssignTracking={documentType === "order" ? (line) => {
             setTrackingLine(line);
             setIsTrackingOpen(true);
-          }}
+          } : undefined}
           onOpenItemCharge={(line) => {
             setSelectedItemChargeLine(line);
             setIsItemChargeOpen(true);
@@ -2285,21 +2307,19 @@ export function PurchaseCreateDocumentFormContent({
         />
       )}
 
-      {documentType === "order" &&
-        isItemChargeOpen &&
-        selectedItemChargeLine && (
-          <ItemChargeAssignmentDialog
-            open={isItemChargeOpen}
-            onOpenChange={setIsItemChargeOpen}
-            docType={selectedItemChargeLine.Document_Type || "Order"}
-            docNo={createdOrderNo || ""}
-            docLineNo={selectedItemChargeLine.Line_No!}
-            itemChargeNo={selectedItemChargeLine.No || ""}
-            itemChargeDescription={selectedItemChargeLine.Description || ""}
-            totalAmount={selectedItemChargeLine.Line_Amount || 0}
-            totalQuantity={selectedItemChargeLine.Quantity || 0}
-          />
-        )}
+      {isItemChargeOpen && selectedItemChargeLine && (
+        <ItemChargeAssignmentDialog
+          open={isItemChargeOpen}
+          onOpenChange={setIsItemChargeOpen}
+          docType={selectedItemChargeLine.Document_Type || "Order"}
+          docNo={createdOrderNo || ""}
+          docLineNo={selectedItemChargeLine.Line_No!}
+          itemChargeNo={selectedItemChargeLine.No || ""}
+          itemChargeDescription={selectedItemChargeLine.Description || ""}
+          totalAmount={selectedItemChargeLine.Line_Amount || 0}
+          totalQuantity={selectedItemChargeLine.Quantity || 0}
+        />
+      )}
 
       {/* Post Option Dialog */}
       {documentType === "order" && (

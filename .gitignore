@@ -49,3 +49,9 @@ next-env.d.ts
 
 .github
 .claude
+.cursor
+.mcp.json
+.opencode.json
+AGENTS.md
+CLAUDE.md
+GEMINI.md

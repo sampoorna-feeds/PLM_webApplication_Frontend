@@ -132,7 +132,6 @@ export function buildPurchaseHeaderPayload(
     Purchaser_Code: source.purchasePersonCode,
     Due_Date_calculation: source.dueDateCalculation,
     Brokerage_Code: source.brokerNo,
-    Brokerage_Rate: toNumberOrZero(source.brokerageRate),
     Rate_Basis: source.rateBasis,
     QCType: normalizeQcType(source.qcType),
     Terms_Code: source.termCode,
@@ -147,6 +146,15 @@ export function buildPurchaseHeaderPayload(
     Order_Address_Code: source.orderAddressCode,
     Due_Date: source.dueDate,
   };
+
+  // Only include Brokerage_Rate when it is a meaningful non-zero value
+  const rawRate = source.brokerageRate;
+  if (rawRate !== "" && rawRate !== undefined && rawRate !== null) {
+    const numRate = Number(rawRate);
+    if (Number.isFinite(numRate) && numRate !== 0) {
+      payload.Brokerage_Rate = numRate;
+    }
+  }
 
   if (options.documentType) {
     payload.Document_Type = options.documentType;

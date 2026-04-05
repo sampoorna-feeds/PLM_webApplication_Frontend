@@ -139,7 +139,9 @@ export function PurchaseOrderLineEditDialog({
     getItemByNo(String(line.No))
       .then((item) => {
         if (!mounted) return;
-        setCanAddBardana(item?.Bardana_Generation_Enable === true);
+        setCanAddBardana(
+          item?.Bardana_Generation_Enable === true && documentType !== "invoice",
+        );
       })
       .catch((error) => {
         const { message } = extractApiError(error);
@@ -732,6 +734,22 @@ export function PurchaseOrderLineEditDialog({
                     Item Charge Assignment
                   </Button>
                 )}
+
+              {onDelete && line?.Line_No && (
+                <Button
+                  variant="outline"
+                  className="text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30"
+                  onClick={handleDelete}
+                  disabled={isDeleting || isSaving}
+                >
+                  {isDeleting ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Trash2 className="mr-2 h-4 w-4" />
+                  )}
+                  Delete
+                </Button>
+              )}
 
               {hasTracking && onAssignTracking && (
                 <Button

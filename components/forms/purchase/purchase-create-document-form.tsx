@@ -10,6 +10,7 @@ import React, {
   useEffect,
   useCallback,
   useMemo,
+  useRef,
   useTransition,
 } from "react";
 import { Button } from "@/components/ui/button";
@@ -153,7 +154,7 @@ import {
   getPurchasereceiptReport,
   type PurchaseReceipt,
 } from "@/lib/api/services/purchase-orders.service";
-import { getTransferAllLocationCodes } from "@/lib/api/services/transfer-orders.service";
+import { getDimensionValueName } from "@/lib/api/services/dimension.service";
 import { buildPurchaseHeaderPayload } from "@/lib/api/services/purchase-header-payload";
 import {
   cancelApprovalRequest,
@@ -491,6 +492,9 @@ export function PurchaseCreateDocumentFormContent({
   const [placeOrderError, setPlaceOrderError] = useState<string | null>(null);
   const [isCopyDocOpen, setIsCopyDocOpen] = useState(false);
 
+  // Stores the raw hydrated header so we can read BC field names directly
+  const hydratedHeaderRef = useRef<PurchaseOrder | null>(null);
+
   // ── PO Advanced State (used only when documentType === 'order') ────────────
   const [locationName, setLocationName] = useState("");
   const [selectedLine, setSelectedLine] = useState<PurchaseLine | null>(null);
@@ -540,21 +544,14 @@ export function PurchaseCreateDocumentFormContent({
   const [mandiList, setMandiList] = useState<MandiMaster[]>([]);
   const [paymentTermList, setPaymentTermList] = useState<PaymentTerm[]>([]);
 
-  // Fetch location name for all document types
+  // Fetch LOC dimension name whenever the LOC field changes (on load and on user select)
   useEffect(() => {
-    const locCode = formData.locationCode || formData.loc;
-    if (!locCode) {
-      setLocationName("");
-      return;
-    }
-    getTransferAllLocationCodes()
-      .then((locs) => {
-        const found = locs.find((l) => l.Code === locCode);
-        setLocationName(found?.Name || "");
-      })
+    const loc = formData.loc;
+    if (!loc) { setLocationName(""); return; }
+    getDimensionValueName("LOC", loc)
+      .then(setLocationName)
       .catch(() => setLocationName(""));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [formData.locationCode, formData.loc]);
+  }, [formData.loc]);
 
   useEffect(() => {
     purchaseDropdownsService
@@ -649,6 +646,7 @@ export function PurchaseCreateDocumentFormContent({
         const mappedFormData = mapPurchaseHeaderToFormData(header);
         const mappedLineItems = lines.map(mapPurchaseLineToLineItem);
 
+        hydratedHeaderRef.current = header;
         setFormData((prev) => ({ ...prev, ...mappedFormData }));
         setLineItems(mappedLineItems);
         setPurchaseLines(lines);
@@ -986,6 +984,7 @@ export function PurchaseCreateDocumentFormContent({
     const mappedLineItems = lines.map(mapPurchaseLineToLineItem);
     const status = toStringValue(header.Status);
 
+    hydratedHeaderRef.current = header;
     setFormData((prev) => ({ ...prev, ...mappedFormData }));
     setLineItems(mappedLineItems);
     setDocumentStatus(status);
@@ -1384,7 +1383,6 @@ export function PurchaseCreateDocumentFormContent({
                           dimensionType="LOC"
                           value={formData.loc}
                           onChange={(value) => handleInputChange("loc", value)}
-                          onSelectItem={(item) => setLocationName(item.Name || "")}
                           placeholder="Select LOC"
                           lobValue={formData.lob}
                           branchValue={formData.branch}
@@ -2251,7 +2249,9 @@ export function PurchaseCreateDocumentFormContent({
           onOpenChange={setIsGetPostedLineOpen}
           documentNo={createdOrderNo}
           docType={documentType === "invoice" ? "Invoice" : "CreditMemo"}
-          vendorNo={formData.vendorNo || undefined}
+          vendorNo={hydratedHeaderRef.current?.Buy_from_Vendor_No || undefined}
+          payToVendorNo={hydratedHeaderRef.current?.Pay_to_Vendor_No || undefined}
+          currencyCode={hydratedHeaderRef.current?.Currency_Code || undefined}
           onSuccess={() => { void refreshHydratedDocument(); }}
         />
       )}

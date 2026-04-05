@@ -148,6 +148,27 @@ export async function getLOCs(search?: string): Promise<DimensionValue[]> {
 }
 
 /**
+ * Look up a single dimension value (Code + Name) by its exact code.
+ * Used to display a friendly name next to a dimension code field after hydration.
+ */
+export async function getDimensionValueName(
+  dimensionCode: "LOB" | "BRANCH" | "LOC" | "EMPLOYEE" | "ASSIGNMENT",
+  code: string,
+): Promise<string> {
+  if (!code) return "";
+  const baseFilter = getBaseFilter(dimensionCode);
+  const filter = `(${baseFilter}) and Code eq '${code.replace(/'/g, "''")}'`;
+  const query = buildODataQuery({ $select: "Code,Name", $filter: filter, $top: 1 });
+  const endpoint = `/DimensionValue?company='${encodeURIComponent(COMPANY)}'&${query}`;
+  try {
+    const response = await apiGet<ODataResponse<DimensionValue>>(endpoint);
+    return response.value?.[0]?.Name ?? "";
+  } catch {
+    return "";
+  }
+}
+
+/**
  * Get paginated LOC values
  * @param skip - Number of records to skip
  * @param search - Optional search query

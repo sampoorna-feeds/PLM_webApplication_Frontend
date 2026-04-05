@@ -17,13 +17,15 @@ interface PurchaseGetPostedLineDialogProps {
   documentNo: string;
   docType: GetPostedLineDocType;
   vendorNo?: string;
+  payToVendorNo?: string;
+  currencyCode?: string;
   onSuccess: () => void;
 }
 
-// Invoice → Receipt lines; CreditMemo → Sales Shipment lines
+// Invoice → Purchase Receipt lines; CreditMemo → Return Shipment lines
 const DOC_TYPE_SOURCE_TYPE = {
   Invoice: "Receipt",
-  CreditMemo: "SalesShipment",
+  CreditMemo: "ReturnShipment",
 } as const;
 
 export function PurchaseGetPostedLineDialog({
@@ -32,6 +34,8 @@ export function PurchaseGetPostedLineDialog({
   documentNo,
   docType,
   vendorNo,
+  payToVendorNo,
+  currencyCode,
   onSuccess,
 }: PurchaseGetPostedLineDialogProps) {
   const [, setIsSubmitting] = useState(false);
@@ -39,12 +43,23 @@ export function PurchaseGetPostedLineDialog({
   const sourceType = DOC_TYPE_SOURCE_TYPE[docType];
 
   const extraFilters = useMemo(() => {
-    const filters: string[] = ["Qty_Rcd_Not_Invoiced ne 0"];
+    const filters: string[] = [];
+    if (docType === "Invoice") {
+      filters.push("Qty_Rcd_Not_Invoiced ne 0");
+    } else {
+      filters.push("Return_Qty_Shipped_Not_Invd ne 0");
+    }
     if (vendorNo) {
       filters.push(`Buy_from_Vendor_No eq '${vendorNo.replace(/'/g, "''")}'`);
     }
+    if (payToVendorNo) {
+      filters.push(`Pay_to_Vendor_No eq '${payToVendorNo.replace(/'/g, "''")}'`);
+    }
+    if (currencyCode !== undefined) {
+      filters.push(`Currency_Code eq '${currencyCode.replace(/'/g, "''")}'`);
+    }
     return filters;
-  }, [vendorNo]);
+  }, [docType, vendorNo, payToVendorNo, currencyCode]);
 
   const handleLinesSelected = async (lines: ItemChargeSourceLine[]) => {
     if (lines.length === 0) return;

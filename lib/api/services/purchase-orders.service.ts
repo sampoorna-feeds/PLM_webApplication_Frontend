@@ -59,6 +59,8 @@ export interface PurchaseOrder {
   /** API returns Freight as a string e.g. "0" */
   Freight?: string;
   Buy_from_City?: string;
+  Pay_to_Vendor_No?: string;
+  Currency_Code?: string;
   "@odata.etag"?: string;
   [key: string]: unknown;
 }

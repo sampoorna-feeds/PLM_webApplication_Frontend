@@ -183,7 +183,7 @@ export function GLEntryTable({
             key={col.id}
             className={cn(
               "text-xs px-4 py-4 max-w-[300px] truncate transition-colors font-medium text-foreground/70",
-              col.id === "AccNo" && "text-primary font-bold"
+              col.id === "G_L_Account_No" && "text-primary font-bold"
             )}
             title={String(value)}
           >

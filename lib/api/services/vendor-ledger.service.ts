@@ -236,7 +236,12 @@ export function buildVendorFilterString(filters: VendorLedgerFilters): string {
       }
 
       // Default: infer type and use appropriate operator
-      if (!isNaN(Number(s)) && s.trim() !== "" && !field.toLowerCase().includes("date") && !field.toLowerCase().includes("no")) {
+      const isNumericValue = !isNaN(Number(s)) && s.trim() !== "";
+      const isEntryNo = field === "Entry_No";
+      const isDateField = field.toLowerCase().includes("date");
+      const isCodeField = field.toLowerCase().includes("no") && !isEntryNo;
+
+      if (isNumericValue && !isDateField && !isCodeField) {
         filterParts.push(`${field} eq ${s}`);
       } else if (s.toLowerCase() === "true" || s.toLowerCase() === "false") {
         filterParts.push(`${field} eq ${s.toLowerCase()}`);
@@ -246,6 +251,7 @@ export function buildVendorFilterString(filters: VendorLedgerFilters): string {
       }
     });
   }
+
 
   return filterParts.join(" and ");
 }

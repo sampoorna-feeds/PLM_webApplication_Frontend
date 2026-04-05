@@ -26,48 +26,77 @@ export const GL_ENTRY_COLUMNS: ColumnConfig[] = [
     filterType: "number",
   },
   {
-    id: "AccNo",
+    id: "Posting_Date",
+    label: "Posting Date",
+    sortable: true,
+    defaultVisible: false,
+    filterType: "date",
+  },
+  {
+    id: "Document_No",
+    label: "Doc No.",
+    sortable: true,
+    defaultVisible: false,
+    filterType: "text",
+  },
+  {
+    id: "G_L_Account_No",
     label: "Account No",
     sortable: true,
     defaultVisible: true,
     filterType: "text",
   },
   {
-    id: "AccName",
+    id: "G_L_Account_Name",
     label: "Account Name",
     sortable: true,
     defaultVisible: true,
     filterType: "text",
   },
   {
-    id: "Descr",
+    id: "Description",
     label: "Description",
     sortable: true,
     defaultVisible: true,
     filterType: "text",
   },
   {
-    id: "DebAmt",
+    id: "Debit_Amount",
     label: "Debit",
     sortable: true,
     defaultVisible: true,
     filterType: "number",
   },
   {
-    id: "CredAmt",
+    id: "Credit_Amount",
     label: "Credit",
     sortable: true,
     defaultVisible: true,
     filterType: "number",
   },
   {
-    id: "Amt",
+    id: "Amount",
     label: "Amount",
     sortable: true,
     defaultVisible: true,
     filterType: "number",
   },
+  {
+    id: "User_ID",
+    label: "User ID",
+    sortable: true,
+    defaultVisible: false,
+    filterType: "text",
+  },
+  {
+    id: "Source_Code",
+    label: "Source Code",
+    sortable: true,
+    defaultVisible: false,
+    filterType: "text",
+  },
 ];
+
 
 export const ALL_COLUMNS: ColumnConfig[] = GL_ENTRY_COLUMNS;
 

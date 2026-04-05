@@ -11,12 +11,16 @@ import type { FilterCondition } from "@/components/forms/report-ledger/types";
 export interface GLEntry {
   "@odata.etag": string;
   Entry_No: number;
-  AccNo: string;
-  AccName: string;
-  Descr: string;
-  Amt: number;
-  DebAmt: number;
-  CredAmt: number;
+  Posting_Date: string;
+  Document_No: string;
+  G_L_Account_No: string;
+  G_L_Account_Name: string;
+  Description: string;
+  Amount: number;
+  Debit_Amount: number;
+  Credit_Amount: number;
+  User_ID: string;
+  Source_Code: string;
   [key: string]: any;
 }
 
@@ -73,7 +77,7 @@ async function searchGLEntries(
   const escaped = (search || "").replace(/'/g, "''");
   
   // Fields that we want to search across
-  const fieldsToSearch = ["AccNo", "AccName", "Descr"];
+  const fieldsToSearch = ["G_L_Account_No", "G_L_Account_Name", "Description", "Document_No"];
   
   // Perform OData queries in parallel
   const responses = await Promise.all(
@@ -198,13 +202,18 @@ export function buildGLFilterString(filters: GLEntryFilters): string {
       }
 
       // Default type inference
-      if (!isNaN(Number(s)) && s.trim() !== "" && !field.toLowerCase().includes("no")) {
+      const isNumericValue = !isNaN(Number(s)) && s.trim() !== "";
+      const isEntryNo = field === "Entry_No";
+      const isCodeField = field.toLowerCase().includes("no") && !isEntryNo;
+
+      if (isNumericValue && !isCodeField) {
         filterParts.push(`${field} eq ${s}`);
       } else {
         filterParts.push(`contains(${field},'${s}')`);
       }
     });
   }
+
 
   return filterParts.join(" and ");
 }

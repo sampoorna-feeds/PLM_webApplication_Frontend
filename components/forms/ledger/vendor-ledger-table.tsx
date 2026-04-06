@@ -137,7 +137,7 @@ export function VendorLedgerTable({
           >
             <span
               className={cn(
-                "text-[10px] font-black tracking-[0.1em] whitespace-nowrap uppercase leading-none",
+                "text-[10px] font-black tracking-wider whitespace-nowrap leading-none",
                 hasActiveFilter && "text-primary",
               )}
             >
@@ -278,7 +278,7 @@ export function VendorLedgerTable({
                 {balancePrefixColSpan > 0 && (
                   <td
                     colSpan={balancePrefixColSpan}
-                    className="px-6 py-4 text-left font-black text-[10px] uppercase tracking-[2px] text-primary/60"
+                    className="px-6 py-4 text-left font-black text-[10px] tracking-wider text-primary/60"
                   >
                     <div className="flex items-center gap-2">
                       <div className="w-1.5 h-1.5 rounded-full bg-primary/30 group-hover/balance:animate-ping" />
@@ -337,7 +337,7 @@ export function VendorLedgerTable({
                 {balancePrefixColSpan > 0 && (
                   <td
                     colSpan={balancePrefixColSpan}
-                    className="px-6 py-5 text-left font-black text-[11px] uppercase tracking-[3px] text-primary"
+                    className="px-6 py-5 text-left font-black text-[11px] tracking-wider text-primary"
                   >
                     <div className="flex items-center gap-3">
                       <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />

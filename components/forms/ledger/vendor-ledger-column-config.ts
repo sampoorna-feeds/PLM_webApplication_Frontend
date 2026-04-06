@@ -445,14 +445,14 @@ export const OPTIONAL_COLUMNS: ColumnConfig[] = [
   // ── Dimensions ──
   {
     id: "Global_Dimension_1_Code",
-    label: "Global Dimension 1 Code",
+    label: "LOB",
     sortable: true,
     defaultVisible: false,
     filterType: "text",
   },
   {
     id: "Global_Dimension_2_Code",
-    label: "Global Dimension 2 Code",
+    label: "Branch",
     sortable: true,
     defaultVisible: false,
     filterType: "text",

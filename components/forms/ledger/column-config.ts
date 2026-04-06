@@ -42,8 +42,8 @@ export const VENDOR_LEDGER_COLUMNS: ColumnConfig[] = [
   { id: "On_Hold", label: "On Hold", filterType: "text" },
 
   // ── Dimensions & Location ──
-  { id: "Global_Dimension_1_Code", label: "Global Dimension 1 Code", filterType: "text" },
-  { id: "Global_Dimension_2_Code", label: "Global Dimension 2 Code", filterType: "text" },
+  { id: "Global_Dimension_1_Code", label: "LOB", filterType: "text" },
+  { id: "Global_Dimension_2_Code", label: "Branch", filterType: "text" },
   { id: "Shortcut_Dimension_3_Code", label: "Shortcut Dim 3 Code", filterType: "text" },
   { id: "Location_Code", label: "Location Code", filterType: "text" },
   { id: "Location_State_Code", label: "Location State", filterType: "text" },

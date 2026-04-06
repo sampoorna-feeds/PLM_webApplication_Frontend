@@ -17,6 +17,8 @@ import {
   saveColumnWidths,
   loadColumnOrder,
   saveColumnOrder,
+  loadFrozenColumns,
+  saveFrozenColumns,
   resetGLTableUI,
   ALL_COLUMNS,
 } from "@/components/forms/ledger/gl-entry-column-config";
@@ -59,6 +61,10 @@ export function useGLEntry(options: UseGLEntryOptions = {}) {
 
   const [columnOrder, setColumnOrder] = useState<string[]>(() => 
     typeof window !== "undefined" ? loadColumnOrder() : []
+  );
+
+  const [frozenColumns, setFrozenColumns] = useState<string[]>(() => 
+    typeof window !== "undefined" ? loadFrozenColumns() : []
   );
 
   const hasNextPage = useMemo(
@@ -187,6 +193,7 @@ export function useGLEntry(options: UseGLEntryOptions = {}) {
     setVisibleColumns(defaultCols);
     setColumnWidths({});
     setColumnOrder([]);
+    setFrozenColumns([]);
     resetGLTableUI();
     saveVisibleColumns(defaultCols);
   }, []);
@@ -236,6 +243,9 @@ export function useGLEntry(options: UseGLEntryOptions = {}) {
     columnOrder,
     setColumnOrder,
     saveColumnOrder,
+    frozenColumns,
+    setFrozenColumns,
+    saveFrozenColumns,
     currentFilterString: buildGLFilterString(filters),
   };
 }

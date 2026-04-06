@@ -608,6 +608,7 @@ export function saveVisibleColumns(columns: string[], isOutstanding: boolean = f
 
 const WIDTHS_KEY = "vendorLedger_columnWidths";
 const ORDER_KEY = "vendorLedger_columnOrder";
+const FROZEN_KEY = "vendorLedger_frozenColumns";
 
 export function loadColumnWidths(): Record<string, number> {
   try {
@@ -639,10 +640,26 @@ export function saveColumnOrder(order: string[]): void {
   } catch (error) {}
 }
 
+export function loadFrozenColumns(): string[] {
+  try {
+    const stored = localStorage.getItem(FROZEN_KEY);
+    return stored ? JSON.parse(stored) : [];
+  } catch (error) {
+    return [];
+  }
+}
+
+export function saveFrozenColumns(frozen: string[]): void {
+  try {
+    localStorage.setItem(FROZEN_KEY, JSON.stringify(frozen));
+  } catch (error) {}
+}
+
 export function resetVendorTableUI(): void {
   try {
     localStorage.removeItem(WIDTHS_KEY);
     localStorage.removeItem(ORDER_KEY);
+    localStorage.removeItem(FROZEN_KEY);
   } catch (error) {}
 }
 

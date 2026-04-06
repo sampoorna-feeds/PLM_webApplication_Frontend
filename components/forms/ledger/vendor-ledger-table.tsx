@@ -306,10 +306,15 @@ export function VendorLedgerTable({
 
   const renderCell = (col: ColumnConfig, entry: any) => {
     const value = entry[col.id];
+    const cellStyle = {
+      width: columnWidths[col.id] ? `${columnWidths[col.id]}px` : undefined,
+      minWidth: columnWidths[col.id] ? `${columnWidths[col.id]}px` : undefined,
+      maxWidth: columnWidths[col.id] ? `${columnWidths[col.id]}px` : undefined,
+    };
 
     if (value === null || value === undefined || value === "") {
       return (
-        <TableCell key={col.id} className="text-center text-muted-foreground/20 px-4 py-4">
+        <TableCell key={col.id} style={cellStyle} className="text-center text-muted-foreground/20 px-4 py-4">
           <span className="text-[10px]">●</span>
         </TableCell>
       );
@@ -317,7 +322,7 @@ export function VendorLedgerTable({
 
     if (col.id === "Entry_No") {
       return (
-        <TableCell key={col.id} className="text-xs font-bold whitespace-nowrap text-primary px-4 py-4">
+        <TableCell key={col.id} style={cellStyle} className="text-xs font-bold whitespace-nowrap text-primary px-4 py-4">
           {value}
         </TableCell>
       );
@@ -326,7 +331,7 @@ export function VendorLedgerTable({
     switch (col.filterType) {
       case "date":
         return (
-          <TableCell key={col.id} className="text-xs font-bold text-foreground/80 px-4 py-4 whitespace-nowrap">
+          <TableCell key={col.id} style={cellStyle} className="text-xs font-bold text-foreground/80 px-4 py-4 whitespace-nowrap">
             {value && value !== "0001-01-01" ? format(new Date(value), "MMM dd, yyyy") : "-"}
           </TableCell>
         );
@@ -335,6 +340,7 @@ export function VendorLedgerTable({
         return (
           <TableCell
             key={col.id}
+            style={cellStyle}
             className={cn(
               "text-right text-xs font-mono font-bold px-4 py-4 tabular-nums tracking-tight",
               numValue < 0 ? "text-red-500" : numValue > 0 ? "text-primary" : "text-muted-foreground/40",
@@ -346,7 +352,7 @@ export function VendorLedgerTable({
       }
       case "boolean":
         return (
-          <TableCell key={col.id} className="text-center px-4 py-4">
+          <TableCell key={col.id} style={cellStyle} className="text-center px-4 py-4">
             <Badge
               variant={value ? "default" : "secondary"}
               className={cn(
@@ -362,11 +368,7 @@ export function VendorLedgerTable({
         return (
           <TableCell
             key={col.id}
-            style={{ 
-              width: columnWidths[col.id] ? `${columnWidths[col.id]}px` : undefined,
-              minWidth: columnWidths[col.id] ? `${columnWidths[col.id]}px` : undefined,
-              maxWidth: columnWidths[col.id] ? `${columnWidths[col.id]}px` : undefined 
-            }}
+            style={cellStyle}
             className={cn(
               "text-xs px-4 py-4 truncate transition-colors font-medium",
               col.id === "Document_No" ? "font-bold text-primary hover:text-primary/80 cursor-default" : "text-foreground/70"
@@ -385,6 +387,12 @@ export function VendorLedgerTable({
     );
     return firstBalanceColIndex === -1 ? activeColumns.length : firstBalanceColIndex;
   }, [activeColumns]);
+
+  const totalTableWidth = useMemo(() => {
+    return activeColumns.reduce((acc, col) => {
+      return acc + (columnWidths[col.id] || 150);
+    }, 0);
+  }, [activeColumns, columnWidths]);
   if (!vendorNo) {
     return (
       <div className="flex flex-col items-center justify-center p-20 text-center h-full min-h-[400px]">
@@ -439,7 +447,10 @@ export function VendorLedgerTable({
   return (
     <div className="relative flex-1 overflow-hidden flex flex-col group/table bg-card/10">
       <div className="flex-1 overflow-auto custom-scrollbar">
-        <table className="w-full text-sm border-separate border-spacing-0 table-fixed">
+        <table 
+          className="min-w-full text-sm border-separate border-spacing-0 table-fixed"
+          style={{ width: `${totalTableWidth}px` }}
+        >
           <thead className="bg-muted sticky top-0 z-50">
             <tr className="hover:bg-transparent">
               {activeColumns.map((col) => (
@@ -463,10 +474,16 @@ export function VendorLedgerTable({
                   </td>
                 )}
                 {activeColumns.slice(balancePrefixColSpan).map((col) => {
+                  const cellStyle = {
+                    width: columnWidths[col.id] ? `${columnWidths[col.id]}px` : undefined,
+                    minWidth: columnWidths[col.id] ? `${columnWidths[col.id]}px` : undefined,
+                    maxWidth: columnWidths[col.id] ? `${columnWidths[col.id]}px` : undefined,
+                  };
                   if (col.id === "Amount" || col.id === "Amount_LCY") {
                     return (
                       <td
                         key={col.id}
+                        style={cellStyle}
                         className="px-4 py-4 text-right text-xs font-mono font-black tabular-nums text-primary/80 border-l border-border/10"
                       >
                         {openingBalance.toLocaleString(undefined, {
@@ -476,7 +493,7 @@ export function VendorLedgerTable({
                       </td>
                     );
                   }
-                  return <td key={col.id} className="px-4 py-4 border-l border-border/5" />;
+                  return <td key={col.id} style={cellStyle} className="px-4 py-4 border-l border-border/5" />;
                 })}
               </tr>
             )}
@@ -522,10 +539,16 @@ export function VendorLedgerTable({
                   </td>
                 )}
                 {activeColumns.slice(balancePrefixColSpan).map((col) => {
+                  const cellStyle = {
+                    width: columnWidths[col.id] ? `${columnWidths[col.id]}px` : undefined,
+                    minWidth: columnWidths[col.id] ? `${columnWidths[col.id]}px` : undefined,
+                    maxWidth: columnWidths[col.id] ? `${columnWidths[col.id]}px` : undefined,
+                  };
                   if (col.id === "Amount" || col.id === "Amount_LCY") {
                     return (
                       <td
                         key={col.id}
+                        style={cellStyle}
                         className="px-4 py-5 text-right text-sm font-mono font-black tabular-nums border-l border-primary/10 text-primary"
                       >
                         {closingBalance.toLocaleString(undefined, {
@@ -535,7 +558,7 @@ export function VendorLedgerTable({
                       </td>
                     );
                   }
-                  return <td key={col.id} className="px-4 py-5 border-l border-border/5" />;
+                  return <td key={col.id} style={cellStyle} className="px-4 py-5 border-l border-border/5" />;
                 })}
               </tr>
             )}

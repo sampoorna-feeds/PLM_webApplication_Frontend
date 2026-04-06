@@ -298,10 +298,15 @@ export function GLEntryTable({
 
   const renderCell = (col: ColumnConfig, entry: any) => {
     const value = entry[col.id];
+    const cellStyle = {
+      width: columnWidths[col.id] ? `${columnWidths[col.id]}px` : undefined,
+      minWidth: columnWidths[col.id] ? `${columnWidths[col.id]}px` : undefined,
+      maxWidth: columnWidths[col.id] ? `${columnWidths[col.id]}px` : undefined,
+    };
 
     if (value === null || value === undefined || value === "") {
       return (
-        <TableCell key={col.id} className="text-center text-muted-foreground/20 px-4 py-4">
+        <TableCell key={col.id} style={cellStyle} className="text-center text-muted-foreground/20 px-4 py-4">
           <span className="text-[10px]">●</span>
         </TableCell>
       );
@@ -309,7 +314,7 @@ export function GLEntryTable({
 
     if (col.id === "Entry_No") {
       return (
-        <TableCell key={col.id} className="text-xs font-bold whitespace-nowrap text-primary px-4 py-4">
+        <TableCell key={col.id} style={cellStyle} className="text-xs font-bold whitespace-nowrap text-primary px-4 py-4">
           {value}
         </TableCell>
       );
@@ -318,7 +323,7 @@ export function GLEntryTable({
     switch (col.filterType) {
       case "date":
         return (
-          <TableCell key={col.id} className="text-xs font-bold text-foreground/80 px-4 py-4 whitespace-nowrap">
+          <TableCell key={col.id} style={cellStyle} className="text-xs font-bold text-foreground/80 px-4 py-4 whitespace-nowrap">
             {value && value !== "0001-01-01" && value !== "0001-01-01T00:00:00Z" 
               ? format(new Date(value), "MMM dd, yyyy") 
               : "-"}
@@ -329,6 +334,7 @@ export function GLEntryTable({
         return (
           <TableCell
             key={col.id}
+            style={cellStyle}
             className={cn(
               "text-right text-xs font-mono font-bold px-4 py-4 tabular-nums tracking-tight",
               numValue < 0 ? "text-red-500" : numValue > 0 ? "text-primary" : "text-muted-foreground/40",
@@ -340,7 +346,7 @@ export function GLEntryTable({
       }
       case "boolean":
         return (
-          <TableCell key={col.id} className="text-center px-4 py-4">
+          <TableCell key={col.id} style={cellStyle} className="text-center px-4 py-4">
             <Badge
               variant={value ? "default" : "secondary"}
               className={cn(
@@ -356,11 +362,7 @@ export function GLEntryTable({
         return (
           <TableCell
             key={col.id}
-            style={{ 
-              width: columnWidths[col.id] ? `${columnWidths[col.id]}px` : undefined,
-              minWidth: columnWidths[col.id] ? `${columnWidths[col.id]}px` : undefined,
-              maxWidth: columnWidths[col.id] ? `${columnWidths[col.id]}px` : undefined 
-            }}
+            style={cellStyle}
             className={cn(
               "text-xs px-4 py-4 truncate transition-colors font-medium text-foreground/70",
               col.id === "G_L_Account_No" && "text-primary font-bold"
@@ -379,6 +381,12 @@ export function GLEntryTable({
     );
     return firstBalanceColIndex === -1 ? activeColumns.length : firstBalanceColIndex;
   }, [activeColumns]);
+
+  const totalTableWidth = useMemo(() => {
+    return activeColumns.reduce((acc, col) => {
+      return acc + (columnWidths[col.id] || 150);
+    }, 0);
+  }, [activeColumns, columnWidths]);
 
   // Handle "Select Account" placeholder state
   if (!accountNo) {
@@ -435,7 +443,10 @@ export function GLEntryTable({
   return (
     <div className="relative flex-1 overflow-hidden flex flex-col group/table bg-card/5 border rounded-lg">
       <div className="flex-1 overflow-auto custom-scrollbar">
-        <table className="w-full text-sm border-separate border-spacing-0 table-fixed">
+        <table 
+          className="min-w-full text-sm border-separate border-spacing-0 table-fixed"
+          style={{ width: `${totalTableWidth}px` }}
+        >
           <thead className="bg-muted sticky top-0 z-50">
             <tr className="hover:bg-transparent">
               {activeColumns.map((col) => (
@@ -459,10 +470,16 @@ export function GLEntryTable({
                   </td>
                 )}
                 {activeColumns.slice(balancePrefixColSpan).map((col) => {
+                  const cellStyle = {
+                    width: columnWidths[col.id] ? `${columnWidths[col.id]}px` : undefined,
+                    minWidth: columnWidths[col.id] ? `${columnWidths[col.id]}px` : undefined,
+                    maxWidth: columnWidths[col.id] ? `${columnWidths[col.id]}px` : undefined,
+                  };
                   if (col.id === "Amount" || col.id === "RunningBalance") {
                     return (
                       <td
                         key={col.id}
+                        style={cellStyle}
                         className="px-4 py-4 text-right text-xs font-mono font-black tabular-nums text-primary/80 border-l border-border/10"
                       >
                         {openingBalance.toLocaleString(undefined, {
@@ -472,7 +489,7 @@ export function GLEntryTable({
                       </td>
                     );
                   }
-                  return <td key={col.id} className="px-4 py-4 border-l border-border/5" />;
+                  return <td key={col.id} style={cellStyle} className="px-4 py-4 border-l border-border/5" />;
                 })}
               </tr>
             )}
@@ -518,10 +535,16 @@ export function GLEntryTable({
                   </td>
                 )}
                 {activeColumns.slice(balancePrefixColSpan).map((col) => {
+                  const cellStyle = {
+                    width: columnWidths[col.id] ? `${columnWidths[col.id]}px` : undefined,
+                    minWidth: columnWidths[col.id] ? `${columnWidths[col.id]}px` : undefined,
+                    maxWidth: columnWidths[col.id] ? `${columnWidths[col.id]}px` : undefined,
+                  };
                   if (col.id === "Amount" || col.id === "RunningBalance") {
                     return (
                       <td
                         key={col.id}
+                        style={cellStyle}
                         className="px-4 py-5 text-right text-sm font-mono font-black tabular-nums border-l border-primary/10 text-primary"
                       >
                         {closingBalance.toLocaleString(undefined, {
@@ -531,7 +554,7 @@ export function GLEntryTable({
                       </td>
                     );
                   }
-                  return <td key={col.id} className="px-4 py-5 border-l border-border/5" />;
+                  return <td key={col.id} style={cellStyle} className="px-4 py-5 border-l border-border/5" />;
                 })}
               </tr>
             )}

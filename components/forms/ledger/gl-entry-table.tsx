@@ -184,8 +184,8 @@ export function GLEntryTable({
       zIndex,
       backgroundColor: bgColor || 'var(--background)',
       opacity: 1,
-      boxShadow: isLastFrozen ? '8px 0 12px -6px rgba(0,0,0,0.5)' : undefined,
-      borderRight: isLastFrozen ? '2px solid var(--primary)' : undefined
+      boxShadow: isLastFrozen ? '4px 0 8px -4px rgba(0,0,0,0.2)' : undefined,
+      borderRight: isLastFrozen ? '1px solid var(--border)' : undefined
     };
   };
 
@@ -287,7 +287,7 @@ export function GLEntryTable({
           ...getFrozenStyle(field, 50, 'var(--secondary)')
         }}
         className={cn(
-          "bg-secondary border-b-2 border-border/60 px-4 py-4 text-left align-middle font-bold whitespace-nowrap sticky top-0 transition-all duration-200 group/header shadow-sm overflow-hidden",
+          "bg-secondary border-b border-border/60 px-4 py-3 text-left align-middle font-semibold text-xs whitespace-nowrap sticky top-0 transition-all duration-200 group/header shadow-sm overflow-hidden",
           isFrozen && "z-50",
           hasActiveFilter && "bg-primary/5 border-b-primary/60",
           isDragOver && "bg-primary/5 border-r-2 border-r-primary",
@@ -305,7 +305,7 @@ export function GLEntryTable({
           >
             <span
               className={cn(
-                "text-[10px] font-black tracking-wider whitespace-nowrap leading-none",
+                "text-xs font-semibold whitespace-nowrap leading-none",
                 hasActiveFilter && "text-primary",
               )}
             >
@@ -400,7 +400,7 @@ export function GLEntryTable({
             key={col.id}
             style={cellStyle}
             className={cn(
-              "text-right text-xs font-mono font-bold px-4 py-4 tabular-nums tracking-tight",
+              "text-right text-xs font-semibold px-4 py-4 tabular-nums",
               numValue < 0 ? "text-red-500" : numValue > 0 ? "text-primary" : "text-muted-foreground/40",
             )}
           >
@@ -414,7 +414,7 @@ export function GLEntryTable({
             <Badge
               variant={value ? "default" : "secondary"}
               className={cn(
-                "h-5 px-2 text-[9px] font-black uppercase tracking-widest",
+                "h-5 px-2 text-[10px] font-medium",
                 value ? "bg-primary/20 text-primary border-primary/20 shadow-sm" : "bg-muted text-muted-foreground border-transparent"
               )}
             >
@@ -549,7 +549,7 @@ export function GLEntryTable({
                       <td
                         key={col.id}
                         style={cellStyle}
-                        className="px-4 py-4 text-right text-xs font-mono font-black tabular-nums text-primary/80 border-l border-border/10"
+                        className="px-4 py-4 text-right text-xs font-semibold tabular-nums text-primary/80 border-l border-border/10"
                       >
                         {openingBalance.toLocaleString(undefined, {
                           minimumFractionDigits: 2,
@@ -568,7 +568,7 @@ export function GLEntryTable({
               <tr
                 key={entry.Entry_No || index}
                 className={cn(
-                  "group hover:bg-primary/[0.02] transition-all duration-150 relative",
+                  "group hover:bg-primary/2 transition-all duration-150 relative",
                   index % 2 === 1 ? "bg-muted/5" : "bg-transparent"
                 )}
               >
@@ -583,7 +583,7 @@ export function GLEntryTable({
                 {isFetchingNextPage && (
                   <div className="flex items-center justify-center py-6 gap-3 text-muted-foreground/40 animate-pulse">
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    <span className="text-[10px] font-black uppercase tracking-widest">Fetching Next Records</span>
+                    <span className="text-xs font-semibold">Fetching Next Records</span>
                   </div>
                 )}
               </td>
@@ -599,7 +599,7 @@ export function GLEntryTable({
                       ...getFrozenStyle(activeColumns[0].id, 45),
                       backgroundColor: 'hsl(var(--card))' // Match row bg
                     }}
-                    className="px-6 py-5 text-left font-black text-[11px] tracking-wider text-primary"
+                    className="px-6 py-5 text-left font-semibold text-xs text-primary"
                   >
                     <div className="flex items-center gap-3">
                       <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
@@ -619,7 +619,7 @@ export function GLEntryTable({
                       <td
                         key={col.id}
                         style={cellStyle}
-                        className="px-4 py-5 text-right text-sm font-mono font-black tabular-nums border-l border-primary/10 text-primary"
+                        className="px-4 py-5 text-right text-xs font-semibold tabular-nums border-l border-primary/10 text-primary"
                       >
                         {closingBalance.toLocaleString(undefined, {
                           minimumFractionDigits: 2,

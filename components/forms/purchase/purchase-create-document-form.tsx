@@ -293,9 +293,9 @@ const PURCHASE_CREATE_DOCUMENT_CONFIG: Record<
     deleteHeader: deletePurchaseInvoiceHeader,
     deleteLine: deleteSinglePurchaseInvoiceLine,
     statusActions: {
-      open: ["Send For Approval"],
-      pending: ["Cancel Approval"],
-      released: ["Post", "Reopen"],
+      open: [],
+      pending: [],
+      released: [],
     },
     fetchHeader: getPurchaseInvoiceByNo,
     fetchLines: getPurchaseInvoiceLines,
@@ -324,9 +324,9 @@ const PURCHASE_CREATE_DOCUMENT_CONFIG: Record<
     deleteHeader: deletePurchaseReturnOrderHeader,
     deleteLine: deleteSinglePurchaseReturnOrderLine,
     statusActions: {
-      open: ["Send For Approval"],
-      pending: ["Cancel Approval"],
-      released: ["Post", "Reopen"],
+      open: [],
+      pending: [],
+      released: [],
     },
     fetchHeader: getPurchaseReturnOrderByNo,
     fetchLines: getPurchaseReturnOrderLines,
@@ -354,9 +354,9 @@ const PURCHASE_CREATE_DOCUMENT_CONFIG: Record<
     deleteHeader: deletePurchaseCreditMemoHeader,
     deleteLine: deleteSinglePurchaseCreditMemoLine,
     statusActions: {
-      open: ["Send For Approval"],
-      pending: ["Cancel Approval"],
-      released: ["Post", "Reopen"],
+      open: [],
+      pending: [],
+      released: [],
     },
     fetchHeader: getPurchaseCreditMemoByNo,
     fetchLines: getPurchaseCreditMemoLines,
@@ -2041,6 +2041,17 @@ export function PurchaseCreateDocumentFormContent({
                 </Button>
               ),
             )}
+          {isViewMode && documentType !== "order" && createdOrderNo && (
+            <Button
+              type="button"
+              size="sm"
+              className="h-8"
+              onClick={() => handleStatusAction("Post")}
+              disabled={isActionLoading}
+            >
+              Post
+            </Button>
+          )}
           {isViewMode && documentType === "order" && createdOrderNo && (
             <>
               <Button

@@ -5,7 +5,14 @@ import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { ArrowUpDown, ChevronDown, ChevronUp, Loader2 } from "lucide-react";
 import { useCallback, useEffect, useRef, useMemo, useState } from "react";
-import { ALL_COLUMNS, type ColumnConfig } from "./vendor-ledger-column-config";
+import { 
+  ALL_COLUMNS, 
+  type ColumnConfig,
+  loadColumnWidths,
+  saveColumnWidths,
+  loadColumnOrder,
+  saveColumnOrder
+} from "./vendor-ledger-column-config";
 import { ColumnFilter } from "@/components/forms/report-ledger/column-filter";
 
 interface VendorLedgerTableProps {
@@ -22,6 +29,12 @@ interface VendorLedgerTableProps {
   sortOrder?: "asc" | "desc";
   columnFilters?: Record<string, string>;
   visibleColumns: string[];
+  columnWidths: Record<string, number>;
+  setColumnWidths: React.Dispatch<React.SetStateAction<Record<string, number>>>;
+  saveColumnWidths: (widths: Record<string, number>) => void;
+  columnOrder: string[];
+  setColumnOrder: React.Dispatch<React.SetStateAction<string[]>>;
+  saveColumnOrder: (order: string[]) => void;
   isOutstanding?: boolean;
 }
 
@@ -53,25 +66,15 @@ export function VendorLedgerTable({
   sortOrder,
   columnFilters = {},
   visibleColumns,
+  columnWidths,
+  setColumnWidths,
+  saveColumnWidths,
+  columnOrder,
+  setColumnOrder,
+  saveColumnOrder,
   isOutstanding = false,
 }: VendorLedgerTableProps) {
   const observerTarget = useRef<HTMLDivElement>(null);
-
-  const [columnWidths, setColumnWidths] = useState<Record<string, number>>(() => {
-    if (typeof window !== "undefined") {
-      const stored = localStorage.getItem("vendorLedger_columnWidths");
-      return stored ? JSON.parse(stored) : {};
-    }
-    return {};
-  });
-
-  const [columnOrder, setColumnOrder] = useState<string[]>(() => {
-    if (typeof window !== "undefined") {
-      const stored = localStorage.getItem("vendorLedger_columnOrder");
-      return stored ? JSON.parse(stored) : [];
-    }
-    return [];
-  });
 
   const activeColumns = useMemo(() => {
     const filtered = ALL_COLUMNS.filter((col) => visibleColumns.includes(col.id));
@@ -90,13 +93,13 @@ export function VendorLedgerTable({
   }, [visibleColumns, columnOrder]);
 
   const handleResize = useCallback((columnId: string, width: number) => {
-    setColumnWidths(prev => {
-      const newWidths = { ...prev, [columnId]: width };
-      if (typeof window !== "undefined") {
-        localStorage.setItem("vendorLedger_columnWidths", JSON.stringify(newWidths));
-      }
-      return newWidths;
-    });
+    setColumnWidths(prev => ({ ...prev, [columnId]: width }));
+  }, []);
+
+  const saveWidths = useCallback((widths: Record<string, number>) => {
+    if (typeof window !== "undefined") {
+      saveColumnWidths(widths);
+    }
   }, []);
 
   const handleColumnReorder = useCallback((draggedId: string, targetId: string) => {
@@ -112,7 +115,7 @@ export function VendorLedgerTable({
       newIds.splice(targetIndex, 0, draggedId);
       
       if (typeof window !== "undefined") {
-        localStorage.setItem("vendorLedger_columnOrder", JSON.stringify(newIds));
+        saveColumnOrder(newIds);
       }
       return newIds;
     });
@@ -190,6 +193,11 @@ export function VendorLedgerTable({
       const onMouseUp = () => {
         window.removeEventListener("mousemove", onMouseMove);
         window.removeEventListener("mouseup", onMouseUp);
+        // Persist to localStorage only when dragging ends
+        setColumnWidths(prev => {
+          saveWidths(prev);
+          return prev;
+        });
       };
 
       window.addEventListener("mousemove", onMouseMove);

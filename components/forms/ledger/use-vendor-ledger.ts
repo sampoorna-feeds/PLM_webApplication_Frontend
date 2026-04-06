@@ -15,6 +15,11 @@ import {
   getDefaultVisibleColumns, 
   loadVisibleColumns, 
   saveVisibleColumns,
+  loadColumnWidths,
+  saveColumnWidths,
+  loadColumnOrder,
+  saveColumnOrder,
+  resetVendorTableUI,
   ALL_COLUMNS,
 } from "@/components/forms/ledger/vendor-ledger-column-config";
 
@@ -48,6 +53,14 @@ export function useVendorLedger(options: UseVendorLedgerOptions = {}) {
     typeof window !== "undefined"
       ? loadVisibleColumns(options.isOutstanding)
       : getDefaultVisibleColumns(options.isOutstanding),
+  );
+
+  const [columnWidths, setColumnWidths] = useState<Record<string, number>>(() => 
+    typeof window !== "undefined" ? loadColumnWidths() : {}
+  );
+
+  const [columnOrder, setColumnOrder] = useState<string[]>(() => 
+    typeof window !== "undefined" ? loadColumnOrder() : []
   );
 
   const hasMore = useMemo(
@@ -175,6 +188,9 @@ export function useVendorLedger(options: UseVendorLedgerOptions = {}) {
   const handleResetColumns = useCallback(() => {
     const defaultColumns = getDefaultVisibleColumns(options.isOutstanding);
     setVisibleColumns(defaultColumns);
+    setColumnWidths({});
+    setColumnOrder([]);
+    resetVendorTableUI();
     saveVisibleColumns(defaultColumns, options.isOutstanding);
   }, [options.isOutstanding]);
 
@@ -203,6 +219,12 @@ export function useVendorLedger(options: UseVendorLedgerOptions = {}) {
     onColumnToggle: handleColumnToggle,
     onResetColumns: handleResetColumns,
     onShowAllColumns: handleShowAllColumns,
+    columnWidths,
+    setColumnWidths,
+    saveColumnWidths,
+    columnOrder,
+    setColumnOrder,
+    saveColumnOrder,
     currentFilterString: buildVendorFilterString(filters),
     humanReadableFilters: buildHumanReadableVendorFilters(filters),
     refetch: () => fetchEntries(false),

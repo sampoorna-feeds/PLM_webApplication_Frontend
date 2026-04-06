@@ -28,6 +28,12 @@ export function GLEntryView() {
     visibleColumns,
     setVisibleColumns,
     handleResetColumns,
+    columnWidths,
+    setColumnWidths,
+    saveColumnWidths,
+    columnOrder,
+    setColumnOrder,
+    saveColumnOrder,
     currentFilterString,
   } = useGLEntry();
 
@@ -112,6 +118,12 @@ export function GLEntryView() {
           sortOrder={filters.sortOrder}
           columnFilters={filters.columnFilters}
           visibleColumns={visibleColumns}
+          columnWidths={columnWidths}
+          setColumnWidths={setColumnWidths}
+          saveColumnWidths={saveColumnWidths}
+          columnOrder={columnOrder}
+          setColumnOrder={setColumnOrder}
+          saveColumnOrder={saveColumnOrder}
           accountNo={filters.accountNo}
         />
       </div>

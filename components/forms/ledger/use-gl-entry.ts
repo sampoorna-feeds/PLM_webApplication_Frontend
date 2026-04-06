@@ -13,6 +13,11 @@ import type { FilterCondition } from "@/components/forms/report-ledger/types";
 import { 
   loadVisibleColumns, 
   saveVisibleColumns,
+  loadColumnWidths,
+  saveColumnWidths,
+  loadColumnOrder,
+  saveColumnOrder,
+  resetGLTableUI,
   ALL_COLUMNS,
 } from "@/components/forms/ledger/gl-entry-column-config";
 
@@ -46,6 +51,14 @@ export function useGLEntry(options: UseGLEntryOptions = {}) {
     typeof window !== "undefined"
       ? loadVisibleColumns()
       : ALL_COLUMNS.filter(c => c.defaultVisible).map(c => c.id)
+  );
+
+  const [columnWidths, setColumnWidths] = useState<Record<string, number>>(() => 
+    typeof window !== "undefined" ? loadColumnWidths() : {}
+  );
+
+  const [columnOrder, setColumnOrder] = useState<string[]>(() => 
+    typeof window !== "undefined" ? loadColumnOrder() : []
   );
 
   const hasNextPage = useMemo(
@@ -171,6 +184,9 @@ export function useGLEntry(options: UseGLEntryOptions = {}) {
   const handleResetColumns = useCallback(() => {
     const defaultCols = ALL_COLUMNS.filter(c => c.defaultVisible).map(c => c.id);
     setVisibleColumns(defaultCols);
+    setColumnWidths({});
+    setColumnOrder([]);
+    resetGLTableUI();
     saveVisibleColumns(defaultCols);
   }, []);
 
@@ -213,6 +229,12 @@ export function useGLEntry(options: UseGLEntryOptions = {}) {
     visibleColumns,
     setVisibleColumns: handleColumnToggle,
     handleResetColumns,
+    columnWidths,
+    setColumnWidths,
+    saveColumnWidths,
+    columnOrder,
+    setColumnOrder,
+    saveColumnOrder,
     currentFilterString: buildGLFilterString(filters),
   };
 }

@@ -606,3 +606,43 @@ export function saveVisibleColumns(columns: string[], isOutstanding: boolean = f
   }
 }
 
+const WIDTHS_KEY = "vendorLedger_columnWidths";
+const ORDER_KEY = "vendorLedger_columnOrder";
+
+export function loadColumnWidths(): Record<string, number> {
+  try {
+    const stored = localStorage.getItem(WIDTHS_KEY);
+    return stored ? JSON.parse(stored) : {};
+  } catch (error) {
+    return {};
+  }
+}
+
+export function saveColumnWidths(widths: Record<string, number>): void {
+  try {
+    localStorage.setItem(WIDTHS_KEY, JSON.stringify(widths));
+  } catch (error) {}
+}
+
+export function loadColumnOrder(): string[] {
+  try {
+    const stored = localStorage.getItem(ORDER_KEY);
+    return stored ? JSON.parse(stored) : [];
+  } catch (error) {
+    return [];
+  }
+}
+
+export function saveColumnOrder(order: string[]): void {
+  try {
+    localStorage.setItem(ORDER_KEY, JSON.stringify(order));
+  } catch (error) {}
+}
+
+export function resetVendorTableUI(): void {
+  try {
+    localStorage.removeItem(WIDTHS_KEY);
+    localStorage.removeItem(ORDER_KEY);
+  } catch (error) {}
+}
+

@@ -36,6 +36,8 @@ interface GLEntryTableProps {
   setColumnOrder: React.Dispatch<React.SetStateAction<string[]>>;
   saveColumnOrder: (order: string[]) => void;
   accountNo?: string;
+  fromDate?: string;
+  toDate?: string;
 }
 
 const balanceColumnIds = [
@@ -68,6 +70,8 @@ export function GLEntryTable({
   setColumnOrder,
   saveColumnOrder,
   accountNo,
+  fromDate,
+  toDate,
 }: GLEntryTableProps) {
   const observerTarget = useRef<HTMLDivElement>(null);
 
@@ -389,6 +393,23 @@ export function GLEntryTable({
         </h3>
         <p className="text-sm text-muted-foreground max-w-sm font-medium">
           Choose a general ledger account from the search bar above to load transaction history and balances.
+        </p>
+      </div>
+    );
+  }
+
+  if (!fromDate || !toDate) {
+    return (
+      <div className="flex flex-col items-center justify-center p-20 text-center h-full min-h-[400px]">
+        <div className="bg-primary/5 p-8 rounded-full mb-6 relative animate-pulse">
+          <div className="absolute inset-0 bg-primary/10 rounded-full blur-xl" />
+          <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-primary relative z-10"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="M8 14h.01"/><path d="M12 14h.01"/><path d="M16 14h.01"/><path d="M8 18h.01"/><path d="M12 18h.01"/><path d="M16 18h.01"/></svg>
+        </div>
+        <h3 className="text-xl font-black text-foreground/90 uppercase tracking-tight mb-2">
+          Select Date Range
+        </h3>
+        <p className="text-sm text-muted-foreground max-w-sm font-medium">
+          Please select both starting and ending dates in the filter bar to view the ledger entries for this period.
         </p>
       </div>
     );

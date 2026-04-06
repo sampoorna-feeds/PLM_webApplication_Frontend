@@ -145,6 +145,9 @@ export function VendorLedgerView() {
           columnOrder={currentState.columnOrder}
           setColumnOrder={currentState.setColumnOrder}
           saveColumnOrder={currentState.saveColumnOrder}
+          vendorNo={currentState.filters.vendorNo}
+          fromDate={currentState.filters.fromDate}
+          toDate={currentState.filters.toDate}
           isOutstanding={activeTab === "outstanding"}
         />
       </div>

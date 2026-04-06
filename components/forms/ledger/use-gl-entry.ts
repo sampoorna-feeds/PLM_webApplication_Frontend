@@ -69,8 +69,9 @@ export function useGLEntry(options: UseGLEntryOptions = {}) {
   const fetchEntries = useCallback(async (isAppending = false) => {
     // If no account is selected, we don't fetch anything
     const accountNo = filters.accountNo || filters.columnFilters?.["G_L_Account_No"];
+    const isDateRangeSelected = !!(filters.fromDate && filters.toDate);
     
-    if (!accountNo) {
+    if (!accountNo || !isDateRangeSelected) {
       setEntries([]);
       setTotalCount(0);
       setOpeningBalance(0);

@@ -35,6 +35,9 @@ interface VendorLedgerTableProps {
   columnOrder: string[];
   setColumnOrder: React.Dispatch<React.SetStateAction<string[]>>;
   saveColumnOrder: (order: string[]) => void;
+  vendorNo?: string;
+  fromDate?: string;
+  toDate?: string;
   isOutstanding?: boolean;
 }
 
@@ -72,6 +75,9 @@ export function VendorLedgerTable({
   columnOrder,
   setColumnOrder,
   saveColumnOrder,
+  vendorNo,
+  fromDate,
+  toDate,
   isOutstanding = false,
 }: VendorLedgerTableProps) {
   const observerTarget = useRef<HTMLDivElement>(null);
@@ -379,6 +385,39 @@ export function VendorLedgerTable({
     );
     return firstBalanceColIndex === -1 ? activeColumns.length : firstBalanceColIndex;
   }, [activeColumns]);
+  if (!vendorNo) {
+    return (
+      <div className="flex flex-col items-center justify-center p-20 text-center h-full min-h-[400px]">
+        <div className="bg-primary/5 p-8 rounded-full mb-6 relative animate-pulse">
+          <div className="absolute inset-0 bg-primary/10 rounded-full blur-xl" />
+          <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-primary relative z-10 opacity-70"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        </div>
+        <h3 className="text-xl font-black text-foreground/90 uppercase tracking-tight mb-2">
+          Select Vendor
+        </h3>
+        <p className="text-sm text-muted-foreground max-w-sm font-medium">
+          Choose a vendor from the search bar above to load the ledger records and outstanding overview.
+        </p>
+      </div>
+    );
+  }
+
+  if (!fromDate || !toDate) {
+    return (
+      <div className="flex flex-col items-center justify-center p-20 text-center h-full min-h-[400px]">
+        <div className="bg-primary/5 p-8 rounded-full mb-6 relative animate-pulse">
+          <div className="absolute inset-0 bg-primary/10 rounded-full blur-xl" />
+          <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-primary relative z-10"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="M8 14h.01"/><path d="M12 14h.01"/><path d="M16 14h.01"/><path d="M8 18h.01"/><path d="M12 18h.01"/><path d="M16 18h.01"/></svg>
+        </div>
+        <h3 className="text-xl font-black text-foreground/90 uppercase tracking-tight mb-2">
+          Select Date Range
+        </h3>
+        <p className="text-sm text-muted-foreground max-w-sm font-medium">
+          Please select both starting and ending dates in the filter bar to view the transaction history for this period.
+        </p>
+      </div>
+    );
+  }
 
   if (!entries.length && !isLoading) {
     return (
@@ -388,12 +427,10 @@ export function VendorLedgerTable({
           <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-primary relative z-10"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
         </div>
         <h3 className="text-xl font-black text-foreground/90 uppercase tracking-tight mb-2">
-          {columnFilters && Object.keys(columnFilters).length > 0 ? "No results found" : "Select a Vendor"}
+          No Results Found
         </h3>
         <p className="text-sm text-muted-foreground max-w-sm font-medium">
-          {columnFilters && Object.keys(columnFilters).length > 0 
-            ? "Try adjusting your filters to find what you are looking for." 
-            : "Use the search bar above to select a vendor and view their complete transaction ledger."}
+          No transactions were found for the selected vendor and date range. Try adjusting your filters.
         </p>
       </div>
     );

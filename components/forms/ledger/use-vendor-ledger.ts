@@ -69,12 +69,16 @@ export function useVendorLedger(options: UseVendorLedgerOptions = {}) {
   );
 
   const fetchEntries = useCallback(async (isAppending = false) => {
-    // Only fetch if vendor is selected
-    if (!filters.vendorNo) {
+    const isDateRangeSelected = !!(filters.fromDate && filters.toDate);
+    
+    // Only fetch if vendor and date range are selected
+    if (!filters.vendorNo || !isDateRangeSelected) {
       setEntries([]);
       setTotalCount(0);
       setOpeningBalance(0);
       setClosingBalance(0);
+      setIsLoading(false);
+      setIsFetchingNextPage(false);
       return;
     }
 

@@ -125,6 +125,8 @@ export function GLEntryView() {
           setColumnOrder={setColumnOrder}
           saveColumnOrder={saveColumnOrder}
           accountNo={filters.accountNo}
+          fromDate={filters.fromDate}
+          toDate={filters.toDate}
         />
       </div>
     </div>

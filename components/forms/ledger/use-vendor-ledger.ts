@@ -15,6 +15,11 @@ import {
   getDefaultVisibleColumns, 
   loadVisibleColumns, 
   saveVisibleColumns,
+  loadColumnWidths,
+  saveColumnWidths,
+  loadColumnOrder,
+  saveColumnOrder,
+  resetVendorTableUI,
   ALL_COLUMNS,
 } from "@/components/forms/ledger/vendor-ledger-column-config";
 
@@ -50,18 +55,30 @@ export function useVendorLedger(options: UseVendorLedgerOptions = {}) {
       : getDefaultVisibleColumns(options.isOutstanding),
   );
 
+  const [columnWidths, setColumnWidths] = useState<Record<string, number>>(() => 
+    typeof window !== "undefined" ? loadColumnWidths() : {}
+  );
+
+  const [columnOrder, setColumnOrder] = useState<string[]>(() => 
+    typeof window !== "undefined" ? loadColumnOrder() : []
+  );
+
   const hasMore = useMemo(
     () => entries.length < totalCount,
     [entries.length, totalCount]
   );
 
   const fetchEntries = useCallback(async (isAppending = false) => {
-    // Only fetch if vendor is selected
-    if (!filters.vendorNo) {
+    const isDateRangeSelected = !!(filters.fromDate && filters.toDate);
+    
+    // Only fetch if vendor and date range are selected
+    if (!filters.vendorNo || !isDateRangeSelected) {
       setEntries([]);
       setTotalCount(0);
       setOpeningBalance(0);
       setClosingBalance(0);
+      setIsLoading(false);
+      setIsFetchingNextPage(false);
       return;
     }
 
@@ -175,6 +192,9 @@ export function useVendorLedger(options: UseVendorLedgerOptions = {}) {
   const handleResetColumns = useCallback(() => {
     const defaultColumns = getDefaultVisibleColumns(options.isOutstanding);
     setVisibleColumns(defaultColumns);
+    setColumnWidths({});
+    setColumnOrder([]);
+    resetVendorTableUI();
     saveVisibleColumns(defaultColumns, options.isOutstanding);
   }, [options.isOutstanding]);
 
@@ -203,6 +223,12 @@ export function useVendorLedger(options: UseVendorLedgerOptions = {}) {
     onColumnToggle: handleColumnToggle,
     onResetColumns: handleResetColumns,
     onShowAllColumns: handleShowAllColumns,
+    columnWidths,
+    setColumnWidths,
+    saveColumnWidths,
+    columnOrder,
+    setColumnOrder,
+    saveColumnOrder,
     currentFilterString: buildVendorFilterString(filters),
     humanReadableFilters: buildHumanReadableVendorFilters(filters),
     refetch: () => fetchEntries(false),

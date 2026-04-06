@@ -73,23 +73,19 @@ export function GLEntryColumnVisibility({
 
         <div className="max-h-80 overflow-y-auto p-2 scrollbar-thin scrollbar-thumb-muted-foreground/20">
           {filteredColumns.map((column) => (
-            <div 
+            <label 
               key={column.id}
               className="hover:bg-muted/50 flex items-center space-x-3 rounded-xl px-3 py-2.5 transition-all cursor-pointer group"
-              onClick={() => onColumnToggle(column.id)}
             >
               <Checkbox
-                id={`gl-col-${column.id}`}
                 checked={visibleColumns.includes(column.id)}
                 onCheckedChange={() => onColumnToggle(column.id)}
                 className="data-[state=checked]:bg-primary data-[state=checked]:border-primary rounded-[4px]"
               />
-              <label
-                className="flex-1 cursor-pointer text-xs font-bold leading-none text-foreground/70 group-hover:text-primary transition-colors"
-              >
+              <span className="flex-1 text-xs font-bold leading-none text-foreground/70 group-hover:text-primary transition-colors">
                 {column.label}
-              </label>
-            </div>
+              </span>
+            </label>
           ))}
           
           {filteredColumns.length === 0 && (

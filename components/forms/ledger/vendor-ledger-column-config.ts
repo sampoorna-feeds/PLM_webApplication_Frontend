@@ -445,14 +445,14 @@ export const OPTIONAL_COLUMNS: ColumnConfig[] = [
   // ── Dimensions ──
   {
     id: "Global_Dimension_1_Code",
-    label: "Global Dimension 1 Code",
+    label: "LOB",
     sortable: true,
     defaultVisible: false,
     filterType: "text",
   },
   {
     id: "Global_Dimension_2_Code",
-    label: "Global Dimension 2 Code",
+    label: "Branch",
     sortable: true,
     defaultVisible: false,
     filterType: "text",
@@ -604,5 +604,45 @@ export function saveVisibleColumns(columns: string[], isOutstanding: boolean = f
   } catch (error) {
     console.error("Error saving visible columns:", error);
   }
+}
+
+const WIDTHS_KEY = "vendorLedger_columnWidths";
+const ORDER_KEY = "vendorLedger_columnOrder";
+
+export function loadColumnWidths(): Record<string, number> {
+  try {
+    const stored = localStorage.getItem(WIDTHS_KEY);
+    return stored ? JSON.parse(stored) : {};
+  } catch (error) {
+    return {};
+  }
+}
+
+export function saveColumnWidths(widths: Record<string, number>): void {
+  try {
+    localStorage.setItem(WIDTHS_KEY, JSON.stringify(widths));
+  } catch (error) {}
+}
+
+export function loadColumnOrder(): string[] {
+  try {
+    const stored = localStorage.getItem(ORDER_KEY);
+    return stored ? JSON.parse(stored) : [];
+  } catch (error) {
+    return [];
+  }
+}
+
+export function saveColumnOrder(order: string[]): void {
+  try {
+    localStorage.setItem(ORDER_KEY, JSON.stringify(order));
+  } catch (error) {}
+}
+
+export function resetVendorTableUI(): void {
+  try {
+    localStorage.removeItem(WIDTHS_KEY);
+    localStorage.removeItem(ORDER_KEY);
+  } catch (error) {}
 }
 

@@ -4,8 +4,15 @@ import { type GLEntry } from "@/lib/api/services/gl-entry.service";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { ArrowUpDown, ChevronDown, ChevronUp, Loader2, BookOpen } from "lucide-react";
-import { useCallback, useEffect, useRef, useMemo } from "react";
-import { ALL_COLUMNS, type ColumnConfig } from "./gl-entry-column-config";
+import { useCallback, useEffect, useRef, useMemo, useState } from "react";
+import { 
+  ALL_COLUMNS, 
+  type ColumnConfig,
+  loadColumnWidths,
+  saveColumnWidths,
+  loadColumnOrder,
+  saveColumnOrder
+} from "./gl-entry-column-config";
 import { ColumnFilter } from "@/components/forms/report-ledger/column-filter";
 
 interface GLEntryTableProps {
@@ -22,7 +29,15 @@ interface GLEntryTableProps {
   sortOrder?: "asc" | "desc";
   columnFilters?: Record<string, string>;
   visibleColumns: string[];
+  columnWidths: Record<string, number>;
+  setColumnWidths: React.Dispatch<React.SetStateAction<Record<string, number>>>;
+  saveColumnWidths: (widths: Record<string, number>) => void;
+  columnOrder: string[];
+  setColumnOrder: React.Dispatch<React.SetStateAction<string[]>>;
+  saveColumnOrder: (order: string[]) => void;
   accountNo?: string;
+  fromDate?: string;
+  toDate?: string;
 }
 
 const balanceColumnIds = [
@@ -48,13 +63,62 @@ export function GLEntryTable({
   sortOrder,
   columnFilters = {},
   visibleColumns,
+  columnWidths,
+  setColumnWidths,
+  saveColumnWidths,
+  columnOrder,
+  setColumnOrder,
+  saveColumnOrder,
   accountNo,
+  fromDate,
+  toDate,
 }: GLEntryTableProps) {
   const observerTarget = useRef<HTMLDivElement>(null);
 
   const activeColumns = useMemo(() => {
-    return ALL_COLUMNS.filter((col) => visibleColumns.includes(col.id));
-  }, [visibleColumns]);
+    const filtered = ALL_COLUMNS.filter((col) => visibleColumns.includes(col.id));
+    if (columnOrder.length === 0) return filtered;
+
+    // Filter order to only include currently visible columns
+    const currentOrder = columnOrder.filter(id => visibleColumns.includes(id));
+    
+    // Add any new visible columns that aren't in the order list yet
+    const newVisible = visibleColumns.filter(id => !currentOrder.includes(id));
+    const finalOrder = [...currentOrder, ...newVisible];
+
+    return [...filtered].sort((a, b) => {
+      return finalOrder.indexOf(a.id) - finalOrder.indexOf(b.id);
+    });
+  }, [visibleColumns, columnOrder]);
+
+  const handleColumnReorder = useCallback((draggedId: string, targetId: string) => {
+    if (draggedId === targetId) return;
+
+    setColumnOrder(prev => {
+      const currentIds = activeColumns.map(c => c.id);
+      const draggedIndex = currentIds.indexOf(draggedId);
+      const targetIndex = currentIds.indexOf(targetId);
+      
+      const newIds = [...currentIds];
+      newIds.splice(draggedIndex, 1);
+      newIds.splice(targetIndex, 0, draggedId);
+      
+      if (typeof window !== "undefined") {
+        saveColumnOrder(newIds);
+      }
+      return newIds;
+    });
+  }, [activeColumns]);
+
+  const handleResize = useCallback((columnId: string, width: number) => {
+    setColumnWidths(prev => ({ ...prev, [columnId]: width }));
+  }, []);
+
+  const saveWidths = useCallback((widths: Record<string, number>) => {
+    if (typeof window !== "undefined") {
+      saveColumnWidths(widths);
+    }
+  }, []);
 
   const handleObserver = useCallback(
     (entries: IntersectionObserverEntry[]) => {
@@ -113,11 +177,74 @@ export function GLEntryTable({
       ? filterState.split(",")
       : [filterState, ""];
 
+    const onResizeMouseDown = (e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const startX = e.pageX;
+      const headerElement = (e.currentTarget as HTMLElement).parentElement;
+      const startWidth = headerElement?.offsetWidth || 0;
+
+      const onMouseMove = (moveEvent: MouseEvent) => {
+        const currentWidth = Math.max(80, startWidth + (moveEvent.pageX - startX));
+        handleResize(field, currentWidth);
+      };
+
+      const onMouseUp = () => {
+        window.removeEventListener("mousemove", onMouseMove);
+        window.removeEventListener("mouseup", onMouseUp);
+        // Persist to localStorage only when dragging ends
+        setColumnWidths(prev => {
+          saveWidths(prev);
+          return prev;
+        });
+      };
+
+      window.addEventListener("mousemove", onMouseMove);
+      window.addEventListener("mouseup", onMouseUp);
+    };
+
+    const [isDragOver, setIsDragOver] = useState(false);
+
+    const handleDragStart = (e: React.DragEvent) => {
+      e.dataTransfer.setData("columnId", field);
+      e.dataTransfer.effectAllowed = "move";
+    };
+
+    const handleDragOver = (e: React.DragEvent) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "move";
+      setIsDragOver(true);
+    };
+
+    const handleDragLeave = () => {
+      setIsDragOver(false);
+    };
+
+    const handleDrop = (e: React.DragEvent) => {
+      e.preventDefault();
+      setIsDragOver(false);
+      const draggedId = e.dataTransfer.getData("columnId");
+      if (draggedId && draggedId !== field) {
+        handleColumnReorder(draggedId, field);
+      }
+    };
+
     return (
       <th
+        draggable
+        onDragStart={handleDragStart}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+        style={{ 
+          width: columnWidths[field] ? `${columnWidths[field]}px` : undefined,
+          minWidth: columnWidths[field] ? `${columnWidths[field]}px` : undefined,
+          maxWidth: columnWidths[field] ? `${columnWidths[field]}px` : undefined 
+        }}
         className={cn(
-          "bg-background z-40 border-b-2 border-border/60 px-4 py-4 text-left align-middle font-bold whitespace-nowrap sticky top-0 transition-all duration-200 group/header shadow-sm",
+          "bg-background z-40 border-b-2 border-border/60 px-4 py-4 text-left align-middle font-bold whitespace-nowrap sticky top-0 transition-all duration-200 group/header shadow-sm overflow-hidden",
           hasActiveFilter && "bg-primary/5 border-b-primary/60",
+          isDragOver && "bg-primary/5 border-r-2 border-r-primary",
           className,
         )}
       >
@@ -132,7 +259,7 @@ export function GLEntryTable({
           >
             <span
               className={cn(
-                "text-[10px] font-black tracking-[0.1em] whitespace-nowrap uppercase leading-none",
+                "text-[10px] font-black tracking-wider whitespace-nowrap leading-none",
                 hasActiveFilter && "text-primary",
               )}
             >
@@ -155,16 +282,31 @@ export function GLEntryTable({
             )}
           </div>
         </div>
+
+        {/* Resizer Handle */}
+        <div
+          onMouseDown={onResizeMouseDown}
+          className={cn(
+            "absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize transition-all z-50 hover:bg-primary/40",
+            "after:content-[''] after:absolute after:right-0 after:top-1/4 after:bottom-1/4 after:w-px after:bg-border/50",
+            columnWidths[field] ? "bg-primary/10" : "bg-transparent"
+          )}
+        />
       </th>
     );
   };
 
   const renderCell = (col: ColumnConfig, entry: any) => {
     const value = entry[col.id];
+    const cellStyle = {
+      width: columnWidths[col.id] ? `${columnWidths[col.id]}px` : undefined,
+      minWidth: columnWidths[col.id] ? `${columnWidths[col.id]}px` : undefined,
+      maxWidth: columnWidths[col.id] ? `${columnWidths[col.id]}px` : undefined,
+    };
 
     if (value === null || value === undefined || value === "") {
       return (
-        <TableCell key={col.id} className="text-center text-muted-foreground/20 px-4 py-4">
+        <TableCell key={col.id} style={cellStyle} className="text-center text-muted-foreground/20 px-4 py-4">
           <span className="text-[10px]">●</span>
         </TableCell>
       );
@@ -172,7 +314,7 @@ export function GLEntryTable({
 
     if (col.id === "Entry_No") {
       return (
-        <TableCell key={col.id} className="text-xs font-bold whitespace-nowrap text-primary px-4 py-4">
+        <TableCell key={col.id} style={cellStyle} className="text-xs font-bold whitespace-nowrap text-primary px-4 py-4">
           {value}
         </TableCell>
       );
@@ -181,7 +323,7 @@ export function GLEntryTable({
     switch (col.filterType) {
       case "date":
         return (
-          <TableCell key={col.id} className="text-xs font-bold text-foreground/80 px-4 py-4 whitespace-nowrap">
+          <TableCell key={col.id} style={cellStyle} className="text-xs font-bold text-foreground/80 px-4 py-4 whitespace-nowrap">
             {value && value !== "0001-01-01" && value !== "0001-01-01T00:00:00Z" 
               ? format(new Date(value), "MMM dd, yyyy") 
               : "-"}
@@ -192,6 +334,7 @@ export function GLEntryTable({
         return (
           <TableCell
             key={col.id}
+            style={cellStyle}
             className={cn(
               "text-right text-xs font-mono font-bold px-4 py-4 tabular-nums tracking-tight",
               numValue < 0 ? "text-red-500" : numValue > 0 ? "text-primary" : "text-muted-foreground/40",
@@ -203,7 +346,7 @@ export function GLEntryTable({
       }
       case "boolean":
         return (
-          <TableCell key={col.id} className="text-center px-4 py-4">
+          <TableCell key={col.id} style={cellStyle} className="text-center px-4 py-4">
             <Badge
               variant={value ? "default" : "secondary"}
               className={cn(
@@ -219,8 +362,9 @@ export function GLEntryTable({
         return (
           <TableCell
             key={col.id}
+            style={cellStyle}
             className={cn(
-              "text-xs px-4 py-4 max-w-[300px] truncate transition-colors font-medium text-foreground/70",
+              "text-xs px-4 py-4 truncate transition-colors font-medium text-foreground/70",
               col.id === "G_L_Account_No" && "text-primary font-bold"
             )}
             title={String(value)}
@@ -238,6 +382,12 @@ export function GLEntryTable({
     return firstBalanceColIndex === -1 ? activeColumns.length : firstBalanceColIndex;
   }, [activeColumns]);
 
+  const totalTableWidth = useMemo(() => {
+    return activeColumns.reduce((acc, col) => {
+      return acc + (columnWidths[col.id] || 150);
+    }, 0);
+  }, [activeColumns, columnWidths]);
+
   // Handle "Select Account" placeholder state
   if (!accountNo) {
     return (
@@ -251,6 +401,23 @@ export function GLEntryTable({
         </h3>
         <p className="text-sm text-muted-foreground max-w-sm font-medium">
           Choose a general ledger account from the search bar above to load transaction history and balances.
+        </p>
+      </div>
+    );
+  }
+
+  if (!fromDate || !toDate) {
+    return (
+      <div className="flex flex-col items-center justify-center p-20 text-center h-full min-h-[400px]">
+        <div className="bg-primary/5 p-8 rounded-full mb-6 relative animate-pulse">
+          <div className="absolute inset-0 bg-primary/10 rounded-full blur-xl" />
+          <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-primary relative z-10"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="M8 14h.01"/><path d="M12 14h.01"/><path d="M16 14h.01"/><path d="M8 18h.01"/><path d="M12 18h.01"/><path d="M16 18h.01"/></svg>
+        </div>
+        <h3 className="text-xl font-black text-foreground/90 uppercase tracking-tight mb-2">
+          Select Date Range
+        </h3>
+        <p className="text-sm text-muted-foreground max-w-sm font-medium">
+          Please select both starting and ending dates in the filter bar to view the ledger entries for this period.
         </p>
       </div>
     );
@@ -276,7 +443,10 @@ export function GLEntryTable({
   return (
     <div className="relative flex-1 overflow-hidden flex flex-col group/table bg-card/5 border rounded-lg">
       <div className="flex-1 overflow-auto custom-scrollbar">
-        <table className="w-full text-sm border-separate border-spacing-0">
+        <table 
+          className="min-w-full text-sm border-separate border-spacing-0 table-fixed"
+          style={{ width: `${totalTableWidth}px` }}
+        >
           <thead className="bg-muted sticky top-0 z-50">
             <tr className="hover:bg-transparent">
               {activeColumns.map((col) => (
@@ -287,11 +457,11 @@ export function GLEntryTable({
           <tbody className="divide-y divide-border/20">
             {/* Opening Balance Row */}
             {!isLoading && entries.length > 0 && Math.abs(openingBalance) > 0 && (
-              <tr className="bg-primary/5 hover:bg-primary/10 transition-colors group/balance border-b-2 border-primary/10 font-bold">
+              <tr className="bg-primary/5 transition-colors group/balance border-b-2 border-primary/10 font-bold">
                 {balancePrefixColSpan > 0 && (
                   <td
                     colSpan={balancePrefixColSpan}
-                    className="px-6 py-4 text-left font-black text-[10px] uppercase tracking-[2px] text-primary/60"
+                    className="px-6 py-4 text-left font-black text-[10px] tracking-wider text-primary/60"
                   >
                     <div className="flex items-center gap-2">
                       <div className="w-1.5 h-1.5 rounded-full bg-primary/30 group-hover/balance:animate-ping" />
@@ -300,10 +470,16 @@ export function GLEntryTable({
                   </td>
                 )}
                 {activeColumns.slice(balancePrefixColSpan).map((col) => {
+                  const cellStyle = {
+                    width: columnWidths[col.id] ? `${columnWidths[col.id]}px` : undefined,
+                    minWidth: columnWidths[col.id] ? `${columnWidths[col.id]}px` : undefined,
+                    maxWidth: columnWidths[col.id] ? `${columnWidths[col.id]}px` : undefined,
+                  };
                   if (col.id === "Amount" || col.id === "RunningBalance") {
                     return (
                       <td
                         key={col.id}
+                        style={cellStyle}
                         className="px-4 py-4 text-right text-xs font-mono font-black tabular-nums text-primary/80 border-l border-border/10"
                       >
                         {openingBalance.toLocaleString(undefined, {
@@ -313,7 +489,7 @@ export function GLEntryTable({
                       </td>
                     );
                   }
-                  return <td key={col.id} className="px-4 py-4 border-l border-border/5" />;
+                  return <td key={col.id} style={cellStyle} className="px-4 py-4 border-l border-border/5" />;
                 })}
               </tr>
             )}
@@ -346,11 +522,11 @@ export function GLEntryTable({
 
             {/* Closing Balance Row */}
             {!isLoading && entries.length > 0 && Math.abs(closingBalance) > 0 && (
-              <tr className="bg-background hover:bg-muted/5 transition-colors border-t-2 border-primary group/balance sticky bottom-0 z-40 shadow-[0_-8px_30px_rgba(0,0,0,0.6)]">
+              <tr className="bg-card border-t-2 border-primary group/balance sticky bottom-0 z-40 shadow-[0_-8px_30px_rgba(0,0,0,0.4)]">
                 {balancePrefixColSpan > 0 && (
                   <td
                     colSpan={balancePrefixColSpan}
-                    className="px-6 py-5 text-left font-black text-[11px] uppercase tracking-[3px] text-primary"
+                    className="px-6 py-5 text-left font-black text-[11px] tracking-wider text-primary"
                   >
                     <div className="flex items-center gap-3">
                       <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
@@ -359,10 +535,16 @@ export function GLEntryTable({
                   </td>
                 )}
                 {activeColumns.slice(balancePrefixColSpan).map((col) => {
+                  const cellStyle = {
+                    width: columnWidths[col.id] ? `${columnWidths[col.id]}px` : undefined,
+                    minWidth: columnWidths[col.id] ? `${columnWidths[col.id]}px` : undefined,
+                    maxWidth: columnWidths[col.id] ? `${columnWidths[col.id]}px` : undefined,
+                  };
                   if (col.id === "Amount" || col.id === "RunningBalance") {
                     return (
                       <td
                         key={col.id}
+                        style={cellStyle}
                         className="px-4 py-5 text-right text-sm font-mono font-black tabular-nums border-l border-primary/10 text-primary"
                       >
                         {closingBalance.toLocaleString(undefined, {
@@ -372,7 +554,7 @@ export function GLEntryTable({
                       </td>
                     );
                   }
-                  return <td key={col.id} className="px-4 py-5 border-l border-border/5" />;
+                  return <td key={col.id} style={cellStyle} className="px-4 py-5 border-l border-border/5" />;
                 })}
               </tr>
             )}

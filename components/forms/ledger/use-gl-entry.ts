@@ -13,6 +13,11 @@ import type { FilterCondition } from "@/components/forms/report-ledger/types";
 import { 
   loadVisibleColumns, 
   saveVisibleColumns,
+  loadColumnWidths,
+  saveColumnWidths,
+  loadColumnOrder,
+  saveColumnOrder,
+  resetGLTableUI,
   ALL_COLUMNS,
 } from "@/components/forms/ledger/gl-entry-column-config";
 
@@ -48,6 +53,14 @@ export function useGLEntry(options: UseGLEntryOptions = {}) {
       : ALL_COLUMNS.filter(c => c.defaultVisible).map(c => c.id)
   );
 
+  const [columnWidths, setColumnWidths] = useState<Record<string, number>>(() => 
+    typeof window !== "undefined" ? loadColumnWidths() : {}
+  );
+
+  const [columnOrder, setColumnOrder] = useState<string[]>(() => 
+    typeof window !== "undefined" ? loadColumnOrder() : []
+  );
+
   const hasNextPage = useMemo(
     () => entries.length < totalCount || (entries.length === 0 && isLoading),
     [entries.length, totalCount, isLoading]
@@ -56,8 +69,9 @@ export function useGLEntry(options: UseGLEntryOptions = {}) {
   const fetchEntries = useCallback(async (isAppending = false) => {
     // If no account is selected, we don't fetch anything
     const accountNo = filters.accountNo || filters.columnFilters?.["G_L_Account_No"];
+    const isDateRangeSelected = !!(filters.fromDate && filters.toDate);
     
-    if (!accountNo) {
+    if (!accountNo || !isDateRangeSelected) {
       setEntries([]);
       setTotalCount(0);
       setOpeningBalance(0);
@@ -171,6 +185,9 @@ export function useGLEntry(options: UseGLEntryOptions = {}) {
   const handleResetColumns = useCallback(() => {
     const defaultCols = ALL_COLUMNS.filter(c => c.defaultVisible).map(c => c.id);
     setVisibleColumns(defaultCols);
+    setColumnWidths({});
+    setColumnOrder([]);
+    resetGLTableUI();
     saveVisibleColumns(defaultCols);
   }, []);
 
@@ -213,6 +230,12 @@ export function useGLEntry(options: UseGLEntryOptions = {}) {
     visibleColumns,
     setVisibleColumns: handleColumnToggle,
     handleResetColumns,
+    columnWidths,
+    setColumnWidths,
+    saveColumnWidths,
+    columnOrder,
+    setColumnOrder,
+    saveColumnOrder,
     currentFilterString: buildGLFilterString(filters),
   };
 }

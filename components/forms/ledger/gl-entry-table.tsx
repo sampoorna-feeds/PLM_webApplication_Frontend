@@ -52,10 +52,6 @@ export function GLEntryTable({
 }: GLEntryTableProps) {
   const observerTarget = useRef<HTMLDivElement>(null);
 
-  const activeColumns = useMemo(() => {
-    return ALL_COLUMNS.filter((col) => visibleColumns.includes(col.id));
-  }, [visibleColumns]);
-
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>(() => {
     if (typeof window !== "undefined") {
       const stored = localStorage.getItem("glEntry_columnWidths");
@@ -63,6 +59,49 @@ export function GLEntryTable({
     }
     return {};
   });
+
+  const [columnOrder, setColumnOrder] = useState<string[]>(() => {
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("glEntry_columnOrder");
+      return stored ? JSON.parse(stored) : [];
+    }
+    return [];
+  });
+
+  const activeColumns = useMemo(() => {
+    const filtered = ALL_COLUMNS.filter((col) => visibleColumns.includes(col.id));
+    if (columnOrder.length === 0) return filtered;
+
+    // Filter order to only include currently visible columns
+    const currentOrder = columnOrder.filter(id => visibleColumns.includes(id));
+    
+    // Add any new visible columns that aren't in the order list yet
+    const newVisible = visibleColumns.filter(id => !currentOrder.includes(id));
+    const finalOrder = [...currentOrder, ...newVisible];
+
+    return [...filtered].sort((a, b) => {
+      return finalOrder.indexOf(a.id) - finalOrder.indexOf(b.id);
+    });
+  }, [visibleColumns, columnOrder]);
+
+  const handleColumnReorder = useCallback((draggedId: string, targetId: string) => {
+    if (draggedId === targetId) return;
+
+    setColumnOrder(prev => {
+      const currentIds = activeColumns.map(c => c.id);
+      const draggedIndex = currentIds.indexOf(draggedId);
+      const targetIndex = currentIds.indexOf(targetId);
+      
+      const newIds = [...currentIds];
+      newIds.splice(draggedIndex, 1);
+      newIds.splice(targetIndex, 0, draggedId);
+      
+      if (typeof window !== "undefined") {
+        localStorage.setItem("glEntry_columnOrder", JSON.stringify(newIds));
+      }
+      return newIds;
+    });
+  }, [activeColumns]);
 
   const handleResize = useCallback((columnId: string, width: number) => {
     setColumnWidths(prev => {
@@ -152,8 +191,39 @@ export function GLEntryTable({
       window.addEventListener("mouseup", onMouseUp);
     };
 
+    const [isDragOver, setIsDragOver] = useState(false);
+
+    const handleDragStart = (e: React.DragEvent) => {
+      e.dataTransfer.setData("columnId", field);
+      e.dataTransfer.effectAllowed = "move";
+    };
+
+    const handleDragOver = (e: React.DragEvent) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "move";
+      setIsDragOver(true);
+    };
+
+    const handleDragLeave = () => {
+      setIsDragOver(false);
+    };
+
+    const handleDrop = (e: React.DragEvent) => {
+      e.preventDefault();
+      setIsDragOver(false);
+      const draggedId = e.dataTransfer.getData("columnId");
+      if (draggedId && draggedId !== field) {
+        handleColumnReorder(draggedId, field);
+      }
+    };
+
     return (
       <th
+        draggable
+        onDragStart={handleDragStart}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
         style={{ 
           width: columnWidths[field] ? `${columnWidths[field]}px` : undefined,
           minWidth: columnWidths[field] ? `${columnWidths[field]}px` : undefined,
@@ -162,6 +232,7 @@ export function GLEntryTable({
         className={cn(
           "bg-background z-40 border-b-2 border-border/60 px-4 py-4 text-left align-middle font-bold whitespace-nowrap sticky top-0 transition-all duration-200 group/header shadow-sm overflow-hidden",
           hasActiveFilter && "bg-primary/5 border-b-primary/60",
+          isDragOver && "bg-primary/5 border-r-2 border-r-primary",
           className,
         )}
       >

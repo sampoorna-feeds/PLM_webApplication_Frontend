@@ -413,7 +413,7 @@ export function VendorLedgerTable({
           <tbody className="divide-y divide-border/20">
             {/* Opening Balance Row */}
             {!isLoading && entries.length > 0 && !isOutstanding && (
-              <tr className="bg-primary/[0.03] hover:bg-primary/[0.06] transition-colors group/balance border-b-2 border-primary/10">
+              <tr className="bg-primary/[0.03] transition-colors group/balance border-b-2 border-primary/10">
                 {balancePrefixColSpan > 0 && (
                   <td
                     colSpan={balancePrefixColSpan}
@@ -472,7 +472,7 @@ export function VendorLedgerTable({
 
             {/* Closing Balance Row */}
             {!isLoading && entries.length > 0 && !isOutstanding && (
-              <tr className="bg-background hover:bg-muted/5 transition-colors border-t-2 border-primary group/balance sticky bottom-0 z-40 shadow-[0_-8px_30px_rgba(0,0,0,0.6)]">
+              <tr className="bg-card border-t-2 border-primary group/balance sticky bottom-0 z-40 shadow-[0_-8px_30px_rgba(0,0,0,0.4)]">
                 {balancePrefixColSpan > 0 && (
                   <td
                     colSpan={balancePrefixColSpan}

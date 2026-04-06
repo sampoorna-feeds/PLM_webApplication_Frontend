@@ -425,7 +425,7 @@ export function GLEntryTable({
           <tbody className="divide-y divide-border/20">
             {/* Opening Balance Row */}
             {!isLoading && entries.length > 0 && Math.abs(openingBalance) > 0 && (
-              <tr className="bg-primary/5 hover:bg-primary/10 transition-colors group/balance border-b-2 border-primary/10 font-bold">
+              <tr className="bg-primary/5 transition-colors group/balance border-b-2 border-primary/10 font-bold">
                 {balancePrefixColSpan > 0 && (
                   <td
                     colSpan={balancePrefixColSpan}
@@ -484,7 +484,7 @@ export function GLEntryTable({
 
             {/* Closing Balance Row */}
             {!isLoading && entries.length > 0 && Math.abs(closingBalance) > 0 && (
-              <tr className="bg-background hover:bg-muted/5 transition-colors border-t-2 border-primary group/balance sticky bottom-0 z-40 shadow-[0_-8px_30px_rgba(0,0,0,0.6)]">
+              <tr className="bg-card border-t-2 border-primary group/balance sticky bottom-0 z-40 shadow-[0_-8px_30px_rgba(0,0,0,0.4)]">
                 {balancePrefixColSpan > 0 && (
                   <td
                     colSpan={balancePrefixColSpan}

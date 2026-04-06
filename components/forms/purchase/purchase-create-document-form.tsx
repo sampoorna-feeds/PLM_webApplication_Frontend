@@ -505,7 +505,7 @@ export function PurchaseCreateDocumentFormContent({
   const [isPostDetailsOpen, setIsPostDetailsOpen] = useState(false);
   const [isPostLoading, setIsPostLoading] = useState(false);
   const [postOption, setPostOption] = useState<
-    "receive" | "invoice" | "receive-invoice" | null
+    "receive" | "invoice" | "receive-invoice" | "ship" | "ship-invoice" | null
   >(null);
   const [postDetails, setPostDetails] = useState({
     postingDate: "",
@@ -1129,11 +1129,24 @@ export function PurchaseCreateDocumentFormContent({
       return;
     }
     if (action === "Post") {
-      if (documentType === "order") {
+      const today = new Date().toISOString().split("T")[0];
+      if (documentType === "invoice" || documentType === "credit-memo") {
+        // Single option: Invoice — skip options dialog, go straight to details
+        setPostOption("invoice");
+        setPostDetails({
+          postingDate: today,
+          documentDate: formData.documentDate || today,
+          vehicleNo: "",
+          vendorInvoiceNo: formData.vendorInvoiceNo || "",
+          dueDateCalculation: "Posting Date",
+          freight: "",
+          lineNarration: "",
+        });
+        setIsPostDetailsOpen(true);
+      } else {
         setPostOption(null);
         setIsPostDialogOpen(true);
-      } else
-        toast.info(`Post flow for ${config.displayTitle} will be wired next.`);
+      }
       return;
     }
     if (action === "Gate Entry") {
@@ -1210,7 +1223,11 @@ export function PurchaseCreateDocumentFormContent({
     setIsPostLoading(true);
     try {
       const isInvoiceOption =
-        postOption === "invoice" || postOption === "receive-invoice";
+        postOption === "invoice" ||
+        postOption === "receive-invoice" ||
+        postOption === "ship-invoice" ||
+        documentType === "invoice" ||
+        documentType === "credit-memo";
       const patchPayload: Record<string, unknown> = {
         Posting_Date: postDetails.postingDate,
         Document_Date: postDetails.documentDate,
@@ -1223,14 +1240,16 @@ export function PurchaseCreateDocumentFormContent({
         patchPayload.Line_Narration1 = postDetails.lineNarration || "";
         patchPayload.Freight = postDetails.freight || "0";
       }
-      await patchPurchaseOrderHeader(createdOrderNo, patchPayload);
+      await config.updateHeader(createdOrderNo, patchPayload);
       const optMap: Record<string, "1" | "2" | "3"> = {
         receive: "1",
         invoice: "2",
         "receive-invoice": "3",
+        ship: "1",
+        "ship-invoice": "3",
       };
       await postPurchaseOrder(createdOrderNo, optMap[postOption]);
-      toast.success("Order posted successfully.");
+      toast.success(`${config.displayTitle} posted successfully.`);
       setIsPostDetailsOpen(false);
       await refreshHydratedDocument();
       onSuccess(createdOrderNo);
@@ -2349,35 +2368,40 @@ export function PurchaseCreateDocumentFormContent({
       )}
 
       {/* Post Option Dialog */}
-      {documentType === "order" && (
+      {(documentType === "order" || documentType === "return-order") && (
         <Dialog open={isPostDialogOpen} onOpenChange={setIsPostDialogOpen}>
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
-              <DialogTitle>Post Purchase Order</DialogTitle>
+              <DialogTitle>Post {config.displayTitle}</DialogTitle>
             </DialogHeader>
             <div className="grid gap-2 py-4">
-              {(["receive", "invoice", "receive-invoice"] as const).map(
-                (opt) => (
-                  <Label
-                    key={opt}
-                    className="flex cursor-pointer items-center gap-2"
-                  >
-                    <input
-                      type="radio"
-                      name="post-mode"
-                      checked={postOption === opt}
-                      onChange={() => setPostOption(opt)}
-                    />
-                    <span>
-                      {opt === "receive"
-                        ? "Receive"
-                        : opt === "invoice"
-                          ? "Invoice"
-                          : "Receive & Invoice"}
-                    </span>
-                  </Label>
-                ),
-              )}
+              {(documentType === "return-order"
+                ? (["ship", "invoice", "ship-invoice"] as const)
+                : (["receive", "invoice", "receive-invoice"] as const)
+              ).map((opt) => (
+                <Label
+                  key={opt}
+                  className="flex cursor-pointer items-center gap-2"
+                >
+                  <input
+                    type="radio"
+                    name="post-mode"
+                    checked={postOption === opt}
+                    onChange={() => setPostOption(opt)}
+                  />
+                  <span>
+                    {opt === "receive"
+                      ? "Receive"
+                      : opt === "invoice"
+                        ? "Invoice"
+                        : opt === "receive-invoice"
+                          ? "Receive & Invoice"
+                          : opt === "ship"
+                            ? "Ship"
+                            : "Ship & Invoice"}
+                  </span>
+                </Label>
+              ))}
             </div>
             <DialogFooter>
               <Button
@@ -2412,8 +2436,7 @@ export function PurchaseCreateDocumentFormContent({
       )}
 
       {/* Post Details Dialog */}
-      {documentType === "order" && (
-        <Dialog open={isPostDetailsOpen} onOpenChange={setIsPostDetailsOpen}>
+      <Dialog open={isPostDetailsOpen} onOpenChange={setIsPostDetailsOpen}>
           <DialogContent className="sm:max-w-lg">
             <DialogHeader>
               <DialogTitle>Post Details</DialogTitle>
@@ -2473,7 +2496,10 @@ export function PurchaseCreateDocumentFormContent({
                 />
               </div>
               {(postOption === "invoice" ||
-                postOption === "receive-invoice") && (
+                postOption === "receive-invoice" ||
+                postOption === "ship-invoice" ||
+                documentType === "invoice" ||
+                documentType === "credit-memo") && (
                 <>
                   <div className="space-y-1">
                     <Label className="text-xs font-semibold">
@@ -2547,9 +2573,9 @@ export function PurchaseCreateDocumentFormContent({
             </DialogFooter>
           </DialogContent>
         </Dialog>
-      )}
 
       {/* Receipts Dialog */}
+
       {documentType === "order" && (
         <Dialog open={isReceiptOpen} onOpenChange={setIsReceiptOpen}>
           <DialogContent className="sm:max-w-4xl">

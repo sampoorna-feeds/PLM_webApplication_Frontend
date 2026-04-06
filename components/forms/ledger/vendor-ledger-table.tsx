@@ -4,7 +4,7 @@ import type { VendorLedgerEntry } from "@/lib/api/services/vendor-ledger.service
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { ArrowUpDown, ChevronDown, ChevronUp, Loader2 } from "lucide-react";
-import { useCallback, useEffect, useRef, useMemo } from "react";
+import { useCallback, useEffect, useRef, useMemo, useState } from "react";
 import { ALL_COLUMNS, type ColumnConfig } from "./vendor-ledger-column-config";
 import { ColumnFilter } from "@/components/forms/report-ledger/column-filter";
 
@@ -60,6 +60,24 @@ export function VendorLedgerTable({
   const activeColumns = useMemo(() => {
     return ALL_COLUMNS.filter((col) => visibleColumns.includes(col.id));
   }, [visibleColumns]);
+
+  const [columnWidths, setColumnWidths] = useState<Record<string, number>>(() => {
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("vendorLedger_columnWidths");
+      return stored ? JSON.parse(stored) : {};
+    }
+    return {};
+  });
+
+  const handleResize = useCallback((columnId: string, width: number) => {
+    setColumnWidths(prev => {
+      const newWidths = { ...prev, [columnId]: width };
+      if (typeof window !== "undefined") {
+        localStorage.setItem("vendorLedger_columnWidths", JSON.stringify(newWidths));
+      }
+      return newWidths;
+    });
+  }, []);
 
   const handleObserver = useCallback(
     (entries: IntersectionObserverEntry[]) => {
@@ -118,10 +136,36 @@ export function VendorLedgerTable({
       ? filterState.split(",")
       : [filterState, ""];
 
+    const onResizeMouseDown = (e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const startX = e.pageX;
+      const headerElement = (e.currentTarget as HTMLElement).parentElement;
+      const startWidth = headerElement?.offsetWidth || 0;
+
+      const onMouseMove = (moveEvent: MouseEvent) => {
+        const currentWidth = Math.max(80, startWidth + (moveEvent.pageX - startX));
+        handleResize(field, currentWidth);
+      };
+
+      const onMouseUp = () => {
+        window.removeEventListener("mousemove", onMouseMove);
+        window.removeEventListener("mouseup", onMouseUp);
+      };
+
+      window.addEventListener("mousemove", onMouseMove);
+      window.addEventListener("mouseup", onMouseUp);
+    };
+
     return (
       <th
+        style={{ 
+          width: columnWidths[field] ? `${columnWidths[field]}px` : undefined,
+          minWidth: columnWidths[field] ? `${columnWidths[field]}px` : undefined,
+          maxWidth: columnWidths[field] ? `${columnWidths[field]}px` : undefined 
+        }}
         className={cn(
-          "bg-background z-40 border-b-2 border-border/60 px-4 py-4 text-left align-middle font-bold whitespace-nowrap sticky top-0 transition-all duration-200 group/header shadow-sm",
+          "bg-background z-40 border-b-2 border-border/60 px-4 py-4 text-left align-middle font-bold whitespace-nowrap sticky top-0 transition-all duration-200 group/header shadow-sm overflow-hidden",
           hasActiveFilter && "bg-primary/5 border-b-primary/60",
           className,
         )}
@@ -160,6 +204,16 @@ export function VendorLedgerTable({
             )}
           </div>
         </div>
+
+        {/* Resizer Handle */}
+        <div
+          onMouseDown={onResizeMouseDown}
+          className={cn(
+            "absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize transition-all z-50 hover:bg-primary/40",
+            "after:content-[''] after:absolute after:right-0 after:top-1/4 after:bottom-1/4 after:w-px after:bg-border/50",
+            columnWidths[field] ? "bg-primary/10" : "bg-transparent"
+          )}
+        />
       </th>
     );
   };
@@ -222,8 +276,13 @@ export function VendorLedgerTable({
         return (
           <TableCell
             key={col.id}
+            style={{ 
+              width: columnWidths[col.id] ? `${columnWidths[col.id]}px` : undefined,
+              minWidth: columnWidths[col.id] ? `${columnWidths[col.id]}px` : undefined,
+              maxWidth: columnWidths[col.id] ? `${columnWidths[col.id]}px` : undefined 
+            }}
             className={cn(
-              "text-xs px-4 py-4 max-w-[240px] truncate transition-colors font-medium",
+              "text-xs px-4 py-4 truncate transition-colors font-medium",
               col.id === "Document_No" ? "font-bold text-primary hover:text-primary/80 cursor-default" : "text-foreground/70"
             )}
             title={String(value)}
@@ -263,7 +322,7 @@ export function VendorLedgerTable({
   return (
     <div className="relative flex-1 overflow-hidden flex flex-col group/table bg-card/10">
       <div className="flex-1 overflow-auto custom-scrollbar">
-        <table className="w-full text-sm border-separate border-spacing-0">
+        <table className="w-full text-sm border-separate border-spacing-0 table-fixed">
           <thead className="bg-muted sticky top-0 z-50">
             <tr className="hover:bg-transparent">
               {activeColumns.map((col) => (

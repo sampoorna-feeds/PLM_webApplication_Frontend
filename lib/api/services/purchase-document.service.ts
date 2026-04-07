@@ -237,6 +237,19 @@ export async function deleteSinglePurchaseDocumentLine(
   await apiDelete(endpoint);
 }
 
+export async function patchPurchaseDocumentLineByKey(
+  documentType: PurchaseDocumentAdapterType,
+  documentNo: string,
+  lineNo: number,
+  body: Record<string, unknown>,
+): Promise<unknown> {
+  const config = PURCHASE_DOCUMENT_ADAPTER_CONFIG[documentType];
+  const escapedNo = documentNo.replace(/'/g, "''");
+  const endpoint = `/${config.lineEntity}(Document_Type='${config.documentTypeValue}',Document_No='${encodeURIComponent(escapedNo)}',Line_No=${lineNo})?company='${encodeURIComponent(COMPANY)}'`;
+  const payload = stripEmptyValues(body);
+  return apiPatch<unknown>(endpoint, payload);
+}
+
 export async function addPurchaseDocumentLineItems(
   documentType: PurchaseDocumentAdapterType,
   documentNo: string,

@@ -134,6 +134,7 @@ import {
   deletePurchaseReturnOrderHeader,
   deleteSinglePurchaseReturnOrderLine,
 } from "@/lib/api/services/purchase-return-order.service";
+import { patchPurchaseDocumentLineByKey } from "@/lib/api/services/purchase-document.service";
 import {
   createPurchaseOrder,
   addPurchaseOrderLineItems,
@@ -2327,6 +2328,7 @@ export function PurchaseCreateDocumentFormContent({
             setSelectedItemChargeLine(line);
             setIsItemChargeOpen(true);
           }}
+          updateLine={documentType !== "order" ? (docNo, lineNo, payload) => patchPurchaseDocumentLineByKey(documentType as "invoice" | "return-order" | "credit-memo", docNo, lineNo, payload) : undefined}
           onDelete={async (line) => {
             if (line.Line_No && createdOrderNo) {
               await config.deleteLine(createdOrderNo, line.Line_No);

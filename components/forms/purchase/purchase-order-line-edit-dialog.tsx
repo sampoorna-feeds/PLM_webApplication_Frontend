@@ -56,6 +56,7 @@ interface PurchaseOrderLineEditDialogProps {
   onSave: () => void;
   onAssignTracking?: (line: PurchaseLine) => void;
   onOpenItemCharge?: (line: PurchaseLine) => void;
+  updateLine?: (documentNo: string, lineNo: number, payload: Record<string, unknown>) => Promise<unknown>;
 }
 
 export function PurchaseOrderLineEditDialog({
@@ -70,6 +71,7 @@ export function PurchaseOrderLineEditDialog({
   onSave,
   onAssignTracking,
   onOpenItemCharge,
+  updateLine,
 }: PurchaseOrderLineEditDialogProps) {
   const [quantity, setQuantity] = useState("");
   const [qtyReceived, setQtyReceived] = useState("");
@@ -346,7 +348,7 @@ export function PurchaseOrderLineEditDialog({
         return;
       }
 
-      await updatePurchaseLine(orderNo, line.Line_No, payload);
+      await (updateLine ?? updatePurchaseLine)(orderNo, line.Line_No, payload);
       toast.success("Line updated successfully");
       onSave();
       onOpenChange(false);

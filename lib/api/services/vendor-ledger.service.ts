@@ -392,6 +392,12 @@ export async function getVendorLedgerSums(
     console.warn("Aggregation failed for Vendor Ledger Sums, falling back", error);
     
     // Fallback: Fetch necessary fields
+    const fallbackQuery = buildODataQuery({
+      ...queryParams,
+      $select: "Debit_Amount,Credit_Amount,Debit,Credit",
+      $top: 30000,
+    });
+    
     const endpoint = `/VendorLedgerEntry?company='${encodeURIComponent(COMPANY)}'&${fallbackQuery}`;
     const response = await apiGet<ODataResponse<VendorLedgerEntry>>(endpoint);
     

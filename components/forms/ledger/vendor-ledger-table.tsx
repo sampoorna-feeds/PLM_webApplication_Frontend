@@ -299,9 +299,9 @@ export function VendorLedgerTable({
           ...getFrozenStyle(field, 50, 'var(--secondary)')
         }}
         className={cn(
-          "bg-secondary border-b border-border/60 px-4 py-3 text-left align-middle font-semibold text-xs whitespace-nowrap sticky top-0 transition-all duration-200 group/header shadow-sm overflow-hidden",
-          isFrozen && "z-50",
-          hasActiveFilter && "bg-primary/5 border-b-primary/60",
+          "bg-background border-b border-border/40 px-5 py-3.5 text-left align-middle font-bold tracking-widest text-muted-foreground whitespace-nowrap sticky top-0 transition-all duration-200 group/header overflow-hidden backdrop-blur-md",
+          isFrozen && "z-50 shadow-[4px_0_12px_-4px_rgba(0,0,0,0.1)]",
+          hasActiveFilter && "bg-primary/5 text-primary border-b-primary/40",
           isDragOver && "bg-primary/5 border-r-2 border-r-primary",
           className,
         )}
@@ -317,8 +317,8 @@ export function VendorLedgerTable({
           >
             <span
               className={cn(
-                "text-xs font-semibold whitespace-nowrap leading-none",
-                hasActiveFilter && "text-primary",
+                "whitespace-nowrap leading-none transition-colors",
+                hasActiveFilter ? "text-primary" : "group-hover/header:text-foreground",
               )}
             >
               {label}
@@ -370,8 +370,8 @@ export function VendorLedgerTable({
     const value = entry[col.id];
     const isFrozen = frozenColumns.includes(col.id);
     
-    // Use background and secondary for stronger opaque contrast
-    const baseBg = index % 2 === 1 ? 'var(--secondary)' : 'var(--background)';
+    // Refined row colors for subtle alternating
+    const baseBg = index % 2 === 1 ? 'hsl(var(--muted)/0.3)' : 'hsl(var(--background))';
     
     const cellStyle = {
       width: columnWidths[col.id] ? `${columnWidths[col.id]}px` : undefined,
@@ -390,7 +390,7 @@ export function VendorLedgerTable({
 
     if (col.id === "Entry_No") {
       return (
-        <TableCell key={col.id} style={cellStyle} className="text-xs font-bold whitespace-nowrap text-primary px-4 py-4">
+        <TableCell key={col.id} style={cellStyle} className="text-[13px] font-bold whitespace-nowrap text-primary px-5 py-3.5">
           {value}
         </TableCell>
       );
@@ -410,8 +410,8 @@ export function VendorLedgerTable({
             key={col.id}
             style={cellStyle}
             className={cn(
-              "text-right text-xs font-semibold px-4 py-4 tabular-nums",
-              numValue < 0 ? "text-red-500" : numValue > 0 ? "text-primary" : "text-muted-foreground/40",
+              "text-right text-[13px] font-semibold px-5 py-3.5 tabular-nums tracking-tight",
+              numValue < 0 ? "text-destructive" : numValue > 0 ? "text-primary" : "text-muted-foreground/40",
             )}
           >
             {numValue === 0 ? "-" : numValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -438,8 +438,8 @@ export function VendorLedgerTable({
             key={col.id}
             style={cellStyle}
             className={cn(
-              "text-xs px-4 py-4 truncate transition-colors font-medium",
-              col.id === "Document_No" ? "font-bold text-primary hover:text-primary/80 cursor-default" : "text-foreground/70"
+              "text-[13px] px-5 py-3.5 truncate transition-colors",
+              col.id === "Document_No" ? "font-bold text-primary hover:text-primary/80 cursor-default" : "text-foreground/80 font-medium"
             )}
             title={String(value)}
           >
@@ -557,7 +557,7 @@ export function VendorLedgerTable({
                       <td
                         key={col.id}
                         style={cellStyle}
-                        className="px-4 py-4 text-right text-xs font-semibold tabular-nums text-primary/80 border-l border-border/10"
+                        className="px-5 py-4 text-right text-[13px] font-semibold tabular-nums text-primary/80 border-l border-border/10 tracking-tight"
                       >
                         {openingBalance.toLocaleString(undefined, {
                           minimumFractionDigits: 2,
@@ -566,7 +566,7 @@ export function VendorLedgerTable({
                       </td>
                     );
                   }
-                  return <td key={col.id} style={cellStyle} className="px-4 py-4 border-l border-border/5" />;
+                  return <td key={col.id} style={cellStyle} className="px-5 py-4 border-l border-border/5" />;
                 })}
               </tr>
             )}
@@ -576,8 +576,8 @@ export function VendorLedgerTable({
               <tr
                 key={entry.Entry_No || index}
                 className={cn(
-                  "group hover:bg-primary/2 transition-all duration-150 relative",
-                  index % 2 === 1 ? "bg-muted/5" : "bg-transparent"
+                  "group hover:bg-muted/50 transition-colors duration-200 relative",
+                  index % 2 === 1 ? "bg-muted/30" : "bg-background"
                 )}
               >
                 {activeColumns.map((col) => renderCell(col, entry, index))}
@@ -605,7 +605,7 @@ export function VendorLedgerTable({
                   style={{
                     ...getFrozenStyle(activeColumns[0].id, 45, 'hsl(var(--muted))'),
                   }}
-                  className="px-6 py-4 text-left font-semibold text-xs text-muted-foreground"
+                  className="px-6 py-3.5 text-left font-bold text-[13px] text-muted-foreground tracking-wider"
                 >
                   Total Debit
                 </td>
@@ -621,7 +621,7 @@ export function VendorLedgerTable({
                       <td
                         key={col.id}
                         style={cellStyle}
-                        className="px-4 py-4 text-right text-xs font-semibold tabular-nums border-l border-border/10 text-foreground/80"
+                        className="px-5 py-3.5 text-right text-[13px] font-bold tabular-nums border-l border-border/10 text-foreground/80 tracking-tight"
                       >
                         {debitSum.toLocaleString(undefined, {
                           minimumFractionDigits: 2,
@@ -630,7 +630,7 @@ export function VendorLedgerTable({
                       </td>
                     );
                   }
-                  return <td key={col.id} style={cellStyle} className="px-4 py-4 border-l border-border/5" />;
+                  return <td key={col.id} style={cellStyle} className="px-5 py-3.5 border-l border-border/5" />;
                 })}
               </tr>
             )}
@@ -643,7 +643,7 @@ export function VendorLedgerTable({
                   style={{
                     ...getFrozenStyle(activeColumns[0].id, 45, 'hsl(var(--muted))'),
                   }}
-                  className="px-6 py-4 text-left font-semibold text-xs text-muted-foreground"
+                  className="px-6 py-3.5 text-left font-bold text-[13px] text-muted-foreground tracking-wider"
                 >
                   Total Credit
                 </td>
@@ -659,7 +659,7 @@ export function VendorLedgerTable({
                       <td
                         key={col.id}
                         style={cellStyle}
-                        className="px-4 py-4 text-right text-xs font-semibold tabular-nums border-l border-border/10 text-foreground/80"
+                        className="px-5 py-3.5 text-right text-[13px] font-bold tabular-nums border-l border-border/10 text-foreground/80 tracking-tight"
                       >
                         {creditSum.toLocaleString(undefined, {
                           minimumFractionDigits: 2,
@@ -668,7 +668,7 @@ export function VendorLedgerTable({
                       </td>
                     );
                   }
-                  return <td key={col.id} style={cellStyle} className="px-4 py-4 border-l border-border/5" />;
+                  return <td key={col.id} style={cellStyle} className="px-5 py-3.5 border-l border-border/5" />;
                 })}
               </tr>
             )}
@@ -683,10 +683,10 @@ export function VendorLedgerTable({
                       ...getFrozenStyle(activeColumns[0].id, 45),
                       backgroundColor: 'hsl(var(--card))' // Match row bg
                     }}
-                    className="px-6 py-5 text-left font-semibold text-xs text-primary"
+                    className="px-6 py-4 text-left font-black text-[13px] text-primary tracking-wider"
                   >
                     <div className="flex items-center gap-3">
-                      <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+                      <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
                       Closing Balance
                     </div>
                   </td>
@@ -703,7 +703,7 @@ export function VendorLedgerTable({
                       <td
                         key={col.id}
                         style={cellStyle}
-                        className="px-4 py-5 text-right text-xs font-semibold tabular-nums border-l border-primary/10 text-primary"
+                        className="px-5 py-4 text-right text-[14px] font-black tabular-nums border-l border-primary/10 text-primary tracking-tight"
                       >
                         {closingBalance.toLocaleString(undefined, {
                           minimumFractionDigits: 2,
@@ -712,7 +712,7 @@ export function VendorLedgerTable({
                       </td>
                     );
                   }
-                  return <td key={col.id} style={cellStyle} className="px-4 py-5 border-l border-border/5" />;
+                  return <td key={col.id} style={cellStyle} className="px-5 py-4 border-l border-border/5" />;
                 })}
               </tr>
             )}

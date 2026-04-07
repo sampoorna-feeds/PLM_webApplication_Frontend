@@ -219,7 +219,7 @@ export async function patchTransferOrder(
   const encodedNo = encodeURIComponent(orderNo);
   const endpoint = `/company('${encodedCompany}')/TransferHeader(No='${encodedNo}')`;
 
-  const payload = stripEmptyValues(data as Record<string, unknown>);
+  const payload = stripNullish(data as Record<string, unknown>);
   // Remove Business Central system fields if present
   delete payload["@odata.etag"];
   delete payload.No; // Primary key cannot be patched
@@ -401,7 +401,7 @@ export async function updateTransferLine(
   data: Partial<TransferLine>,
 ): Promise<TransferLine> {
   const endpoint = `/TransferLine(Document_No='${encodeURIComponent(documentNo)}',Line_No=${lineNo})?company='${encodeURIComponent(COMPANY)}'`;
-  const payload = stripEmptyValues(data as Record<string, unknown>);
+  const payload = stripNullish(data as Record<string, unknown>);
   return apiPatch<TransferLine>(endpoint, payload);
 }
 
@@ -418,6 +418,18 @@ export function stripEmptyValues(
         value !== null &&
         !(typeof value === "string" && value.trim() === "")
       ) {
+        acc[key] = value;
+      }
+      return acc;
+    },
+    {} as Record<string, unknown>,
+  );
+}
+
+function stripNullish(obj: Record<string, unknown>): Record<string, unknown> {
+  return Object.entries(obj).reduce(
+    (acc, [key, value]) => {
+      if (value !== undefined && value !== null) {
         acc[key] = value;
       }
       return acc;

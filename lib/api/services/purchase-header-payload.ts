@@ -59,6 +59,7 @@ export interface BuildPurchaseHeaderPayloadOptions {
   includeAppliesToFields?: boolean;
   primaryVendorRefField?: "vendorInvoiceNo" | "vendorCrMemoNo";
   includeOrderAddressState?: boolean;
+  includeQcType?: boolean;
   stripEmpty?: boolean;
   requiredFields?: RequiredPurchaseHeaderField[];
 }
@@ -121,6 +122,21 @@ export function stripEmptyValues(
   );
 }
 
+/** For PATCH requests: strips only undefined/null, preserving empty strings so cleared fields are sent to the API. */
+export function stripNullish(
+  obj: Record<string, unknown>,
+): Record<string, unknown> {
+  return Object.entries(obj).reduce(
+    (acc, [key, value]) => {
+      if (value !== undefined && value !== null) {
+        acc[key] = value;
+      }
+      return acc;
+    },
+    {} as Record<string, unknown>,
+  );
+}
+
 export function buildPurchaseHeaderPayload(
   source: PurchaseHeaderPayloadSource,
   options: BuildPurchaseHeaderPayloadOptions = {},
@@ -133,7 +149,6 @@ export function buildPurchaseHeaderPayload(
     Due_Date_calculation: source.dueDateCalculation,
     Brokerage_Code: source.brokerNo,
     Rate_Basis: source.rateBasis,
-    QCType: normalizeQcType(source.qcType),
     Terms_Code: source.termCode,
     Mandi_Name: source.mandiName,
     Payment_Terms_Code: source.paymentTermCode,
@@ -170,6 +185,10 @@ export function buildPurchaseHeaderPayload(
 
   if (options.includeOrderDate) {
     payload.Order_Date = source.orderDate;
+  }
+
+  if (options.includeQcType) {
+    payload.QCType = normalizeQcType(source.qcType);
   }
 
   if (options.includeInvoiceType) {

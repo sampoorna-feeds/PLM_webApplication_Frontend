@@ -104,6 +104,7 @@ export async function createPurchaseOrder(
       includeServiceType: true,
       includeOrderDate: true,
       includeOrderAddressState: true,
+      includeQcType: true,
       stripEmpty: true,
     });
 

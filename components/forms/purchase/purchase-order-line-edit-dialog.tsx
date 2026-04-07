@@ -440,6 +440,24 @@ export function PurchaseOrderLineEditDialog({
 
           {/* ── Editable fields ── */}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {/* Description — always first, always full width */}
+            <div className="space-y-1 sm:col-span-2">
+              <Label htmlFor="po-line-description" className="text-xs">
+                Description
+              </Label>
+              <ClearableField
+                value={description}
+                onClear={() => setDescription("")}
+              >
+                <Input
+                  id="po-line-description"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  className={fieldInputClass}
+                />
+              </ClearableField>
+            </div>
+
             {(line.Type || "").trim() !== "" && (
               <>
                 {/* Row 1 */}
@@ -512,28 +530,6 @@ export function PurchaseOrderLineEditDialog({
                 )}
               </>
             )}
-
-            <div
-              className={cn(
-                "space-y-1",
-                (line.Type || "").trim() === "" ? "sm:col-span-2" : "",
-              )}
-            >
-              <Label htmlFor="po-line-description" className="text-xs">
-                Description
-              </Label>
-              <ClearableField
-                value={description}
-                onClear={() => setDescription("")}
-              >
-                <Input
-                  id="po-line-description"
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  className={fieldInputClass}
-                />
-              </ClearableField>
-            </div>
 
             {(line.Type || "").trim() !== "" && (
               <>

@@ -52,6 +52,15 @@ import {
   extractApiError,
   type ApiErrorState,
 } from "@/components/forms/production-orders/api-error-dialog";
+import type { PurchaseLineDocumentType } from "./purchase-line-quantity-config";
+
+/** Maps UI document type to BC Source_Subtype for purchase tracking lines */
+const DOC_TYPE_TO_SUBTYPE: Record<PurchaseLineDocumentType, number> = {
+  order: 1,
+  invoice: 2,
+  "credit-memo": 3,
+  "return-order": 5,
+};
 
 interface PurchaseItemTrackingDialogProps {
   open: boolean;
@@ -60,6 +69,7 @@ interface PurchaseItemTrackingDialogProps {
   orderNo: string;
   locationCode: string;
   line: PurchaseLine | null;
+  documentType?: PurchaseLineDocumentType;
 }
 
 export function PurchaseItemTrackingDialog({
@@ -69,7 +79,9 @@ export function PurchaseItemTrackingDialog({
   orderNo,
   locationCode,
   line,
+  documentType = "order",
 }: PurchaseItemTrackingDialogProps) {
+  const sourceSubType = DOC_TYPE_TO_SUBTYPE[documentType];
   const [lotNo, setLotNo] = useState("");
   const [expirationDate, setExpirationDate] = useState("");
   const [quantity, setQuantity] = useState("");
@@ -136,6 +148,7 @@ export function PurchaseItemTrackingDialog({
             lineNo,
             itemNo,
             locationCode,
+            sourceSubType,
           );
           setTrackingLines(lines);
         } catch (error) {
@@ -176,6 +189,7 @@ export function PurchaseItemTrackingDialog({
         lineNo,
         itemNo,
         locationCode,
+        sourceSubType,
       );
       setTrackingLines(lines);
     } catch (error) {
@@ -205,11 +219,15 @@ export function PurchaseItemTrackingDialog({
     if (editingLine) {
       setIsSaving(true);
       try {
+        const OUTBOUND_SUBTYPES = new Set([3, 5]);
+        const signedQty = OUTBOUND_SUBTYPES.has(sourceSubType)
+          ? -Math.abs(quantityValue)
+          : Math.abs(quantityValue);
         await modifyItemTrackingLine({
           entryNo: editingLine.Entry_No,
           positive: editingLine.Positive ?? false,
-          quantityBase: -Math.abs(quantityValue),
-          qtyToHandlBase: -Math.abs(quantityValue),
+          quantityBase: signedQty,
+          qtyToHandlBase: signedQty,
         });
         toast.success("Item tracking updated successfully");
         onSave();
@@ -238,6 +256,7 @@ export function PurchaseItemTrackingDialog({
         quantity: quantityValue,
         lotNo: lotNo.trim(),
         expirationDate: expirationDate || undefined,
+        sourceSubType,
       });
       toast.success("Item tracking assigned successfully");
       onSave();

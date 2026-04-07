@@ -2139,88 +2139,88 @@ export function VoucherForm() {
         <Table className={tableClass}>
           <TableHeader>
             <TableRow>
-              <TableHead className={cn(colHead, "w-[140px]")}>
+              <TableHead className={cn(colHead, "w-35")}>
                 <FieldTitle required>Posting Date</FieldTitle>
               </TableHead>
-              <TableHead className={cn(colHead, "w-[140px]")}>
+              <TableHead className={cn(colHead, "w-35")}>
                 <FieldTitle required>Document Date</FieldTitle>
               </TableHead>
-              <TableHead className={cn(colHead, "w-[160px]")}>
+              <TableHead className={cn(colHead, "w-40")}>
                 <FieldTitle required>Voucher Type</FieldTitle>
               </TableHead>
-              <TableHead className={cn(colHead, "w-[160px]")}>
+              <TableHead className={cn(colHead, "w-40")}>
                 <FieldTitle required>Document Type</FieldTitle>
               </TableHead>
-              <TableHead className={cn(colHead, "w-[150px]")}>
+              <TableHead className={cn(colHead, "w-37.5")}>
                 <FieldTitle required>Account Type</FieldTitle>
               </TableHead>
-              <TableHead className={cn(colHead, "w-[160px]")}>
+              <TableHead className={cn(colHead, "w-40")}>
                 <FieldTitle required>Account No.</FieldTitle>
               </TableHead>
               {/* TDS Type header - shown when Account Type is Vendor */}
               {showAccountTds && (
-                <TableHead className={cn(colHead, "w-[160px]")}>
+                <TableHead className={cn(colHead, "w-40")}>
                   <FieldTitle>TDS Type</FieldTitle>
                 </TableHead>
               )}
               {/* TCS Type header - shown when Account Type is Customer */}
               {showAccountTcs && (
-                <TableHead className={cn(colHead, "w-[160px]")}>
+                <TableHead className={cn(colHead, "w-40")}>
                   <FieldTitle>TCS Type</FieldTitle>
                 </TableHead>
               )}
-              <TableHead className={cn(colHead, "w-[180px]")}>
+              <TableHead className={cn(colHead, "w-45")}>
                 <FieldTitle
                   required={formData.voucherType === "General Journal"}
                 >
                   External Doc No.
                 </FieldTitle>
               </TableHead>
-              <TableHead className={cn(colHead, "w-[180px]")}>
+              <TableHead className={cn(colHead, "w-45")}>
                 <FieldTitle>Description</FieldTitle>
               </TableHead>
-              <TableHead className={cn(colHead, "w-[130px] text-right")}>
+              <TableHead className={cn(colHead, "w-35 text-right")}>
                 <FieldTitle required>Amount</FieldTitle>
               </TableHead>
-              <TableHead className={cn(colHead, "w-[150px]")}>
+              <TableHead className={cn(colHead, "w-40")}>
                 <FieldTitle required>Bal. Acc Type</FieldTitle>
               </TableHead>
-              <TableHead className={cn(colHead, "w-[160px]")}>
+              <TableHead className={cn(colHead, "w-40")}>
                 <FieldTitle required>Bal. Acc No.</FieldTitle>
               </TableHead>
               {/* TDS Type header - shown when Balance Account Type is Vendor */}
               {showBalanceTds && (
-                <TableHead className={cn(colHead, "w-[160px]")}>
+                <TableHead className={cn(colHead, "w-40")}>
                   <FieldTitle>TDS Type</FieldTitle>
                 </TableHead>
               )}
               {/* TCS Type header - shown when Balance Account Type is Customer */}
               {showBalanceTcs && (
-                <TableHead className={cn(colHead, "w-[160px]")}>
+                <TableHead className={cn(colHead, "w-40")}>
                   <FieldTitle>TCS Type</FieldTitle>
                 </TableHead>
               )}
-              <TableHead className={cn(colHead, "w-[200px]")}>
+              <TableHead className={cn(colHead, "w-45")}>
                 <FieldTitle>Line Narration</FieldTitle>
               </TableHead>
-              <TableHead className={cn(colHead, "w-[160px]")}>
+              <TableHead className={cn(colHead, "w-40")}>
                 <FieldTitle required>LOB</FieldTitle>
               </TableHead>
-              <TableHead className={cn(colHead, "w-[160px]")}>
+              <TableHead className={cn(colHead, "w-40")}>
                 <FieldTitle required>Branch</FieldTitle>
               </TableHead>
-              <TableHead className={cn(colHead, "w-[160px]")}>
+              <TableHead className={cn(colHead, "w-40")}>
                 <FieldTitle required>LOC</FieldTitle>
               </TableHead>
-              <TableHead className={cn(colHead, "w-[160px]")}>
+              <TableHead className={cn(colHead, "w-40")}>
                 <FieldTitle required={isEmployeeMandatory}>Employee</FieldTitle>
               </TableHead>
-              <TableHead className={cn(colHead, "w-[160px]")}>
+              <TableHead className={cn(colHead, "w-40")}>
                 <FieldTitle required={isAssignmentMandatory}>
                   Assignment
                 </FieldTitle>
               </TableHead>
-              <TableHead className={cn(colHead, "w-[200px]")}>
+              <TableHead className={cn(colHead, "w-45")}>
                 <FieldTitle required={formData.voucherType === "Cash Payment"}>
                   Upload Files
                 </FieldTitle>
@@ -3009,9 +3009,7 @@ export function VoucherForm() {
                           key={index}
                           className="bg-muted flex items-center gap-1 rounded px-2 py-1 text-xs"
                         >
-                          <span className="max-w-[120px] truncate">
-                            {file.name}
-                          </span>
+                          <span className="max-w-30 truncate">{file.name}</span>
                           <button
                             type="button"
                             onClick={() => removeAttachment(index)}
@@ -3087,70 +3085,48 @@ export function VoucherForm() {
             <Table className={tableClass}>
               <TableHeader>
                 <TableRow>
-                  <TableHead className={cn(colHead, "w-[120px]")}>
-                    Posting
-                  </TableHead>
-                  <TableHead className={cn(colHead, "w-[120px]")}>
+                  <TableHead className={cn(colHead, "w-30")}>Posting</TableHead>
+                  <TableHead className={cn(colHead, "w-30")}>
                     Document
                   </TableHead>
-                  <TableHead className={cn(colHead, "w-[140px]")}>
-                    Voucher
-                  </TableHead>
-                  <TableHead className={cn(colHead, "w-[140px]")}>
+                  <TableHead className={cn(colHead, "w-35")}>Voucher</TableHead>
+                  <TableHead className={cn(colHead, "w-35")}>
                     Doc Type
                   </TableHead>
-                  <TableHead className={cn(colHead, "w-[130px]")}>
+                  <TableHead className={cn(colHead, "w-32.5")}>
                     Acc Type
                   </TableHead>
-                  <TableHead className={cn(colHead, "w-[140px]")}>
-                    Acc No
-                  </TableHead>
-                  <TableHead className={cn(colHead, "w-[160px]")}>
-                    Ext Doc
-                  </TableHead>
-                  <TableHead className={cn(colHead, "w-[180px]")}>
+                  <TableHead className={cn(colHead, "w-35")}>Acc No</TableHead>
+                  <TableHead className={cn(colHead, "w-40")}>Ext Doc</TableHead>
+                  <TableHead className={cn(colHead, "w-45")}>
                     Description
                   </TableHead>
-                  <TableHead className={cn(colHead, "w-[120px] text-right")}>
+                  <TableHead className={cn(colHead, "w-30 text-right")}>
                     Amount
                   </TableHead>
-                  <TableHead className={cn(colHead, "w-[130px]")}>
+                  <TableHead className={cn(colHead, "w-32.5")}>
                     Bal Type
                   </TableHead>
-                  <TableHead className={cn(colHead, "w-[140px]")}>
-                    Bal No
-                  </TableHead>
-                  <TableHead className={cn(colHead, "w-[200px]")}>
+                  <TableHead className={cn(colHead, "w-35")}>Bal No</TableHead>
+                  <TableHead className={cn(colHead, "w-50")}>
                     Narration
                   </TableHead>
-                  <TableHead className={cn(colHead, "w-[140px]")}>
-                    LOB
-                  </TableHead>
-                  <TableHead className={cn(colHead, "w-[140px]")}>
-                    Branch
-                  </TableHead>
-                  <TableHead className={cn(colHead, "w-[140px]")}>
-                    LOC
-                  </TableHead>
-                  <TableHead className={cn(colHead, "w-[140px]")}>
+                  <TableHead className={cn(colHead, "w-35")}>LOB</TableHead>
+                  <TableHead className={cn(colHead, "w-35")}>Branch</TableHead>
+                  <TableHead className={cn(colHead, "w-35")}>LOC</TableHead>
+                  <TableHead className={cn(colHead, "w-35")}>
                     Employee
                   </TableHead>
-                  <TableHead className={cn(colHead, "w-[140px]")}>
+                  <TableHead className={cn(colHead, "w-35")}>
                     Assignment
                   </TableHead>
-                  <TableHead className={cn(colHead, "w-[140px]")}>
-                    TDS
-                  </TableHead>
-                  <TableHead className={cn(colHead, "w-[140px]")}>
-                    TCS
-                  </TableHead>
-                  <TableHead className={cn(colHead, "w-[200px]")}>
+                  <TableHead className={cn(colHead, "w-35")}>TDS</TableHead>
+                  <TableHead className={cn(colHead, "w-35")}>TCS</TableHead>
+                  <TableHead className={cn(colHead, "w-50")}>
                     Upload Files
                   </TableHead>
-                  <TableHead className={cn(colHead, "w-[120px]")}>
-                    Status
-                  </TableHead>
-                  <TableHead className={cn(colHead, "w-[110px]")}>
+                  <TableHead className={cn(colHead, "w-30")}>Status</TableHead>
+                  <TableHead className={cn(colHead, "w-27.5")}>
                     Actions
                   </TableHead>
                 </TableRow>
@@ -3248,7 +3224,7 @@ export function VoucherForm() {
                                   <span
                                     key={index}
                                     className={cn(
-                                      "max-w-[150px] truncate rounded px-1.5 py-0.5 text-xs",
+                                      "max-w-37.5 truncate rounded px-1.5 py-0.5 text-xs",
                                       isFailed
                                         ? "bg-destructive/20 text-destructive border-destructive/30 border"
                                         : "bg-muted",
@@ -3426,7 +3402,7 @@ export function VoucherForm() {
                   <TableHead
                     className={cn(
                       "text-foreground/80 bg-muted sticky left-0 z-20 px-1 py-1 text-xs font-semibold",
-                      "w-[100px]",
+                      "w-25",
                     )}
                     style={{ borderRight: "2px solid hsl(var(--border))" }}
                   >
@@ -3434,8 +3410,8 @@ export function VoucherForm() {
                   </TableHead>
                   <TableHead
                     className={cn(
-                      "text-foreground/80 bg-muted sticky left-[100px] z-20 px-1 py-1 text-xs font-semibold",
-                      "w-[90px]",
+                      "text-foreground/80 bg-muted sticky left-25 z-20 px-1 py-1 text-xs font-semibold",
+                      "w-22.5",
                     )}
                     style={{ borderRight: "2px solid hsl(var(--border))" }}
                   >
@@ -3443,8 +3419,8 @@ export function VoucherForm() {
                   </TableHead>
                   <TableHead
                     className={cn(
-                      "text-foreground/80 bg-muted sticky left-[190px] z-20 px-1 py-1 text-xs font-semibold",
-                      "w-[100px]",
+                      "text-foreground/80 bg-muted sticky left-47.5 z-20 px-1 py-1 text-xs font-semibold",
+                      "w-25",
                     )}
                     style={{ borderRight: "2px solid hsl(var(--border))" }}
                   >
@@ -3453,7 +3429,7 @@ export function VoucherForm() {
                   <TableHead
                     className={cn(
                       "text-foreground/80 bg-muted/30 px-1 py-1 text-xs font-semibold",
-                      "w-[90px]",
+                      "w-22.5",
                     )}
                   >
                     Doc Type
@@ -3461,7 +3437,7 @@ export function VoucherForm() {
                   <TableHead
                     className={cn(
                       "text-foreground/80 bg-muted/30 px-1 py-1 text-xs font-semibold",
-                      "w-[90px]",
+                      "w-22.5",
                     )}
                   >
                     Acc Type
@@ -3469,7 +3445,7 @@ export function VoucherForm() {
                   <TableHead
                     className={cn(
                       "text-foreground/80 bg-muted/30 px-1 py-1 text-xs font-semibold",
-                      "w-[100px]",
+                      "w-25",
                     )}
                   >
                     Acc No
@@ -3477,7 +3453,7 @@ export function VoucherForm() {
                   <TableHead
                     className={cn(
                       "text-foreground/80 bg-muted/30 px-1 py-1 text-xs font-semibold",
-                      "w-[110px]",
+                      "w-27.5",
                     )}
                   >
                     Ext Doc
@@ -3485,7 +3461,7 @@ export function VoucherForm() {
                   <TableHead
                     className={cn(
                       "text-foreground/80 bg-muted/30 px-1 py-1 text-xs font-semibold",
-                      "w-[130px]",
+                      "w-32.5",
                     )}
                   >
                     Description
@@ -3493,7 +3469,7 @@ export function VoucherForm() {
                   <TableHead
                     className={cn(
                       "text-foreground/80 bg-muted/30 px-1 py-1 text-right text-xs font-semibold",
-                      "w-[90px]",
+                      "w-22.5",
                     )}
                   >
                     Amount
@@ -3501,7 +3477,7 @@ export function VoucherForm() {
                   <TableHead
                     className={cn(
                       "text-foreground/80 bg-muted/30 px-1 py-1 text-xs font-semibold",
-                      "w-[90px]",
+                      "w-22.5",
                     )}
                   >
                     Bal Type
@@ -3509,7 +3485,7 @@ export function VoucherForm() {
                   <TableHead
                     className={cn(
                       "text-foreground/80 bg-muted/30 px-1 py-1 text-xs font-semibold",
-                      "w-[100px]",
+                      "w-25",
                     )}
                   >
                     Bal No
@@ -3517,7 +3493,7 @@ export function VoucherForm() {
                   <TableHead
                     className={cn(
                       "text-foreground/80 bg-muted/30 px-1 py-1 text-xs font-semibold",
-                      "w-[140px]",
+                      "w-35",
                     )}
                   >
                     Narration
@@ -3525,7 +3501,7 @@ export function VoucherForm() {
                   <TableHead
                     className={cn(
                       "text-foreground/80 bg-muted/30 px-1 py-1 text-xs font-semibold",
-                      "w-[80px]",
+                      "w-20",
                     )}
                   >
                     LOB
@@ -3533,7 +3509,7 @@ export function VoucherForm() {
                   <TableHead
                     className={cn(
                       "text-foreground/80 bg-muted/30 px-1 py-1 text-xs font-semibold",
-                      "w-[90px]",
+                      "w-22.5",
                     )}
                   >
                     Branch
@@ -3541,7 +3517,7 @@ export function VoucherForm() {
                   <TableHead
                     className={cn(
                       "text-foreground/80 bg-muted/30 px-1 py-1 text-xs font-semibold",
-                      "w-[80px]",
+                      "w-20",
                     )}
                   >
                     LOC
@@ -3549,7 +3525,7 @@ export function VoucherForm() {
                   <TableHead
                     className={cn(
                       "text-foreground/80 bg-muted/30 px-1 py-1 text-xs font-semibold",
-                      "w-[90px]",
+                      "w-22.5",
                     )}
                   >
                     Employee
@@ -3557,7 +3533,7 @@ export function VoucherForm() {
                   <TableHead
                     className={cn(
                       "text-foreground/80 bg-muted/30 px-1 py-1 text-xs font-semibold",
-                      "w-[100px]",
+                      "w-25",
                     )}
                   >
                     Assignment
@@ -3565,7 +3541,7 @@ export function VoucherForm() {
                   <TableHead
                     className={cn(
                       "text-foreground/80 bg-muted/30 px-1 py-1 text-xs font-semibold",
-                      "w-[80px]",
+                      "w-20",
                     )}
                   >
                     TDS
@@ -3573,7 +3549,7 @@ export function VoucherForm() {
                   <TableHead
                     className={cn(
                       "text-foreground/80 bg-muted/30 px-1 py-1 text-xs font-semibold",
-                      "w-[80px]",
+                      "w-20",
                     )}
                   >
                     TCS
@@ -3581,7 +3557,7 @@ export function VoucherForm() {
                   <TableHead
                     className={cn(
                       "text-foreground/80 bg-muted/30 px-1 py-1 text-xs font-semibold",
-                      "w-[60px]",
+                      "w-15",
                     )}
                   >
                     Tax
@@ -3589,7 +3565,7 @@ export function VoucherForm() {
                   <TableHead
                     className={cn(
                       "text-foreground/80 bg-muted/30 px-1 py-1 text-xs font-semibold",
-                      "w-[100px]",
+                      "w-25",
                     )}
                   >
                     User ID
@@ -3597,7 +3573,7 @@ export function VoucherForm() {
                   <TableHead
                     className={cn(
                       "text-foreground/80 bg-muted/30 px-1 py-1 text-xs font-semibold",
-                      "w-[80px]",
+                      "w-20",
                     )}
                   >
                     Actions
@@ -3630,7 +3606,7 @@ export function VoucherForm() {
                           </TableCell>
                           <TableCell
                             className={cn(
-                              "bg-background sticky left-[100px] z-20 px-1 py-0.5 text-xs",
+                              "bg-background sticky left-25 z-20 px-1 py-0.5 text-xs",
                             )}
                             style={{
                               borderRight: "2px solid hsl(var(--border))",
@@ -3640,7 +3616,7 @@ export function VoucherForm() {
                           </TableCell>
                           <TableCell
                             className={cn(
-                              "bg-background sticky left-[190px] z-20 px-1 py-0.5 text-xs",
+                              "bg-background sticky left-48 z-20 px-1 py-0.5 text-xs",
                             )}
                             style={{
                               borderRight: "2px solid hsl(var(--border))",
@@ -3875,7 +3851,7 @@ export function VoucherForm() {
                                                 key={key}
                                                 className="flex gap-3 py-0.5"
                                               >
-                                                <span className="min-w-[150px] font-medium">
+                                                <span className="min-w-37.5 font-medium">
                                                   {key}:
                                                 </span>
                                                 <span className="flex-1">

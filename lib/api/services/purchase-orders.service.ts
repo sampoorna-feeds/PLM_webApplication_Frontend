@@ -6,7 +6,7 @@
 import { apiGet, apiPost, apiPatch, apiDelete } from "../client";
 import { buildODataQuery } from "../endpoints";
 import type { ODataResponse } from "../types";
-import { stripEmptyValues } from "./purchase-header-payload";
+import { stripNullish } from "./purchase-header-payload";
 
 const COMPANY =
   process.env.NEXT_PUBLIC_API_COMPANY || "Sampoorna Feeds Pvt. Ltd";
@@ -500,7 +500,7 @@ export async function patchPurchaseOrderHeader(
 ): Promise<unknown> {
   const escapedNo = orderNo.replace(/'/g, "''");
   const endpoint = `/PurchaseOrder(Document_Type='Order',No='${encodeURIComponent(escapedNo)}')?company='${encodeURIComponent(COMPANY)}'`;
-  const payload = stripEmptyValues(body);
+  const payload = stripNullish(body);
   return apiPatch<unknown>(endpoint, payload);
 }
 
@@ -545,7 +545,7 @@ export async function updatePurchaseLine(
 ): Promise<unknown> {
   const escapedNo = documentNo.replace(/'/g, "''");
   const endpoint = `/PurchaseLine(Document_Type='Order',Document_No='${encodeURIComponent(escapedNo)}',Line_No=${lineNo})?company='${encodeURIComponent(COMPANY)}'`;
-  const payload = stripEmptyValues(body);
+  const payload = stripNullish(body);
   return apiPatch<unknown>(endpoint, payload);
 }
 
@@ -611,17 +611,25 @@ export interface AssignPurchaseItemTrackingParams {
   quantity: number;
   lotNo: string;
   expirationDate?: string;
+  /** BC Source_Subtype: 1=Order, 2=Invoice, 3=Credit Memo, 5=Return Order */
+  sourceSubType?: number;
 }
 
+/** Outbound purchase subtypes (credit-memo=3, return-order=5) require negative quantities */
+const OUTBOUND_SUBTYPES = new Set([3, 5]);
+
 /**
- * Assign item tracking (lot) to a purchase order line.
- * POST API_TrackingAssign with sourceType 37, sourceSubType 1; quantity and qtytoHandle are negative.
+ * Assign item tracking (lot) to a purchase document line.
+ * Inbound (order/invoice): quantity is positive. Outbound (return-order/credit-memo): negative.
  */
 export async function assignPurchaseItemTracking(
   params: AssignPurchaseItemTrackingParams,
 ): Promise<unknown> {
   const endpoint = `/API_TrackingAssign?company='${encodeURIComponent(COMPANY)}'`;
-  const qty = Math.abs(params.quantity);
+  const subType = params.sourceSubType ?? 1;
+  const qty = OUTBOUND_SUBTYPES.has(subType)
+    ? -Math.abs(params.quantity)
+    : Math.abs(params.quantity);
   const payload = {
     itemNo: params.itemNo,
     locationCode: params.locationCode,
@@ -629,7 +637,7 @@ export async function assignPurchaseItemTracking(
     qtytoHandle: qty,
     sourceProdOrderLine: 0,
     sourceType: 39,
-    sourceSubType: 1,
+    sourceSubType: subType,
     sourceID: params.orderNo,
     sourceBatch: "",
     sourcerefNo: params.lineNo,
@@ -656,6 +664,8 @@ export async function getPurchaseItemTrackingLines(
   lineNo: number,
   itemNo: string,
   locationCode: string,
+  /** BC Source_Subtype: 1=Order, 2=Invoice, 3=Credit Memo, 5=Return Order */
+  sourceSubType: number = 1,
 ): Promise<PurchaseItemTrackingLine[]> {
   const filter = [
     `Source_ID eq '${escapeODataString(orderNo)}'`,
@@ -663,7 +673,7 @@ export async function getPurchaseItemTrackingLines(
     `Item_No eq '${escapeODataString(itemNo)}'`,
     `Location_Code eq '${escapeODataString(locationCode)}'`,
     "Source_Type eq 39",
-    "Source_Subtype eq '1'",
+    `Source_Subtype eq '${sourceSubType}'`,
   ].join(" and ");
   const query = buildODataQuery({ $filter: filter });
   const endpoint = `/ItemTrackingLine?company='${encodeURIComponent(COMPANY)}'&${query}`;

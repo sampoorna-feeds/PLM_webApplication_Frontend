@@ -135,7 +135,7 @@ const PURCHASE_DOCUMENT_CONFIG: Record<
       supportsAppliesToFields: true,
       supportsOrderDate: false,
       supportsAdvancedOperations: false,
-      supportsQcType: true,
+      supportsQcType: false,
       supportsRateBasis: true,
       supportsGetPostedLine: false,
     },

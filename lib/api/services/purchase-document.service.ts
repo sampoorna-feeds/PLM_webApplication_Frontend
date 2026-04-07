@@ -14,6 +14,7 @@ import type { PurchaseLine, PurchaseOrder } from "./purchase-orders.service";
 import {
   buildPurchaseHeaderPayload,
   stripEmptyValues,
+  stripNullish,
   type PurchaseDocumentHeaderType,
   type RequiredPurchaseHeaderField,
 } from "./purchase-header-payload";
@@ -36,6 +37,7 @@ interface PurchaseDocumentAdapterConfig {
   documentTypeValue: PurchaseDocumentHeaderType;
   requiredCreateFields: RequiredPurchaseHeaderField[];
   logPrefix: string;
+  includeQcType: boolean;
 }
 
 interface CreateHeaderApiResponse {
@@ -58,6 +60,7 @@ const PURCHASE_DOCUMENT_ADAPTER_CONFIG: Record<
       "Applies_to_Doc_No",
     ],
     logPrefix: "PI",
+    includeQcType: false,
   },
   "return-order": {
     headerEntity: "PurchaseReturnOrderHeader",
@@ -70,6 +73,7 @@ const PURCHASE_DOCUMENT_ADAPTER_CONFIG: Record<
       "Applies_to_Doc_No",
     ],
     logPrefix: "PRO",
+    includeQcType: false,
   },
   "credit-memo": {
     headerEntity: "PurchaseCreditMemoHeader",
@@ -82,6 +86,7 @@ const PURCHASE_DOCUMENT_ADAPTER_CONFIG: Record<
       "Applies_to_Doc_No",
     ],
     logPrefix: "PCM",
+    includeQcType: true,
   },
 };
 
@@ -101,6 +106,7 @@ export async function createPurchaseDocumentHeader(
     includeVendorAuthorizationNo: true,
     includeAppliesToFields: true,
     includeOrderAddressState: true,
+    includeQcType: config.includeQcType,
     stripEmpty: true,
     requiredFields: config.requiredCreateFields,
   });
@@ -173,7 +179,7 @@ export async function patchPurchaseDocumentHeaderByNo(
   const config = PURCHASE_DOCUMENT_ADAPTER_CONFIG[documentType];
   const escapedNo = documentNo.replace(/'/g, "''");
   const endpoint = `/${config.headerEntity}(Document_Type='${config.documentTypeValue}',No='${encodeURIComponent(escapedNo)}')?company='${encodeURIComponent(COMPANY)}'`;
-  const payload = stripEmptyValues(body);
+  const payload = stripNullish(body);
 
   return apiPatch<unknown>(endpoint, payload);
 }
@@ -246,7 +252,7 @@ export async function patchPurchaseDocumentLineByKey(
   const config = PURCHASE_DOCUMENT_ADAPTER_CONFIG[documentType];
   const escapedNo = documentNo.replace(/'/g, "''");
   const endpoint = `/${config.lineEntity}(Document_Type='${config.documentTypeValue}',Document_No='${encodeURIComponent(escapedNo)}',Line_No=${lineNo})?company='${encodeURIComponent(COMPANY)}'`;
-  const payload = stripEmptyValues(body);
+  const payload = stripNullish(body);
   return apiPatch<unknown>(endpoint, payload);
 }
 

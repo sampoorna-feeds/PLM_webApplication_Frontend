@@ -150,7 +150,7 @@ export function PurchaseOrderLineDialog({
     () => getPurchaseLineQuantityConfig(documentType),
     [documentType],
   );
-  const showQtyColumns = documentType === "order" || documentType === "return-order";
+  const showQtyColumns = isEdit && (documentType === "order" || documentType === "return-order");
 
   const fieldInputClass =
     "disabled:opacity-100 disabled:text-foreground font-medium text-xs disabled:pointer-events-none";
@@ -720,32 +720,26 @@ export function PurchaseOrderLineDialog({
                     />
                   </ClearableField>
                 )}
-                {formState.description && (
-                  <p className="mt-1 pl-1 text-[10px] font-medium text-green-600">
-                    {formState.description}
-                  </p>
-                )}
               </div>
             )}
 
-            {formState.type === "" && (
-              <div className="space-y-1 sm:col-span-2">
-                <FieldTitle>Description</FieldTitle>
-                <ClearableField
+            {/* Description — full width, always shown after item selector */}
+            <div className="space-y-1 sm:col-span-2">
+              <FieldTitle>Description</FieldTitle>
+              <ClearableField
+                value={formState.description || ""}
+                onClear={() => handleFieldChange("description", "")}
+              >
+                <Input
                   value={formState.description || ""}
-                  onClear={() => handleFieldChange("description", "")}
-                >
-                  <Input
-                    value={formState.description || ""}
-                    onChange={(e) =>
-                      handleFieldChange("description", e.target.value)
-                    }
-                    placeholder="Enter description"
-                    className={fieldInputClass}
-                  />
-                </ClearableField>
-              </div>
-            )}
+                  onChange={(e) =>
+                    handleFieldChange("description", e.target.value)
+                  }
+                  placeholder="Enter description"
+                  className={fieldInputClass}
+                />
+              </ClearableField>
+            </div>
 
             {isItemType && (
               <div className="space-y-1">

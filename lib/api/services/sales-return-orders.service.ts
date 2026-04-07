@@ -405,6 +405,18 @@ export function stripEmptyValues(
   );
 }
 
+function stripNullish(obj: Record<string, unknown>): Record<string, unknown> {
+  return Object.entries(obj).reduce(
+    (acc, [key, value]) => {
+      if (value !== undefined && value !== null) {
+        acc[key] = value;
+      }
+      return acc;
+    },
+    {} as Record<string, unknown>,
+  );
+}
+
 function escapeODataValue(value: string): string {
   return value.replace(/'/g, "''");
 }
@@ -491,7 +503,7 @@ export async function patchSalesOrderHeader(
 ): Promise<unknown> {
   const escapedNo = orderNo.replace(/'/g, "''");
   const endpoint = `/${HEADER_ENTITY}(Document_Type='${encodeURIComponent(DOCUMENT_TYPE)}',No='${encodeURIComponent(escapedNo)}')?company='${encodeURIComponent(COMPANY)}'`;
-  const payload = stripEmptyValues(body);
+  const payload = stripNullish(body);
   return apiPatch<unknown>(endpoint, payload);
 }
 
@@ -536,7 +548,7 @@ export async function updateSalesLine(
 ): Promise<unknown> {
   const escapedNo = documentNo.replace(/'/g, "''");
   const endpoint = `/${LINE_ENTITY}(Document_Type='${encodeURIComponent(DOCUMENT_TYPE)}',Document_No='${encodeURIComponent(escapedNo)}',Line_No=${lineNo})?company='${encodeURIComponent(COMPANY)}'`;
-  const payload = stripEmptyValues(body);
+  const payload = stripNullish(body);
   return apiPatch<unknown>(endpoint, payload);
 }
 

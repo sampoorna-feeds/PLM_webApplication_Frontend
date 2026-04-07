@@ -57,7 +57,6 @@ import {
 } from "./purchase-document-line-items-data";
 import { getAuthCredentials } from "@/lib/auth/storage";
 import { getErrorMessage } from "@/lib/errors";
-import { getVendorTDSGroupCodes } from "@/lib/api/services/tds.service";
 import type { LineItem } from "@/components/forms/purchase/purchase-line-item.type";
 import { PurchaseLineItemsTable } from "./purchase-line-items-table";
 import {
@@ -528,11 +527,6 @@ export function PurchaseCreateDocumentFormContent({
     dueDateCalculation: "Posting Date",
     lineNarration: "",
   });
-  const [postTdsOptions, setPostTdsOptions] = useState<
-    import("@/components/ui/searchable-select").SearchableSelectOption[]
-  >([]);
-  const [postTdsLoading, setPostTdsLoading] = useState(false);
-  const [postTdsSection, setPostTdsSection] = useState("");
   const [isReceiptOpen, setIsReceiptOpen] = useState(false);
   const [isReceiptLoading, setIsReceiptLoading] = useState(false);
   const [receiptShipments, setReceiptShipments] = useState<PurchaseReceipt[]>(
@@ -984,6 +978,7 @@ export function PurchaseCreateDocumentFormContent({
       includeInvoiceType: capabilities.supportsInvoiceType,
       includeVendorAuthorizationNo: capabilities.supportsVendorAuthorizationNo,
       includeAppliesToFields: capabilities.supportsAppliesToFields,
+      includeQcType: capabilities.supportsQcType,
       primaryVendorRefField: config.primaryVendorRefField,
     });
   };
@@ -1161,27 +1156,6 @@ export function PurchaseCreateDocumentFormContent({
           dueDateCalculation: "Posting Date",
           lineNarration: "",
         });
-        // Pre-populate TDS section from existing lines (use first non-empty value found)
-        const existingTds = purchaseLines
-          .filter((l) => (l.Type || "").trim() !== "")
-          .map((l) => l.TDS_Section_Code || "")
-          .find((v) => v !== "") || "";
-        setPostTdsSection(existingTds);
-        // Fetch TDS options for this vendor
-        if (formData.vendorNo) {
-          setPostTdsLoading(true);
-          getVendorTDSGroupCodes(formData.vendorNo)
-            .then((res) =>
-              setPostTdsOptions(
-                res.map((r) => ({
-                  value: r.TDS_Section || "",
-                  label: `${r.TDS_Section} - ${r.TDS_Section_Description || ""}`,
-                })),
-              ),
-            )
-            .catch(() => setPostTdsOptions([]))
-            .finally(() => setPostTdsLoading(false));
-        }
         setIsPostDetailsOpen(true);
       } else {
         setPostOption(null);
@@ -1270,13 +1244,6 @@ export function PurchaseCreateDocumentFormContent({
       documentType === "invoice" ||
       documentType === "credit-memo";
 
-    // Validate TDS section for invoice-type posts
-    const typedLines = purchaseLines.filter((l) => (l.Type || "").trim() !== "");
-    if (isInvoiceOption && typedLines.length > 0 && !postTdsSection) {
-      toast.error("TDS Section is required before posting.");
-      return;
-    }
-
     setIsPostLoading(true);
     try {
       const patchPayload: Record<string, unknown> = {
@@ -1291,16 +1258,6 @@ export function PurchaseCreateDocumentFormContent({
         patchPayload.Line_Narration1 = postDetails.lineNarration || "";
       }
       await config.updateHeader(createdOrderNo, patchPayload);
-      // Patch TDS section on all typed lines
-      if (isInvoiceOption && postTdsSection && typedLines.length > 0) {
-        const docTypeKey =
-          documentType as import("@/lib/api/services/purchase-document.service").PurchaseDocumentAdapterType;
-        for (const l of typedLines) {
-          await patchPurchaseDocumentLineByKey(docTypeKey, createdOrderNo, l.Line_No!, {
-            TDS_Section_Code: postTdsSection,
-          });
-        }
-      }
       const optMap: Record<string, "1" | "2" | "3"> = {
         receive: "1",
         invoice: "2",
@@ -1311,7 +1268,12 @@ export function PurchaseCreateDocumentFormContent({
       await postPurchaseOrder(createdOrderNo, optMap[postOption]);
       toast.success(`${config.displayTitle} posted successfully.`);
       setIsPostDetailsOpen(false);
-      await refreshHydratedDocument();
+      try {
+        await refreshHydratedDocument();
+      } catch {
+        // Document may no longer be accessible at this endpoint after posting
+        // (e.g. invoices/credit-memos move to posted state) — ignore silently
+      }
       onSuccess(createdOrderNo);
     } catch (err) {
       setPlaceOrderError((err as Error).message ?? "Post failed.");
@@ -2536,14 +2498,11 @@ export function PurchaseCreateDocumentFormContent({
           documentType={documentType}
           orderNo={createdOrderNo}
           vendorNo={formData.vendorNo}
-          onAssignTracking={
-            documentType === "order"
-              ? (line) => {
-                  setTrackingLine(line);
-                  setIsTrackingOpen(true);
-                }
-              : undefined
-          }
+          hasTracking={selectedLine.Type === "Item"}
+          onAssignTracking={(line) => {
+            setTrackingLine(line);
+            setIsTrackingOpen(true);
+          }}
           onOpenItemCharge={(line) => {
             setSelectedItemChargeLine(line);
             setIsItemChargeOpen(true);
@@ -2598,13 +2557,14 @@ export function PurchaseCreateDocumentFormContent({
         />
       )}
 
-      {documentType === "order" && isTrackingOpen && trackingLine && (
+      {isTrackingOpen && trackingLine && (
         <PurchaseItemTrackingDialog
           open={isTrackingOpen}
           onOpenChange={setIsTrackingOpen}
           line={trackingLine}
           orderNo={createdOrderNo}
           locationCode={formData.locationCode || formData.loc || ""}
+          documentType={documentType}
           onSave={() => {
             if (createdOrderNo) fetchLines(createdOrderNo);
           }}
@@ -2681,32 +2641,6 @@ export function PurchaseCreateDocumentFormContent({
                     dueDateCalculation: "Posting Date",
                     lineNarration: "",
                   });
-                  // Initialize TDS section for invoice-type post options
-                  const isInvoicePost =
-                    postOption === "invoice" ||
-                    postOption === "receive-invoice" ||
-                    postOption === "ship-invoice";
-                  if (isInvoicePost) {
-                    const existingTds = purchaseLines
-                      .filter((l) => (l.Type || "").trim() !== "")
-                      .map((l) => l.TDS_Section_Code || "")
-                      .find((v) => v !== "") || "";
-                    setPostTdsSection(existingTds);
-                    if (formData.vendorNo) {
-                      setPostTdsLoading(true);
-                      getVendorTDSGroupCodes(formData.vendorNo)
-                        .then((res) =>
-                          setPostTdsOptions(
-                            res.map((r) => ({
-                              value: r.TDS_Section || "",
-                              label: `${r.TDS_Section} - ${r.TDS_Section_Description || ""}`,
-                            })),
-                          ),
-                        )
-                        .catch(() => setPostTdsOptions([]))
-                        .finally(() => setPostTdsLoading(false));
-                    }
-                  }
                   setIsPostDialogOpen(false);
                   setIsPostDetailsOpen(true);
                 }}
@@ -2818,27 +2752,6 @@ export function PurchaseCreateDocumentFormContent({
                     className="h-8"
                   />
                 </div>
-                {/* TDS Section */}
-                {purchaseLines.filter((l) => (l.Type || "").trim() !== "")
-                  .length > 0 && (
-                  <div className="space-y-1 sm:col-span-2">
-                    <Label className="text-xs font-semibold">TDS Section</Label>
-                    <ClearableField
-                      value={postTdsSection}
-                      onClear={() => setPostTdsSection("")}
-                    >
-                      <SearchableSelect
-                        value={postTdsSection}
-                        onValueChange={setPostTdsSection}
-                        options={postTdsOptions}
-                        isLoading={postTdsLoading}
-                        placeholder="Select TDS Section..."
-                        searchPlaceholder="Search TDS Section..."
-                        allowCustomValue={true}
-                      />
-                    </ClearableField>
-                  </div>
-                )}
               </>
             )}
           </div>

@@ -57,6 +57,8 @@ interface CommentFormProps {
   autoFocus?: boolean;
 }
 
+const COMMENT_MAX = 80;
+
 function CommentForm({
   initialText = "",
   initialDate,
@@ -69,6 +71,9 @@ function CommentForm({
   const [text, setText] = useState(initialText);
   const [date, setDate] = useState(initialDate ?? today());
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const remaining = COMMENT_MAX - text.length;
+  const isOverLimit = remaining < 0;
 
   useEffect(() => {
     if (autoFocus) textareaRef.current?.focus();
@@ -86,8 +91,20 @@ function CommentForm({
           onChange={(e) => setText(e.target.value)}
           placeholder="Write your comment here…"
           rows={3}
-          className="resize-none text-sm leading-relaxed"
+          maxLength={COMMENT_MAX}
+          className={cn(
+            "resize-none text-sm leading-relaxed",
+            isOverLimit && "border-destructive focus-visible:ring-destructive",
+          )}
         />
+        <div className="flex justify-end">
+          <span className={cn(
+            "text-xs tabular-nums",
+            remaining <= 10 ? "text-destructive font-medium" : "text-muted-foreground",
+          )}>
+            {text.length}/{COMMENT_MAX}
+          </span>
+        </div>
       </div>
 
       <div className="flex items-end justify-between gap-3">
@@ -121,7 +138,7 @@ function CommentForm({
             size="sm"
             className="h-8 px-3"
             onClick={() => onSave(text.trim(), date)}
-            disabled={isSaving || !text.trim()}
+            disabled={isSaving || !text.trim() || isOverLimit}
           >
             {isSaving ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" />

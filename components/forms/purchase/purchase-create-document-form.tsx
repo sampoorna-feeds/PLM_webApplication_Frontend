@@ -57,9 +57,17 @@ import {
 } from "./purchase-document-line-items-data";
 import { getAuthCredentials } from "@/lib/auth/storage";
 import { getErrorMessage } from "@/lib/errors";
+import { getVendorTDSGroupCodes } from "@/lib/api/services/tds.service";
 import type { LineItem } from "@/components/forms/purchase/purchase-line-item.type";
 import { PurchaseLineItemsTable } from "./purchase-line-items-table";
-import { Plus, FileText, Paperclip, LoaderCircleIcon, Copy, MessageSquare } from "lucide-react";
+import {
+  Plus,
+  FileText,
+  Paperclip,
+  LoaderCircleIcon,
+  Copy,
+  MessageSquare,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ClearableField } from "@/components/ui/clearable-field";
 import { RequestFailedDialog } from "@/components/ui/request-failed-dialog";
@@ -178,6 +186,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 
 export type PurchaseCreateDocumentType =
   | "order"
@@ -519,6 +528,11 @@ export function PurchaseCreateDocumentFormContent({
     dueDateCalculation: "Posting Date",
     lineNarration: "",
   });
+  const [postTdsOptions, setPostTdsOptions] = useState<
+    import("@/components/ui/searchable-select").SearchableSelectOption[]
+  >([]);
+  const [postTdsLoading, setPostTdsLoading] = useState(false);
+  const [postTdsSection, setPostTdsSection] = useState("");
   const [isReceiptOpen, setIsReceiptOpen] = useState(false);
   const [isReceiptLoading, setIsReceiptLoading] = useState(false);
   const [receiptShipments, setReceiptShipments] = useState<PurchaseReceipt[]>(
@@ -551,7 +565,10 @@ export function PurchaseCreateDocumentFormContent({
   // Fetch LOC dimension name whenever the LOC field changes (on load and on user select)
   useEffect(() => {
     const loc = formData.loc;
-    if (!loc) { setLocationName(""); return; }
+    if (!loc) {
+      setLocationName("");
+      return;
+    }
     getDimensionValueName("LOC", loc)
       .then(setLocationName)
       .catch(() => setLocationName(""));
@@ -1144,6 +1161,27 @@ export function PurchaseCreateDocumentFormContent({
           dueDateCalculation: "Posting Date",
           lineNarration: "",
         });
+        // Pre-populate TDS section from existing lines (use first non-empty value found)
+        const existingTds = purchaseLines
+          .filter((l) => (l.Type || "").trim() !== "")
+          .map((l) => l.TDS_Section_Code || "")
+          .find((v) => v !== "") || "";
+        setPostTdsSection(existingTds);
+        // Fetch TDS options for this vendor
+        if (formData.vendorNo) {
+          setPostTdsLoading(true);
+          getVendorTDSGroupCodes(formData.vendorNo)
+            .then((res) =>
+              setPostTdsOptions(
+                res.map((r) => ({
+                  value: r.TDS_Section || "",
+                  label: `${r.TDS_Section} - ${r.TDS_Section_Description || ""}`,
+                })),
+              ),
+            )
+            .catch(() => setPostTdsOptions([]))
+            .finally(() => setPostTdsLoading(false));
+        }
         setIsPostDetailsOpen(true);
       } else {
         setPostOption(null);
@@ -1167,11 +1205,14 @@ export function PurchaseCreateDocumentFormContent({
   };
 
   // ── PO-only Handlers ─────────────────────────────────────────────────
-  const fetchLines = useCallback(async (docNo: string) => {
-    const lines = await config.fetchLines(docNo);
-    setPurchaseLines(lines);
-    setLineItems(lines.map(mapPurchaseLineToLineItem));
-  }, [config]);
+  const fetchLines = useCallback(
+    async (docNo: string) => {
+      const lines = await config.fetchLines(docNo);
+      setPurchaseLines(lines);
+      setLineItems(lines.map(mapPurchaseLineToLineItem));
+    },
+    [config],
+  );
 
   const base64ToPdfBlob = (b64: string) => {
     const bin = atob(b64);
@@ -1222,14 +1263,22 @@ export function PurchaseCreateDocumentFormContent({
       toast.error("Document Date is required.");
       return;
     }
+    const isInvoiceOption =
+      postOption === "invoice" ||
+      postOption === "receive-invoice" ||
+      postOption === "ship-invoice" ||
+      documentType === "invoice" ||
+      documentType === "credit-memo";
+
+    // Validate TDS section for invoice-type posts
+    const typedLines = purchaseLines.filter((l) => (l.Type || "").trim() !== "");
+    if (isInvoiceOption && typedLines.length > 0 && !postTdsSection) {
+      toast.error("TDS Section is required before posting.");
+      return;
+    }
+
     setIsPostLoading(true);
     try {
-      const isInvoiceOption =
-        postOption === "invoice" ||
-        postOption === "receive-invoice" ||
-        postOption === "ship-invoice" ||
-        documentType === "invoice" ||
-        documentType === "credit-memo";
       const patchPayload: Record<string, unknown> = {
         Posting_Date: postDetails.postingDate,
         Document_Date: postDetails.documentDate,
@@ -1242,6 +1291,16 @@ export function PurchaseCreateDocumentFormContent({
         patchPayload.Line_Narration1 = postDetails.lineNarration || "";
       }
       await config.updateHeader(createdOrderNo, patchPayload);
+      // Patch TDS section on all typed lines
+      if (isInvoiceOption && postTdsSection && typedLines.length > 0) {
+        const docTypeKey =
+          documentType as import("@/lib/api/services/purchase-document.service").PurchaseDocumentAdapterType;
+        for (const l of typedLines) {
+          await patchPurchaseDocumentLineByKey(docTypeKey, createdOrderNo, l.Line_No!, {
+            TDS_Section_Code: postTdsSection,
+          });
+        }
+      }
       const optMap: Record<string, "1" | "2" | "3"> = {
         receive: "1",
         invoice: "2",
@@ -1312,7 +1371,8 @@ export function PurchaseCreateDocumentFormContent({
                     {capabilities.supportsPoType && (
                       <div className={fieldClass}>
                         <label className={labelClass}>PO Type</label>
-                        <ClearableField readOnly={areFieldsReadOnly}
+                        <ClearableField
+                          readOnly={areFieldsReadOnly}
                           value={formData.poType}
                           onClear={() => handleInputChange("poType", "")}
                         >
@@ -1337,7 +1397,8 @@ export function PurchaseCreateDocumentFormContent({
                       formData.poType === "Service" && (
                         <div className={fieldClass}>
                           <label className={labelClass}>Service Type</label>
-                          <ClearableField readOnly={areFieldsReadOnly}
+                          <ClearableField
+                            readOnly={areFieldsReadOnly}
                             value={formData.serviceType}
                             onClear={() => handleInputChange("serviceType", "")}
                           >
@@ -1366,7 +1427,8 @@ export function PurchaseCreateDocumentFormContent({
                     {/* Dimensions */}
                     <div className={fieldClass}>
                       <label className={labelClass}>LOB</label>
-                      <ClearableField readOnly={areFieldsReadOnly}
+                      <ClearableField
+                        readOnly={areFieldsReadOnly}
                         value={formData.lob}
                         onClear={() => handleInputChange("lob", "")}
                       >
@@ -1382,7 +1444,8 @@ export function PurchaseCreateDocumentFormContent({
                     </div>
                     <div className={fieldClass}>
                       <label className={labelClass}>Branch</label>
-                      <ClearableField readOnly={areFieldsReadOnly}
+                      <ClearableField
+                        readOnly={areFieldsReadOnly}
                         value={formData.branch}
                         onClear={() => handleInputChange("branch", "")}
                       >
@@ -1401,7 +1464,8 @@ export function PurchaseCreateDocumentFormContent({
                     </div>
                     <div className={fieldClass}>
                       <label className={labelClass}>LOC</label>
-                      <ClearableField readOnly={areFieldsReadOnly}
+                      <ClearableField
+                        readOnly={areFieldsReadOnly}
                         value={formData.loc}
                         onClear={() => handleInputChange("loc", "")}
                       >
@@ -1430,11 +1494,12 @@ export function PurchaseCreateDocumentFormContent({
                         className="bg-muted h-8 text-xs"
                         readOnly
                       />
-                      {locationName && (formData.locationCode || formData.loc) && (
-                        <p className="mt-0.5 truncate pl-1 text-[10px] font-medium text-green-600">
-                          {locationName}
-                        </p>
-                      )}
+                      {locationName &&
+                        (formData.locationCode || formData.loc) && (
+                          <p className="mt-0.5 truncate pl-1 text-[10px] font-medium text-green-600">
+                            {locationName}
+                          </p>
+                        )}
                     </div>
                   </div>
                 </section>
@@ -1461,7 +1526,8 @@ export function PurchaseCreateDocumentFormContent({
                     {capabilities.supportsInvoiceType && (
                       <div className={fieldClass}>
                         <label className={labelClass}>Invoice Type</label>
-                        <ClearableField readOnly={areFieldsReadOnly}
+                        <ClearableField
+                          readOnly={areFieldsReadOnly}
                           value={formData.invoiceType}
                           onClear={() => handleInputChange("invoiceType", "")}
                         >
@@ -1487,7 +1553,8 @@ export function PurchaseCreateDocumentFormContent({
                     )}
                     <div className={fieldClass}>
                       <label className={labelClass}>Vendor</label>
-                      <ClearableField readOnly={areFieldsReadOnly}
+                      <ClearableField
+                        readOnly={areFieldsReadOnly}
                         value={formData.vendorNo}
                         onClear={() => handleVendorChange("", undefined)}
                       >
@@ -1527,7 +1594,8 @@ export function PurchaseCreateDocumentFormContent({
                       <label className={labelClass}>
                         {config.primaryVendorRefLabel}
                       </label>
-                      <ClearableField readOnly={areFieldsReadOnly}
+                      <ClearableField
+                        readOnly={areFieldsReadOnly}
                         value={formData[config.primaryVendorRefField]}
                         onClear={() =>
                           handleInputChange(config.primaryVendorRefField, "")
@@ -1549,7 +1617,8 @@ export function PurchaseCreateDocumentFormContent({
                     {capabilities.supportsVendorAuthorizationNo && (
                       <div className={fieldClass}>
                         <label className={labelClass}>Vendor Auth. No.</label>
-                        <ClearableField readOnly={areFieldsReadOnly}
+                        <ClearableField
+                          readOnly={areFieldsReadOnly}
                           value={formData.vendorAuthorizationNo}
                           onClear={() =>
                             handleInputChange("vendorAuthorizationNo", "")
@@ -1574,7 +1643,8 @@ export function PurchaseCreateDocumentFormContent({
                         <label className={labelClass}>
                           Applies-to Doc. Type
                         </label>
-                        <ClearableField readOnly={areFieldsReadOnly}
+                        <ClearableField
+                          readOnly={areFieldsReadOnly}
                           value={formData.appliesToDocType}
                           onClear={() =>
                             handleInputChange("appliesToDocType", "")
@@ -1602,7 +1672,8 @@ export function PurchaseCreateDocumentFormContent({
                         <label className={labelClass}>
                           Applies-to Doc. No.
                         </label>
-                        <ClearableField readOnly={areFieldsReadOnly}
+                        <ClearableField
+                          readOnly={areFieldsReadOnly}
                           value={formData.appliesToDocNo}
                           onClear={() =>
                             handleInputChange("appliesToDocNo", "")
@@ -1626,7 +1697,8 @@ export function PurchaseCreateDocumentFormContent({
                       className={`${fieldClass} ${config.orderAddressGridClass}`}
                     >
                       <label className={labelClass}>Order Address Select</label>
-                      <ClearableField readOnly={areFieldsReadOnly}
+                      <ClearableField
+                        readOnly={areFieldsReadOnly}
                         value={formData.orderAddressCode}
                         onClear={() =>
                           setFormData((prev) => ({
@@ -1652,7 +1724,8 @@ export function PurchaseCreateDocumentFormContent({
                     </div>
                     <div className={fieldClass}>
                       <label className={labelClass}>Brokerage Code</label>
-                      <ClearableField readOnly={areFieldsReadOnly}
+                      <ClearableField
+                        readOnly={areFieldsReadOnly}
                         value={formData.brokerNo}
                         onClear={() =>
                           setFormData((prev) => ({
@@ -1681,7 +1754,8 @@ export function PurchaseCreateDocumentFormContent({
                     </div>
                     <div className={fieldClass}>
                       <label className={labelClass}>Brokerage Rate</label>
-                      <ClearableField readOnly={areFieldsReadOnly}
+                      <ClearableField
+                        readOnly={areFieldsReadOnly}
                         value={formData.brokerageRate}
                         onClear={() => handleInputChange("brokerageRate", "")}
                       >
@@ -1724,7 +1798,8 @@ export function PurchaseCreateDocumentFormContent({
                   <div className="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
                     <div className={fieldClass}>
                       <label className={labelClass}>Purchaser Code</label>
-                      <ClearableField readOnly={areFieldsReadOnly}
+                      <ClearableField
+                        readOnly={areFieldsReadOnly}
                         value={formData.purchasePersonCode}
                         onClear={() =>
                           handleInputChange("purchasePersonCode", "")
@@ -1750,7 +1825,8 @@ export function PurchaseCreateDocumentFormContent({
                     </div>
                     <div className={fieldClass}>
                       <label className={labelClass}>Posting Date</label>
-                      <ClearableField readOnly={areFieldsReadOnly}
+                      <ClearableField
+                        readOnly={areFieldsReadOnly}
                         value={formData.postingDate}
                         onClear={() => handleInputChange("postingDate", "")}
                       >
@@ -1766,7 +1842,8 @@ export function PurchaseCreateDocumentFormContent({
                     </div>
                     <div className={fieldClass}>
                       <label className={labelClass}>Document Date</label>
-                      <ClearableField readOnly={areFieldsReadOnly}
+                      <ClearableField
+                        readOnly={areFieldsReadOnly}
                         value={formData.documentDate}
                         onClear={() => handleInputChange("documentDate", "")}
                       >
@@ -1796,7 +1873,8 @@ export function PurchaseCreateDocumentFormContent({
                     )}
                     <div className={fieldClass}>
                       <label className={labelClass}>Due Date</label>
-                      <ClearableField readOnly={areFieldsReadOnly}
+                      <ClearableField
+                        readOnly={areFieldsReadOnly}
                         value={formData.dueDate}
                         onClear={() => handleInputChange("dueDate", "")}
                       >
@@ -1812,7 +1890,8 @@ export function PurchaseCreateDocumentFormContent({
                     </div>
                     <div className={fieldClass}>
                       <label className={labelClass}>Due Date Calc</label>
-                      <ClearableField readOnly={areFieldsReadOnly}
+                      <ClearableField
+                        readOnly={areFieldsReadOnly}
                         value={formData.dueDateCalculation}
                         onClear={() =>
                           handleInputChange("dueDateCalculation", "")
@@ -1841,7 +1920,8 @@ export function PurchaseCreateDocumentFormContent({
                     {capabilities.supportsRateBasis && (
                       <div className={fieldClass}>
                         <label className={labelClass}>Rate Basis</label>
-                        <ClearableField readOnly={areFieldsReadOnly}
+                        <ClearableField
+                          readOnly={areFieldsReadOnly}
                           value={formData.rateBasis}
                           onClear={() => handleInputChange("rateBasis", "")}
                         >
@@ -1867,7 +1947,8 @@ export function PurchaseCreateDocumentFormContent({
                     )}
                     <div className={fieldClass}>
                       <label className={labelClass}>Creditor Type</label>
-                      <ClearableField readOnly={areFieldsReadOnly}
+                      <ClearableField
+                        readOnly={areFieldsReadOnly}
                         value={formData.creditorType}
                         onClear={() => handleInputChange("creditorType", "")}
                       >
@@ -1884,7 +1965,8 @@ export function PurchaseCreateDocumentFormContent({
                     {capabilities.supportsQcType && (
                       <div className={fieldClass}>
                         <label className={labelClass}>QC Type</label>
-                        <ClearableField readOnly={areFieldsReadOnly}
+                        <ClearableField
+                          readOnly={areFieldsReadOnly}
                           value={formData.qcType}
                           onClear={() => handleInputChange("qcType", "")}
                         >
@@ -1899,7 +1981,9 @@ export function PurchaseCreateDocumentFormContent({
                             </SelectTrigger>
                             <SelectContent>
                               <SelectItem value="_none">None</SelectItem>
-                              <SelectItem value="Ex Passing">Ex Passing</SelectItem>
+                              <SelectItem value="Ex Passing">
+                                Ex Passing
+                              </SelectItem>
                             </SelectContent>
                           </Select>
                         </ClearableField>
@@ -1907,7 +1991,8 @@ export function PurchaseCreateDocumentFormContent({
                     )}
                     <div className={fieldClass}>
                       <label className={labelClass}>Term Code</label>
-                      <ClearableField readOnly={areFieldsReadOnly}
+                      <ClearableField
+                        readOnly={areFieldsReadOnly}
                         value={formData.termCode}
                         onClear={() => handleInputChange("termCode", "")}
                       >
@@ -1938,11 +2023,10 @@ export function PurchaseCreateDocumentFormContent({
                     </div>
                     <div className={fieldClass}>
                       <label className={labelClass}>Payment Term</label>
-                      <ClearableField readOnly={areFieldsReadOnly}
+                      <ClearableField
+                        readOnly={areFieldsReadOnly}
                         value={formData.paymentTermCode}
-                        onClear={() =>
-                          handleInputChange("paymentTermCode", "")
-                        }
+                        onClear={() => handleInputChange("paymentTermCode", "")}
                       >
                         <PurchaseSearchableSelect
                           value={formData.paymentTermCode}
@@ -1971,7 +2055,8 @@ export function PurchaseCreateDocumentFormContent({
                     </div>
                     <div className={fieldClass}>
                       <label className={labelClass}>Mandi Name</label>
-                      <ClearableField readOnly={areFieldsReadOnly}
+                      <ClearableField
+                        readOnly={areFieldsReadOnly}
                         value={formData.mandiName}
                         onClear={() => handleInputChange("mandiName", "")}
                       >
@@ -2029,15 +2114,27 @@ export function PurchaseCreateDocumentFormContent({
                 <span className="text-muted-foreground text-[10px] font-medium tracking-wider uppercase">
                   Status:
                 </span>
-                <div className="bg-muted text-muted-foreground h-6 animate-pulse rounded-full px-3 text-[10px] font-bold tracking-wider uppercase flex items-center">
+                <div className="bg-muted text-muted-foreground flex h-6 animate-pulse items-center rounded-full px-3 text-[10px] font-bold tracking-wider uppercase">
                   Loading…
                 </div>
               </div>
-              <Button type="button" variant="outline" size="sm" className="h-8" disabled>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-8"
+                disabled
+              >
                 <LoaderCircleIcon className="mr-1.5 h-3.5 w-3.5 animate-spin" />
                 Edit
               </Button>
-              <Button type="button" variant="outline" size="sm" className="h-8" disabled>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-8"
+                disabled
+              >
                 <LoaderCircleIcon className="mr-1.5 h-3.5 w-3.5 animate-spin" />
                 Delete
               </Button>
@@ -2047,197 +2144,200 @@ export function PurchaseCreateDocumentFormContent({
               </Button>
             </>
           ) : (
-          <>
-          {/* Left: status badge (view/edit) or contextual info (create) */}
-          {documentStatus && createdOrderNo && !isCreateMode && (
-            <div className="mr-auto flex items-center gap-2">
-              <span className="text-muted-foreground text-[10px] font-medium tracking-wider uppercase">
-                Status:
-              </span>
-              <Badge
-                variant="outline"
-                className={cn(
-                  "h-6 px-3 text-[10px] font-bold tracking-wider uppercase",
-                  documentStatus === "Released" &&
-                    "border-green-200 bg-green-500/10 text-green-600",
-                  documentStatus === "Pending Approval" &&
-                    "border-yellow-200 bg-yellow-500/10 text-yellow-600",
-                  documentStatus === "Open" &&
-                    "border-blue-200 bg-blue-500/10 text-blue-600",
-                )}
-              >
-                {documentStatus}
-              </Badge>
-            </div>
-          )}
-          {isCreateMode && (
-            <div className="mr-auto">
-              {createdOrderNo ? (
-                <span className="text-primary text-xs font-medium">
-                  {config.displayTitle} {createdOrderNo} — Add line items to complete
-                </span>
-              ) : (
-                <span className="text-muted-foreground text-xs">
-                  Fill in header fields to create the document.
-                </span>
+            <>
+              {/* Left: status badge (view/edit) or contextual info (create) */}
+              {documentStatus && createdOrderNo && !isCreateMode && (
+                <div className="mr-auto flex items-center gap-2">
+                  <span className="text-muted-foreground text-[10px] font-medium tracking-wider uppercase">
+                    Status:
+                  </span>
+                  <Badge
+                    variant="outline"
+                    className={cn(
+                      "h-6 px-3 text-[10px] font-bold tracking-wider uppercase",
+                      documentStatus === "Released" &&
+                        "border-green-200 bg-green-500/10 text-green-600",
+                      documentStatus === "Pending Approval" &&
+                        "border-yellow-200 bg-yellow-500/10 text-yellow-600",
+                      documentStatus === "Open" &&
+                        "border-blue-200 bg-blue-500/10 text-blue-600",
+                    )}
+                  >
+                    {documentStatus}
+                  </Badge>
+                </div>
               )}
-            </div>
-          )}
+              {isCreateMode && (
+                <div className="mr-auto">
+                  {createdOrderNo ? (
+                    <span className="text-primary text-xs font-medium">
+                      {config.displayTitle} {createdOrderNo} — Add line items to
+                      complete
+                    </span>
+                  ) : (
+                    <span className="text-muted-foreground text-xs">
+                      Fill in header fields to create the document.
+                    </span>
+                  )}
+                </div>
+              )}
 
-          {/* View mode */}
-          {isViewMode && (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="h-8"
-              onClick={onRequestEdit}
-              disabled={isActionLoading || !onRequestEdit}
-            >
-              Edit
-            </Button>
-          )}
-          {isViewMode && !isPendingApprovalStatus && !isReleasedStatus && (
-            <Button
-              type="button"
-              variant="destructive"
-              size="sm"
-              className="h-8"
-              onClick={handleDeleteDocument}
-              disabled={isActionLoading}
-            >
-              Delete
-            </Button>
-          )}
-          {isViewMode &&
-            statusActions.map((action) =>
-              action === "Gate Entry" && documentType === "order" ? (
-                <PostGateEntryDialog
-                  key={action}
-                  sourceNo={createdOrderNo!}
-                  disabled={isActionLoading}
-                />
-              ) : (
+              {/* View mode */}
+              {isViewMode && (
                 <Button
-                  key={action}
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-8"
+                  onClick={onRequestEdit}
+                  disabled={isActionLoading || !onRequestEdit}
+                >
+                  Edit
+                </Button>
+              )}
+              {isViewMode && !isPendingApprovalStatus && !isReleasedStatus && (
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="sm"
+                  className="h-8"
+                  onClick={handleDeleteDocument}
+                  disabled={isActionLoading}
+                >
+                  Delete
+                </Button>
+              )}
+              {isViewMode &&
+                statusActions.map((action) =>
+                  action === "Gate Entry" && documentType === "order" ? (
+                    <PostGateEntryDialog
+                      key={action}
+                      sourceNo={createdOrderNo!}
+                      disabled={isActionLoading}
+                    />
+                  ) : (
+                    <Button
+                      key={action}
+                      type="button"
+                      size="sm"
+                      className="h-8"
+                      onClick={() => handleStatusAction(action)}
+                      disabled={isActionLoading}
+                    >
+                      {action}
+                    </Button>
+                  ),
+                )}
+              {isViewMode && documentType !== "order" && createdOrderNo && (
+                <Button
                   type="button"
                   size="sm"
                   className="h-8"
-                  onClick={() => handleStatusAction(action)}
+                  onClick={() => handleStatusAction("Post")}
                   disabled={isActionLoading}
                 >
-                  {action}
+                  Post
                 </Button>
-              ),
-            )}
-          {isViewMode && documentType !== "order" && createdOrderNo && (
-            <Button
-              type="button"
-              size="sm"
-              className="h-8"
-              onClick={() => handleStatusAction("Post")}
-              disabled={isActionLoading}
-            >
-              Post
-            </Button>
-          )}
-          {isViewMode && documentType === "order" && createdOrderNo && (
-            <Button
-              type="button"
-              size="sm"
-              className="h-8"
-              onClick={handlePrintPOReport}
-              disabled={isActionLoading}
-            >
-              <FileText className="mr-1.5 h-3.5 w-3.5" />
-              Print Report
-            </Button>
-          )}
-          {isViewMode && documentType !== "return-order" && createdOrderNo && (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="h-8"
-              onClick={() => setIsAttachmentDialogOpen(true)}
-              disabled={isActionLoading}
-            >
-              <Paperclip className="mr-1.5 h-3.5 w-3.5" />
-              Attachments
-            </Button>
-          )}
-          {isViewMode && createdOrderNo && (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="h-8"
-              onClick={() => setIsCommentsDialogOpen(true)}
-              disabled={isActionLoading}
-            >
-              <MessageSquare className="mr-1.5 h-3.5 w-3.5" />
-              Comments
-            </Button>
-          )}
-
-          {/* Edit mode */}
-          {isEditMode && (
-            <>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="h-8"
-                onClick={onCancelEdit}
-                disabled={isUpdatingHeader || !onCancelEdit}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                className="h-8"
-                onClick={handleUpdateDocument}
-                disabled={isUpdatingHeader}
-              >
-                {isUpdatingHeader ? "Updating..." : "Update"}
-              </Button>
-            </>
-          )}
-
-          {/* Create mode */}
-          {isCreateMode && documentType !== "order" && (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="h-8"
-              onClick={handleOpenCopyDialog}
-              disabled={isCreatingHeader}
-            >
-              <Copy className="mr-1.5 h-3.5 w-3.5" />
-              Copy Document
-            </Button>
-          )}
-          {isCreateMode && !createdOrderNo && (
-            <Button
-              type="button"
-              size="sm"
-              className="h-8"
-              onClick={handleCreateOrderHeader}
-              disabled={!isStep1Valid() || isCreatingHeader}
-            >
-              {isCreatingHeader ? (
-                <>
-                  <LoaderCircleIcon className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-                  Creating...
-                </>
-              ) : (
-                config.createHeaderButtonLabel
               )}
-            </Button>
-          )}
-          </>
+              {isViewMode && documentType === "order" && createdOrderNo && (
+                <Button
+                  type="button"
+                  size="sm"
+                  className="h-8"
+                  onClick={handlePrintPOReport}
+                  disabled={isActionLoading}
+                >
+                  <FileText className="mr-1.5 h-3.5 w-3.5" />
+                  Print Report
+                </Button>
+              )}
+              {isViewMode &&
+                documentType !== "return-order" &&
+                createdOrderNo && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-8"
+                    onClick={() => setIsAttachmentDialogOpen(true)}
+                    disabled={isActionLoading}
+                  >
+                    <Paperclip className="mr-1.5 h-3.5 w-3.5" />
+                    Attachments
+                  </Button>
+                )}
+              {isViewMode && createdOrderNo && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-8"
+                  onClick={() => setIsCommentsDialogOpen(true)}
+                  disabled={isActionLoading}
+                >
+                  <MessageSquare className="mr-1.5 h-3.5 w-3.5" />
+                  Comments
+                </Button>
+              )}
+
+              {/* Edit mode */}
+              {isEditMode && (
+                <>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-8"
+                    onClick={onCancelEdit}
+                    disabled={isUpdatingHeader || !onCancelEdit}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="h-8"
+                    onClick={handleUpdateDocument}
+                    disabled={isUpdatingHeader}
+                  >
+                    {isUpdatingHeader ? "Updating..." : "Update"}
+                  </Button>
+                </>
+              )}
+
+              {/* Create mode */}
+              {isCreateMode && documentType !== "order" && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-8"
+                  onClick={handleOpenCopyDialog}
+                  disabled={isCreatingHeader}
+                >
+                  <Copy className="mr-1.5 h-3.5 w-3.5" />
+                  Copy Document
+                </Button>
+              )}
+              {isCreateMode && !createdOrderNo && (
+                <Button
+                  type="button"
+                  size="sm"
+                  className="h-8"
+                  onClick={handleCreateOrderHeader}
+                  disabled={!isStep1Valid() || isCreatingHeader}
+                >
+                  {isCreatingHeader ? (
+                    <>
+                      <LoaderCircleIcon className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                      Creating...
+                    </>
+                  ) : (
+                    config.createHeaderButtonLabel
+                  )}
+                </Button>
+              )}
+            </>
           )}
         </div>
 
@@ -2246,7 +2346,10 @@ export function PurchaseCreateDocumentFormContent({
             <div className="space-y-4">
               {/* Header skeleton — mimics the accordion sections */}
               {Array.from({ length: 3 }).map((_, sectionIdx) => (
-                <div key={sectionIdx} className="rounded-md border p-4 space-y-3">
+                <div
+                  key={sectionIdx}
+                  className="space-y-3 rounded-md border p-4"
+                >
                   <Skeleton className="h-4 w-32" />
                   <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
                     {Array.from({ length: 8 }).map((_, i) => (
@@ -2258,7 +2361,7 @@ export function PurchaseCreateDocumentFormContent({
                   </div>
                 </div>
               ))}
-              <div className="rounded-md border p-4 space-y-3">
+              <div className="space-y-3 rounded-md border p-4">
                 <div className="flex items-center justify-between">
                   <Skeleton className="h-4 w-24" />
                   <Skeleton className="h-8 w-20" />
@@ -2274,75 +2377,78 @@ export function PurchaseCreateDocumentFormContent({
             <>
               {renderStep1()}
 
-          <section className="space-y-3 border-t pt-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <h3 className="text-[10px] font-bold tracking-wider uppercase text-foreground">Line Items</h3>
-                {createdOrderNo && (
-                  <span className="text-[10px] text-muted-foreground font-mono bg-muted px-1.5 py-0.5 rounded">
-                    {createdOrderNo}
-                  </span>
-                )}
-              </div>
-              <div className="flex items-center gap-2">
-                {capabilities.supportsGetPostedLine && createdOrderNo && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-7 px-2.5 text-xs"
-                    onClick={() => setIsGetPostedLineOpen(true)}
-                  >
-                    <FileText className="mr-1.5 h-3.5 w-3.5" />
-                    Get Posted Line
-                  </Button>
-                )}
-                <Button
-                  onClick={handleAddLineItem}
-                  size="sm"
-                  className="h-7 px-2.5 text-xs"
-                  disabled={!createdOrderNo}
-                >
-                  <Plus className="mr-1.5 h-3.5 w-3.5" />
-                  Add Line
-                </Button>
-              </div>
-            </div>
-
-            {createdOrderNo ? (
-              <PurchaseLineItemsTable
-                lineItems={lineItems}
-                onEdit={handleEditLineItem}
-                onRemove={handleRemoveLineItem}
-                onRowClick={handleEditLineItem}
-                showRowActions={Boolean(createdOrderNo)}
-                documentNo={createdOrderNo}
-                documentType={documentType}
-                isLoading={isHydratingDocument}
-              />
-            ) : (
-              <div className="text-muted-foreground rounded-md border border-dashed px-3 py-6 text-xs text-center">
-                Create the document header first to enable line items.
-              </div>
-            )}
-
-            {createdOrderNo && (
-              <div className="flex items-center justify-between rounded-lg border bg-muted/20 px-4 py-2.5">
-                <span className="text-[10px] text-muted-foreground font-bold tracking-wider uppercase">
-                  {lineItems.length} Line{lineItems.length !== 1 ? "s" : ""}
-                </span>
-                <div className="flex items-baseline gap-2">
-                  <span className="text-xs text-muted-foreground">Total Amount</span>
-                  <span className="text-sm font-bold tabular-nums">
-                    {totalAmount.toFixed(2)}
-                  </span>
+              <section className="space-y-3 border-t pt-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-foreground text-[10px] font-bold tracking-wider uppercase">
+                      Line Items
+                    </h3>
+                    {createdOrderNo && (
+                      <span className="text-muted-foreground bg-muted rounded px-1.5 py-0.5 font-mono text-[10px]">
+                        {createdOrderNo}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {capabilities.supportsGetPostedLine && createdOrderNo && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 px-2.5 text-xs"
+                        onClick={() => setIsGetPostedLineOpen(true)}
+                      >
+                        <FileText className="mr-1.5 h-3.5 w-3.5" />
+                        Get Posted Line
+                      </Button>
+                    )}
+                    <Button
+                      onClick={handleAddLineItem}
+                      size="sm"
+                      className="h-7 px-2.5 text-xs"
+                      disabled={!createdOrderNo}
+                    >
+                      <Plus className="mr-1.5 h-3.5 w-3.5" />
+                      Add Line
+                    </Button>
+                  </div>
                 </div>
-              </div>
-            )}
-          </section>
+
+                {createdOrderNo ? (
+                  <PurchaseLineItemsTable
+                    lineItems={lineItems}
+                    onEdit={handleEditLineItem}
+                    onRemove={handleRemoveLineItem}
+                    onRowClick={handleEditLineItem}
+                    showRowActions={Boolean(createdOrderNo)}
+                    documentNo={createdOrderNo}
+                    documentType={documentType}
+                    isLoading={isHydratingDocument}
+                  />
+                ) : (
+                  <div className="text-muted-foreground rounded-md border border-dashed px-3 py-6 text-center text-xs">
+                    Create the document header first to enable line items.
+                  </div>
+                )}
+
+                {createdOrderNo && (
+                  <div className="bg-muted/20 flex items-center justify-between rounded-lg border px-4 py-2.5">
+                    <span className="text-muted-foreground text-[10px] font-bold tracking-wider uppercase">
+                      {lineItems.length} Line{lineItems.length !== 1 ? "s" : ""}
+                    </span>
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-muted-foreground text-xs">
+                        Total Amount
+                      </span>
+                      <span className="text-sm font-bold tabular-nums">
+                        {totalAmount.toFixed(2)}
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </section>
             </>
           )}
         </div>
-
       </div>
 
       {isLineDialogOpen && (
@@ -2411,9 +2517,13 @@ export function PurchaseCreateDocumentFormContent({
           documentNo={createdOrderNo}
           docType={documentType === "invoice" ? "Invoice" : "CreditMemo"}
           vendorNo={hydratedHeaderRef.current?.Buy_from_Vendor_No || undefined}
-          payToVendorNo={hydratedHeaderRef.current?.Pay_to_Vendor_No || undefined}
+          payToVendorNo={
+            hydratedHeaderRef.current?.Pay_to_Vendor_No || undefined
+          }
           currencyCode={hydratedHeaderRef.current?.Currency_Code || undefined}
-          onSuccess={() => { void refreshHydratedDocument(); }}
+          onSuccess={() => {
+            void refreshHydratedDocument();
+          }}
         />
       )}
 
@@ -2426,15 +2536,29 @@ export function PurchaseCreateDocumentFormContent({
           documentType={documentType}
           orderNo={createdOrderNo}
           vendorNo={formData.vendorNo}
-          onAssignTracking={documentType === "order" ? (line) => {
-            setTrackingLine(line);
-            setIsTrackingOpen(true);
-          } : undefined}
+          onAssignTracking={
+            documentType === "order"
+              ? (line) => {
+                  setTrackingLine(line);
+                  setIsTrackingOpen(true);
+                }
+              : undefined
+          }
           onOpenItemCharge={(line) => {
             setSelectedItemChargeLine(line);
             setIsItemChargeOpen(true);
           }}
-          updateLine={documentType !== "order" ? (docNo, lineNo, payload) => patchPurchaseDocumentLineByKey(documentType as "invoice" | "return-order" | "credit-memo", docNo, lineNo, payload) : undefined}
+          updateLine={
+            documentType !== "order"
+              ? (docNo, lineNo, payload) =>
+                  patchPurchaseDocumentLineByKey(
+                    documentType as "invoice" | "return-order" | "credit-memo",
+                    docNo,
+                    lineNo,
+                    payload,
+                  )
+              : undefined
+          }
           onDelete={async (line) => {
             if (line.Line_No && createdOrderNo) {
               await config.deleteLine(createdOrderNo, line.Line_No);
@@ -2461,12 +2585,14 @@ export function PurchaseCreateDocumentFormContent({
           isOpen={isCommentsDialogOpen}
           onOpenChange={setIsCommentsDialogOpen}
           documentType={
-            ({
-              order: "Order",
-              invoice: "Invoice",
-              "return-order": "Return Order",
-              "credit-memo": "Credit Memo",
-            } as Record<string, PurchaseCommentDocumentType>)[documentType]
+            (
+              {
+                order: "Order",
+                invoice: "Invoice",
+                "return-order": "Return Order",
+                "credit-memo": "Credit Memo",
+              } as Record<string, PurchaseCommentDocumentType>
+            )[documentType]
           }
           documentNo={createdOrderNo}
         />
@@ -2555,6 +2681,32 @@ export function PurchaseCreateDocumentFormContent({
                     dueDateCalculation: "Posting Date",
                     lineNarration: "",
                   });
+                  // Initialize TDS section for invoice-type post options
+                  const isInvoicePost =
+                    postOption === "invoice" ||
+                    postOption === "receive-invoice" ||
+                    postOption === "ship-invoice";
+                  if (isInvoicePost) {
+                    const existingTds = purchaseLines
+                      .filter((l) => (l.Type || "").trim() !== "")
+                      .map((l) => l.TDS_Section_Code || "")
+                      .find((v) => v !== "") || "";
+                    setPostTdsSection(existingTds);
+                    if (formData.vendorNo) {
+                      setPostTdsLoading(true);
+                      getVendorTDSGroupCodes(formData.vendorNo)
+                        .then((res) =>
+                          setPostTdsOptions(
+                            res.map((r) => ({
+                              value: r.TDS_Section || "",
+                              label: `${r.TDS_Section} - ${r.TDS_Section_Description || ""}`,
+                            })),
+                          ),
+                        )
+                        .catch(() => setPostTdsOptions([]))
+                        .finally(() => setPostTdsLoading(false));
+                    }
+                  }
                   setIsPostDialogOpen(false);
                   setIsPostDetailsOpen(true);
                 }}
@@ -2568,128 +2720,149 @@ export function PurchaseCreateDocumentFormContent({
 
       {/* Post Details Dialog */}
       <Dialog open={isPostDetailsOpen} onOpenChange={setIsPostDetailsOpen}>
-          <DialogContent className="sm:max-w-lg">
-            <DialogHeader>
-              <DialogTitle>Post Details</DialogTitle>
-            </DialogHeader>
-            <div className="grid grid-cols-1 gap-3 py-4 sm:grid-cols-2">
-              <div className="space-y-1">
-                <Label className="text-xs font-semibold">Posting Date *</Label>
-                <Input
-                  type="date"
-                  value={postDetails.postingDate}
-                  onChange={(e) =>
-                    setPostDetails((p) => ({
-                      ...p,
-                      postingDate: e.target.value,
-                    }))
-                  }
-                  className="h-8"
-                />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs font-semibold">Document Date *</Label>
-                <Input
-                  type="date"
-                  value={postDetails.documentDate}
-                  onChange={(e) =>
-                    setPostDetails((p) => ({
-                      ...p,
-                      documentDate: e.target.value,
-                    }))
-                  }
-                  className="h-8"
-                />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs font-semibold">Vehicle No</Label>
-                <Input
-                  value={postDetails.vehicleNo}
-                  onChange={(e) =>
-                    setPostDetails((p) => ({ ...p, vehicleNo: e.target.value }))
-                  }
-                  className="h-8"
-                />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs font-semibold">
-                  Vendor Invoice No
-                </Label>
-                <Input
-                  value={postDetails.vendorInvoiceNo}
-                  onChange={(e) =>
-                    setPostDetails((p) => ({
-                      ...p,
-                      vendorInvoiceNo: e.target.value,
-                    }))
-                  }
-                  className="h-8"
-                />
-              </div>
-              {(postOption === "invoice" ||
-                postOption === "receive-invoice" ||
-                postOption === "ship-invoice" ||
-                documentType === "invoice" ||
-                documentType === "credit-memo") && (
-                <>
-                  <div className="space-y-1">
-                    <Label className="text-xs font-semibold">
-                      Due Date Calculation
-                    </Label>
-                    <Select
-                      value={postDetails.dueDateCalculation}
-                      onValueChange={(v) =>
-                        setPostDetails((p) => ({ ...p, dueDateCalculation: v }))
-                      }
-                    >
-                      <SelectTrigger className="h-8">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Posting Date">
-                          Posting Date
-                        </SelectItem>
-                        <SelectItem value="Document Date">
-                          Document Date
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-1 sm:col-span-2">
-                    <Label className="text-xs font-semibold">
-                      Line Narration
-                    </Label>
-                    <Input
-                      value={postDetails.lineNarration}
-                      onChange={(e) =>
-                        setPostDetails((p) => ({
-                          ...p,
-                          lineNarration: e.target.value,
-                        }))
-                      }
-                      className="h-8"
-                    />
-                  </div>
-                </>
-              )}
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Post Details</DialogTitle>
+          </DialogHeader>
+          <div className="grid grid-cols-1 gap-3 py-4 sm:grid-cols-2">
+            <div className="space-y-1">
+              <Label className="text-xs font-semibold">Posting Date *</Label>
+              <Input
+                type="date"
+                value={postDetails.postingDate}
+                onChange={(e) =>
+                  setPostDetails((p) => ({
+                    ...p,
+                    postingDate: e.target.value,
+                  }))
+                }
+                className="h-8"
+              />
             </div>
-            <DialogFooter>
-              <Button
-                variant="outline"
-                onClick={() => setIsPostDetailsOpen(false)}
-                disabled={isPostLoading}
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={handlePostDetailsSubmit}
-                disabled={isPostLoading}
-              >
-                {isPostLoading ? "Posting..." : "Post"}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+            <div className="space-y-1">
+              <Label className="text-xs font-semibold">Document Date *</Label>
+              <Input
+                type="date"
+                value={postDetails.documentDate}
+                onChange={(e) =>
+                  setPostDetails((p) => ({
+                    ...p,
+                    documentDate: e.target.value,
+                  }))
+                }
+                className="h-8"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs font-semibold">Vehicle No</Label>
+              <Input
+                value={postDetails.vehicleNo}
+                onChange={(e) =>
+                  setPostDetails((p) => ({ ...p, vehicleNo: e.target.value }))
+                }
+                className="h-8"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs font-semibold">Vendor Invoice No</Label>
+              <Input
+                value={postDetails.vendorInvoiceNo}
+                onChange={(e) =>
+                  setPostDetails((p) => ({
+                    ...p,
+                    vendorInvoiceNo: e.target.value,
+                  }))
+                }
+                className="h-8"
+              />
+            </div>
+            {(postOption === "invoice" ||
+              postOption === "receive-invoice" ||
+              postOption === "ship-invoice" ||
+              documentType === "invoice" ||
+              documentType === "credit-memo") && (
+              <>
+                <div className="space-y-1">
+                  <Label className="text-xs font-semibold">
+                    Due Date Calculation
+                  </Label>
+                  <Select
+                    value={postDetails.dueDateCalculation}
+                    onValueChange={(v) =>
+                      setPostDetails((p) => ({ ...p, dueDateCalculation: v }))
+                    }
+                  >
+                    <SelectTrigger className="h-8">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Posting Date">Posting Date</SelectItem>
+                      <SelectItem value="Document Date">
+                        Document Date
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1 sm:col-span-2">
+                  <Label className="text-xs font-semibold">
+                    Line Narration
+                  </Label>
+                  <Input
+                    value={postDetails.lineNarration}
+                    onChange={(e) =>
+                      setPostDetails((p) => ({
+                        ...p,
+                        lineNarration: e.target.value,
+                      }))
+                    }
+                    className="h-8"
+                  />
+                </div>
+                {/* TDS Section */}
+                {purchaseLines.filter((l) => (l.Type || "").trim() !== "")
+                  .length > 0 && (
+                  <div className="space-y-1 sm:col-span-2">
+                    <Label className="text-xs font-semibold">TDS Section</Label>
+                    <ClearableField
+                      value={postTdsSection}
+                      onClear={() => setPostTdsSection("")}
+                    >
+                      <SearchableSelect
+                        value={postTdsSection}
+                        onValueChange={setPostTdsSection}
+                        options={postTdsOptions}
+                        isLoading={postTdsLoading}
+                        placeholder="Select TDS Section..."
+                        searchPlaceholder="Search TDS Section..."
+                        allowCustomValue={true}
+                      />
+                    </ClearableField>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsPostDetailsOpen(false)}
+              disabled={isPostLoading}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handlePostDetailsSubmit} disabled={isPostLoading}>
+              {isPostLoading ? (
+                <>
+                  <LoaderCircleIcon className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                  Posting...
+                </>
+              ) : (
+                "Post"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Receipts Dialog */}
 

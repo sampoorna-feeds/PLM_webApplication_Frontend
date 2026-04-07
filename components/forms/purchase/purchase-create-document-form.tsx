@@ -59,13 +59,15 @@ import { getAuthCredentials } from "@/lib/auth/storage";
 import { getErrorMessage } from "@/lib/errors";
 import type { LineItem } from "@/components/forms/purchase/purchase-line-item.type";
 import { PurchaseLineItemsTable } from "./purchase-line-items-table";
-import { Plus, FileText, Paperclip, LoaderCircleIcon, Copy } from "lucide-react";
+import { Plus, FileText, Paperclip, LoaderCircleIcon, Copy, MessageSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ClearableField } from "@/components/ui/clearable-field";
 import { RequestFailedDialog } from "@/components/ui/request-failed-dialog";
 import { PurchaseOrderLineDialog as PurchaseLineDialog } from "./purchase-order-line-dialog";
 import { PurchaseOrderLineEditDialog as PurchaseLineEditDialog } from "./purchase-order-line-edit-dialog";
 import { POAttachmentDialog } from "./po-attachment-dialog";
+import { PurchaseCommentsDialog } from "./purchase-comments-dialog";
+import type { PurchaseCommentDocumentType } from "@/lib/api/services/purchase-comment.service";
 import { PurchaseItemTrackingDialog } from "./purchase-item-tracking-dialog";
 import { ItemChargeAssignmentDialog } from "./item-charge-assignment-dialog";
 import { ItemChargeMultiSelectDialog } from "./item-charge-multi-select-dialog";
@@ -502,6 +504,7 @@ export function PurchaseCreateDocumentFormContent({
   const [selectedLine, setSelectedLine] = useState<PurchaseLine | null>(null);
   const [purchaseLines, setPurchaseLines] = useState<PurchaseLine[]>([]);
   const [isAttachmentDialogOpen, setIsAttachmentDialogOpen] = useState(false);
+  const [isCommentsDialogOpen, setIsCommentsDialogOpen] = useState(false);
   const [isPostDialogOpen, setIsPostDialogOpen] = useState(false);
   const [isPostDetailsOpen, setIsPostDetailsOpen] = useState(false);
   const [isPostLoading, setIsPostLoading] = useState(false);
@@ -1309,27 +1312,32 @@ export function PurchaseCreateDocumentFormContent({
                     {capabilities.supportsPoType && (
                       <div className={fieldClass}>
                         <label className={labelClass}>PO Type</label>
-                        <Select
+                        <ClearableField readOnly={areFieldsReadOnly}
                           value={formData.poType}
-                          onValueChange={(value) =>
-                            handleInputChange("poType", value)
-                          }
+                          onClear={() => handleInputChange("poType", "")}
                         >
-                          <SelectTrigger className="h-8 text-xs">
-                            <SelectValue placeholder="Select" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="Goods">Goods</SelectItem>
-                            <SelectItem value="Service">Service</SelectItem>
-                          </SelectContent>
-                        </Select>
+                          <Select
+                            value={formData.poType}
+                            onValueChange={(value) =>
+                              handleInputChange("poType", value)
+                            }
+                          >
+                            <SelectTrigger className="h-8 text-xs">
+                              <SelectValue placeholder="Select" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Goods">Goods</SelectItem>
+                              <SelectItem value="Service">Service</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </ClearableField>
                       </div>
                     )}
                     {capabilities.supportsServiceType &&
                       formData.poType === "Service" && (
                         <div className={fieldClass}>
                           <label className={labelClass}>Service Type</label>
-                          <ClearableField
+                          <ClearableField readOnly={areFieldsReadOnly}
                             value={formData.serviceType}
                             onClear={() => handleInputChange("serviceType", "")}
                           >
@@ -1358,7 +1366,7 @@ export function PurchaseCreateDocumentFormContent({
                     {/* Dimensions */}
                     <div className={fieldClass}>
                       <label className={labelClass}>LOB</label>
-                      <ClearableField
+                      <ClearableField readOnly={areFieldsReadOnly}
                         value={formData.lob}
                         onClear={() => handleInputChange("lob", "")}
                       >
@@ -1374,7 +1382,7 @@ export function PurchaseCreateDocumentFormContent({
                     </div>
                     <div className={fieldClass}>
                       <label className={labelClass}>Branch</label>
-                      <ClearableField
+                      <ClearableField readOnly={areFieldsReadOnly}
                         value={formData.branch}
                         onClear={() => handleInputChange("branch", "")}
                       >
@@ -1393,7 +1401,7 @@ export function PurchaseCreateDocumentFormContent({
                     </div>
                     <div className={fieldClass}>
                       <label className={labelClass}>LOC</label>
-                      <ClearableField
+                      <ClearableField readOnly={areFieldsReadOnly}
                         value={formData.loc}
                         onClear={() => handleInputChange("loc", "")}
                       >
@@ -1453,7 +1461,7 @@ export function PurchaseCreateDocumentFormContent({
                     {capabilities.supportsInvoiceType && (
                       <div className={fieldClass}>
                         <label className={labelClass}>Invoice Type</label>
-                        <ClearableField
+                        <ClearableField readOnly={areFieldsReadOnly}
                           value={formData.invoiceType}
                           onClear={() => handleInputChange("invoiceType", "")}
                         >
@@ -1479,7 +1487,7 @@ export function PurchaseCreateDocumentFormContent({
                     )}
                     <div className={fieldClass}>
                       <label className={labelClass}>Vendor</label>
-                      <ClearableField
+                      <ClearableField readOnly={areFieldsReadOnly}
                         value={formData.vendorNo}
                         onClear={() => handleVendorChange("", undefined)}
                       >
@@ -1519,7 +1527,7 @@ export function PurchaseCreateDocumentFormContent({
                       <label className={labelClass}>
                         {config.primaryVendorRefLabel}
                       </label>
-                      <ClearableField
+                      <ClearableField readOnly={areFieldsReadOnly}
                         value={formData[config.primaryVendorRefField]}
                         onClear={() =>
                           handleInputChange(config.primaryVendorRefField, "")
@@ -1541,7 +1549,7 @@ export function PurchaseCreateDocumentFormContent({
                     {capabilities.supportsVendorAuthorizationNo && (
                       <div className={fieldClass}>
                         <label className={labelClass}>Vendor Auth. No.</label>
-                        <ClearableField
+                        <ClearableField readOnly={areFieldsReadOnly}
                           value={formData.vendorAuthorizationNo}
                           onClear={() =>
                             handleInputChange("vendorAuthorizationNo", "")
@@ -1566,20 +1574,27 @@ export function PurchaseCreateDocumentFormContent({
                         <label className={labelClass}>
                           Applies-to Doc. Type
                         </label>
-                        <Select
+                        <ClearableField readOnly={areFieldsReadOnly}
                           value={formData.appliesToDocType}
-                          onValueChange={(val) =>
-                            handleInputChange("appliesToDocType", val)
+                          onClear={() =>
+                            handleInputChange("appliesToDocType", "")
                           }
                         >
-                          <SelectTrigger className="h-8 text-xs">
-                            <SelectValue placeholder="Select Type" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="Invoice">Invoice</SelectItem>
-                            <SelectItem value="Receipt">Receipt</SelectItem>
-                          </SelectContent>
-                        </Select>
+                          <Select
+                            value={formData.appliesToDocType}
+                            onValueChange={(val) =>
+                              handleInputChange("appliesToDocType", val)
+                            }
+                          >
+                            <SelectTrigger className="h-8 text-xs">
+                              <SelectValue placeholder="Select Type" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Invoice">Invoice</SelectItem>
+                              <SelectItem value="Receipt">Receipt</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </ClearableField>
                       </div>
                     )}
                     {capabilities.supportsAppliesToFields && (
@@ -1587,7 +1602,7 @@ export function PurchaseCreateDocumentFormContent({
                         <label className={labelClass}>
                           Applies-to Doc. No.
                         </label>
-                        <ClearableField
+                        <ClearableField readOnly={areFieldsReadOnly}
                           value={formData.appliesToDocNo}
                           onClear={() =>
                             handleInputChange("appliesToDocNo", "")
@@ -1611,22 +1626,33 @@ export function PurchaseCreateDocumentFormContent({
                       className={`${fieldClass} ${config.orderAddressGridClass}`}
                     >
                       <label className={labelClass}>Order Address Select</label>
-                      <OrderAddressSelect
-                        vendorNo={formData.vendorNo}
+                      <ClearableField readOnly={areFieldsReadOnly}
                         value={formData.orderAddressCode}
-                        onChange={(code, addr) =>
+                        onClear={() =>
                           setFormData((prev) => ({
                             ...prev,
-                            orderAddressCode: code,
-                            orderAddressName: addr?.Name || "",
+                            orderAddressCode: "",
+                            orderAddressName: "",
                           }))
                         }
-                        disabled={!formData.vendorNo}
-                      />
+                      >
+                        <OrderAddressSelect
+                          vendorNo={formData.vendorNo}
+                          value={formData.orderAddressCode}
+                          onChange={(code, addr) =>
+                            setFormData((prev) => ({
+                              ...prev,
+                              orderAddressCode: code,
+                              orderAddressName: addr?.Name || "",
+                            }))
+                          }
+                          disabled={!formData.vendorNo}
+                        />
+                      </ClearableField>
                     </div>
                     <div className={fieldClass}>
                       <label className={labelClass}>Brokerage Code</label>
-                      <ClearableField
+                      <ClearableField readOnly={areFieldsReadOnly}
                         value={formData.brokerNo}
                         onClear={() =>
                           setFormData((prev) => ({
@@ -1655,7 +1681,7 @@ export function PurchaseCreateDocumentFormContent({
                     </div>
                     <div className={fieldClass}>
                       <label className={labelClass}>Brokerage Rate</label>
-                      <ClearableField
+                      <ClearableField readOnly={areFieldsReadOnly}
                         value={formData.brokerageRate}
                         onClear={() => handleInputChange("brokerageRate", "")}
                       >
@@ -1698,7 +1724,7 @@ export function PurchaseCreateDocumentFormContent({
                   <div className="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
                     <div className={fieldClass}>
                       <label className={labelClass}>Purchaser Code</label>
-                      <ClearableField
+                      <ClearableField readOnly={areFieldsReadOnly}
                         value={formData.purchasePersonCode}
                         onClear={() =>
                           handleInputChange("purchasePersonCode", "")
@@ -1724,7 +1750,7 @@ export function PurchaseCreateDocumentFormContent({
                     </div>
                     <div className={fieldClass}>
                       <label className={labelClass}>Posting Date</label>
-                      <ClearableField
+                      <ClearableField readOnly={areFieldsReadOnly}
                         value={formData.postingDate}
                         onClear={() => handleInputChange("postingDate", "")}
                       >
@@ -1740,7 +1766,7 @@ export function PurchaseCreateDocumentFormContent({
                     </div>
                     <div className={fieldClass}>
                       <label className={labelClass}>Document Date</label>
-                      <ClearableField
+                      <ClearableField readOnly={areFieldsReadOnly}
                         value={formData.documentDate}
                         onClear={() => handleInputChange("documentDate", "")}
                       >
@@ -1770,7 +1796,7 @@ export function PurchaseCreateDocumentFormContent({
                     )}
                     <div className={fieldClass}>
                       <label className={labelClass}>Due Date</label>
-                      <ClearableField
+                      <ClearableField readOnly={areFieldsReadOnly}
                         value={formData.dueDate}
                         onClear={() => handleInputChange("dueDate", "")}
                       >
@@ -1786,154 +1812,193 @@ export function PurchaseCreateDocumentFormContent({
                     </div>
                     <div className={fieldClass}>
                       <label className={labelClass}>Due Date Calc</label>
-                      <Select
+                      <ClearableField readOnly={areFieldsReadOnly}
                         value={formData.dueDateCalculation}
-                        onValueChange={(value) =>
-                          handleInputChange("dueDateCalculation", value)
+                        onClear={() =>
+                          handleInputChange("dueDateCalculation", "")
                         }
                       >
-                        <SelectTrigger className="h-8 text-xs">
-                          <SelectValue placeholder="Select" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Posting Date">
-                            Posting Date
-                          </SelectItem>
-                          <SelectItem value="Document Date">
-                            Document Date
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
+                        <Select
+                          value={formData.dueDateCalculation}
+                          onValueChange={(value) =>
+                            handleInputChange("dueDateCalculation", value)
+                          }
+                        >
+                          <SelectTrigger className="h-8 text-xs">
+                            <SelectValue placeholder="Select" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Posting Date">
+                              Posting Date
+                            </SelectItem>
+                            <SelectItem value="Document Date">
+                              Document Date
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </ClearableField>
                     </div>
                     {capabilities.supportsRateBasis && (
                       <div className={fieldClass}>
                         <label className={labelClass}>Rate Basis</label>
-                        <Select
+                        <ClearableField readOnly={areFieldsReadOnly}
                           value={formData.rateBasis}
-                          onValueChange={(value) =>
-                            handleInputChange("rateBasis", value)
-                          }
+                          onClear={() => handleInputChange("rateBasis", "")}
                         >
-                          <SelectTrigger className="h-8 text-xs">
-                            <SelectValue placeholder="Select" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="EX">EX</SelectItem>
-                            <SelectItem value="FOR">FOR</SelectItem>
-                            <SelectItem value="CIF">CIF</SelectItem>
-                            <SelectItem value="FOB">FOB</SelectItem>
-                            <SelectItem value="N/A">N/A</SelectItem>
-                          </SelectContent>
-                        </Select>
+                          <Select
+                            value={formData.rateBasis}
+                            onValueChange={(value) =>
+                              handleInputChange("rateBasis", value)
+                            }
+                          >
+                            <SelectTrigger className="h-8 text-xs">
+                              <SelectValue placeholder="Select" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="EX">EX</SelectItem>
+                              <SelectItem value="FOR">FOR</SelectItem>
+                              <SelectItem value="CIF">CIF</SelectItem>
+                              <SelectItem value="FOB">FOB</SelectItem>
+                              <SelectItem value="N/A">N/A</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </ClearableField>
                       </div>
                     )}
                     <div className={fieldClass}>
                       <label className={labelClass}>Creditor Type</label>
-                      <PurchaseSearchableSelect
+                      <ClearableField readOnly={areFieldsReadOnly}
                         value={formData.creditorType}
-                        onChange={(value) =>
-                          handleInputChange("creditorType", value)
-                        }
-                        options={CREDITOR_TYPE_OPTIONS}
-                        placeholder="Select creditor"
-                      />
+                        onClear={() => handleInputChange("creditorType", "")}
+                      >
+                        <PurchaseSearchableSelect
+                          value={formData.creditorType}
+                          onChange={(value) =>
+                            handleInputChange("creditorType", value)
+                          }
+                          options={CREDITOR_TYPE_OPTIONS}
+                          placeholder="Select creditor"
+                        />
+                      </ClearableField>
                     </div>
                     {capabilities.supportsQcType && (
                       <div className={fieldClass}>
                         <label className={labelClass}>QC Type</label>
-                        <Select
+                        <ClearableField readOnly={areFieldsReadOnly}
                           value={formData.qcType}
-                          onValueChange={(value) =>
-                            handleInputChange("qcType", value)
-                          }
+                          onClear={() => handleInputChange("qcType", "")}
                         >
-                          <SelectTrigger className="h-8 text-xs">
-                            <SelectValue placeholder="Select" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="_none">None</SelectItem>
-                            <SelectItem value="Ex Passing">Ex Passing</SelectItem>
-                          </SelectContent>
-                        </Select>
+                          <Select
+                            value={formData.qcType}
+                            onValueChange={(value) =>
+                              handleInputChange("qcType", value)
+                            }
+                          >
+                            <SelectTrigger className="h-8 text-xs">
+                              <SelectValue placeholder="Select" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="_none">None</SelectItem>
+                              <SelectItem value="Ex Passing">Ex Passing</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </ClearableField>
                       </div>
                     )}
                     <div className={fieldClass}>
                       <label className={labelClass}>Term Code</label>
-                      <PurchaseSearchableSelect
+                      <ClearableField readOnly={areFieldsReadOnly}
                         value={formData.termCode}
-                        onChange={(value) =>
-                          handleInputChange("termCode", value)
-                        }
-                        options={termList.map((t) => ({
-                          value: t.Terms,
-                          label: `${t.Terms} - ${t.Conditions}`,
-                        }))}
-                        placeholder="Select term"
-                        loadMore={async (skip, searchValue) => {
-                          const rows =
-                            await purchaseDropdownsService.getTermsAndConditionsPage(
-                              skip,
-                              searchValue,
-                              MASTER_DROPDOWN_PAGE_SIZE,
-                            );
-                          return rows.map((t) => ({
+                        onClear={() => handleInputChange("termCode", "")}
+                      >
+                        <PurchaseSearchableSelect
+                          value={formData.termCode}
+                          onChange={(value) =>
+                            handleInputChange("termCode", value)
+                          }
+                          options={termList.map((t) => ({
                             value: t.Terms,
                             label: `${t.Terms} - ${t.Conditions}`,
-                          }));
-                        }}
-                      />
+                          }))}
+                          placeholder="Select term"
+                          loadMore={async (skip, searchValue) => {
+                            const rows =
+                              await purchaseDropdownsService.getTermsAndConditionsPage(
+                                skip,
+                                searchValue,
+                                MASTER_DROPDOWN_PAGE_SIZE,
+                              );
+                            return rows.map((t) => ({
+                              value: t.Terms,
+                              label: `${t.Terms} - ${t.Conditions}`,
+                            }));
+                          }}
+                        />
+                      </ClearableField>
                     </div>
                     <div className={fieldClass}>
                       <label className={labelClass}>Payment Term</label>
-                      <PurchaseSearchableSelect
+                      <ClearableField readOnly={areFieldsReadOnly}
                         value={formData.paymentTermCode}
-                        onChange={(value) =>
-                          handleInputChange("paymentTermCode", value)
+                        onClear={() =>
+                          handleInputChange("paymentTermCode", "")
                         }
-                        options={paymentTermList.map((p) => ({
-                          value: p.Code,
-                          label: `${p.Code} - ${p.Description}`,
-                        }))}
-                        placeholder="Select pmt term"
-                        loadMore={async (skip, searchValue) => {
-                          const rows =
-                            await purchaseDropdownsService.getPaymentTermsPage(
-                              skip,
-                              searchValue,
-                              MASTER_DROPDOWN_PAGE_SIZE,
-                            );
-                          return rows.map((p) => ({
+                      >
+                        <PurchaseSearchableSelect
+                          value={formData.paymentTermCode}
+                          onChange={(value) =>
+                            handleInputChange("paymentTermCode", value)
+                          }
+                          options={paymentTermList.map((p) => ({
                             value: p.Code,
                             label: `${p.Code} - ${p.Description}`,
-                          }));
-                        }}
-                      />
+                          }))}
+                          placeholder="Select pmt term"
+                          loadMore={async (skip, searchValue) => {
+                            const rows =
+                              await purchaseDropdownsService.getPaymentTermsPage(
+                                skip,
+                                searchValue,
+                                MASTER_DROPDOWN_PAGE_SIZE,
+                              );
+                            return rows.map((p) => ({
+                              value: p.Code,
+                              label: `${p.Code} - ${p.Description}`,
+                            }));
+                          }}
+                        />
+                      </ClearableField>
                     </div>
                     <div className={fieldClass}>
                       <label className={labelClass}>Mandi Name</label>
-                      <PurchaseSearchableSelect
+                      <ClearableField readOnly={areFieldsReadOnly}
                         value={formData.mandiName}
-                        onChange={(value) =>
-                          handleInputChange("mandiName", value)
-                        }
-                        options={mandiList.map((m) => ({
-                          value: m.Code,
-                          label: `${m.Code} - ${m.Description}`,
-                        }))}
-                        placeholder="Select mandi"
-                        loadMore={async (skip, searchValue) => {
-                          const rows =
-                            await purchaseDropdownsService.getMandiMastersPage(
-                              skip,
-                              searchValue,
-                              MASTER_DROPDOWN_PAGE_SIZE,
-                            );
-                          return rows.map((m) => ({
+                        onClear={() => handleInputChange("mandiName", "")}
+                      >
+                        <PurchaseSearchableSelect
+                          value={formData.mandiName}
+                          onChange={(value) =>
+                            handleInputChange("mandiName", value)
+                          }
+                          options={mandiList.map((m) => ({
                             value: m.Code,
                             label: `${m.Code} - ${m.Description}`,
-                          }));
-                        }}
-                      />
+                          }))}
+                          placeholder="Select mandi"
+                          loadMore={async (skip, searchValue) => {
+                            const rows =
+                              await purchaseDropdownsService.getMandiMastersPage(
+                                skip,
+                                searchValue,
+                                MASTER_DROPDOWN_PAGE_SIZE,
+                              );
+                            return rows.map((m) => ({
+                              value: m.Code,
+                              label: `${m.Code} - ${m.Description}`,
+                            }));
+                          }}
+                        />
+                      </ClearableField>
                     </div>
                   </div>
                 </section>
@@ -1957,6 +2022,32 @@ export function PurchaseCreateDocumentFormContent({
       <div className="flex h-full flex-col">
         {/* ── Action Bar ── */}
         <div className="flex flex-wrap items-center justify-end gap-2 border-b px-4 py-2">
+          {/* Loading state — placeholder buttons while document hydrates */}
+          {isHydratingDocument ? (
+            <>
+              <div className="mr-auto flex items-center gap-2">
+                <span className="text-muted-foreground text-[10px] font-medium tracking-wider uppercase">
+                  Status:
+                </span>
+                <div className="bg-muted text-muted-foreground h-6 animate-pulse rounded-full px-3 text-[10px] font-bold tracking-wider uppercase flex items-center">
+                  Loading…
+                </div>
+              </div>
+              <Button type="button" variant="outline" size="sm" className="h-8" disabled>
+                <LoaderCircleIcon className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                Edit
+              </Button>
+              <Button type="button" variant="outline" size="sm" className="h-8" disabled>
+                <LoaderCircleIcon className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                Delete
+              </Button>
+              <Button type="button" size="sm" className="h-8" disabled>
+                <LoaderCircleIcon className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                Loading…
+              </Button>
+            </>
+          ) : (
+          <>
           {/* Left: status badge (view/edit) or contextual info (create) */}
           {documentStatus && createdOrderNo && !isCreateMode && (
             <div className="mr-auto flex items-center gap-2">
@@ -2075,6 +2166,19 @@ export function PurchaseCreateDocumentFormContent({
               Attachments
             </Button>
           )}
+          {isViewMode && createdOrderNo && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-8"
+              onClick={() => setIsCommentsDialogOpen(true)}
+              disabled={isActionLoading}
+            >
+              <MessageSquare className="mr-1.5 h-3.5 w-3.5" />
+              Comments
+            </Button>
+          )}
 
           {/* Edit mode */}
           {isEditMode && (
@@ -2132,6 +2236,8 @@ export function PurchaseCreateDocumentFormContent({
                 config.createHeaderButtonLabel
               )}
             </Button>
+          )}
+          </>
           )}
         </div>
 
@@ -2347,6 +2453,22 @@ export function PurchaseCreateDocumentFormContent({
           isOpen={isAttachmentDialogOpen}
           onOpenChange={setIsAttachmentDialogOpen}
           orderNo={createdOrderNo}
+        />
+      )}
+
+      {createdOrderNo && (
+        <PurchaseCommentsDialog
+          isOpen={isCommentsDialogOpen}
+          onOpenChange={setIsCommentsDialogOpen}
+          documentType={
+            ({
+              order: "Order",
+              invoice: "Invoice",
+              "return-order": "Return Order",
+              "credit-memo": "Credit Memo",
+            } as Record<string, PurchaseCommentDocumentType>)[documentType]
+          }
+          documentNo={createdOrderNo}
         />
       )}
 

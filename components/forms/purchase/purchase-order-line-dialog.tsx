@@ -731,14 +731,19 @@ export function PurchaseOrderLineDialog({
             {formState.type === "" && (
               <div className="space-y-1 sm:col-span-2">
                 <FieldTitle>Description</FieldTitle>
-                <Input
+                <ClearableField
                   value={formState.description || ""}
-                  onChange={(e) =>
-                    handleFieldChange("description", e.target.value)
-                  }
-                  placeholder="Enter description"
-                  className={fieldInputClass}
-                />
+                  onClear={() => handleFieldChange("description", "")}
+                >
+                  <Input
+                    value={formState.description || ""}
+                    onChange={(e) =>
+                      handleFieldChange("description", e.target.value)
+                    }
+                    placeholder="Enter description"
+                    className={fieldInputClass}
+                  />
+                </ClearableField>
               </div>
             )}
 
@@ -772,16 +777,21 @@ export function PurchaseOrderLineDialog({
             {formState.type !== "" && (
               <div className="space-y-1">
                 <FieldTitle>TDS Section</FieldTitle>
-                <AppSearchableSelect
+                <ClearableField
                   value={formState.tdsSectionCode || ""}
-                  onValueChange={(value) =>
-                    handleFieldChange("tdsSectionCode", value)
-                  }
-                  options={tdsOptions}
-                  isLoading={loadingOptions.tds}
-                  placeholder="Select TDS Section"
-                  searchPlaceholder="Search TDS Section..."
-                />
+                  onClear={() => handleFieldChange("tdsSectionCode", "")}
+                >
+                  <AppSearchableSelect
+                    value={formState.tdsSectionCode || ""}
+                    onValueChange={(value) =>
+                      handleFieldChange("tdsSectionCode", value)
+                    }
+                    options={tdsOptions}
+                    isLoading={loadingOptions.tds}
+                    placeholder="Select TDS Section"
+                    searchPlaceholder="Search TDS Section..."
+                  />
+                </ClearableField>
               </div>
             )}
           </div>
@@ -792,68 +802,97 @@ export function PurchaseOrderLineDialog({
               <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 md:grid-cols-4">
                 <div className="space-y-1">
                   <FieldTitle>Quantity</FieldTitle>
-                  <Input
-                    type="text"
-                    inputMode="decimal"
+                  <ClearableField
                     value={formatNumericValue(formState.quantity)}
-                    onChange={(e) =>
-                      handleNumericChange("quantity", e.target.value)
-                    }
-                    onWheel={(e) => e.currentTarget.blur()}
-                    placeholder="0.00"
-                    className={cn(
-                      "h-8 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none",
-                      fieldInputClass,
-                    )}
-                  />
+                    onClear={() => handleNumericChange("quantity", "")}
+                  >
+                    <Input
+                      type="text"
+                      inputMode="decimal"
+                      value={formatNumericValue(formState.quantity)}
+                      onChange={(e) =>
+                        handleNumericChange("quantity", e.target.value)
+                      }
+                      onWheel={(e) => e.currentTarget.blur()}
+                      placeholder="0.00"
+                      className={cn(
+                        "h-8 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none",
+                        fieldInputClass,
+                      )}
+                    />
+                  </ClearableField>
                 </div>
 
                 {showQtyColumns && (
                   <>
                     <div className="space-y-1">
                       <FieldTitle>{quantityColumns.firstPendingLabel}</FieldTitle>
-                      <Input
-                        type="text"
-                        inputMode="decimal"
+                      <ClearableField
                         value={getQuantityFieldDisplayValue(
                           quantityColumns.firstPendingKey,
                         )}
-                        onChange={(e) =>
+                        onClear={() =>
                           handleQuantityFieldChange(
                             quantityColumns.firstPendingKey,
-                            e.target.value,
+                            "",
                           )
                         }
-                        onWheel={(e) => e.currentTarget.blur()}
-                        placeholder="0.00"
-                        className={cn(
-                          "h-8 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none",
-                          fieldInputClass,
-                        )}
-                      />
+                      >
+                        <Input
+                          type="text"
+                          inputMode="decimal"
+                          value={getQuantityFieldDisplayValue(
+                            quantityColumns.firstPendingKey,
+                          )}
+                          onChange={(e) =>
+                            handleQuantityFieldChange(
+                              quantityColumns.firstPendingKey,
+                              e.target.value,
+                            )
+                          }
+                          onWheel={(e) => e.currentTarget.blur()}
+                          placeholder="0.00"
+                          className={cn(
+                            "h-8 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none",
+                            fieldInputClass,
+                          )}
+                        />
+                      </ClearableField>
                     </div>
 
                     <div className="space-y-1">
                       <FieldTitle>{quantityColumns.secondPendingLabel}</FieldTitle>
-                      <Input
-                        type="text"
-                        inputMode="decimal"
+                      <ClearableField
                         value={getQuantityFieldDisplayValue(
                           quantityColumns.secondPendingKey,
                         )}
-                        onChange={(e) =>
+                        onClear={() =>
                           handleQuantityFieldChange(
                             quantityColumns.secondPendingKey,
-                            e.target.value,
+                            "",
                           )
                         }
-                        onWheel={(e) => e.currentTarget.blur()}
-                        placeholder="0.00"
-                        className={cn(
-                          "h-8 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none",
-                          fieldInputClass,
-                        )}
-                      />
+                      >
+                        <Input
+                          type="text"
+                          inputMode="decimal"
+                          value={getQuantityFieldDisplayValue(
+                            quantityColumns.secondPendingKey,
+                          )}
+                          onChange={(e) =>
+                            handleQuantityFieldChange(
+                              quantityColumns.secondPendingKey,
+                              e.target.value,
+                            )
+                          }
+                          onWheel={(e) => e.currentTarget.blur()}
+                          placeholder="0.00"
+                          className={cn(
+                            "h-8 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none",
+                            fieldInputClass,
+                          )}
+                        />
+                      </ClearableField>
                     </div>
                   </>
                 )}
@@ -861,71 +900,95 @@ export function PurchaseOrderLineDialog({
                 {canAddBardana && (
                   <div className="space-y-1">
                     <FieldTitle>No. of Bags</FieldTitle>
-                    <Input
-                      type="text"
-                      inputMode="numeric"
+                    <ClearableField
                       value={
                         formState.noOfBags != null
                           ? String(formState.noOfBags)
                           : ""
                       }
-                      onChange={(e) => {
-                        const v = e.target.value;
-                        if (v === "") {
-                          setFormState((prev) => ({
-                            ...prev,
-                            noOfBags: undefined,
-                          }));
-                        } else {
-                          const n = parseInt(v, 10);
-                          if (!isNaN(n) && n >= 0)
-                            setFormState((prev) => ({ ...prev, noOfBags: n }));
+                      onClear={() =>
+                        setFormState((prev) => ({ ...prev, noOfBags: undefined }))
+                      }
+                    >
+                      <Input
+                        type="text"
+                        inputMode="numeric"
+                        value={
+                          formState.noOfBags != null
+                            ? String(formState.noOfBags)
+                            : ""
                         }
-                      }}
-                      onWheel={(e) => e.currentTarget.blur()}
-                      placeholder="0"
-                      className={cn(
-                        "h-8 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none",
-                        fieldInputClass,
-                      )}
-                    />
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          if (v === "") {
+                            setFormState((prev) => ({
+                              ...prev,
+                              noOfBags: undefined,
+                            }));
+                          } else {
+                            const n = parseInt(v, 10);
+                            if (!isNaN(n) && n >= 0)
+                              setFormState((prev) => ({
+                                ...prev,
+                                noOfBags: n,
+                              }));
+                          }
+                        }}
+                        onWheel={(e) => e.currentTarget.blur()}
+                        placeholder="0"
+                        className={cn(
+                          "h-8 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none",
+                          fieldInputClass,
+                        )}
+                      />
+                    </ClearableField>
                   </div>
                 )}
 
                 <div className="space-y-1">
                   <FieldTitle>Unit Price</FieldTitle>
-                  <Input
-                    type="text"
-                    inputMode="decimal"
+                  <ClearableField
                     value={formatNumericValue(formState.unitPrice)}
-                    onChange={(e) =>
-                      handleNumericChange("unitPrice", e.target.value)
-                    }
-                    onWheel={(e) => e.currentTarget.blur()}
-                    placeholder="0.00"
-                    className={cn(
-                      "h-8 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none",
-                      fieldInputClass,
-                    )}
-                  />
+                    onClear={() => handleNumericChange("unitPrice", "")}
+                  >
+                    <Input
+                      type="text"
+                      inputMode="decimal"
+                      value={formatNumericValue(formState.unitPrice)}
+                      onChange={(e) =>
+                        handleNumericChange("unitPrice", e.target.value)
+                      }
+                      onWheel={(e) => e.currentTarget.blur()}
+                      placeholder="0.00"
+                      className={cn(
+                        "h-8 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none",
+                        fieldInputClass,
+                      )}
+                    />
+                  </ClearableField>
                 </div>
 
                 <div className="space-y-1">
                   <FieldTitle>Discount</FieldTitle>
-                  <Input
-                    type="text"
-                    inputMode="decimal"
+                  <ClearableField
                     value={formatNumericValue(formState.discount)}
-                    onChange={(e) =>
-                      handleNumericChange("discount", e.target.value)
-                    }
-                    onWheel={(e) => e.currentTarget.blur()}
-                    placeholder="0.00"
-                    className={cn(
-                      "h-8 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none",
-                      fieldInputClass,
-                    )}
-                  />
+                    onClear={() => handleNumericChange("discount", "")}
+                  >
+                    <Input
+                      type="text"
+                      inputMode="decimal"
+                      value={formatNumericValue(formState.discount)}
+                      onChange={(e) =>
+                        handleNumericChange("discount", e.target.value)
+                      }
+                      onWheel={(e) => e.currentTarget.blur()}
+                      placeholder="0.00"
+                      className={cn(
+                        "h-8 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none",
+                        fieldInputClass,
+                      )}
+                    />
+                  </ClearableField>
                 </div>
 
                 <div className="space-y-1">
@@ -973,20 +1036,25 @@ export function PurchaseOrderLineDialog({
 
                     <div className="space-y-1">
                       <FieldTitle>Salvage Value</FieldTitle>
-                      <Input
-                        type="text"
-                        inputMode="decimal"
+                      <ClearableField
                         value={formatNumericValue(formState.salvageValue)}
-                        onChange={(e) =>
-                          handleNumericChange("salvageValue", e.target.value)
-                        }
-                        onWheel={(e) => e.currentTarget.blur()}
-                        placeholder="0.00"
-                        className={cn(
-                          "h-8 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none",
-                          fieldInputClass,
-                        )}
-                      />
+                        onClear={() => handleNumericChange("salvageValue", "")}
+                      >
+                        <Input
+                          type="text"
+                          inputMode="decimal"
+                          value={formatNumericValue(formState.salvageValue)}
+                          onChange={(e) =>
+                            handleNumericChange("salvageValue", e.target.value)
+                          }
+                          onWheel={(e) => e.currentTarget.blur()}
+                          placeholder="0.00"
+                          className={cn(
+                            "h-8 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none",
+                            fieldInputClass,
+                          )}
+                        />
+                      </ClearableField>
                     </div>
                   </>
                 )}
@@ -1017,54 +1085,73 @@ export function PurchaseOrderLineDialog({
                 </div>
                 <div className="space-y-1">
                   <FieldTitle>GST Group Code</FieldTitle>
-                  <AppSearchableSelect
+                  <ClearableField
                     value={formState.gstGroupCode || ""}
-                    onValueChange={(value) => {
-                      handleFieldChange("gstGroupCode", value);
+                    onClear={() => {
+                      handleFieldChange("gstGroupCode", "");
                       handleFieldChange("hsnSacCode", "");
                     }}
-                    options={gstOptions}
-                    isLoading={loadingOptions.gst}
-                    placeholder="Select GST Group..."
-                    searchPlaceholder="Search GST Group..."
-                  />
+                  >
+                    <AppSearchableSelect
+                      value={formState.gstGroupCode || ""}
+                      onValueChange={(value) => {
+                        handleFieldChange("gstGroupCode", value);
+                        handleFieldChange("hsnSacCode", "");
+                      }}
+                      options={gstOptions}
+                      isLoading={loadingOptions.gst}
+                      placeholder="Select GST Group..."
+                      searchPlaceholder="Search GST Group..."
+                    />
+                  </ClearableField>
                 </div>
                 <div className="space-y-1">
                   <FieldTitle>HSN/SAC Code</FieldTitle>
-                  <AppSearchableSelect
+                  <ClearableField
                     value={formState.hsnSacCode || ""}
-                    onValueChange={(value) =>
-                      handleFieldChange("hsnSacCode", value)
-                    }
-                    options={hsnOptions}
-                    isLoading={loadingOptions.hsn}
-                    placeholder={
-                      formState.gstGroupCode
-                        ? "Select HSN/SAC..."
-                        : "Select GST Group first"
-                    }
-                    searchPlaceholder="Search HSN/SAC..."
+                    onClear={() => handleFieldChange("hsnSacCode", "")}
                     disabled={!formState.gstGroupCode}
-                  />
+                  >
+                    <AppSearchableSelect
+                      value={formState.hsnSacCode || ""}
+                      onValueChange={(value) =>
+                        handleFieldChange("hsnSacCode", value)
+                      }
+                      options={hsnOptions}
+                      isLoading={loadingOptions.hsn}
+                      placeholder={
+                        formState.gstGroupCode
+                          ? "Select HSN/SAC..."
+                          : "Select GST Group first"
+                      }
+                      searchPlaceholder="Search HSN/SAC..."
+                      disabled={!formState.gstGroupCode}
+                    />
+                  </ClearableField>
                 </div>
                 <div className="space-y-1">
                   <FieldTitle>GST Credit</FieldTitle>
-                  <Select
-                    value={formState.gstCredit || "Availment"}
-                    onValueChange={(value) =>
-                      handleFieldChange("gstCredit", value)
-                    }
+                  <ClearableField
+                    value={formState.gstCredit || ""}
+                    onClear={() => handleFieldChange("gstCredit", "")}
                   >
-                    <SelectTrigger className={cn("h-8", fieldInputClass)}>
-                      <SelectValue placeholder="Select GST Credit" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Availment">Availment</SelectItem>
-                      <SelectItem value="Non-Availment">
-                        Non-Availment
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
+                    <Select
+                      value={formState.gstCredit || "Availment"}
+                      onValueChange={(value) =>
+                        handleFieldChange("gstCredit", value)
+                      }
+                    >
+                      <SelectTrigger className={cn("h-8", fieldInputClass)}>
+                        <SelectValue placeholder="Select GST Credit" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Availment">Availment</SelectItem>
+                        <SelectItem value="Non-Availment">
+                          Non-Availment
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </ClearableField>
                 </div>
               </div>
             </div>

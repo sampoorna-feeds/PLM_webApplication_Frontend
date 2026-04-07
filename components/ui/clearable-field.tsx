@@ -13,8 +13,11 @@ interface ClearableFieldProps {
   children: React.ReactNode;
   value?: string | number | boolean;
   onClear: () => void;
-  /** When true, show clear icon only on hover. When false, show whenever value exists. */
-  showOnHoverOnly?: boolean;
+  /**
+   * When true, the clear button is never rendered (use in view-only mode).
+   * When false (default), the button is always visible when the field has a value.
+   */
+  readOnly?: boolean;
   disabled?: boolean;
   className?: string;
 }
@@ -23,11 +26,15 @@ export function ClearableField({
   children,
   value,
   onClear,
-  showOnHoverOnly = true,
+  readOnly = false,
   disabled = false,
   className,
 }: ClearableFieldProps) {
   const hasValue = value !== undefined && value !== null && value !== "";
+
+  if (readOnly) {
+    return <>{children}</>;
+  }
 
   return (
     <div className={cn("group/clearable flex items-center gap-1", className)}>
@@ -41,13 +48,8 @@ export function ClearableField({
         }}
         disabled={disabled || !hasValue}
         className={cn(
-          "text-muted-foreground hover:text-foreground hover:bg-muted/80 focus:ring-ring flex h-7 w-7 shrink-0 items-center justify-center rounded transition-colors focus:ring-2 focus:ring-offset-1 focus:outline-none disabled:pointer-events-none disabled:opacity-50",
-          (!hasValue || disabled) && "invisible w-0 p-0",
-          hasValue &&
-            !disabled &&
-            showOnHoverOnly &&
-            "opacity-0 group-hover/clearable:opacity-100",
-          hasValue && !disabled && !showOnHoverOnly && "opacity-100",
+          "text-muted-foreground hover:text-foreground hover:bg-muted/80 focus:ring-ring flex h-7 w-7 shrink-0 items-center justify-center rounded transition-colors focus:ring-2 focus:ring-offset-1 focus:outline-none disabled:pointer-events-none disabled:opacity-30",
+          !hasValue || disabled ? "invisible w-0 p-0" : "opacity-100",
         )}
         aria-label="Clear selection"
       >

@@ -40,6 +40,7 @@ import {
 } from "@/components/forms/production-orders/api-error-dialog";
 import { BardanaDialog } from "./bardana-dialog";
 import { cn } from "@/lib/utils";
+import { ClearableField } from "@/components/ui/clearable-field";
 import {
   getPurchaseLineQuantityConfig,
   type PurchaseLineDocumentType,
@@ -446,16 +447,21 @@ export function PurchaseOrderLineEditDialog({
                   <Label htmlFor="po-line-qty" className="text-xs">
                     Quantity
                   </Label>
-                  <Input
-                    id="po-line-qty"
-                    inputMode="decimal"
+                  <ClearableField
                     value={quantity}
-                    onChange={(e) => {
-                      if (isValidNum(e.target.value))
-                        setQuantity(e.target.value);
-                    }}
-                    className={fieldInputClass}
-                  />
+                    onClear={() => setQuantity("")}
+                  >
+                    <Input
+                      id="po-line-qty"
+                      inputMode="decimal"
+                      value={quantity}
+                      onChange={(e) => {
+                        if (isValidNum(e.target.value))
+                          setQuantity(e.target.value);
+                      }}
+                      className={fieldInputClass}
+                    />
+                  </ClearableField>
                 </div>
 
                 {(line.Type || "").trim() === "Item" &&
@@ -466,31 +472,41 @@ export function PurchaseOrderLineEditDialog({
                       <Label htmlFor="po-line-challan-qty" className="text-xs">
                         Challan Qty
                       </Label>
-                      <Input
-                        id="po-line-challan-qty"
-                        inputMode="decimal"
+                      <ClearableField
                         value={challanQty}
-                        onChange={(e) => {
-                          if (isValidNum(e.target.value))
-                            setChallanQty(e.target.value);
-                        }}
-                        className={fieldInputClass}
-                      />
+                        onClear={() => setChallanQty("")}
+                      >
+                        <Input
+                          id="po-line-challan-qty"
+                          inputMode="decimal"
+                          value={challanQty}
+                          onChange={(e) => {
+                            if (isValidNum(e.target.value))
+                              setChallanQty(e.target.value);
+                          }}
+                          className={fieldInputClass}
+                        />
+                      </ClearableField>
                     </div>
                     <div className="space-y-1">
                       <Label htmlFor="po-line-weight-qty" className="text-xs">
                         Weight Qty
                       </Label>
-                      <Input
-                        id="po-line-weight-qty"
-                        inputMode="decimal"
+                      <ClearableField
                         value={weightQty}
-                        onChange={(e) => {
-                          if (isValidNum(e.target.value))
-                            setWeightQty(e.target.value);
-                        }}
-                        className={fieldInputClass}
-                      />
+                        onClear={() => setWeightQty("")}
+                      >
+                        <Input
+                          id="po-line-weight-qty"
+                          inputMode="decimal"
+                          value={weightQty}
+                          onChange={(e) => {
+                            if (isValidNum(e.target.value))
+                              setWeightQty(e.target.value);
+                          }}
+                          className={fieldInputClass}
+                        />
+                      </ClearableField>
                     </div>
                   </>
                 )}
@@ -506,12 +522,17 @@ export function PurchaseOrderLineEditDialog({
               <Label htmlFor="po-line-description" className="text-xs">
                 Description
               </Label>
-              <Input
-                id="po-line-description"
+              <ClearableField
                 value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                className={fieldInputClass}
-              />
+                onClear={() => setDescription("")}
+              >
+                <Input
+                  id="po-line-description"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  className={fieldInputClass}
+                />
+              </ClearableField>
             </div>
 
             {(line.Type || "").trim() !== "" && (
@@ -525,28 +546,33 @@ export function PurchaseOrderLineEditDialog({
                       >
                         FA Posting Type
                       </Label>
-                      <Select
-                        value={faPostingType || ""}
-                        onValueChange={setFaPostingType}
+                      <ClearableField
+                        value={faPostingType}
+                        onClear={() => setFaPostingType("")}
                       >
-                        <SelectTrigger
-                          id="po-line-fa-posting-type"
-                          className={fieldInputClass}
+                        <Select
+                          value={faPostingType || ""}
+                          onValueChange={setFaPostingType}
                         >
-                          <SelectValue placeholder="Select Type" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Acquisition Cost">
-                            Acquisition Cost
-                          </SelectItem>
-                          <SelectItem value="Maintenance">
-                            Maintenance
-                          </SelectItem>
-                          <SelectItem value="Appreciation">
-                            Appreciation
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
+                          <SelectTrigger
+                            id="po-line-fa-posting-type"
+                            className={fieldInputClass}
+                          >
+                            <SelectValue placeholder="Select Type" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Acquisition Cost">
+                              Acquisition Cost
+                            </SelectItem>
+                            <SelectItem value="Maintenance">
+                              Maintenance
+                            </SelectItem>
+                            <SelectItem value="Appreciation">
+                              Appreciation
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </ClearableField>
                     </div>
 
                     <div className="space-y-1">
@@ -556,19 +582,24 @@ export function PurchaseOrderLineEditDialog({
                       >
                         Salvage Value
                       </Label>
-                      <Input
-                        id="po-line-salvage-value"
-                        inputMode="decimal"
+                      <ClearableField
                         value={salvageValue}
-                        onChange={(e) => {
-                          const value = e.target.value;
-                          if (value === "" || /^\d*\.?\d*$/.test(value)) {
-                            setSalvageValue(value);
-                          }
-                        }}
-                        placeholder="0.00"
-                        className={fieldInputClass}
-                      />
+                        onClear={() => setSalvageValue("")}
+                      >
+                        <Input
+                          id="po-line-salvage-value"
+                          inputMode="decimal"
+                          value={salvageValue}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            if (value === "" || /^\d*\.?\d*$/.test(value)) {
+                              setSalvageValue(value);
+                            }
+                          }}
+                          placeholder="0.00"
+                          className={fieldInputClass}
+                        />
+                      </ClearableField>
                     </div>
                   </>
                 )}
@@ -578,16 +609,21 @@ export function PurchaseOrderLineEditDialog({
                     <Label htmlFor="po-line-bags" className="text-xs">
                       No. of Bags
                     </Label>
-                    <Input
-                      id="po-line-bags"
-                      inputMode="numeric"
-                      placeholder="0"
+                    <ClearableField
                       value={noOfBags}
-                      onChange={(e) => {
-                        const v = e.target.value;
-                        if (v === "" || /^[0-9]+$/.test(v)) setNoOfBags(v);
-                      }}
-                    />
+                      onClear={() => setNoOfBags("")}
+                    >
+                      <Input
+                        id="po-line-bags"
+                        inputMode="numeric"
+                        placeholder="0"
+                        value={noOfBags}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          if (v === "" || /^[0-9]+$/.test(v)) setNoOfBags(v);
+                        }}
+                      />
+                    </ClearableField>
                   </div>
                 )}
 
@@ -598,30 +634,40 @@ export function PurchaseOrderLineEditDialog({
                       <Label htmlFor="po-line-qty-receive" className="text-xs">
                         {quantityColumns.firstPendingLabel}
                       </Label>
-                      <Input
-                        id="po-line-qty-receive"
-                        inputMode="decimal"
+                      <ClearableField
                         value={qtyToReceive}
-                        onChange={(e) => {
-                          if (isValidNum(e.target.value))
-                            setQtyToReceive(e.target.value);
-                        }}
-                      />
+                        onClear={() => setQtyToReceive("")}
+                      >
+                        <Input
+                          id="po-line-qty-receive"
+                          inputMode="decimal"
+                          value={qtyToReceive}
+                          onChange={(e) => {
+                            if (isValidNum(e.target.value))
+                              setQtyToReceive(e.target.value);
+                          }}
+                        />
+                      </ClearableField>
                     </div>
 
                     <div className="space-y-1">
                       <Label htmlFor="po-line-qty-invoice" className="text-xs">
                         {quantityColumns.secondPendingLabel}
                       </Label>
-                      <Input
-                        id="po-line-qty-invoice"
-                        inputMode="decimal"
+                      <ClearableField
                         value={qtyToInvoice}
-                        onChange={(e) => {
-                          if (isValidNum(e.target.value))
-                            setQtyToInvoice(e.target.value);
-                        }}
-                      />
+                        onClear={() => setQtyToInvoice("")}
+                      >
+                        <Input
+                          id="po-line-qty-invoice"
+                          inputMode="decimal"
+                          value={qtyToInvoice}
+                          onChange={(e) => {
+                            if (isValidNum(e.target.value))
+                              setQtyToInvoice(e.target.value);
+                          }}
+                        />
+                      </ClearableField>
                     </div>
                   </>
                 )}
@@ -631,38 +677,52 @@ export function PurchaseOrderLineEditDialog({
                   <Label htmlFor="po-line-gst-group" className="text-xs">
                     GST Group Code
                   </Label>
-                  <SearchableSelect
+                  <ClearableField
                     value={gstGroupCode}
-                    onValueChange={(val) => {
-                      setGstGroupCode(val);
+                    onClear={() => {
+                      setGstGroupCode("");
                       setHsnSacCode("");
                     }}
-                    options={gstOptions}
-                    isLoading={loadingOptions.gst}
-                    placeholder="Select GST Group..."
-                    searchPlaceholder="Search GST Groups..."
-                    allowCustomValue={true}
-                  />
+                  >
+                    <SearchableSelect
+                      value={gstGroupCode}
+                      onValueChange={(val) => {
+                        setGstGroupCode(val);
+                        setHsnSacCode("");
+                      }}
+                      options={gstOptions}
+                      isLoading={loadingOptions.gst}
+                      placeholder="Select GST Group..."
+                      searchPlaceholder="Search GST Groups..."
+                      allowCustomValue={true}
+                    />
+                  </ClearableField>
                 </div>
 
                 <div className="space-y-1 overflow-hidden">
                   <Label htmlFor="po-line-hsn" className="text-xs">
                     HSN/SAC Code
                   </Label>
-                  <SearchableSelect
+                  <ClearableField
                     value={hsnSacCode}
-                    onValueChange={setHsnSacCode}
-                    options={hsnOptions}
-                    isLoading={loadingOptions.hsn}
-                    placeholder={
-                      gstGroupCode
-                        ? "Select HSN/SAC..."
-                        : "Select GST Group first"
-                    }
-                    searchPlaceholder="Search HSN/SAC Codes..."
+                    onClear={() => setHsnSacCode("")}
                     disabled={!gstGroupCode}
-                    allowCustomValue={true}
-                  />
+                  >
+                    <SearchableSelect
+                      value={hsnSacCode}
+                      onValueChange={setHsnSacCode}
+                      options={hsnOptions}
+                      isLoading={loadingOptions.hsn}
+                      placeholder={
+                        gstGroupCode
+                          ? "Select HSN/SAC..."
+                          : "Select GST Group first"
+                      }
+                      searchPlaceholder="Search HSN/SAC Codes..."
+                      disabled={!gstGroupCode}
+                      allowCustomValue={true}
+                    />
+                  </ClearableField>
                 </div>
 
                 {/* Row 4 */}
@@ -670,32 +730,42 @@ export function PurchaseOrderLineEditDialog({
                   <Label htmlFor="po-line-tds-section" className="text-xs">
                     TDS Section
                   </Label>
-                  <SearchableSelect
+                  <ClearableField
                     value={tdsSection}
-                    onValueChange={setTdsSection}
-                    options={tdsOptions}
-                    isLoading={loadingOptions.tds}
-                    placeholder="Select TDS Section..."
-                    searchPlaceholder="Search TDS Section..."
-                    allowCustomValue={true}
-                  />
+                    onClear={() => setTdsSection("")}
+                  >
+                    <SearchableSelect
+                      value={tdsSection}
+                      onValueChange={setTdsSection}
+                      options={tdsOptions}
+                      isLoading={loadingOptions.tds}
+                      placeholder="Select TDS Section..."
+                      searchPlaceholder="Search TDS Section..."
+                      allowCustomValue={true}
+                    />
+                  </ClearableField>
                 </div>
 
                 <div className="space-y-1 overflow-hidden">
                   <Label htmlFor="po-line-gst-credit" className="text-xs">
                     GST Credit
                   </Label>
-                  <Select value={gstCredit} onValueChange={setGstCredit}>
-                    <SelectTrigger className={cn("h-8", fieldInputClass)}>
-                      <SelectValue placeholder="Select GST Credit" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Availment">Availment</SelectItem>
-                      <SelectItem value="Non-Availment">
-                        Non-Availment
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <ClearableField
+                    value={gstCredit}
+                    onClear={() => setGstCredit("")}
+                  >
+                    <Select value={gstCredit} onValueChange={setGstCredit}>
+                      <SelectTrigger className={cn("h-8", fieldInputClass)}>
+                        <SelectValue placeholder="Select GST Credit" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Availment">Availment</SelectItem>
+                        <SelectItem value="Non-Availment">
+                          Non-Availment
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </ClearableField>
                 </div>
 
                 <div className="flex items-center gap-2 pt-5">

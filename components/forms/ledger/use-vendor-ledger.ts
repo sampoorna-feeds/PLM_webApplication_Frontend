@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import {
   getVendorLedgerEntries,
   getVendorBalance,
+  getVendorLedgerSums,
   type VendorLedgerEntry,
   type VendorLedgerFilters,
   buildVendorFilterString,
@@ -19,6 +20,8 @@ import {
   saveColumnWidths,
   loadColumnOrder,
   saveColumnOrder,
+  loadFrozenColumns,
+  saveFrozenColumns,
   resetVendorTableUI,
   ALL_COLUMNS,
 } from "@/components/forms/ledger/vendor-ledger-column-config";
@@ -35,6 +38,8 @@ export function useVendorLedger(options: UseVendorLedgerOptions = {}) {
 
   const [openingBalance, setOpeningBalance] = useState(0);
   const [closingBalance, setClosingBalance] = useState(0);
+  const [debitSum, setDebitSum] = useState(0);
+  const [creditSum, setCreditSum] = useState(0);
 
   const [filters, setFilters] = useState<VendorLedgerFilters>({
     fromDate: "",
@@ -62,6 +67,10 @@ export function useVendorLedger(options: UseVendorLedgerOptions = {}) {
   const [columnOrder, setColumnOrder] = useState<string[]>(() => 
     typeof window !== "undefined" ? loadColumnOrder() : []
   );
+  
+  const [frozenColumns, setFrozenColumns] = useState<string[]>(() => 
+    typeof window !== "undefined" ? loadFrozenColumns() : []
+  );
 
   const hasMore = useMemo(
     () => entries.length < totalCount,
@@ -77,6 +86,8 @@ export function useVendorLedger(options: UseVendorLedgerOptions = {}) {
       setTotalCount(0);
       setOpeningBalance(0);
       setClosingBalance(0);
+      setDebitSum(0);
+      setCreditSum(0);
       setIsLoading(false);
       setIsFetchingNextPage(false);
       return;
@@ -92,7 +103,7 @@ export function useVendorLedger(options: UseVendorLedgerOptions = {}) {
       const skip = isAppending ? entries.length : 0;
       
       // Fetch entries and balances
-      const [entriesRes, openingBal, closingBal] = await Promise.all([
+      const [entriesRes, openingBal, closingBal, sums] = await Promise.all([
         getVendorLedgerEntries(filters, LIMIT, skip),
         // Only fetch balances on first load
         !isAppending && filters.fromDate 
@@ -100,7 +111,10 @@ export function useVendorLedger(options: UseVendorLedgerOptions = {}) {
           : !isAppending ? Promise.resolve(0) : Promise.resolve(openingBalance),
         !isAppending 
           ? (filters.toDate ? getVendorBalance(filters.vendorNo, filters.toDate, false) : getVendorBalance(filters.vendorNo))
-          : Promise.resolve(closingBalance)
+          : Promise.resolve(closingBalance),
+        !isAppending
+          ? getVendorLedgerSums(filters)
+          : Promise.resolve({ debitSum, creditSum })
       ]);
 
       if (isAppending) {
@@ -109,6 +123,8 @@ export function useVendorLedger(options: UseVendorLedgerOptions = {}) {
         setEntries(entriesRes.value);
         setOpeningBalance(openingBal);
         setClosingBalance(closingBal);
+        setDebitSum(sums.debitSum);
+        setCreditSum(sums.creditSum);
       }
       setTotalCount(entriesRes["@odata.count"] || entriesRes.value.length);
     } catch (error) {
@@ -194,6 +210,7 @@ export function useVendorLedger(options: UseVendorLedgerOptions = {}) {
     setVisibleColumns(defaultColumns);
     setColumnWidths({});
     setColumnOrder([]);
+    setFrozenColumns([]);
     resetVendorTableUI();
     saveVisibleColumns(defaultColumns, options.isOutstanding);
   }, [options.isOutstanding]);
@@ -213,6 +230,8 @@ export function useVendorLedger(options: UseVendorLedgerOptions = {}) {
     filters,
     openingBalance,
     closingBalance,
+    debitSum,
+    creditSum,
     visibleColumns,
     onFilterChange: handleFilterChange,
     onColumnFilterChange: handleColumnFilterChange,
@@ -229,6 +248,9 @@ export function useVendorLedger(options: UseVendorLedgerOptions = {}) {
     columnOrder,
     setColumnOrder,
     saveColumnOrder,
+    frozenColumns,
+    setFrozenColumns,
+    saveFrozenColumns,
     currentFilterString: buildVendorFilterString(filters),
     humanReadableFilters: buildHumanReadableVendorFilters(filters),
     refetch: () => fetchEntries(false),

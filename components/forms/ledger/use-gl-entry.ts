@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import {
   getGLEntries,
   getGLBalance,
+  getGLEntrySums,
   type GLEntry,
   type GLEntryFilters,
   buildGLFilterString,
@@ -17,6 +18,8 @@ import {
   saveColumnWidths,
   loadColumnOrder,
   saveColumnOrder,
+  loadFrozenColumns,
+  saveFrozenColumns,
   resetGLTableUI,
   ALL_COLUMNS,
 } from "@/components/forms/ledger/gl-entry-column-config";
@@ -33,6 +36,8 @@ export function useGLEntry(options: UseGLEntryOptions = {}) {
 
   const [openingBalance, setOpeningBalance] = useState(0);
   const [closingBalance, setClosingBalance] = useState(0);
+  const [debitSum, setDebitSum] = useState(0);
+  const [creditSum, setCreditSum] = useState(0);
 
   const [filters, setFilters] = useState<GLEntryFilters>({
     fromDate: "",
@@ -61,6 +66,10 @@ export function useGLEntry(options: UseGLEntryOptions = {}) {
     typeof window !== "undefined" ? loadColumnOrder() : []
   );
 
+  const [frozenColumns, setFrozenColumns] = useState<string[]>(() => 
+    typeof window !== "undefined" ? loadFrozenColumns() : []
+  );
+
   const hasNextPage = useMemo(
     () => entries.length < totalCount || (entries.length === 0 && isLoading),
     [entries.length, totalCount, isLoading]
@@ -76,6 +85,8 @@ export function useGLEntry(options: UseGLEntryOptions = {}) {
       setTotalCount(0);
       setOpeningBalance(0);
       setClosingBalance(0);
+      setDebitSum(0);
+      setCreditSum(0);
       setIsLoading(false);
       setIsFetchingNextPage(false);
       return;
@@ -90,7 +101,7 @@ export function useGLEntry(options: UseGLEntryOptions = {}) {
     try {
       const skip = isAppending ? entries.length : 0;
       
-      const [response, openingBal, closingBal] = await Promise.all([
+      const [response, openingBal, closingBal, sums] = await Promise.all([
         getGLEntries(filters, LIMIT, skip),
         // Fetch balances on initial load if account is selected
         !isAppending && accountNo && filters.fromDate 
@@ -98,7 +109,10 @@ export function useGLEntry(options: UseGLEntryOptions = {}) {
           : !isAppending ? Promise.resolve(0) : Promise.resolve(openingBalance),
         !isAppending && accountNo 
           ? (filters.toDate ? getGLBalance(accountNo, filters.toDate, false) : getGLBalance(accountNo))
-          : !isAppending ? Promise.resolve(0) : Promise.resolve(closingBalance)
+          : !isAppending ? Promise.resolve(0) : Promise.resolve(closingBalance),
+        !isAppending && accountNo
+          ? getGLEntrySums(filters)
+          : Promise.resolve({ debitSum, creditSum })
       ]);
 
       if (isAppending) {
@@ -107,6 +121,8 @@ export function useGLEntry(options: UseGLEntryOptions = {}) {
         setEntries(response.value);
         setOpeningBalance(openingBal);
         setClosingBalance(closingBal);
+        setDebitSum(sums.debitSum);
+        setCreditSum(sums.creditSum);
       }
       setTotalCount(response["@odata.count"] || (response.value.length < LIMIT ? entries.length + (isAppending ? entries.length : 0) + response.value.length : 1000000));
     } catch (error) {
@@ -187,6 +203,7 @@ export function useGLEntry(options: UseGLEntryOptions = {}) {
     setVisibleColumns(defaultCols);
     setColumnWidths({});
     setColumnOrder([]);
+    setFrozenColumns([]);
     resetGLTableUI();
     saveVisibleColumns(defaultCols);
   }, []);
@@ -204,6 +221,8 @@ export function useGLEntry(options: UseGLEntryOptions = {}) {
     });
     setOpeningBalance(0);
     setClosingBalance(0);
+    setDebitSum(0);
+    setCreditSum(0);
   }, []);
 
   return {
@@ -214,6 +233,8 @@ export function useGLEntry(options: UseGLEntryOptions = {}) {
     totalCount,
     openingBalance,
     closingBalance,
+    debitSum,
+    creditSum,
     loadMore,
     refetch: () => fetchEntries(false),
     
@@ -236,6 +257,9 @@ export function useGLEntry(options: UseGLEntryOptions = {}) {
     columnOrder,
     setColumnOrder,
     saveColumnOrder,
+    frozenColumns,
+    setFrozenColumns,
+    saveFrozenColumns,
     currentFilterString: buildGLFilterString(filters),
   };
 }

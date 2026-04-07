@@ -16,6 +16,8 @@ export function GLEntryView() {
     totalCount,
     openingBalance,
     closingBalance,
+    debitSum,
+    creditSum,
     loadMore,
     refetch,
     filters,
@@ -34,6 +36,9 @@ export function GLEntryView() {
     columnOrder,
     setColumnOrder,
     saveColumnOrder,
+    frozenColumns,
+    setFrozenColumns,
+    saveFrozenColumns,
     currentFilterString,
   } = useGLEntry();
 
@@ -112,6 +117,8 @@ export function GLEntryView() {
           loadMore={loadMore}
           openingBalance={openingBalance}
           closingBalance={closingBalance}
+          debitSum={debitSum}
+          creditSum={creditSum}
           onSort={handleSort}
           onColumnFilterChange={handleColumnFilterChange}
           sortField={filters.sortField}
@@ -124,6 +131,9 @@ export function GLEntryView() {
           columnOrder={columnOrder}
           setColumnOrder={setColumnOrder}
           saveColumnOrder={saveColumnOrder}
+          frozenColumns={frozenColumns}
+          setFrozenColumns={setFrozenColumns}
+          saveFrozenColumns={saveFrozenColumns}
           accountNo={filters.accountNo}
           fromDate={filters.fromDate}
           toDate={filters.toDate}

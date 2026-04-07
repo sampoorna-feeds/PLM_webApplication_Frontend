@@ -133,6 +133,8 @@ export function VendorLedgerView() {
           loadMore={currentState.loadMore}
           openingBalance={currentState.openingBalance}
           closingBalance={currentState.closingBalance}
+          debitSum={currentState.debitSum}
+          creditSum={currentState.creditSum}
           onSort={currentState.onSort}
           onColumnFilterChange={currentState.onColumnFilterChange}
           sortField={currentState.filters.sortField}
@@ -145,6 +147,9 @@ export function VendorLedgerView() {
           columnOrder={currentState.columnOrder}
           setColumnOrder={currentState.setColumnOrder}
           saveColumnOrder={currentState.saveColumnOrder}
+          frozenColumns={currentState.frozenColumns}
+          setFrozenColumns={currentState.setFrozenColumns}
+          saveFrozenColumns={currentState.saveFrozenColumns}
           vendorNo={currentState.filters.vendorNo}
           fromDate={currentState.filters.fromDate}
           toDate={currentState.filters.toDate}

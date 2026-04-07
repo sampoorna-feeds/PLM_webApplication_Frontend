@@ -513,7 +513,6 @@ export function PurchaseCreateDocumentFormContent({
     vehicleNo: "",
     vendorInvoiceNo: "",
     dueDateCalculation: "Posting Date",
-    freight: "",
     lineNarration: "",
   });
   const [isReceiptOpen, setIsReceiptOpen] = useState(false);
@@ -1139,7 +1138,6 @@ export function PurchaseCreateDocumentFormContent({
           vehicleNo: "",
           vendorInvoiceNo: formData.vendorInvoiceNo || "",
           dueDateCalculation: "Posting Date",
-          freight: "",
           lineNarration: "",
         });
         setIsPostDetailsOpen(true);
@@ -1238,7 +1236,6 @@ export function PurchaseCreateDocumentFormContent({
         patchPayload.Due_Date_calculation =
           postDetails.dueDateCalculation || "Posting Date";
         patchPayload.Line_Narration1 = postDetails.lineNarration || "";
-        patchPayload.Freight = postDetails.freight || "0";
       }
       await config.updateHeader(createdOrderNo, patchPayload);
       const optMap: Record<string, "1" | "2" | "3"> = {
@@ -2053,29 +2050,29 @@ export function PurchaseCreateDocumentFormContent({
             </Button>
           )}
           {isViewMode && documentType === "order" && createdOrderNo && (
-            <>
-              <Button
-                type="button"
-                size="sm"
-                className="h-8"
-                onClick={handlePrintPOReport}
-                disabled={isActionLoading}
-              >
-                <FileText className="mr-1.5 h-3.5 w-3.5" />
-                Print Report
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="h-8"
-                onClick={() => setIsAttachmentDialogOpen(true)}
-                disabled={isActionLoading}
-              >
-                <Paperclip className="mr-1.5 h-3.5 w-3.5" />
-                Attachments
-              </Button>
-            </>
+            <Button
+              type="button"
+              size="sm"
+              className="h-8"
+              onClick={handlePrintPOReport}
+              disabled={isActionLoading}
+            >
+              <FileText className="mr-1.5 h-3.5 w-3.5" />
+              Print Report
+            </Button>
+          )}
+          {isViewMode && documentType !== "return-order" && createdOrderNo && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-8"
+              onClick={() => setIsAttachmentDialogOpen(true)}
+              disabled={isActionLoading}
+            >
+              <Paperclip className="mr-1.5 h-3.5 w-3.5" />
+              Attachments
+            </Button>
           )}
 
           {/* Edit mode */}
@@ -2343,7 +2340,7 @@ export function PurchaseCreateDocumentFormContent({
         />
       )}
 
-      {documentType === "order" && createdOrderNo && (
+      {documentType !== "return-order" && createdOrderNo && (
         <POAttachmentDialog
           isOpen={isAttachmentDialogOpen}
           onOpenChange={setIsAttachmentDialogOpen}
@@ -2432,7 +2429,6 @@ export function PurchaseCreateDocumentFormContent({
                     vehicleNo: "",
                     vendorInvoiceNo: formData.vendorInvoiceNo || "",
                     dueDateCalculation: "Posting Date",
-                    freight: "",
                     lineNarration: "",
                   });
                   setIsPostDialogOpen(false);
@@ -2534,20 +2530,6 @@ export function PurchaseCreateDocumentFormContent({
                         </SelectItem>
                       </SelectContent>
                     </Select>
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs font-semibold">Freight</Label>
-                    <Input
-                      type="text"
-                      inputMode="decimal"
-                      value={postDetails.freight}
-                      onChange={(e) => {
-                        const v = e.target.value;
-                        if (v === "" || /^\d*\.?\d*$/.test(v))
-                          setPostDetails((p) => ({ ...p, freight: v }));
-                      }}
-                      className="h-8"
-                    />
                   </div>
                   <div className="space-y-1 sm:col-span-2">
                     <Label className="text-xs font-semibold">

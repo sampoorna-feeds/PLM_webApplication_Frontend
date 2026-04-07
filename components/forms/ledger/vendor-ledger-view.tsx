@@ -133,6 +133,8 @@ export function VendorLedgerView() {
           loadMore={currentState.loadMore}
           openingBalance={currentState.openingBalance}
           closingBalance={currentState.closingBalance}
+          debitSum={currentState.debitSum}
+          creditSum={currentState.creditSum}
           onSort={currentState.onSort}
           onColumnFilterChange={currentState.onColumnFilterChange}
           sortField={currentState.filters.sortField}

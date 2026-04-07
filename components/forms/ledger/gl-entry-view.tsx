@@ -16,6 +16,8 @@ export function GLEntryView() {
     totalCount,
     openingBalance,
     closingBalance,
+    debitSum,
+    creditSum,
     loadMore,
     refetch,
     filters,
@@ -115,6 +117,8 @@ export function GLEntryView() {
           loadMore={loadMore}
           openingBalance={openingBalance}
           closingBalance={closingBalance}
+          debitSum={debitSum}
+          creditSum={creditSum}
           onSort={handleSort}
           onColumnFilterChange={handleColumnFilterChange}
           sortField={filters.sortField}

@@ -23,6 +23,8 @@ interface VendorLedgerTableProps {
   loadMore: () => void;
   openingBalance: number;
   closingBalance: number;
+  debitSum?: number;
+  creditSum?: number;
   onSort: (field: string) => void;
   onColumnFilterChange: (field: string, value: string, valueTo?: string) => void;
   sortField?: string;
@@ -66,6 +68,8 @@ export function VendorLedgerTable({
   loadMore,
   openingBalance,
   closingBalance,
+  debitSum = 0,
+  creditSum = 0,
   onSort,
   onColumnFilterChange,
   sortField,
@@ -525,7 +529,7 @@ export function VendorLedgerTable({
           <tbody className="divide-y divide-border/20">
             {/* Opening Balance Row */}
             {!isLoading && entries.length > 0 && !isOutstanding && (
-              <tr className="bg-primary/[0.03] transition-colors group/balance border-b-2 border-primary/10">
+              <tr className="bg-primary/3 transition-colors group/balance border-b-2 border-primary/10">
                 {balancePrefixColSpan > 0 && (
                   <td
                     colSpan={balancePrefixColSpan}
@@ -592,6 +596,82 @@ export function VendorLedgerTable({
                 )}
               </td>
             </tr>
+
+            {/* Total Debit Row */}
+            {!isLoading && entries.length > 0 && (
+              <tr className="bg-muted border-t border-border/40 group/debit sticky bottom-[96px] z-30 shadow-[0_-4px_20px_rgba(0,0,0,0.5)]">
+                <td
+                  colSpan={balancePrefixColSpan || 1}
+                  style={{
+                    ...getFrozenStyle(activeColumns[0].id, 45, 'hsl(var(--muted))'),
+                  }}
+                  className="px-6 py-4 text-left font-semibold text-xs text-muted-foreground"
+                >
+                  Total Debit
+                </td>
+                {activeColumns.slice(balancePrefixColSpan).map((col) => {
+                  const cellStyle = {
+                    width: columnWidths[col.id] ? `${columnWidths[col.id]}px` : undefined,
+                    minWidth: columnWidths[col.id] ? `${columnWidths[col.id]}px` : undefined,
+                    maxWidth: columnWidths[col.id] ? `${columnWidths[col.id]}px` : undefined,
+                    ...getFrozenStyle(col.id, 45, 'hsl(var(--muted))')
+                  };
+                  if (col.id === "Debit_Amount" || col.id === "Debit") {
+                    return (
+                      <td
+                        key={col.id}
+                        style={cellStyle}
+                        className="px-4 py-4 text-right text-xs font-semibold tabular-nums border-l border-border/10 text-foreground/80"
+                      >
+                        {debitSum.toLocaleString(undefined, {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}
+                      </td>
+                    );
+                  }
+                  return <td key={col.id} style={cellStyle} className="px-4 py-4 border-l border-border/5" />;
+                })}
+              </tr>
+            )}
+
+            {/* Total Credit Row */}
+            {!isLoading && entries.length > 0 && (
+              <tr className="bg-muted border-t border-border/40 group/credit sticky bottom-[52px] z-30 shadow-[0_-4px_20px_rgba(0,0,0,0.5)]">
+                <td
+                  colSpan={balancePrefixColSpan || 1}
+                  style={{
+                    ...getFrozenStyle(activeColumns[0].id, 45, 'hsl(var(--muted))'),
+                  }}
+                  className="px-6 py-4 text-left font-semibold text-xs text-muted-foreground"
+                >
+                  Total Credit
+                </td>
+                {activeColumns.slice(balancePrefixColSpan).map((col) => {
+                  const cellStyle = {
+                    width: columnWidths[col.id] ? `${columnWidths[col.id]}px` : undefined,
+                    minWidth: columnWidths[col.id] ? `${columnWidths[col.id]}px` : undefined,
+                    maxWidth: columnWidths[col.id] ? `${columnWidths[col.id]}px` : undefined,
+                    ...getFrozenStyle(col.id, 45, 'hsl(var(--muted))')
+                  };
+                  if (col.id === "Credit_Amount" || col.id === "Credit") {
+                    return (
+                      <td
+                        key={col.id}
+                        style={cellStyle}
+                        className="px-4 py-4 text-right text-xs font-semibold tabular-nums border-l border-border/10 text-foreground/80"
+                      >
+                        {creditSum.toLocaleString(undefined, {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}
+                      </td>
+                    );
+                  }
+                  return <td key={col.id} style={cellStyle} className="px-4 py-4 border-l border-border/5" />;
+                })}
+              </tr>
+            )}
 
             {/* Closing Balance Row */}
             {!isLoading && entries.length > 0 && !isOutstanding && (

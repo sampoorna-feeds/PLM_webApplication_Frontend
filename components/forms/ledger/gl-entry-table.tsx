@@ -456,6 +456,19 @@ export function GLEntryTable({
     }, 0);
   }, [activeColumns, columnWidths]);
 
+  const closingBalanceColumnId = useMemo(() => {
+    return activeColumns.find((col) =>
+      ["Amount", "RunningBalance"].includes(col.id),
+    )?.id;
+  }, [activeColumns]);
+
+  const formatAmount = useCallback((value: number) => {
+    return value.toLocaleString(undefined, {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+  }, []);
+
   // Handle "Select Account" placeholder state
   if (!accountNo) {
     return (
@@ -593,97 +606,21 @@ export function GLEntryTable({
               </td>
             </tr>
 
-            {/* Total Debit Row */}
+            {/* Summary Row */}
             {!isLoading && entries.length > 0 && (
-              <tr className="bg-muted border-t border-border/40 group/debit sticky bottom-[96px] z-30 shadow-[0_-4px_20px_rgba(0,0,0,0.5)]">
-                <td
-                  colSpan={balancePrefixColSpan || 1}
-                  style={{
-                    ...getFrozenStyle(activeColumns[0].id, 45, 'hsl(var(--muted))'),
-                  }}
-                  className="px-6 py-3.5 text-left font-bold text-[13px] text-muted-foreground tracking-wider"
-                >
-                  Total Debit
-                </td>
-                {activeColumns.slice(balancePrefixColSpan).map((col) => {
-                  const cellStyle = {
-                    width: columnWidths[col.id] ? `${columnWidths[col.id]}px` : undefined,
-                    minWidth: columnWidths[col.id] ? `${columnWidths[col.id]}px` : undefined,
-                    maxWidth: columnWidths[col.id] ? `${columnWidths[col.id]}px` : undefined,
-                    ...getFrozenStyle(col.id, 45, 'hsl(var(--muted))')
-                  };
-                  if (col.id === "Debit_Amount" || col.id === "Debit") {
-                    return (
-                      <td
-                        key={col.id}
-                        style={cellStyle}
-                        className="px-5 py-3.5 text-right text-[13px] font-bold tabular-nums border-l border-border/10 text-foreground/80 tracking-tight"
-                      >
-                        {debitSum.toLocaleString(undefined, {
-                          minimumFractionDigits: 2,
-                          maximumFractionDigits: 2,
-                        })}
-                      </td>
-                    );
-                  }
-                  return <td key={col.id} style={cellStyle} className="px-5 py-3.5 border-l border-border/5" />;
-                })}
-              </tr>
-            )}
-
-            {/* Total Credit Row */}
-            {!isLoading && entries.length > 0 && (
-              <tr className="bg-muted border-t border-border/40 group/credit sticky bottom-[52px] z-30 shadow-[0_-4px_20px_rgba(0,0,0,0.5)]">
-                <td
-                  colSpan={balancePrefixColSpan || 1}
-                  style={{
-                    ...getFrozenStyle(activeColumns[0].id, 45, 'hsl(var(--muted))'),
-                  }}
-                  className="px-6 py-3.5 text-left font-bold text-[13px] text-muted-foreground tracking-wider"
-                >
-                  Total Credit
-                </td>
-                {activeColumns.slice(balancePrefixColSpan).map((col) => {
-                  const cellStyle = {
-                    width: columnWidths[col.id] ? `${columnWidths[col.id]}px` : undefined,
-                    minWidth: columnWidths[col.id] ? `${columnWidths[col.id]}px` : undefined,
-                    maxWidth: columnWidths[col.id] ? `${columnWidths[col.id]}px` : undefined,
-                    ...getFrozenStyle(col.id, 45, 'hsl(var(--muted))')
-                  };
-                  if (col.id === "Credit_Amount" || col.id === "Credit") {
-                    return (
-                      <td
-                        key={col.id}
-                        style={cellStyle}
-                        className="px-5 py-3.5 text-right text-[13px] font-bold tabular-nums border-l border-border/10 text-foreground/80 tracking-tight"
-                      >
-                        {creditSum.toLocaleString(undefined, {
-                          minimumFractionDigits: 2,
-                          maximumFractionDigits: 2,
-                        })}
-                      </td>
-                    );
-                  }
-                  return <td key={col.id} style={cellStyle} className="px-5 py-3.5 border-l border-border/5" />;
-                })}
-              </tr>
-            )}
-
-            {/* Closing Balance Row */}
-            {!isLoading && entries.length > 0 && Math.abs(closingBalance) > 0 && (
               <tr className="bg-card border-t-2 border-primary group/balance sticky bottom-0 z-40 shadow-[0_-8px_30px_rgba(0,0,0,0.4)]">
                 {balancePrefixColSpan > 0 && (
                   <td
                     colSpan={balancePrefixColSpan}
                     style={{
                       ...getFrozenStyle(activeColumns[0].id, 45),
-                      backgroundColor: 'hsl(var(--card))' // Match row bg
+                      backgroundColor: "hsl(var(--card))",
                     }}
                     className="px-6 py-4 text-left font-black text-[13px] text-primary tracking-wider"
                   >
                     <div className="flex items-center gap-3">
                       <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-                      Closing Balance
+                      Summary
                     </div>
                   </td>
                 )}
@@ -692,23 +629,61 @@ export function GLEntryTable({
                     width: columnWidths[col.id] ? `${columnWidths[col.id]}px` : undefined,
                     minWidth: columnWidths[col.id] ? `${columnWidths[col.id]}px` : undefined,
                     maxWidth: columnWidths[col.id] ? `${columnWidths[col.id]}px` : undefined,
-                    ...getFrozenStyle(col.id, 45)
+                    ...getFrozenStyle(col.id, 45),
                   };
-                  if (col.id === "Amount" || col.id === "RunningBalance") {
+
+                  if (col.id === "Debit_Amount" || col.id === "Debit") {
                     return (
                       <td
                         key={col.id}
                         style={cellStyle}
-                        className="px-5 py-4 text-right text-[14px] font-black tabular-nums border-l border-primary/10 text-primary tracking-tight"
+                        className="px-5 py-3.5 text-right border-l border-primary/10"
                       >
-                        {closingBalance.toLocaleString(undefined, {
-                          minimumFractionDigits: 2,
-                          maximumFractionDigits: 2,
-                        })}
+                        <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
+                          Total Debit
+                        </div>
+                        <div className="text-[13px] font-black tabular-nums tracking-tight text-foreground/90">
+                          {formatAmount(debitSum)}
+                        </div>
                       </td>
                     );
                   }
-                  return <td key={col.id} style={cellStyle} className="px-5 py-4 border-l border-border/5" />;
+
+                  if (col.id === "Credit_Amount" || col.id === "Credit") {
+                    return (
+                      <td
+                        key={col.id}
+                        style={cellStyle}
+                        className="px-5 py-3.5 text-right border-l border-primary/10"
+                      >
+                        <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
+                          Total Credit
+                        </div>
+                        <div className="text-[13px] font-black tabular-nums tracking-tight text-foreground/90">
+                          {formatAmount(creditSum)}
+                        </div>
+                      </td>
+                    );
+                  }
+
+                  if (col.id === closingBalanceColumnId) {
+                    return (
+                      <td
+                        key={col.id}
+                        style={cellStyle}
+                        className="px-5 py-3.5 text-right border-l border-primary/10"
+                      >
+                        <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-primary/70">
+                          Closing Balance
+                        </div>
+                        <div className="text-[14px] font-black tabular-nums tracking-tight text-primary">
+                          {formatAmount(closingBalance)}
+                        </div>
+                      </td>
+                    );
+                  }
+
+                  return <td key={col.id} style={cellStyle} className="px-5 py-3.5 border-l border-border/5" />;
                 })}
               </tr>
             )}

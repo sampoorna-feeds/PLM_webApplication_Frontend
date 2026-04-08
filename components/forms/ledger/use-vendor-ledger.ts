@@ -11,7 +11,7 @@ import {
   buildVendorFilterString,
   buildHumanReadableVendorFilters,
 } from "@/lib/api/services/vendor-ledger.service";
-import { type PageSize, type FilterCondition } from "@/components/forms/report-ledger/types";
+import { type FilterCondition } from "@/components/forms/report-ledger/types";
 import { 
   getDefaultVisibleColumns, 
   loadVisibleColumns, 
@@ -20,8 +20,6 @@ import {
   saveColumnWidths,
   loadColumnOrder,
   saveColumnOrder,
-  loadFrozenColumns,
-  saveFrozenColumns,
   resetVendorTableUI,
   ALL_COLUMNS,
 } from "@/components/forms/ledger/vendor-ledger-column-config";
@@ -68,10 +66,6 @@ export function useVendorLedger(options: UseVendorLedgerOptions = {}) {
     typeof window !== "undefined" ? loadColumnOrder() : []
   );
   
-  const [frozenColumns, setFrozenColumns] = useState<string[]>(() => 
-    typeof window !== "undefined" ? loadFrozenColumns() : []
-  );
-
   const hasMore = useMemo(
     () => entries.length < totalCount,
     [entries.length, totalCount]
@@ -138,12 +132,12 @@ export function useVendorLedger(options: UseVendorLedgerOptions = {}) {
       setIsLoading(false);
       setIsFetchingNextPage(false);
     }
-  }, [filters, entries.length, openingBalance, closingBalance]);
+  }, [filters, entries.length, openingBalance, closingBalance, debitSum, creditSum, LIMIT]);
 
   // Initial fetch on filter change
   useEffect(() => {
     fetchEntries(false);
-  }, [filters]);
+  }, [fetchEntries]);
 
   const loadMore = useCallback(() => {
     if (!hasMore || isLoading || isFetchingNextPage) return;
@@ -210,7 +204,6 @@ export function useVendorLedger(options: UseVendorLedgerOptions = {}) {
     setVisibleColumns(defaultColumns);
     setColumnWidths({});
     setColumnOrder([]);
-    setFrozenColumns([]);
     resetVendorTableUI();
     saveVisibleColumns(defaultColumns, options.isOutstanding);
   }, [options.isOutstanding]);
@@ -248,12 +241,8 @@ export function useVendorLedger(options: UseVendorLedgerOptions = {}) {
     columnOrder,
     setColumnOrder,
     saveColumnOrder,
-    frozenColumns,
-    setFrozenColumns,
-    saveFrozenColumns,
     currentFilterString: buildVendorFilterString(filters),
     humanReadableFilters: buildHumanReadableVendorFilters(filters),
     refetch: () => fetchEntries(false),
   };
 }
-

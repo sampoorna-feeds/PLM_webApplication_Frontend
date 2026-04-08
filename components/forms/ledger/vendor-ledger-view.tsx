@@ -147,9 +147,6 @@ export function VendorLedgerView() {
           columnOrder={currentState.columnOrder}
           setColumnOrder={currentState.setColumnOrder}
           saveColumnOrder={currentState.saveColumnOrder}
-          frozenColumns={currentState.frozenColumns}
-          setFrozenColumns={currentState.setFrozenColumns}
-          saveFrozenColumns={currentState.saveFrozenColumns}
           vendorNo={currentState.filters.vendorNo}
           fromDate={currentState.filters.fromDate}
           toDate={currentState.filters.toDate}

@@ -5,10 +5,10 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { TableCell } from "@/components/ui/table";
-import { type GLEntry } from "@/lib/api/services/gl-entry.service";
+import type { GLEntry } from "@/lib/api/services/gl-entry.service";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
-import { ArrowUpDown, ChevronDown, ChevronUp, Loader2, BookOpen, MoreHorizontal } from "lucide-react";
+import { ArrowUpDown, ChevronDown, ChevronUp, Loader2, MoreHorizontal } from "lucide-react";
 import { useCallback, useEffect, useRef, useMemo, useState } from "react";
 import { 
   ALL_COLUMNS, 
@@ -41,18 +41,13 @@ interface GLEntryTableProps {
   accountNo?: string;
   fromDate?: string;
   toDate?: string;
-  frozenColumns: string[];
-  setFrozenColumns: React.Dispatch<React.SetStateAction<string[]>>;
-  saveFrozenColumns: (frozen: string[]) => void;
 }
 
 const balanceColumnIds = [
   "Amount",
+  "RunningBalance",
   "Debit_Amount",
   "Credit_Amount",
-  "VAT_Amount",
-  "RunningBalance",
-  "Additional_Currency_Amount",
 ];
 
 export function GLEntryTable({
@@ -80,9 +75,6 @@ export function GLEntryTable({
   accountNo,
   fromDate,
   toDate,
-  frozenColumns,
-  setFrozenColumns,
-  saveFrozenColumns,
 }: GLEntryTableProps) {
   const observerTarget = useRef<HTMLDivElement>(null);
 
@@ -94,13 +86,18 @@ export function GLEntryTable({
       const finalOrder = [...currentOrder, ...newVisible];
       base = [...base].sort((a, b) => finalOrder.indexOf(a.id) - finalOrder.indexOf(b.id));
     }
-    
-    // Final touch: Move frozen columns to the far left (front of array)
-    const frozen = base.filter(c => frozenColumns.includes(c.id));
-    const nonFrozen = base.filter(c => !frozenColumns.includes(c.id));
-    
-    return [...frozen, ...nonFrozen];
-  }, [visibleColumns, columnOrder, frozenColumns]);
+    return base;
+  }, [visibleColumns, columnOrder]);
+
+  const handleResize = useCallback((columnId: string, width: number) => {
+    setColumnWidths(prev => ({ ...prev, [columnId]: width }));
+  }, [setColumnWidths]);
+
+  const saveWidths = useCallback((widths: Record<string, number>) => {
+    if (typeof window !== "undefined") {
+      saveColumnWidths(widths);
+    }
+  }, [saveColumnWidths]);
 
   const handleColumnReorder = useCallback((draggedId: string, targetId: string) => {
     if (draggedId === targetId) return;
@@ -119,17 +116,7 @@ export function GLEntryTable({
       }
       return newIds;
     });
-  }, [activeColumns]);
-
-  const handleResize = useCallback((columnId: string, width: number) => {
-    setColumnWidths(prev => ({ ...prev, [columnId]: width }));
-  }, []);
-
-  const saveWidths = useCallback((widths: Record<string, number>) => {
-    if (typeof window !== "undefined") {
-      saveColumnWidths(widths);
-    }
-  }, []);
+  }, [activeColumns, setColumnOrder, saveColumnOrder]);
 
   const handleObserver = useCallback(
     (entries: IntersectionObserverEntry[]) => {
@@ -169,31 +156,6 @@ export function GLEntryTable({
     );
   };
 
-  const getFrozenStyle = (field: string, zIndex: number = 40, bgColor?: string) => {
-    if (!frozenColumns.includes(field)) return {};
-
-    const currentIndex = activeColumns.findIndex(c => c.id === field);
-    if (currentIndex === -1) return {};
-
-    let left = 0;
-    for (let i = 0; i < currentIndex; i++) {
-        left += (columnWidths[activeColumns[i].id] || 150);
-    }
-
-    const isLastFrozen = currentIndex >= 0 && 
-      (currentIndex === activeColumns.length - 1 || !frozenColumns.includes(activeColumns[currentIndex + 1].id));
-
-    return {
-      position: 'sticky' as 'sticky',
-      left: `${left}px`,
-      zIndex,
-      backgroundColor: bgColor || 'var(--background)',
-      opacity: 1,
-      boxShadow: isLastFrozen ? '4px 0 8px -4px rgba(0,0,0,0.2)' : undefined,
-      borderRight: isLastFrozen ? '1px solid var(--border)' : undefined
-    };
-  };
-
   const HeaderCell = ({
     field,
     label,
@@ -213,19 +175,6 @@ export function GLEntryTable({
       ? filterState.split(",")
       : [filterState, ""];
 
-    const isFrozen = frozenColumns.includes(field);
-
-    const toggleFreeze = (e: React.MouseEvent) => {
-      e.stopPropagation();
-      setFrozenColumns(prev => {
-        const newFrozen = prev.includes(field)
-          ? prev.filter(id => id !== field)
-          : [...prev, field];
-        saveFrozenColumns(newFrozen);
-        return newFrozen;
-      });
-    };
-
     const onResizeMouseDown = (e: React.MouseEvent) => {
       e.preventDefault();
       e.stopPropagation();
@@ -241,7 +190,6 @@ export function GLEntryTable({
       const onMouseUp = () => {
         window.removeEventListener("mousemove", onMouseMove);
         window.removeEventListener("mouseup", onMouseUp);
-        // Persist to localStorage only when dragging ends
         setColumnWidths(prev => {
           saveWidths(prev);
           return prev;
@@ -290,11 +238,9 @@ export function GLEntryTable({
           width: columnWidths[field] ? `${columnWidths[field]}px` : undefined,
           minWidth: columnWidths[field] ? `${columnWidths[field]}px` : undefined,
           maxWidth: columnWidths[field] ? `${columnWidths[field]}px` : undefined,
-          ...getFrozenStyle(field, 50, 'var(--secondary)')
         }}
         className={cn(
           "bg-background border-b border-border/40 px-5 py-3.5 text-left align-middle font-bold tracking-widest text-muted-foreground whitespace-nowrap sticky top-0 transition-all duration-200 group/header overflow-hidden backdrop-blur-md",
-          isFrozen && "z-50 shadow-[4px_0_12px_-4px_rgba(0,0,0,0.1)]",
           hasActiveFilter && "bg-primary/5 text-primary border-b-primary/40",
           isDragOver && "bg-primary/5 border-r-2 border-r-primary",
           className,
@@ -328,7 +274,7 @@ export function GLEntryTable({
                 }}
                 className={cn(
                   "shrink-0 rounded-md p-1 transition-colors hover:bg-primary/10 hover:text-foreground",
-                  hasActiveFilter || isFrozen || isActionsOpen
+                  hasActiveFilter || isActionsOpen
                     ? "text-primary opacity-100"
                     : "text-muted-foreground/60 opacity-50 group-hover/header:opacity-100"
                 )}
@@ -355,20 +301,6 @@ export function GLEntryTable({
                     <SortIcon field={field} />
                   </button>
                 )}
-                <button
-                  className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-sm transition-colors hover:bg-accent"
-                  onClick={(e) => {
-                    toggleFreeze(e);
-                    setIsActionsOpen(false);
-                  }}
-                >
-                  <span>{isFrozen ? "Unfreeze column" : "Freeze column"}</span>
-                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill={isFrozen ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round" className={cn("shrink-0", isFrozen ? "text-primary" : "text-muted-foreground")}>
-                    <path d="M15 4.5l-4 4L7 4.5" />
-                    <path d="M19 12l-4 4-4-4" />
-                    <path d="M5 12l4 4 4-4" />
-                  </svg>
-                </button>
               </div>
 
               {colConfig?.filterType && (
@@ -408,16 +340,11 @@ export function GLEntryTable({
 
   const renderCell = (col: ColumnConfig, entry: any, index: number) => {
     const value = entry[col.id];
-    const isFrozen = frozenColumns.includes(col.id);
-    
-    // Refined row colors for subtle alternating
-    const baseBg = index % 2 === 1 ? 'hsl(var(--muted)/0.3)' : 'hsl(var(--background))';
     
     const cellStyle = {
       width: columnWidths[col.id] ? `${columnWidths[col.id]}px` : undefined,
       minWidth: columnWidths[col.id] ? `${columnWidths[col.id]}px` : undefined,
       maxWidth: columnWidths[col.id] ? `${columnWidths[col.id]}px` : undefined,
-      ...getFrozenStyle(col.id, isFrozen ? 30 : 1, baseBg)
     };
 
     if (value === null || value === undefined || value === "") {
@@ -439,10 +366,8 @@ export function GLEntryTable({
     switch (col.filterType) {
       case "date":
         return (
-          <TableCell key={col.id} style={cellStyle} className="text-[13px] font-bold text-foreground/80 px-5 py-3.5 whitespace-nowrap">
-            {value && value !== "0001-01-01" && value !== "0001-01-01T00:00:00Z" 
-              ? format(new Date(value), "MMM dd, yyyy") 
-              : "-"}
+          <TableCell key={col.id} style={cellStyle} className="text-xs font-bold text-foreground/80 px-4 py-4 whitespace-nowrap">
+            {value && value !== "0001-01-01" ? format(new Date(value), "MMM dd, yyyy") : "-"}
           </TableCell>
         );
       case "number": {
@@ -470,7 +395,7 @@ export function GLEntryTable({
                 value ? "bg-primary/20 text-primary border-primary/20 shadow-sm" : "bg-muted text-muted-foreground border-transparent"
               )}
             >
-              {value ? "Yes" : "No"}
+              {value ? "Open" : "Closed"}
             </Badge>
           </TableCell>
         );
@@ -480,8 +405,8 @@ export function GLEntryTable({
             key={col.id}
             style={cellStyle}
             className={cn(
-              "text-[13px] px-5 py-3.5 truncate transition-colors font-medium text-foreground/80",
-              col.id === "G_L_Account_No" && "text-primary font-bold hover:text-primary/80 cursor-default"
+              "text-[13px] px-5 py-3.5 truncate transition-colors",
+              col.id === "Document_No" ? "font-bold text-primary hover:text-primary/80 cursor-default" : "text-foreground/80 font-medium"
             )}
             title={String(value)}
           >
@@ -517,19 +442,18 @@ export function GLEntryTable({
     });
   }, []);
 
-  // Handle "Select Account" placeholder state
   if (!accountNo) {
     return (
       <div className="flex flex-col items-center justify-center p-20 text-center h-full min-h-[400px]">
         <div className="bg-primary/5 p-8 rounded-full mb-6 relative animate-pulse">
           <div className="absolute inset-0 bg-primary/10 rounded-full blur-xl" />
-          <BookOpen className="h-12 w-12 text-primary relative z-10 opacity-70" />
+          <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-primary relative z-10 opacity-70"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
         </div>
         <h3 className="text-xl font-black text-foreground/90 uppercase tracking-tight mb-2">
           Select G/L Account
         </h3>
         <p className="text-sm text-muted-foreground max-w-sm font-medium">
-          Choose a general ledger account from the search bar above to load transaction history and balances.
+          Choose a general ledger account from the search bar above to load the entries.
         </p>
       </div>
     );
@@ -546,7 +470,7 @@ export function GLEntryTable({
           Select Date Range
         </h3>
         <p className="text-sm text-muted-foreground max-w-sm font-medium">
-          Please select both starting and ending dates in the filter bar to view the ledger entries for this period.
+          Please select both starting and ending dates in the filter bar to view the transaction history for this period.
         </p>
       </div>
     );
@@ -563,14 +487,14 @@ export function GLEntryTable({
           No Results Found
         </h3>
         <p className="text-sm text-muted-foreground max-w-sm font-medium">
-          Try adjusting your filters or checking the ERP connection.
+          No entries were found for the selected account and date range. Try adjusting your filters.
         </p>
       </div>
     );
   }
 
   return (
-    <div className="relative flex-1 overflow-hidden flex flex-col group/table bg-card/5 border rounded-lg">
+    <div className="relative flex-1 overflow-hidden flex flex-col group/table bg-card/10">
       <div className="flex-1 overflow-auto custom-scrollbar">
         <table 
           className="min-w-full text-sm border-separate border-spacing-0 table-fixed"
@@ -585,15 +509,11 @@ export function GLEntryTable({
           </thead>
           <tbody className="divide-y divide-border/20">
             {/* Opening Balance Row */}
-            {!isLoading && entries.length > 0 && Math.abs(openingBalance) > 0 && (
-              <tr className="bg-[hsl(var(--primary)/0.14)] transition-colors group/balance border-b-2 border-primary/20 font-bold">
+            {!isLoading && entries.length > 0 && (
+              <tr className="bg-card group/balance border-b border-primary/10">
                 {balancePrefixColSpan > 0 && (
                   <td
                     colSpan={balancePrefixColSpan}
-                    style={{
-                      ...getFrozenStyle(activeColumns[0].id, 35),
-                      backgroundColor: 'hsl(var(--primary) / 0.14)' // Match row bg
-                    }}
                     className="px-6 py-4 text-left font-black text-primary/85"
                   >
                     <div className="flex items-center gap-2">
@@ -607,7 +527,6 @@ export function GLEntryTable({
                     width: columnWidths[col.id] ? `${columnWidths[col.id]}px` : undefined,
                     minWidth: columnWidths[col.id] ? `${columnWidths[col.id]}px` : undefined,
                     maxWidth: columnWidths[col.id] ? `${columnWidths[col.id]}px` : undefined,
-                    ...getFrozenStyle(col.id, 35)
                   };
                   if (col.id === "Amount" || col.id === "RunningBalance") {
                     return (
@@ -648,7 +567,7 @@ export function GLEntryTable({
                 {isFetchingNextPage && (
                   <div className="flex items-center justify-center py-6 gap-3 text-muted-foreground/40 animate-pulse">
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    <span className="text-xs font-semibold">Fetching Next Records</span>
+                    <span className="text-xs font-semibold">Fetching Next Page</span>
                   </div>
                 )}
               </td>
@@ -660,10 +579,6 @@ export function GLEntryTable({
                 {balancePrefixColSpan > 0 && (
                   <td
                     colSpan={balancePrefixColSpan}
-                    style={{
-                      ...getFrozenStyle(activeColumns[0].id, 45),
-                      backgroundColor: "hsl(var(--card))",
-                    }}
                     className="px-6 py-4 text-left font-black text-[13px] text-primary tracking-wider"
                   >
                     <div className="flex items-center gap-3">
@@ -677,37 +592,36 @@ export function GLEntryTable({
                     width: columnWidths[col.id] ? `${columnWidths[col.id]}px` : undefined,
                     minWidth: columnWidths[col.id] ? `${columnWidths[col.id]}px` : undefined,
                     maxWidth: columnWidths[col.id] ? `${columnWidths[col.id]}px` : undefined,
-                    ...getFrozenStyle(col.id, 45),
                   };
 
-                  if (col.id === "Debit_Amount" || col.id === "Debit") {
+                  if (col.id === "Debit_Amount") {
                     return (
                       <td
                         key={col.id}
                         style={cellStyle}
                         className="px-5 py-3.5 text-right border-l border-primary/10"
                       >
-                        <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
+                        <div className="text-[11px] font-bold text-foreground/60 uppercase tracking-wider mb-1">
                           Total Debit
                         </div>
-                        <div className="text-[15px] font-black tabular-nums tracking-tight text-foreground/90">
+                        <div className="text-[13px] font-black tabular-nums tracking-tight text-foreground/90">
                           {formatAmount(debitSum)}
                         </div>
                       </td>
                     );
                   }
 
-                  if (col.id === "Credit_Amount" || col.id === "Credit") {
+                  if (col.id === "Credit_Amount") {
                     return (
                       <td
                         key={col.id}
                         style={cellStyle}
                         className="px-5 py-3.5 text-right border-l border-primary/10"
                       >
-                        <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
+                        <div className="text-[11px] font-bold text-foreground/60 uppercase tracking-wider mb-1">
                           Total Credit
                         </div>
-                        <div className="text-[15px] font-black tabular-nums tracking-tight text-foreground/90">
+                        <div className="text-[13px] font-black tabular-nums tracking-tight text-foreground/90">
                           {formatAmount(creditSum)}
                         </div>
                       </td>
@@ -721,10 +635,10 @@ export function GLEntryTable({
                         style={cellStyle}
                         className="px-5 py-3.5 text-right border-l border-primary/10"
                       >
-                        <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-primary/70">
+                        <div className="text-[11px] font-bold text-foreground/60 uppercase tracking-wider mb-1">
                           Closing Balance
                         </div>
-                        <div className="text-[16px] font-black tabular-nums tracking-tight text-primary">
+                        <div className="text-[14px] font-black tabular-nums tracking-tight text-primary">
                           {formatAmount(closingBalance)}
                         </div>
                       </td>
@@ -747,7 +661,7 @@ export function GLEntryTable({
           </div>
           <div className="flex flex-col items-center gap-1">
             <h4 className="text-xs font-black uppercase tracking-[0.3em] text-primary animate-pulse">Synchronizing</h4>
-            <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">Accessing Real-time GL Data</p>
+            <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">Accessing Real-time Financial Data</p>
           </div>
         </div>
       )}

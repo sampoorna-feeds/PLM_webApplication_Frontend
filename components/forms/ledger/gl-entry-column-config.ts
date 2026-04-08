@@ -376,7 +376,6 @@ export function saveVisibleColumns(columns: string[]): void {
 
 const WIDTHS_KEY = "glEntry_columnWidths";
 const ORDER_KEY = "glEntry_columnOrder";
-const FROZEN_KEY = "glEntry_frozenColumns";
 
 export function loadColumnWidths(): Record<string, number> {
   try {
@@ -408,25 +407,10 @@ export function saveColumnOrder(order: string[]): void {
   } catch (error) {}
 }
 
-export function loadFrozenColumns(): string[] {
-  try {
-    const stored = localStorage.getItem(FROZEN_KEY);
-    return stored ? JSON.parse(stored) : [];
-  } catch (error) {
-    return [];
-  }
-}
-
-export function saveFrozenColumns(frozen: string[]): void {
-  try {
-    localStorage.setItem(FROZEN_KEY, JSON.stringify(frozen));
-  } catch (error) {}
-}
 
 export function resetGLTableUI(): void {
   try {
     localStorage.removeItem(WIDTHS_KEY);
     localStorage.removeItem(ORDER_KEY);
-    localStorage.removeItem(FROZEN_KEY);
   } catch (error) {}
 }

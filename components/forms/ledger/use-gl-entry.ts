@@ -10,7 +10,7 @@ import {
   type GLEntryFilters,
   buildGLFilterString,
 } from "@/lib/api/services/gl-entry.service";
-import type { FilterCondition } from "@/components/forms/report-ledger/types";
+import { type FilterCondition } from "@/components/forms/report-ledger/types";
 import { 
   loadVisibleColumns, 
   saveVisibleColumns,
@@ -18,17 +18,11 @@ import {
   saveColumnWidths,
   loadColumnOrder,
   saveColumnOrder,
-  loadFrozenColumns,
-  saveFrozenColumns,
   resetGLTableUI,
   ALL_COLUMNS,
 } from "@/components/forms/ledger/gl-entry-column-config";
 
-export interface UseGLEntryOptions {
-  pageSize?: number;
-}
-
-export function useGLEntry(options: UseGLEntryOptions = {}) {
+export function useGLEntry() {
   const [entries, setEntries] = useState<GLEntry[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isFetchingNextPage, setIsFetchingNextPage] = useState(false);
@@ -44,18 +38,18 @@ export function useGLEntry(options: UseGLEntryOptions = {}) {
     toDate: "",
     accountNo: "",
     search: "",
-    columnFilters: {},
     additionalFilters: [],
+    columnFilters: {},
     sortField: "Entry_No",
     sortOrder: "desc"
   });
 
-  const LIMIT = options.pageSize || 50;
+  const LIMIT = 50;
 
   const [visibleColumns, setVisibleColumns] = useState<string[]>(() =>
     typeof window !== "undefined"
       ? loadVisibleColumns()
-      : ALL_COLUMNS.filter(c => c.defaultVisible).map(c => c.id)
+      : ALL_COLUMNS.filter(c => c.defaultVisible).map(c => c.id),
   );
 
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>(() => 
@@ -65,22 +59,14 @@ export function useGLEntry(options: UseGLEntryOptions = {}) {
   const [columnOrder, setColumnOrder] = useState<string[]>(() => 
     typeof window !== "undefined" ? loadColumnOrder() : []
   );
-
-  const [frozenColumns, setFrozenColumns] = useState<string[]>(() => 
-    typeof window !== "undefined" ? loadFrozenColumns() : []
-  );
-
-  const hasNextPage = useMemo(
-    () => entries.length < totalCount || (entries.length === 0 && isLoading),
-    [entries.length, totalCount, isLoading]
+  
+  const hasMore = useMemo(
+    () => entries.length < totalCount,
+    [entries.length, totalCount]
   );
 
   const fetchEntries = useCallback(async (isAppending = false) => {
-    // If no account is selected, we don't fetch anything
-    const accountNo = filters.accountNo || filters.columnFilters?.["G_L_Account_No"];
-    const isDateRangeSelected = !!(filters.fromDate && filters.toDate);
-    
-    if (!accountNo || !isDateRangeSelected) {
+    if (!filters.accountNo || !filters.fromDate || !filters.toDate) {
       setEntries([]);
       setTotalCount(0);
       setOpeningBalance(0);
@@ -101,30 +87,29 @@ export function useGLEntry(options: UseGLEntryOptions = {}) {
     try {
       const skip = isAppending ? entries.length : 0;
       
-      const [response, openingBal, closingBal, sums] = await Promise.all([
+      const [entriesRes, openingBal, closingBal, sums] = await Promise.all([
         getGLEntries(filters, LIMIT, skip),
-        // Fetch balances on initial load if account is selected
-        !isAppending && accountNo && filters.fromDate 
-          ? getGLBalance(accountNo, filters.fromDate, true)
-          : !isAppending ? Promise.resolve(0) : Promise.resolve(openingBalance),
-        !isAppending && accountNo 
-          ? (filters.toDate ? getGLBalance(accountNo, filters.toDate, false) : getGLBalance(accountNo))
-          : !isAppending ? Promise.resolve(0) : Promise.resolve(closingBalance),
-        !isAppending && accountNo
+        !isAppending 
+          ? getGLBalance(filters.accountNo, filters.fromDate, true) 
+          : Promise.resolve(openingBalance),
+        !isAppending 
+          ? (filters.toDate ? getGLBalance(filters.accountNo, filters.toDate, false) : getGLBalance(filters.accountNo))
+          : Promise.resolve(closingBalance),
+        !isAppending
           ? getGLEntrySums(filters)
           : Promise.resolve({ debitSum, creditSum })
       ]);
 
       if (isAppending) {
-        setEntries(prev => [...prev, ...response.value]);
+        setEntries(prev => [...prev, ...entriesRes.value]);
       } else {
-        setEntries(response.value);
+        setEntries(entriesRes.value);
         setOpeningBalance(openingBal);
         setClosingBalance(closingBal);
         setDebitSum(sums.debitSum);
         setCreditSum(sums.creditSum);
       }
-      setTotalCount(response["@odata.count"] || (response.value.length < LIMIT ? entries.length + (isAppending ? entries.length : 0) + response.value.length : 1000000));
+      setTotalCount(entriesRes["@odata.count"] || entriesRes.value.length);
     } catch (error) {
       console.error("Error fetching GL entries:", error);
       toast.error("Failed to load general ledger entries.");
@@ -132,59 +117,57 @@ export function useGLEntry(options: UseGLEntryOptions = {}) {
       setIsLoading(false);
       setIsFetchingNextPage(false);
     }
-  }, [filters, entries.length, LIMIT, openingBalance, closingBalance]);
+  }, [filters, entries.length, openingBalance, closingBalance, debitSum, creditSum]);
 
   useEffect(() => {
     fetchEntries(false);
-  }, [filters]);
+  }, [fetchEntries]);
 
   const loadMore = useCallback(() => {
-    if (entries.length >= totalCount && totalCount > 0) return;
-    if (isLoading || isFetchingNextPage) return;
+    if (!hasMore || isLoading || isFetchingNextPage) return;
     fetchEntries(true);
-  }, [entries.length, totalCount, isLoading, isFetchingNextPage, fetchEntries]);
+  }, [hasMore, isLoading, isFetchingNextPage, fetchEntries]);
 
   const handleFilterChange = useCallback((newFilters: Partial<GLEntryFilters>) => {
     setFilters((prev) => ({ 
       ...prev, 
       ...newFilters,
-      columnFilters: newFilters.accountNo !== undefined ? {} : prev.columnFilters
-    }));
-  }, []);
-
-  const handleSearch = useCallback((search: string) => {
-    setFilters((prev) => ({ ...prev, search }));
-  }, []);
-
-  const handleSort = useCallback((field: string) => {
-    setFilters((prev) => ({
-      ...prev,
-      sortField: field,
-      sortOrder: prev.sortField === field && prev.sortOrder === "asc" ? "desc" : "asc",
+      columnFilters: newFilters.accountNo !== undefined ? {} : prev.columnFilters 
     }));
   }, []);
 
   const handleColumnFilterChange = useCallback((field: string, value: string, valueTo?: string) => {
-    const filterValue = valueTo ? `${value},${valueTo}` : value;
-    
+    setFilters((prev) => ({
+      ...prev,
+      columnFilters: {
+        ...prev.columnFilters,
+        [field]: valueTo ? `${value},${valueTo}` : value
+      }
+    }));
+  }, []);
+
+  const handleSort = useCallback((field: string) => {
     setFilters((prev) => {
-      const isAccountFilter = field === "G_L_Account_No";
-      
+      const isAsc = prev.sortField === field && prev.sortOrder === "asc";
       return {
         ...prev,
-        accountNo: isAccountFilter ? value : prev.accountNo,
-        columnFilters: {
-          ...prev.columnFilters,
-          [field]: filterValue
-        }
+        sortField: field,
+        sortOrder: isAsc ? "desc" : "asc"
       };
     });
   }, []);
 
-  const handleAdditionalFiltersChange = useCallback((additionalFilters: FilterCondition[]) => {
+  const handleAddAdditionalFilter = useCallback((filter: FilterCondition) => {
     setFilters((prev) => ({
       ...prev,
-      additionalFilters
+      additionalFilters: [...(prev.additionalFilters || []), filter]
+    }));
+  }, []);
+
+  const handleRemoveAdditionalFilter = useCallback((index: number) => {
+    setFilters((prev) => ({
+      ...prev,
+      additionalFilters: (prev.additionalFilters || []).filter((_, i) => i !== index)
     }));
   }, []);
 
@@ -199,67 +182,48 @@ export function useGLEntry(options: UseGLEntryOptions = {}) {
   }, []);
 
   const handleResetColumns = useCallback(() => {
-    const defaultCols = ALL_COLUMNS.filter(c => c.defaultVisible).map(c => c.id);
-    setVisibleColumns(defaultCols);
+    const defaultColumns = ALL_COLUMNS.filter(c => c.defaultVisible).map(c => c.id);
+    setVisibleColumns(defaultColumns);
     setColumnWidths({});
     setColumnOrder([]);
-    setFrozenColumns([]);
     resetGLTableUI();
-    saveVisibleColumns(defaultCols);
+    saveVisibleColumns(defaultColumns);
   }, []);
 
-  const clearFilters = useCallback(() => {
-    setFilters({
-      fromDate: "",
-      toDate: "",
-      accountNo: "",
-      search: "",
-      columnFilters: {},
-      additionalFilters: [],
-      sortField: "Entry_No",
-      sortOrder: "desc"
-    });
-    setOpeningBalance(0);
-    setClosingBalance(0);
-    setDebitSum(0);
-    setCreditSum(0);
+  const handleShowAllColumns = useCallback(() => {
+    const allColumnIds = ALL_COLUMNS.map((col) => col.id);
+    setVisibleColumns(allColumnIds);
+    saveVisibleColumns(allColumnIds);
   }, []);
 
   return {
     entries,
     isLoading,
     isFetchingNextPage,
-    hasNextPage,
+    hasMore,
     totalCount,
+    filters,
     openingBalance,
     closingBalance,
     debitSum,
     creditSum,
-    loadMore,
-    refetch: () => fetchEntries(false),
-    
-    // Filters
-    filters,
-    onFilterChange: handleFilterChange,
-    handleSearch,
-    handleSort,
-    handleColumnFilterChange,
-    handleAdditionalFiltersChange,
-    clearFilters,
-    
-    // Columns
     visibleColumns,
-    setVisibleColumns: handleColumnToggle,
-    handleResetColumns,
+    onFilterChange: handleFilterChange,
+    onColumnFilterChange: handleColumnFilterChange,
+    onSort: handleSort,
+    onAddAdditionalFilter: handleAddAdditionalFilter,
+    onRemoveAdditionalFilter: handleRemoveAdditionalFilter,
+    loadMore,
+    onColumnToggle: handleColumnToggle,
+    onResetColumns: handleResetColumns,
+    onShowAllColumns: handleShowAllColumns,
     columnWidths,
     setColumnWidths,
     saveColumnWidths,
     columnOrder,
     setColumnOrder,
     saveColumnOrder,
-    frozenColumns,
-    setFrozenColumns,
-    saveFrozenColumns,
     currentFilterString: buildGLFilterString(filters),
+    refetch: () => fetchEntries(false),
   };
 }

@@ -12,11 +12,7 @@ import { ArrowUpDown, ChevronDown, ChevronUp, Loader2, MoreHorizontal } from "lu
 import { useCallback, useEffect, useRef, useMemo, useState } from "react";
 import { 
   ALL_COLUMNS, 
-  type ColumnConfig,
-  loadColumnWidths,
-  saveColumnWidths,
-  loadColumnOrder,
-  saveColumnOrder
+  type ColumnConfig
 } from "./vendor-ledger-column-config";
 import { ColumnFilter } from "@/components/forms/report-ledger/column-filter";
 
@@ -45,9 +41,6 @@ interface VendorLedgerTableProps {
   vendorNo?: string;
   fromDate?: string;
   toDate?: string;
-  frozenColumns: string[];
-  setFrozenColumns: React.Dispatch<React.SetStateAction<string[]>>;
-  saveFrozenColumns: (frozen: string[]) => void;
   isOutstanding?: boolean;
 }
 
@@ -90,9 +83,6 @@ export function VendorLedgerTable({
   vendorNo,
   fromDate,
   toDate,
-  frozenColumns,
-  setFrozenColumns,
-  saveFrozenColumns,
   isOutstanding = false,
 }: VendorLedgerTableProps) {
   const observerTarget = useRef<HTMLDivElement>(null);
@@ -105,23 +95,18 @@ export function VendorLedgerTable({
       const finalOrder = [...currentOrder, ...newVisible];
       base = [...base].sort((a, b) => finalOrder.indexOf(a.id) - finalOrder.indexOf(b.id));
     }
-    
-    // Final touch: Move frozen columns to the far left (front of array)
-    const frozen = base.filter(c => frozenColumns.includes(c.id));
-    const nonFrozen = base.filter(c => !frozenColumns.includes(c.id));
-    
-    return [...frozen, ...nonFrozen];
-  }, [visibleColumns, columnOrder, frozenColumns]);
+    return base;
+  }, [visibleColumns, columnOrder]);
 
   const handleResize = useCallback((columnId: string, width: number) => {
     setColumnWidths(prev => ({ ...prev, [columnId]: width }));
-  }, []);
+  }, [setColumnWidths]);
 
   const saveWidths = useCallback((widths: Record<string, number>) => {
     if (typeof window !== "undefined") {
       saveColumnWidths(widths);
     }
-  }, []);
+  }, [saveColumnWidths]);
 
   const handleColumnReorder = useCallback((draggedId: string, targetId: string) => {
     if (draggedId === targetId) return;
@@ -140,7 +125,7 @@ export function VendorLedgerTable({
       }
       return newIds;
     });
-  }, [activeColumns]);
+  }, [activeColumns, setColumnOrder, saveColumnOrder]);
 
   const handleObserver = useCallback(
     (entries: IntersectionObserverEntry[]) => {
@@ -180,31 +165,6 @@ export function VendorLedgerTable({
     );
   };
 
-  const getFrozenStyle = (field: string, zIndex: number = 40, bgColor?: string) => {
-    if (!frozenColumns.includes(field)) return {};
-
-    const currentIndex = activeColumns.findIndex(c => c.id === field);
-    if (currentIndex === -1) return {};
-
-    let left = 0;
-    for (let i = 0; i < currentIndex; i++) {
-        left += (columnWidths[activeColumns[i].id] || 150);
-    }
-
-    const isLastFrozen = currentIndex >= 0 && 
-      (currentIndex === activeColumns.length - 1 || !frozenColumns.includes(activeColumns[currentIndex + 1].id));
-
-    return {
-      position: 'sticky' as 'sticky',
-      left: `${left}px`,
-      zIndex,
-      backgroundColor: bgColor || 'var(--background)',
-      opacity: 1,
-      boxShadow: isLastFrozen ? '4px 0 8px -4px rgba(0,0,0,0.2)' : undefined,
-      borderRight: isLastFrozen ? '1px solid var(--border)' : undefined
-    };
-  };
-
   const HeaderCell = ({
     field,
     label,
@@ -224,19 +184,6 @@ export function VendorLedgerTable({
       ? filterState.split(",")
       : [filterState, ""];
 
-    const isFrozen = frozenColumns.includes(field);
-
-    const toggleFreeze = (e: React.MouseEvent) => {
-      e.stopPropagation();
-      setFrozenColumns(prev => {
-        const newFrozen = prev.includes(field)
-          ? prev.filter(id => id !== field)
-          : [...prev, field];
-        saveFrozenColumns(newFrozen);
-        return newFrozen;
-      });
-    };
-
     const onResizeMouseDown = (e: React.MouseEvent) => {
       e.preventDefault();
       e.stopPropagation();
@@ -252,7 +199,6 @@ export function VendorLedgerTable({
       const onMouseUp = () => {
         window.removeEventListener("mousemove", onMouseMove);
         window.removeEventListener("mouseup", onMouseUp);
-        // Persist to localStorage only when dragging ends
         setColumnWidths(prev => {
           saveWidths(prev);
           return prev;
@@ -269,7 +215,6 @@ export function VendorLedgerTable({
     const handleDragStart = (e: React.DragEvent) => {
       e.dataTransfer.setData("columnId", field);
       e.dataTransfer.effectAllowed = "move";
-      // Create a ghost image or just set data
     };
 
     const handleDragOver = (e: React.DragEvent) => {
@@ -302,11 +247,9 @@ export function VendorLedgerTable({
           width: columnWidths[field] ? `${columnWidths[field]}px` : undefined,
           minWidth: columnWidths[field] ? `${columnWidths[field]}px` : undefined,
           maxWidth: columnWidths[field] ? `${columnWidths[field]}px` : undefined,
-          ...getFrozenStyle(field, 50, 'var(--secondary)')
         }}
         className={cn(
           "bg-background border-b border-border/40 px-5 py-3.5 text-left align-middle font-bold tracking-widest text-muted-foreground whitespace-nowrap sticky top-0 transition-all duration-200 group/header overflow-hidden backdrop-blur-md",
-          isFrozen && "z-50 shadow-[4px_0_12px_-4px_rgba(0,0,0,0.1)]",
           hasActiveFilter && "bg-primary/5 text-primary border-b-primary/40",
           isDragOver && "bg-primary/5 border-r-2 border-r-primary",
           className,
@@ -340,7 +283,7 @@ export function VendorLedgerTable({
                 }}
                 className={cn(
                   "shrink-0 rounded-md p-1 transition-colors hover:bg-primary/10 hover:text-foreground",
-                  hasActiveFilter || isFrozen || isActionsOpen
+                  hasActiveFilter || isActionsOpen
                     ? "text-primary opacity-100"
                     : "text-muted-foreground/60 opacity-50 group-hover/header:opacity-100"
                 )}
@@ -367,20 +310,7 @@ export function VendorLedgerTable({
                     <SortIcon field={field} />
                   </button>
                 )}
-                <button
-                  className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-sm transition-colors hover:bg-accent"
-                  onClick={(e) => {
-                    toggleFreeze(e);
-                    setIsActionsOpen(false);
-                  }}
-                >
-                  <span>{isFrozen ? "Unfreeze column" : "Freeze column"}</span>
-                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill={isFrozen ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round" className={cn("shrink-0", isFrozen ? "text-primary" : "text-muted-foreground")}>
-                    <path d="M15 4.5l-4 4L7 4.5" />
-                    <path d="M19 12l-4 4-4-4" />
-                    <path d="M5 12l4 4 4-4" />
-                  </svg>
-                </button>
+                {/* Freeze button removed */}
               </div>
 
               {colConfig?.filterType && (
@@ -420,16 +350,11 @@ export function VendorLedgerTable({
 
   const renderCell = (col: ColumnConfig, entry: any, index: number) => {
     const value = entry[col.id];
-    const isFrozen = frozenColumns.includes(col.id);
-    
-    // Refined row colors for subtle alternating
-    const baseBg = index % 2 === 1 ? 'hsl(var(--muted)/0.3)' : 'hsl(var(--background))';
     
     const cellStyle = {
       width: columnWidths[col.id] ? `${columnWidths[col.id]}px` : undefined,
       minWidth: columnWidths[col.id] ? `${columnWidths[col.id]}px` : undefined,
       maxWidth: columnWidths[col.id] ? `${columnWidths[col.id]}px` : undefined,
-      ...getFrozenStyle(col.id, isFrozen ? 30 : 1, baseBg)
     };
 
     if (value === null || value === undefined || value === "") {
@@ -596,14 +521,10 @@ export function VendorLedgerTable({
           <tbody className="divide-y divide-border/20">
             {/* Opening Balance Row */}
             {!isLoading && entries.length > 0 && !isOutstanding && (
-              <tr className="bg-[hsl(var(--primary)/0.14)] transition-colors group/balance border-b-2 border-primary/20">
+              <tr className="bg-card group/balance border-b border-primary/10">
                 {balancePrefixColSpan > 0 && (
                   <td
                     colSpan={balancePrefixColSpan}
-                    style={{
-                      ...getFrozenStyle(activeColumns[0].id, 35),
-                      backgroundColor: 'hsl(var(--primary) / 0.14)' // Match row bg
-                    }}
                     className="px-6 py-4 text-left font-black text-primary/85"
                   >
                     <div className="flex items-center gap-2">
@@ -617,7 +538,6 @@ export function VendorLedgerTable({
                     width: columnWidths[col.id] ? `${columnWidths[col.id]}px` : undefined,
                     minWidth: columnWidths[col.id] ? `${columnWidths[col.id]}px` : undefined,
                     maxWidth: columnWidths[col.id] ? `${columnWidths[col.id]}px` : undefined,
-                    ...getFrozenStyle(col.id, 35)
                   };
                   if (col.id === "Amount" || col.id === "Amount_LCY") {
                     return (
@@ -670,10 +590,6 @@ export function VendorLedgerTable({
                 {balancePrefixColSpan > 0 && (
                   <td
                     colSpan={balancePrefixColSpan}
-                    style={{
-                      ...getFrozenStyle(activeColumns[0].id, 45),
-                      backgroundColor: "hsl(var(--card))",
-                    }}
                     className="px-6 py-4 text-left font-black text-[13px] text-primary tracking-wider"
                   >
                     <div className="flex items-center gap-3">
@@ -687,7 +603,6 @@ export function VendorLedgerTable({
                     width: columnWidths[col.id] ? `${columnWidths[col.id]}px` : undefined,
                     minWidth: columnWidths[col.id] ? `${columnWidths[col.id]}px` : undefined,
                     maxWidth: columnWidths[col.id] ? `${columnWidths[col.id]}px` : undefined,
-                    ...getFrozenStyle(col.id, 45),
                   };
 
                   if (col.id === "Debit_Amount" || col.id === "Debit") {
@@ -697,7 +612,7 @@ export function VendorLedgerTable({
                         style={cellStyle}
                         className="px-5 py-3.5 text-right border-l border-primary/10"
                       >
-                        <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
+                        <div className="text-[11px] font-bold text-foreground/60 uppercase tracking-wider mb-1">
                           Total Debit
                         </div>
                         <div className="text-[13px] font-black tabular-nums tracking-tight text-foreground/90">
@@ -714,7 +629,7 @@ export function VendorLedgerTable({
                         style={cellStyle}
                         className="px-5 py-3.5 text-right border-l border-primary/10"
                       >
-                        <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
+                        <div className="text-[11px] font-bold text-foreground/60 uppercase tracking-wider mb-1">
                           Total Credit
                         </div>
                         <div className="text-[13px] font-black tabular-nums tracking-tight text-foreground/90">
@@ -731,7 +646,7 @@ export function VendorLedgerTable({
                         style={cellStyle}
                         className="px-5 py-3.5 text-right border-l border-primary/10"
                       >
-                        <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-primary/70">
+                        <div className="text-[11px] font-bold text-foreground/60 uppercase tracking-wider mb-1">
                           Closing Balance
                         </div>
                         <div className="text-[14px] font-black tabular-nums tracking-tight text-primary">

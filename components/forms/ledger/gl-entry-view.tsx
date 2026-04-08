@@ -12,7 +12,7 @@ export function GLEntryView() {
     entries,
     isLoading,
     isFetchingNextPage,
-    hasNextPage,
+    hasMore,
     totalCount,
     openingBalance,
     closingBalance,
@@ -22,7 +22,6 @@ export function GLEntryView() {
     refetch,
     filters,
     onFilterChange,
-    handleSearch,
     handleSort,
     handleColumnFilterChange,
     handleAdditionalFiltersChange,
@@ -36,9 +35,6 @@ export function GLEntryView() {
     columnOrder,
     setColumnOrder,
     saveColumnOrder,
-    frozenColumns,
-    setFrozenColumns,
-    saveFrozenColumns,
     currentFilterString,
   } = useGLEntry();
 
@@ -113,7 +109,7 @@ export function GLEntryView() {
           entries={entries}
           isLoading={isLoading}
           isFetchingNextPage={isFetchingNextPage}
-          hasMore={hasNextPage}
+          hasMore={hasMore}
           loadMore={loadMore}
           openingBalance={openingBalance}
           closingBalance={closingBalance}
@@ -131,9 +127,6 @@ export function GLEntryView() {
           columnOrder={columnOrder}
           setColumnOrder={setColumnOrder}
           saveColumnOrder={saveColumnOrder}
-          frozenColumns={frozenColumns}
-          setFrozenColumns={setFrozenColumns}
-          saveFrozenColumns={saveFrozenColumns}
           accountNo={filters.accountNo}
           fromDate={filters.fromDate}
           toDate={filters.toDate}

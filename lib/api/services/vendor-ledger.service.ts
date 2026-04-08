@@ -381,49 +381,64 @@ export async function getVendorLedgerSums(
     const endpoint = `/VendorLedgerEntry?company='${encodeURIComponent(COMPANY)}'&${aggregationQuery}`;
     const response = await apiGet<any>(endpoint);
     
-    if (response?.value?.[0]) {
-      return {
-        debitSum: Number(response.value[0].TotalDebit) || 0,
-        creditSum: Number(response.value[0].TotalCredit) || 0
-      };
+    // Validate that we actually got numeric results back from aggregation
+    if (response?.value?.[0] && 
+        (typeof response.value[0].TotalDebit !== 'undefined' || 
+         typeof response.value[0].TotalCredit !== 'undefined')) {
+      
+      const d = Number(response.value[0].TotalDebit) || 0;
+      const c = Number(response.value[0].TotalCredit) || 0;
+      
+      // If we got exactly 0 for both but have filters, it's suspicious enough to verify via fallback
+      // but only if we really want to be 100% sure. For now, just return if not undefined.
+      return { debitSum: d, creditSum: c };
     }
-    throw new Error("Unexpected aggregation response");
-  } catch (error) {
-    console.warn("Aggregation failed for Vendor Ledger Sums, falling back", error);
     
-    // Fallback: Fetch necessary fields
+    throw new Error("Invalid or empty aggregation response");
+  } catch (error) {
+    console.warn("Aggregation failed for Vendor Ledger Sums, falling back to manual sum", error);
+    
+    // Fallback: Fetch necessary fields for manual calculation
     const fallbackQuery = buildODataQuery({
       ...queryParams,
-      $select: "Debit_Amount,Credit_Amount,Debit,Credit",
-      $top: 30000,
+      $select: "Debit_Amount,Credit_Amount,Amount",
+      $top: 50000, 
     });
     
     const endpoint = `/VendorLedgerEntry?company='${encodeURIComponent(COMPANY)}'&${fallbackQuery}`;
     const response = await apiGet<ODataResponse<VendorLedgerEntry>>(endpoint);
     
     if (!response?.value || response.value.length === 0) {
-      console.warn("No data returned for manual vendor ledger sum fallback", { 
-        vendor: filters.vendorNo, 
-        filter: filterString,
-        responseSize: response?.value?.length 
-      });
       return { debitSum: 0, creditSum: 0 };
     }
 
+    // Determine the correct field names from the response
     const firstEntry = response.value[0];
     const keys = Object.keys(firstEntry);
+    
+    // Priority: Debit_Amount -> Debit -> debitAmount -> debit_amount
     const dKey = keys.find(k => ['Debit_Amount', 'Debit', 'debit_amount', 'debitAmount'].includes(k));
     const cKey = keys.find(k => ['Credit_Amount', 'Credit', 'credit_amount', 'creditAmount'].includes(k));
 
-    console.log(`Manually summing ${response.value.length} vendor ledger entries. Keys:`, keys, "DKey:", dKey, "CKey:", cKey);
-
     return response.value.reduce((acc, entry) => {
-      const dVal = dKey ? entry[dKey] : 0;
-      const cVal = cKey ? entry[cKey] : 0;
+      let d = 0;
+      let c = 0;
+
+      if (dKey) {
+        d = Number(entry[dKey]?.toString().replace(/,/g, '')) || 0;
+      }
       
-      const d = dKey ? (Number(dVal?.toString().replace(/,/g, '')) || 0) : 0;
-      const c = cKey ? (Number(cVal?.toString().replace(/,/g, '')) || 0) : 0;
+      if (cKey) {
+        c = Number(entry[cKey]?.toString().replace(/,/g, '')) || 0;
+      }
       
+      // Secondary fallback: If debit/credit fields are missing but Amount exists
+      if (!dKey && !cKey && typeof entry.Amount !== 'undefined') {
+        const amt = Number(entry.Amount) || 0;
+        if (amt > 0) d = amt;
+        else c = Math.abs(amt);
+      }
+
       return {
         debitSum: acc.debitSum + d,
         creditSum: acc.creditSum + c

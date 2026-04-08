@@ -1,9 +1,14 @@
 import { Badge } from "@/components/ui/badge";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { TableCell } from "@/components/ui/table";
 import { type GLEntry } from "@/lib/api/services/gl-entry.service";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
-import { ArrowUpDown, ChevronDown, ChevronUp, Loader2, BookOpen } from "lucide-react";
+import { ArrowUpDown, ChevronDown, ChevronUp, Loader2, BookOpen, MoreHorizontal } from "lucide-react";
 import { useCallback, useEffect, useRef, useMemo, useState } from "react";
 import { 
   ALL_COLUMNS, 
@@ -252,6 +257,7 @@ export function GLEntryTable({
     };
 
     const [isDragOver, setIsDragOver] = useState(false);
+    const [isActionsOpen, setIsActionsOpen] = useState(false);
 
     const handleDragStart = (e: React.DragEvent) => {
       e.dataTransfer.setData("columnId", field);
@@ -298,10 +304,10 @@ export function GLEntryTable({
           className,
         )}
       >
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center justify-between gap-2">
           <div
             className={cn(
-              "flex cursor-pointer items-center gap-1.5 transition-all duration-300",
+              "flex min-w-0 flex-1 cursor-pointer items-center gap-1.5 transition-all duration-300",
               !isSortable && "cursor-default",
               sortField === field ? "text-primary translate-x-0.5" : "text-muted-foreground hover:text-foreground"
             )}
@@ -309,40 +315,86 @@ export function GLEntryTable({
           >
             <span
               className={cn(
-                "whitespace-nowrap leading-none transition-colors",
+                "truncate whitespace-nowrap leading-none transition-colors",
                 hasActiveFilter ? "text-primary" : "group-hover/header:text-foreground",
               )}
             >
               {label}
             </span>
-            <div className="flex items-center gap-1">
-              {isSortable && <SortIcon field={field} />}
-              <button 
-                onClick={toggleFreeze}
-                className={cn(
-                  "p-1 rounded hover:bg-primary/10 transition-colors",
-                  isFrozen ? "text-primary opacity-100" : "opacity-0 group-hover/header:opacity-40"
-                )}
-                title={isFrozen ? "Unfreeze Column" : "Freeze Column"}
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill={isFrozen ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M15 4.5l-4 4L7 4.5"/><path d="M19 12l-4 4-4-4"/><path d="M5 12l4 4 4-4"/></svg>
-              </button>
-            </div>
+            {isSortable && <SortIcon field={field} />}
           </div>
 
-          <div className={cn(
-            "flex items-center transition-opacity duration-300",
-            hasActiveFilter ? "opacity-100" : "opacity-40 group-hover/header:opacity-100"
-          )}>
-            {colConfig?.filterType && (
-              <ColumnFilter
-                column={colConfig}
-                value={val}
-                valueTo={valTo}
-                onChange={(v, vTo) => onColumnFilterChange(field, v, vTo)}
-              />
-            )}
-          </div>
+          <Popover open={isActionsOpen} onOpenChange={setIsActionsOpen}>
+            <PopoverTrigger asChild>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                }}
+                className={cn(
+                  "shrink-0 rounded-md p-1 transition-colors hover:bg-primary/10 hover:text-foreground",
+                  hasActiveFilter || isFrozen || isActionsOpen
+                    ? "text-primary opacity-100"
+                    : "text-muted-foreground/60 opacity-50 group-hover/header:opacity-100"
+                )}
+                title="Column actions"
+              >
+                <MoreHorizontal className="h-3.5 w-3.5" />
+              </button>
+            </PopoverTrigger>
+            <PopoverContent
+              align="end"
+              className="w-56 gap-3 p-3"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="space-y-1">
+                {isSortable && (
+                  <button
+                    className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-sm transition-colors hover:bg-accent"
+                    onClick={() => {
+                      onSort(field);
+                      setIsActionsOpen(false);
+                    }}
+                  >
+                    <span>Sort</span>
+                    <SortIcon field={field} />
+                  </button>
+                )}
+                <button
+                  className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-sm transition-colors hover:bg-accent"
+                  onClick={(e) => {
+                    toggleFreeze(e);
+                    setIsActionsOpen(false);
+                  }}
+                >
+                  <span>{isFrozen ? "Unfreeze column" : "Freeze column"}</span>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill={isFrozen ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round" className={cn("shrink-0", isFrozen ? "text-primary" : "text-muted-foreground")}>
+                    <path d="M15 4.5l-4 4L7 4.5" />
+                    <path d="M19 12l-4 4-4-4" />
+                    <path d="M5 12l4 4 4-4" />
+                  </svg>
+                </button>
+              </div>
+
+              {colConfig?.filterType && (
+                <div className="border-t border-border/50 pt-3">
+                  <div className="mb-2 text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
+                    Filter
+                  </div>
+                  <div className="flex items-center justify-between rounded-md border border-border/50 px-2 py-1.5">
+                    <span className="text-sm text-foreground/80">
+                      {hasActiveFilter ? "Edit filter" : "Open filter"}
+                    </span>
+                    <ColumnFilter
+                      column={colConfig}
+                      value={val}
+                      valueTo={valTo}
+                      onChange={(v, vTo) => onColumnFilterChange(field, v, vTo)}
+                    />
+                  </div>
+                </div>
+              )}
+            </PopoverContent>
+          </Popover>
         </div>
 
         {/* Resizer Handle */}

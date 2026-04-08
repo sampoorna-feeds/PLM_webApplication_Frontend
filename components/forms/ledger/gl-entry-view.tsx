@@ -22,13 +22,13 @@ export function GLEntryView() {
     refetch,
     filters,
     onFilterChange,
-    handleSort,
-    handleColumnFilterChange,
-    handleAdditionalFiltersChange,
-    clearFilters,
+    onSort,
+    onColumnFilterChange,
+    onAdditionalFiltersChange,
+    onClearFilters,
     visibleColumns,
-    setVisibleColumns,
-    handleResetColumns,
+    onColumnToggle,
+    onResetColumns,
     columnWidths,
     setColumnWidths,
     saveColumnWidths,
@@ -43,7 +43,7 @@ export function GLEntryView() {
       {/* Page Header */}
       <div className="flex flex-col justify-between gap-4 px-1 md:flex-row md:items-end">
         <div className="space-y-1">
-          <h1 className="text-foreground/90 text-3xl font-extrabold tracking-tight uppercase">
+          <h1 className="text-foreground/90 text-3xl font-extrabold tracking-tight uppercase leading-none">
             GL Entry
           </h1>
           <p className="text-muted-foreground max-w-lg text-sm font-medium">
@@ -90,12 +90,11 @@ export function GLEntryView() {
           visibleColumns={visibleColumns}
           totalCount={totalCount}
           currentFilterString={currentFilterString}
-          searchString={filters.search}
           onFilterChange={onFilterChange}
-          onAdditionalFiltersChange={handleAdditionalFiltersChange}
-          onClearFilters={clearFilters}
-          onColumnToggle={setVisibleColumns}
-          onResetColumns={handleResetColumns}
+          onAdditionalFiltersChange={onAdditionalFiltersChange}
+          onClearFilters={onClearFilters}
+          onColumnToggle={onColumnToggle}
+          onResetColumns={onResetColumns}
           isLoading={isLoading}
           openingBalance={openingBalance}
           closingBalance={closingBalance}
@@ -115,8 +114,8 @@ export function GLEntryView() {
           closingBalance={closingBalance}
           debitSum={debitSum}
           creditSum={creditSum}
-          onSort={handleSort}
-          onColumnFilterChange={handleColumnFilterChange}
+          onSort={onSort}
+          onColumnFilterChange={onColumnFilterChange}
           sortField={filters.sortField}
           sortOrder={filters.sortOrder}
           columnFilters={filters.columnFilters}

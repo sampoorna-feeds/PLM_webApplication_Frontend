@@ -157,17 +157,21 @@ export function useGLEntry() {
     });
   }, []);
 
-  const handleAddAdditionalFilter = useCallback((filter: FilterCondition) => {
+  const handleAdditionalFiltersChange = useCallback((newFilters: FilterCondition[]) => {
     setFilters((prev) => ({
       ...prev,
-      additionalFilters: [...(prev.additionalFilters || []), filter]
+      additionalFilters: newFilters
     }));
   }, []);
 
-  const handleRemoveAdditionalFilter = useCallback((index: number) => {
+  const handleClearFilters = useCallback(() => {
     setFilters((prev) => ({
       ...prev,
-      additionalFilters: (prev.additionalFilters || []).filter((_, i) => i !== index)
+      fromDate: "",
+      toDate: "",
+      search: "",
+      columnFilters: {},
+      additionalFilters: [],
     }));
   }, []);
 
@@ -211,8 +215,8 @@ export function useGLEntry() {
     onFilterChange: handleFilterChange,
     onColumnFilterChange: handleColumnFilterChange,
     onSort: handleSort,
-    onAddAdditionalFilter: handleAddAdditionalFilter,
-    onRemoveAdditionalFilter: handleRemoveAdditionalFilter,
+    onAdditionalFiltersChange: handleAdditionalFiltersChange,
+    onClearFilters: handleClearFilters,
     loadMore,
     onColumnToggle: handleColumnToggle,
     onResetColumns: handleResetColumns,

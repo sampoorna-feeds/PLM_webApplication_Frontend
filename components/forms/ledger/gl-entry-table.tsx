@@ -12,11 +12,7 @@ import { ArrowUpDown, ChevronDown, ChevronUp, Loader2, BookOpen, MoreHorizontal 
 import { useCallback, useEffect, useRef, useMemo, useState } from "react";
 import { 
   ALL_COLUMNS, 
-  type ColumnConfig,
-  loadColumnWidths,
-  saveColumnWidths,
-  loadColumnOrder,
-  saveColumnOrder
+  type ColumnConfig
 } from "./gl-entry-column-config";
 import { ColumnFilter } from "@/components/forms/report-ledger/column-filter";
 
@@ -590,19 +586,19 @@ export function GLEntryTable({
           <tbody className="divide-y divide-border/20">
             {/* Opening Balance Row */}
             {!isLoading && entries.length > 0 && Math.abs(openingBalance) > 0 && (
-              <tr className="bg-primary/5 transition-colors group/balance border-b-2 border-primary/10 font-bold">
+              <tr className="bg-[hsl(var(--primary)/0.14)] transition-colors group/balance border-b-2 border-primary/20 font-bold">
                 {balancePrefixColSpan > 0 && (
                   <td
                     colSpan={balancePrefixColSpan}
                     style={{
                       ...getFrozenStyle(activeColumns[0].id, 35),
-                      backgroundColor: 'hsl(var(--bg-primary) / 0.05)' // Match row bg
+                      backgroundColor: 'hsl(var(--primary) / 0.14)' // Match row bg
                     }}
-                    className="px-6 py-4 text-left font-black text-[10px] tracking-wider text-primary/60"
+                    className="px-6 py-4 text-left font-black text-primary/85"
                   >
                     <div className="flex items-center gap-2">
-                      <div className="w-1.5 h-1.5 rounded-full bg-primary/30 group-hover/balance:animate-ping" />
-                      Opening Balance
+                      <div className="h-2 w-2 rounded-full bg-primary/70 group-hover/balance:animate-ping" />
+                      <span className="text-sm font-black tracking-wide">Opening Balance</span>
                     </div>
                   </td>
                 )}
@@ -618,7 +614,7 @@ export function GLEntryTable({
                       <td
                         key={col.id}
                         style={cellStyle}
-                        className="px-5 py-4 text-right text-[13px] font-semibold tabular-nums text-primary/80 border-l border-border/10 tracking-tight"
+                        className="px-5 py-4 text-right text-[14px] font-bold tabular-nums text-primary/90 border-l border-primary/10 tracking-tight"
                       >
                         {openingBalance.toLocaleString(undefined, {
                           minimumFractionDigits: 2,
@@ -694,7 +690,7 @@ export function GLEntryTable({
                         <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
                           Total Debit
                         </div>
-                        <div className="text-[13px] font-black tabular-nums tracking-tight text-foreground/90">
+                        <div className="text-[15px] font-black tabular-nums tracking-tight text-foreground/90">
                           {formatAmount(debitSum)}
                         </div>
                       </td>
@@ -711,7 +707,7 @@ export function GLEntryTable({
                         <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
                           Total Credit
                         </div>
-                        <div className="text-[13px] font-black tabular-nums tracking-tight text-foreground/90">
+                        <div className="text-[15px] font-black tabular-nums tracking-tight text-foreground/90">
                           {formatAmount(creditSum)}
                         </div>
                       </td>
@@ -728,7 +724,7 @@ export function GLEntryTable({
                         <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-primary/70">
                           Closing Balance
                         </div>
-                        <div className="text-[14px] font-black tabular-nums tracking-tight text-primary">
+                        <div className="text-[16px] font-black tabular-nums tracking-tight text-primary">
                           {formatAmount(closingBalance)}
                         </div>
                       </td>

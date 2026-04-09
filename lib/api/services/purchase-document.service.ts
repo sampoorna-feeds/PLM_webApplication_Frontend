@@ -37,7 +37,17 @@ interface PurchaseDocumentAdapterConfig {
   documentTypeValue: PurchaseDocumentHeaderType;
   requiredCreateFields: RequiredPurchaseHeaderField[];
   logPrefix: string;
+  // Per-type field inclusion flags derived from actual BC API schemas
+  includeVendorInvoiceNo: boolean;
+  includeVendorCrMemoNo: boolean;
+  includeVendorAuthorizationNo: boolean;
+  includeInvoiceType: boolean;
   includeQcType: boolean;
+  includeOrderDate: boolean;
+  includeRateBasis: boolean;
+  includeDueDateCalculation: boolean;
+  includeDueDate: boolean;
+  includeAppliesToFields: boolean;
 }
 
 interface CreateHeaderApiResponse {
@@ -51,42 +61,58 @@ const PURCHASE_DOCUMENT_ADAPTER_CONFIG: Record<
   PurchaseDocumentAdapterConfig
 > = {
   invoice: {
+    // Schema: PurchaseInvoiceHeader
     headerEntity: "PurchaseInvoiceHeader",
     lineEntity: "PurchaseInvoiceLine",
     documentTypeValue: "Invoice",
-    requiredCreateFields: [
-      "Vendor_Invoice_No",
-      "Applies_to_Doc_Type",
-      "Applies_to_Doc_No",
-    ],
+    requiredCreateFields: ["Vendor_Invoice_No"],
     logPrefix: "PI",
+    includeVendorInvoiceNo: true,
+    includeVendorCrMemoNo: false,
+    includeVendorAuthorizationNo: false,
+    includeInvoiceType: true,
     includeQcType: false,
+    includeOrderDate: false,
+    includeRateBasis: true,
+    includeDueDateCalculation: true,
+    includeDueDate: true,
+    includeAppliesToFields: false,
   },
   "return-order": {
+    // Schema: PurchaseReturnOrderHeader
     headerEntity: "PurchaseReturnOrderHeader",
     lineEntity: "PurchaseReturnOrderLine",
     documentTypeValue: "Return Order",
-    requiredCreateFields: [
-      "Vendor_Cr_Memo_No",
-      "Vendor_Authorization_No",
-      "Applies_to_Doc_Type",
-      "Applies_to_Doc_No",
-    ],
+    requiredCreateFields: ["Vendor_Cr_Memo_No", "Vendor_Authorization_No"],
     logPrefix: "PRO",
+    includeVendorInvoiceNo: false,
+    includeVendorCrMemoNo: true,
+    includeVendorAuthorizationNo: true,
+    includeInvoiceType: false,
     includeQcType: false,
+    includeOrderDate: true,
+    includeRateBasis: false,
+    includeDueDateCalculation: false,
+    includeDueDate: false,
+    includeAppliesToFields: true,
   },
   "credit-memo": {
+    // Schema: PurchaseCreditMemoHeader
     headerEntity: "PurchaseCreditMemoHeader",
     lineEntity: "PurchaseCreditMemoLine",
     documentTypeValue: "Credit Memo",
-    requiredCreateFields: [
-      "Vendor_Cr_Memo_No",
-      "Vendor_Authorization_No",
-      "Applies_to_Doc_Type",
-      "Applies_to_Doc_No",
-    ],
+    requiredCreateFields: ["Vendor_Cr_Memo_No", "Vendor_Authorization_No"],
     logPrefix: "PCM",
+    includeVendorInvoiceNo: false,
+    includeVendorCrMemoNo: true,
+    includeVendorAuthorizationNo: true,
+    includeInvoiceType: true,
     includeQcType: true,
+    includeOrderDate: false,
+    includeRateBasis: false,
+    includeDueDateCalculation: true,
+    includeDueDate: true,
+    includeAppliesToFields: true,
   },
 };
 
@@ -98,15 +124,17 @@ export async function createPurchaseDocumentHeader(
   const endpoint = `/${config.headerEntity}?company='${encodeURIComponent(COMPANY)}'`;
   const payload = buildPurchaseHeaderPayload(data, {
     documentType: config.documentTypeValue,
-    includePoType: true,
-    includeServiceType: true,
-    includeOrderDate: true,
-    includeVendorInvoiceNo: true,
-    includeVendorCrMemoNo: true,
-    includeVendorAuthorizationNo: true,
-    includeAppliesToFields: true,
-    includeOrderAddressState: true,
+    includeVendorInvoiceNo: config.includeVendorInvoiceNo,
+    includeVendorCrMemoNo: config.includeVendorCrMemoNo,
+    includeVendorAuthorizationNo: config.includeVendorAuthorizationNo,
+    includeInvoiceType: config.includeInvoiceType,
     includeQcType: config.includeQcType,
+    includeOrderDate: config.includeOrderDate,
+    includeRateBasis: config.includeRateBasis,
+    includeDueDateCalculation: config.includeDueDateCalculation,
+    includeDueDate: config.includeDueDate,
+    includeAppliesToFields: config.includeAppliesToFields,
+    includeOrderAddressState: true,
     stripEmpty: true,
     requiredFields: config.requiredCreateFields,
   });

@@ -28,22 +28,22 @@ export function buildCreatePurchaseLinePayload(
     Type: lineItem.type,
     No: lineItem.no,
     Quantity: lineItem.quantity,
-    Unit_of_Measure_Code: lineItem.uom || "",
   };
 
-  if (lineItem.unitPrice !== undefined && lineItem.unitPrice !== null)
+  if (lineItem.uom) payload.Unit_of_Measure_Code = lineItem.uom;
+  if (lineItem.unitPrice !== undefined && lineItem.unitPrice !== null && lineItem.unitPrice !== 0)
     payload.Direct_Unit_Cost = lineItem.unitPrice;
-  if (lineItem.discount !== undefined && lineItem.discount !== null)
+  if (lineItem.discount !== undefined && lineItem.discount !== null && lineItem.discount !== 0)
     payload.Line_Discount_Percent = lineItem.discount;
   if (lineItem.gstGroupCode) payload.GST_Group_Code = lineItem.gstGroupCode;
   if (lineItem.hsnSacCode) payload.HSN_SAC_Code = lineItem.hsnSacCode;
   if (lineItem.tdsSectionCode)
     payload.TDS_Section_Code = lineItem.tdsSectionCode;
   if (lineItem.faPostingType) payload.FA_Posting_Type = lineItem.faPostingType;
-  if (lineItem.salvageValue !== undefined && lineItem.salvageValue !== null)
+  if (lineItem.salvageValue !== undefined && lineItem.salvageValue !== null && lineItem.salvageValue !== 0)
     payload.Salvage_Value = lineItem.salvageValue;
   if (lineItem.exempted !== undefined) payload.Exempted = lineItem.exempted;
-  if (lineItem.noOfBags !== undefined && lineItem.noOfBags !== null)
+  if (lineItem.noOfBags !== undefined && lineItem.noOfBags !== null && lineItem.noOfBags !== 0)
     payload.No_of_Bags = lineItem.noOfBags;
   if (lineItem.gstCredit) payload.GST_Credit = lineItem.gstCredit;
 

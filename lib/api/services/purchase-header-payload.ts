@@ -60,18 +60,18 @@ export interface BuildPurchaseHeaderPayloadOptions {
   primaryVendorRefField?: "vendorInvoiceNo" | "vendorCrMemoNo";
   includeOrderAddressState?: boolean;
   includeQcType?: boolean;
+  /** Whether to include Rate_Basis. Present in Invoice and Order, not in Return Order or Credit Memo. */
+  includeRateBasis?: boolean;
+  /** Whether to include Terms_Code. Present in Order only. */
+  includeTermsCode?: boolean;
+  /** Whether to include Due_Date_calculation. Present in Invoice, Order, Credit Memo. Not in Return Order. */
+  includeDueDateCalculation?: boolean;
+  /** Whether to include Due_Date. Present in Invoice, Order, Credit Memo. Not in Return Order. */
+  includeDueDate?: boolean;
   stripEmpty?: boolean;
   requiredFields?: RequiredPurchaseHeaderField[];
 }
 
-function toNumberOrZero(value: string | number | undefined | null): number {
-  if (value === "" || value === undefined || value === null) {
-    return 0;
-  }
-
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : 0;
-}
 
 function normalizeQcType(value: string | undefined): string | undefined {
   if (value === "_none") {
@@ -112,7 +112,8 @@ export function stripEmptyValues(
       if (
         value !== undefined &&
         value !== null &&
-        !(typeof value === "string" && value.trim() === "")
+        !(typeof value === "string" && value.trim() === "") &&
+        !(typeof value === "number" && value === 0)
       ) {
         acc[key] = value;
       }
@@ -141,15 +142,13 @@ export function buildPurchaseHeaderPayload(
   source: PurchaseHeaderPayloadSource,
   options: BuildPurchaseHeaderPayloadOptions = {},
 ): Record<string, unknown> {
+  // Base fields present in all 4 document types
   const payload: Record<string, unknown> = {
     Buy_from_Vendor_No: source.vendorNo,
     Posting_Date: source.postingDate,
     Document_Date: source.documentDate,
     Purchaser_Code: source.purchasePersonCode,
-    Due_Date_calculation: source.dueDateCalculation,
     Brokerage_Code: source.brokerNo,
-    Rate_Basis: source.rateBasis,
-    Terms_Code: source.termCode,
     Mandi_Name: source.mandiName,
     Payment_Terms_Code: source.paymentTermCode,
     Location_Code: source.locationCode || source.loc,
@@ -159,8 +158,27 @@ export function buildPurchaseHeaderPayload(
     Shortcut_Dimension_1_Code: source.lob || "",
     Shortcut_Dimension_2_Code: source.branch || "",
     Order_Address_Code: source.orderAddressCode,
-    Due_Date: source.dueDate,
   };
+
+  // Invoice + Order + Credit Memo only (not Return Order)
+  if (options.includeDueDateCalculation) {
+    payload.Due_Date_calculation = source.dueDateCalculation;
+  }
+
+  // Invoice + Order + Credit Memo only (not Return Order)
+  if (options.includeDueDate) {
+    payload.Due_Date = source.dueDate;
+  }
+
+  // Invoice + Order only (not Return Order or Credit Memo)
+  if (options.includeRateBasis) {
+    payload.Rate_Basis = source.rateBasis;
+  }
+
+  // Order only
+  if (options.includeTermsCode) {
+    payload.Terms_Code = source.termCode;
+  }
 
   // Only include Brokerage_Rate when it is a meaningful non-zero value
   const rawRate = source.brokerageRate;
@@ -207,9 +225,9 @@ export function buildPurchaseHeaderPayload(
     payload.Vendor_Authorization_No = source.vendorAuthorizationNo || "";
   }
 
-  if (options.includeAppliesToFields) {
+  if (options.includeAppliesToFields && source.appliesToDocNo) {
     payload.Applies_to_Doc_Type = source.appliesToDocType || "Invoice";
-    payload.Applies_to_Doc_No = source.appliesToDocNo || "";
+    payload.Applies_to_Doc_No = source.appliesToDocNo;
   }
 
   if (options.primaryVendorRefField === "vendorInvoiceNo") {
@@ -228,7 +246,10 @@ export function buildPurchaseHeaderPayload(
 
   if (options.requiredFields && options.requiredFields.length > 0) {
     for (const field of options.requiredFields) {
-      result[field] = getRequiredFieldValue(source, field);
+      const value = getRequiredFieldValue(source, field);
+      if (value !== "") {
+        result[field] = value;
+      }
     }
   }
 

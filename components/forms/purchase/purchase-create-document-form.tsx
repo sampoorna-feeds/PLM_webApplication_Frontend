@@ -201,8 +201,6 @@ interface PurchaseCreateDocumentConfig {
   primaryVendorRefLabel: string;
   primaryVendorRefField: "vendorInvoiceNo" | "vendorCrMemoNo";
   orderAddressGridClass: string;
-  /** When true, onSuccess is called immediately after header creation (no line staging). Used for 'order' type. */
-  immediateSuccess?: boolean;
   buildHeaderData: (
     formData: PurchaseCreateDocumentFormState,
   ) => PurchaseOrderData;
@@ -380,7 +378,6 @@ const PURCHASE_CREATE_DOCUMENT_CONFIG: Record<
     primaryVendorRefLabel: "Vendor Invoice No.",
     primaryVendorRefField: "vendorInvoiceNo",
     orderAddressGridClass: "sm:col-span-2 lg:col-span-2",
-    immediateSuccess: true,
     buildHeaderData: (formData) => ({
       ...buildPurchaseCommonHeaderData(formData),
       vendorInvoiceNo: formData.vendorInvoiceNo,
@@ -814,10 +811,8 @@ export function PurchaseCreateDocumentFormContent({
         status: "Open",
       });
 
-      // For purchase orders, navigate to view mode immediately (no line staging)
-      if (config.immediateSuccess) {
-        onSuccess(orderNo);
-      }
+      // Navigate to view mode for all document types
+      onSuccess(orderNo);
     } catch (error) {
       console.error(
         "Error creating purchase document header:",

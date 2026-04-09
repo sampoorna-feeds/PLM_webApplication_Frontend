@@ -103,8 +103,14 @@ export async function createPurchaseOrder(
       includePoType: true,
       includeServiceType: true,
       includeOrderDate: true,
+      includeInvoiceType: true,
+      includeVendorInvoiceNo: true,
       includeOrderAddressState: true,
       includeQcType: true,
+      includeRateBasis: true,
+      includeTermsCode: true,
+      includeDueDateCalculation: true,
+      includeDueDate: true,
       stripEmpty: true,
     });
 

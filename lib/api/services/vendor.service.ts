@@ -12,6 +12,75 @@ export interface Vendor {
   Name: string;
 }
 
+/** Extended vendor row used in the vendor picker dialog */
+export interface VendorRow extends Vendor {
+  GST_Registration_No: string;
+  P_A_N_No: string;
+}
+
+/**
+ * Fetch vendors for the dialog picker.
+ * Returns No, Name, GST_Registration_No, P_A_N_No.
+ * When search is provided, queries all 4 fields in parallel and merges results.
+ */
+export async function getVendorsForDialog(opts: {
+  skip?: number;
+  top?: number;
+  search?: string;
+}): Promise<{ value: VendorRow[]; count: number }> {
+  const top = opts.top ?? 30;
+  const skip = opts.skip ?? 0;
+  const base = getBaseFilter();
+  const sel = "No,Name,GST_Registration_No,P_A_N_No";
+
+  if (!opts.search || opts.search.trim().length < 2) {
+    const query = buildODataQuery({
+      $select: sel,
+      $filter: base,
+      $orderby: "No",
+      $top: top,
+      $skip: skip,
+      $count: true,
+    });
+    const endpoint = `/VendorCard?company='${encodeURIComponent(COMPANY)}'&${query}`;
+    const res = await apiGet<ODataResponse<VendorRow>>(endpoint);
+    return {
+      value: res.value,
+      count: (res as any)["@odata.count"] ?? res.value.length,
+    };
+  }
+
+  // Search across No, Name, GST_Registration_No, P_A_N_No in parallel
+  const s = escapeODataValue(opts.search.trim());
+  const searchFields = ["No", "Name", "GST_Registration_No", "P_A_N_No"];
+
+  const responses = await Promise.all(
+    searchFields.map(async (field) => {
+      const filter = `(${base}) and contains(${field},'${s}')`;
+      const query = buildODataQuery({
+        $select: sel,
+        $filter: filter,
+        $orderby: "No",
+        $top: top + skip,
+      });
+      const endpoint = `/VendorCard?company='${encodeURIComponent(COMPANY)}'&${query}`;
+      try {
+        const res = await apiGet<ODataResponse<VendorRow>>(endpoint);
+        return res.value || [];
+      } catch {
+        return [] as VendorRow[];
+      }
+    }),
+  );
+
+  const map = new Map<string, VendorRow>();
+  responses.forEach((rows) =>
+    rows.forEach((v) => { if (!map.has(v.No)) map.set(v.No, v); }),
+  );
+  const all = Array.from(map.values()).sort((a, b) => a.No.localeCompare(b.No));
+  return { value: all.slice(skip, skip + top), count: all.length };
+}
+
 const COMPANY =
   process.env.NEXT_PUBLIC_API_COMPANY || "Sampoorna Feeds Pvt. Ltd";
 

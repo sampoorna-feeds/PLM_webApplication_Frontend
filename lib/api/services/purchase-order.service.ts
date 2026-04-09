@@ -111,6 +111,8 @@ export async function createPurchaseOrder(
       includeTermsCode: true,
       includeDueDateCalculation: true,
       includeDueDate: true,
+      includePoExpirationDate: true,
+      includeAppliesToFields: true,
       stripEmpty: true,
     });
 

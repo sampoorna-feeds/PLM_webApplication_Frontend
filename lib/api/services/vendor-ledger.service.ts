@@ -459,6 +459,38 @@ export async function createVendorLedgerEntry(
 }
 
 /**
+ * Get open vendor ledger entries for a specific vendor (used for searchable dropdowns).
+ * Filters: Vendor_No eq '<vendorNo>' and Open eq true
+ */
+export async function getOpenVendorLedgerEntries(
+  vendorNo: string,
+  skip: number = 0,
+  top: number = 20,
+  search?: string,
+): Promise<VendorLedgerEntry[]> {
+  if (!vendorNo) return [];
+  const escapedVendor = vendorNo.replace(/'/g, "''");
+  let filter = `Vendor_No eq '${escapedVendor}' and Open eq true`;
+
+  if (search && search.trim()) {
+    const s = search.trim().replace(/'/g, "''");
+    filter += ` and (contains(Document_No,'${s}') or contains(External_Document_No,'${s}'))`;
+  }
+
+  const query = buildODataQuery({
+    $filter: filter,
+    $top: top,
+    $skip: skip,
+    $orderby: "Posting_Date desc, Entry_No desc",
+    $select: "Entry_No,Document_No,Document_Type,External_Document_No,Posting_Date,Amount,Remaining_Amount",
+  });
+
+  const endpoint = `/VendorLedgerEntry?company='${encodeURIComponent(COMPANY)}'&${query}`;
+  const response = await apiGet<ODataResponse<VendorLedgerEntry>>(endpoint);
+  return response.value || [];
+}
+
+/**
  * Get vendor ledger entries with custom OData params
  */
 export async function getVendorLedgerEntriesRaw(

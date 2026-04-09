@@ -76,7 +76,7 @@ const PURCHASE_DOCUMENT_ADAPTER_CONFIG: Record<
     includeRateBasis: true,
     includeDueDateCalculation: true,
     includeDueDate: true,
-    includeAppliesToFields: false,
+    includeAppliesToFields: true,
   },
   "return-order": {
     // Schema: PurchaseReturnOrderHeader

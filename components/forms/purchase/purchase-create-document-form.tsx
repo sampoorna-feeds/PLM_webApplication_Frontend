@@ -78,6 +78,7 @@ import type { PurchaseCommentDocumentType } from "@/lib/api/services/purchase-co
 import { PurchaseItemTrackingDialog } from "./purchase-item-tracking-dialog";
 import { ItemChargeAssignmentDialog } from "./item-charge-assignment-dialog";
 import { ItemChargeMultiSelectDialog } from "./item-charge-multi-select-dialog";
+import { VendorLedgerEntrySelect } from "./vendor-ledger-entry-select";
 import { PostGateEntryDialog } from "./post-gate-entry-dialog";
 import {
   Dialog,
@@ -275,6 +276,7 @@ interface PurchaseCreateDocumentFormState {
   creditorType: string;
   qcType: string;
   dueDate: string;
+  poExpirationDate: string;
 }
 
 const PURCHASE_CREATE_DOCUMENT_CONFIG: Record<
@@ -292,6 +294,8 @@ const PURCHASE_CREATE_DOCUMENT_CONFIG: Record<
     buildHeaderData: (formData) => ({
       ...buildPurchaseCommonHeaderData(formData),
       vendorInvoiceNo: formData.vendorInvoiceNo,
+      appliesToDocType: formData.appliesToDocType,
+      appliesToDocNo: formData.appliesToDocNo,
     }),
     createHeader: createPurchaseInvoice,
     createCopyHeader: createPurchaseInvoiceCopyHeader,
@@ -384,6 +388,9 @@ const PURCHASE_CREATE_DOCUMENT_CONFIG: Record<
       poType: formData.poType,
       serviceType: formData.serviceType,
       orderDate: formData.orderDate,
+      poExpirationDate: formData.poExpirationDate,
+      appliesToDocType: formData.appliesToDocType,
+      appliesToDocNo: formData.appliesToDocNo,
     }),
     createHeader: createPurchaseOrder,
     createCopyHeader: async (_locationCode: string) => {
@@ -449,7 +456,7 @@ export function PurchaseCreateDocumentFormContent({
     vendorInvoiceNo: "",
     vendorCrMemoNo: "",
     vendorAuthorizationNo: "",
-    appliesToDocType: "Invoice",
+    appliesToDocType: "",
     appliesToDocNo: "",
     invoiceType: "",
     lob: "",
@@ -472,6 +479,7 @@ export function PurchaseCreateDocumentFormContent({
     creditorType: "",
     qcType: "",
     dueDate: "",
+    poExpirationDate: "",
     ...initialFormData,
   });
 
@@ -976,6 +984,13 @@ export function PurchaseCreateDocumentFormContent({
       includeAppliesToFields: capabilities.supportsAppliesToFields,
       includeQcType: capabilities.supportsQcType,
       primaryVendorRefField: config.primaryVendorRefField,
+      // Per-doc-type fields for PATCH
+      includeRateBasis:
+        documentType === "order" || documentType === "invoice",
+      includeTermsCode: documentType === "order",
+      includeDueDateCalculation: documentType !== "return-order",
+      includeDueDate: documentType !== "return-order",
+      includePoExpirationDate: documentType === "order",
     });
   };
 
@@ -1557,25 +1572,23 @@ export function PurchaseCreateDocumentFormContent({
                       <label className={labelClass}>
                         {config.primaryVendorRefLabel}
                       </label>
-                      <ClearableField
-                        readOnly={areFieldsReadOnly}
-                        value={formData[config.primaryVendorRefField]}
-                        onClear={() =>
-                          handleInputChange(config.primaryVendorRefField, "")
-                        }
-                      >
+                      {areFieldsReadOnly ? (
                         <Input
                           value={formData[config.primaryVendorRefField]}
-                          onChange={(e) =>
-                            handleInputChange(
-                              config.primaryVendorRefField,
-                              e.target.value,
-                            )
+                          readOnly
+                          className="bg-muted h-8 text-xs"
+                        />
+                      ) : (
+                        <VendorLedgerEntrySelect
+                          vendorNo={formData.vendorNo}
+                          value={formData[config.primaryVendorRefField]}
+                          onChange={(val) =>
+                            handleInputChange(config.primaryVendorRefField, val)
                           }
                           placeholder="Optional"
-                          className="h-8 text-xs"
+                          className="text-xs"
                         />
-                      </ClearableField>
+                      )}
                     </div>
                     {capabilities.supportsVendorAuthorizationNo && (
                       <div className={fieldClass}>
@@ -1614,17 +1627,33 @@ export function PurchaseCreateDocumentFormContent({
                           }
                         >
                           <Select
-                            value={formData.appliesToDocType}
+                            value={
+                              formData.appliesToDocType.trim() === ""
+                                ? "_none"
+                                : formData.appliesToDocType
+                            }
                             onValueChange={(val) =>
-                              handleInputChange("appliesToDocType", val)
+                              handleInputChange(
+                                "appliesToDocType",
+                                val === "_none" ? "" : val,
+                              )
                             }
                           >
                             <SelectTrigger className="h-8 text-xs">
-                              <SelectValue placeholder="Select Type" />
+                              <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
+                              <SelectItem value="_none">None</SelectItem>
+                              <SelectItem value="Payment">Payment</SelectItem>
                               <SelectItem value="Invoice">Invoice</SelectItem>
-                              <SelectItem value="Receipt">Receipt</SelectItem>
+                              <SelectItem value="Credit Memo">
+                                Credit Memo
+                              </SelectItem>
+                              <SelectItem value="Finance Charge Memo">
+                                Finance Charge Memo
+                              </SelectItem>
+                              <SelectItem value="Reminder">Reminder</SelectItem>
+                              <SelectItem value="Refund">Refund</SelectItem>
                             </SelectContent>
                           </Select>
                         </ClearableField>
@@ -1642,16 +1671,14 @@ export function PurchaseCreateDocumentFormContent({
                             handleInputChange("appliesToDocNo", "")
                           }
                         >
-                          <Input
+                          <VendorLedgerEntrySelect
+                            vendorNo={formData.vendorNo}
                             value={formData.appliesToDocNo}
-                            onChange={(e) =>
-                              handleInputChange(
-                                "appliesToDocNo",
-                                e.target.value,
-                              )
+                            onChange={(val) =>
+                              handleInputChange("appliesToDocNo", val)
                             }
-                            placeholder="Optional"
-                            className="h-8 text-xs"
+                            disabled={areFieldsReadOnly || !formData.vendorNo}
+                            placeholder="Select doc no."
                           />
                         </ClearableField>
                       </div>
@@ -1832,6 +1859,33 @@ export function PurchaseCreateDocumentFormContent({
                           disabled
                           className="bg-muted h-8 text-xs"
                         />
+                      </div>
+                    )}
+                    {documentType === "order" && (
+                      <div className={fieldClass}>
+                        <label className={labelClass}>
+                          PO Expiration Date
+                        </label>
+                        <ClearableField
+                          readOnly={!isOpenStatus || areFieldsReadOnly}
+                          value={formData.poExpirationDate}
+                          onClear={() =>
+                            handleInputChange("poExpirationDate", "")
+                          }
+                        >
+                          <Input
+                            type="date"
+                            value={formData.poExpirationDate}
+                            onChange={(e) =>
+                              handleInputChange(
+                                "poExpirationDate",
+                                e.target.value,
+                              )
+                            }
+                            disabled={!isOpenStatus || areFieldsReadOnly}
+                            className="h-8 text-xs"
+                          />
+                        </ClearableField>
                       </div>
                     )}
                     <div className={fieldClass}>
@@ -2705,24 +2759,19 @@ export function PurchaseCreateDocumentFormContent({
                   ? "Vendor Cr Memo No"
                   : "Vendor Invoice No"}
               </Label>
-              <Input
+              <VendorLedgerEntrySelect
+                vendorNo={formData.vendorNo}
                 value={
                   documentType === "return-order"
                     ? postDetails.vendorCrMemoNo
                     : postDetails.vendorInvoiceNo
                 }
-                onChange={(e) =>
+                onChange={(val) =>
                   documentType === "return-order"
-                    ? setPostDetails((p) => ({
-                        ...p,
-                        vendorCrMemoNo: e.target.value,
-                      }))
-                    : setPostDetails((p) => ({
-                        ...p,
-                        vendorInvoiceNo: e.target.value,
-                      }))
+                    ? setPostDetails((p) => ({ ...p, vendorCrMemoNo: val }))
+                    : setPostDetails((p) => ({ ...p, vendorInvoiceNo: val }))
                 }
-                className="h-8"
+                className="h-8 text-sm"
               />
             </div>
             {(postOption === "invoice" ||

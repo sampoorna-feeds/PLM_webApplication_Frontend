@@ -3,6 +3,7 @@ import type { PurchaseDocumentHeaderType } from "./purchase-header-payload";
 export interface PurchaseLinePayloadSource {
   type?: string;
   no?: string;
+  description?: string;
   quantity?: number;
   uom?: string;
   unitPrice?: number;
@@ -22,13 +23,23 @@ export function buildCreatePurchaseLinePayload(
   documentNo: string,
   lineItem: PurchaseLinePayloadSource,
 ): Record<string, unknown> {
+  const isNoneType = !lineItem.type || lineItem.type === "";
+
   const payload: Record<string, unknown> = {
     Document_Type: documentType,
     Document_No: documentNo,
-    Type: lineItem.type,
-    No: lineItem.no,
-    Quantity: lineItem.quantity,
+    Type: isNoneType ? "" : lineItem.type,
   };
+
+  if (isNoneType) {
+    // For type "none": only Description is relevant
+    if (lineItem.description) payload.Description = lineItem.description;
+    return payload;
+  }
+
+  // Non-none types: include all standard fields
+  payload.No = lineItem.no;
+  payload.Quantity = lineItem.quantity;
 
   if (lineItem.uom) payload.Unit_of_Measure_Code = lineItem.uom;
   if (lineItem.unitPrice !== undefined && lineItem.unitPrice !== null && lineItem.unitPrice !== 0)

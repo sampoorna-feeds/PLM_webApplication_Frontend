@@ -45,6 +45,7 @@ export interface PurchaseHeaderPayloadSource {
   vendorAuthorizationNo?: string;
   appliesToDocType?: string;
   appliesToDocNo?: string;
+  poExpirationDate?: string;
 }
 
 export interface BuildPurchaseHeaderPayloadOptions {
@@ -68,6 +69,8 @@ export interface BuildPurchaseHeaderPayloadOptions {
   includeDueDateCalculation?: boolean;
   /** Whether to include Due_Date. Present in Invoice, Order, Credit Memo. Not in Return Order. */
   includeDueDate?: boolean;
+  /** Whether to include PO_Expiration_Date. Order only. */
+  includePoExpirationDate?: boolean;
   stripEmpty?: boolean;
   requiredFields?: RequiredPurchaseHeaderField[];
 }
@@ -205,6 +208,10 @@ export function buildPurchaseHeaderPayload(
     payload.Order_Date = source.orderDate;
   }
 
+  if (options.includePoExpirationDate) {
+    payload.PO_Expiration_Date = source.poExpirationDate || "";
+  }
+
   if (options.includeQcType) {
     payload.QCType = normalizeQcType(source.qcType);
   }
@@ -225,9 +232,18 @@ export function buildPurchaseHeaderPayload(
     payload.Vendor_Authorization_No = source.vendorAuthorizationNo || "";
   }
 
-  if (options.includeAppliesToFields && source.appliesToDocNo) {
-    payload.Applies_to_Doc_Type = source.appliesToDocType || "Invoice";
-    payload.Applies_to_Doc_No = source.appliesToDocNo;
+  if (options.includeAppliesToFields) {
+    if (options.stripEmpty) {
+      // POST: only include if a doc no is specified (avoid sending empty applies-to)
+      if (source.appliesToDocNo) {
+        payload.Applies_to_Doc_Type = source.appliesToDocType || "Invoice";
+        payload.Applies_to_Doc_No = source.appliesToDocNo;
+      }
+    } else {
+      // PATCH: always include so the user can clear the value
+      payload.Applies_to_Doc_Type = source.appliesToDocType || "";
+      payload.Applies_to_Doc_No = source.appliesToDocNo || "";
+    }
   }
 
   if (options.primaryVendorRefField === "vendorInvoiceNo") {

@@ -37,7 +37,7 @@ export function mapPurchaseHeaderToFormData(
     vendorCrMemoNo: toStringValue(rawHeader["Vendor_Cr_Memo_No"]),
     vendorAuthorizationNo: toStringValue(rawHeader["Vendor_Authorization_No"]),
     appliesToDocType:
-      toStringValue(rawHeader["Applies_to_Doc_Type"]) || "Invoice",
+      toStringValue(rawHeader["Applies_to_Doc_Type"]).trim(),
     appliesToDocNo: toStringValue(rawHeader["Applies_to_Doc_No"]),
     invoiceType: toStringValue(header.Invoice_Type),
     lob: toStringValue(header.Shortcut_Dimension_1_Code),
@@ -64,6 +64,10 @@ export function mapPurchaseHeaderToFormData(
     creditorType: toStringValue(header.Creditors_Type),
     qcType: toStringValue(header.QCType),
     dueDate: toStringValue(header.Due_Date),
+    poExpirationDate: (() => {
+      const v = toStringValue(rawHeader["PO_Expiration_Date"]);
+      return v === "0001-01-01" ? "" : v;
+    })(),
   };
 }
 

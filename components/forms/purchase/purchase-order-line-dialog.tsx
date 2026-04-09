@@ -441,7 +441,7 @@ export function PurchaseOrderLineDialog({
     const normalizedLineItem: LineItem = {
       id: lineItem?.id || createLineItemId(),
       lineNo: lineItem?.lineNo,
-      type: (formState.type as LineType) || "Item",
+      type: (formState.type === "" ? "" : (formState.type as LineType) || "Item"),
       no: formState.no || "",
       description: formState.description || "",
       uom: formState.uom || "",
@@ -891,53 +891,6 @@ export function PurchaseOrderLineDialog({
                   </>
                 )}
 
-                {canAddBardana && (
-                  <div className="space-y-1">
-                    <FieldTitle>No. of Bags</FieldTitle>
-                    <ClearableField
-                      value={
-                        formState.noOfBags != null
-                          ? String(formState.noOfBags)
-                          : ""
-                      }
-                      onClear={() =>
-                        setFormState((prev) => ({ ...prev, noOfBags: undefined }))
-                      }
-                    >
-                      <Input
-                        type="text"
-                        inputMode="numeric"
-                        value={
-                          formState.noOfBags != null
-                            ? String(formState.noOfBags)
-                            : ""
-                        }
-                        onChange={(e) => {
-                          const v = e.target.value;
-                          if (v === "") {
-                            setFormState((prev) => ({
-                              ...prev,
-                              noOfBags: undefined,
-                            }));
-                          } else {
-                            const n = parseInt(v, 10);
-                            if (!isNaN(n) && n >= 0)
-                              setFormState((prev) => ({
-                                ...prev,
-                                noOfBags: n,
-                              }));
-                          }
-                        }}
-                        onWheel={(e) => e.currentTarget.blur()}
-                        placeholder="0"
-                        className={cn(
-                          "h-8 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none",
-                          fieldInputClass,
-                        )}
-                      />
-                    </ClearableField>
-                  </div>
-                )}
 
                 <div className="space-y-1">
                   <FieldTitle>Unit Price</FieldTitle>

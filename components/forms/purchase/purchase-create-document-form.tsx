@@ -521,6 +521,7 @@ export function PurchaseCreateDocumentFormContent({
     documentDate: "",
     vehicleNo: "",
     vendorInvoiceNo: "",
+    vendorCrMemoNo: "",
     dueDateCalculation: "Posting Date",
     lineNarration: "",
   });
@@ -1148,6 +1149,7 @@ export function PurchaseCreateDocumentFormContent({
           documentDate: formData.documentDate || today,
           vehicleNo: "",
           vendorInvoiceNo: formData.vendorInvoiceNo || "",
+          vendorCrMemoNo: formData.vendorCrMemoNo || "",
           dueDateCalculation: "Posting Date",
           lineNarration: "",
         });
@@ -1245,8 +1247,12 @@ export function PurchaseCreateDocumentFormContent({
         Posting_Date: postDetails.postingDate,
         Document_Date: postDetails.documentDate,
         Vehicle_No: postDetails.vehicleNo || "",
-        Vendor_Invoice_No: postDetails.vendorInvoiceNo || "",
       };
+      if (documentType === "return-order") {
+        patchPayload.Vendor_Cr_Memo_No = postDetails.vendorCrMemoNo || "";
+      } else {
+        patchPayload.Vendor_Invoice_No = postDetails.vendorInvoiceNo || "";
+      }
       if (isInvoiceOption) {
         patchPayload.Due_Date_calculation =
           postDetails.dueDateCalculation || "Posting Date";
@@ -2633,6 +2639,7 @@ export function PurchaseCreateDocumentFormContent({
                     documentDate: formData.documentDate || today,
                     vehicleNo: "",
                     vendorInvoiceNo: formData.vendorInvoiceNo || "",
+                    vendorCrMemoNo: formData.vendorCrMemoNo || "",
                     dueDateCalculation: "Posting Date",
                     lineNarration: "",
                   });
@@ -2693,14 +2700,27 @@ export function PurchaseCreateDocumentFormContent({
               />
             </div>
             <div className="space-y-1">
-              <Label className="text-xs font-semibold">Vendor Invoice No</Label>
+              <Label className="text-xs font-semibold">
+                {documentType === "return-order"
+                  ? "Vendor Cr Memo No"
+                  : "Vendor Invoice No"}
+              </Label>
               <Input
-                value={postDetails.vendorInvoiceNo}
+                value={
+                  documentType === "return-order"
+                    ? postDetails.vendorCrMemoNo
+                    : postDetails.vendorInvoiceNo
+                }
                 onChange={(e) =>
-                  setPostDetails((p) => ({
-                    ...p,
-                    vendorInvoiceNo: e.target.value,
-                  }))
+                  documentType === "return-order"
+                    ? setPostDetails((p) => ({
+                        ...p,
+                        vendorCrMemoNo: e.target.value,
+                      }))
+                    : setPostDetails((p) => ({
+                        ...p,
+                        vendorInvoiceNo: e.target.value,
+                      }))
                 }
                 className="h-8"
               />

@@ -321,7 +321,7 @@ export function ProductionOrderFormFields({
         <SelectField
           label="LOB"
           value={data.Shortcut_Dimension_1_Code}
-          options={lobs.map((l) => ({ value: l.Code, label: l.Code }))}
+          options={lobs.map((l) => ({ value: l.Code, label: `${l.Code} - ${l.Name || ""}` }))}
           onChange={handleLOBChange}
           disabled={isReadOnly}
           isLoading={isLoadingDimensions}
@@ -338,7 +338,7 @@ export function ProductionOrderFormFields({
         <SelectField
           label="LOC Code"
           value={data.Shortcut_Dimension_3_Code}
-          options={locs.map((l) => ({ value: l.Code, label: l.Code }))}
+          options={locs.map((l) => ({ value: l.Code, label: `${l.Code} - ${l.Name || ""}` }))}
           onChange={(v) => {
             handleChange("Shortcut_Dimension_3_Code", v);
             // Prefill Location Code with LOC value

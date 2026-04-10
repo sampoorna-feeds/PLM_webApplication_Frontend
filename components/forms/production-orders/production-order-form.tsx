@@ -1291,7 +1291,7 @@ export function ProductionOrderForm({
                 <SelectContent>
                   {lobs.map((l) => (
                     <SelectItem key={l.Code} value={l.Code}>
-                      {l.Code}
+                      {l.Code} - {l.Name}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -1345,7 +1345,7 @@ export function ProductionOrderForm({
                 <SelectContent>
                   {locs.map((l) => (
                     <SelectItem key={l.Code} value={l.Code}>
-                      {l.Code}
+                      {l.Code} - {l.Name}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -1512,7 +1512,7 @@ export function ProductionOrderForm({
                 <SelectContent>
                   {locs.map((l) => (
                     <SelectItem key={l.Code} value={l.Code}>
-                      {l.Code}
+                      {l.Code} - {l.Name}
                     </SelectItem>
                   ))}
                 </SelectContent>

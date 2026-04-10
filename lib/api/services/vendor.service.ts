@@ -134,17 +134,18 @@ export async function getVendorsForDialog(opts: {
   sortDirection?: "asc" | "desc" | null;
   filters?: Record<string, string>;
   visibleColumns?: string[];
+  brokerOnly?: boolean;
 }): Promise<{ value: Vendor[]; count: number }> {
   const top = opts.top ?? 30;
   const skip = opts.skip ?? 0;
-  
+
   const defaultCols = ["No", "Name", "GST_Registration_No", "P_A_N_No"];
-  const selectCols = opts.visibleColumns 
+  const selectCols = opts.visibleColumns
     ? Array.from(new Set([...defaultCols, ...opts.visibleColumns]))
     : defaultCols;
   const sel = selectCols.join(",");
 
-  let filterParts: string[] = [getBaseFilter()];
+  let filterParts: string[] = [getBaseFilter(opts.brokerOnly)];
 
   if (opts.search && opts.search.trim().length >= 2) {
     const s = escapeODataValue(opts.search.trim());
@@ -177,7 +178,7 @@ export async function getVendorsForDialog(opts: {
   });
 
   const endpoint = `/VendorCard?company='${encodeURIComponent(COMPANY)}'&${query}`;
-  
+
   try {
     const res = await apiGet<ODataResponse<Vendor>>(endpoint);
     return {
@@ -199,8 +200,12 @@ const searchCache = new Map<string, Vendor[]>();
 /**
  * Builds the base filter for Vendors
  */
-function getBaseFilter(): string {
-  return `Responsibility_Center in ('','FEED','CATTLE','SWINE') and Blocked eq ' '`;
+function getBaseFilter(brokerOnly?: boolean): string {
+  let base = `Responsibility_Center in ('','FEED','CATTLE','SWINE') and Blocked eq ' '`;
+  if (brokerOnly) {
+    base += ` and Broker eq true`;
+  }
+  return base;
 }
 
 /**

@@ -84,7 +84,7 @@ export function useReportLedger() {
       try {
         const locs = await getAllLOCsFromUserSetup(userID);
         const options = locs.map((loc) => ({
-          label: loc.Code,
+          label: `${loc.Code} - ${loc.Name || ""}`,
           value: loc.Code,
         }));
         setLocationOptions(options);

@@ -509,3 +509,93 @@ export async function getVendorLedgerEntriesRaw(
   return await apiGet<ODataResponse<VendorLedgerEntry>>(endpoint);
 }
 
+
+/**
+ * Fetch vendor ledger entries for the dialog picker.
+ */
+export async function getVendorLedgerEntriesForDialog(opts: {
+  vendorNo?: string;
+  skip?: number;
+  top?: number;
+  search?: string;
+  sortColumn?: string | null;
+  sortDirection?: "asc" | "desc" | null;
+  filters?: Record<string, string>;
+  visibleColumns?: string[];
+}): Promise<{ value: VendorLedgerEntry[]; count: number }> {
+  const top = opts.top ?? 30;
+  const skip = opts.skip ?? 0;
+
+  const defaultCols = [
+    "Entry_No",
+    "Document_No",
+    "External_Document_No",
+    "Document_Type",
+    "Posting_Date",
+  ];
+  const selectCols = opts.visibleColumns
+    ? Array.from(new Set([...defaultCols, ...opts.visibleColumns]))
+    : defaultCols;
+  const sel = selectCols.join(",");
+
+  let filterParts: string[] = ["Open eq true"];
+  if (opts.vendorNo) {
+    const escapedVendor = opts.vendorNo.replace(/'/g, "''");
+    filterParts.push(`Vendor_No eq '${escapedVendor}'`);
+  }
+
+  if (opts.search && opts.search.trim().length >= 2) {
+    const s = opts.search.trim().replace(/'/g, "''");
+    const searchFilter = `(contains(Document_No,'${s}') or contains(External_Document_No,'${s}'))`;
+    filterParts.push(searchFilter);
+  }
+
+  if (opts.filters) {
+    Object.entries(opts.filters).forEach(([col, val]) => {
+      if (!val) return;
+      const escaped = val.trim().replace(/'/g, "''");
+      filterParts.push(`contains(${col},'${escaped}')`);
+    });
+  }
+
+  const filterStr = filterParts.join(" and ");
+
+  let orderbyClause = "Posting_Date desc, Entry_No desc";
+  if (opts.sortColumn && opts.sortDirection) {
+    orderbyClause = `${opts.sortColumn} ${opts.sortDirection === "asc" ? "asc" : "desc"}`;
+  }
+
+  const query = buildODataQuery({
+    $select: sel,
+    $filter: filterStr,
+    $orderby: orderbyClause,
+    $top: top,
+    $skip: skip,
+    $count: true,
+  });
+
+  const endpoint = `/VendorLedgerEntry?company='${encodeURIComponent(COMPANY)}'&${query}`;
+
+  try {
+    const res = await apiGet<ODataResponse<VendorLedgerEntry>>(endpoint);
+    return {
+      value: res.value || [],
+      count: (res as any)["@odata.count"] ?? res.value?.length ?? 0,
+    };
+  } catch (error) {
+    console.error("Error fetching vendor ledger entries for dialog:", error);
+    return { value: [], count: 0 };
+  }
+}
+
+/**
+ * Apply vendor ledger entry to a document
+ */
+export async function applyVendorLedgerEntry(pONo: string, vendLedEntry: number): Promise<unknown> {
+  const endpoint = `/API_SetVendApplId?company='${encodeURIComponent(COMPANY)}'`;
+  return apiPost<unknown>(endpoint, {
+    pONo,
+    vendLedEntry,
+    currentRec: false,
+  });
+}

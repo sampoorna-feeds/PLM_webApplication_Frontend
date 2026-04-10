@@ -80,6 +80,7 @@ import { ItemChargeAssignmentDialog } from "./item-charge-assignment-dialog";
 import { ItemChargeMultiSelectDialog } from "./item-charge-multi-select-dialog";
 import { VendorLedgerEntrySelect } from "./vendor-ledger-entry-select";
 import { PostGateEntryDialog } from "./post-gate-entry-dialog";
+import { ApplyVendorEntriesDialog } from "./apply-vendor-entries-dialog";
 import {
   Dialog,
   DialogContent,
@@ -1264,7 +1265,7 @@ export function PurchaseCreateDocumentFormContent({
         Vehicle_No: postDetails.vehicleNo || "",
       };
       if (documentType === "return-order") {
-        patchPayload.Vendor_Cr_Memo_No = postDetails.vendorCrMemoNo || "";
+        // Vendor Cr Memo No is no longer passed up from post details
       } else {
         patchPayload.Vendor_Invoice_No = postDetails.vendorInvoiceNo || "";
       }
@@ -1578,6 +1579,15 @@ export function PurchaseCreateDocumentFormContent({
                           readOnly
                           className="bg-muted h-8 text-xs"
                         />
+                      ) : config.primaryVendorRefField === "vendorCrMemoNo" ? (
+                        <Input
+                          value={formData[config.primaryVendorRefField]}
+                          onChange={(e) =>
+                            handleInputChange(config.primaryVendorRefField, e.target.value)
+                          }
+                          placeholder="Optional"
+                          className="h-8 text-xs"
+                        />
                       ) : (
                         <VendorLedgerEntrySelect
                           vendorNo={formData.vendorNo}
@@ -1590,30 +1600,7 @@ export function PurchaseCreateDocumentFormContent({
                         />
                       )}
                     </div>
-                    {capabilities.supportsVendorAuthorizationNo && (
-                      <div className={fieldClass}>
-                        <label className={labelClass}>Vendor Auth. No.</label>
-                        <ClearableField
-                          readOnly={areFieldsReadOnly}
-                          value={formData.vendorAuthorizationNo}
-                          onClear={() =>
-                            handleInputChange("vendorAuthorizationNo", "")
-                          }
-                        >
-                          <Input
-                            value={formData.vendorAuthorizationNo}
-                            onChange={(e) =>
-                              handleInputChange(
-                                "vendorAuthorizationNo",
-                                e.target.value,
-                              )
-                            }
-                            placeholder="Optional"
-                            className="h-8 text-xs"
-                          />
-                        </ClearableField>
-                      </div>
-                    )}
+                    
                     {capabilities.supportsAppliesToFields && (
                       <div className={fieldClass}>
                         <label className={labelClass}>
@@ -2245,6 +2232,14 @@ export function PurchaseCreateDocumentFormContent({
                     </Button>
                   ),
                 )}
+              {isViewMode && createdOrderNo && (
+                <ApplyVendorEntriesDialog
+                  documentNo={createdOrderNo}
+                  vendorNo={formData.vendorNo}
+                  onSuccess={refreshHydratedDocument}
+                  disabled={isActionLoading}
+                />
+              )}
               {isViewMode && documentType !== "order" && createdOrderNo && (
                 <Button
                   type="button"
@@ -2753,27 +2748,19 @@ export function PurchaseCreateDocumentFormContent({
                 className="h-8"
               />
             </div>
-            <div className="space-y-1">
-              <Label className="text-xs font-semibold">
-                {documentType === "return-order"
-                  ? "Vendor Cr Memo No"
-                  : "Vendor Invoice No"}
-              </Label>
-              <VendorLedgerEntrySelect
-                vendorNo={formData.vendorNo}
-                value={
-                  documentType === "return-order"
-                    ? postDetails.vendorCrMemoNo
-                    : postDetails.vendorInvoiceNo
-                }
-                onChange={(val) =>
-                  documentType === "return-order"
-                    ? setPostDetails((p) => ({ ...p, vendorCrMemoNo: val }))
-                    : setPostDetails((p) => ({ ...p, vendorInvoiceNo: val }))
-                }
-                className="h-8 text-sm"
-              />
-            </div>
+            {documentType !== "return-order" && (
+              <div className="space-y-1">
+                <Label className="text-xs font-semibold">Vendor Invoice No</Label>
+                <VendorLedgerEntrySelect
+                  vendorNo={formData.vendorNo}
+                  value={postDetails.vendorInvoiceNo}
+                  onChange={(val) =>
+                    setPostDetails((p) => ({ ...p, vendorInvoiceNo: val }))
+                  }
+                  className="h-8 text-sm"
+                />
+              </div>
+            )}
             {(postOption === "invoice" ||
               postOption === "receive-invoice" ||
               postOption === "ship-invoice" ||

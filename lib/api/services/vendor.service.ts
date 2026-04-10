@@ -10,12 +10,115 @@ import type { ODataResponse } from "../types";
 export interface Vendor {
   No: string;
   Name: string;
-}
-
-/** Extended vendor row used in the vendor picker dialog */
-export interface VendorRow extends Vendor {
-  GST_Registration_No: string;
   P_A_N_No: string;
+  GST_Registration_No: string;
+  Name_2?: string;
+  Privacy_Blocked?: boolean;
+  BalanceAsCustomer?: number;
+  Balance_Due_LCY?: number;
+  Document_Sending_Profile?: string;
+  Search_Name?: string;
+  Balance_LCY?: number;
+  Purchaser_Code?: string;
+  Responsibility_Center?: string;
+  Blocked?: string;
+  Last_Date_Modified?: string;
+  Transporter?: boolean;
+  Farmer?: boolean;
+  Broker?: boolean;
+  MSME?: string;
+  Created_From_Web?: boolean;
+  Type_of_Enterprise?: string;
+  Constitution_of_Business?: string;
+  Status?: string;
+  Creditors_Type?: string;
+  TDS_194Q?: boolean;
+  Old_Vendor_No?: string;
+  Old_No_Series?: string;
+  Disable_Search_by_Name?: boolean;
+  Company_Size_Code?: string;
+  State_Code?: string;
+  Address?: string;
+  Address_2?: string;
+  Country_Region_Code?: string;
+  City?: string;
+  County?: string;
+  Post_Code?: string;
+  ShowMap?: string;
+  Phone_No?: string;
+  MobilePhoneNo?: string;
+  Fax_No?: string;
+  E_Mail?: string;
+  Home_Page?: string;
+  IC_Partner_Code?: string;
+  Language_Code?: string;
+  Format_Region?: string;
+  Primary_Contact_No?: string;
+  Control16?: string;
+  Pay_to_Vendor_No?: string;
+  VAT_Registration_No?: string;
+  EORI_Number?: string;
+  GLN?: string;
+  Tax_Liable?: boolean;
+  Tax_Area_Code?: string;
+  Price_Calculation_Method?: string;
+  Registration_Number?: string;
+  Gen_Bus_Posting_Group?: string;
+  VAT_Bus_Posting_Group?: string;
+  Vendor_Posting_Group?: string;
+  Invoice_Disc_Code?: string;
+  Prices_Including_VAT?: boolean;
+  Prepayment_Percent?: number;
+  Allow_Multiple_Posting_Groups?: boolean;
+  Currency_Code?: string;
+  Application_Method?: string;
+  Partner_Type?: string;
+  Payment_Terms_Code?: string;
+  Payment_Method_Code?: string;
+  Priority?: number;
+  Cash_Flow_Payment_Terms_Code?: string;
+  Our_Account_No?: string;
+  Block_Payment_Tolerance?: boolean;
+  Creditor_No?: string;
+  Preferred_Bank_Account_Code?: string;
+  Intrastat_Partner_Type?: string;
+  Exclude_from_Pmt_Practices?: boolean;
+  Location_Code?: string;
+  Shipment_Method_Code?: string;
+  Lead_Time_Calculation?: string;
+  Base_Calendar_Code?: string;
+  Customized_Calendar?: string;
+  Over_Receipt_Code?: string;
+  Assessee_Code?: string;
+  P_A_N_Status?: string;
+  P_A_N_Reference_No?: string;
+  Aadhar_No?: string;
+  TAN_No?: string;
+  API_aadhaar_Seeding_Status?: string;
+  API_Pan_Type?: string;
+  API_Full_Name?: string;
+  API_DOB?: string;
+  SubcontractorVendor?: boolean;
+  Vendor_Location?: string;
+  Commissioner_x0027_s_Permission_No?: string;
+  Govt_Undertaking?: boolean;
+  GST_vendor_Type?: string;
+  Associated_Enterprises?: boolean;
+  Aggregate_Turnover?: string;
+  ARN_No?: string;
+  PAN_Link_Status?: string;
+  GST_Name?: string;
+  GST_Address?: string;
+  GST_Address_2?: string;
+  GST_Post_Code?: string;
+  GST_State_Code?: string;
+  GST_Status?: string;
+  Last_Updated_Date?: string;
+  SFPL_POS_as_Vendor_State?: boolean;
+  Date_Filter?: string;
+  Global_Dimension_1_Filter?: string;
+  Global_Dimension_2_Filter?: string;
+  Currency_Filter?: string;
 }
 
 /**
@@ -27,58 +130,64 @@ export async function getVendorsForDialog(opts: {
   skip?: number;
   top?: number;
   search?: string;
-}): Promise<{ value: VendorRow[]; count: number }> {
+  sortColumn?: string | null;
+  sortDirection?: "asc" | "desc" | null;
+  filters?: Record<string, string>;
+  visibleColumns?: string[];
+}): Promise<{ value: Vendor[]; count: number }> {
   const top = opts.top ?? 30;
   const skip = opts.skip ?? 0;
-  const base = getBaseFilter();
-  const sel = "No,Name,GST_Registration_No,P_A_N_No";
+  
+  const defaultCols = ["No", "Name", "GST_Registration_No", "P_A_N_No"];
+  const selectCols = opts.visibleColumns 
+    ? Array.from(new Set([...defaultCols, ...opts.visibleColumns]))
+    : defaultCols;
+  const sel = selectCols.join(",");
 
-  if (!opts.search || opts.search.trim().length < 2) {
-    const query = buildODataQuery({
-      $select: sel,
-      $filter: base,
-      $orderby: "No",
-      $top: top,
-      $skip: skip,
-      $count: true,
-    });
-    const endpoint = `/VendorCard?company='${encodeURIComponent(COMPANY)}'&${query}`;
-    const res = await apiGet<ODataResponse<VendorRow>>(endpoint);
-    return {
-      value: res.value,
-      count: (res as any)["@odata.count"] ?? res.value.length,
-    };
+  let filterParts: string[] = [getBaseFilter()];
+
+  if (opts.search && opts.search.trim().length >= 2) {
+    const s = escapeODataValue(opts.search.trim());
+    const searchFilter = `(contains(No,'${s}') or contains(Name,'${s}') or contains(GST_Registration_No,'${s}') or contains(P_A_N_No,'${s}'))`;
+    filterParts.push(searchFilter);
   }
 
-  // Search across No, Name, GST_Registration_No, P_A_N_No in parallel
-  const s = escapeODataValue(opts.search.trim());
-  const searchFields = ["No", "Name", "GST_Registration_No", "P_A_N_No"];
+  if (opts.filters) {
+    Object.entries(opts.filters).forEach(([col, val]) => {
+      if (!val) return;
+      const escaped = escapeODataValue(val.trim());
+      filterParts.push(`contains(${col},'${escaped}')`);
+    });
+  }
 
-  const responses = await Promise.all(
-    searchFields.map(async (field) => {
-      const filter = `(${base}) and contains(${field},'${s}')`;
-      const query = buildODataQuery({
-        $select: sel,
-        $filter: filter,
-        $orderby: "No",
-        $top: top + skip,
-      });
-      const endpoint = `/VendorCard?company='${encodeURIComponent(COMPANY)}'&${query}`;
-      try {
-        const res = await apiGet<ODataResponse<VendorRow>>(endpoint);
-        return res.value || [];
-      } catch {
-        return [] as VendorRow[];
-      }
-    }),
-  );
+  const filterStr = filterParts.join(" and ");
 
-  const map = new Map<string, VendorRow>();
-  responses.forEach((rows) =>
-    rows.forEach((v) => { if (!map.has(v.No)) map.set(v.No, v); }),
-  );
-  const all = Array.from(map.values()).sort((a, b) => a.No.localeCompare(b.No));
-  return { value: all.slice(skip, skip + top), count: all.length };
+  let orderbyClause = "No";
+  if (opts.sortColumn && opts.sortDirection) {
+    orderbyClause = `${opts.sortColumn} ${opts.sortDirection === "asc" ? "asc" : "desc"}`;
+  }
+
+  const query = buildODataQuery({
+    $select: sel,
+    $filter: filterStr,
+    $orderby: orderbyClause,
+    $top: top,
+    $skip: skip,
+    $count: true,
+  });
+
+  const endpoint = `/VendorCard?company='${encodeURIComponent(COMPANY)}'&${query}`;
+  
+  try {
+    const res = await apiGet<ODataResponse<Vendor>>(endpoint);
+    return {
+      value: res.value || [],
+      count: (res as any)["@odata.count"] ?? res.value?.length ?? 0,
+    };
+  } catch (error) {
+    console.error("Error fetching vendors for dialog:", error);
+    return { value: [], count: 0 };
+  }
 }
 
 const COMPANY =

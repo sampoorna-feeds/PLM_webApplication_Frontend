@@ -116,9 +116,6 @@ export function SalesDocumentForm({
         mode={mode}
         orderNo={orderNo || undefined}
         initialFormData={formData as Record<string, unknown> | undefined}
-        persistFormData={
-          updateFormData as (data: Record<string, unknown>) => void
-        }
       />
     </div>
   );

@@ -18,32 +18,46 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { ColumnConfig } from "./column-config";
-import { STATUS_OPTIONS, INVOICE_TYPE_OPTIONS } from "./filter-constants";
 
-interface SalesOrderColumnFilterProps {
+const STATUS_OPTIONS = [
+  { value: "", label: "All" },
+  { value: "Open", label: "Open" },
+  { value: "Released", label: "Released" },
+];
+
+const INVOICE_TYPE_OPTIONS = [
+  { value: "", label: "All" },
+  { value: "Bill of supply", label: "Bill of supply" },
+  { value: "Taxable", label: "Taxable" },
+  { value: "Export", label: "Export" },
+  { value: "Supplementary", label: "Supplementary" },
+  { value: "Non-GST", label: "Non-GST" },
+];
+
+function getEnumOptions(columnId: string): { value: string; label: string }[] {
+  switch (columnId) {
+    case "Status":
+      return STATUS_OPTIONS;
+    case "Invoice_Type":
+      return INVOICE_TYPE_OPTIONS;
+    default:
+      return [];
+  }
+}
+
+interface SalesDocumentColumnFilterProps {
   column: ColumnConfig;
   value: string;
   valueTo?: string;
   onChange: (value: string, valueTo?: string) => void;
 }
 
-function getEnumOptions(columnId: string): { value: string; label: string }[] {
-  switch (columnId) {
-    case "Status":
-      return [...STATUS_OPTIONS];
-    case "Invoice_Type":
-      return [...INVOICE_TYPE_OPTIONS];
-    default:
-      return [];
-  }
-}
-
-export function SalesOrderColumnFilter({
+export function SalesDocumentColumnFilter({
   column,
   value,
   valueTo,
   onChange,
-}: SalesOrderColumnFilterProps) {
+}: SalesDocumentColumnFilterProps) {
   const [open, setOpen] = useState(false);
   const [localValue, setLocalValue] = useState(value);
   const [localValueTo, setLocalValueTo] = useState(valueTo || "");

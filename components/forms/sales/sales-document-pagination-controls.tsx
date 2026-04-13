@@ -14,7 +14,7 @@ import {
 
 const PAGE_SIZE_OPTIONS = [10, 20, 30, 40, 50];
 
-interface PaginationControlsProps {
+interface SalesDocumentPaginationControlsProps {
   pageSize: number;
   currentPage: number;
   totalPages: number;
@@ -24,7 +24,7 @@ interface PaginationControlsProps {
   onPageChange: (page: number) => void;
 }
 
-export function SalesOrderPaginationControls({
+export function SalesDocumentPaginationControls({
   pageSize,
   currentPage,
   totalPages,
@@ -32,7 +32,7 @@ export function SalesOrderPaginationControls({
   hasNextPage,
   onPageSizeChange,
   onPageChange,
-}: PaginationControlsProps) {
+}: SalesDocumentPaginationControlsProps) {
   const hasPrevPage = currentPage > 1;
 
   return (

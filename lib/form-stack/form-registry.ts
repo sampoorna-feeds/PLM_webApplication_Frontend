@@ -6,22 +6,11 @@
 import type { FormComponent } from "./types";
 
 // Lazy imports to avoid circular dependencies
-let SalesOrderForm: FormComponent | null = null;
-let SalesOrderDetailForm: FormComponent | null = null;
-let SalesOrderEditForm: FormComponent | null = null;
-let SalesInvoiceForm: FormComponent | null = null;
-let SalesInvoiceDetailForm: FormComponent | null = null;
-let SalesReturnOrderForm: FormComponent | null = null;
-let SalesReturnOrderDetailForm: FormComponent | null = null;
-let SalesCreditMemoForm: FormComponent | null = null;
-let SalesCreditMemoDetailForm: FormComponent | null = null;
+let SalesDocumentForm: FormComponent | null = null;
 let AddPincodeForm: FormComponent | null = null;
 let AddShipToForm: FormComponent | null = null;
 let ProductionOrderForm: FormComponent | null = null;
 let FinishedProductionOrderDetailForm: FormComponent | null = null;
-let ItemSelectorForm: FormComponent | null = null;
-let LineItemTabForm: FormComponent | null = null;
-
 let PurchaseDocumentForm: FormComponent | null = null;
 
 let TransferOrderDetailForm: FormComponent | null = null;
@@ -34,77 +23,13 @@ export const formRegistry: Record<
   string,
   () => Promise<{ default: FormComponent }>
 > = {
-  "sales-order": async () => {
-    if (!SalesOrderForm) {
+  "sales-document": async () => {
+    if (!SalesDocumentForm) {
       const formModule =
-        await import("@/components/forms/sales/sales-order-form");
-      SalesOrderForm = formModule.SalesOrderForm;
+        await import("@/components/forms/sales/sales-document-form");
+      SalesDocumentForm = formModule.SalesDocumentForm;
     }
-    return { default: SalesOrderForm! };
-  },
-  "sales-order-detail": async () => {
-    if (!SalesOrderDetailForm) {
-      const formModule =
-        await import("@/components/forms/sales/sales-order-detail-form");
-      SalesOrderDetailForm = formModule.SalesOrderDetailForm;
-    }
-    return { default: SalesOrderDetailForm! };
-  },
-  "sales-order-edit": async () => {
-    if (!SalesOrderEditForm) {
-      const formModule =
-        await import("@/components/forms/sales/sales-order-edit-form");
-      SalesOrderEditForm = formModule.SalesOrderEditForm;
-    }
-    return { default: SalesOrderEditForm! };
-  },
-  "sales-invoice": async () => {
-    if (!SalesInvoiceForm) {
-      const formModule =
-        await import("@/components/forms/sales/sales-invoice-form");
-      SalesInvoiceForm = formModule.SalesInvoiceForm;
-    }
-    return { default: SalesInvoiceForm! };
-  },
-  "sales-invoice-detail": async () => {
-    if (!SalesInvoiceDetailForm) {
-      const formModule =
-        await import("@/components/forms/sales/sales-invoice-detail-form");
-      SalesInvoiceDetailForm = formModule.SalesInvoiceDetailForm;
-    }
-    return { default: SalesInvoiceDetailForm! };
-  },
-  "sales-return-order": async () => {
-    if (!SalesReturnOrderForm) {
-      const formModule =
-        await import("@/components/forms/sales/sales-return-order-form");
-      SalesReturnOrderForm = formModule.SalesReturnOrderForm;
-    }
-    return { default: SalesReturnOrderForm! };
-  },
-  "sales-return-order-detail": async () => {
-    if (!SalesReturnOrderDetailForm) {
-      const formModule =
-        await import("@/components/forms/sales/sales-return-order-detail-form");
-      SalesReturnOrderDetailForm = formModule.SalesReturnOrderDetailForm;
-    }
-    return { default: SalesReturnOrderDetailForm! };
-  },
-  "sales-credit-memo": async () => {
-    if (!SalesCreditMemoForm) {
-      const formModule =
-        await import("@/components/forms/sales/sales-credit-memo-form");
-      SalesCreditMemoForm = formModule.SalesCreditMemoForm;
-    }
-    return { default: SalesCreditMemoForm! };
-  },
-  "sales-credit-memo-detail": async () => {
-    if (!SalesCreditMemoDetailForm) {
-      const formModule =
-        await import("@/components/forms/sales/sales-credit-memo-detail-form");
-      SalesCreditMemoDetailForm = formModule.SalesCreditMemoDetailForm;
-    }
-    return { default: SalesCreditMemoDetailForm! };
+    return { default: SalesDocumentForm! };
   },
   "add-pincode": async () => {
     if (!AddPincodeForm) {
@@ -138,22 +63,6 @@ export const formRegistry: Record<
         formModule.FinishedProductionOrderDetailForm;
     }
     return { default: FinishedProductionOrderDetailForm! };
-  },
-  "item-selector": async () => {
-    if (!ItemSelectorForm) {
-      const formModule =
-        await import("@/components/forms/sales/item-selector-form");
-      ItemSelectorForm = formModule.ItemSelectorForm;
-    }
-    return { default: ItemSelectorForm! };
-  },
-  "line-item": async () => {
-    if (!LineItemTabForm) {
-      const formModule =
-        await import("@/components/forms/sales/line-item-tab-form");
-      LineItemTabForm = formModule.LineItemTabForm;
-    }
-    return { default: LineItemTabForm! };
   },
   "purchase-document": async () => {
     if (!PurchaseDocumentForm) {

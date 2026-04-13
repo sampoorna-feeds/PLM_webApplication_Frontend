@@ -13,37 +13,41 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  updateSalesLine,
-  type SalesLine,
-} from "@/lib/api/services/sales-credit-memos.service";
+import type { SalesLine } from "@/lib/api/services/sales-orders.service";
 import {
   ApiErrorDialog,
   extractApiError,
   type ApiErrorState,
 } from "@/components/forms/production-orders/api-error-dialog";
 
-interface SalesCreditMemoLineDialogProps {
+interface SalesLineDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   line: SalesLine | null;
-  orderNo: string;
+  documentNo: string;
   hasTracking?: boolean;
   onSave: () => void;
   onAssignTracking?: () => void;
+  /** Injected per-document-type update function */
+  updateLine: (
+    documentNo: string,
+    lineNo: number,
+    body: Record<string, unknown>,
+  ) => Promise<unknown>;
 }
 
-export function SalesCreditMemoLineDialog({
+export function SalesLineDialog({
   open,
   onOpenChange,
   line,
-  orderNo,
+  documentNo,
   hasTracking = false,
   onSave,
   onAssignTracking,
-}: SalesCreditMemoLineDialogProps) {
+  updateLine,
+}: SalesLineDialogProps) {
   const [description, setDescription] = useState("");
-  const [quantity, setQuantity] = useState<string>(""); // readonly display only
+  const [quantity, setQuantity] = useState<string>("");
   const [qtyToShip, setQtyToShip] = useState<string>("");
   const [qtyToInvoice, setQtyToInvoice] = useState<string>("");
   const [isSaving, setIsSaving] = useState(false);
@@ -55,17 +59,11 @@ export function SalesCreditMemoLineDialog({
     setQuantity(line.Quantity?.toString() || "");
     setQtyToShip(line.Qty_to_Ship?.toString() || "");
     setQtyToInvoice(line.Qty_to_Invoice?.toString() || "");
-    // Keep existing location untouched (hidden in UI)
   }, [line]);
 
   const handleSave = async () => {
-    if (!line || !line.Line_No || !orderNo) return;
+    if (!line || !line.Line_No || !documentNo) return;
 
-    const quantityValue = parseFloat(quantity) || 0;
-    if (quantityValue < 0) {
-      toast.error("Quantity cannot be negative");
-      return;
-    }
     const shipVal = parseFloat(qtyToShip) || 0;
     const invoiceVal = parseFloat(qtyToInvoice) || 0;
     if (shipVal < 0) {
@@ -76,11 +74,11 @@ export function SalesCreditMemoLineDialog({
       toast.error("Qty to invoice cannot be negative");
       return;
     }
+
     setIsSaving(true);
     try {
-      await updateSalesLine(orderNo, line.Line_No, {
+      await updateLine(documentNo, line.Line_No, {
         Description: description.trim(),
-        // Quantity is kept for display only; do not include unless it matters
         Qty_to_Ship: shipVal,
         Qty_to_Invoice: invoiceVal,
       });
@@ -167,9 +165,8 @@ export function SalesCreditMemoLineDialog({
                 value={qtyToShip}
                 onChange={(e) => {
                   const val = e.target.value;
-                  if (val === "" || /^[0-9]*\.?[0-9]*$/.test(val)) {
+                  if (val === "" || /^[0-9]*\.?[0-9]*$/.test(val))
                     setQtyToShip(val);
-                  }
                 }}
                 className="col-span-3"
               />
@@ -198,9 +195,8 @@ export function SalesCreditMemoLineDialog({
                 value={qtyToInvoice}
                 onChange={(e) => {
                   const val = e.target.value;
-                  if (val === "" || /^[0-9]*\.?[0-9]*$/.test(val)) {
+                  if (val === "" || /^[0-9]*\.?[0-9]*$/.test(val))
                     setQtyToInvoice(val);
-                  }
                 }}
                 className="col-span-3"
               />

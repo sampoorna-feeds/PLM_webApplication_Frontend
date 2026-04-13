@@ -1,137 +1,146 @@
 /**
- * Sales Order API Service
- * Handles creating sales orders and adding line items
+ * Sales Invoice API Service
+ * Handles creating sales invoices and managing invoice lines.
  */
 
-import { apiPost } from "../client";
+import { apiPost, apiPatch } from "../client";
 import type { ApiError } from "../client";
+import type { SalesDocumentHeaderData } from "@/components/forms/sales/sales-document-header-data";
 
-export interface SalesOrderData {
-  customerNo: string;
-  customerName?: string;
-  shipToCode?: string;
-  salesPersonCode?: string;
-  locationCode?: string;
-  postingDate: string;
-  documentDate: string;
-  orderDate: string;
-  externalDocumentNo?: string;
-  invoiceType?: string;
-  lob?: string;
-  branch?: string;
-  loc?: string;
-}
+const COMPANY =
+  process.env.NEXT_PUBLIC_API_COMPANY || "Sampoorna Feeds Pvt. Ltd";
+const HEADER_ENTITY = "SalesInvoiceHeader";
+const LINE_ENTITY = "SalesInvoiceLine";
+const DOCUMENT_TYPE = "Invoice";
 
-export interface SalesOrderLineItem {
-  type: "G/L Account" | "Item";
-  no: string;
-  description: string;
-  uom?: string;
-  quantity: number;
-  price?: number;
-  unitPrice: number;
-  discount: number;
-  amount: number;
-  exempted?: boolean;
-  gstGroupCode?: string;
-  hsnSacCode?: string;
-  tdsGroupCode?: string;
-}
-
-export interface CreateSalesOrderResponse {
+export interface CreateSalesDocumentResponse {
   orderId: string;
   orderNo: string;
 }
 
-/** API may return the created entity with No (document number) */
-interface CreateSalesOrderApiResponse {
+interface CreateSalesDocumentApiResponse {
   No?: string;
   orderId?: string;
   orderNo?: string;
   [key: string]: unknown;
 }
 
-const COMPANY =
-  process.env.NEXT_PUBLIC_API_COMPANY || "Sampoorna Feeds Pvt. Ltd";
-const HEADER_ENTITY = "SalesInvoiceHeader";
-const LINE_ENTITY = "SalesInvoiceLine";
+export interface SalesDocumentLineItem {
+  type: "G/L Account" | "Item";
+  no: string;
+  description?: string;
+  uom?: string;
+  quantity: number;
+  unitPrice?: number;
+  discount?: number;
+  amount?: number;
+  exempted?: boolean;
+  gstGroupCode?: string;
+  hsnSacCode?: string;
+  tdsGroupCode?: string;
+}
 
-/**
- * Create a new sales order
- * Returns the order ID and order number. API returns document number as "No".
- */
-export async function createSalesOrder(
-  orderData: SalesOrderData,
-): Promise<CreateSalesOrderResponse> {
+function stripNullish(obj: Record<string, unknown>): Record<string, unknown> {
+  return Object.entries(obj).reduce(
+    (acc, [key, value]) => {
+      if (value !== undefined && value !== null) acc[key] = value;
+      return acc;
+    },
+    {} as Record<string, unknown>,
+  );
+}
+
+/** Create a new sales invoice header. */
+export async function createSalesInvoice(
+  data: SalesDocumentHeaderData,
+): Promise<CreateSalesDocumentResponse> {
   try {
     const endpoint = `/${HEADER_ENTITY}?company='${encodeURIComponent(COMPANY)}'`;
-
     const payload = {
-      Document_Type: "Order",
-      Sell_to_Customer_No: orderData.customerNo,
-      Ship_to_Code: orderData.shipToCode || "",
-      Salesperson_Code: orderData.salesPersonCode || "",
-      Location_Code: orderData.locationCode || orderData.loc || "",
-      Posting_Date: orderData.postingDate,
-      Document_Date: orderData.documentDate,
-      Order_Date: orderData.orderDate,
-      External_Document_No: orderData.externalDocumentNo || "",
-      Invoice_Type: orderData.invoiceType || "Bill of supply",
-      Shortcut_Dimension_1_Code: orderData.lob || "",
-      Shortcut_Dimension_2_Code: orderData.branch || "",
-      Shortcut_Dimension_3_Code: orderData.loc || "",
+      Document_Type: DOCUMENT_TYPE,
+      Sell_to_Customer_No: data.customerNo,
+      Ship_to_Code: data.shipToCode || "",
+      Salesperson_Code: data.salesPersonCode || "",
+      Location_Code: data.locationCode || data.loc || "",
+      Posting_Date: data.postingDate,
+      Document_Date: data.documentDate,
+      External_Document_No: data.externalDocumentNo || "",
+      Invoice_Type: data.invoiceType || "Bill of supply",
+      Shortcut_Dimension_1_Code: data.lob || "",
+      Shortcut_Dimension_2_Code: data.branch || "",
+      Shortcut_Dimension_3_Code: data.loc || "",
     };
-
-    const response = await apiPost<CreateSalesOrderApiResponse>(
-      endpoint,
-      payload,
-    );
-
-    if (!response) {
-      return { orderId: "", orderNo: "" };
-    }
-
-    // API returns document number as "No" (e.g. "SO/2526/080184")
+    const response = await apiPost<CreateSalesDocumentApiResponse>(endpoint, payload);
+    if (!response) return { orderId: "", orderNo: "" };
     const orderNo = response.No ?? response.orderNo ?? "";
-    const orderId = response.orderId ?? orderNo;
-
-    return { orderId, orderNo };
+    return { orderId: response.orderId ?? orderNo, orderNo };
   } catch (error) {
-    console.error("Error creating sales order:", error);
     throw error as ApiError;
   }
 }
 
-/**
- * Add line items to an existing sales order.
- * Company is passed as query parameter; body only includes required fields.
- */
-export async function addSalesOrderLineItems(
+/** Add multiple line items to an invoice in sequence. */
+export async function addSalesInvoiceLineItems(
   documentNo: string,
-  lineItems: SalesOrderLineItem[],
+  lineItems: SalesDocumentLineItem[],
   locationCode: string,
 ): Promise<void> {
-  if (!documentNo || lineItems.length === 0) {
-    return;
-  }
-
+  if (!documentNo || lineItems.length === 0) return;
   const endpoint = `/${LINE_ENTITY}?company='${encodeURIComponent(COMPANY)}'`;
-
-  try {
-    for (const lineItem of lineItems) {
-      const payload = {
-        Document_No: documentNo,
-        Type: lineItem.type,
-        No: lineItem.no,
-        Location_Code: locationCode || "",
-        Quantity: lineItem.quantity,
-        Unit_of_Measure_Code: lineItem.uom || "",
-      };
-
-      await apiPost(endpoint, payload);
-    }
-  } catch (error) {
-    console.error("Error adding sales order line items:", error);
-    throw error as ApiError;
+  for (const item of lineItems) {
+    await apiPost(endpoint, {
+      Document_No: documentNo,
+      Type: item.type,
+      No: item.no,
+      Location_Code: locationCode || "",
+      Quantity: item.quantity,
+      Unit_of_Measure_Code: item.uom || "",
+    });
   }
+}
+
+/** Add a single line to an existing invoice. */
+export async function addSingleSalesInvoiceLine(
+  documentNo: string,
+  line: SalesDocumentLineItem,
+  locationCode: string,
+): Promise<{ Line_No: number; [key: string]: unknown }> {
+  const endpoint = `/${LINE_ENTITY}?company='${encodeURIComponent(COMPANY)}'`;
+  const result = await apiPost<{ Line_No: number; [key: string]: unknown }>(
+    endpoint,
+    {
+      Document_No: documentNo,
+      Type: line.type,
+      No: line.no,
+      Location_Code: locationCode || "",
+      Quantity: line.quantity,
+      Unit_of_Measure_Code: line.uom || "",
+    },
+  );
+  return result ?? { Line_No: 0 };
+}
+
+/** Update an existing invoice line. */
+export async function updateSingleSalesInvoiceLine(
+  documentNo: string,
+  lineNo: number,
+  body: Partial<SalesDocumentLineItem>,
+): Promise<{ Line_No: number; [key: string]: unknown }> {
+  const escapedNo = documentNo.replace(/'/g, "''");
+  const endpoint = `/${LINE_ENTITY}(Document_Type='${encodeURIComponent(DOCUMENT_TYPE)}',Document_No='${encodeURIComponent(escapedNo)}',Line_No=${lineNo})?company='${encodeURIComponent(COMPANY)}'`;
+  const payload = stripNullish(body as Record<string, unknown>);
+  const result = await apiPatch<{ Line_No: number; [key: string]: unknown }>(
+    endpoint,
+    payload,
+  );
+  return result ?? { Line_No: lineNo };
+}
+
+/** Delete a single invoice line. */
+export async function deleteSingleSalesInvoiceLine(
+  documentNo: string,
+  lineNo: number,
+): Promise<void> {
+  const endpoint = `/API_SalesOrderLine?company='${encodeURIComponent(COMPANY)}'`;
+  await apiPost(endpoint, { orderNo: documentNo, lineNo });
 }

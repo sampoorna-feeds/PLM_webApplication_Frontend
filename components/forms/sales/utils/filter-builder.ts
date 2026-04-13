@@ -1,17 +1,22 @@
 /**
- * OData Filter Builder for Sales Orders
- * Builds $filter string from search and column filters
+ * OData Filter Builder for Sales Documents
+ * Builds $filter string from branch codes, status tab, and column filters.
  */
 
 import type { ColumnConfig } from "../column-config";
-import { ALL_COLUMNS } from "../column-config";
+import { getColumnConfig } from "../column-config";
+import type { SalesDocColumnType } from "../column-config";
+import type { FilterCondition } from "../types";
 
-export interface SalesOrderFilterParams {
-  /** Branch codes to filter by at API level (Shortcut_Dimension_2_Code). Required for listing only user's orders. */
+export interface SalesDocumentFilterParams {
+  /** Branch codes to filter by at API level (Shortcut_Dimension_2_Code). */
   branchCodes?: string[];
   /** Status filter for tab (Open | Pending Approval | Released). Applied at API level. */
   statusFilter?: string;
   columnFilters?: Record<string, { value: string; valueTo?: string }>;
+  /** Additional dynamic filters from the DynamicFilterBuilder */
+  additionalFilters?: FilterCondition[];
+  docType: SalesDocColumnType;
 }
 
 function escapeODataValue(value: string): string {
@@ -112,16 +117,23 @@ function buildColumnFilter(
 }
 
 /**
- * Build OData $filter for SalesOrder list
- * Branch filter is applied at API level so only orders for allowed branches are returned.
+ * Build OData $filter for a sales document list.
+ * Branch filter is applied at API level so only documents for allowed branches are returned.
  */
-export function buildSalesOrderFilterString(
-  params: SalesOrderFilterParams,
+export function buildSalesDocumentFilterString(
+  params: SalesDocumentFilterParams,
 ): string | undefined {
-  const { branchCodes = [], statusFilter, columnFilters = {} } = params;
+  const {
+    branchCodes = [],
+    statusFilter,
+    columnFilters = {},
+    additionalFilters = [],
+    docType,
+  } = params;
   const filterParts: string[] = [];
+  const { allColumns } = getColumnConfig(docType);
 
-  // API-level branch filter (Shortcut_Dimension_2_Code = branch codes)
+  // API-level branch filter
   if (branchCodes.length > 0) {
     const branchFilter = branchCodes
       .map((c) => `'${escapeODataValue(c.trim())}'`)
@@ -132,19 +144,49 @@ export function buildSalesOrderFilterString(
     }
   }
 
-  // API-level status filter (tab: Open | Pending Approval | Released)
+  // API-level status filter
   if (statusFilter?.trim()) {
     filterParts.push(`Status eq '${escapeODataValue(statusFilter.trim())}'`);
   }
 
-  // Column filters (skip Shortcut_Dimension_2_Code and Status when applied at API level)
+  // Column filters
   Object.entries(columnFilters).forEach(([columnId, filter]) => {
     if (columnId === "Shortcut_Dimension_2_Code") return;
     if (columnId === "Status" && statusFilter) return;
-    const column = ALL_COLUMNS.find((c) => c.id === columnId);
+    const column = allColumns.find((c) => c.id === columnId);
     if (!column) return;
     const parts = buildColumnFilter(column, filter);
     filterParts.push(...parts);
+  });
+
+  // Additional dynamic filters from DynamicFilterBuilder
+  additionalFilters.forEach((f) => {
+    const escaped = escapeODataValue(f.value);
+    switch (f.operator) {
+      case "contains":
+        filterParts.push(`contains(${f.field},'${escaped}')`);
+        break;
+      case "startswith":
+        filterParts.push(`startswith(${f.field},'${escaped}')`);
+        break;
+      case "endswith":
+        filterParts.push(`endswith(${f.field},'${escaped}')`);
+        break;
+      case "eq":
+      case "ne":
+      case "gt":
+      case "ge":
+      case "lt":
+      case "le":
+        if (f.type === "number") {
+          filterParts.push(`${f.field} ${f.operator} ${f.value}`);
+        } else if (f.type === "date") {
+          filterParts.push(`${f.field} ${f.operator} ${f.value}`);
+        } else {
+          filterParts.push(`${f.field} ${f.operator} '${escaped}'`);
+        }
+        break;
+    }
   });
 
   if (filterParts.length === 0) return undefined;

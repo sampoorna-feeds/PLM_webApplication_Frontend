@@ -123,16 +123,12 @@ export function FormStackPanel() {
           currentTab?.formType === "transfer-order" ||
             currentTab?.formType === "transfer-order-detail"
             ? "w-screen lg:w-[80vw]"
-            : currentTab?.formType === "line-item"
+            : currentTab?.formType === "finished-production-order-detail"
               ? "w-screen md:w-[60vw]"
-              : currentTab?.formType === "sales-order" ||
-                  currentTab?.formType === "sales-order-detail" ||
-                  currentTab?.formType === "sales-order-edit" ||
-                  currentTab?.formType === "finished-production-order-detail"
-                ? "w-screen md:w-[60vw]"
-                : currentTab?.formType === "purchase-document"
-                  ? "w-screen lg:w-[70vw]"
-                  : "w-screen md:w-[65vw] lg:w-[48vw]",
+              : currentTab?.formType === "purchase-document" ||
+                  currentTab?.formType === "sales-document"
+                ? "w-screen lg:w-[70vw]"
+                : "w-screen md:w-[65vw] lg:w-[48vw]",
         )}
       >
         {/* Tabs - Always show at top */}

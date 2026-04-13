@@ -3,41 +3,41 @@
 import { ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 import type { SalesOrder } from "@/lib/api/services/sales-orders.service";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  ALL_COLUMNS,
-  type SortDirection,
-  type ColumnConfig,
-} from "./column-config";
-import { SalesOrderColumnFilter } from "./column-filter";
+import { type SortDirection, type ColumnConfig } from "./column-config";
+import { SalesDocumentColumnFilter } from "./sales-document-column-filter";
 
-interface SalesOrdersTableProps {
+interface SalesDocumentTableProps {
   orders: SalesOrder[];
   isLoading: boolean;
   visibleColumns: string[];
+  allColumns: ColumnConfig[];
   sortColumn: string | null;
   sortDirection: SortDirection;
   pageSize: number;
   currentPage: number;
   columnFilters: Record<string, { value: string; valueTo?: string }>;
+  emptyMessage?: string;
   onRowClick?: (orderNo: string) => void;
   onSort: (column: string) => void;
   onColumnFilter: (columnId: string, value: string, valueTo?: string) => void;
 }
 
-export function SalesOrdersTable({
+export function SalesDocumentTable({
   orders,
   isLoading,
   visibleColumns,
+  allColumns,
   sortColumn,
   sortDirection,
   pageSize,
   currentPage,
   columnFilters,
+  emptyMessage = "No documents found",
   onRowClick,
   onSort,
   onColumnFilter,
-}: SalesOrdersTableProps) {
-  const columns = ALL_COLUMNS.filter((col) => visibleColumns.includes(col.id));
+}: SalesDocumentTableProps) {
+  const columns = allColumns.filter((col) => visibleColumns.includes(col.id));
   const startingSerialNo = (currentPage - 1) * pageSize;
 
   return (
@@ -46,7 +46,7 @@ export function SalesOrdersTable({
         <table className="w-full caption-bottom text-sm">
           <thead className="bg-muted sticky top-0 z-10 [&_tr]:border-b">
             <tr className="border-b transition-colors">
-              <th className="text-foreground h-10 w-12 px-3 py-3 text-center align-middle text-xs font-bold font-medium whitespace-nowrap">
+              <th className="text-foreground h-10 w-12 px-3 py-3 text-center align-middle text-xs font-bold whitespace-nowrap">
                 S.No
               </th>
               {columns.map((column) => (
@@ -54,9 +54,7 @@ export function SalesOrdersTable({
                   key={column.id}
                   column={column}
                   isActive={sortColumn === column.id}
-                  sortDirection={
-                    sortColumn === column.id ? sortDirection : null
-                  }
+                  sortDirection={sortColumn === column.id ? sortDirection : null}
                   filterValue={columnFilters[column.id]?.value ?? ""}
                   filterValueTo={columnFilters[column.id]?.valueTo}
                   onSort={onSort}
@@ -94,14 +92,14 @@ export function SalesOrdersTable({
                   colSpan={columns.length + 1}
                   className="text-muted-foreground h-24 p-2 text-center align-middle"
                 >
-                  No sales orders found
+                  {emptyMessage}
                 </td>
               </tr>
             )}
             {!isLoading &&
               orders.length > 0 &&
               orders.map((order, index) => (
-                <SalesOrderRow
+                <SalesDocumentRow
                   key={order.No}
                   order={order}
                   columns={columns}
@@ -147,7 +145,7 @@ function SortableTableHead({
 
   return (
     <th
-      className={`text-foreground h-10 px-2 px-3 py-3 text-left align-middle text-xs font-bold font-medium whitespace-nowrap select-none ${
+      className={`text-foreground h-10 px-2 py-3 text-left align-middle text-xs font-bold whitespace-nowrap select-none ${
         isActive ? "text-primary" : ""
       }`}
     >
@@ -168,7 +166,7 @@ function SortableTableHead({
           </button>
         )}
         {column.filterType && (
-          <SalesOrderColumnFilter
+          <SalesDocumentColumnFilter
             column={column}
             value={filterValue}
             valueTo={filterValueTo}
@@ -180,19 +178,19 @@ function SortableTableHead({
   );
 }
 
-interface SalesOrderRowProps {
+interface SalesDocumentRowProps {
   order: SalesOrder;
   columns: ColumnConfig[];
   serialNo: number;
   onClick?: () => void;
 }
 
-function SalesOrderRow({
+function SalesDocumentRow({
   order,
   columns,
   serialNo,
   onClick,
-}: SalesOrderRowProps) {
+}: SalesDocumentRowProps) {
   const getCellValue = (columnId: string): string => {
     const value = (order as Record<string, unknown>)[columnId];
 
@@ -204,7 +202,6 @@ function SalesOrderRow({
       return value ? "Yes" : "No";
     }
 
-    // Format dates
     if (
       columnId.includes("Date") &&
       typeof value === "string" &&
@@ -220,7 +217,6 @@ function SalesOrderRow({
       }
     }
 
-    // Format numbers (amount)
     if (columnId === "Amt_to_Customer" && typeof value === "number") {
       return value.toLocaleString();
     }

@@ -2,23 +2,25 @@
 
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { ALL_COLUMNS } from "./column-config";
+import type { ColumnConfig } from "./column-config";
 
-interface SalesOrderActiveFiltersProps {
+interface SalesDocumentActiveFiltersProps {
   searchQuery: string;
   columnFilters: Record<string, { value: string; valueTo?: string }>;
+  allColumns: ColumnConfig[];
   onSearch: (query: string) => void;
   onColumnFilter: (columnId: string, value: string, valueTo?: string) => void;
   onClearFilters: () => void;
 }
 
-export function SalesOrderActiveFilters({
+export function SalesDocumentActiveFilters({
   searchQuery,
   columnFilters,
+  allColumns,
   onSearch,
   onColumnFilter,
   onClearFilters,
-}: SalesOrderActiveFiltersProps) {
+}: SalesDocumentActiveFiltersProps) {
   const activeFilters: { key: string; label: string; displayValue: string }[] =
     [];
 
@@ -31,9 +33,9 @@ export function SalesOrderActiveFilters({
   }
 
   Object.entries(columnFilters).forEach(([columnId, filter]) => {
-    if (columnId === "Shortcut_Dimension_2_Code") return; // API-level branch filter, not shown as active filter
+    if (columnId === "Shortcut_Dimension_2_Code") return;
     if (!filter.value && !filter.valueTo) return;
-    const column = ALL_COLUMNS.find((c) => c.id === columnId);
+    const column = allColumns.find((c) => c.id === columnId);
     if (!column) return;
 
     let displayValue = filter.value;

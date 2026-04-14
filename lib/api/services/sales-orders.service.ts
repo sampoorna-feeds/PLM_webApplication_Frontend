@@ -528,11 +528,14 @@ export interface AssignSalesItemTrackingParams {
   quantity: number;
   lotNo: string;
   expirationDate?: string;
+  /** BC Source_Subtype: order=1, invoice=2, credit-memo=3, return-order=5. Defaults to 1. */
+  sourceSubType?: number;
 }
 
 /**
- * Assign item tracking (lot) to a sales order line.
- * POST API_TrackingAssign with sourceType 37, sourceSubType 1; quantity and qtytoHandle are negative.
+ * Assign item tracking (lot) to a sales document line.
+ * POST API_TrackingAssign with sourceType 37; quantity and qtytoHandle are negative.
+ * sourceSubType varies by document type: order=1, invoice=2, credit-memo=3, return-order=5.
  */
 export async function assignSalesItemTracking(
   params: AssignSalesItemTrackingParams,
@@ -546,7 +549,7 @@ export async function assignSalesItemTracking(
     qtytoHandle: qty,
     sourceProdOrderLine: 0,
     sourceType: 37,
-    sourceSubType: 1,
+    sourceSubType: params.sourceSubType ?? 1,
     sourceID: params.orderNo,
     sourceBatch: "",
     sourcerefNo: params.lineNo,
@@ -565,14 +568,16 @@ function escapeODataString(value: string): string {
 }
 
 /**
- * Get item tracking lines for a sales order line.
- * Filter: Source_Type eq 37, Source_Subtype eq '1', Source_ID = order No., Source_Ref_No_ = line No., Item_No, Location_Code.
+ * Get item tracking lines for a sales document line.
+ * Filter: Source_Type eq 37, Source_ID, Source_Ref_No_, Item_No, Location_Code.
+ * sourceSubType varies by document type: order=1, invoice=2, credit-memo=3, return-order=5.
  */
 export async function getSalesItemTrackingLines(
   orderNo: string,
   lineNo: number,
   itemNo: string,
   locationCode: string,
+  sourceSubType: number = 1,
 ): Promise<SalesItemTrackingLine[]> {
   const filter = [
     `Source_ID eq '${escapeODataString(orderNo)}'`,
@@ -580,7 +585,7 @@ export async function getSalesItemTrackingLines(
     `Item_No eq '${escapeODataString(itemNo)}'`,
     `Location_Code eq '${escapeODataString(locationCode)}'`,
     "Source_Type eq 37",
-    "Source_Subtype eq '1'",
+    `Source_Subtype eq '${sourceSubType}'`,
   ].join(" and ");
   const query = buildODataQuery({ $filter: filter });
   const endpoint = `/ItemTrackingLine?company='${encodeURIComponent(COMPANY)}'&${query}`;

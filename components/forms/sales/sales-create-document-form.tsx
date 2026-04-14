@@ -59,6 +59,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { SearchableSelect } from "@/components/forms/shared/searchable-select";
 import { SalesLineDialog } from "./sales-line-dialog";
+import { SalesAddLineDialog } from "./sales-add-line-dialog";
 import { SalesItemTrackingDialog } from "./sales-item-tracking-dialog";
 
 // ── Services ──────────────────────────────────────────────────────────────────
@@ -66,6 +67,7 @@ import {
   createSalesOrder,
   addSalesOrderLineItems,
   addSingleSalesOrderLine,
+  type SalesDocumentLineItem,
 } from "@/lib/api/services/sales-order.service";
 import {
   createSalesInvoice,
@@ -367,6 +369,7 @@ export function SalesCreateDocumentFormContent({
   // ── Line dialog state ─────────────────────────────────────────────────────
   const [selectedLine, setSelectedLine] = useState<SalesLine | null>(null);
   const [isLineDialogOpen, setIsLineDialogOpen] = useState(false);
+  const [isAddLineDialogOpen, setIsAddLineDialogOpen] = useState(false);
   const [selectedTrackingLine, setSelectedTrackingLine] =
     useState<SalesLine | null>(null);
   const [isTrackingDialogOpen, setIsTrackingDialogOpen] = useState(false);
@@ -1334,10 +1337,7 @@ export function SalesCreateDocumentFormContent({
                       <Button
                         size="sm"
                         className="h-7 px-2.5 text-xs"
-                        onClick={() => {
-                          setSelectedLine(null);
-                          setIsLineDialogOpen(true);
-                        }}
+                        onClick={() => setIsAddLineDialogOpen(true)}
                       >
                         <Plus className="mr-1.5 h-3.5 w-3.5" />
                         Add Line
@@ -1439,7 +1439,23 @@ export function SalesCreateDocumentFormContent({
         </div>
       </div>
 
-      {/* Line card dialog */}
+      {/* Add line dialog */}
+      <SalesAddLineDialog
+        open={isAddLineDialogOpen}
+        onOpenChange={setIsAddLineDialogOpen}
+        documentNo={currentDocNo}
+        locationCode={orderHeader?.Location_Code || formData.locationCode || ""}
+        onSave={loadDocument}
+        addSingleLine={
+          ops.addSingleLine as (
+            documentNo: string,
+            line: SalesDocumentLineItem,
+            locationCode: string,
+          ) => Promise<{ Line_No: number; [key: string]: unknown }>
+        }
+      />
+
+      {/* Line edit dialog */}
       <SalesLineDialog
         open={isLineDialogOpen}
         onOpenChange={setIsLineDialogOpen}
@@ -1475,6 +1491,7 @@ export function SalesCreateDocumentFormContent({
         orderNo={currentDocNo}
         locationCode={orderHeader?.Location_Code || ""}
         line={selectedTrackingLine}
+        documentType={documentType}
       />
 
       {/* Delete dialog */}

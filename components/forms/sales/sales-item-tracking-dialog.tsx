@@ -46,6 +46,15 @@ import {
   extractApiError,
   type ApiErrorState,
 } from "@/components/forms/production-orders/api-error-dialog";
+import type { SalesDocumentType } from "./sales-document-config";
+
+/** Maps document type to BC Source_Subtype for sales tracking lines */
+const DOC_TYPE_TO_SUBTYPE: Record<SalesDocumentType, number> = {
+  order: 1,
+  invoice: 2,
+  "credit-memo": 3,
+  "return-order": 5,
+};
 
 interface SalesItemTrackingDialogProps {
   open: boolean;
@@ -54,6 +63,7 @@ interface SalesItemTrackingDialogProps {
   orderNo: string;
   locationCode: string;
   line: SalesLine | null;
+  documentType?: SalesDocumentType;
 }
 
 export function SalesItemTrackingDialog({
@@ -63,7 +73,9 @@ export function SalesItemTrackingDialog({
   orderNo,
   locationCode,
   line,
+  documentType = "order",
 }: SalesItemTrackingDialogProps) {
+  const sourceSubType = DOC_TYPE_TO_SUBTYPE[documentType];
   const [lotNo, setLotNo] = useState("");
   const [expirationDate, setExpirationDate] = useState("");
   const [quantity, setQuantity] = useState("");
@@ -129,6 +141,7 @@ export function SalesItemTrackingDialog({
             lineNo,
             itemNo,
             locationCode,
+            sourceSubType,
           );
           setTrackingLines(lines);
         } catch (error) {
@@ -169,6 +182,7 @@ export function SalesItemTrackingDialog({
         lineNo,
         itemNo,
         locationCode,
+        sourceSubType,
       );
       setTrackingLines(lines);
     } catch (error) {
@@ -231,6 +245,7 @@ export function SalesItemTrackingDialog({
         quantity: quantityValue,
         lotNo: lotNo.trim(),
         expirationDate: expirationDate || undefined,
+        sourceSubType,
       });
       toast.success("Item tracking assigned successfully");
       onSave();

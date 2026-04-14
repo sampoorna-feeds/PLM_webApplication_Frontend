@@ -16,15 +16,16 @@ import {
   buildSelectQuery,
   ALL_COLUMNS,
 } from "./column-config";
+import { buildQCReceiptFilterString } from "./utils/filter-builder";
 
-export function useQCReceipts() {
+export function useQCReceipts(initialFilters?: { statusFilter?: string }) {
   const [receipts, setReceipts] = useState<QCReceiptHeader[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [pageSize, setPageSize] = useState(10);
+  const [pageSize, setPageSize] = useState(20);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
 
-  const [sortColumn, setSortColumn] = useState<string | null>("No");
+  const [sortColumn, setSortColumn] = useState<string | null>("QC_Date");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -38,26 +39,41 @@ export function useQCReceipts() {
       : getDefaultVisibleColumns(),
   );
 
+  const statusFilter = initialFilters?.statusFilter;
+
   const totalPages = useMemo(
     () => Math.max(1, Math.ceil(totalCount / pageSize)),
     [totalCount, pageSize],
   );
 
   const getOrderByString = useCallback(() => {
-    if (!sortColumn || !sortDirection) return "No desc";
+    if (!sortColumn || !sortDirection) return undefined;
     return `${sortColumn} ${sortDirection}`;
   }, [sortColumn, sortDirection]);
 
   const fetchReceipts = useCallback(async () => {
     setIsLoading(true);
     try {
-      let filter = "";
+      const filterParts: string[] = [];
       
-      if (searchQuery) {
-        // Simple search across No, Item_No, Item_Name, Buy_from_Vendor_Name
-        const escaped = searchQuery.replace(/'/g, "''");
-        filter = `(contains(No,'${escaped}') or contains(Item_No,'${escaped}') or contains(Item_Name,'${escaped}') or contains(Buy_from_Vendor_Name,'${escaped}'))`;
+      // Status filter from tabs
+      if (statusFilter) {
+        filterParts.push(`Approval_Status eq '${statusFilter}'`);
       }
+
+      // Global search
+      if (searchQuery) {
+        const escaped = searchQuery.replace(/'/g, "''");
+        filterParts.push(`(contains(No,'${escaped}') or contains(Item_No,'${escaped}') or contains(Item_Name,'${escaped}') or contains(Buy_from_Vendor_Name,'${escaped}'))`);
+      }
+
+      // Column filters
+      const colFilterStr = buildQCReceiptFilterString({ columnFilters });
+      if (colFilterStr) {
+        filterParts.push(colFilterStr);
+      }
+
+      const filter = filterParts.length > 0 ? filterParts.join(" and ") : undefined;
 
       const params: any = {
         $select: buildSelectQuery(visibleColumns),
@@ -89,6 +105,8 @@ export function useQCReceipts() {
     visibleColumns,
     getOrderByString,
     searchQuery,
+    columnFilters,
+    statusFilter,
   ]);
 
   useEffect(() => {
@@ -151,7 +169,7 @@ export function useQCReceipts() {
   const handleClearFilters = useCallback(() => {
     setSearchQuery("");
     setColumnFilters({});
-    setSortColumn("No");
+    setSortColumn("QC_Date");
     setSortDirection("desc");
     setCurrentPage(1);
   }, []);

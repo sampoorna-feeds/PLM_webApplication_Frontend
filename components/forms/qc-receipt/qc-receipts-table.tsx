@@ -8,6 +8,7 @@ import {
   type SortDirection,
   type ColumnConfig,
 } from "./column-config";
+import { QCReceiptColumnFilter } from "./column-filter";
 
 interface QCReceiptsTableProps {
   receipts: QCReceiptHeader[];
@@ -17,8 +18,10 @@ interface QCReceiptsTableProps {
   sortDirection: SortDirection;
   pageSize: number;
   currentPage: number;
+  columnFilters: Record<string, { value: string; valueTo?: string }>;
   onRowClick?: (receipt: QCReceiptHeader) => void;
   onSort: (column: string) => void;
+  onFilter: (columnId: string, value: string, valueTo?: string) => void;
 }
 
 export function QCReceiptsTable({
@@ -29,8 +32,10 @@ export function QCReceiptsTable({
   sortDirection,
   pageSize,
   currentPage,
+  columnFilters,
   onRowClick,
   onSort,
+  onFilter,
 }: QCReceiptsTableProps) {
   const columns = ALL_COLUMNS.filter((col) => visibleColumns.includes(col.id));
   const startingSerialNo = (currentPage - 1) * pageSize;
@@ -52,7 +57,10 @@ export function QCReceiptsTable({
                   sortDirection={
                     sortColumn === column.id ? sortDirection : null
                   }
+                  filterValue={columnFilters[column.id]?.value || ""}
+                  filterValueTo={columnFilters[column.id]?.valueTo || ""}
                   onSort={onSort}
+                  onFilter={onFilter}
                 />
               ))}
             </tr>
@@ -60,7 +68,7 @@ export function QCReceiptsTable({
           <tbody className="[&_tr:last-child]:border-0">
             {isLoading && (
               <>
-                {Array.from({ length: pageSize }).map((_, rowIndex) => (
+                {Array.from({ length: receipts.length || 10 }).map((_, rowIndex) => (
                   <tr
                     key={`skeleton-${rowIndex}`}
                     className="border-b transition-colors"
@@ -112,14 +120,20 @@ interface SortableTableHeadProps {
   column: ColumnConfig;
   isActive: boolean;
   sortDirection: SortDirection;
+  filterValue: string;
+  filterValueTo?: string;
   onSort: (column: string) => void;
+  onFilter: (columnId: string, value: string, valueTo?: string) => void;
 }
 
 function SortableTableHead({
   column,
   isActive,
   sortDirection,
+  filterValue,
+  filterValueTo,
   onSort,
+  onFilter,
 }: SortableTableHeadProps) {
   const getSortIcon = () => {
     if (!isActive || !sortDirection) {
@@ -153,6 +167,12 @@ function SortableTableHead({
             {getSortIcon()}
           </button>
         )}
+        <QCReceiptColumnFilter
+          column={column}
+          value={filterValue}
+          valueTo={filterValueTo}
+          onChange={(v, vt) => onFilter(column.id, v, vt)}
+        />
       </div>
     </th>
   );

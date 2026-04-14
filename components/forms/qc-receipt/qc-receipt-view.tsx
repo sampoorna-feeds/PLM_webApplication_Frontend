@@ -1,33 +1,42 @@
 "use client";
 
-import { Filter, Search, RotateCcw } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { useFormStackContext } from "@/lib/form-stack/form-stack-context";
 import { QCReceiptsTable } from "./qc-receipts-table";
-import { QCReceiptColumnVisibility } from "./column-visibility";
+import { QCReceiptFilterBar } from "./qc-receipt-filter-bar";
+import { QCReceiptActiveFilters } from "./active-filters";
 import { useQCReceipts } from "./use-qc-receipts";
 import type { QCReceiptHeader } from "@/lib/api/services/qc-receipt.service";
+import { Button } from "@/components/ui/button";
 
-export function QCReceiptView() {
+interface QCReceiptViewProps {
+  statusFilter?: string;
+}
+
+export function QCReceiptView({ statusFilter }: QCReceiptViewProps) {
   const { openTab } = useFormStackContext();
   const {
     receipts,
     isLoading,
     pageSize,
     currentPage,
+    totalCount,
+    totalPages,
     sortColumn,
     sortDirection,
     visibleColumns,
+    searchQuery,
+    columnFilters,
     onSort,
     onPageChange,
     onPageSizeChange,
     onSearch,
+    onColumnFilter,
+    onClearFilters,
     onColumnToggle,
     onResetColumns,
     onShowAllColumns,
     refetch,
-  } = useQCReceipts();
+  } = useQCReceipts({ statusFilter });
 
   const handleRowClick = (receipt: QCReceiptHeader) => {
     openTab("qc-receipt-detail", {
@@ -37,32 +46,28 @@ export function QCReceiptView() {
   };
 
   return (
-    <div className="flex h-full flex-col gap-4">
-      {/* Search and Filters Bar */}
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex flex-1 items-center gap-2">
-          <div className="relative flex-1 max-w-sm">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search QC receipts..."
-              className="pl-8"
-              onChange={(e) => onSearch(e.target.value)}
-            />
-          </div>
-          <Button variant="outline" size="sm" onClick={() => refetch()}>
-            <RotateCcw className="mr-2 h-4 w-4" />
-            Refresh
-          </Button>
-        </div>
-        <div className="flex items-center gap-2">
-          <QCReceiptColumnVisibility
-            visibleColumns={visibleColumns}
-            onColumnToggle={onColumnToggle}
-            onResetColumns={onResetColumns}
-            onShowAllColumns={onShowAllColumns}
-          />
-        </div>
-      </div>
+    <div className="flex h-full flex-col gap-2">
+      {/* Filter Bar */}
+      <QCReceiptFilterBar
+        searchQuery={searchQuery}
+        visibleColumns={visibleColumns}
+        columnFilters={columnFilters}
+        onSearch={onSearch}
+        onClearFilters={onClearFilters}
+        onColumnToggle={onColumnToggle}
+        onResetColumns={onResetColumns}
+        onShowAllColumns={onShowAllColumns}
+        onRefresh={refetch}
+      />
+
+      {/* Active Filters Chips */}
+      <QCReceiptActiveFilters
+        searchQuery={searchQuery}
+        columnFilters={columnFilters}
+        onSearch={onSearch}
+        onColumnFilter={onColumnFilter}
+        onClearFilters={onClearFilters}
+      />
 
       {/* Main Table */}
       <div className="min-h-0 flex-1 overflow-hidden">
@@ -74,34 +79,73 @@ export function QCReceiptView() {
           sortDirection={sortDirection}
           pageSize={pageSize}
           currentPage={currentPage}
+          columnFilters={columnFilters}
           onSort={onSort}
+          onFilter={onColumnFilter}
           onRowClick={handleRowClick}
         />
       </div>
 
-      {/* Pagination (Simplified for now) */}
-      <div className="flex items-center justify-between px-2 py-4 border-t">
-        <p className="text-xs text-muted-foreground">
-          Showing <span className="font-medium">{(currentPage - 1) * pageSize + 1}</span> to{" "}
-          <span className="font-medium">{Math.min(currentPage * pageSize, receipts.length)}</span> of{" "}
-          <span className="font-medium">{receipts.length}</span> results
-        </p>
+      {/* Pagination Container */}
+      <div className="flex items-center justify-between border-t bg-muted/20 px-4 py-3">
+        <div className="flex items-center gap-4">
+          <p className="text-xs text-muted-foreground whitespace-nowrap">
+            Showing <span className="font-semibold text-foreground">{(currentPage - 1) * pageSize + 1}</span> to{" "}
+            <span className="font-semibold text-foreground">{Math.min(currentPage * pageSize, totalCount)}</span> of{" "}
+            <span className="font-semibold text-foreground">{totalCount}</span> results
+          </p>
+          
+          <select 
+            className="bg-transparent text-xs font-medium border rounded px-1 py-0.5 outline-none focus:ring-1 ring-primary/50"
+            value={pageSize}
+            onChange={(e) => onPageSizeChange(Number(e.target.value))}
+          >
+            {[10, 20, 50, 100].map(size => (
+              <option key={size} value={size}>{size} per page</option>
+            ))}
+          </select>
+        </div>
+
         <div className="flex items-center gap-2">
           <Button
             variant="outline"
             size="sm"
+            className="h-8 w-8 p-0"
+            onClick={() => onPageChange(1)}
+            disabled={currentPage === 1}
+          >
+            {"<<"}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 px-3 text-xs"
             onClick={() => onPageChange(currentPage - 1)}
             disabled={currentPage === 1}
           >
             Previous
           </Button>
+          <div className="flex items-center gap-1 mx-2">
+            <span className="text-xs font-semibold">Page {currentPage}</span>
+            <span className="text-xs text-muted-foreground">of {totalPages}</span>
+          </div>
           <Button
             variant="outline"
             size="sm"
+            className="h-8 px-3 text-xs"
             onClick={() => onPageChange(currentPage + 1)}
-            disabled={receipts.length < pageSize}
+            disabled={currentPage >= totalPages}
           >
             Next
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 w-8 p-0"
+            onClick={() => onPageChange(totalPages)}
+            disabled={currentPage === totalPages}
+          >
+            {">>"}
           </Button>
         </div>
       </div>

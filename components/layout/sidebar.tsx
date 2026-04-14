@@ -125,6 +125,11 @@ const formsItems = [
     url: "/report-ledger",
     icon: BookOpenCheck,
   },
+  {
+    title: "QC Receipt",
+    url: "/qc-receipt",
+    icon: ClipboardCheck,
+  },
 ];
 
 const settingsItems = [

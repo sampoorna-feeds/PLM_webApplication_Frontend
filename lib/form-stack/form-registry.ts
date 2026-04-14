@@ -101,6 +101,12 @@ export const formRegistry: Record<
     }
     return { default: PostedTransferDetailForm! };
   },
+  "qc-receipt-detail": async () => {
+    const formModule = await import(
+      "@/components/forms/qc-receipt/qc-receipt-detail-form"
+    );
+    return { default: formModule.QCReceiptDetailForm };
+  },
 };
 
 /**

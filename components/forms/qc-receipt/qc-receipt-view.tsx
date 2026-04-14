@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useFormStackContext } from "@/lib/form-stack/form-stack-context";
 import { QCReceiptsTable } from "./qc-receipts-table";
+import { QCReceiptColumnVisibility } from "./column-visibility";
 import { useQCReceipts } from "./use-qc-receipts";
 import type { QCReceiptHeader } from "@/lib/api/services/qc-receipt.service";
 
@@ -22,6 +23,9 @@ export function QCReceiptView() {
     onPageChange,
     onPageSizeChange,
     onSearch,
+    onColumnToggle,
+    onResetColumns,
+    onShowAllColumns,
     refetch,
   } = useQCReceipts();
 
@@ -51,10 +55,12 @@ export function QCReceiptView() {
           </Button>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm">
-            <Filter className="mr-2 h-4 w-4" />
-            Columns
-          </Button>
+          <QCReceiptColumnVisibility
+            visibleColumns={visibleColumns}
+            onColumnToggle={onColumnToggle}
+            onResetColumns={onResetColumns}
+            onShowAllColumns={onShowAllColumns}
+          />
         </div>
       </div>
 

@@ -192,7 +192,7 @@ function QCReceiptRow({
   onClick,
 }: QCReceiptRowProps) {
   const getCellValue = (columnId: string): string => {
-    const value = (receipt as Record<string, unknown>)[columnId];
+    const value = (receipt as unknown as Record<string, any>)[columnId];
 
     if (value === null || value === undefined || value === "") {
       return "-";

@@ -7,14 +7,12 @@ import { Separator } from "@/components/ui/separator";
 
 interface QCReceiptDetailFormProps {
   tabId: string;
-  formData?: any;
-  context?: {
-    receipt: QCReceiptHeader;
-  };
+  formData?: Record<string, any>;
+  context?: Record<string, any>;
 }
 
 export function QCReceiptDetailForm({ context }: QCReceiptDetailFormProps) {
-  const selectedReceipt = context?.receipt;
+  const selectedReceipt = context?.receipt as QCReceiptHeader | undefined;
   const { lines, isLoading: isLinesLoading } = useQCReceiptLines(selectedReceipt?.No || null);
 
   if (!selectedReceipt) {

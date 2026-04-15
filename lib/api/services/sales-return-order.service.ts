@@ -26,7 +26,7 @@ interface CreateSalesDocumentApiResponse {
 }
 
 export interface SalesDocumentLineItem {
-  type: "G/L Account" | "Item";
+  type: "G/L Account" | "Item" | "Fixed Asset" | "Charge (Item)" | "";
   no: string;
   description?: string;
   uom?: string;
@@ -38,6 +38,9 @@ export interface SalesDocumentLineItem {
   gstGroupCode?: string;
   hsnSacCode?: string;
   tdsGroupCode?: string;
+  gstCredit?: string;
+  foc?: boolean;
+  faPostingType?: string;
 }
 
 function stripNullish(obj: Record<string, unknown>): Record<string, unknown> {
@@ -106,16 +109,26 @@ export async function addSingleSalesReturnOrderLine(
   locationCode: string,
 ): Promise<{ Line_No: number; [key: string]: unknown }> {
   const endpoint = `/${LINE_ENTITY}?company='${encodeURIComponent(COMPANY)}'`;
+  const payload: Record<string, unknown> = {
+    Document_No: documentNo,
+    Type: line.type,
+    No: line.no,
+    Location_Code: locationCode || "",
+    Quantity: line.quantity,
+    Unit_of_Measure_Code: line.uom || "",
+  };
+  if (line.description != null) payload.Description = line.description;
+  if (line.unitPrice != null) payload.Unit_Price = line.unitPrice;
+  if (line.discount != null) payload.Line_Discount_Percent = line.discount;
+  if (line.exempted != null) payload.Exempted = line.exempted;
+  if (line.gstGroupCode != null) payload.GST_Group_Code = line.gstGroupCode;
+  if (line.hsnSacCode != null) payload.HSN_SAC_Code = line.hsnSacCode;
+  if (line.gstCredit != null) payload.GST_Credit = line.gstCredit;
+  if (line.foc != null) payload.FOC = line.foc;
+  if (line.faPostingType != null) payload.FA_Posting_Type = line.faPostingType;
   const result = await apiPost<{ Line_No: number; [key: string]: unknown }>(
     endpoint,
-    {
-      Document_No: documentNo,
-      Type: line.type,
-      No: line.no,
-      Location_Code: locationCode || "",
-      Quantity: line.quantity,
-      Unit_of_Measure_Code: line.uom || "",
-    },
+    payload,
   );
   return result ?? { Line_No: 0 };
 }

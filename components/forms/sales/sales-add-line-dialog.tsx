@@ -1,17 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Loader2 } from "lucide-react";
-import { toast } from "sonner";
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { Loader2, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -20,13 +13,28 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { SearchableSelect } from "@/components/forms/shared/searchable-select";
+import { FieldTitle } from "@/components/ui/field";
+import { ClearableField } from "@/components/ui/clearable-field";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { cn } from "@/lib/utils";
+import { SearchableSelect as MasterSearchableSelect } from "@/components/forms/shared/searchable-select";
+import {
+  SearchableSelect as AppSearchableSelect,
+  type SearchableSelectOption,
+} from "@/components/ui/searchable-select";
 import {
   getItems,
   searchItems,
   getItemsPage,
   searchItemsByField,
   getItemUnitOfMeasures,
+  getItemByNo,
   type Item,
   type ItemUnitOfMeasure,
 } from "@/lib/api/services/item.service";
@@ -37,19 +45,73 @@ import {
   searchGLAccountsByField,
   type GLPostingAccount,
 } from "@/lib/api/services/gl-account.service";
-import type { SalesDocumentLineItem } from "@/lib/api/services/sales-order.service";
+import {
+  getFixedAssets,
+  searchFixedAssets,
+  getFixedAssetsPage,
+  searchFixedAssetsByField,
+  type FixedAsset,
+} from "@/lib/api/services/fixed-asset.service";
+import {
+  getItemCharges,
+  searchItemCharges,
+  getItemChargesPage,
+  searchItemChargesByField,
+  type ItemCharge,
+} from "@/lib/api/services/item-charge.service";
+import {
+  getGstGroupCodes,
+  getHsnSacCodes,
+} from "@/lib/api/services/purchase-orders.service";
 import {
   ApiErrorDialog,
   extractApiError,
   type ApiErrorState,
 } from "@/components/forms/production-orders/api-error-dialog";
+import type { SalesDocumentLineItem } from "@/lib/api/services/sales-order.service";
+import type { SalesDocumentType } from "./sales-document-config";
 
-type LineType = "Item" | "G/L Account";
+type LineType = "G/L Account" | "Item" | "Fixed Asset" | "Charge (Item)" | "";
+
+interface FormState {
+  type: LineType;
+  no: string;
+  description: string;
+  uom: string;
+  quantity: string;
+  unitPrice: string;
+  discount: string;
+  exempted: boolean;
+  foc: boolean;
+  gstGroupCode: string;
+  hsnSacCode: string;
+  gstCredit: string;
+  faPostingType: string;
+  salvageValue: string;
+}
+
+const EMPTY_FORM: FormState = {
+  type: "Item",
+  no: "",
+  description: "",
+  uom: "",
+  quantity: "",
+  unitPrice: "",
+  discount: "",
+  exempted: false,
+  foc: false,
+  gstGroupCode: "",
+  hsnSacCode: "",
+  gstCredit: "Availment",
+  faPostingType: "",
+  salvageValue: "",
+};
 
 interface SalesAddLineDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   documentNo: string;
+  documentType?: SalesDocumentType;
   locationCode: string;
   onSave: () => void;
   addSingleLine: (
@@ -59,6 +121,9 @@ interface SalesAddLineDialogProps {
   ) => Promise<{ Line_No: number; [key: string]: unknown }>;
 }
 
+const fieldInputClass =
+  "disabled:opacity-100 disabled:text-foreground font-medium text-xs disabled:pointer-events-none";
+
 export function SalesAddLineDialog({
   open,
   onOpenChange,
@@ -67,92 +132,261 @@ export function SalesAddLineDialog({
   onSave,
   addSingleLine,
 }: SalesAddLineDialogProps) {
-  const [lineType, setLineType] = useState<LineType>("Item");
-  const [no, setNo] = useState("");
-  const [description, setDescription] = useState("");
-  const [uom, setUom] = useState("");
-  const [quantity, setQuantity] = useState<string>("");
+  const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [uomOptions, setUomOptions] = useState<ItemUnitOfMeasure[]>([]);
-  const [isLoadingUom, setIsLoadingUom] = useState(false);
+  const [gstOptions, setGstOptions] = useState<SearchableSelectOption[]>([]);
+  const [hsnOptions, setHsnOptions] = useState<SearchableSelectOption[]>([]);
+  const [loadingOptions, setLoadingOptions] = useState({
+    gst: false,
+    hsn: false,
+    uom: false,
+  });
   const [isSaving, setIsSaving] = useState(false);
+  const [validationError, setValidationError] = useState<string | null>(null);
   const [apiError, setApiError] = useState<ApiErrorState | null>(null);
 
-  // Reset state when dialog opens/closes
+  // Reset on close
   useEffect(() => {
     if (!open) {
-      setLineType("Item");
-      setNo("");
-      setDescription("");
-      setUom("");
-      setQuantity("");
+      setForm(EMPTY_FORM);
       setUomOptions([]);
+      setHsnOptions([]);
+      setValidationError(null);
     }
   }, [open]);
 
-  // Load UOM options when item is selected
+  // Load GST groups on open
   useEffect(() => {
-    if (lineType !== "Item" || !no) {
+    if (!open) return;
+    setLoadingOptions((p) => ({ ...p, gst: true }));
+    getGstGroupCodes()
+      .then((rows) =>
+        setGstOptions(
+          rows.map((r) => ({
+            value: r.Code,
+            label: r.Code,
+            description: r.GST_Group_Type,
+          })),
+        ),
+      )
+      .catch(() => setGstOptions([]))
+      .finally(() => setLoadingOptions((p) => ({ ...p, gst: false })));
+  }, [open]);
+
+  // Load HSN when GST Group changes
+  useEffect(() => {
+    if (!open || !form.gstGroupCode) {
+      setHsnOptions([]);
+      return;
+    }
+    setLoadingOptions((p) => ({ ...p, hsn: true }));
+    getHsnSacCodes(form.gstGroupCode)
+      .then((rows) =>
+        setHsnOptions(
+          rows.map((r) => ({ value: r.Code, label: r.Code, description: r.Type })),
+        ),
+      )
+      .catch(() => setHsnOptions([]))
+      .finally(() => setLoadingOptions((p) => ({ ...p, hsn: false })));
+  }, [open, form.gstGroupCode]);
+
+  // Load UOM when Item is selected
+  useEffect(() => {
+    if (!open || form.type !== "Item" || !form.no) {
       setUomOptions([]);
-      setUom("");
       return;
     }
     let mounted = true;
-    setIsLoadingUom(true);
-    getItemUnitOfMeasures(no)
+    setLoadingOptions((p) => ({ ...p, uom: true }));
+    getItemUnitOfMeasures(form.no)
       .then((uoms) => {
         if (!mounted) return;
         setUomOptions(uoms);
-        if (uoms.length === 1) setUom(uoms[0].Code);
-        else setUom("");
+        if (!form.uom && uoms.length > 0)
+          setForm((p) => ({ ...p, uom: uoms[0].Code }));
       })
-      .catch(() => {
-        if (!mounted) return;
-        setUomOptions([]);
-      })
-      .finally(() => {
-        if (!mounted) return;
-        setIsLoadingUom(false);
-      });
+      .catch(() => mounted && setUomOptions([]))
+      .finally(() => mounted && setLoadingOptions((p) => ({ ...p, uom: false })));
     return () => {
       mounted = false;
     };
-  }, [lineType, no]);
+  }, [open, form.type, form.no]);
 
-  const handleItemChange = (value: string, item?: Item) => {
-    setNo(value);
-    setDescription(item?.Description || "");
-    setUom("");
-  };
+  const amount = useMemo(() => {
+    const q = parseFloat(form.quantity) || 0;
+    const up = parseFloat(form.unitPrice) || 0;
+    const disc = parseFloat(form.discount) || 0;
+    return up * q - disc;
+  }, [form.quantity, form.unitPrice, form.discount]);
 
-  const handleGLChange = (value: string, gl?: GLPostingAccount) => {
-    setNo(value);
-    setDescription(gl?.Name || "");
-    setUom("");
-  };
+  const set = useCallback(
+    <K extends keyof FormState>(field: K, value: FormState[K]) =>
+      setForm((p) => ({ ...p, [field]: value })),
+    [],
+  );
 
-  const handleSave = async () => {
-    if (!no.trim()) {
-      toast.error("Please select an item or GL account");
+  const setNum = useCallback(
+    (field: keyof FormState, value: string) => {
+      if (value === "" || /^\d*\.?\d*$/.test(value)) set(field, value as any);
+    },
+    [set],
+  );
+
+  const handleTypeChange = useCallback((type: LineType) => {
+    setUomOptions([]);
+    setForm((p) => ({
+      ...EMPTY_FORM,
+      type,
+      gstGroupCode: p.gstGroupCode,
+      hsnSacCode: p.hsnSacCode,
+      gstCredit: p.gstCredit,
+    }));
+  }, []);
+
+  const handleItemChange = useCallback(
+    (value: string, item?: Item) => {
+      if (!value && !item) {
+        setUomOptions([]);
+        setForm((p) => ({
+          ...p,
+          no: "",
+          description: "",
+          uom: "",
+          unitPrice: "",
+          exempted: false,
+          gstGroupCode: "",
+          hsnSacCode: "",
+        }));
+        return;
+      }
+      if (!item) return;
+      const up = Number(item.Unit_Price ?? 0);
+      setForm((p) => ({
+        ...p,
+        no: item.No,
+        description: item.Description,
+        uom: item.Sales_Unit_of_Measure || p.uom,
+        unitPrice: up > 0 ? String(up) : p.unitPrice,
+      }));
+      // Load full card for GST/exempted
+      getItemByNo(item.No)
+        .then((card) => {
+          if (!card) return;
+          setForm((p) => ({
+            ...p,
+            exempted: card.Exempted ?? p.exempted,
+            gstGroupCode: card.GST_Group_Code || p.gstGroupCode,
+            hsnSacCode: card.HSN_SAC_Code || p.hsnSacCode,
+            uom:
+              card.Sales_Unit_of_Measure ||
+              card.Purch_Unit_of_Measure ||
+              p.uom,
+          }));
+        })
+        .catch(() => {});
+    },
+    [],
+  );
+
+  const handleGLChange = useCallback((value: string, gl?: GLPostingAccount) => {
+    if (!value && !gl) {
+      setForm((p) => ({ ...p, no: "", description: "" }));
       return;
     }
-    const qty = parseFloat(quantity) || 0;
-    if (qty <= 0) {
-      toast.error("Quantity must be greater than 0");
+    if (!gl) return;
+    setForm((p) => ({ ...p, no: gl.No, description: gl.Name }));
+  }, []);
+
+  const handleFixedAssetChange = useCallback(
+    (value: string, asset?: FixedAsset) => {
+      if (!value && !asset) {
+        setForm((p) => ({
+          ...p,
+          no: "",
+          description: "",
+          uom: "",
+          exempted: false,
+          gstGroupCode: "",
+          hsnSacCode: "",
+          faPostingType: "",
+          salvageValue: "",
+        }));
+        return;
+      }
+      if (!asset) return;
+      setForm((p) => ({
+        ...p,
+        no: asset.No,
+        description: asset.Description,
+        uom: "",
+      }));
+    },
+    [],
+  );
+
+  const handleChargeChange = useCallback(
+    (value: string, charge?: ItemCharge) => {
+      if (!value && !charge) {
+        setForm((p) => ({
+          ...p,
+          no: "",
+          description: "",
+          uom: "",
+          exempted: false,
+          gstGroupCode: "",
+          hsnSacCode: "",
+        }));
+        return;
+      }
+      if (!charge) return;
+      setForm((p) => ({
+        ...p,
+        no: charge.No,
+        description: charge.Description || p.description,
+        uom: "",
+        exempted: charge.Exempted ?? p.exempted,
+        gstGroupCode: charge.GST_Group_Code || p.gstGroupCode,
+        hsnSacCode: charge.HSN_SAC_Code || p.hsnSacCode,
+      }));
+    },
+    [],
+  );
+
+  const handleSubmit = async () => {
+    setValidationError(null);
+
+    if (form.type !== "" && !form.no) {
+      setValidationError("Please select an item.");
       return;
     }
-    if (!documentNo) {
-      toast.error("Document number is missing");
+    if (!form.description.trim()) {
+      setValidationError("Description is required.");
+      return;
+    }
+    if (form.type !== "" && (parseFloat(form.quantity) || 0) <= 0) {
+      setValidationError("Quantity must be greater than zero.");
       return;
     }
 
     setIsSaving(true);
     try {
-      await addSingleLine(
-        documentNo,
-        { type: lineType, no: no.trim(), uom: uom || undefined, quantity: qty },
-        locationCode,
-      );
-      toast.success("Line added");
+      const line: SalesDocumentLineItem = {
+        type: form.type,
+        no: form.no,
+        description: form.description.trim(),
+        uom: form.uom || undefined,
+        quantity: parseFloat(form.quantity) || 0,
+        unitPrice: parseFloat(form.unitPrice) || undefined,
+        discount: parseFloat(form.discount) || undefined,
+        exempted: form.exempted || undefined,
+        foc: form.foc || undefined,
+        gstGroupCode: form.gstGroupCode || undefined,
+        hsnSacCode: form.hsnSacCode || undefined,
+        gstCredit: form.gstCredit || undefined,
+        faPostingType:
+          form.type === "Fixed Asset" ? form.faPostingType || undefined : undefined,
+      };
+      await addSingleLine(documentNo, line, locationCode);
       onSave();
       onOpenChange(false);
     } catch (error) {
@@ -163,170 +397,492 @@ export function SalesAddLineDialog({
     }
   };
 
-  const canSave = !!no && parseFloat(quantity) > 0;
-
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="p-8 sm:max-w-150">
+        <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>Add Line Item</DialogTitle>
           </DialogHeader>
 
-          <div className="grid gap-5 py-2">
-            {/* Type */}
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label className="text-right text-sm">Type</Label>
-              <div className="col-span-3">
-                <Select
-                  value={lineType}
-                  onValueChange={(v) => {
-                    setLineType(v as LineType);
-                    setNo("");
-                    setDescription("");
-                    setUom("");
-                    setUomOptions([]);
-                  }}
+          <div className="space-y-4">
+            {/* ── Type + Item selector ── */}
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="space-y-1">
+                <FieldTitle>Type</FieldTitle>
+                <ClearableField
+                  value={form.type}
+                  onClear={() => handleTypeChange("Item")}
                 >
-                  <SelectTrigger className="h-9">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Item">Item</SelectItem>
-                    <SelectItem value="G/L Account">G/L Account</SelectItem>
-                  </SelectContent>
-                </Select>
+                  <Select
+                    value={form.type === "" ? "None" : form.type || "Item"}
+                    onValueChange={(v) =>
+                      handleTypeChange(v === "None" ? "" : (v as LineType))
+                    }
+                  >
+                    <SelectTrigger className={cn("h-8", fieldInputClass)}>
+                      <SelectValue placeholder="Select type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="G/L Account">G/L Account</SelectItem>
+                      <SelectItem value="Item">Item</SelectItem>
+                      <SelectItem value="Fixed Asset">Fixed Asset</SelectItem>
+                      <SelectItem value="Charge (Item)">Charge Item</SelectItem>
+                      <SelectItem value="None">None</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </ClearableField>
               </div>
-            </div>
 
-            {/* No (Item or GL Account searchable select) */}
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label className="text-right text-sm">
-                {lineType === "Item" ? "Item No." : "G/L Account"}
-              </Label>
-              <div className="col-span-3">
-                {lineType === "Item" ? (
-                  <SearchableSelect<Item>
-                    value={no}
-                    onChange={handleItemChange}
-                    placeholder="Search item…"
-                    loadInitial={() => getItems(20, locationCode || undefined)}
-                    searchItems={(q) => searchItems(q, locationCode || undefined)}
-                    loadMore={(skip, search) =>
-                      getItemsPage(
-                        skip,
-                        search || undefined,
-                        30,
-                        locationCode || undefined,
-                      )
-                    }
-                    supportsDualSearch
-                    searchByField={(q, field) =>
-                      searchItemsByField(q, field, locationCode || undefined)
-                    }
-                    getDisplayValue={(item) =>
-                      `${item.No} — ${item.Description}`
-                    }
-                    getItemValue={(item) => item.No}
-                  />
-                ) : (
-                  <SearchableSelect<GLPostingAccount>
-                    value={no}
-                    onChange={handleGLChange}
-                    placeholder="Search GL account…"
-                    loadInitial={() => getGLAccounts(20)}
-                    searchItems={(q) => searchGLAccounts(q)}
-                    loadMore={(skip, search) =>
-                      getGLAccountsPage(skip, search || undefined, 30)
-                    }
-                    supportsDualSearch
-                    searchByField={(q, field) =>
-                      searchGLAccountsByField(q, field)
-                    }
-                    getDisplayValue={(gl) => `${gl.No} — ${gl.Name}`}
-                    getItemValue={(gl) => gl.No}
-                  />
-                )}
-              </div>
-            </div>
-
-            {/* Description (auto-filled, read-only) */}
-            {description && (
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label className="text-muted-foreground text-right text-sm">
-                  Description
-                </Label>
-                <div className="col-span-3 text-sm font-medium">
-                  {description}
-                </div>
-              </div>
-            )}
-
-            {/* UOM (only for Items) */}
-            {lineType === "Item" && no && (
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label className="text-right text-sm">UOM</Label>
-                <div className="col-span-3">
-                  {isLoadingUom ? (
-                    <div className="flex items-center gap-2 text-sm">
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      Loading…
-                    </div>
-                  ) : uomOptions.length > 0 ? (
-                    <Select value={uom} onValueChange={setUom}>
-                      <SelectTrigger className="h-9">
-                        <SelectValue placeholder="Select UOM" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {uomOptions.map((u) => (
-                          <SelectItem key={u.Code} value={u.Code}>
-                            {u.Code}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+              {form.type !== "" && (
+                <div className="space-y-1">
+                  <FieldTitle>Select Item</FieldTitle>
+                  {form.type === "G/L Account" ? (
+                    <ClearableField
+                      key="sel-gl"
+                      value={form.no}
+                      onClear={() => handleGLChange("", undefined)}
+                    >
+                      <MasterSearchableSelect<GLPostingAccount>
+                        key="ms-gl"
+                        value={form.no}
+                        onChange={handleGLChange}
+                        placeholder="Select GL Account"
+                        loadInitial={() => getGLAccounts(20)}
+                        searchItems={searchGLAccounts}
+                        loadMore={(skip, search) =>
+                          getGLAccountsPage(skip, search)
+                        }
+                        getDisplayValue={(item) => `${item.No} - ${item.Name}`}
+                        getItemValue={(item) => item.No}
+                        supportsDualSearch
+                        searchByField={(q, field) =>
+                          searchGLAccountsByField(q, field === "No" ? "No" : "Name")
+                        }
+                      />
+                    </ClearableField>
+                  ) : form.type === "Fixed Asset" ? (
+                    <ClearableField
+                      key="sel-fa"
+                      value={form.no}
+                      onClear={() => handleFixedAssetChange("", undefined)}
+                    >
+                      <MasterSearchableSelect<FixedAsset>
+                        key="ms-fa"
+                        value={form.no}
+                        onChange={handleFixedAssetChange}
+                        placeholder="Select Fixed Asset"
+                        loadInitial={() => getFixedAssets(20)}
+                        searchItems={searchFixedAssets}
+                        loadMore={(skip, search) =>
+                          getFixedAssetsPage(skip, search)
+                        }
+                        getDisplayValue={(a) => `${a.No} - ${a.Description}`}
+                        getItemValue={(a) => a.No}
+                        supportsDualSearch
+                        searchByField={(q, field) =>
+                          searchFixedAssetsByField(
+                            q,
+                            field === "No" ? "No" : "Description",
+                          )
+                        }
+                      />
+                    </ClearableField>
+                  ) : form.type === "Charge (Item)" ? (
+                    <ClearableField
+                      key="sel-charge"
+                      value={form.no}
+                      onClear={() => handleChargeChange("", undefined)}
+                    >
+                      <MasterSearchableSelect<ItemCharge>
+                        key="ms-charge"
+                        value={form.no}
+                        onChange={handleChargeChange}
+                        placeholder="Select Charge Item"
+                        loadInitial={() => getItemCharges(20)}
+                        searchItems={searchItemCharges}
+                        loadMore={(skip, search) =>
+                          getItemChargesPage(skip, search)
+                        }
+                        getDisplayValue={(c) =>
+                          `${c.No} - ${c.Description || ""}`
+                        }
+                        getItemValue={(c) => c.No}
+                        supportsDualSearch
+                        searchByField={(q, field) =>
+                          searchItemChargesByField(
+                            q,
+                            field === "No" ? "No" : "Description",
+                          )
+                        }
+                      />
+                    </ClearableField>
                   ) : (
+                    <ClearableField
+                      key="sel-item"
+                      value={form.no}
+                      onClear={() => handleItemChange("", undefined)}
+                    >
+                      <MasterSearchableSelect<Item>
+                        key="ms-item"
+                        value={form.no}
+                        onChange={handleItemChange}
+                        placeholder="Select Item"
+                        loadInitial={() => getItems(20, locationCode || undefined)}
+                        searchItems={(q) => searchItems(q, locationCode || undefined)}
+                        loadMore={(skip, search) =>
+                          getItemsPage(skip, search, 20, locationCode || undefined)
+                        }
+                        getDisplayValue={(item) =>
+                          `${item.No} - ${item.Description}`
+                        }
+                        getItemValue={(item) => item.No}
+                        supportsDualSearch
+                        searchByField={(q, field) =>
+                          searchItemsByField(q, field, locationCode || undefined)
+                        }
+                      />
+                    </ClearableField>
+                  )}
+                </div>
+              )}
+
+              {/* Description — full width */}
+              <div className="space-y-1 sm:col-span-2">
+                <FieldTitle>Description</FieldTitle>
+                <ClearableField
+                  value={form.description}
+                  onClear={() => set("description", "")}
+                >
+                  <Input
+                    value={form.description}
+                    onChange={(e) => set("description", e.target.value)}
+                    placeholder="Enter description"
+                    className={cn("h-8", fieldInputClass)}
+                  />
+                </ClearableField>
+              </div>
+
+              {/* UOM — Item only */}
+              {form.type === "Item" && (
+                <div className="space-y-1">
+                  <FieldTitle>UOM</FieldTitle>
+                  <ClearableField
+                    value={form.uom}
+                    onClear={() => set("uom", "")}
+                  >
+                    {loadingOptions.uom ? (
+                      <div className="flex h-8 items-center gap-2 text-xs">
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        Loading…
+                      </div>
+                    ) : (
+                      <Select
+                        value={form.uom}
+                        onValueChange={(v) => set("uom", v)}
+                        disabled={uomOptions.length === 0}
+                      >
+                        <SelectTrigger className={cn("h-8", fieldInputClass)}>
+                          <SelectValue placeholder="Select UOM" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {uomOptions.map((u) => (
+                            <SelectItem key={u.Code} value={u.Code}>
+                              {u.Code}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  </ClearableField>
+                </div>
+              )}
+            </div>
+
+            {/* ── Pricing ── */}
+            {form.type !== "" && (
+              <div className="space-y-2 border-t pt-2">
+                <h3 className="text-foreground text-xs font-medium">Pricing</h3>
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                  <div className="space-y-1">
+                    <FieldTitle>Quantity</FieldTitle>
+                    <ClearableField
+                      value={form.quantity}
+                      onClear={() => set("quantity", "")}
+                    >
+                      <Input
+                        type="text"
+                        inputMode="decimal"
+                        value={form.quantity}
+                        onChange={(e) => setNum("quantity", e.target.value)}
+                        onWheel={(e) => e.currentTarget.blur()}
+                        placeholder="0.00"
+                        className={cn(
+                          "h-8 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none",
+                          fieldInputClass,
+                        )}
+                      />
+                    </ClearableField>
+                  </div>
+
+                  <div className="space-y-1">
+                    <FieldTitle>Unit Price</FieldTitle>
+                    <ClearableField
+                      value={form.unitPrice}
+                      onClear={() => set("unitPrice", "")}
+                    >
+                      <Input
+                        type="text"
+                        inputMode="decimal"
+                        value={form.unitPrice}
+                        onChange={(e) => setNum("unitPrice", e.target.value)}
+                        onWheel={(e) => e.currentTarget.blur()}
+                        placeholder="0.00"
+                        className={cn(
+                          "h-8 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none",
+                          fieldInputClass,
+                        )}
+                      />
+                    </ClearableField>
+                  </div>
+
+                  <div className="space-y-1">
+                    <FieldTitle>Discount</FieldTitle>
+                    <ClearableField
+                      value={form.discount}
+                      onClear={() => set("discount", "")}
+                    >
+                      <Input
+                        type="text"
+                        inputMode="decimal"
+                        value={form.discount}
+                        onChange={(e) => setNum("discount", e.target.value)}
+                        onWheel={(e) => e.currentTarget.blur()}
+                        placeholder="0.00"
+                        className={cn(
+                          "h-8 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none",
+                          fieldInputClass,
+                        )}
+                      />
+                    </ClearableField>
+                  </div>
+
+                  <div className="space-y-1">
+                    <FieldTitle>Amount</FieldTitle>
                     <Input
-                      value={uom}
-                      onChange={(e) => setUom(e.target.value)}
-                      placeholder="Enter UOM (optional)"
-                      className="h-9"
+                      type="text"
+                      value={amount > 0 ? amount.toFixed(2) : ""}
+                      disabled
+                      readOnly
+                      className={cn("bg-muted h-8 font-medium", fieldInputClass)}
                     />
+                  </div>
+
+                  {form.type === "Fixed Asset" && (
+                    <>
+                      <div className="space-y-1">
+                        <FieldTitle>FA Posting Type</FieldTitle>
+                        <ClearableField
+                          value={form.faPostingType}
+                          onClear={() => set("faPostingType", "")}
+                        >
+                          <Select
+                            value={form.faPostingType}
+                            onValueChange={(v) => set("faPostingType", v)}
+                          >
+                            <SelectTrigger
+                              className={cn("h-8", fieldInputClass)}
+                            >
+                              <SelectValue placeholder="Select type" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Acquisition Cost">
+                                Acquisition Cost
+                              </SelectItem>
+                              <SelectItem value="Maintenance">
+                                Maintenance
+                              </SelectItem>
+                              <SelectItem value="Appreciation">
+                                Appreciation
+                              </SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </ClearableField>
+                      </div>
+
+                      <div className="space-y-1">
+                        <FieldTitle>Salvage Value</FieldTitle>
+                        <ClearableField
+                          value={form.salvageValue}
+                          onClear={() => set("salvageValue", "")}
+                        >
+                          <Input
+                            type="text"
+                            inputMode="decimal"
+                            value={form.salvageValue}
+                            onChange={(e) =>
+                              setNum("salvageValue", e.target.value)
+                            }
+                            onWheel={(e) => e.currentTarget.blur()}
+                            placeholder="0.00"
+                            className={cn(
+                              "h-8 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none",
+                              fieldInputClass,
+                            )}
+                          />
+                        </ClearableField>
+                      </div>
+                    </>
                   )}
                 </div>
               </div>
             )}
 
-            {/* Quantity */}
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label className="text-right text-sm">Quantity</Label>
-              <Input
-                type="text"
-                inputMode="decimal"
-                value={quantity}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  if (val === "" || /^[0-9]*\.?[0-9]*$/.test(val))
-                    setQuantity(val);
-                }}
-                placeholder="Enter quantity"
-                className="col-span-3 h-9"
-              />
-            </div>
+            {/* ── Tax Details ── */}
+            {form.type !== "" && (
+              <div className="space-y-2 border-t pt-2">
+                <h3 className="text-foreground text-xs font-medium">
+                  Tax Details
+                </h3>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  {/* Checkboxes row */}
+                  <div className="flex items-center gap-6 pt-5">
+                    <div className="flex items-center gap-2">
+                      <Checkbox
+                        id="line-exempted"
+                        checked={form.exempted}
+                        onCheckedChange={(c) =>
+                          set("exempted", c === true)
+                        }
+                      />
+                      <Label
+                        htmlFor="line-exempted"
+                        className="text-muted-foreground cursor-pointer text-xs font-medium"
+                      >
+                        Exempted
+                      </Label>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Checkbox
+                        id="line-foc"
+                        checked={form.foc}
+                        onCheckedChange={(c) => set("foc", c === true)}
+                      />
+                      <Label
+                        htmlFor="line-foc"
+                        className="text-muted-foreground cursor-pointer text-xs font-medium"
+                      >
+                        FOC
+                      </Label>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <FieldTitle>GST Group Code</FieldTitle>
+                    <ClearableField
+                      value={form.gstGroupCode}
+                      onClear={() => {
+                        set("gstGroupCode", "");
+                        set("hsnSacCode", "");
+                      }}
+                    >
+                      <AppSearchableSelect
+                        value={form.gstGroupCode}
+                        onValueChange={(v) => {
+                          set("gstGroupCode", v);
+                          set("hsnSacCode", "");
+                        }}
+                        options={gstOptions}
+                        isLoading={loadingOptions.gst}
+                        placeholder="Select GST Group…"
+                        searchPlaceholder="Search GST Group…"
+                      />
+                    </ClearableField>
+                  </div>
+
+                  <div className="space-y-1">
+                    <FieldTitle>HSN/SAC Code</FieldTitle>
+                    <ClearableField
+                      value={form.hsnSacCode}
+                      onClear={() => set("hsnSacCode", "")}
+                      disabled={!form.gstGroupCode}
+                    >
+                      <AppSearchableSelect
+                        value={form.hsnSacCode}
+                        onValueChange={(v) => set("hsnSacCode", v)}
+                        options={hsnOptions}
+                        isLoading={loadingOptions.hsn}
+                        placeholder={
+                          form.gstGroupCode
+                            ? "Select HSN/SAC…"
+                            : "Select GST Group first"
+                        }
+                        searchPlaceholder="Search HSN/SAC…"
+                        disabled={!form.gstGroupCode}
+                      />
+                    </ClearableField>
+                  </div>
+
+                  <div className="space-y-1">
+                    <FieldTitle>GST Credit</FieldTitle>
+                    <ClearableField
+                      value={form.gstCredit}
+                      onClear={() => set("gstCredit", "")}
+                    >
+                      <Select
+                        value={form.gstCredit || "Availment"}
+                        onValueChange={(v) => set("gstCredit", v)}
+                      >
+                        <SelectTrigger className={cn("h-8", fieldInputClass)}>
+                          <SelectValue placeholder="Select GST Credit" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Availment">Availment</SelectItem>
+                          <SelectItem value="Non-Availment">
+                            Non-Availment
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </ClearableField>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {validationError && (
+              <p className="text-destructive text-xs">{validationError}</p>
+            )}
           </div>
 
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              disabled={isSaving}
-            >
-              Cancel
-            </Button>
-            <Button onClick={handleSave} disabled={isSaving || !canSave}>
-              {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Add Line
-            </Button>
+          <DialogFooter className="flex items-center justify-end sm:justify-end">
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-8"
+                onClick={() => onOpenChange(false)}
+                disabled={isSaving}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                className="h-8"
+                onClick={handleSubmit}
+                disabled={isSaving}
+              >
+                {isSaving ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Adding…
+                  </>
+                ) : (
+                  "Add Line"
+                )}
+              </Button>
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -98,7 +98,7 @@ export function SalesLineDialog({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="p-8 sm:max-w-[720px]">
+        <DialogContent className="p-8 sm:max-w-180">
           <DialogHeader>
             <DialogTitle className={hasTracking ? "text-red-600" : ""}>
               Sales Line Details

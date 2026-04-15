@@ -39,6 +39,13 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import { Separator } from "@/components/ui/separator";
+import {
   Dialog,
   DialogContent,
   DialogFooter,
@@ -58,9 +65,11 @@ import {
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { SearchableSelect } from "@/components/forms/shared/searchable-select";
-import { SalesLineDialog } from "./sales-line-dialog";
 import { SalesAddLineDialog } from "./sales-add-line-dialog";
 import { SalesItemTrackingDialog } from "./sales-item-tracking-dialog";
+import { SalesLineItemsTable } from "./sales-line-items-table";
+import { SalesOrderLineEditDialog } from "./sales-order-line-edit-dialog";
+import { SalesItemChargeAssignmentDialog } from "./sales-item-charge-assignment-dialog";
 
 // ── Services ──────────────────────────────────────────────────────────────────
 import {
@@ -373,6 +382,10 @@ export function SalesCreateDocumentFormContent({
   const [selectedTrackingLine, setSelectedTrackingLine] =
     useState<SalesLine | null>(null);
   const [isTrackingDialogOpen, setIsTrackingDialogOpen] = useState(false);
+
+  // ── Item charge dialog state ──────────────────────────────────────────────
+  const [isItemChargeDialogOpen, setIsItemChargeDialogOpen] = useState(false);
+  const [itemChargeLine, setItemChargeLine] = useState<SalesLine | null>(null);
 
   // ── Delete dialog state ───────────────────────────────────────────────────
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -843,7 +856,26 @@ export function SalesCreateDocumentFormContent({
   const labelClass = "text-muted-foreground block text-xs font-medium";
 
   const renderHeaderFields = () => (
-    <div className="space-y-4">
+    <Accordion
+      type="multiple"
+      defaultValue={["general", "customer-info"]}
+      className="space-y-0"
+    >
+      {/* ── General ── */}
+      <AccordionItem value="general" className="border-none">
+        <AccordionTrigger className="py-0 hover:no-underline [&>svg]:size-4">
+          <h3 className="px-2 py-1 text-left text-[10px] font-bold tracking-wider uppercase">
+            General
+          </h3>
+        </AccordionTrigger>
+        <AccordionContent
+          className={cn(
+            "pb-2",
+            areFieldsReadOnly && "pointer-events-none opacity-70",
+          )}
+        >
+          <Separator className="mb-3" />
+          <section className="space-y-4">
       {/* LOB | Branch | LOC | Invoice Type */}
       <div className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 lg:grid-cols-4">
         <div className={fieldClass}>
@@ -1077,7 +1109,10 @@ export function SalesCreateDocumentFormContent({
           </ClearableField>
         </div>
       </div>
-    </div>
+          </section>
+        </AccordionContent>
+      </AccordionItem>
+    </Accordion>
   );
 
   // ── Main render ───────────────────────────────────────────────────────────
@@ -1097,7 +1132,13 @@ export function SalesCreateDocumentFormContent({
           {isLoading && !isCreateMode ? (
             <>
               <div className="bg-muted text-muted-foreground mr-auto flex h-6 w-24 animate-pulse items-center rounded-full px-3 text-[10px] font-bold tracking-wider uppercase" />
-              <Button type="button" variant="outline" size="sm" className="h-8" disabled>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-8"
+                disabled
+              >
                 <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
                 Edit
               </Button>
@@ -1304,136 +1345,81 @@ export function SalesCreateDocumentFormContent({
             </div>
           ) : (
             <div className="flex flex-col gap-6 px-6 py-4">
-              {/* Header fields — read-only in view mode */}
-              <div
-                className={cn(
-                  areFieldsReadOnly && "pointer-events-none opacity-70",
-                )}
-              >
-                {renderHeaderFields()}
-              </div>
+              {/* Header fields */}
+              {renderHeaderFields()}
 
-              {/* Lines section — shown in view/edit mode */}
-              {(isViewMode || isEditMode) && (
-                <section className="space-y-3 border-t pt-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <h3 className="text-foreground text-[10px] font-bold tracking-wider uppercase">
-                        Line Items
-                      </h3>
-                      {currentDocNo && (
-                        <span className="text-muted-foreground bg-muted rounded px-1.5 py-0.5 font-mono text-[10px]">
-                          {currentDocNo}
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {isLoadingTrackingMap && (
-                        <span className="text-muted-foreground inline-flex items-center gap-1 text-xs">
-                          <Loader2 className="h-3 w-3 animate-spin" />
-                          Checking tracking…
-                        </span>
-                      )}
-                      <Button
-                        size="sm"
-                        className="h-7 px-2.5 text-xs"
-                        onClick={() => setIsAddLineDialogOpen(true)}
-                      >
-                        <Plus className="mr-1.5 h-3.5 w-3.5" />
-                        Add Line
-                      </Button>
-                    </div>
-                  </div>
-
-                  <div className="overflow-x-auto rounded-md border">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead className="w-16 text-xs">Line</TableHead>
-                          <TableHead className="w-24 text-xs">Type</TableHead>
-                          <TableHead className="w-24 text-xs">No</TableHead>
-                          <TableHead className="min-w-[180px] text-xs">Description</TableHead>
-                          <TableHead className="w-20 text-xs">UOM</TableHead>
-                          <TableHead className="w-24 text-xs">Avail. Stock</TableHead>
-                          <TableHead className="w-24 text-right text-xs">Qty</TableHead>
-                          <TableHead className="w-24 text-right text-xs">Qty to Ship</TableHead>
-                          <TableHead className="w-24 text-right text-xs">Qty to Invoice</TableHead>
-                          <TableHead className="w-28 text-right text-xs">Amount</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {lines.length === 0 ? (
-                          <TableRow>
-                            <TableCell
-                              colSpan={10}
-                              className="text-muted-foreground py-8 text-center text-sm"
-                            >
-                              No line items
-                            </TableCell>
-                          </TableRow>
-                        ) : (
-                          lines.map((line) => {
-                            const itemNo = String(line.No || "").trim().toLowerCase();
-                            const hasTracking = !!itemTrackingMap[itemNo];
-                            const stockVal = lineStockMap[line.No || ""];
-                            return (
-                              <TableRow
-                                key={line.Line_No}
-                                className={cn(
-                                  "hover:bg-muted/50 cursor-pointer",
-                                  hasTracking && "bg-red-50 hover:bg-red-100",
-                                )}
-                                onClick={() => {
-                                  setSelectedLine(line);
-                                  setIsLineDialogOpen(true);
-                                }}
-                              >
-                                <TableCell className="text-xs">{line.Line_No}</TableCell>
-                                <TableCell className="text-xs">{line.Type || "-"}</TableCell>
-                                <TableCell className="text-xs font-medium">{line.No || "-"}</TableCell>
-                                <TableCell className="text-xs">
-                                  {[line.Description, line.Description_2].filter(Boolean).join(" ") || "-"}
-                                </TableCell>
-                                <TableCell className="text-xs">
-                                  {line.Unit_of_Measure_Code || line.Unit_of_Measure || "-"}
-                                </TableCell>
-                                <TableCell className="text-xs">
-                                  {stockVal != null ? stockVal.toLocaleString() : "-"}
-                                </TableCell>
-                                <TableCell className="text-right text-xs">{line.Quantity ?? "-"}</TableCell>
-                                <TableCell className="text-right text-xs">{line.Qty_to_Ship ?? "-"}</TableCell>
-                                <TableCell className="text-right text-xs">{line.Qty_to_Invoice ?? "-"}</TableCell>
-                                <TableCell className="text-right text-xs">
-                                  {formatAmount(line.Amt_to_Customer ?? line.Line_Amount)}
-                                </TableCell>
-                              </TableRow>
-                            );
-                          })
-                        )}
-                      </TableBody>
-                    </Table>
-                  </div>
-
-                  {lines.length > 0 && (
-                    <div className="bg-muted/20 flex items-center justify-between rounded-lg border px-4 py-2.5">
-                      <span className="text-muted-foreground text-[10px] font-bold tracking-wider uppercase">
-                        {lines.length} Line{lines.length !== 1 ? "s" : ""}
+              {/* Lines section — always visible, Add Line disabled until header created */}
+              <section className="space-y-3 border-t pt-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-foreground text-[10px] font-bold tracking-wider uppercase">
+                      Line Items
+                    </h3>
+                    {currentDocNo && (
+                      <span className="text-muted-foreground bg-muted rounded px-1.5 py-0.5 font-mono text-[10px]">
+                        {currentDocNo}
                       </span>
-                      <div className="flex items-baseline gap-2">
-                        <span className="text-muted-foreground text-xs">Total Amount</span>
-                        <span className="text-sm font-bold tabular-nums">
-                          {formatAmount(
-                            lines.reduce(
-                              (sum, l) => sum + (l.Amt_to_Customer ?? l.Line_Amount ?? 0),
-                              0,
-                            ),
-                          )}
-                        </span>
-                      </div>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {isLoadingTrackingMap && (
+                      <span className="text-muted-foreground inline-flex items-center gap-1 text-xs">
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                        Checking tracking…
+                      </span>
+                    )}
+                    <Button
+                      size="sm"
+                      className="h-7 px-2.5 text-xs"
+                      onClick={() => setIsAddLineDialogOpen(true)}
+                      disabled={!currentDocNo}
+                    >
+                      <Plus className="mr-1.5 h-3.5 w-3.5" />
+                      Add Line
+                    </Button>
+                  </div>
+                </div>
+
+                <SalesLineItemsTable
+                  lines={lines}
+                  documentNo={currentDocNo}
+                  documentType={documentType}
+                  itemTrackingMap={itemTrackingMap}
+                  lineStockMap={lineStockMap}
+                  readOnly={isViewMode}
+                  onRowClick={(line) => {
+                    setSelectedLine(line);
+                    setIsLineDialogOpen(true);
+                  }}
+                  onDelete={async (line) => {
+                    if (!currentDocNo || line.Line_No == null) return;
+                    await ops.deleteLine(currentDocNo, line.Line_No);
+                    loadDocument();
+                  }}
+                />
+
+                {lines.length > 0 && (
+                  <div className="bg-muted/20 flex items-center justify-between rounded-lg border px-4 py-2.5">
+                    <span className="text-muted-foreground text-[10px] font-bold tracking-wider uppercase">
+                      {lines.length} Line{lines.length !== 1 ? "s" : ""}
+                    </span>
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-muted-foreground text-xs">
+                        Total Amount
+                      </span>
+                      <span className="text-sm font-bold tabular-nums">
+                        {formatAmount(
+                          lines.reduce(
+                            (sum, l) =>
+                              sum + (l.Amt_to_Customer ?? l.Line_Amount ?? 0),
+                            0,
+                          ),
+                        )}
+                      </span>
                     </div>
-                  )}
-                </section>
-              )}
+                  </div>
+                )}
+              </section>
             </div>
           )}
         </div>
@@ -1456,11 +1442,12 @@ export function SalesCreateDocumentFormContent({
       />
 
       {/* Line edit dialog */}
-      <SalesLineDialog
+      <SalesOrderLineEditDialog
         open={isLineDialogOpen}
         onOpenChange={setIsLineDialogOpen}
         line={selectedLine}
-        documentNo={currentDocNo}
+        documentType={documentType}
+        orderNo={currentDocNo}
         hasTracking={
           !!selectedLine &&
           !!itemTrackingMap[
@@ -1470,9 +1457,20 @@ export function SalesCreateDocumentFormContent({
           ]
         }
         onSave={loadDocument}
-        onAssignTracking={() => {
-          setSelectedTrackingLine(selectedLine);
+        onAssignTracking={(line) => {
+          setSelectedTrackingLine(line);
           setIsTrackingDialogOpen(true);
+        }}
+        onOpenItemCharge={(line) => {
+          setItemChargeLine(line);
+          setIsLineDialogOpen(false);
+          setIsItemChargeDialogOpen(true);
+        }}
+        onDelete={async (line) => {
+          if (!currentDocNo || line.Line_No == null) return;
+          await ops.deleteLine(currentDocNo, line.Line_No);
+          setIsLineDialogOpen(false);
+          loadDocument();
         }}
         updateLine={
           ops.updateLine as (
@@ -1482,6 +1480,32 @@ export function SalesCreateDocumentFormContent({
           ) => Promise<unknown>
         }
       />
+
+      {/* Item charge assignment dialog */}
+      {itemChargeLine && (
+        <SalesItemChargeAssignmentDialog
+          open={isItemChargeDialogOpen}
+          onOpenChange={(open) => {
+            setIsItemChargeDialogOpen(open);
+            if (!open) setItemChargeLine(null);
+          }}
+          docType={
+            documentType === "order"
+              ? "Order"
+              : documentType === "invoice"
+                ? "Invoice"
+                : documentType === "return-order"
+                  ? "Return Order"
+                  : "Credit Memo"
+          }
+          docNo={currentDocNo}
+          docLineNo={itemChargeLine.Line_No ?? 0}
+          itemChargeNo={itemChargeLine.No ?? ""}
+          itemChargeDescription={itemChargeLine.Description ?? ""}
+          totalQuantity={itemChargeLine.Quantity ?? 0}
+          totalAmount={itemChargeLine.Line_Amount ?? 0}
+        />
+      )}
 
       {/* Item tracking dialog */}
       <SalesItemTrackingDialog

@@ -32,7 +32,7 @@ export interface GetSalesPriceParams {
 /**
  * Get sales price for an item + UOM + location + customer price group.
  *
- * POST {{baseUrl}}/Barcode_Web_Services_SalesPriceAPI?Company={{company}}
+ * POST {{baseUrl}}/API_SalesPriceAPI?company={{company}}
  * Body (all values as strings):
  * {
  *   "salesType": "1",
@@ -43,10 +43,9 @@ export interface GetSalesPriceParams {
  *   "orderDate": "YYYY-MM-DD"
  * }
  *
- * Expected response structure:
- * {
- *   "value": "{\"Response\": { \"Unit_Price\": 123.45, \"MRP\": 150.0, ... }}"
- * }
+ * Response may be either:
+ *   { "value": "{\"Response\": { \"Unit_Price\": 123.45, ... }}" }  (wrapped, escaped JSON)
+ *   { "Unit_Price": 123.45, ... }                                   (direct object)
  */
 export async function getSalesPrice(
   params: GetSalesPriceParams,
@@ -65,7 +64,7 @@ export async function getSalesPrice(
   }
 
   const today = new Date();
-  const defaultOrderDate = today.toISOString().split("T")[0]; // YYYY-MM-DD
+  const defaultOrderDate = today.toISOString().split("T")[0];
 
   const body = {
     salesType: String(salesType),
@@ -76,23 +75,30 @@ export async function getSalesPrice(
     orderDate: String(orderDate || defaultOrderDate),
   };
 
-  const endpoint = `/Barcode_Web_Services_SalesPriceAPI?Company=${encodeURIComponent(
+  const endpoint = `/API_SalesPriceAPI?company='${encodeURIComponent(
     COMPANY,
-  )}`;
+  )}'`;
 
-  const outer = await apiPost<RawSalesPriceOuter>(endpoint, body);
+  const response = await apiPost<RawSalesPriceOuter>(endpoint, body);
+  if (!response) return null;
 
-  if (!outer || typeof outer.value !== "string") {
+  if (typeof response.value === "string") {
+    try {
+      const parsed = JSON.parse(response.value);
+      if (parsed && typeof parsed === "object" && parsed.Response) {
+        return parsed.Response as SalesPriceResponse;
+      }
+      if (parsed && typeof parsed === "object") {
+        return parsed as SalesPriceResponse;
+      }
+    } catch (error) {
+      console.error("Error parsing sales price response:", error);
+    }
     return null;
   }
 
-  try {
-    const parsed = JSON.parse(outer.value);
-    if (parsed && typeof parsed === "object" && parsed.Response) {
-      return parsed.Response as SalesPriceResponse;
-    }
-  } catch (error) {
-    console.error("Error parsing sales price response:", error);
+  if (typeof response === "object" && "Unit_Price" in response) {
+    return response as unknown as SalesPriceResponse;
   }
 
   return null;

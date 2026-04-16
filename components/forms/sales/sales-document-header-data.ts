@@ -8,6 +8,7 @@
 export interface SalesDocumentHeaderFormState {
   customerNo: string;
   customerName?: string;
+  customerPriceGroup?: string;
   shipToCode: string;
   salesPersonCode: string;
   salesPersonName?: string;

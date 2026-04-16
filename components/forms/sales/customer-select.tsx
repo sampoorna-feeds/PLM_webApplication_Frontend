@@ -2,40 +2,54 @@
 
 /**
  * CustomerSelect component for Sales forms
- * Smart dropdown with search, debounce, and pagination for Customer selection
- * Uses Customer API with fields: No, Name, Responsibility_Center, P_A_N_No, Salesperson_Code
+ * Opens a Dialog with a searchable, sortable, filterable, infinite-scroll table.
+ * Columns: No., Customer Name, City, PAN No., GST Reg. No., Address
+ * Search covers No, Name, P_A_N_No, GST_Registration_No server-side.
  */
 
-import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Loader2, ChevronDownIcon, CheckIcon } from "lucide-react";
+import { useState, useEffect, useCallback, useRef } from "react";
+import {
+  Loader2,
+  ChevronDownIcon,
+  Search,
+  X,
+  ArrowUp,
+  ArrowDown,
+  ArrowUpDown,
+  Filter,
+  Check,
+  Users,
+  Settings2,
+  RotateCcw,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { apiGet } from "@/lib/api/client";
-import { buildODataQuery } from "@/lib/api/endpoints";
-import type { ODataResponse } from "@/lib/api/types";
+import {
+  getCustomersForDialog,
+  type Customer,
+} from "@/lib/api/services/customer.service";
 
-export interface SalesCustomer {
-  No: string;
-  Name: string;
-  Responsibility_Center?: string;
-  P_A_N_No?: string;
-  Salesperson_Code?: string;
-  Assessee_Code?: string;
-  Customer_Price_Group?: string;
-}
-
-const COMPANY =
-  process.env.NEXT_PUBLIC_API_COMPANY || "Sampoorna Feeds Pvt. Ltd";
+export type { Customer as SalesCustomer };
 
 interface CustomerSelectProps {
   value: string;
-  onChange: (value: string, customer?: SalesCustomer) => void;
+  onChange: (value: string, customer?: Customer) => void;
   placeholder?: string;
   disabled?: boolean;
   className?: string;
@@ -43,188 +57,167 @@ interface CustomerSelectProps {
   errorClass?: string;
 }
 
-const DEBOUNCE_MS = 300;
-const MIN_SEARCH_LENGTH = 2;
-const INITIAL_LOAD_COUNT = 10;
+type SortDirection = "asc" | "desc" | null;
+
+interface ColumnConfig {
+  id: string;
+  label: string;
+  sortable?: boolean;
+  filterType?: "text";
+  width?: string;
+  flex?: boolean;
+}
+
+const DEFAULT_COLUMNS: ColumnConfig[] = [
+  {
+    id: "No",
+    label: "No.",
+    sortable: true,
+    filterType: "text",
+    width: "140px",
+  },
+  {
+    id: "Name",
+    label: "Customer Name",
+    sortable: true,
+    filterType: "text",
+    flex: true,
+  },
+  {
+    id: "City",
+    label: "City",
+    sortable: true,
+    filterType: "text",
+    width: "150px",
+  },
+  {
+    id: "P_A_N_No",
+    label: "PAN No.",
+    sortable: true,
+    filterType: "text",
+    width: "170px",
+  },
+  {
+    id: "GST_Registration_No",
+    label: "GST Reg. No.",
+    sortable: true,
+    filterType: "text",
+    width: "210px",
+  },
+  {
+    id: "Address",
+    label: "Address",
+    sortable: true,
+    filterType: "text",
+    width: "150px",
+  },
+];
+
+const OPTIONAL_COLUMNS: ColumnConfig[] = [
+  {
+    id: "Salesperson_Code",
+    label: "Salesperson Code",
+    sortable: true,
+    filterType: "text",
+    width: "160px",
+  },
+  {
+    id: "Customer_Price_Group",
+    label: "Price Group",
+    sortable: true,
+    filterType: "text",
+    width: "140px",
+  },
+  {
+    id: "State_Code",
+    label: "State Code",
+    sortable: true,
+    filterType: "text",
+    width: "120px",
+  },
+  {
+    id: "Responsibility_Center",
+    label: "Responsibility Center",
+    sortable: true,
+    filterType: "text",
+    width: "170px",
+  },
+  {
+    id: "Assessee_Code",
+    label: "Assessee Code",
+    sortable: true,
+    filterType: "text",
+    width: "150px",
+  },
+  {
+    id: "Phone_No",
+    label: "Phone No.",
+    sortable: true,
+    filterType: "text",
+    width: "150px",
+  },
+  {
+    id: "E_Mail",
+    label: "E-Mail",
+    sortable: true,
+    filterType: "text",
+    width: "200px",
+  },
+  {
+    id: "Address_2",
+    label: "Address 2",
+    sortable: true,
+    filterType: "text",
+    width: "150px",
+  },
+  {
+    id: "Post_Code",
+    label: "Post Code",
+    sortable: true,
+    filterType: "text",
+    width: "120px",
+  },
+  {
+    id: "Country_Region_Code",
+    label: "Country/Region",
+    sortable: true,
+    filterType: "text",
+    width: "140px",
+  },
+  {
+    id: "Customer_Posting_Group",
+    label: "Posting Group",
+    sortable: true,
+    filterType: "text",
+    width: "150px",
+  },
+  {
+    id: "Gen_Bus_Posting_Group",
+    label: "Gen. Bus. Posting Group",
+    sortable: true,
+    filterType: "text",
+    width: "180px",
+  },
+  {
+    id: "Payment_Terms_Code",
+    label: "Payment Terms",
+    sortable: true,
+    filterType: "text",
+    width: "150px",
+  },
+  {
+    id: "Currency_Code",
+    label: "Currency",
+    sortable: true,
+    filterType: "text",
+    width: "110px",
+  },
+];
+
+const ALL_COLUMNS = [...DEFAULT_COLUMNS, ...OPTIONAL_COLUMNS];
+
 const PAGE_SIZE = 30;
-
-// Cache for search results
-const searchCache = new Map<string, SalesCustomer[]>();
-
-/**
- * Builds the base filter for Customers
- */
-function getBaseFilter(): string {
-  return `Responsibility_Center in ('','feed','cattle','swime') and Blocked eq ' '`;
-}
-
-/**
- * Helper to escape single quotes in OData filter values
- */
-function escapeODataValue(value: string): string {
-  return value.replace(/'/g, "''");
-}
-
-/**
- * Get initial customers (no search)
- */
-async function getCustomers(): Promise<SalesCustomer[]> {
-  const query = buildODataQuery({
-    $select:
-      "No,Name,Assessee_Code,Customer_Price_Group,Responsibility_Center,P_A_N_No,Salesperson_Code",
-    $filter: getBaseFilter(),
-    $orderby: "No",
-    $top: INITIAL_LOAD_COUNT,
-  });
-
-  const endpoint = `/CustomerCard?company='${encodeURIComponent(COMPANY)}'&${query}`;
-  const response = await apiGet<ODataResponse<SalesCustomer>>(endpoint);
-  return response.value;
-}
-
-/**
- * Search customers with query string
- * Makes 2 separate API calls (one for No, one for Name) and combines unique results
- */
-async function searchCustomers(query: string): Promise<SalesCustomer[]> {
-  if (query.length < MIN_SEARCH_LENGTH) {
-    return [];
-  }
-
-  // Check cache first
-  const cacheKey = `search_${query.toLowerCase()}`;
-  if (searchCache.has(cacheKey)) {
-    return searchCache.get(cacheKey)!;
-  }
-
-  const baseFilter = getBaseFilter();
-  const escapedQuery = escapeODataValue(query);
-
-  // Make 2 parallel API calls: one for No, one for Name
-  const [resultsByNo, resultsByName] = await Promise.all([
-    // Search by No field
-    (async () => {
-      const filterByNo = `(${baseFilter}) and contains(No,'${escapedQuery}')`;
-      const odataQuery = buildODataQuery({
-        $select:
-          "No,Name,Assessee_Code,Customer_Price_Group,Responsibility_Center,P_A_N_No,Salesperson_Code",
-        $filter: filterByNo,
-        $orderby: "No",
-        $top: PAGE_SIZE,
-      });
-      const endpoint = `/CustomerCard?company='${encodeURIComponent(COMPANY)}'&${odataQuery}`;
-      const response = await apiGet<ODataResponse<SalesCustomer>>(endpoint);
-      return response.value;
-    })(),
-    // Search by Name field
-    (async () => {
-      const filterByName = `(${baseFilter}) and contains(Name,'${escapedQuery}')`;
-      const odataQuery = buildODataQuery({
-        $select:
-          "No,Name,Assessee_Code,Customer_Price_Group,Responsibility_Center,P_A_N_No,Salesperson_Code",
-        $filter: filterByName,
-        $orderby: "No",
-        $top: PAGE_SIZE,
-      });
-      const endpoint = `/CustomerCard?company='${encodeURIComponent(COMPANY)}'&${odataQuery}`;
-      const response = await apiGet<ODataResponse<SalesCustomer>>(endpoint);
-      return response.value;
-    })(),
-  ]);
-
-  // Combine results and deduplicate by No field
-  const combined = [...resultsByNo, ...resultsByName];
-  const uniqueMap = new Map<string, SalesCustomer>();
-  combined.forEach((customer) => {
-    if (!uniqueMap.has(customer.No)) {
-      uniqueMap.set(customer.No, customer);
-    }
-  });
-  const uniqueResults = Array.from(uniqueMap.values()).sort((a, b) =>
-    a.No.localeCompare(b.No),
-  );
-
-  // Cache results
-  searchCache.set(cacheKey, uniqueResults);
-
-  return uniqueResults;
-}
-
-/**
- * Get paginated customers
- */
-async function getCustomersPage(
-  skip: number,
-  search?: string,
-): Promise<SalesCustomer[]> {
-  const baseFilter = getBaseFilter();
-
-  if (!search || search.length < MIN_SEARCH_LENGTH) {
-    // No search - return paginated results
-    const query = buildODataQuery({
-      $select:
-        "No,Name,Assessee_Code,Customer_Price_Group,Responsibility_Center,P_A_N_No,Salesperson_Code",
-      $filter: baseFilter,
-      $orderby: "No",
-      $top: PAGE_SIZE,
-      $skip: skip,
-    });
-    const endpoint = `/CustomerCard?company='${encodeURIComponent(COMPANY)}'&${query}`;
-    const response = await apiGet<ODataResponse<SalesCustomer>>(endpoint);
-    return response.value;
-  }
-
-  // With search - use dual-call approach
-  const escapedQuery = escapeODataValue(search);
-
-  // Make 2 parallel API calls: one for No, one for Name
-  const [resultsByNo, resultsByName] = await Promise.all([
-    // Search by No field
-    (async () => {
-      const filterByNo = `(${baseFilter}) and contains(No,'${escapedQuery}')`;
-      const odataQuery = buildODataQuery({
-        $select:
-          "No,Name,Assessee_Code,Customer_Price_Group,Responsibility_Center,P_A_N_No,Salesperson_Code",
-        $filter: filterByNo,
-        $orderby: "No",
-        $top: PAGE_SIZE,
-        $skip: skip,
-      });
-      const endpoint = `/CustomerCard?company='${encodeURIComponent(COMPANY)}'&${odataQuery}`;
-      const response = await apiGet<ODataResponse<SalesCustomer>>(endpoint);
-      return response.value;
-    })(),
-    // Search by Name field
-    (async () => {
-      const filterByName = `(${baseFilter}) and contains(Name,'${escapedQuery}')`;
-      const odataQuery = buildODataQuery({
-        $select:
-          "No,Name,Assessee_Code,Customer_Price_Group,Responsibility_Center,P_A_N_No,Salesperson_Code",
-        $filter: filterByName,
-        $orderby: "No",
-        $top: PAGE_SIZE,
-        $skip: skip,
-      });
-      const endpoint = `/CustomerCard?company='${encodeURIComponent(COMPANY)}'&${odataQuery}`;
-      const response = await apiGet<ODataResponse<SalesCustomer>>(endpoint);
-      return response.value;
-    })(),
-  ]);
-
-  // Combine results and deduplicate by No field
-  const combined = [...resultsByNo, ...resultsByName];
-  const uniqueMap = new Map<string, SalesCustomer>();
-  combined.forEach((customer) => {
-    if (!uniqueMap.has(customer.No)) {
-      uniqueMap.set(customer.No, customer);
-    }
-  });
-  const uniqueResults = Array.from(uniqueMap.values()).sort((a, b) =>
-    a.No.localeCompare(b.No),
-  );
-
-  return uniqueResults;
-}
+const DEBOUNCE_MS = 350;
 
 export function CustomerSelect({
   value,
@@ -235,282 +228,927 @@ export function CustomerSelect({
   hasError = false,
   errorClass = "",
 }: CustomerSelectProps) {
-  const [items, setItems] = useState<SalesCustomer[]>([]);
-  const [isOpen, setIsOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const [open, setOpen] = useState(false);
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [hasMore, setHasMore] = useState(true);
-  const [skip, setSkip] = useState(0);
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [sortColumn, setSortColumn] = useState<string | null>(null);
+  const [sortDirection, setSortDirection] = useState<SortDirection>(null);
+  const [columnFilters, setColumnFilters] = useState<Record<string, string>>(
+    {},
+  );
+  const [visibleColumns, setVisibleColumns] = useState<string[]>(
+    DEFAULT_COLUMNS.map((c) => c.id),
+  );
+  const [displayLabel, setDisplayLabel] = useState("");
 
-  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const listRef = useRef<HTMLDivElement | null>(null);
-  const abortControllerRef = useRef<AbortController | null>(null);
+  const sentinelRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const debouncedSearchRef = useRef(debouncedSearch);
+  const sortColumnRef = useRef(sortColumn);
+  const sortDirectionRef = useRef(sortDirection);
+  const columnFiltersRef = useRef(columnFilters);
+  const visibleColumnsRef = useRef(visibleColumns);
 
-  // Load initial items when dropdown opens
-  const loadInitialItems = useCallback(async () => {
-    setIsLoading(true);
+  useEffect(() => {
+    debouncedSearchRef.current = debouncedSearch;
+    sortColumnRef.current = sortColumn;
+    sortDirectionRef.current = sortDirection;
+    columnFiltersRef.current = columnFilters;
+    visibleColumnsRef.current = visibleColumns;
+  }, [
+    debouncedSearch,
+    sortColumn,
+    sortDirection,
+    columnFilters,
+    visibleColumns,
+  ]);
+
+  const allFetched = totalCount > 0 && customers.length >= totalCount;
+
+  // Debounce search
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(searchQuery), DEBOUNCE_MS);
+    return () => clearTimeout(t);
+  }, [searchQuery]);
+
+  const fetchInitial = useCallback(
+    async (
+      search: string,
+      sortCol: string | null,
+      sortDir: SortDirection,
+      colFilters: Record<string, string>,
+      visCols: string[],
+    ) => {
+      setLoading(true);
+      setCustomers([]);
+      setTotalCount(0);
+      if (scrollContainerRef.current) scrollContainerRef.current.scrollTop = 0;
+      try {
+        const result = await getCustomersForDialog({
+          skip: 0,
+          top: PAGE_SIZE,
+          search: search || undefined,
+          sortColumn: sortCol,
+          sortDirection: sortDir,
+          filters: colFilters,
+          visibleColumns: visCols,
+        });
+        setCustomers(result.value);
+        setTotalCount(result.count);
+      } catch (err) {
+        console.error("Error loading customers:", err);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [],
+  );
+
+  const fetchMore = useCallback(async (currentLength: number) => {
+    setLoadingMore(true);
     try {
-      const result = await getCustomers();
-      setItems(result);
-      setSkip(result.length);
-      setHasMore(result.length >= INITIAL_LOAD_COUNT);
-    } catch (error) {
-      console.error("Error loading customers:", error);
-      setItems([]);
+      const result = await getCustomersForDialog({
+        skip: currentLength,
+        top: PAGE_SIZE,
+        search: debouncedSearchRef.current || undefined,
+        sortColumn: sortColumnRef.current,
+        sortDirection: sortDirectionRef.current,
+        filters: columnFiltersRef.current,
+        visibleColumns: visibleColumnsRef.current,
+      });
+      setCustomers((prev) => {
+        const seen = new Set(prev.map((c) => c.No));
+        return [...prev, ...result.value.filter((c) => !seen.has(c.No))];
+      });
+      setTotalCount(result.count);
+    } catch (err) {
+      console.error("Error loading more customers:", err);
     } finally {
-      setIsLoading(false);
+      setLoadingMore(false);
     }
   }, []);
 
-  // Search with debounce and request cancellation
-  const performSearch = useCallback(
-    async (query: string) => {
-      if (query.length < MIN_SEARCH_LENGTH) {
-        setSearchQuery(query);
-        loadInitialItems();
-        return;
-      }
-
-      // Cancel previous request
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
-
-      // Clear debounce timer
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current);
-      }
-
-      // Debounce the search
-      debounceTimerRef.current = setTimeout(async () => {
-        const controller = new AbortController();
-        abortControllerRef.current = controller;
-
-        setIsLoading(true);
-        try {
-          const result = await searchCustomers(query);
-
-          // Check if request was aborted
-          if (controller.signal.aborted) {
-            return;
-          }
-
-          setItems(result);
-          setSkip(result.length);
-          setHasMore(result.length >= PAGE_SIZE);
-        } catch (error) {
-          // Ignore abort errors
-          if (error instanceof Error && error.name === "AbortError") {
-            return;
-          }
-          // Check if request was aborted
-          if (controller.signal.aborted) {
-            return;
-          }
-          console.error("Error searching customers:", error);
-          setItems([]);
-        } finally {
-          if (!controller.signal.aborted) {
-            setIsLoading(false);
-          }
-        }
-      }, DEBOUNCE_MS);
-    },
-    [loadInitialItems],
-  );
-
-  // Load more items (pagination)
-  const loadMore = useCallback(async () => {
-    if (isLoading || !hasMore) return;
-
-    setIsLoading(true);
-    try {
-      const newItems = await getCustomersPage(skip, searchQuery || undefined);
-      if (newItems.length > 0) {
-        setItems((prev) => {
-          // Deduplicate by No
-          const existingNos = new Set(prev.map((item) => item.No));
-          const uniqueNewItems = newItems.filter(
-            (item) => !existingNos.has(item.No),
-          );
-          return [...prev, ...uniqueNewItems].sort((a, b) =>
-            a.No.localeCompare(b.No),
-          );
-        });
-        setSkip((prev) => prev + newItems.length);
-        setHasMore(newItems.length >= PAGE_SIZE);
-      } else {
-        setHasMore(false);
-      }
-    } catch (error) {
-      console.error("Error loading more customers:", error);
-      setHasMore(false);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [isLoading, hasMore, skip, searchQuery]);
-
-  // Handle dropdown open
-  const handleOpenChange = (open: boolean) => {
-    setIsOpen(open);
+  useEffect(() => {
     if (open) {
-      if (items.length === 0) {
-        loadInitialItems();
-      }
+      fetchInitial(
+        debouncedSearch,
+        sortColumn,
+        sortDirection,
+        columnFilters,
+        visibleColumns,
+      );
+    }
+  }, [
+    open,
+    debouncedSearch,
+    fetchInitial,
+    sortColumn,
+    sortDirection,
+    columnFilters,
+    visibleColumns,
+  ]);
+
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel) return;
+
+    let isFetching = false;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && !isFetching) {
+          setCustomers((prev) => {
+            setTotalCount((total) => {
+              const alreadyAll = total > 0 && prev.length >= total;
+              if (!alreadyAll && !isFetching) {
+                isFetching = true;
+                fetchMore(prev.length).finally(() => {
+                  isFetching = false;
+                });
+              }
+              return total;
+            });
+            return prev;
+          });
+        }
+      },
+      { threshold: 0.1 },
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [fetchMore, loading, loadingMore]);
+
+  useEffect(() => {
+    if (!value) {
+      setDisplayLabel("");
+      return;
+    }
+    const found = customers.find((c) => c.No === value);
+    if (found) setDisplayLabel(`${found.No} – ${found.Name}`);
+    else if (!displayLabel) setDisplayLabel(value);
+  }, [value, customers]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleOpenChange = (next: boolean) => {
+    if (disabled) return;
+    if (!next) {
       setSearchQuery("");
+      setDebouncedSearch("");
+      setColumnFilters({});
+      setSortColumn(null);
+      setSortDirection(null);
+      debouncedSearchRef.current = "";
+    }
+    setOpen(next);
+  };
+
+  const handleSort = (colId: string) => {
+    if (sortColumn === colId) {
+      if (sortDirection === "asc") setSortDirection("desc");
+      else {
+        setSortColumn(null);
+        setSortDirection(null);
+      }
+    } else {
+      setSortColumn(colId);
+      setSortDirection("asc");
     }
   };
 
-  // Handle scroll for pagination
-  useEffect(() => {
-    if (!isOpen || !listRef.current) return;
+  const handleFilter = (colId: string, val: string) => {
+    setColumnFilters((prev) => ({ ...prev, [colId]: val }));
+  };
 
-    const handleScroll = () => {
-      const element = listRef.current;
-      if (!element) return;
+  const handleSelect = (customer: Customer) => {
+    onChange(customer.No, customer);
+    setOpen(false);
+  };
 
-      const { scrollTop, scrollHeight, clientHeight } = element;
-      const isNearBottom = scrollTop + clientHeight >= scrollHeight - 100;
+  const hasActiveFilters = Object.values(columnFilters).some(Boolean);
+  const activeFilterCount = Object.values(columnFilters).filter(Boolean).length;
 
-      if (isNearBottom && hasMore && !isLoading) {
-        loadMore();
-      }
-    };
+  const onColumnToggle = (id: string) => {
+    setVisibleColumns((prev) =>
+      prev.includes(id) ? prev.filter((c) => c !== id) : [...prev, id],
+    );
+  };
+  const onResetColumns = () =>
+    setVisibleColumns(DEFAULT_COLUMNS.map((c) => c.id));
+  const onShowAllColumns = () =>
+    setVisibleColumns(ALL_COLUMNS.map((c) => c.id));
 
-    const element = listRef.current;
-    element.addEventListener("scroll", handleScroll);
-    return () => element.removeEventListener("scroll", handleScroll);
-  }, [isOpen, hasMore, isLoading, loadMore]);
-
-  // Find selected item display value
-  const selectedItem = items.find((item) => item.No === value);
-  const displayValue = selectedItem
-    ? `${selectedItem.No} - ${selectedItem.Name}`
-    : value || "";
-
-  // Filter items based on search query (client-side filtering for display)
-  const filteredItems =
-    searchQuery.length >= MIN_SEARCH_LENGTH
-      ? items.filter((item) => {
-          const codeMatch = item.No?.toLowerCase().includes(
-            searchQuery.toLowerCase(),
-          );
-          const nameMatch = item.Name?.toLowerCase().includes(
-            searchQuery.toLowerCase(),
-          );
-          return codeMatch || nameMatch;
-        })
-      : items;
+  const currentColumns = ALL_COLUMNS.filter((col) =>
+    visibleColumns.includes(col.id),
+  );
 
   return (
-    <Popover open={isOpen} onOpenChange={handleOpenChange}>
-      <PopoverTrigger asChild>
-        <Button
-          variant="outline"
-          role="combobox"
-          disabled={disabled}
-          className={cn(
-            "h-9 w-full justify-between text-sm font-normal shadow-sm",
-            !value && "text-muted-foreground",
-            className,
-            errorClass,
-          )}
-          data-field-error={hasError}
-        >
-          <span className="truncate">{displayValue || placeholder}</span>
-          <ChevronDownIcon className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent
-        className="flex max-h-[var(--radix-popover-content-available-height,80vh)] min-h-0 w-[var(--radix-popover-trigger-width)] max-w-[calc(100vw-2rem)] min-w-[320px] flex-col overflow-hidden p-0"
-        align="start"
-        collisionPadding={8}
-        onOpenAutoFocus={(e) => {
-          // Prevent auto-focus from scrolling
-          e.preventDefault();
-        }}
-        onCloseAutoFocus={(e) => {
-          // Prevent auto-focus from scrolling
-          e.preventDefault();
-        }}
+    <>
+      <Button
+        type="button"
+        variant="outline"
+        role="combobox"
+        disabled={disabled}
+        onClick={() => !disabled && setOpen(true)}
+        className={cn(
+          "h-9 w-full justify-between text-sm font-normal shadow-sm",
+          !value && "text-muted-foreground",
+          hasError && "border-destructive ring-destructive/20 ring-1",
+          className,
+          errorClass,
+        )}
+        data-field-error={hasError}
       >
-        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-          <div className="flex-shrink-0 border-b p-2">
-            <Input
-              placeholder="Search by Code or Name..."
-              value={searchQuery}
-              onChange={(e) => {
-                const query = e.target.value;
-                setSearchQuery(query);
-                performSearch(query);
-              }}
-              className="h-8 text-sm"
-              autoFocus={false}
-            />
-          </div>
-          <div
-            ref={listRef}
-            className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto"
-          >
-            {isLoading && items.length === 0 ? (
-              <div className="flex items-center justify-center p-4">
-                <Loader2 className="h-4 w-4 animate-spin" />
-              </div>
-            ) : filteredItems.length === 0 ? (
-              <div className="text-muted-foreground p-4 text-center text-sm">
-                {searchQuery.length < MIN_SEARCH_LENGTH
-                  ? `Type at least ${MIN_SEARCH_LENGTH} characters to search`
-                  : "No customers found"}
-              </div>
-            ) : (
-              <>
-                {filteredItems.map((item) => (
-                  <div
-                    key={item.No}
-                    className={cn(
-                      "hover:bg-muted/50 relative flex cursor-default items-start rounded-sm px-2 py-2 text-sm outline-none select-none",
-                      value === item.No && "bg-muted",
-                    )}
-                    onClick={() => {
-                      onChange(item.No, item);
-                      setIsOpen(false);
-                    }}
+        <span className="flex min-w-0 items-center gap-1.5 truncate">
+          {value && (
+            <Users className="text-muted-foreground h-3.5 w-3.5 shrink-0" />
+          )}
+          <span className="truncate">
+            {displayLabel || (disabled ? "None" : placeholder)}
+          </span>
+        </span>
+        <ChevronDownIcon className="ml-2 h-4 w-4 shrink-0 opacity-40" />
+      </Button>
+
+      <Dialog open={open} onOpenChange={handleOpenChange}>
+        {/* Wide dialog — uses most of the screen width on large displays */}
+        <DialogContent
+          className="flex h-[88vh] flex-col gap-0 p-0"
+          style={{ width: "min(1160px, 92vw)", maxWidth: "none" }}
+        >
+          {/* ── Header ────────────────────────────────────────────────── */}
+          <DialogHeader className="shrink-0 border-b px-5 py-3.5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <Users className="text-muted-foreground h-4 w-4" />
+                <DialogTitle className="text-[15px] font-semibold">
+                  Select Customer
+                </DialogTitle>
+                {!loading && totalCount > 0 && (
+                  <Badge
+                    variant="secondary"
+                    className="h-5 rounded-sm px-1.5 text-[10px] font-bold tabular-nums"
                   >
-                    <CheckIcon
-                      className={cn(
-                        "mt-0.5 mr-2 h-4 w-4 shrink-0",
-                        value === item.No ? "opacity-100" : "opacity-0",
-                      )}
-                    />
-                    <div className="min-w-0 flex-1">
-                      <div className="text-foreground font-medium break-words">
-                        {item.No} - {item.Name}
-                      </div>
-                      {(item.Responsibility_Center ||
-                        item.Salesperson_Code) && (
-                        <div className="text-muted-foreground mt-0.5 text-xs break-words">
-                          {item.Responsibility_Center &&
-                            `RC: ${item.Responsibility_Center}`}
-                          {item.Responsibility_Center &&
-                            item.Salesperson_Code &&
-                            " • "}
-                          {item.Salesperson_Code &&
-                            `SP: ${item.Salesperson_Code}`}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                ))}
-                {isLoading && filteredItems.length > 0 && (
-                  <div className="flex items-center justify-center p-2">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  </div>
+                    {totalCount.toLocaleString()}
+                  </Badge>
                 )}
-              </>
+              </div>
+              {/* Active filter count pill */}
+              {hasActiveFilters && (
+                <button
+                  type="button"
+                  onClick={() => setColumnFilters({})}
+                  className="text-primary hover:text-primary/80 flex items-center gap-1 text-[11px] font-medium transition-colors"
+                >
+                  <span>
+                    {activeFilterCount} filter{activeFilterCount > 1 ? "s" : ""}{" "}
+                    active
+                  </span>
+                  <X className="h-3 w-3" />
+                </button>
+              )}
+            </div>
+          </DialogHeader>
+
+          {/* ── Search bar ────────────────────────────────────────────── */}
+          <div className="bg-muted/30 shrink-0 border-b px-5 py-2.5">
+            <div className="flex items-center gap-2">
+              <div className="relative flex-1">
+                <Search className="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
+                <Input
+                  placeholder="Search by customer No., Name, PAN No. or GST No. …"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="border-border/60 bg-background h-9 rounded-md pr-9 pl-9 text-sm shadow-none focus-visible:ring-1"
+                  autoFocus
+                />
+                {searchQuery ? (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery("")}
+                    className="text-muted-foreground hover:text-foreground absolute top-1/2 right-3 -translate-y-1/2 transition-colors"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                ) : (
+                  <kbd className="text-muted-foreground/60 absolute top-1/2 right-3 hidden -translate-y-1/2 rounded border px-1.5 py-0.5 font-mono text-[9px] select-none sm:block">
+                    ↑↓ to navigate
+                  </kbd>
+                )}
+              </div>
+              <CustomerColumnVisibility
+                visibleColumns={visibleColumns}
+                defaultColumns={DEFAULT_COLUMNS}
+                optionalColumns={OPTIONAL_COLUMNS}
+                onColumnToggle={onColumnToggle}
+                onResetColumns={onResetColumns}
+                onShowAllColumns={onShowAllColumns}
+              />
+            </div>
+          </div>
+
+          {/* ── Table ─────────────────────────────────────────────────── */}
+          <div
+            ref={scrollContainerRef}
+            className="min-h-0 flex-1 overflow-auto"
+          >
+            <table className="w-full border-collapse text-sm">
+              <thead className="sticky top-0 z-10">
+                <tr>
+                  {/* Checkmark gutter */}
+                  <th className="bg-muted w-10 border-b px-3" />
+                  {currentColumns.map((col) => (
+                    <CustomerTableHead
+                      key={col.id}
+                      column={col}
+                      isActive={sortColumn === col.id}
+                      sortDirection={
+                        sortColumn === col.id ? sortDirection : null
+                      }
+                      filterValue={columnFilters[col.id] ?? ""}
+                      onSort={handleSort}
+                      onFilter={handleFilter}
+                    />
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {loading ? (
+                  <tr>
+                    <td
+                      colSpan={currentColumns.length + 1}
+                      className="py-20 text-center"
+                    >
+                      <div className="flex flex-col items-center gap-2">
+                        <Loader2 className="text-muted-foreground h-6 w-6 animate-spin" />
+                        <p className="text-muted-foreground text-xs">
+                          Loading customers…
+                        </p>
+                      </div>
+                    </td>
+                  </tr>
+                ) : customers.length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan={currentColumns.length + 1}
+                      className="py-20 text-center"
+                    >
+                      <div className="flex flex-col items-center gap-2">
+                        <Users className="text-muted-foreground/40 h-8 w-8" />
+                        <p className="text-muted-foreground text-sm font-medium">
+                          No customers found
+                        </p>
+                        {searchQuery && (
+                          <p className="text-muted-foreground/70 text-xs">
+                            Try a different search term or clear filters
+                          </p>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  (() => {
+                    // Split: selected customer first (sticky), rest below
+                    const selectedCustomer = value
+                      ? customers.find((c) => c.No === value)
+                      : null;
+                    const restCustomers = selectedCustomer
+                      ? customers.filter((c) => c.No !== value)
+                      : customers;
+
+                    const renderRow = (
+                      customer: Customer,
+                      idx: number,
+                      isSticky = false,
+                    ) => {
+                      const isSelected = value === customer.No;
+                      return (
+                        <tr
+                          key={customer.No}
+                          onClick={() => handleSelect(customer)}
+                          className={cn(
+                            "group cursor-pointer border-b transition-colors",
+                            isSticky
+                              ? "hover:brightness-95"
+                              : cn(
+                                  idx % 2 === 0
+                                    ? "bg-background"
+                                    : "bg-muted/20",
+                                  "hover:bg-primary/5",
+                                ),
+                          )}
+                          style={
+                            isSticky
+                              ? {
+                                  position: "sticky",
+                                  top: "40px",
+                                  zIndex: 9,
+                                  backgroundColor: "var(--muted)",
+                                }
+                              : undefined
+                          }
+                        >
+                          {/* Checkmark gutter */}
+                          <td className="w-10 px-3 py-2.5 text-center">
+                            {isSelected && (
+                              <Check className="text-primary mx-auto h-3.5 w-3.5" />
+                            )}
+                          </td>
+                          {currentColumns.map((col) => {
+                            if (col.id === "No") {
+                              return (
+                                <td
+                                  key={col.id}
+                                  className={cn(
+                                    "px-3 py-2.5 font-mono text-xs font-semibold whitespace-nowrap",
+                                    isSelected
+                                      ? "text-primary"
+                                      : "text-foreground",
+                                  )}
+                                >
+                                  {(customer as unknown as Record<string, unknown>)[col.id] as string || (
+                                    <span className="opacity-30">—</span>
+                                  )}
+                                </td>
+                              );
+                            }
+                            if (col.id === "Name") {
+                              return (
+                                <td key={col.id} className="px-3 py-2.5">
+                                  <span
+                                    className={cn(
+                                      "w-full text-sm font-medium whitespace-nowrap",
+                                      isSelected
+                                        ? "text-foreground font-semibold"
+                                        : "text-foreground/90",
+                                    )}
+                                  >
+                                    {(customer as unknown as Record<string, unknown>)[col.id] as string || (
+                                      <span className="opacity-30">—</span>
+                                    )}
+                                  </span>
+                                </td>
+                              );
+                            }
+
+                            return (
+                              <td
+                                key={col.id}
+                                className={cn(
+                                  "px-3 py-2.5 text-xs whitespace-nowrap",
+                                  isSelected
+                                    ? "text-foreground/80 font-medium"
+                                    : "text-muted-foreground",
+                                )}
+                              >
+                                {(customer as unknown as Record<string, unknown>)[col.id] as string || (
+                                  <span className="opacity-30">—</span>
+                                )}
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      );
+                    };
+
+                    return (
+                      <>
+                        {selectedCustomer &&
+                          renderRow(selectedCustomer, 0, true)}
+                        {restCustomers.map((customer, idx) =>
+                          renderRow(customer, idx),
+                        )}
+                      </>
+                    );
+                  })()
+                )}
+                {/* Infinite scroll sentinel */}
+                {!loading && (
+                  <tr>
+                    <td colSpan={currentColumns.length + 1}>
+                      <div ref={sentinelRef} className="h-px" />
+                    </td>
+                  </tr>
+                )}
+                {loadingMore && (
+                  <tr>
+                    <td
+                      colSpan={currentColumns.length + 1}
+                      className="py-3 text-center"
+                    >
+                      <div className="flex items-center justify-center gap-2">
+                        <Loader2 className="text-muted-foreground h-4 w-4 animate-spin" />
+                        <span className="text-muted-foreground text-xs">
+                          Loading more…
+                        </span>
+                      </div>
+                    </td>
+                  </tr>
+                )}
+                {!loading &&
+                  !loadingMore &&
+                  allFetched &&
+                  customers.length > 0 && (
+                    <tr>
+                      <td
+                        colSpan={currentColumns.length + 1}
+                        className="py-2 text-center"
+                      >
+                        <span className="text-muted-foreground/50 text-[10px]">
+                          All {totalCount.toLocaleString()} customers loaded
+                        </span>
+                      </td>
+                    </tr>
+                  )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* ── Status bar ────────────────────────────────────────────── */}
+          <div className="bg-muted/20 flex shrink-0 items-center justify-between border-t px-5 py-2">
+            <div className="flex items-center gap-3">
+              <span className="text-muted-foreground text-[11px]">
+                {loading ? (
+                  "Loading…"
+                ) : (
+                  <>
+                    Showing{" "}
+                    <span className="text-foreground font-semibold tabular-nums">
+                      {customers.length.toLocaleString()}
+                    </span>
+                    {totalCount > 0 && (
+                      <>
+                        {" "}
+                        of{" "}
+                        <span className="text-foreground font-semibold tabular-nums">
+                          {totalCount.toLocaleString()}
+                        </span>
+                      </>
+                    )}{" "}
+                    customers
+                    {hasActiveFilters && (
+                      <span className="text-primary ml-1 font-medium">
+                        ·{" "}
+                        {totalCount > 0
+                          ? customers.length.toLocaleString()
+                          : totalCount.toLocaleString()}{" "}
+                        match{customers.length !== 1 ? "es" : ""}
+                      </span>
+                    )}
+                  </>
+                )}
+              </span>
+            </div>
+            {value && displayLabel && (
+              <div className="flex items-center gap-1.5">
+                <span className="text-muted-foreground text-[11px]">
+                  Selected:
+                </span>
+                <span className="text-primary max-w-75 truncate text-[11px] font-semibold">
+                  {displayLabel}
+                </span>
+              </div>
             )}
           </div>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
+// ── Table head helpers ────────────────────────────────────────────────────────
+
+interface CustomerTableHeadProps {
+  column: ColumnConfig;
+  isActive: boolean;
+  sortDirection: SortDirection;
+  filterValue: string;
+  onSort: (id: string) => void;
+  onFilter: (id: string, value: string) => void;
+}
+
+function CustomerTableHead({
+  column,
+  isActive,
+  sortDirection,
+  filterValue,
+  onSort,
+  onFilter,
+}: CustomerTableHeadProps) {
+  const getSortIcon = () => {
+    if (!isActive || !sortDirection) {
+      return <ArrowUpDown className="h-3 w-3 opacity-50" />;
+    }
+    if (sortDirection === "asc") {
+      return <ArrowUp className="h-3 w-3" />;
+    }
+    return <ArrowDown className="h-3 w-3" />;
+  };
+
+  return (
+    <th
+      className={cn(
+        "text-foreground bg-muted h-10 border-b px-2 py-3 text-left align-middle text-xs font-bold whitespace-nowrap select-none",
+        isActive ? "text-primary" : "",
+        column.flex && "w-full",
+      )}
+      style={
+        column.width
+          ? { width: column.width, minWidth: column.width }
+          : undefined
+      }
+    >
+      <div className="flex items-center gap-1.5">
+        <span
+          className="hover:text-primary cursor-pointer transition-colors"
+          onClick={() => column.sortable && onSort(column.id)}
+        >
+          {column.label}
+        </span>
+        {column.sortable && (
+          <button
+            type="button"
+            className="hover:text-primary transition-colors"
+            onClick={() => onSort(column.id)}
+          >
+            {getSortIcon()}
+          </button>
+        )}
+        {column.filterType && (
+          <CustomerColumnFilter
+            column={column}
+            value={filterValue}
+            onChange={(v) => onFilter(column.id, v)}
+          />
+        )}
+      </div>
+    </th>
+  );
+}
+
+interface CustomerColumnFilterProps {
+  column: ColumnConfig;
+  value: string;
+  onChange: (value: string) => void;
+}
+
+function CustomerColumnFilter({
+  column,
+  value,
+  onChange,
+}: CustomerColumnFilterProps) {
+  const [open, setOpen] = useState(false);
+  const [local, setLocal] = useState(value);
+
+  useEffect(() => {
+    setLocal(value);
+  }, [value]);
+
+  const hasFilter = !!value;
+
+  return (
+    <Popover open={open} onOpenChange={setOpen} modal={false}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className={`hover:bg-background/50 rounded p-0.5 transition-colors ${
+            hasFilter
+              ? "text-primary"
+              : "text-muted-foreground/50 hover:text-muted-foreground"
+          }`}
+          onClick={(e) => {
+            e.stopPropagation();
+            setOpen(!open);
+          }}
+        >
+          <Filter className={`h-3 w-3 ${hasFilter ? "fill-current" : ""}`} />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        className="w-52 p-3"
+        align="start"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="space-y-2">
+          <Label className="text-foreground text-xs font-semibold">
+            Filter by {column.label}
+          </Label>
+          <Input
+            placeholder={`Search ${column.label}…`}
+            value={local}
+            onChange={(e) => setLocal(e.target.value)}
+            className="h-8 text-xs"
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                onChange(local);
+                setOpen(false);
+              }
+              if (e.key === "Escape") {
+                setOpen(false);
+              }
+            }}
+            autoFocus
+          />
+        </div>
+        <div className="mt-2.5 flex gap-2">
+          <Button
+            size="sm"
+            className="h-7 flex-1 text-xs"
+            onClick={() => {
+              onChange(local);
+              setOpen(false);
+            }}
+          >
+            Apply
+          </Button>
+          {hasFilter && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 px-2"
+              onClick={() => {
+                setLocal("");
+                onChange("");
+                setOpen(false);
+              }}
+            >
+              <X className="h-3 w-3" />
+            </Button>
+          )}
         </div>
       </PopoverContent>
     </Popover>
+  );
+}
+
+function CustomerColumnVisibility({
+  visibleColumns,
+  defaultColumns,
+  optionalColumns,
+  onColumnToggle,
+  onResetColumns,
+  onShowAllColumns,
+}: {
+  visibleColumns: string[];
+  defaultColumns: ColumnConfig[];
+  optionalColumns: ColumnConfig[];
+  onColumnToggle: (columnId: string) => void;
+  onResetColumns: () => void;
+  onShowAllColumns: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [columnSearch, setColumnSearch] = useState("");
+
+  const visibleCount = visibleColumns.length;
+  const totalCount = defaultColumns.length + optionalColumns.length;
+
+  const filteredDefault = defaultColumns.filter((c) =>
+    c.label.toLowerCase().includes(columnSearch.toLowerCase()),
+  );
+  const filteredOptional = optionalColumns.filter((c) =>
+    c.label.toLowerCase().includes(columnSearch.toLowerCase()),
+  );
+
+  useEffect(() => {
+    if (!open) {
+      setTimeout(() => setColumnSearch(""), 150);
+    }
+  }, [open]);
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button variant="outline" size="sm" className="shrink-0 gap-2">
+          <Settings2 className="h-4 w-4" />
+          Columns ({visibleCount}/{totalCount})
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent
+        className="w-70 p-0"
+        align="end"
+        onWheel={(e) => {
+          e.stopPropagation();
+        }}
+      >
+        <div className="border-b p-3">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium">Toggle Columns</span>
+            <div className="flex gap-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 px-2 text-xs"
+                onClick={onShowAllColumns}
+              >
+                All
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 px-2 text-xs"
+                onClick={onResetColumns}
+              >
+                <RotateCcw className="mr-1 h-3 w-3" />
+                Reset
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        <div className="border-b p-2">
+          <div className="relative">
+            <Search className="text-muted-foreground absolute top-1/2 left-2.5 h-3.5 w-3.5 -translate-y-1/2" />
+            <Input
+              placeholder="Search columns..."
+              value={columnSearch}
+              onChange={(e) => setColumnSearch(e.target.value)}
+              className="bg-background border-border/50 h-8 rounded-sm pl-8 text-xs shadow-none focus-visible:ring-1"
+            />
+          </div>
+        </div>
+
+        <div
+          className="max-h-80 overflow-x-hidden overflow-y-auto overscroll-contain p-2"
+          onWheel={(e) => e.stopPropagation()}
+          onTouchMove={(e) => e.stopPropagation()}
+        >
+          {filteredDefault.length > 0 && (
+            <div className="mb-2">
+              <span className="text-muted-foreground px-2 text-[10px] font-semibold tracking-wider uppercase">
+                Default Columns
+              </span>
+              <div className="mt-1 space-y-0.5">
+                {filteredDefault.map((column) => (
+                  <ColumnToggleItem
+                    key={column.id}
+                    column={column}
+                    isChecked={visibleColumns.includes(column.id)}
+                    onToggle={() => onColumnToggle(column.id)}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {filteredDefault.length > 0 && filteredOptional.length > 0 && (
+            <Separator className="my-2" />
+          )}
+
+          {filteredOptional.length > 0 && (
+            <div>
+              <span className="text-muted-foreground px-2 text-[10px] font-semibold tracking-wider uppercase">
+                Additional Columns
+              </span>
+              <div className="mt-1 space-y-0.5">
+                {filteredOptional.map((column) => (
+                  <ColumnToggleItem
+                    key={column.id}
+                    column={column}
+                    isChecked={visibleColumns.includes(column.id)}
+                    onToggle={() => onColumnToggle(column.id)}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {filteredDefault.length === 0 && filteredOptional.length === 0 && (
+            <div className="text-muted-foreground py-6 text-center text-xs">
+              No columns matched your search
+            </div>
+          )}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+function ColumnToggleItem({
+  column,
+  isChecked,
+  isDisabled = false,
+  onToggle,
+}: {
+  column: ColumnConfig;
+  isChecked: boolean;
+  isDisabled?: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <div
+      className={`hover:bg-accent flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 ${
+        isDisabled ? "cursor-not-allowed opacity-60" : ""
+      }`}
+      onClick={() => !isDisabled && onToggle()}
+    >
+      <Checkbox
+        checked={isChecked}
+        disabled={isDisabled}
+        onCheckedChange={() => !isDisabled && onToggle()}
+        className="pointer-events-none"
+      />
+      <span className="text-sm">{column.label}</span>
+    </div>
   );
 }

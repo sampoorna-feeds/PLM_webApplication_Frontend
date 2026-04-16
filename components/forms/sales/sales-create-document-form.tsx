@@ -1431,6 +1431,8 @@ export function SalesCreateDocumentFormContent({
         onOpenChange={setIsAddLineDialogOpen}
         documentNo={currentDocNo}
         locationCode={orderHeader?.Location_Code || formData.locationCode || ""}
+        customerPriceGroup={formData.customerPriceGroup}
+        orderDate={formData.orderDate || formData.postingDate}
         onSave={loadDocument}
         addSingleLine={
           ops.addSingleLine as (

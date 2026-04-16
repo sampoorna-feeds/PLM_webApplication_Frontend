@@ -63,6 +63,7 @@ import {
   getGstGroupCodes,
   getHsnSacCodes,
 } from "@/lib/api/services/purchase-orders.service";
+import { getSalesPrice } from "@/lib/api/services/sales-price.service";
 import {
   ApiErrorDialog,
   extractApiError,
@@ -85,7 +86,6 @@ interface FormState {
   foc: boolean;
   gstGroupCode: string;
   hsnSacCode: string;
-  gstCredit: string;
   faPostingType: string;
   salvageValue: string;
 }
@@ -102,7 +102,6 @@ const EMPTY_FORM: FormState = {
   foc: false,
   gstGroupCode: "",
   hsnSacCode: "",
-  gstCredit: "Availment",
   faPostingType: "",
   salvageValue: "",
 };
@@ -113,6 +112,8 @@ interface SalesAddLineDialogProps {
   documentNo: string;
   documentType?: SalesDocumentType;
   locationCode: string;
+  customerPriceGroup?: string;
+  orderDate?: string;
   onSave: () => void;
   addSingleLine: (
     documentNo: string,
@@ -129,6 +130,8 @@ export function SalesAddLineDialog({
   onOpenChange,
   documentNo,
   locationCode,
+  customerPriceGroup,
+  orderDate,
   onSave,
   addSingleLine,
 }: SalesAddLineDialogProps) {
@@ -212,6 +215,37 @@ export function SalesAddLineDialog({
     };
   }, [open, form.type, form.no]);
 
+  // Fetch customer-specific sales price when item, UOM, location, and price group are all present
+  useEffect(() => {
+    if (
+      !open ||
+      form.type !== "Item" ||
+      !form.no ||
+      !form.uom ||
+      !locationCode ||
+      !customerPriceGroup
+    ) {
+      return;
+    }
+    let cancelled = false;
+    getSalesPrice({
+      salesCode: customerPriceGroup,
+      itemNo: form.no,
+      location: locationCode,
+      unitofmeasure: form.uom,
+      orderDate,
+    })
+      .then((price) => {
+        if (cancelled || !price) return;
+        const up = Number(price.Unit_Price ?? 0);
+        if (up > 0) setForm((p) => ({ ...p, unitPrice: String(up) }));
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [open, form.type, form.no, form.uom, locationCode, customerPriceGroup, orderDate]);
+
   const amount = useMemo(() => {
     const q = parseFloat(form.quantity) || 0;
     const up = parseFloat(form.unitPrice) || 0;
@@ -239,7 +273,6 @@ export function SalesAddLineDialog({
       type,
       gstGroupCode: p.gstGroupCode,
       hsnSacCode: p.hsnSacCode,
-      gstCredit: p.gstCredit,
     }));
   }, []);
 
@@ -382,7 +415,6 @@ export function SalesAddLineDialog({
         foc: form.foc || undefined,
         gstGroupCode: form.gstGroupCode || undefined,
         hsnSacCode: form.hsnSacCode || undefined,
-        gstCredit: form.gstCredit || undefined,
         faPostingType:
           form.type === "Fixed Asset" ? form.faPostingType || undefined : undefined,
       };
@@ -820,29 +852,6 @@ export function SalesAddLineDialog({
                         searchPlaceholder="Search HSN/SAC…"
                         disabled={!form.gstGroupCode}
                       />
-                    </ClearableField>
-                  </div>
-
-                  <div className="space-y-1">
-                    <FieldTitle>GST Credit</FieldTitle>
-                    <ClearableField
-                      value={form.gstCredit}
-                      onClear={() => set("gstCredit", "")}
-                    >
-                      <Select
-                        value={form.gstCredit || "Availment"}
-                        onValueChange={(v) => set("gstCredit", v)}
-                      >
-                        <SelectTrigger className={cn("h-8", fieldInputClass)}>
-                          <SelectValue placeholder="Select GST Credit" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Availment">Availment</SelectItem>
-                          <SelectItem value="Non-Availment">
-                            Non-Availment
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
                     </ClearableField>
                   </div>
                 </div>

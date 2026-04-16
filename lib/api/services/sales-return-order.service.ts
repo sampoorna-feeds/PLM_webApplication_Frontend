@@ -38,7 +38,6 @@ export interface SalesDocumentLineItem {
   gstGroupCode?: string;
   hsnSacCode?: string;
   tdsGroupCode?: string;
-  gstCredit?: string;
   foc?: boolean;
   faPostingType?: string;
 }
@@ -124,7 +123,6 @@ export async function addSingleSalesReturnOrderLine(
   if (line.exempted != null) payload.Exempted = line.exempted;
   if (line.gstGroupCode) payload.GST_Group_Code = line.gstGroupCode;
   if (line.hsnSacCode) payload.HSN_SAC_Code = line.hsnSacCode;
-  if (line.gstCredit) payload.GST_Credit = line.gstCredit;
   if (line.foc != null) payload.FOC = line.foc;
   if (line.faPostingType) payload.FA_Posting_Type = line.faPostingType;
   const result = await apiPost<{ Line_No: number; [key: string]: unknown }>(

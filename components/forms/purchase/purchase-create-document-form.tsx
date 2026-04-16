@@ -1264,8 +1264,8 @@ export function PurchaseCreateDocumentFormContent({
         Document_Date: postDetails.documentDate,
         Vehicle_No: postDetails.vehicleNo || "",
       };
-      if (documentType === "return-order") {
-        // Vendor Cr Memo No is no longer passed up from post details
+      if (documentType === "credit-memo" || documentType === "return-order") {
+        patchPayload.Vendor_Cr_Memo_No = postDetails.vendorCrMemoNo || "";
       } else {
         patchPayload.Vendor_Invoice_No = postDetails.vendorInvoiceNo || "";
       }
@@ -1589,14 +1589,13 @@ export function PurchaseCreateDocumentFormContent({
                           className="h-8 text-xs"
                         />
                       ) : (
-                        <VendorLedgerEntrySelect
-                          vendorNo={formData.vendorNo}
+                        <Input
                           value={formData[config.primaryVendorRefField]}
-                          onChange={(val) =>
-                            handleInputChange(config.primaryVendorRefField, val)
+                          onChange={(e) =>
+                            handleInputChange(config.primaryVendorRefField, e.target.value)
                           }
                           placeholder="Optional"
-                          className="text-xs"
+                          className="h-8 text-xs"
                         />
                       )}
                     </div>
@@ -2748,16 +2747,29 @@ export function PurchaseCreateDocumentFormContent({
                 className="h-8"
               />
             </div>
-            {documentType !== "return-order" && (
+            {(documentType === "invoice" || documentType === "order") && (
               <div className="space-y-1">
-                <Label className="text-xs font-semibold">Vendor Invoice No</Label>
-                <VendorLedgerEntrySelect
-                  vendorNo={formData.vendorNo}
+                <Label className="text-xs font-semibold">Vendor Invoice No.</Label>
+                <Input
                   value={postDetails.vendorInvoiceNo}
-                  onChange={(val) =>
-                    setPostDetails((p) => ({ ...p, vendorInvoiceNo: val }))
+                  onChange={(e) =>
+                    setPostDetails((p) => ({ ...p, vendorInvoiceNo: e.target.value }))
                   }
-                  className="h-8 text-sm"
+                  placeholder="Optional"
+                  className="h-8"
+                />
+              </div>
+            )}
+            {(documentType === "credit-memo" || documentType === "return-order") && (
+              <div className="space-y-1">
+                <Label className="text-xs font-semibold">Vendor Credit Memo No.</Label>
+                <Input
+                  value={postDetails.vendorCrMemoNo}
+                  onChange={(e) =>
+                    setPostDetails((p) => ({ ...p, vendorCrMemoNo: e.target.value }))
+                  }
+                  placeholder="Optional"
+                  className="h-8"
                 />
               </div>
             )}

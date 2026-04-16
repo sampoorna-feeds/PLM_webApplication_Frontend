@@ -125,9 +125,17 @@ const formsItems = [
     url: "/report-ledger",
     icon: BookOpenCheck,
   },
+];
+
+const qcSubItems = [
   {
     title: "QC Receipt",
     url: "/qc-receipt",
+    icon: ClipboardCheck,
+  },
+  {
+    title: "Posted QC Receipt",
+    url: "/posted-qc-receipt",
     icon: ClipboardCheck,
   },
 ];
@@ -265,6 +273,46 @@ export function AppSidebar({
                   <CollapsibleContent>
                     <SidebarMenuSub>
                       {purchaseSubItems.map((item) => (
+                        <SidebarMenuSubItem key={item.url}>
+                          <SidebarMenuSubButton
+                            asChild
+                            isActive={pathname === item.url}
+                          >
+                            <Link href={item.url}>
+                              {item.icon && <item.icon />}
+                              <span>{item.title}</span>
+                            </Link>
+                          </SidebarMenuSubButton>
+                        </SidebarMenuSubItem>
+                      ))}
+                    </SidebarMenuSub>
+                  </CollapsibleContent>
+                </Collapsible>
+                <Collapsible
+                  defaultOpen={
+                    pathname?.startsWith("/qc-receipt") ||
+                    pathname?.startsWith("/posted-qc-receipt")
+                  }
+                  className="group/qc"
+                >
+                  <SidebarMenuItem>
+                    <CollapsibleTrigger asChild>
+                      <SidebarMenuButton
+                        isActive={
+                          pathname?.startsWith("/qc-receipt") ||
+                          pathname?.startsWith("/posted-qc-receipt")
+                        }
+                        className="w-full"
+                      >
+                        <ClipboardCheck />
+                        <span>QC Documents</span>
+                        <ChevronDown className="ml-auto size-4 group-data-[state=closed]/qc:-rotate-90 group-data-[state=open]/qc:rotate-0" />
+                      </SidebarMenuButton>
+                    </CollapsibleTrigger>
+                  </SidebarMenuItem>
+                  <CollapsibleContent>
+                    <SidebarMenuSub>
+                      {qcSubItems.map((item) => (
                         <SidebarMenuSubItem key={item.url}>
                           <SidebarMenuSubButton
                             asChild

@@ -31,17 +31,21 @@ export default function QCReceiptPage() {
                     Manage and track quality control receipts
                   </p>
                 </div>
-                <TabsList className="grid w-[400px] grid-cols-3">
+                <TabsList className="grid w-[480px] grid-cols-4">
                   <TabsTrigger value="all">All</TabsTrigger>
                   <TabsTrigger value="Open">Open</TabsTrigger>
                   <TabsTrigger value="Approved">Approved</TabsTrigger>
+                  <TabsTrigger value="Posted">Posted</TabsTrigger>
                 </TabsList>
               </div>
             </div>
 
             <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-4 py-3">
               <TabsContent value={activeTab} className="flex-1 mt-0 h-full">
-                <QCReceiptView statusFilter={activeTab === "all" ? undefined : activeTab} />
+                <QCReceiptView 
+                  statusFilter={activeTab === "all" || activeTab === "Posted" ? undefined : activeTab} 
+                  isPosted={activeTab === "Posted"}
+                />
               </TabsContent>
             </div>
           </Tabs>

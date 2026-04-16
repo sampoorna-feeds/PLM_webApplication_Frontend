@@ -41,7 +41,9 @@ export default function QCReceiptPage() {
 
             <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-4 py-3">
               <TabsContent value={activeTab} className="flex-1 mt-0 h-full">
-                <QCReceiptView statusFilter={activeTab === "all" ? undefined : activeTab} />
+                <QCReceiptView 
+                  statusFilter={activeTab === "all" ? undefined : activeTab} 
+                />
               </TabsContent>
             </div>
           </Tabs>

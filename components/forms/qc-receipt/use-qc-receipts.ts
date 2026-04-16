@@ -5,6 +5,9 @@ import { toast } from "sonner";
 import {
   getQCReceiptsWithCount,
   getQCReceiptLines,
+  postQCReceipt,
+  getPostedQCReceiptsWithCount,
+  getPostedQCReceiptLines,
   type QCReceiptHeader,
   type QCReceiptLine,
 } from "@/lib/api/services/qc-receipt.service";
@@ -18,7 +21,10 @@ import {
 } from "./column-config";
 import { buildQCReceiptFilterString } from "./utils/filter-builder";
 
-export function useQCReceipts(initialFilters?: { statusFilter?: string }) {
+export function useQCReceipts(initialFilters?: {
+  statusFilter?: string;
+  isPosted?: boolean;
+}) {
   const [receipts, setReceipts] = useState<QCReceiptHeader[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [pageSize, setPageSize] = useState(20);
@@ -75,8 +81,15 @@ export function useQCReceipts(initialFilters?: { statusFilter?: string }) {
 
       const filter = filterParts.length > 0 ? filterParts.join(" and ") : undefined;
 
+      const select = buildSelectQuery(visibleColumns);
+      // For posted receipts, we need to exclude fields that might not exist on the posted entity
+      const fieldsToExclude = ["Approval_Status", "Vehicle_No"];
+      const finalSelect = initialFilters?.isPosted 
+        ? select.split(',').filter(col => !fieldsToExclude.includes(col)).join(',')
+        : select;
+
       const params: any = {
-        $select: buildSelectQuery(visibleColumns),
+        $select: finalSelect,
         $orderby: getOrderByString(),
         $top: pageSize,
         $skip: (currentPage - 1) * pageSize,
@@ -87,12 +100,14 @@ export function useQCReceipts(initialFilters?: { statusFilter?: string }) {
         params.$filter = filter;
       }
 
-      const result = await getQCReceiptsWithCount(params);
+      const result = initialFilters?.isPosted
+        ? await getPostedQCReceiptsWithCount(params)
+        : await getQCReceiptsWithCount(params);
 
       setReceipts(result.receipts);
       setTotalCount(result.totalCount);
     } catch (error) {
-      console.warn("Error fetching QC receipts:", error);
+      console.error("Error fetching QC receipts:", error);
       toast.error("Failed to load QC receipts. Please try again.");
       setReceipts([]);
       setTotalCount(0);
@@ -213,7 +228,10 @@ export function useQCReceipts(initialFilters?: { statusFilter?: string }) {
   };
 }
 
-export function useQCReceiptLines(receiptNo: string | null) {
+export function useQCReceiptLines(
+  receiptNo: string | null,
+  isPosted: boolean = false,
+) {
   const [lines, setLines] = useState<QCReceiptLine[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -226,7 +244,9 @@ export function useQCReceiptLines(receiptNo: string | null) {
     const fetchLines = async () => {
       setIsLoading(true);
       try {
-        const data = await getQCReceiptLines(receiptNo);
+        const data = isPosted
+          ? await getPostedQCReceiptLines(receiptNo)
+          : await getQCReceiptLines(receiptNo);
         setLines(data);
       } catch (error) {
         console.error("Error fetching QC lines:", error);
@@ -237,7 +257,31 @@ export function useQCReceiptLines(receiptNo: string | null) {
     };
 
     fetchLines();
-  }, [receiptNo]);
+  }, [receiptNo, isPosted]);
 
   return { lines, isLoading };
+}
+
+export function useQCReceiptPosting() {
+  const [isPosting, setIsPosting] = useState(false);
+
+  const postReceipt = useCallback(
+    async (header: QCReceiptHeader, lines: QCReceiptLine[]) => {
+      setIsPosting(true);
+      try {
+        await postQCReceipt(header, lines);
+        toast.success("QC Receipt posted successfully!");
+        return true;
+      } catch (error: any) {
+        console.error("Error posting QC receipt:", error);
+        toast.error(error.message || "Failed to post QC Receipt.");
+        return false;
+      } finally {
+        setIsPosting(false);
+      }
+    },
+    [],
+  );
+
+  return { postReceipt, isPosting };
 }

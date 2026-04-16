@@ -126,9 +126,10 @@ export function FormStackPanel() {
             : currentTab?.formType === "finished-production-order-detail"
               ? "w-screen md:w-[60vw]"
               : currentTab?.formType === "purchase-document" ||
-                  currentTab?.formType === "sales-document"
+                  currentTab?.formType === "sales-document" ||
+                  currentTab?.formType === "qc-receipt-detail"
                 ? "w-screen lg:w-[70vw]"
-                : "w-screen md:w-[65vw] lg:w-[48vw]",
+                : "w-screen md:w-[65vw] lg:w-[50vw]",
         )}
       >
         {/* Tabs - Always show at top */}

@@ -10,9 +10,10 @@ import { Button } from "@/components/ui/button";
 
 interface QCReceiptViewProps {
   statusFilter?: string;
+  isPosted?: boolean;
 }
 
-export function QCReceiptView({ statusFilter }: QCReceiptViewProps) {
+export function QCReceiptView({ statusFilter, isPosted }: QCReceiptViewProps) {
   const { openTab } = useFormStackContext();
   const {
     receipts,
@@ -36,12 +37,12 @@ export function QCReceiptView({ statusFilter }: QCReceiptViewProps) {
     onResetColumns,
     onShowAllColumns,
     refetch,
-  } = useQCReceipts({ statusFilter });
+  } = useQCReceipts({ statusFilter, isPosted });
 
   const handleRowClick = (receipt: QCReceiptHeader) => {
     openTab("qc-receipt-detail", {
-      title: `QC Detail: ${receipt.No}`,
-      context: { receipt },
+      title: `${isPosted ? "Posted QC Detail" : "QC Detail"}: ${receipt.No}`,
+      context: { receipt, isPosted },
     });
   };
 

@@ -1,4 +1,4 @@
-import { apiGet } from "../client";
+import { apiGet, apiPost } from "../client";
 import { buildODataQuery } from "../endpoints";
 import type { ODataResponse } from "../types";
 
@@ -146,6 +146,122 @@ export async function getQCReceiptLines(
   const filter = `No eq '${escaped}'`;
   const query = buildODataQuery({ $filter: filter, $orderby: "Line_No asc" });
   const endpoint = `/QCreceiptLine?company='${encodeURIComponent(COMPANY)}'&${query}`;
+
+  const response = await apiGet<ODataResponse<QCReceiptLine>>(endpoint);
+  return response.value || [];
+}
+
+/**
+ * Post a QC receipt by creating records in QCReceiptPostedH and QCReceiptPostedLine.
+ * @param header The QC receipt header to post.
+ * @param lines The QC receipt lines to post.
+ */
+export async function postQCReceipt(
+  header: QCReceiptHeader,
+  lines: QCReceiptLine[],
+): Promise<void> {
+  const headerEndpoint = `/QCReceiptPostedH?company='${encodeURIComponent(COMPANY)}'`;
+  const lineEndpoint = `/QCReceiptPostedLine?company='${encodeURIComponent(COMPANY)}'`;
+
+  // Helper to remove metadata and empty/calculated fields
+  const cleanData = (data: any) => {
+    const { "@odata.etag": _, ...rest } = data;
+    return Object.entries(rest).reduce(
+      (acc, [key, value]) => {
+        // Remove empty strings, nulls, and potentially read-only calculated fields (start with Total_)
+        if (
+          value !== undefined &&
+          value !== null &&
+          !(typeof value === "string" && value.trim() === "") &&
+          !key.startsWith("Total_")
+        ) {
+          acc[key] = value;
+        }
+        return acc;
+      },
+      {} as Record<string, any>,
+    );
+  };
+
+  const headerData = cleanData(header);
+
+  try {
+    console.log("Posting QC Header:", headerData);
+    await apiPost(headerEndpoint, headerData);
+  } catch (error: any) {
+    console.error("Error posting QC receipt header:", {
+      message: error.message,
+      details: error.details,
+      status: error.status,
+      error,
+    });
+    const detail = error.details || error.message || JSON.stringify(error);
+    throw new Error(`Failed to post header: ${detail}`);
+  }
+
+  // Then post each line
+  try {
+    for (const line of lines) {
+      const lineData = cleanData(line);
+      console.log(`Posting QC Line ${line.Line_No}:`, lineData);
+      await apiPost(lineEndpoint, lineData);
+    }
+  } catch (error: any) {
+    console.error("Error posting QC receipt lines:", {
+      message: error.message,
+      details: error.details,
+      status: error.status,
+      error,
+    });
+    const detail = error.details || error.message || JSON.stringify(error);
+    throw new Error(`Failed to post lines: ${detail}`);
+  }
+}
+
+/**
+ * Get posted QC receipts with count for pagination.
+ */
+export async function getPostedQCReceiptsWithCount(
+  params: GetQCReceiptsParams = {},
+): Promise<PaginatedQCReceiptsResponse> {
+  const {
+    $select,
+    $filter,
+    $orderby = "No desc",
+    $top = 10,
+    $skip,
+  } = params;
+
+  const queryParams: Record<string, unknown> = {
+    $top,
+    $count: true,
+  };
+
+  if ($select) queryParams.$select = $select;
+  if ($filter) queryParams.$filter = $filter;
+  if ($orderby) queryParams.$orderby = $orderby;
+  if ($skip !== undefined) queryParams.$skip = $skip;
+
+  const query = buildODataQuery(queryParams as any);
+  const endpoint = `/QCReceiptPostedH?company='${encodeURIComponent(COMPANY)}'&${query}`;
+  const response = await apiGet<ODataResponse<QCReceiptHeader>>(endpoint);
+
+  return {
+    receipts: response.value || [],
+    totalCount: response["@odata.count"] ?? 0,
+  };
+}
+
+/**
+ * Get posted QC receipt lines for a specific receipt.
+ */
+export async function getPostedQCReceiptLines(
+  receiptNo: string,
+): Promise<QCReceiptLine[]> {
+  const escaped = receiptNo.replace(/'/g, "''");
+  const filter = `No eq '${escaped}'`;
+  const query = buildODataQuery({ $filter: filter, $orderby: "Line_No asc" });
+  const endpoint = `/QCReceiptPostedLine?company='${encodeURIComponent(COMPANY)}'&${query}`;
 
   const response = await apiGet<ODataResponse<QCReceiptLine>>(endpoint);
   return response.value || [];

@@ -1,9 +1,12 @@
 "use client";
 
-import { useQCReceiptLines } from "./use-qc-receipts";
+import { useQCReceiptLines, useQCReceiptPosting } from "./use-qc-receipts";
 import { QCReceiptLinesTable } from "./qc-receipt-lines-table";
 import type { QCReceiptHeader } from "@/lib/api/services/qc-receipt.service";
 import { Separator } from "@/components/ui/separator";
+import { Button } from "@/components/ui/button";
+import { Loader2, Send } from "lucide-react";
+import { useFormStackContext } from "@/lib/form-stack/form-stack-context";
 
 interface QCReceiptDetailFormProps {
   tabId: string;
@@ -11,22 +14,58 @@ interface QCReceiptDetailFormProps {
   context?: Record<string, any>;
 }
 
-export function QCReceiptDetailForm({ context }: QCReceiptDetailFormProps) {
+export function QCReceiptDetailForm({ tabId, context }: QCReceiptDetailFormProps) {
+  const { closeTab } = useFormStackContext();
   const selectedReceipt = context?.receipt as QCReceiptHeader | undefined;
-  const { lines, isLoading: isLinesLoading } = useQCReceiptLines(selectedReceipt?.No || null);
+  const isPosted = !!context?.isPosted;
+  
+  const { lines, isLoading: isLinesLoading } = useQCReceiptLines(
+    selectedReceipt?.No || null,
+    isPosted
+  );
+  const { postReceipt, isPosting } = useQCReceiptPosting();
 
   if (!selectedReceipt) {
     return <div className="p-4">No receipt selected</div>;
   }
+
+  const handlePost = async () => {
+    if (!selectedReceipt) return;
+    const success = await postReceipt(selectedReceipt, lines);
+    if (success) {
+      closeTab(tabId);
+    }
+  };
 
   return (
     <div className="h-full overflow-y-auto bg-background">
       <div className="flex flex-col gap-6 p-6 pb-20">
         {/* Header Section */}
         <div>
-          <h2 className="mb-4 text-base font-semibold uppercase tracking-wider text-muted-foreground border-b pb-1">
-            General Information
-          </h2>
+          <div className="mb-4 flex items-center justify-between border-b pb-1">
+            <h2 className="text-base font-semibold uppercase tracking-wider text-muted-foreground">
+              General Information
+            </h2>
+            {!isPosted && (
+              <Button
+                size="sm"
+                onClick={handlePost}
+                disabled={
+                  isPosting ||
+                  isLinesLoading ||
+                  selectedReceipt.Approval_Status !== "Approved"
+                }
+                className="h-8 gap-2"
+              >
+                {isPosting ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Send className="h-4 w-4" />
+                )}
+                Post QC Receipt
+              </Button>
+            )}
+          </div>
           <div className="grid grid-cols-2 gap-x-6 gap-y-4 md:grid-cols-3 lg:grid-cols-4">
             <SummaryField label="QC Receipt No." value={selectedReceipt.No} />
             <SummaryField label="Status" value={

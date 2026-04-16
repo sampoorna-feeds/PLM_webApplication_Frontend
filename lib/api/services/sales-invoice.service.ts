@@ -91,14 +91,15 @@ export async function addSalesInvoiceLineItems(
   if (!documentNo || lineItems.length === 0) return;
   const endpoint = `/${LINE_ENTITY}?company='${encodeURIComponent(COMPANY)}'`;
   for (const item of lineItems) {
-    await apiPost(endpoint, {
+    const linePayload: Record<string, unknown> = {
       Document_No: documentNo,
       Type: item.type,
       No: item.no,
-      Location_Code: locationCode || "",
       Quantity: item.quantity,
-      Unit_of_Measure_Code: item.uom || "",
-    });
+    };
+    if (locationCode) linePayload.Location_Code = locationCode;
+    if (item.uom) linePayload.Unit_of_Measure_Code = item.uom;
+    await apiPost(endpoint, linePayload);
   }
 }
 
@@ -113,19 +114,19 @@ export async function addSingleSalesInvoiceLine(
     Document_No: documentNo,
     Type: line.type,
     No: line.no,
-    Location_Code: locationCode || "",
     Quantity: line.quantity,
-    Unit_of_Measure_Code: line.uom || "",
   };
+  if (locationCode) payload.Location_Code = locationCode;
+  if (line.uom) payload.Unit_of_Measure_Code = line.uom;
   if (line.description != null) payload.Description = line.description;
   if (line.unitPrice != null) payload.Unit_Price = line.unitPrice;
   if (line.discount != null) payload.Line_Discount_Percent = line.discount;
   if (line.exempted != null) payload.Exempted = line.exempted;
-  if (line.gstGroupCode != null) payload.GST_Group_Code = line.gstGroupCode;
-  if (line.hsnSacCode != null) payload.HSN_SAC_Code = line.hsnSacCode;
-  if (line.gstCredit != null) payload.GST_Credit = line.gstCredit;
+  if (line.gstGroupCode) payload.GST_Group_Code = line.gstGroupCode;
+  if (line.hsnSacCode) payload.HSN_SAC_Code = line.hsnSacCode;
+  if (line.gstCredit) payload.GST_Credit = line.gstCredit;
   if (line.foc != null) payload.FOC = line.foc;
-  if (line.faPostingType != null) payload.FA_Posting_Type = line.faPostingType;
+  if (line.faPostingType) payload.FA_Posting_Type = line.faPostingType;
   const result = await apiPost<{ Line_No: number; [key: string]: unknown }>(
     endpoint,
     payload,

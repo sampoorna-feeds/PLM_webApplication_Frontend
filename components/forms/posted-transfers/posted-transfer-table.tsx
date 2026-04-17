@@ -214,7 +214,7 @@ export function PostedTransferTable({
         {columns.map(col => (
           <td key={col.id} className="p-3 text-xs whitespace-nowrap text-muted-foreground">
             {col.id === "E_Way_Bill_No" || col.id === "E_Invoice_No" ? (
-              <span className="font-medium text-foreground">{row[col.id] || "false"}</span>
+              <span className="font-medium text-foreground">{row[col.id] || "-"}</span>
             ) : (
               formatValue(row[col.id], col.id)
             )}
@@ -237,7 +237,6 @@ function getSortIcon(columnId: string, sortColumn?: string | null, sortDirection
 
 function formatValue(value: any, columnId: string) {
   if (value === null || value === undefined || value === "") {
-    if (columnId === "E_Way_Bill_No" || columnId === "E_Invoice_No") return "false";
     return "-";
   }
   

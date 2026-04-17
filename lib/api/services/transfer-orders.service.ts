@@ -406,6 +406,23 @@ export async function updateTransferLine(
 }
 
 /**
+ * Get a single transfer line by Document No and Line No
+ */
+export async function getTransferLine(
+  documentNo: string,
+  lineNo: number,
+): Promise<TransferLine | null> {
+  const endpoint = `/TransferLine(Document_No='${encodeURIComponent(documentNo)}',Line_No=${lineNo})?company='${encodeURIComponent(COMPANY)}'`;
+  try {
+    const response = await apiGet<TransferLine>(endpoint);
+    return response;
+  } catch (error) {
+    console.error("Error fetching single transfer line:", error);
+    return null;
+  }
+}
+
+/**
  * Remove properties whose value is `undefined`, `null` or an empty string.
  */
 export function stripEmptyValues(

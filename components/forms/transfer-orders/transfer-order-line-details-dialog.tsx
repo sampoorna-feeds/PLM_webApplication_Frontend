@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import {
   updateTransferLine,
+  getTransferLine,
   checkItemTracking,
   getItemAvailableQuantity,
   getTransferItemByNo,
@@ -54,6 +55,7 @@ export function TransferOrderLineDetailsDialog({
   const [isLoadingStock, setIsLoadingStock] = useState(false);
   const [ledgerEntries, setLedgerEntries] = useState<TransferItemLedgerEntry[]>([]);
   const [isLoadingLedger, setIsLoadingLedger] = useState(false);
+  const [isLoadingLine, setIsLoadingLine] = useState(false);
 
 
   const [formData, setFormData] = useState<Partial<TransferLine>>({ ...line });
@@ -68,14 +70,26 @@ export function TransferOrderLineDetailsDialog({
         setAvailableQty(null);
         setIsLoadingTracking(true);
         setIsLoadingStock(true);
+        setIsLoadingLine(true);
         try {
-          // Parallel fetch for ledger tracking, stock and item master
-          const [ledgerTrackingResult, availableResult, itemResult] = await Promise.all([
+          // Parallel fetch for ledger tracking, stock, item master, and latest line data
+          const [ledgerTrackingResult, availableResult, itemResult, currentLineResult] = await Promise.all([
             checkItemTracking(line.Item_No!, activeLocationCode),
             getItemAvailableQuantity(line.Item_No!, activeLocationCode),
-            getTransferItemByNo(line.Item_No!)
+            getTransferItemByNo(line.Item_No!),
+            getTransferLine(line.Document_No, line.Line_No)
           ]);
           
+          if (currentLineResult) {
+            setFormData(prev => ({ 
+              ...prev, 
+              GST_Credit: currentLineResult.GST_Credit,
+              GST_Group_Code: currentLineResult.GST_Group_Code,
+              HSN_SAC_Code: currentLineResult.HSN_SAC_Code,
+              Exempted: !!currentLineResult.Exempted
+            }));
+          }
+
           // An item has tracking if it either has tracked entries OR is setup for tracking in item master
           const isTrackedInMaster = !!itemResult?.Item_Tracking_Code?.trim();
           const tracked = ledgerTrackingResult || isTrackedInMaster;
@@ -96,6 +110,7 @@ export function TransferOrderLineDetailsDialog({
         } finally {
           setIsLoadingTracking(false);
           setIsLoadingStock(false);
+          setIsLoadingLine(false);
         }
       };
       fetchData();
@@ -264,15 +279,20 @@ export function TransferOrderLineDetailsDialog({
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-muted-foreground">GST Credit</label>
+              <label className="text-xs font-medium text-muted-foreground flex items-center justify-between">
+                GST Credit
+                {isLoadingLine && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
+              </label>
               <SearchableSelect
                 options={[
                   { value: "Availment", label: "Availment" },
-                  { value: "Non - Availment", label: "Non - Availment" },
+                  { value: "Non-Availment", label: "Non-Availment" },
                 ]}
-                value={formData.GST_Credit || "Availment"}
+                value={formData.GST_Credit || ""}
                 onValueChange={(v) => handleChange("GST_Credit", v)}
-                placeholder="Select GST Credit"
+                placeholder={isLoadingLine ? "Loading..." : "Select GST Credit"}
+                isLoading={isLoadingLine}
+                allowCustomValue={true}
                 className="h-9 transition-all focus:ring-1 focus:ring-red-500/50"
               />
             </div>

@@ -294,11 +294,12 @@ export function TransferOrderLineDialog({
             <SearchableSelect
               options={[
                 { value: "Availment", label: "Availment" },
-                { value: "Non - Availment", label: "Non - Availment" },
+                { value: "Non-Availment", label: "Non-Availment" },
               ]}
               value={formData.GST_Credit || "Availment"}
               onValueChange={(v) => handleChange("GST_Credit", v)}
               placeholder="Select GST Credit"
+              allowCustomValue={true}
             />
           </div>
 

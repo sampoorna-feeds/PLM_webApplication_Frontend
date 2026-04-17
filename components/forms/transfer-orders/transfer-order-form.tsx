@@ -1580,16 +1580,16 @@ export function TransferOrderForm({
                       <TableRow key={s.No} className="border-border transition-colors hover:bg-muted">
                         <TableCell className="text-xs font-bold text-foreground">{s.No}</TableCell>
                         <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
-                          {s.Posting_Date ? new Date(s.Posting_Date).toLocaleDateString() : "false"}
+                          {s.Posting_Date ? new Date(s.Posting_Date).toLocaleDateString() : "-"}
                         </TableCell>
-                        <TableCell className="text-xs text-muted-foreground whitespace-nowrap">{s.Vehicle_No || "false"}</TableCell>
+                        <TableCell className="text-xs text-muted-foreground whitespace-nowrap">{s.Vehicle_No || "-"}</TableCell>
                         {reportType === "shipment" && (
                           <>
                             <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
-                              {s.E_Way_Bill_No || "false"}
+                              {s.E_Way_Bill_No || "-"}
                             </TableCell>
                             <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
-                               {s.E_Invoice_No || "false"}
+                               {s.E_Invoice_No || "-"}
                             </TableCell>
                           </>
                         )}

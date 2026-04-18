@@ -185,16 +185,22 @@ export async function apiPost<T>(endpoint: string, data: unknown): Promise<T> {
 /**
  * PATCH request helper
  */
-export async function apiPatch<T>(endpoint: string, data: unknown): Promise<T> {
+export async function apiPatch<T>(
+  endpoint: string,
+  data: unknown,
+  options: { headers?: Record<string, string> } = {},
+): Promise<T> {
   return apiRequest<T>(endpoint, {
     method: "PATCH",
     body: JSON.stringify(data),
     headers: {
       "Content-Type": "application/json",
-      "If-Match": "*", // Required for OData PATCH requests
+      "If-Match": "*", // Default for OData PATCH requests
+      ...options.headers,
     },
   });
 }
+
 
 /**
  * DELETE request helper

@@ -1,24 +1,25 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { toast } from "sonner";
 import {
-  getQCReceiptsWithCount,
-  getQCReceiptLines,
-  postQCReceipt,
-  getPostedQCReceiptsWithCount,
   getPostedQCReceiptLines,
+  getPostedQCReceiptsWithCount,
+  getQCReceiptLines,
+  getQCReceiptsWithCount,
+  postQCReceipt,
+  updateQCReceiptHeader,
   updateQCReceiptLine,
   type QCReceiptHeader,
   type QCReceiptLine,
 } from "@/lib/api/services/qc-receipt.service";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 import {
-  type SortDirection,
+  ALL_COLUMNS,
+  buildSelectQuery,
+  getDefaultVisibleColumns,
   loadVisibleColumns,
   saveVisibleColumns,
-  getDefaultVisibleColumns,
-  buildSelectQuery,
-  ALL_COLUMNS,
+  type SortDirection,
 } from "./column-config";
 import { buildQCReceiptFilterString } from "./utils/filter-builder";
 
@@ -33,7 +34,6 @@ export function useQCReceipts(initialFilters?: {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
 
-
   const [sortColumn, setSortColumn] = useState<string | null>("QC_Date");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
 
@@ -41,7 +41,10 @@ export function useQCReceipts(initialFilters?: {
   const [columnFilters, setColumnFilters] = useState<
     Record<string, { value: string; valueTo?: string }>
   >({});
-  const [dateFilter, setDateFilter] = useState<{ fromDate: string; toDate: string } | null>(
+  const [dateFilter, setDateFilter] = useState<{
+    fromDate: string;
+    toDate: string;
+  } | null>(
     initialFilters?.skipDateFilter
       ? {
           fromDate: new Date(new Date().setDate(new Date().getDate() - 30))
@@ -49,7 +52,7 @@ export function useQCReceipts(initialFilters?: {
             .split("T")[0],
           toDate: new Date().toISOString().split("T")[0],
         }
-      : null
+      : null,
   );
 
   const [visibleColumns, setVisibleColumns] = useState<string[]>(() =>
@@ -60,7 +63,6 @@ export function useQCReceipts(initialFilters?: {
 
   const [hasMore, setHasMore] = useState(true);
   const [isFetchingMore, setIsFetchingMore] = useState(false);
-
 
   const statusFilter = initialFilters?.statusFilter;
 
@@ -76,15 +78,17 @@ export function useQCReceipts(initialFilters?: {
 
   const fetchReceipts = useCallback(async () => {
     if (!dateFilter) return;
-    
+
     setIsLoading(true);
 
     try {
       const filterParts: string[] = [];
-      
+
       // Date filter
-      if (dateFilter.fromDate) filterParts.push(`QC_Date ge ${dateFilter.fromDate}`);
-      if (dateFilter.toDate) filterParts.push(`QC_Date le ${dateFilter.toDate}`);
+      if (dateFilter.fromDate)
+        filterParts.push(`QC_Date ge ${dateFilter.fromDate}`);
+      if (dateFilter.toDate)
+        filterParts.push(`QC_Date le ${dateFilter.toDate}`);
 
       // Status filter from tabs
       if (statusFilter) {
@@ -94,7 +98,9 @@ export function useQCReceipts(initialFilters?: {
       // Global search
       if (searchQuery) {
         const escaped = searchQuery.replace(/'/g, "''");
-        filterParts.push(`(contains(No,'${escaped}') or contains(Item_No,'${escaped}') or contains(Item_Name,'${escaped}') or contains(Buy_from_Vendor_Name,'${escaped}'))`);
+        filterParts.push(
+          `(contains(No,'${escaped}') or contains(Item_No,'${escaped}') or contains(Item_Name,'${escaped}') or contains(Buy_from_Vendor_Name,'${escaped}'))`,
+        );
       }
 
       // Column filters
@@ -103,13 +109,17 @@ export function useQCReceipts(initialFilters?: {
         filterParts.push(colFilterStr);
       }
 
-      const filter = filterParts.length > 0 ? filterParts.join(" and ") : undefined;
+      const filter =
+        filterParts.length > 0 ? filterParts.join(" and ") : undefined;
 
       const select = buildSelectQuery(visibleColumns);
       // For posted receipts, we need to exclude fields that might not exist on the posted entity
       const fieldsToExclude = ["Approval_Status", "Vehicle_No"];
-      const finalSelect = initialFilters?.isPosted 
-        ? select.split(',').filter(col => !fieldsToExclude.includes(col)).join(',')
+      const finalSelect = initialFilters?.isPosted
+        ? select
+            .split(",")
+            .filter((col) => !fieldsToExclude.includes(col))
+            .join(",")
         : select;
 
       const params: any = {
@@ -147,12 +157,8 @@ export function useQCReceipts(initialFilters?: {
     columnFilters,
     statusFilter,
     dateFilter,
-    initialFilters?.isPosted
+    initialFilters?.isPosted,
   ]);
-
-
-
-
 
   useEffect(() => {
     fetchReceipts();
@@ -184,15 +190,10 @@ export function useQCReceipts(initialFilters?: {
     setCurrentPage(1);
   }, []);
 
-
-
-
   const handleSearch = useCallback((query: string) => {
     setSearchQuery(query);
     setCurrentPage(1);
   }, []);
-
-
 
   const handleColumnToggle = useCallback((columnId: string) => {
     setVisibleColumns((prev) => {
@@ -224,8 +225,6 @@ export function useQCReceipts(initialFilters?: {
     setCurrentPage(1);
   }, []);
 
-
-
   const handleColumnFilter = useCallback(
     (columnId: string, value: string, valueTo?: string) => {
       setColumnFilters((prev) => {
@@ -239,8 +238,6 @@ export function useQCReceipts(initialFilters?: {
     },
     [],
   );
-
-
 
   return {
     receipts,
@@ -268,8 +265,6 @@ export function useQCReceipts(initialFilters?: {
     refetch: fetchReceipts,
   };
 }
-
-
 
 export function useQCReceiptLines(
   receiptNo: string | null,
@@ -304,7 +299,6 @@ export function useQCReceiptLines(
 
   return { lines, setLines, isLoading };
 }
-
 
 export function useQCReceiptPosting() {
   const [isPosting, setIsPosting] = useState(false);
@@ -342,7 +336,12 @@ export function useQCReceiptLineUpdate() {
     ) => {
       setIsUpdating(true);
       try {
-        const result = await updateQCReceiptLine(receiptNo, lineNo, etag, fields);
+        const result = await updateQCReceiptLine(
+          receiptNo,
+          lineNo,
+          etag,
+          fields,
+        );
         toast.success("Line updated successfully");
         return result;
       } catch (error: any) {
@@ -359,3 +358,30 @@ export function useQCReceiptLineUpdate() {
   return { updateLine, isUpdating };
 }
 
+export function useQCReceiptUpdate() {
+  const [isUpdating, setIsUpdating] = useState(false);
+
+  const updateHeader = useCallback(
+    async (
+      receiptNo: string,
+      etag: string,
+      fields: Partial<QCReceiptHeader>,
+    ) => {
+      setIsUpdating(true);
+      try {
+        const result = await updateQCReceiptHeader(receiptNo, etag, fields);
+        toast.success("Receipt updated successfully");
+        return result;
+      } catch (error: any) {
+        console.error("Error updating QC receipt:", error);
+        toast.error(error.message || "Failed to update receipt");
+        return null;
+      } finally {
+        setIsUpdating(false);
+      }
+    },
+    [],
+  );
+
+  return { updateHeader, isUpdating };
+}

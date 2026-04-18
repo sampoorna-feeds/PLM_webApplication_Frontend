@@ -35,10 +35,7 @@ export function QCReceiptLinesTable({
           <thead className="bg-muted sticky top-0 z-10 [&_tr]:border-b">
             <tr className="border-b transition-colors text-[10px] uppercase tracking-wider font-bold">
               <th className="h-10 px-3 py-3 text-left w-12">Edit</th>
-              <th className="h-10 px-3 py-3 text-left">Line No</th>
-              <th className="h-10 px-3 py-3 text-left">Parameter</th>
               <th className="h-10 px-3 py-3 text-left">Description</th>
-              <th className="h-10 px-3 py-3 text-left">Method</th>
               <th className="h-10 px-3 py-3 text-left">Type</th>
               <th className="h-10 px-3 py-3 text-left">UOM</th>
               <th className="h-10 px-3 py-3 text-right">Min</th>
@@ -51,14 +48,13 @@ export function QCReceiptLinesTable({
               <th className="h-10 px-3 py-3 text-center text-[9px]">Rej</th>
               <th className="h-10 px-3 py-3 text-right text-[9px]">Rej Qty</th>
               <th className="h-10 px-3 py-3 text-center text-[9px]">Mand</th>
-              <th className="h-10 px-3 py-3 text-center">Result</th>
             </tr>
           </thead>
           <tbody className="[&_tr:last-child]:border-0 text-[11px]">
             {isLoading ? (
               Array.from({ length: 3 }).map((_, index) => (
                 <tr key={`skeleton-${index}`} className="border-b transition-colors text-xs">
-                  {Array.from({ length: 18 }).map((_, cellIndex) => (
+                  {Array.from({ length: 14 }).map((_, cellIndex) => (
                     <td key={cellIndex} className="p-3">
                       <Skeleton className="h-4 w-full" />
                     </td>
@@ -82,10 +78,7 @@ export function QCReceiptLinesTable({
                       />
                     )}
                   </td>
-                  <td className="p-3 align-middle whitespace-nowrap">{line.Line_No}</td>
-                  <td className="p-3 align-middle whitespace-nowrap font-medium">{line.Quality_Parameter_Code || "-"}</td>
-                  <td className="p-3 align-middle whitespace-nowrap">{line.Description || "-"}</td>
-                  <td className="p-3 align-middle whitespace-nowrap">{line.Method_Description || "-"}</td>
+                  <td className="p-3 align-middle whitespace-nowrap font-medium">{line.Description || "-"}</td>
                   <td className="p-3 align-middle whitespace-nowrap">{line.Type || "-"}</td>
                   <td className="p-3 align-middle whitespace-nowrap">{line.Unit_of_Measure_Code || "-"}</td>
                   <td className="p-3 align-middle text-right whitespace-nowrap">{line.Min_Value}</td>
@@ -109,19 +102,6 @@ export function QCReceiptLinesTable({
                      <span className={line.Mandatory ? "text-primary font-bold" : "text-muted-foreground"}>
                       {line.Mandatory ? "Y" : "N"}
                     </span>
-                  </td>
-                  <td className="p-3 align-middle text-center whitespace-nowrap">
-                    {line.Result?.trim() ? (
-                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
-                        line.Result === "Pass" ? "bg-green-100 text-green-700 font-bold" : 
-                        line.Result === "Fail" ? "bg-red-100 text-red-700 font-bold" : 
-                        "bg-gray-100 text-gray-700"
-                      }`}>
-                        {line.Result}
-                      </span>
-                    ) : (
-                      <span className="text-muted-foreground">-</span>
-                    )}
                   </td>
                 </tr>
               ))

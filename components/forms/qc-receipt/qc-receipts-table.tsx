@@ -40,6 +40,9 @@ export function QCReceiptsTable({
   const columns = ALL_COLUMNS.filter((col) => visibleColumns.includes(col.id));
   const startingSerialNo = (currentPage - 1) * pageSize;
 
+
+
+
   return (
     <div className="bg-card flex h-full flex-1 flex-col overflow-hidden rounded-lg border">
       <div className="flex-1 overflow-auto">

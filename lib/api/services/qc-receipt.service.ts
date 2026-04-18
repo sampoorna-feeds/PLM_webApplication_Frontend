@@ -1,4 +1,4 @@
-import { apiGet, apiPost } from "../client";
+import { apiGet, apiPost, apiPatch } from "../client";
 import { buildODataQuery } from "../endpoints";
 import type { ODataResponse } from "../types";
 
@@ -265,4 +265,60 @@ export async function getPostedQCReceiptLines(
 
   const response = await apiGet<ODataResponse<QCReceiptLine>>(endpoint);
   return response.value || [];
+}
+export async function updateQCReceiptLine(
+  receiptNo: string,
+  lineNo: number,
+  etag: string,
+  updatedFields: Partial<QCReceiptLine>,
+): Promise<QCReceiptLine> {
+  const escaped = receiptNo.replace(/'/g, "''");
+  const endpoint = `/QCreceiptLine(No='${escaped}',Line_No=${lineNo})?company='${encodeURIComponent(COMPANY)}'`;
+
+  // Filter out read-only or empty fields
+  const data = Object.entries(updatedFields).reduce(
+    (acc, [key, value]) => {
+      if (
+        value !== undefined &&
+        value !== null &&
+        !["No", "Line_No", "@odata.etag"].includes(key)
+      ) {
+        acc[key] = value;
+      }
+      return acc;
+    },
+    {} as Record<string, any>,
+  );
+
+  return await apiPatch<QCReceiptLine>(endpoint, data, {
+    headers: { "If-Match": etag },
+  });
+}
+
+export async function updateQCReceiptHeader(
+  receiptNo: string,
+  etag: string,
+  updatedFields: Partial<QCReceiptHeader>,
+): Promise<QCReceiptHeader> {
+  const escaped = receiptNo.replace(/'/g, "''");
+  const endpoint = `/QCReceiptH('${escaped}')?company='${encodeURIComponent(COMPANY)}'`;
+
+  // Filter out read-only or empty fields
+  const data = Object.entries(updatedFields).reduce(
+    (acc, [key, value]) => {
+      if (
+        value !== undefined &&
+        value !== null &&
+        !["No", "@odata.etag"].includes(key)
+      ) {
+        acc[key] = value;
+      }
+      return acc;
+    },
+    {} as Record<string, any>,
+  );
+
+  return await apiPatch<QCReceiptHeader>(endpoint, data, {
+    headers: { "If-Match": etag },
+  });
 }

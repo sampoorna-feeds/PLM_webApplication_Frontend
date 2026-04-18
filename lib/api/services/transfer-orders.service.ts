@@ -1122,8 +1122,13 @@ export async function getDownloadRecordLink(params: { documentType: string; docu
   const endpoint = `/API_DownloadRecordLink?company='${encodedCompany}'`;
   try {
     const response = await apiPost<{ value: string } | string>(endpoint, params);
-    if (typeof response === "string") return response;
-    return response?.value || "";
+    let url = typeof response === "string" ? response : response?.value || "";
+    
+    if (url && !url.startsWith("http://") && !url.startsWith("https://") && !url.startsWith("/")) {
+      url = `https://${url}`;
+    }
+    
+    return url;
   } catch (error) {
     console.error("Error fetching record link:", error);
     throw error;

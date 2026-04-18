@@ -19,6 +19,7 @@ export function mapSalesHeaderToFormData(
   return {
     customerNo: toStringValue(header.Sell_to_Customer_No),
     customerName: toStringValue(header.Sell_to_Customer_Name),
+    customerPriceGroup: toStringValue(header.Customer_Price_Group),
     shipToCode: toStringValue(header.Ship_to_Code),
     salesPersonCode: toStringValue(header.Salesperson_Code),
     salesPersonName: "",

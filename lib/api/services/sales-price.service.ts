@@ -59,7 +59,7 @@ export async function getSalesPrice(
     orderDate,
   } = params;
 
-  if (!salesCode || !itemNo || !location || !unitofmeasure) {
+  if (!itemNo || !unitofmeasure) {
     return null;
   }
 
@@ -82,9 +82,12 @@ export async function getSalesPrice(
   const response = await apiPost<RawSalesPriceOuter>(endpoint, body);
   if (!response) return null;
 
+  console.log("[API_SalesPriceAPI] raw response:", response);
+
   if (typeof response.value === "string") {
     try {
       const parsed = JSON.parse(response.value);
+      console.log("[API_SalesPriceAPI] parsed inner value:", parsed);
       if (parsed && typeof parsed === "object" && parsed.Response) {
         return parsed.Response as SalesPriceResponse;
       }
@@ -92,7 +95,7 @@ export async function getSalesPrice(
         return parsed as SalesPriceResponse;
       }
     } catch (error) {
-      console.error("Error parsing sales price response:", error);
+      console.error("[API_SalesPriceAPI] Error parsing response:", error);
     }
     return null;
   }

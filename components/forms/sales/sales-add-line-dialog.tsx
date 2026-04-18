@@ -215,32 +215,28 @@ export function SalesAddLineDialog({
     };
   }, [open, form.type, form.no]);
 
-  // Fetch customer-specific sales price when item, UOM, location, and price group are all present
+  // Fetch sales price when item type is selected and item + UOM are chosen
   useEffect(() => {
-    if (
-      !open ||
-      form.type !== "Item" ||
-      !form.no ||
-      !form.uom ||
-      !locationCode ||
-      !customerPriceGroup
-    ) {
-      return;
-    }
+    if (!open || form.type !== "Item" || !form.no || !form.uom) return;
+
     let cancelled = false;
     getSalesPrice({
-      salesCode: customerPriceGroup,
+      salesCode: customerPriceGroup || "",
       itemNo: form.no,
-      location: locationCode,
+      location: locationCode || "",
       unitofmeasure: form.uom,
       orderDate,
     })
       .then((price) => {
-        if (cancelled || !price) return;
+        if (cancelled) return;
+        console.log("[SalesPriceAPI] parsed result:", price);
+        if (!price) return;
         const up = Number(price.Unit_Price ?? 0);
         if (up > 0) setForm((p) => ({ ...p, unitPrice: String(up) }));
       })
-      .catch(() => {});
+      .catch((err) => {
+        console.error("[SalesPriceAPI] error:", err);
+      });
     return () => {
       cancelled = true;
     };

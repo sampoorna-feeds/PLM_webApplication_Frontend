@@ -66,6 +66,8 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { SearchableSelect } from "@/components/forms/shared/searchable-select";
 import { SalesAddLineDialog } from "./sales-add-line-dialog";
+import { SalesCopyDocumentDialog } from "./sales-copy-document-dialog";
+import type { SalesCopyToDocType } from "@/lib/api/services/sales-copy-document.service";
 import { SalesItemTrackingDialog } from "./sales-item-tracking-dialog";
 import { SalesLineItemsTable } from "./sales-line-items-table";
 import { SalesOrderLineEditDialog } from "./sales-order-line-edit-dialog";
@@ -396,6 +398,9 @@ export function SalesCreateDocumentFormContent({
     [],
   );
   const [isDeleteLoading, setIsDeleteLoading] = useState(false);
+
+  // ── Copy document dialog state ────────────────────────────────────────────
+  const [isCopyDocOpen, setIsCopyDocOpen] = useState(false);
 
   // ── Post dialog state (order only) ────────────────────────────────────────
   const [isPostDialogOpen, setIsPostDialogOpen] = useState(false);
@@ -1252,6 +1257,18 @@ export function SalesCreateDocumentFormContent({
                   Delivery Challan
                 </Button>
               )}
+              {isViewMode && caps.supportsCopyDocument && currentDocNo && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-8"
+                  onClick={() => setIsCopyDocOpen(true)}
+                  disabled={isActionLoading}
+                >
+                  Copy Document
+                </Button>
+              )}
               {isViewMode && isReleased && caps.supportsPost && (
                 <Button
                   type="button"
@@ -1387,6 +1404,7 @@ export function SalesCreateDocumentFormContent({
                   itemTrackingMap={itemTrackingMap}
                   lineStockMap={lineStockMap}
                   readOnly={isViewMode}
+                  editable={!isViewMode && !!currentDocNo}
                   onRowClick={(line) => {
                     setSelectedLine(line);
                     setIsLineDialogOpen(true);
@@ -1395,6 +1413,20 @@ export function SalesCreateDocumentFormContent({
                     if (!currentDocNo || line.Line_No == null) return;
                     await ops.deleteLine(currentDocNo, line.Line_No);
                     loadDocument();
+                  }}
+                  onInlineUpdate={async (line, patch) => {
+                    if (!currentDocNo || line.Line_No == null) return;
+                    try {
+                      await ops.updateLine(currentDocNo, line.Line_No, patch);
+                      await loadDocument();
+                    } catch (err) {
+                      const msg =
+                        err instanceof Error
+                          ? err.message
+                          : "Failed to update line";
+                      alert(`Error: ${msg}`);
+                      throw err;
+                    }
                   }}
                 />
 
@@ -1589,6 +1621,25 @@ export function SalesCreateDocumentFormContent({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Copy Document dialog */}
+      {caps.supportsCopyDocument && currentDocNo && (
+        <SalesCopyDocumentDialog
+          open={isCopyDocOpen}
+          toDocNo={currentDocNo}
+          toDocType={
+            (documentType === "invoice"
+              ? "Invoice"
+              : documentType === "credit-memo"
+                ? "Credit Memo"
+                : "Return Order") as SalesCopyToDocType
+          }
+          onOpenChange={setIsCopyDocOpen}
+          onSuccess={async () => {
+            await loadDocument();
+          }}
+        />
+      )}
 
       {/* Post option dialog */}
       {caps.supportsPost && (

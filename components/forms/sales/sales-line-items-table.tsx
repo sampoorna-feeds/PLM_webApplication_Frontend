@@ -20,10 +20,12 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { Trash2 } from "lucide-react";
+import { Loader2, Save, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SalesTaxInfoPopover } from "./sales-tax-info-popover";
+import { EditableQtyCell } from "../shared/editable-qty-cell";
+import { getSalesLineQuantityConfig } from "./sales-line-quantity-config";
 import type { SalesLine } from "@/lib/api/services/sales-orders.service";
 import type { SalesDocumentType } from "./sales-document-config";
 
@@ -45,6 +47,13 @@ interface SalesLineItemsTableProps {
   lineStockMap?: Record<string, number>;
   isLoading?: boolean;
   readOnly?: boolean;
+  /** Enable inline editing of pending qty columns. */
+  editable?: boolean;
+  /** Called when the user saves inline qty edits for a line. */
+  onInlineUpdate?: (
+    line: SalesLine,
+    patch: Record<string, number>,
+  ) => Promise<void>;
 }
 
 export function SalesLineItemsTable({
@@ -57,16 +66,56 @@ export function SalesLineItemsTable({
   lineStockMap = {},
   isLoading = false,
   readOnly = false,
+  editable = false,
+  onInlineUpdate,
 }: SalesLineItemsTableProps) {
   const [lineToDelete, setLineToDelete] = useState<SalesLine | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const showQtyColumns =
-    documentType === "order" || documentType === "return-order";
-  const qtyToShipLabel =
-    documentType === "return-order" ? "Qty to Return" : "Qty to Ship";
-  const qtyShippedLabel =
-    documentType === "return-order" ? "Qty Returned" : "Qty Shipped";
+  const qtyConfig = getSalesLineQuantityConfig(documentType);
+  const showQtyColumns = !!qtyConfig;
+  const canInlineEdit =
+    editable && !readOnly && !!qtyConfig && !!onInlineUpdate;
+  const qtyToShipLabel = qtyConfig?.firstPendingLabel ?? "Qty to Ship";
+  const qtyShippedLabel = qtyConfig?.firstCompletedLabel ?? "Qty Shipped";
+  const qtyToInvoiceLabel = qtyConfig?.secondPendingLabel ?? "Qty to Invoice";
+  const qtyInvoicedLabel = qtyConfig?.secondCompletedLabel ?? "Qty Invoiced";
+
+  const [pendingEdits, setPendingEdits] = useState<
+    Record<number, Record<string, number>>
+  >({});
+  const [savingLineNo, setSavingLineNo] = useState<number | null>(null);
+
+  const handleInlineChange = useCallback(
+    (lineNo: number, bcField: string, next: number) => {
+      setPendingEdits((prev) => ({
+        ...prev,
+        [lineNo]: { ...(prev[lineNo] ?? {}), [bcField]: next },
+      }));
+    },
+    [],
+  );
+
+  const handleSaveInline = useCallback(
+    async (line: SalesLine) => {
+      const lineNo = line.Line_No;
+      if (lineNo == null) return;
+      const patch = pendingEdits[lineNo];
+      if (!patch || !onInlineUpdate) return;
+      try {
+        setSavingLineNo(lineNo);
+        await onInlineUpdate(line, patch);
+        setPendingEdits((prev) => {
+          const next = { ...prev };
+          delete next[lineNo];
+          return next;
+        });
+      } finally {
+        setSavingLineNo(null);
+      }
+    },
+    [pendingEdits, onInlineUpdate],
+  );
 
   const handleDeleteClick = useCallback(
     (e: React.MouseEvent, line: SalesLine) => {
@@ -163,10 +212,10 @@ export function SalesLineItemsTable({
                     {qtyShippedLabel}
                   </TableHead>
                   <TableHead className="text-primary w-24 text-right text-[10px] font-bold tracking-wider uppercase">
-                    Qty to Invoice
+                    {qtyToInvoiceLabel}
                   </TableHead>
                   <TableHead className="text-primary w-24 text-right text-[10px] font-bold tracking-wider uppercase">
-                    Qty Invoiced
+                    {qtyInvoicedLabel}
                   </TableHead>
                 </>
               )}
@@ -188,9 +237,9 @@ export function SalesLineItemsTable({
               <TableHead className="text-primary w-24 text-center text-[10px] font-bold tracking-wider uppercase">
                 Exempt
               </TableHead>
-              {!readOnly && onDelete && (
+              {((!readOnly && onDelete) || canInlineEdit) && (
                 <TableHead className="text-primary w-12 text-center text-[10px] font-bold tracking-wider uppercase">
-                  Del
+                  {canInlineEdit ? "Act" : "Del"}
                 </TableHead>
               )}
             </TableRow>
@@ -241,19 +290,77 @@ export function SalesLineItemsTable({
                   <TableCell className="text-right text-xs">
                     {line.Quantity ?? "-"}
                   </TableCell>
-                  {showQtyColumns && (
+                  {showQtyColumns && qtyConfig && (
                     <>
+                      {canInlineEdit && line.Line_No != null ? (
+                        <EditableQtyCell
+                          value={
+                            pendingEdits[line.Line_No]?.[
+                              qtyConfig.firstPendingBcField
+                            ] ??
+                            ((line as unknown as Record<string, unknown>)[
+                              qtyConfig.firstPendingBcField
+                            ] as number | undefined)
+                          }
+                          isDirty={
+                            pendingEdits[line.Line_No]?.[
+                              qtyConfig.firstPendingBcField
+                            ] !== undefined
+                          }
+                          onChange={(next) =>
+                            handleInlineChange(
+                              line.Line_No as number,
+                              qtyConfig.firstPendingBcField,
+                              next,
+                            )
+                          }
+                        />
+                      ) : (
+                        <TableCell className="text-right text-xs">
+                          {((line as unknown as Record<string, unknown>)[
+                            qtyConfig.firstPendingBcField
+                          ] as number | undefined) ?? "-"}
+                        </TableCell>
+                      )}
                       <TableCell className="text-right text-xs">
-                        {line.Qty_to_Ship ?? "-"}
+                        {((line as unknown as Record<string, unknown>)[
+                          qtyConfig.firstCompletedBcField
+                        ] as number | undefined) ?? "-"}
                       </TableCell>
+                      {canInlineEdit && line.Line_No != null ? (
+                        <EditableQtyCell
+                          value={
+                            pendingEdits[line.Line_No]?.[
+                              qtyConfig.secondPendingBcField
+                            ] ??
+                            ((line as unknown as Record<string, unknown>)[
+                              qtyConfig.secondPendingBcField
+                            ] as number | undefined)
+                          }
+                          isDirty={
+                            pendingEdits[line.Line_No]?.[
+                              qtyConfig.secondPendingBcField
+                            ] !== undefined
+                          }
+                          onChange={(next) =>
+                            handleInlineChange(
+                              line.Line_No as number,
+                              qtyConfig.secondPendingBcField,
+                              next,
+                            )
+                          }
+                        />
+                      ) : (
+                        <TableCell className="text-right text-xs">
+                          {((line as unknown as Record<string, unknown>)[
+                            qtyConfig.secondPendingBcField
+                          ] as number | undefined) ?? "-"}
+                        </TableCell>
+                      )}
                       <TableCell className="text-right text-xs">
-                        {line.Quantity_Shipped ?? "-"}
-                      </TableCell>
-                      <TableCell className="text-right text-xs">
-                        {line.Qty_to_Invoice ?? "-"}
-                      </TableCell>
-                      <TableCell className="text-right text-xs">
-                        {line.Quantity_Invoiced ?? "-"}
+                        {((line as unknown as Record<string, unknown>)[
+                          qtyConfig.secondCompletedBcField
+                        ] as number | undefined) ?? "-"}
                       </TableCell>
                     </>
                   )}
@@ -277,19 +384,37 @@ export function SalesLineItemsTable({
                   <TableCell className="text-center text-xs">
                     {line.Exempted ? "✓" : "-"}
                   </TableCell>
-                  {!readOnly && onDelete && (
+                  {((!readOnly && onDelete) || canInlineEdit) && (
                     <TableCell
                       className="text-center"
                       onClick={(e) => e.stopPropagation()}
                     >
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-destructive hover:bg-destructive/10 h-6 w-6 p-0"
-                        onClick={(e) => handleDeleteClick(e, line)}
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
+                      {canInlineEdit &&
+                      line.Line_No != null &&
+                      pendingEdits[line.Line_No] ? (
+                        <Button
+                          variant="default"
+                          size="sm"
+                          className="h-6 w-6 p-0"
+                          disabled={savingLineNo === line.Line_No}
+                          onClick={() => handleSaveInline(line)}
+                        >
+                          {savingLineNo === line.Line_No ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <Save className="h-3.5 w-3.5" />
+                          )}
+                        </Button>
+                      ) : !readOnly && onDelete ? (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-destructive hover:bg-destructive/10 h-6 w-6 p-0"
+                          onClick={(e) => handleDeleteClick(e, line)}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      ) : null}
                     </TableCell>
                   )}
                 </TableRow>

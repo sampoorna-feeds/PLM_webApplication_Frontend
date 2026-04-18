@@ -20,10 +20,11 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { Trash2 } from "lucide-react";
+import { Loader2, Save, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TaxInfoPopover } from "./tax-info-popover";
+import { EditableQtyCell } from "../shared/editable-qty-cell";
 import type { LineItem } from "./purchase-line-item.type";
 import {
   getPurchaseLineQuantityConfig,
@@ -58,6 +59,13 @@ interface PurchaseLineItemsTableProps {
   documentNo?: string;
   documentType?: PurchaseLineDocumentType;
   isLoading?: boolean;
+  /** Enable inline editing of pending qty columns. */
+  editable?: boolean;
+  /** Called when the user saves inline qty edits for a line. */
+  onInlineUpdate?: (
+    lineItem: LineItem,
+    patch: Record<string, number>,
+  ) => Promise<void>;
 }
 
 export function PurchaseLineItemsTable({
@@ -69,11 +77,48 @@ export function PurchaseLineItemsTable({
   documentNo,
   documentType = "order",
   isLoading = false,
+  editable = false,
+  onInlineUpdate,
 }: PurchaseLineItemsTableProps) {
   const [itemToRemove, setItemToRemove] = useState<string | null>(null);
   const quantityColumns = getPurchaseLineQuantityConfig(documentType);
   const showQtyColumns = documentType === "order" || documentType === "return-order";
   const showBagsColumn = documentType !== "invoice";
+  const canInlineEdit = editable && showQtyColumns && !!onInlineUpdate;
+
+  const [pendingEdits, setPendingEdits] = useState<
+    Record<string, Record<string, number>>
+  >({});
+  const [savingId, setSavingId] = useState<string | null>(null);
+
+  const handleInlineChange = useCallback(
+    (itemId: string, bcField: string, next: number) => {
+      setPendingEdits((prev) => ({
+        ...prev,
+        [itemId]: { ...(prev[itemId] ?? {}), [bcField]: next },
+      }));
+    },
+    [],
+  );
+
+  const handleSaveInline = useCallback(
+    async (item: LineItem) => {
+      const patch = pendingEdits[item.id];
+      if (!patch || !onInlineUpdate) return;
+      try {
+        setSavingId(item.id);
+        await onInlineUpdate(item, patch);
+        setPendingEdits((prev) => {
+          const next = { ...prev };
+          delete next[item.id];
+          return next;
+        });
+      } finally {
+        setSavingId(null);
+      }
+    },
+    [pendingEdits, onInlineUpdate],
+  );
 
   const handleRemoveClick = useCallback((itemId: string) => {
     setItemToRemove(itemId);
@@ -188,9 +233,9 @@ export function PurchaseLineItemsTable({
                   Bags
                 </TableHead>
               )}
-              {onRemove && (
+              {(onRemove || canInlineEdit) && (
                 <TableHead className="text-primary w-12 text-center text-[10px] font-bold tracking-wider uppercase">
-                  Del
+                  {canInlineEdit ? "Act" : "Del"}
                 </TableHead>
               )}
             </TableRow>
@@ -230,24 +275,74 @@ export function PurchaseLineItemsTable({
                 </TableCell>
                 {showQtyColumns && (
                   <>
-                    <TableCell className="text-right">
-                      {getQuantityDisplayValue(
-                        item,
-                        quantityColumns.firstPendingKey,
-                      )}
-                    </TableCell>
+                    {canInlineEdit ? (
+                      <EditableQtyCell
+                        value={
+                          pendingEdits[item.id]?.[
+                            quantityColumns.firstPendingBcField
+                          ] ??
+                          (item[
+                            quantityColumns.firstPendingKey as keyof LineItem
+                          ] as number | undefined)
+                        }
+                        isDirty={
+                          pendingEdits[item.id]?.[
+                            quantityColumns.firstPendingBcField
+                          ] !== undefined
+                        }
+                        onChange={(next) =>
+                          handleInlineChange(
+                            item.id,
+                            quantityColumns.firstPendingBcField,
+                            next,
+                          )
+                        }
+                      />
+                    ) : (
+                      <TableCell className="text-right">
+                        {getQuantityDisplayValue(
+                          item,
+                          quantityColumns.firstPendingKey,
+                        )}
+                      </TableCell>
+                    )}
                     <TableCell className="text-right">
                       {getQuantityDisplayValue(
                         item,
                         quantityColumns.firstCompletedKey,
                       )}
                     </TableCell>
-                    <TableCell className="text-right">
-                      {getQuantityDisplayValue(
-                        item,
-                        quantityColumns.secondPendingKey,
-                      )}
-                    </TableCell>
+                    {canInlineEdit ? (
+                      <EditableQtyCell
+                        value={
+                          pendingEdits[item.id]?.[
+                            quantityColumns.secondPendingBcField
+                          ] ??
+                          (item[
+                            quantityColumns.secondPendingKey as keyof LineItem
+                          ] as number | undefined)
+                        }
+                        isDirty={
+                          pendingEdits[item.id]?.[
+                            quantityColumns.secondPendingBcField
+                          ] !== undefined
+                        }
+                        onChange={(next) =>
+                          handleInlineChange(
+                            item.id,
+                            quantityColumns.secondPendingBcField,
+                            next,
+                          )
+                        }
+                      />
+                    ) : (
+                      <TableCell className="text-right">
+                        {getQuantityDisplayValue(
+                          item,
+                          quantityColumns.secondPendingKey,
+                        )}
+                      </TableCell>
+                    )}
                     <TableCell className="text-right">
                       {getQuantityDisplayValue(
                         item,
@@ -282,19 +377,35 @@ export function PurchaseLineItemsTable({
                     {item.noOfBags || "-"}
                   </TableCell>
                 )}
-                {onRemove && (
+                {(onRemove || canInlineEdit) && (
                   <TableCell
                     className="text-center"
                     onClick={(e) => e.stopPropagation()}
                   >
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="text-destructive hover:text-destructive hover:bg-destructive/10 h-7 w-7"
-                      onClick={() => handleRemoveClick(item.id)}
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
+                    {canInlineEdit && pendingEdits[item.id] ? (
+                      <Button
+                        variant="default"
+                        size="icon"
+                        className="h-7 w-7"
+                        disabled={savingId === item.id}
+                        onClick={() => handleSaveInline(item)}
+                      >
+                        {savingId === item.id ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <Save className="h-3.5 w-3.5" />
+                        )}
+                      </Button>
+                    ) : onRemove ? (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="text-destructive hover:text-destructive hover:bg-destructive/10 h-7 w-7"
+                        onClick={() => handleRemoveClick(item.id)}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    ) : null}
                   </TableCell>
                 )}
               </TableRow>

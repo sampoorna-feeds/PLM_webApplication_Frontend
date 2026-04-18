@@ -20,6 +20,10 @@ export interface PurchaseLineQuantityConfig {
   firstCompletedKey: PurchaseLineQuantityKey;
   secondPendingKey: PurchaseLineQuantityKey;
   secondCompletedKey: PurchaseLineQuantityKey;
+  /** BC OData field name for the first pending qty (used in PATCH payloads) */
+  firstPendingBcField: string;
+  /** BC OData field name for the second pending qty (used in PATCH payloads) */
+  secondPendingBcField: string;
 }
 
 const ORDER_LIKE_CONFIG: PurchaseLineQuantityConfig = {
@@ -31,6 +35,8 @@ const ORDER_LIKE_CONFIG: PurchaseLineQuantityConfig = {
   firstCompletedKey: "qtyReceived",
   secondPendingKey: "qtyToInvoice",
   secondCompletedKey: "qtyInvoiced",
+  firstPendingBcField: "Qty_to_Receive",
+  secondPendingBcField: "Qty_to_Invoice",
 };
 
 const RETURN_LIKE_CONFIG: PurchaseLineQuantityConfig = {
@@ -42,6 +48,8 @@ const RETURN_LIKE_CONFIG: PurchaseLineQuantityConfig = {
   firstCompletedKey: "returnQtyShipped",
   secondPendingKey: "qtyToInvoice",
   secondCompletedKey: "qtyInvoiced",
+  firstPendingBcField: "Return_Qty_to_Ship",
+  secondPendingBcField: "Qty_to_Invoice",
 };
 
 const PURCHASE_LINE_QUANTITY_CONFIG: Record<

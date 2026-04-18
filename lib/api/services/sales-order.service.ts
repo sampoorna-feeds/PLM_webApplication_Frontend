@@ -4,12 +4,24 @@
  * For list/CRUD on existing orders, see sales-orders.service.ts.
  */
 
-import { apiPost } from "../client";
+import { apiPost, apiPatch } from "../client";
 import type { ApiError } from "../client";
 import type { SalesDocumentHeaderData } from "@/components/forms/sales/sales-document-header-data";
 
 const COMPANY =
   process.env.NEXT_PUBLIC_API_COMPANY || "Sampoorna Feeds Pvt. Ltd";
+const LINE_ENTITY = "SalesLine";
+const DOCUMENT_TYPE = "Order";
+
+function stripNullish(obj: Record<string, unknown>): Record<string, unknown> {
+  return Object.entries(obj).reduce(
+    (acc, [key, value]) => {
+      if (value !== undefined && value !== null) acc[key] = value;
+      return acc;
+    },
+    {} as Record<string, unknown>,
+  );
+}
 
 export interface CreateSalesDocumentResponse {
   orderId: string;
@@ -127,4 +139,20 @@ export async function addSingleSalesOrderLine(
     payload,
   );
   return result ?? { Line_No: 0 };
+}
+
+/** Update an existing sales order line (partial PATCH). Caller passes BC field names. */
+export async function updateSingleSalesOrderLine(
+  documentNo: string,
+  lineNo: number,
+  body: Record<string, unknown>,
+): Promise<{ Line_No: number; [key: string]: unknown }> {
+  const escapedNo = documentNo.replace(/'/g, "''");
+  const endpoint = `/${LINE_ENTITY}(Document_Type='${encodeURIComponent(DOCUMENT_TYPE)}',Document_No='${encodeURIComponent(escapedNo)}',Line_No=${lineNo})?company='${encodeURIComponent(COMPANY)}'`;
+  const payload = stripNullish(body);
+  const result = await apiPatch<{ Line_No: number; [key: string]: unknown }>(
+    endpoint,
+    payload,
+  );
+  return result ?? { Line_No: lineNo };
 }

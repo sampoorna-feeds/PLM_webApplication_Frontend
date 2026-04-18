@@ -146,6 +146,7 @@ import {
   deleteSinglePurchaseReturnOrderLine,
 } from "@/lib/api/services/purchase-return-order.service";
 import { patchPurchaseDocumentLineByKey } from "@/lib/api/services/purchase-document.service";
+import { updatePurchaseLine } from "@/lib/api/services/purchase-orders.service";
 import {
   createPurchaseOrder,
   addPurchaseOrderLineItems,
@@ -2434,6 +2435,37 @@ export function PurchaseCreateDocumentFormContent({
                     documentNo={createdOrderNo}
                     documentType={documentType}
                     isLoading={isHydratingDocument}
+                    editable={!isReadOnlyMode}
+                    onInlineUpdate={async (lineItem, patch) => {
+                      if (!createdOrderNo || !lineItem.lineNo) return;
+                      try {
+                        if (documentType === "order") {
+                          await updatePurchaseLine(
+                            createdOrderNo,
+                            lineItem.lineNo,
+                            patch,
+                          );
+                        } else {
+                          await patchPurchaseDocumentLineByKey(
+                            documentType as
+                              | "invoice"
+                              | "return-order"
+                              | "credit-memo",
+                            createdOrderNo,
+                            lineItem.lineNo,
+                            patch,
+                          );
+                        }
+                        await fetchLines(createdOrderNo);
+                      } catch (err) {
+                        const msg =
+                          err instanceof Error
+                            ? err.message
+                            : "Failed to update line";
+                        alert(`Error: ${msg}`);
+                        throw err;
+                      }
+                    }}
                   />
                 ) : (
                   <div className="text-muted-foreground rounded-md border border-dashed px-3 py-6 text-center text-xs">

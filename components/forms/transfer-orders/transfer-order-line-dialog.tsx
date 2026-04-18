@@ -76,7 +76,7 @@ export function TransferOrderLineDialog({
     Shipment_Date: defaultDimensions.Shipment_Date,
     Receipt_Date: defaultDimensions.Receipt_Date,
     Appl_to_Item_Entry: 0,
-    GST_Credit: "Availment", // Default to Availment
+    GST_Credit: "Non-Availment", // Default to Non-Availment
   });
 
   useEffect(() => {
@@ -99,7 +99,7 @@ export function TransferOrderLineDialog({
         Shipment_Date: defaultDimensions.Shipment_Date,
         Receipt_Date: defaultDimensions.Receipt_Date,
         Appl_to_Item_Entry: 0,
-        GST_Credit: "Availment",
+        GST_Credit: "Non-Availment",
       });
     }
   }, [line, documentNo, defaultDimensions, isOpen]);

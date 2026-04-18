@@ -2,8 +2,6 @@
 
 import {
   FormStackProvider,
-  FormStackPanel,
-  MiniAccessPanel,
 } from "@/components/form-stack";
 import { QCReceiptView } from "@/components/forms/qc-receipt/qc-receipt-view";
 
@@ -33,9 +31,6 @@ export default function PostedQCReceiptPage() {
             </div>
           </div>
         </div>
-
-        <FormStackPanel />
-        <MiniAccessPanel />
       </div>
     </FormStackProvider>
   );

@@ -124,14 +124,21 @@ export function QCReceiptDetailForm({ tabId, context }: QCReceiptDetailFormProps
             <SummaryField label="Vendor Name" value={selectedReceipt.Buy_from_Vendor_Name} />
             <SummaryField label="Vehicle No." value={selectedReceipt.Vehicle_No} />
             <SummaryField label="PO No." value={selectedReceipt.Purchase_Order_No} />
-            <SummaryField label="Order Date" value={formatDate(selectedReceipt.Order_Date)} />
             <SummaryField label="Purchase Receipt No." value={selectedReceipt.Purchase_Receipt_No} />
+            <SummaryField label="Order Date" value={formatDate(selectedReceipt.Order_Date)} />
             <SummaryField label="Vendor Shipment No." value={selectedReceipt.Vendor_Shipment_No} />
             <SummaryField label="Vendor Lot No." value={selectedReceipt.Vendor_Lot_No} />
             <SummaryField label="Party Type" value={selectedReceipt.Party_Type} />
-            <SummaryField label="Party No/Name" value={`${selectedReceipt.Party_No} ${selectedReceipt.Party_Name}`} />
+            <SummaryField label="Party No." value={selectedReceipt.Party_No} />
+            <SummaryField label="Party Name" value={selectedReceipt.Party_Name} />
             <SummaryField label="Address" value={selectedReceipt.Address} />
             <SummaryField label="Phone No." value={selectedReceipt.Phone_no} />
+          </SectionContainer>
+
+          {/* SECTION: CUSTOMER DETAILS */}
+          <SectionContainer title="Customer Details">
+            <SummaryField label="Customer No." value={selectedReceipt.Sell_to_Customer_No} />
+            <SummaryField label="Customer Name" value={selectedReceipt.Sell_to_Customer_Name} />
           </SectionContainer>
 
           {/* SECTION: QUANTITIES */}
@@ -145,8 +152,6 @@ export function QCReceiptDetailForm({ tabId, context }: QCReceiptDetailFormProps
             <SummaryField label="Total Under Dev." value={`${formatQty(selectedReceipt.Total_Under_Deviation_Acc_Qty)} ${selectedReceipt.Unit_of_Measure}`} />
             <SummaryField label="Total Rejected" value={`${formatQty(selectedReceipt.Total_Rejected_Quantity)} ${selectedReceipt.Unit_of_Measure}`} />
           </SectionContainer>
-
-
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-12 gap-y-10">
             {/* SECTION: DOCUMENT & JOURNAL */}
@@ -170,12 +175,14 @@ export function QCReceiptDetailForm({ tabId, context }: QCReceiptDetailFormProps
               <SummaryField label="Reject Bin Code" value={selectedReceipt.Reject_Bin_Code} />
               <SummaryField label="Rework Location" value={selectedReceipt.Rework_Location} />
               <SummaryField label="Rework Bin Code" value={selectedReceipt.Rework_Bin_Code} />
-              <SummaryField label="Center No/Type" value={`${selectedReceipt.Center_No} / ${selectedReceipt.Center_Type}`} />
+              <SummaryField label="Center No." value={selectedReceipt.Center_No} />
+              <SummaryField label="Center Type" value={selectedReceipt.Center_Type} />
               <SummaryField label="Operation No." value={selectedReceipt.Operation_No} />
               <SummaryField label="Operation Name" value={selectedReceipt.Operation_Name} />
             </SectionContainer>
           </div>
         </div>
+
 
         <Separator />
 

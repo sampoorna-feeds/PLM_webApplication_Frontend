@@ -25,6 +25,7 @@ import { buildQCReceiptFilterString } from "./utils/filter-builder";
 export function useQCReceipts(initialFilters?: {
   statusFilter?: string;
   isPosted?: boolean;
+  skipDateFilter?: boolean;
 }) {
   const [receipts, setReceipts] = useState<QCReceiptHeader[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -40,7 +41,16 @@ export function useQCReceipts(initialFilters?: {
   const [columnFilters, setColumnFilters] = useState<
     Record<string, { value: string; valueTo?: string }>
   >({});
-  const [dateFilter, setDateFilter] = useState<{ fromDate: string; toDate: string } | null>(null);
+  const [dateFilter, setDateFilter] = useState<{ fromDate: string; toDate: string } | null>(
+    initialFilters?.skipDateFilter
+      ? {
+          fromDate: new Date(new Date().setDate(new Date().getDate() - 30))
+            .toISOString()
+            .split("T")[0],
+          toDate: new Date().toISOString().split("T")[0],
+        }
+      : null
+  );
 
   const [visibleColumns, setVisibleColumns] = useState<string[]>(() =>
     typeof window !== "undefined"

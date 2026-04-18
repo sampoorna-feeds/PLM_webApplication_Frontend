@@ -43,6 +43,7 @@ export default function QCReceiptPage() {
               <TabsContent value={activeTab} className="flex-1 mt-0 h-full">
                 <QCReceiptView 
                   statusFilter={activeTab === "all" ? undefined : activeTab} 
+                  skipDateFilter={true}
                 />
               </TabsContent>
             </div>

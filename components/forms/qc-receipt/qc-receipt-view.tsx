@@ -12,9 +12,10 @@ import { Button } from "@/components/ui/button";
 interface QCReceiptViewProps {
   statusFilter?: string;
   isPosted?: boolean;
+  skipDateFilter?: boolean;
 }
 
-export function QCReceiptView({ statusFilter, isPosted }: QCReceiptViewProps) {
+export function QCReceiptView({ statusFilter, isPosted, skipDateFilter }: QCReceiptViewProps) {
 
   const { openTab } = useFormStackContext();
   const {
@@ -41,7 +42,7 @@ export function QCReceiptView({ statusFilter, isPosted }: QCReceiptViewProps) {
     onResetColumns,
     onShowAllColumns,
     refetch,
-  } = useQCReceipts({ statusFilter, isPosted });
+  } = useQCReceipts({ statusFilter, isPosted, skipDateFilter });
 
   const handleRowClick = (receipt: QCReceiptHeader) => {
     openTab("qc-receipt-detail", {
@@ -54,7 +55,7 @@ export function QCReceiptView({ statusFilter, isPosted }: QCReceiptViewProps) {
     setDateFilter(filters);
   };
 
-  if (!dateFilter) {
+  if (!dateFilter && !skipDateFilter) {
     return (
       <QCFilterForm
         onApply={handleApplyFilters}

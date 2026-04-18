@@ -294,3 +294,31 @@ export async function updateQCReceiptLine(
     headers: { "If-Match": etag },
   });
 }
+
+export async function updateQCReceiptHeader(
+  receiptNo: string,
+  etag: string,
+  updatedFields: Partial<QCReceiptHeader>,
+): Promise<QCReceiptHeader> {
+  const escaped = receiptNo.replace(/'/g, "''");
+  const endpoint = `/QCReceiptH('${escaped}')?company='${encodeURIComponent(COMPANY)}'`;
+
+  // Filter out read-only or empty fields
+  const data = Object.entries(updatedFields).reduce(
+    (acc, [key, value]) => {
+      if (
+        value !== undefined &&
+        value !== null &&
+        !["No", "@odata.etag"].includes(key)
+      ) {
+        acc[key] = value;
+      }
+      return acc;
+    },
+    {} as Record<string, any>,
+  );
+
+  return await apiPatch<QCReceiptHeader>(endpoint, data, {
+    headers: { "If-Match": etag },
+  });
+}

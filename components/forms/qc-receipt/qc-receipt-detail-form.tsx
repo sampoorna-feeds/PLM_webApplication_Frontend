@@ -1,11 +1,18 @@
 "use client";
 
-import { useQCReceiptLines, useQCReceiptPosting } from "./use-qc-receipts";
+import { useState, useEffect } from "react";
+import { toast } from "sonner";
+import { useQCReceiptLines, useQCReceiptPosting, useQCReceiptUpdate } from "./use-qc-receipts";
 import { QCReceiptLinesTable } from "./qc-receipt-lines-table";
 import type { QCReceiptHeader, QCReceiptLine } from "@/lib/api/services/qc-receipt.service";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
-import { Loader2, Send } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { DateInput } from "@/components/ui/date-input";
+import { Loader2, Send, Save, RotateCcw } from "lucide-react";
 import { useFormStackContext } from "@/lib/form-stack/form-stack-context";
 
 interface QCReceiptDetailFormProps {
@@ -16,22 +23,50 @@ interface QCReceiptDetailFormProps {
 
 export function QCReceiptDetailForm({ tabId, context }: QCReceiptDetailFormProps) {
   const { closeTab } = useFormStackContext();
-  const selectedReceipt = context?.receipt as QCReceiptHeader | undefined;
+  const initialReceipt = context?.receipt as QCReceiptHeader | undefined;
   const isPosted = !!context?.isPosted;
   
+  const [receipt, setReceipt] = useState<QCReceiptHeader | null>(initialReceipt || null);
+  const [editedFields, setEditedFields] = useState<Partial<QCReceiptHeader>>({});
+  
   const { lines, setLines, isLoading: isLinesLoading } = useQCReceiptLines(
-    selectedReceipt?.No || null,
+    receipt?.No || null,
     isPosted
   );
   const { postReceipt, isPosting } = useQCReceiptPosting();
+  const { updateHeader, isUpdating: isHeaderUpdating } = useQCReceiptUpdate();
 
-  if (!selectedReceipt) {
+  useEffect(() => {
+    if (initialReceipt) setReceipt(initialReceipt);
+  }, [initialReceipt]);
+
+  if (!receipt) {
     return <div className="p-4">No receipt selected</div>;
   }
 
+  const handleFieldChange = (field: keyof QCReceiptHeader, value: any) => {
+    setEditedFields(prev => ({ ...prev, [field]: value }));
+    setReceipt(prev => prev ? ({ ...prev, [field]: value }) : null);
+  };
+
+  const handleResetHeader = () => {
+    setReceipt(initialReceipt || null);
+    setEditedFields({});
+  };
+
+  const handleSaveHeader = async () => {
+    if (!receipt || Object.keys(editedFields).length === 0) return;
+    
+    const result = await updateHeader(receipt.No, receipt["@odata.etag"] || "*", editedFields);
+    if (result) {
+      setReceipt(result);
+      setEditedFields({});
+    }
+  };
+
   const handlePost = async () => {
-    if (!selectedReceipt) return;
-    const success = await postReceipt(selectedReceipt, lines);
+    if (!receipt) return;
+    const success = await postReceipt(receipt, lines);
     if (success) {
       closeTab(tabId);
     }
@@ -45,6 +80,8 @@ export function QCReceiptDetailForm({ tabId, context }: QCReceiptDetailFormProps
     });
   };
 
+  const isHeaderDirty = Object.keys(editedFields).length > 0;
+
   const formatQty = (val?: number) => {
     if (val === undefined || val === null) return "-";
     return val.toLocaleString();
@@ -54,19 +91,43 @@ export function QCReceiptDetailForm({ tabId, context }: QCReceiptDetailFormProps
     <div className="h-full overflow-y-auto bg-background">
       <div className="flex flex-col gap-8 p-6 pb-20">
         {/* ACTION BAR */}
-        <div className="flex items-center justify-between border-b pb-4 sticky top-0 bg-background/95 backdrop-blur-sm z-10">
+        <div className="flex items-center justify-between border-b pb-4 sticky top-0 bg-background/95 backdrop-blur-sm z-20">
           <div>
-            <h1 className="text-xl font-bold tracking-tight">{selectedReceipt.No}</h1>
+            <h1 className="text-xl font-bold tracking-tight">{receipt.No}</h1>
             <p className="text-xs text-muted-foreground uppercase font-semibold">
-              {selectedReceipt.Item_Name} • {selectedReceipt.Buy_from_Vendor_Name}
+              {receipt.Item_Name} • {receipt.Buy_from_Vendor_Name}
             </p>
           </div>
           
           <div className="flex items-center gap-3">
+             {isHeaderDirty && (
+               <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleResetHeader}
+                  disabled={isHeaderUpdating}
+                  className="gap-2 h-8"
+                >
+                  <RotateCcw className="h-4 w-4" />
+                  Reset
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={handleSaveHeader}
+                  disabled={isHeaderUpdating}
+                  className="gap-2 h-8 bg-primary/10 text-primary hover:bg-primary/20 border-primary/20"
+                >
+                  {isHeaderUpdating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                  Save Header Changes
+                </Button>
+               </>
+             )}
+
              <div className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
-                selectedReceipt.Approval_Status === "Approved" ? "bg-green-100 text-green-700" : "bg-orange-100 text-orange-700"
+                receipt.Approval_Status === "Approved" ? "bg-green-100 text-green-700" : "bg-orange-100 text-orange-700"
               }`}>
-                {selectedReceipt.Approval_Status}
+                {receipt.Approval_Status}
               </div>
 
             {!isPosted && (
@@ -76,7 +137,8 @@ export function QCReceiptDetailForm({ tabId, context }: QCReceiptDetailFormProps
                 disabled={
                   isPosting ||
                   isLinesLoading ||
-                  selectedReceipt.Approval_Status !== "Approved"
+                  isHeaderDirty ||
+                  receipt.Approval_Status !== "Approved"
                 }
                 className="gap-2 h-8"
               >
@@ -88,97 +150,125 @@ export function QCReceiptDetailForm({ tabId, context }: QCReceiptDetailFormProps
         </div>
 
         <div className="flex flex-col gap-10">
-          {/* SECTION: GENERAL & STATUS */}
-          <SectionContainer title="General & Status">
-             <SummaryField label="QC Receipt No." value={selectedReceipt.No} />
-             <SummaryField label="QC Date" value={formatDate(selectedReceipt.QC_Date)} />
-             <SummaryField label="Receipt Date" value={formatDate(selectedReceipt.Receipt_Date)} />
-             <SummaryField label="Checked By" value={selectedReceipt.Checked_By} />
-             <SummaryField label="Approved By" value={selectedReceipt.Approved_By} />
-             <SummaryField label="Approval Status" value={selectedReceipt.Approval_Status} />
-             <SummaryField label="Comment" value={selectedReceipt.Comment} />
-             <SummaryField label="Sample QC" value={selectedReceipt.Sample_QC ? "Yes" : "No"} />
-             <SummaryField label="Create Bardana" value={selectedReceipt.Create_Bardana ? "Yes" : "No"} />
-             <SummaryField label="Approve" value={selectedReceipt.Approve ? "Yes" : "No"} />
-             <SummaryField label="Accepted w/ Approval" value={selectedReceipt.Accepted_With_Approval ? "Yes" : "No"} />
+          <SectionContainer title="">
+             <SummaryField label="No." value={receipt.No} />
+             <SummaryField label="Item No." value={receipt.Item_No} />
+             <SummaryField label="Vehicle No." value={receipt.Vehicle_No} />
+             <SummaryField label="Item Code" value={receipt.Item_No} />
+             <SummaryField label="Item Name" value={receipt.Item_Name} />
+             <SummaryField label="Unit Of Measure" value={receipt.Unit_of_Measure} />
+             <SummaryField label="Receipt Date" value={formatDate(receipt.Receipt_Date)} />
+             <SummaryField label="Location Code" value={receipt.Location_Code} />
           </SectionContainer>
 
-          {/* SECTION: ITEM DETAILS */}
-          <SectionContainer title="Item Details">
-            <SummaryField label="Item No." value={selectedReceipt.Item_No} />
-            <SummaryField label="Item Name" value={selectedReceipt.Item_Name} />
-            <SummaryField label="Item Description" value={selectedReceipt.Item_Description} />
-            <SummaryField label="UOM" value={selectedReceipt.Unit_of_Measure} />
-            <SummaryField label="Item Tracking" value={selectedReceipt.Item_Tracking} />
-            <SummaryField label="Sample Quantity" value={formatQty(selectedReceipt.Sample_Quantity)} />
-            <SummaryField label="Remaining Qty" value={formatQty(selectedReceipt.Remaining_Quantity)} />
-            <SummaryField label="No. of Container" value={formatQty(selectedReceipt.No_of_Container)} />
-            <SummaryField label="Mfg Date" value={formatDate(selectedReceipt.Mfg_Date)} />
-            <SummaryField label="Exp Date" value={formatDate(selectedReceipt.Exp_Date)} />
-            <SummaryField label="Rebate %" value={selectedReceipt.Rabete_Percent} />
-          </SectionContainer>
+          <div className="rounded-xl border bg-muted/20 p-6 shadow-sm">
+            <SectionContainer title="">
+               <EditFormField 
+                 label="QC Date" 
+                 isReadOnly={isPosted}
+               >
+                 <DateInput 
+                   value={receipt.QC_Date} 
+                   onChange={(val) => handleFieldChange("QC_Date", val)}
+                   disabled={isPosted}
+                 />
+               </EditFormField>
 
-          {/* SECTION: VENDOR & ORDER */}
-          <SectionContainer title="Vendor & Order info">
-            <SummaryField label="Vendor No." value={selectedReceipt.Buy_from_Vendor_No} />
-            <SummaryField label="Vendor Name" value={selectedReceipt.Buy_from_Vendor_Name} />
-            <SummaryField label="Vehicle No." value={selectedReceipt.Vehicle_No} />
-            <SummaryField label="PO No." value={selectedReceipt.Purchase_Order_No} />
-            <SummaryField label="Purchase Receipt No." value={selectedReceipt.Purchase_Receipt_No} />
-            <SummaryField label="Order Date" value={formatDate(selectedReceipt.Order_Date)} />
-            <SummaryField label="Vendor Shipment No." value={selectedReceipt.Vendor_Shipment_No} />
-            <SummaryField label="Vendor Lot No." value={selectedReceipt.Vendor_Lot_No} />
-            <SummaryField label="Party Type" value={selectedReceipt.Party_Type} />
-            <SummaryField label="Party No." value={selectedReceipt.Party_No} />
-            <SummaryField label="Party Name" value={selectedReceipt.Party_Name} />
-            <SummaryField label="Address" value={selectedReceipt.Address} />
-            <SummaryField label="Phone No." value={selectedReceipt.Phone_no} />
-          </SectionContainer>
+               <EditFormField label="Inspection QTY" isReadOnly={isPosted}>
+                 <Input 
+                   type="number" 
+                   value={receipt.Inspection_Quantity} 
+                   onChange={(e) => handleFieldChange("Inspection_Quantity", Number(e.target.value))}
+                   disabled={isPosted}
+                 />
+               </EditFormField>
 
-          {/* SECTION: CUSTOMER DETAILS */}
-          <SectionContainer title="Customer Details">
-            <SummaryField label="Customer No." value={selectedReceipt.Sell_to_Customer_No} />
-            <SummaryField label="Customer Name" value={selectedReceipt.Sell_to_Customer_Name} />
-          </SectionContainer>
+               <EditFormField label="Quantity to Accpt" isReadOnly={isPosted}>
+                 <Input 
+                   type="number" 
+                   value={receipt.Quantity_to_Accept} 
+                   onChange={(e) => handleFieldChange("Quantity_to_Accept", Number(e.target.value))}
+                   disabled={isPosted}
+                 />
+               </EditFormField>
 
-          {/* SECTION: QUANTITIES */}
-          <SectionContainer title="Quantities">
-            <SummaryField label="Inspection Qty" value={`${formatQty(selectedReceipt.Inspection_Quantity)} ${selectedReceipt.Unit_of_Measure}`} />
-            <SummaryField label="Qty to Accept" value={`${formatQty(selectedReceipt.Quantity_to_Accept)} ${selectedReceipt.Unit_of_Measure}`} />
-            <SummaryField label="Qty Accept (Dev.)" value={`${formatQty(selectedReceipt.Qty_to_Accept_with_Deviation)} ${selectedReceipt.Unit_of_Measure}`} />
-            <SummaryField label="Qty to Reject" value={`${formatQty(selectedReceipt.Quantity_to_Reject)} ${selectedReceipt.Unit_of_Measure}`} />
-            <SummaryField label="Qty to Rework" value={`${formatQty(selectedReceipt.Quantity_to_Rework)} ${selectedReceipt.Unit_of_Measure}`} />
-            <SummaryField label="Total Accepted" value={`${formatQty(selectedReceipt.Total_Accepted_Quantity)} ${selectedReceipt.Unit_of_Measure}`} />
-            <SummaryField label="Total Under Dev." value={`${formatQty(selectedReceipt.Total_Under_Deviation_Acc_Qty)} ${selectedReceipt.Unit_of_Measure}`} />
-            <SummaryField label="Total Rejected" value={`${formatQty(selectedReceipt.Total_Rejected_Quantity)} ${selectedReceipt.Unit_of_Measure}`} />
-          </SectionContainer>
+               <EditFormField label="Qty Accept (Dev.)" isReadOnly={isPosted}>
+                 <Input 
+                   type="number" 
+                   value={receipt.Qty_to_Accept_with_Deviation} 
+                   onChange={(e) => handleFieldChange("Qty_to_Accept_with_Deviation", Number(e.target.value))}
+                   disabled={isPosted}
+                 />
+               </EditFormField>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-12 gap-y-10">
-            {/* SECTION: DOCUMENT & JOURNAL */}
-            <SectionContainer title="Document & Journal">
-               <SummaryField label="Document Type" value={selectedReceipt.Document_Type} />
-               <SummaryField label="Document No." value={selectedReceipt.Document_No} />
-               <SummaryField label="Document Line No." value={selectedReceipt.Document_Line_No} />
-               <SummaryField label="Journal Template" value={selectedReceipt.Item_Journal_Template_Name} />
-               <SummaryField label="Journal Batch" value={selectedReceipt.Item_General_Batch_Name} />
-               <SummaryField label="Journal Line No." value={selectedReceipt.Item_Journal_Line_No} />
-            </SectionContainer>
+               <EditFormField label="Quantity to reject" isReadOnly={isPosted}>
+                 <Input 
+                   type="number" 
+                   value={receipt.Quantity_to_Reject} 
+                   onChange={(e) => handleFieldChange("Quantity_to_Reject", Number(e.target.value))}
+                   disabled={isPosted}
+                 />
+               </EditFormField>
 
-             {/* SECTION: LOCATION & STORAGE */}
-             <SectionContainer title="Location & Storage">
-              <SummaryField label="Location Code" value={selectedReceipt.Location_Code} />
-              <SummaryField label="QC Location" value={selectedReceipt.QC_Location} />
-              <SummaryField label="QC Bin Code" value={selectedReceipt.QC_Bin_Code} />
-              <SummaryField label="Store Location" value={selectedReceipt.Store_Location_Code} />
-              <SummaryField label="Store Bin Code" value={selectedReceipt.Store_Bin_Code} />
-              <SummaryField label="Rejection Location" value={selectedReceipt.Rejection_Location} />
-              <SummaryField label="Reject Bin Code" value={selectedReceipt.Reject_Bin_Code} />
-              <SummaryField label="Rework Location" value={selectedReceipt.Rework_Location} />
-              <SummaryField label="Rework Bin Code" value={selectedReceipt.Rework_Bin_Code} />
-              <SummaryField label="Center No." value={selectedReceipt.Center_No} />
-              <SummaryField label="Center Type" value={selectedReceipt.Center_Type} />
-              <SummaryField label="Operation No." value={selectedReceipt.Operation_No} />
-              <SummaryField label="Operation Name" value={selectedReceipt.Operation_Name} />
+               <div className="flex flex-col gap-4 mt-1">
+                  <div className="flex items-center space-x-2">
+                    <Checkbox 
+                      id="approve" 
+                      checked={receipt.Approve} 
+                      onCheckedChange={(val) => handleFieldChange("Approve", val)}
+                      disabled={isPosted}
+                    />
+                    <Label htmlFor="approve" className="text-[10px] uppercase font-bold text-muted-foreground/60">Approve</Label>
+                  </div>
+
+                  <div className="flex items-center space-x-2">
+                    <Checkbox 
+                      id="accepted-with-approval" 
+                      checked={receipt.Accepted_With_Approval} 
+                      onCheckedChange={(val) => handleFieldChange("Accepted_With_Approval", val)}
+                      disabled={isPosted}
+                    />
+                    <Label htmlFor="accepted-with-approval" className="text-[10px] uppercase font-bold text-muted-foreground/60">Accepted w/ Approval</Label>
+                  </div>
+
+                  <div className="flex items-center space-x-2">
+                    <Checkbox 
+                      id="create-bardana" 
+                      checked={receipt.Create_Bardana} 
+                      onCheckedChange={(val) => handleFieldChange("Create_Bardana", val)}
+                      disabled={isPosted}
+                    />
+                    <Label htmlFor="create-bardana" className="text-[10px] uppercase font-bold text-muted-foreground/60">Create Bardana</Label>
+                  </div>
+               </div>
+
+               <EditFormField label="Rebate %" isReadOnly={isPosted}>
+                 <Input 
+                   type="number" 
+                   value={receipt.Rabete_Percent} 
+                   onChange={(e) => handleFieldChange("Rabete_Percent", Number(e.target.value))}
+                   disabled={isPosted || !receipt.Accepted_With_Approval}
+                 />
+               </EditFormField>
+
+               <EditFormField label="Store Location Code" isReadOnly={isPosted}>
+                 <Input 
+                   value={receipt.Store_Location_Code || ""} 
+                   onChange={(e) => handleFieldChange("Store_Location_Code", e.target.value)}
+                   disabled={isPosted}
+                 />
+               </EditFormField>
+
+               <div className="md:col-span-2 lg:col-span-3">
+                 <EditFormField label="Comments" isReadOnly={isPosted}>
+                   <Textarea 
+                     value={receipt.Comment || ""} 
+                     onChange={(e) => handleFieldChange("Comment", e.target.value)}
+                     disabled={isPosted}
+                     className="min-h-[80px]"
+                   />
+                 </EditFormField>
+               </div>
             </SectionContainer>
           </div>
         </div>
@@ -210,13 +300,34 @@ export function QCReceiptDetailForm({ tabId, context }: QCReceiptDetailFormProps
   );
 }
 
+function EditFormField({ 
+  label, 
+  children, 
+  isReadOnly 
+}: { 
+  label: string; 
+  children: React.ReactNode; 
+  isReadOnly?: boolean 
+}) {
+  return (
+    <div className="flex flex-col gap-1.5 overflow-hidden">
+      <Label className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground/60">{label}</Label>
+      <div className="min-h-10">
+        {children}
+      </div>
+    </div>
+  );
+}
+
 function SectionContainer({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="flex flex-col gap-4">
-      <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground/80 border-b border-muted py-1 flex items-center justify-between">
-        {title}
-      </h2>
-      <div className="grid grid-cols-2 gap-x-8 gap-y-4 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+      {title && (
+        <h2 className="text-[11px] font-bold uppercase tracking-[0.2em] text-muted-foreground/50 border-b border-muted py-2 flex items-center justify-between">
+          {title}
+        </h2>
+      )}
+      <div className="grid grid-cols-2 gap-x-8 gap-y-6 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
         {children}
       </div>
     </div>

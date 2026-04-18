@@ -247,7 +247,7 @@ export function QCReceiptDetailForm({ tabId, context }: QCReceiptDetailFormProps
                    type="number" 
                    value={receipt.Rabete_Percent} 
                    onChange={(e) => handleFieldChange("Rabete_Percent", Number(e.target.value))}
-                   disabled={isPosted}
+                   disabled={isPosted || !receipt.Accepted_With_Approval}
                  />
                </EditFormField>
 

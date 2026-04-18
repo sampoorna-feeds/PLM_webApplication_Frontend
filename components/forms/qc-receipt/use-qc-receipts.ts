@@ -8,6 +8,7 @@ import {
   postQCReceipt,
   getPostedQCReceiptsWithCount,
   getPostedQCReceiptLines,
+  updateQCReceiptLine,
   type QCReceiptHeader,
   type QCReceiptLine,
 } from "@/lib/api/services/qc-receipt.service";
@@ -291,8 +292,9 @@ export function useQCReceiptLines(
     fetchLines();
   }, [receiptNo, isPosted]);
 
-  return { lines, isLoading };
+  return { lines, setLines, isLoading };
 }
+
 
 export function useQCReceiptPosting() {
   const [isPosting, setIsPosting] = useState(false);
@@ -317,3 +319,33 @@ export function useQCReceiptPosting() {
 
   return { postReceipt, isPosting };
 }
+
+export function useQCReceiptLineUpdate() {
+  const [isUpdating, setIsUpdating] = useState(false);
+
+  const updateLine = useCallback(
+    async (
+      receiptNo: string,
+      lineNo: number,
+      etag: string,
+      fields: Partial<QCReceiptLine>,
+    ) => {
+      setIsUpdating(true);
+      try {
+        const result = await updateQCReceiptLine(receiptNo, lineNo, etag, fields);
+        toast.success("Line updated successfully");
+        return result;
+      } catch (error: any) {
+        console.error("Error updating QC line:", error);
+        toast.error(error.message || "Failed to update line");
+        return null;
+      } finally {
+        setIsUpdating(false);
+      }
+    },
+    [],
+  );
+
+  return { updateLine, isUpdating };
+}
+

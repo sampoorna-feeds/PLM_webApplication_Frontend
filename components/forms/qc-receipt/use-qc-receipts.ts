@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { toast } from "sonner";
 import {
   getQCReceiptsWithCount,
@@ -31,6 +31,7 @@ export function useQCReceipts(initialFilters?: {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
 
+
   const [sortColumn, setSortColumn] = useState<string | null>("QC_Date");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
 
@@ -38,12 +39,17 @@ export function useQCReceipts(initialFilters?: {
   const [columnFilters, setColumnFilters] = useState<
     Record<string, { value: string; valueTo?: string }>
   >({});
+  const [dateFilter, setDateFilter] = useState<{ fromDate: string; toDate: string } | null>(null);
 
   const [visibleColumns, setVisibleColumns] = useState<string[]>(() =>
     typeof window !== "undefined"
       ? loadVisibleColumns()
       : getDefaultVisibleColumns(),
   );
+
+  const [hasMore, setHasMore] = useState(true);
+  const [isFetchingMore, setIsFetchingMore] = useState(false);
+
 
   const statusFilter = initialFilters?.statusFilter;
 
@@ -58,10 +64,17 @@ export function useQCReceipts(initialFilters?: {
   }, [sortColumn, sortDirection]);
 
   const fetchReceipts = useCallback(async () => {
+    if (!dateFilter) return;
+    
     setIsLoading(true);
+
     try {
       const filterParts: string[] = [];
       
+      // Date filter
+      if (dateFilter.fromDate) filterParts.push(`QC_Date ge ${dateFilter.fromDate}`);
+      if (dateFilter.toDate) filterParts.push(`QC_Date le ${dateFilter.toDate}`);
+
       // Status filter from tabs
       if (statusFilter) {
         filterParts.push(`Approval_Status eq '${statusFilter}'`);
@@ -122,7 +135,13 @@ export function useQCReceipts(initialFilters?: {
     searchQuery,
     columnFilters,
     statusFilter,
+    dateFilter,
+    initialFilters?.isPosted
   ]);
+
+
+
+
 
   useEffect(() => {
     fetchReceipts();
@@ -154,10 +173,15 @@ export function useQCReceipts(initialFilters?: {
     setCurrentPage(1);
   }, []);
 
+
+
+
   const handleSearch = useCallback((query: string) => {
     setSearchQuery(query);
     setCurrentPage(1);
   }, []);
+
+
 
   const handleColumnToggle = useCallback((columnId: string) => {
     setVisibleColumns((prev) => {
@@ -189,6 +213,8 @@ export function useQCReceipts(initialFilters?: {
     setCurrentPage(1);
   }, []);
 
+
+
   const handleColumnFilter = useCallback(
     (columnId: string, value: string, valueTo?: string) => {
       setColumnFilters((prev) => {
@@ -203,6 +229,8 @@ export function useQCReceipts(initialFilters?: {
     [],
   );
 
+
+
   return {
     receipts,
     isLoading,
@@ -214,7 +242,9 @@ export function useQCReceipts(initialFilters?: {
     sortDirection,
     searchQuery,
     columnFilters,
+    dateFilter,
     visibleColumns,
+    setDateFilter,
     onPageSizeChange: handlePageSizeChange,
     onPageChange: handlePageChange,
     onSort: handleSort,
@@ -227,6 +257,8 @@ export function useQCReceipts(initialFilters?: {
     refetch: fetchReceipts,
   };
 }
+
+
 
 export function useQCReceiptLines(
   receiptNo: string | null,

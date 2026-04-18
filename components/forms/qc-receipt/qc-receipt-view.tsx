@@ -6,6 +6,7 @@ import { QCReceiptFilterBar } from "./qc-receipt-filter-bar";
 import { QCReceiptActiveFilters } from "./active-filters";
 import { useQCReceipts } from "./use-qc-receipts";
 import type { QCReceiptHeader } from "@/lib/api/services/qc-receipt.service";
+import { QCFilterForm, type QCDateFilters } from "./qc-filter-form";
 import { Button } from "@/components/ui/button";
 
 interface QCReceiptViewProps {
@@ -14,6 +15,7 @@ interface QCReceiptViewProps {
 }
 
 export function QCReceiptView({ statusFilter, isPosted }: QCReceiptViewProps) {
+
   const { openTab } = useFormStackContext();
   const {
     receipts,
@@ -27,6 +29,8 @@ export function QCReceiptView({ statusFilter, isPosted }: QCReceiptViewProps) {
     visibleColumns,
     searchQuery,
     columnFilters,
+    dateFilter,
+    setDateFilter,
     onSort,
     onPageChange,
     onPageSizeChange,
@@ -45,6 +49,20 @@ export function QCReceiptView({ statusFilter, isPosted }: QCReceiptViewProps) {
       context: { receipt, isPosted },
     });
   };
+
+  const handleApplyFilters = (filters: QCDateFilters) => {
+    setDateFilter(filters);
+  };
+
+  if (!dateFilter) {
+    return (
+      <QCFilterForm
+        onApply={handleApplyFilters}
+        title={isPosted ? "Posted QC Receipts" : "QC Receipts"}
+        description={isPosted ? "View processed quality control receipts by date range" : "Manage quality control receipts by date range"}
+      />
+    );
+  }
 
   return (
     <div className="flex h-full flex-col gap-2">
@@ -153,3 +171,5 @@ export function QCReceiptView({ statusFilter, isPosted }: QCReceiptViewProps) {
     </div>
   );
 }
+
+

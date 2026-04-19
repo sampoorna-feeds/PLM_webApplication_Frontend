@@ -81,6 +81,7 @@ interface FormState {
   uom: string;
   quantity: string;
   unitPrice: string;
+  mrp: string;
   discount: string;
   exempted: boolean;
   foc: boolean;
@@ -97,6 +98,7 @@ const EMPTY_FORM: FormState = {
   uom: "",
   quantity: "",
   unitPrice: "",
+  mrp: "",
   discount: "",
   exempted: false,
   foc: false,
@@ -129,6 +131,7 @@ export function SalesAddLineDialog({
   open,
   onOpenChange,
   documentNo,
+  documentType,
   locationCode,
   customerPriceGroup,
   orderDate,
@@ -229,14 +232,16 @@ export function SalesAddLineDialog({
     })
       .then((price) => {
         if (cancelled) return;
-        console.log("[SalesPriceAPI] parsed result:", price);
         if (!price) return;
         const up = Number(price.Unit_Price ?? 0);
-        if (up > 0) setForm((p) => ({ ...p, unitPrice: String(up) }));
+        const mrp = Number(price.MRP ?? 0);
+        setForm((p) => ({
+          ...p,
+          ...(up > 0 ? { unitPrice: String(up) } : {}),
+          ...(mrp > 0 ? { mrp: String(mrp) } : {}),
+        }));
       })
-      .catch((err) => {
-        console.error("[SalesPriceAPI] error:", err);
-      });
+      .catch(() => {});
     return () => {
       cancelled = true;
     };
@@ -282,6 +287,7 @@ export function SalesAddLineDialog({
           description: "",
           uom: "",
           unitPrice: "",
+          mrp: "",
           exempted: false,
           gstGroupCode: "",
           hsnSacCode: "",
@@ -406,6 +412,7 @@ export function SalesAddLineDialog({
         uom: form.uom || undefined,
         quantity: parseFloat(form.quantity) || 0,
         unitPrice: parseFloat(form.unitPrice) || undefined,
+        mrp: documentType === "order" && form.mrp ? parseFloat(form.mrp) || undefined : undefined,
         discount: parseFloat(form.discount) || undefined,
         exempted: form.exempted || undefined,
         foc: form.foc || undefined,
@@ -673,6 +680,29 @@ export function SalesAddLineDialog({
                       />
                     </ClearableField>
                   </div>
+
+                  {documentType === "order" && form.type === "Item" && (
+                    <div className="space-y-1">
+                      <FieldTitle>MRP</FieldTitle>
+                      <ClearableField
+                        value={form.mrp}
+                        onClear={() => set("mrp", "")}
+                      >
+                        <Input
+                          type="text"
+                          inputMode="decimal"
+                          value={form.mrp}
+                          onChange={(e) => setNum("mrp", e.target.value)}
+                          onWheel={(e) => e.currentTarget.blur()}
+                          placeholder="0.00"
+                          className={cn(
+                            "h-8 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none",
+                            fieldInputClass,
+                          )}
+                        />
+                      </ClearableField>
+                    </div>
+                  )}
 
                   <div className="space-y-1">
                     <FieldTitle>Discount</FieldTitle>

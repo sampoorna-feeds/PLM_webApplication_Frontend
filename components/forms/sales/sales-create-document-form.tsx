@@ -1499,6 +1499,7 @@ export function SalesCreateDocumentFormContent({
         open={isAddLineDialogOpen}
         onOpenChange={setIsAddLineDialogOpen}
         documentNo={currentDocNo}
+        documentType={documentType}
         locationCode={orderHeader?.Location_Code || formData.locationCode || ""}
         customerPriceGroup={formData.customerPriceGroup}
         orderDate={formData.orderDate || formData.postingDate}

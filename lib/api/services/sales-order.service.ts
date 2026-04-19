@@ -42,6 +42,7 @@ export interface SalesDocumentLineItem {
   uom?: string;
   quantity: number;
   unitPrice?: number;
+  mrp?: number;
   discount?: number;
   amount?: number;
   exempted?: boolean;
@@ -128,6 +129,7 @@ export async function addSingleSalesOrderLine(
   if (line.uom) payload.Unit_of_Measure_Code = line.uom;
   if (line.description != null) payload.Description = line.description;
   if (line.unitPrice != null) payload.Unit_Price = line.unitPrice;
+  if (line.mrp != null) payload.MRP = line.mrp;
   if (line.discount != null) payload.Line_Discount_Percent = line.discount;
   if (line.exempted != null) payload.Exempted = line.exempted;
   if (line.gstGroupCode) payload.GST_Group_Code = line.gstGroupCode;

@@ -4,8 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev --webpack",
-    "build": "next build && xcopy .next\\static .next\\standalone\\.next\\static /E /I",
-    "start": "next start -p 3000",
+    "build": "next build",
+    "start": "next start",
     "lint": "eslint",
     "format": "prettier --write --ignore-path .gitignore .",
     "format:check": "prettier --check --ignore-path .gitignore ."

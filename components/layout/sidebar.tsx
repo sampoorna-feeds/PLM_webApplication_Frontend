@@ -69,6 +69,8 @@ const salesSubItems = [
   { title: "Invoice", url: "/sales/invoice", icon: ReceiptText },
   { title: "Return Order", url: "/sales/return-order", icon: ArrowLeftRight },
   { title: "Credit Memo", url: "/sales/credit-memo", icon: CreditCard },
+  { title: "Posted Shipment", url: "/sales/posted-shipment", icon: Truck },
+  { title: "Posted Invoice", url: "/sales/posted-invoice", icon: ClipboardCheck },
 ];
 
 const purchaseSubItems = [

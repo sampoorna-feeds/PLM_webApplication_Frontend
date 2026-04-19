@@ -1253,7 +1253,7 @@ export function SalesCreateDocumentFormContent({
                   Delete
                 </Button>
               )}
-              {isViewMode && isOpen && (
+              {documentType === "order" && isViewMode && isOpen && (
                 <Button
                   type="button"
                   size="sm"
@@ -1268,7 +1268,7 @@ export function SalesCreateDocumentFormContent({
                   )}
                 </Button>
               )}
-              {isViewMode && isPending && (
+              {documentType === "order" && isViewMode && isPending && (
                 <Button
                   type="button"
                   size="sm"
@@ -1323,7 +1323,7 @@ export function SalesCreateDocumentFormContent({
                   Post
                 </Button>
               )}
-              {isViewMode && isReleased && (
+              {documentType === "order" && isViewMode && isReleased && (
                 <Button
                   type="button"
                   size="sm"

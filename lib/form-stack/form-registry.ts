@@ -15,6 +15,7 @@ let PurchaseDocumentForm: FormComponent | null = null;
 
 let TransferOrderDetailForm: FormComponent | null = null;
 let PostedTransferDetailForm: FormComponent | null = null;
+let SalesPostedDocumentDetailForm: FormComponent | null = null;
 
 /**
  * Form registry mapping form types to components
@@ -106,6 +107,24 @@ export const formRegistry: Record<
       "@/components/forms/qc-receipt/qc-receipt-detail-form"
     );
     return { default: formModule.QCReceiptDetailForm };
+  },
+  "sales-posted-shipment-detail": async () => {
+    if (!SalesPostedDocumentDetailForm) {
+      const m = await import(
+        "@/components/forms/sales/sales-posted-document-detail-form"
+      );
+      SalesPostedDocumentDetailForm = m.SalesPostedDocumentDetailForm;
+    }
+    return { default: SalesPostedDocumentDetailForm! };
+  },
+  "sales-posted-invoice-detail": async () => {
+    if (!SalesPostedDocumentDetailForm) {
+      const m = await import(
+        "@/components/forms/sales/sales-posted-document-detail-form"
+      );
+      SalesPostedDocumentDetailForm = m.SalesPostedDocumentDetailForm;
+    }
+    return { default: SalesPostedDocumentDetailForm! };
   },
 };
 

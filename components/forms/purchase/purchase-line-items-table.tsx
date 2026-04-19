@@ -20,7 +20,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { Loader2, Save, Trash2 } from "lucide-react";
+import { Loader2, Save, Trash2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TaxInfoPopover } from "./tax-info-popover";
@@ -31,6 +31,11 @@ import {
   type PurchaseLineDocumentType,
   type PurchaseLineQuantityKey,
 } from "./purchase-line-quantity-config";
+import {
+  ApiErrorDialog,
+  extractApiError,
+  type ApiErrorState,
+} from "@/components/forms/production-orders/api-error-dialog";
 
 function getQuantityDisplayValue(
   item: LineItem,
@@ -90,6 +95,9 @@ export function PurchaseLineItemsTable({
     Record<string, Record<string, number>>
   >({});
   const [savingId, setSavingId] = useState<string | null>(null);
+  const [apiError, setApiError] = useState<ApiErrorState | null>(null);
+
+  const hasPendingEdits = Object.keys(pendingEdits).length > 0;
 
   const handleInlineChange = useCallback(
     (itemId: string, bcField: string, next: number) => {
@@ -113,12 +121,23 @@ export function PurchaseLineItemsTable({
           delete next[item.id];
           return next;
         });
+      } catch (error) {
+        const { message, code } = extractApiError(error);
+        setApiError({ title: "Failed to Save", message, code });
       } finally {
         setSavingId(null);
       }
     },
     [pendingEdits, onInlineUpdate],
   );
+
+  const handleCancelInline = useCallback((itemId: string) => {
+    setPendingEdits((prev) => {
+      const next = { ...prev };
+      delete next[itemId];
+      return next;
+    });
+  }, []);
 
   const handleRemoveClick = useCallback((itemId: string) => {
     setItemToRemove(itemId);
@@ -233,9 +252,14 @@ export function PurchaseLineItemsTable({
                   Bags
                 </TableHead>
               )}
-              {(onRemove || canInlineEdit) && (
+              {onRemove && (
                 <TableHead className="text-primary w-12 text-center text-[10px] font-bold tracking-wider uppercase">
-                  {canInlineEdit ? "Act" : "Del"}
+                  Del
+                </TableHead>
+              )}
+              {canInlineEdit && hasPendingEdits && (
+                <TableHead className="text-primary bg-background sticky right-0 z-20 w-20 text-center text-[10px] font-bold tracking-wider uppercase shadow-[-6px_0_12px_-4px_rgba(0,0,0,0.12)]">
+                  Actions
                 </TableHead>
               )}
             </TableRow>
@@ -377,35 +401,52 @@ export function PurchaseLineItemsTable({
                     {item.noOfBags || "-"}
                   </TableCell>
                 )}
-                {(onRemove || canInlineEdit) && (
+                {onRemove && (
                   <TableCell
-                    className="text-center"
+                    className="w-12 text-center"
                     onClick={(e) => e.stopPropagation()}
                   >
-                    {canInlineEdit && pendingEdits[item.id] ? (
-                      <Button
-                        variant="default"
-                        size="icon"
-                        className="h-7 w-7"
-                        disabled={savingId === item.id}
-                        onClick={() => handleSaveInline(item)}
-                      >
-                        {savingId === item.id ? (
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        ) : (
-                          <Save className="h-3.5 w-3.5" />
-                        )}
-                      </Button>
-                    ) : onRemove ? (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="text-destructive hover:text-destructive hover:bg-destructive/10 h-7 w-7"
-                        onClick={() => handleRemoveClick(item.id)}
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    ) : null}
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="text-destructive hover:text-destructive hover:bg-destructive/10 h-7 w-7"
+                      onClick={() => handleRemoveClick(item.id)}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </TableCell>
+                )}
+                {canInlineEdit && hasPendingEdits && (
+                  <TableCell
+                    className="bg-background sticky right-0 z-10 w-20 text-center shadow-[-6px_0_12px_-4px_rgba(0,0,0,0.12)]"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {pendingEdits[item.id] && (
+                      <div className="animate-in fade-in flex items-center justify-center gap-1 duration-150">
+                        <Button
+                          variant="default"
+                          size="icon"
+                          className="h-7 w-7"
+                          disabled={savingId === item.id}
+                          onClick={() => handleSaveInline(item)}
+                        >
+                          {savingId === item.id ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <Save className="h-3.5 w-3.5" />
+                          )}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="h-7 w-7"
+                          disabled={savingId === item.id}
+                          onClick={() => handleCancelInline(item.id)}
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    )}
                   </TableCell>
                 )}
               </TableRow>
@@ -439,6 +480,11 @@ export function PurchaseLineItemsTable({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <ApiErrorDialog
+        error={apiError}
+        onClose={() => setApiError(null)}
+      />
     </>
   );
 }

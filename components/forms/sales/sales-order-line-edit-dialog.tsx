@@ -10,6 +10,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -84,6 +94,7 @@ export function SalesOrderLineEditDialog({
   const [foc, setFoc] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [apiError, setApiError] = useState<ApiErrorState | null>(null);
 
   const [gstOptions, setGstOptions] = useState<SearchableSelectOption[]>([]);
@@ -249,9 +260,14 @@ export function SalesOrderLineEditDialog({
     }
   };
 
-  const handleDelete = async () => {
+  const handleDelete = () => {
     if (!line || !onDelete || !orderNo) return;
-    if (!confirm("Are you sure you want to delete this line?")) return;
+    setShowDeleteConfirm(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!line || !onDelete) return;
+    setShowDeleteConfirm(false);
     setIsDeleting(true);
     try {
       await onDelete(line);
@@ -556,6 +572,26 @@ export function SalesOrderLineEditDialog({
       </Dialog>
 
       <ApiErrorDialog error={apiError} onClose={() => setApiError(null)} />
+
+      <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Line</AlertDialogTitle>
+            <AlertDialogDescription>
+              Delete Line {line?.Line_No} — {line?.No} {line?.Description}? This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={handleConfirmDelete}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

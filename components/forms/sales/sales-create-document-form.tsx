@@ -68,6 +68,8 @@ import { SearchableSelect } from "@/components/forms/shared/searchable-select";
 import { SalesAddLineDialog } from "./sales-add-line-dialog";
 import { SalesCopyDocumentDialog } from "./sales-copy-document-dialog";
 import type { SalesCopyToDocType } from "@/lib/api/services/sales-copy-document.service";
+import { SalesGetPostedLineDialog } from "./sales-get-posted-line-dialog";
+import type { SalesGetPostedLineDocType } from "@/lib/api/services/sales-get-posted-line.service";
 import { SalesItemTrackingDialog } from "./sales-item-tracking-dialog";
 import { SalesLineItemsTable } from "./sales-line-items-table";
 import { SalesOrderLineEditDialog } from "./sales-order-line-edit-dialog";
@@ -82,16 +84,19 @@ import {
 } from "@/lib/api/services/sales-order.service";
 import {
   createSalesInvoice,
+  createSalesInvoiceCopyHeader,
   addSalesInvoiceLineItems,
   addSingleSalesInvoiceLine,
 } from "@/lib/api/services/sales-invoice.service";
 import {
   createSalesReturnOrder,
+  createSalesReturnOrderCopyHeader,
   addSalesReturnOrderLineItems,
   addSingleSalesReturnOrderLine,
 } from "@/lib/api/services/sales-return-order.service";
 import {
   createSalesCreditMemo,
+  createSalesCreditMemoCopyHeader,
   addSalesCreditMemoLineItems,
   addSingleSalesCreditMemoLine,
 } from "@/lib/api/services/sales-credit-memo.service";
@@ -401,6 +406,9 @@ export function SalesCreateDocumentFormContent({
 
   // ── Copy document dialog state ────────────────────────────────────────────
   const [isCopyDocOpen, setIsCopyDocOpen] = useState(false);
+
+  // ── Get posted line dialog state ──────────────────────────────────────────
+  const [isGetPostedLineOpen, setIsGetPostedLineOpen] = useState(false);
 
   // ── Post dialog state (order only) ────────────────────────────────────────
   const [isPostDialogOpen, setIsPostDialogOpen] = useState(false);
@@ -1257,14 +1265,14 @@ export function SalesCreateDocumentFormContent({
                   Delivery Challan
                 </Button>
               )}
-              {isViewMode && caps.supportsCopyDocument && currentDocNo && (
+              {caps.supportsCopyDocument && isCreateMode && (
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
                   className="h-8"
                   onClick={() => setIsCopyDocOpen(true)}
-                  disabled={isActionLoading}
+                  disabled={isSubmitting || isActionLoading}
                 >
                   Copy Document
                 </Button>
@@ -1385,6 +1393,17 @@ export function SalesCreateDocumentFormContent({
                         Checking tracking…
                       </span>
                     )}
+                    {caps.supportsGetPostedLine && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 px-2.5 text-xs"
+                        onClick={() => setIsGetPostedLineOpen(true)}
+                        disabled={!currentDocNo}
+                      >
+                        Get Posted Line
+                      </Button>
+                    )}
                     <Button
                       size="sm"
                       className="h-7 px-2.5 text-xs"
@@ -1404,7 +1423,7 @@ export function SalesCreateDocumentFormContent({
                   itemTrackingMap={itemTrackingMap}
                   lineStockMap={lineStockMap}
                   readOnly={isViewMode}
-                  editable={!isViewMode && !!currentDocNo}
+                  editable={!!currentDocNo}
                   onRowClick={(line) => {
                     setSelectedLine(line);
                     setIsLineDialogOpen(true);
@@ -1416,17 +1435,8 @@ export function SalesCreateDocumentFormContent({
                   }}
                   onInlineUpdate={async (line, patch) => {
                     if (!currentDocNo || line.Line_No == null) return;
-                    try {
-                      await ops.updateLine(currentDocNo, line.Line_No, patch);
-                      await loadDocument();
-                    } catch (err) {
-                      const msg =
-                        err instanceof Error
-                          ? err.message
-                          : "Failed to update line";
-                      alert(`Error: ${msg}`);
-                      throw err;
-                    }
+                    await ops.updateLine(currentDocNo, line.Line_No, patch);
+                    await loadDocument();
                   }}
                 />
 
@@ -1622,11 +1632,27 @@ export function SalesCreateDocumentFormContent({
         </AlertDialogContent>
       </AlertDialog>
 
+      {/* Get Posted Line dialog */}
+      {caps.supportsGetPostedLine && currentDocNo && (
+        <SalesGetPostedLineDialog
+          open={isGetPostedLineOpen}
+          onOpenChange={setIsGetPostedLineOpen}
+          documentNo={currentDocNo}
+          docType={
+            (documentType === "invoice" ? "Invoice" : "CreditMemo") as SalesGetPostedLineDocType
+          }
+          customerNo={orderHeader?.Sell_to_Customer_No}
+          onSuccess={async () => {
+            await loadDocument();
+          }}
+        />
+      )}
+
       {/* Copy Document dialog */}
-      {caps.supportsCopyDocument && currentDocNo && (
+      {caps.supportsCopyDocument && (
         <SalesCopyDocumentDialog
           open={isCopyDocOpen}
-          toDocNo={currentDocNo}
+          toDocNo={currentDocNo || undefined}
           toDocType={
             (documentType === "invoice"
               ? "Invoice"
@@ -1635,7 +1661,26 @@ export function SalesCreateDocumentFormContent({
                 : "Return Order") as SalesCopyToDocType
           }
           onOpenChange={setIsCopyDocOpen}
-          onSuccess={async () => {
+          lobValue={formData.lob}
+          branchValue={formData.branch}
+          userId={userId}
+          onCreateHeader={async (locCode, lobCode, branchCode) => {
+            if (documentType === "invoice") {
+              const r = await createSalesInvoiceCopyHeader(locCode, lobCode, branchCode);
+              return r.orderNo;
+            }
+            if (documentType === "return-order") {
+              const r = await createSalesReturnOrderCopyHeader(locCode, lobCode, branchCode);
+              return r.orderNo;
+            }
+            const r = await createSalesCreditMemoCopyHeader(locCode, lobCode, branchCode);
+            return r.orderNo;
+          }}
+          onSuccess={async (docNo) => {
+            if (docNo && docNo !== currentDocNo) {
+              onSuccess(docNo);
+              return;
+            }
             await loadDocument();
           }}
         />

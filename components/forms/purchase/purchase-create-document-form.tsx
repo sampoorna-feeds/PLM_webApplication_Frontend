@@ -2435,7 +2435,7 @@ export function PurchaseCreateDocumentFormContent({
                     documentNo={createdOrderNo}
                     documentType={documentType}
                     isLoading={isHydratingDocument}
-                    editable={!isReadOnlyMode}
+                    editable={!!createdOrderNo}
                     onInlineUpdate={async (lineItem, patch) => {
                       if (!createdOrderNo || !lineItem.lineNo) return;
                       try {

@@ -20,12 +20,17 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { Loader2, Save, Trash2 } from "lucide-react";
+import { Loader2, Save, Trash2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SalesTaxInfoPopover } from "./sales-tax-info-popover";
 import { EditableQtyCell } from "../shared/editable-qty-cell";
 import { getSalesLineQuantityConfig } from "./sales-line-quantity-config";
+import {
+  ApiErrorDialog,
+  extractApiError,
+  type ApiErrorState,
+} from "@/components/forms/production-orders/api-error-dialog";
 import type { SalesLine } from "@/lib/api/services/sales-orders.service";
 import type { SalesDocumentType } from "./sales-document-config";
 
@@ -74,8 +79,7 @@ export function SalesLineItemsTable({
 
   const qtyConfig = getSalesLineQuantityConfig(documentType);
   const showQtyColumns = !!qtyConfig;
-  const canInlineEdit =
-    editable && !readOnly && !!qtyConfig && !!onInlineUpdate;
+  const canInlineEdit = editable && !!qtyConfig && !!onInlineUpdate;
   const qtyToShipLabel = qtyConfig?.firstPendingLabel ?? "Qty to Ship";
   const qtyShippedLabel = qtyConfig?.firstCompletedLabel ?? "Qty Shipped";
   const qtyToInvoiceLabel = qtyConfig?.secondPendingLabel ?? "Qty to Invoice";
@@ -85,6 +89,9 @@ export function SalesLineItemsTable({
     Record<number, Record<string, number>>
   >({});
   const [savingLineNo, setSavingLineNo] = useState<number | null>(null);
+  const [apiError, setApiError] = useState<ApiErrorState | null>(null);
+
+  const hasPendingEdits = Object.keys(pendingEdits).length > 0;
 
   const handleInlineChange = useCallback(
     (lineNo: number, bcField: string, next: number) => {
@@ -110,12 +117,23 @@ export function SalesLineItemsTable({
           delete next[lineNo];
           return next;
         });
+      } catch (error) {
+        const { message, code } = extractApiError(error);
+        setApiError({ title: "Failed to Save", message, code });
       } finally {
         setSavingLineNo(null);
       }
     },
     [pendingEdits, onInlineUpdate],
   );
+
+  const handleCancelInline = useCallback((lineNo: number) => {
+    setPendingEdits((prev) => {
+      const next = { ...prev };
+      delete next[lineNo];
+      return next;
+    });
+  }, []);
 
   const handleDeleteClick = useCallback(
     (e: React.MouseEvent, line: SalesLine) => {
@@ -237,9 +255,14 @@ export function SalesLineItemsTable({
               <TableHead className="text-primary w-24 text-center text-[10px] font-bold tracking-wider uppercase">
                 Exempt
               </TableHead>
-              {((!readOnly && onDelete) || canInlineEdit) && (
+              {!readOnly && onDelete && (
                 <TableHead className="text-primary w-12 text-center text-[10px] font-bold tracking-wider uppercase">
-                  {canInlineEdit ? "Act" : "Del"}
+                  Del
+                </TableHead>
+              )}
+              {canInlineEdit && hasPendingEdits && (
+                <TableHead className="text-primary bg-background sticky right-0 z-20 w-20 text-center text-[10px] font-bold tracking-wider uppercase shadow-[-6px_0_12px_-4px_rgba(0,0,0,0.12)]">
+                  Actions
                 </TableHead>
               )}
             </TableRow>
@@ -384,37 +407,52 @@ export function SalesLineItemsTable({
                   <TableCell className="text-center text-xs">
                     {line.Exempted ? "✓" : "-"}
                   </TableCell>
-                  {((!readOnly && onDelete) || canInlineEdit) && (
+                  {!readOnly && onDelete && (
                     <TableCell
-                      className="text-center"
+                      className="w-12 text-center"
                       onClick={(e) => e.stopPropagation()}
                     >
-                      {canInlineEdit &&
-                      line.Line_No != null &&
-                      pendingEdits[line.Line_No] ? (
-                        <Button
-                          variant="default"
-                          size="sm"
-                          className="h-6 w-6 p-0"
-                          disabled={savingLineNo === line.Line_No}
-                          onClick={() => handleSaveInline(line)}
-                        >
-                          {savingLineNo === line.Line_No ? (
-                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                          ) : (
-                            <Save className="h-3.5 w-3.5" />
-                          )}
-                        </Button>
-                      ) : !readOnly && onDelete ? (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-destructive hover:bg-destructive/10 h-6 w-6 p-0"
-                          onClick={(e) => handleDeleteClick(e, line)}
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
-                      ) : null}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-destructive hover:bg-destructive/10 h-6 w-6 p-0"
+                        onClick={(e) => handleDeleteClick(e, line)}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </TableCell>
+                  )}
+                  {canInlineEdit && hasPendingEdits && (
+                    <TableCell
+                      className="bg-background sticky right-0 z-10 w-20 text-center shadow-[-6px_0_12px_-4px_rgba(0,0,0,0.12)]"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {line.Line_No != null && pendingEdits[line.Line_No] && (
+                        <div className="animate-in fade-in flex items-center justify-center gap-1 duration-150">
+                          <Button
+                            variant="default"
+                            size="sm"
+                            className="h-7 w-7 p-0"
+                            disabled={savingLineNo === line.Line_No}
+                            onClick={() => handleSaveInline(line)}
+                          >
+                            {savingLineNo === line.Line_No ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <Save className="h-3.5 w-3.5" />
+                            )}
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-7 w-7 p-0"
+                            disabled={savingLineNo === line.Line_No}
+                            onClick={() => handleCancelInline(line.Line_No as number)}
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      )}
                     </TableCell>
                   )}
                 </TableRow>
@@ -449,6 +487,11 @@ export function SalesLineItemsTable({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <ApiErrorDialog
+        error={apiError}
+        onClose={() => setApiError(null)}
+      />
     </>
   );
 }

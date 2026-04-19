@@ -4,8 +4,19 @@
  * Sales Copy Document Dialog
  *
  * Two-step dialog:
- *   Step 1 — Select a "from" document type.
+ *   Step 1 — Select LOB / Branch / Location and "from" document type.
  *   Step 2 — Pick a specific document from a paginated table, then confirm.
+ *
+ * Props:
+ *   open           — controls dialog visibility
+ *   toDocNo        — the already-created document number to copy INTO (optional — created on-the-fly if absent)
+ *   toDocType      — the target document type ("Invoice" | "Credit Memo" | "Return Order")
+ *   onOpenChange   — called when dialog should open/close
+ *   onSuccess      — called after a successful copy (receives created doc no)
+ *   onCreateHeader — called to create header on-the-fly if toDocNo is not yet set
+ *   userId         — forwarded to CascadingDimensionSelect
+ *   lobValue       — pre-fill LOB from parent form
+ *   branchValue    — pre-fill Branch from parent form
  */
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
@@ -44,6 +55,7 @@ import {
   Filter,
   X,
 } from "lucide-react";
+import { CascadingDimensionSelect } from "@/components/forms/cascading-dimension-select";
 import {
   SALES_COPY_FROM_DOC_TYPE_OPTIONS,
   fetchSalesSourceDocumentsForCopy,
@@ -59,10 +71,18 @@ import { cn } from "@/lib/utils";
 
 interface SalesCopyDocumentDialogProps {
   open: boolean;
-  toDocNo: string;
+  toDocNo?: string;
   toDocType: SalesCopyToDocType;
   onOpenChange: (open: boolean) => void;
-  onSuccess: () => void | Promise<void>;
+  onSuccess: (docNo?: string) => void | Promise<void>;
+  onCreateHeader?: (
+    locCode: string,
+    lobCode: string,
+    branchCode: string,
+  ) => Promise<string>;
+  userId?: string;
+  lobValue?: string;
+  branchValue?: string;
 }
 
 const PAGE_SIZE = 25;
@@ -91,8 +111,9 @@ function getSortIcon(
   activeColumn: SalesCopySourceSortColumn,
   direction: SalesCopySourceSortDirection,
 ) {
-  if (column !== activeColumn)
+  if (column !== activeColumn) {
     return <ArrowUpDown className="h-3 w-3 opacity-50" />;
+  }
   return direction === "asc" ? (
     <ArrowUp className="h-3 w-3" />
   ) : (
@@ -100,21 +121,27 @@ function getSortIcon(
   );
 }
 
-// ── Small reusable filter popovers ─────────────────────────────────────────
-
-function TextFilter({
-  label,
-  value,
-  onChange,
-}: {
+interface TextFilterProps {
   label: string;
   value: string;
-  onChange: (v: string) => void;
-}) {
+  onChange: (value: string) => void;
+}
+
+interface DateFilterProps {
+  label: string;
+  valueFrom: string;
+  valueTo: string;
+  onChange: (from: string, to: string) => void;
+}
+
+function CopyDocTextFilter({ label, value, onChange }: TextFilterProps) {
   const [open, setOpen] = useState(false);
   const [local, setLocal] = useState(value);
   const hasFilter = !!value;
-  useEffect(() => setLocal(value), [value]);
+
+  useEffect(() => {
+    setLocal(value);
+  }, [value]);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -187,21 +214,17 @@ function TextFilter({
   );
 }
 
-function DateFilter({
+function CopyDocDateFilter({
   label,
   valueFrom,
   valueTo,
   onChange,
-}: {
-  label: string;
-  valueFrom: string;
-  valueTo: string;
-  onChange: (from: string, to: string) => void;
-}) {
+}: DateFilterProps) {
   const [open, setOpen] = useState(false);
   const [localFrom, setLocalFrom] = useState(valueFrom);
   const [localTo, setLocalTo] = useState(valueTo);
   const hasFilter = !!(valueFrom || valueTo);
+
   useEffect(() => {
     setLocalFrom(valueFrom);
     setLocalTo(valueTo);
@@ -286,17 +309,24 @@ function DateFilter({
   );
 }
 
-// ── Main dialog ─────────────────────────────────────────────────────────────
-
 export function SalesCopyDocumentDialog({
   open,
   toDocNo,
   toDocType,
   onOpenChange,
   onSuccess,
+  onCreateHeader,
+  userId,
+  lobValue,
+  branchValue,
 }: SalesCopyDocumentDialogProps) {
   const [step, setStep] = useState<1 | 2>(1);
-  const [fromDocType, setFromDocType] = useState<SalesCopyFromDocType | "">("");
+  const [lobCode, setLobCode] = useState(lobValue || "");
+  const [branchCode, setBranchCode] = useState(branchValue || "");
+  const [locationCode, setLocationCode] = useState("");
+  const [fromDocType, setFromDocType] = useState<SalesCopyFromDocType | "">(
+    "",
+  );
   const [docs, setDocs] = useState<SalesSourceDocumentRow[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [hasMore, setHasMore] = useState(false);
@@ -322,6 +352,9 @@ export function SalesCopyDocumentDialog({
   useEffect(() => {
     if (!open) {
       setStep(1);
+      setLobCode("");
+      setBranchCode("");
+      setLocationCode("");
       setFromDocType("");
       setDocs([]);
       setTotalCount(0);
@@ -335,21 +368,41 @@ export function SalesCopyDocumentDialog({
       setSortBy("Posting_Date");
       setSortDirection("desc");
       setCopyError(null);
+    } else {
+      setLobCode(lobValue || "");
+      setBranchCode(branchValue || "");
     }
-  }, [open]);
+  }, [open, lobValue, branchValue]);
 
   useEffect(() => {
     return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+      }
     };
+  }, []);
+
+  const handleLobChange = useCallback((value: string) => {
+    setLobCode(value);
+    setBranchCode("");
+    setLocationCode("");
+  }, []);
+
+  const handleBranchChange = useCallback((value: string) => {
+    setBranchCode(value);
+    setLocationCode("");
   }, []);
 
   const fetchDocs = useCallback(
     async (skip: number, append: boolean) => {
       if (!fromDocType) return;
+
       const requestId = ++requestCounterRef.current;
-      if (append) setIsFetchingMore(true);
-      else setIsFetchingDocs(true);
+      if (append) {
+        setIsFetchingMore(true);
+      } else {
+        setIsFetchingDocs(true);
+      }
 
       try {
         const result = await fetchSalesSourceDocumentsForCopy({
@@ -362,14 +415,22 @@ export function SalesCopyDocumentDialog({
           top: PAGE_SIZE,
         });
 
-        if (requestId !== requestCounterRef.current) return;
-        setDocs((prev) => (append ? [...prev, ...result.rows] : result.rows));
+        if (requestId !== requestCounterRef.current) {
+          return;
+        }
+
+        setDocs((previousRows) =>
+          append ? [...previousRows, ...result.rows] : result.rows,
+        );
         setTotalCount(result.totalCount);
         setHasMore(result.hasMore);
         setNextSkip(result.nextSkip);
         setFetchError(null);
       } catch {
-        if (requestId !== requestCounterRef.current) return;
+        if (requestId !== requestCounterRef.current) {
+          return;
+        }
+
         setFetchError("Failed to load documents. Please try again.");
         if (!append) {
           setDocs([]);
@@ -378,17 +439,27 @@ export function SalesCopyDocumentDialog({
           setNextSkip(0);
         }
       } finally {
-        if (requestId !== requestCounterRef.current) return;
-        if (append) setIsFetchingMore(false);
-        else setIsFetchingDocs(false);
+        if (requestId !== requestCounterRef.current) {
+          return;
+        }
+
+        if (append) {
+          setIsFetchingMore(false);
+        } else {
+          setIsFetchingDocs(false);
+        }
       }
     },
     [fromDocType, searchTerm, filters, sortBy, sortDirection],
   );
 
   useEffect(() => {
-    if (step !== 2 || !fromDocType) return;
-    if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (step !== 2 || !fromDocType || !locationCode) return;
+
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+    }
+
     debounceRef.current = setTimeout(() => {
       setSelectedDocNo(null);
       setDocs([]);
@@ -397,12 +468,16 @@ export function SalesCopyDocumentDialog({
       setNextSkip(0);
       void fetchDocs(0, false);
     }, SEARCH_DEBOUNCE_MS);
+
     return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+      }
     };
   }, [
     step,
     fromDocType,
+    locationCode,
     searchTerm,
     filters.documentNo,
     filters.customerNo,
@@ -414,7 +489,7 @@ export function SalesCopyDocumentDialog({
   ]);
 
   const handleProceedToStep2 = useCallback(() => {
-    if (!fromDocType) return;
+    if (!fromDocType || !locationCode || !lobCode || !branchCode) return;
     setStep(2);
     setDocs([]);
     setTotalCount(0);
@@ -427,7 +502,7 @@ export function SalesCopyDocumentDialog({
     setFilters(EMPTY_FILTERS);
     setSortBy("Posting_Date");
     setSortDirection("desc");
-  }, [fromDocType]);
+  }, [fromDocType, locationCode, lobCode, branchCode]);
 
   const handleLoadMore = useCallback(() => {
     if (!hasMore || isFetchingDocs || isFetchingMore) return;
@@ -436,34 +511,63 @@ export function SalesCopyDocumentDialog({
 
   const handleTableScroll = (event: React.UIEvent<HTMLDivElement>) => {
     if (!hasMore || isFetchingDocs || isFetchingMore) return;
+
     const target = event.currentTarget;
     const nearBottom =
       target.scrollTop + target.clientHeight >= target.scrollHeight - 60;
-    if (nearBottom) handleLoadMore();
+
+    if (nearBottom) {
+      handleLoadMore();
+    }
   };
 
   const handleSort = (column: SalesCopySourceSortColumn) => {
-    setSortBy((prev) => {
-      if (prev === column) {
-        setSortDirection((d) => (d === "asc" ? "desc" : "asc"));
-        return prev;
+    setSortBy((previousColumn) => {
+      if (previousColumn === column) {
+        setSortDirection((previousDirection) =>
+          previousDirection === "asc" ? "desc" : "asc",
+        );
+        return previousColumn;
       }
+
       setSortDirection("asc");
       return column;
     });
   };
 
   const handleConfirmCopy = useCallback(async () => {
-    if (!selectedDocNo || !fromDocType) return;
+    if (
+      !selectedDocNo ||
+      !fromDocType ||
+      !locationCode ||
+      !lobCode ||
+      !branchCode
+    )
+      return;
+
     setIsCopying(true);
     setCopyError(null);
+
     try {
+      let targetDocNo = toDocNo;
+
+      if (!targetDocNo) {
+        if (!onCreateHeader) {
+          throw new Error("Missing callback to create document header.");
+        }
+        targetDocNo = await onCreateHeader(locationCode, lobCode, branchCode);
+        if (!targetDocNo) {
+          throw new Error("Failed to get document number after creation.");
+        }
+      }
+
       await executeSalesCopyDocument({
         fromDocType1: fromDocType as SalesCopyFromDocType,
         fromDocNo: selectedDocNo,
-        salesHeaderNo: toDocNo,
+        salesHeaderNo: targetDocNo,
       });
-      await Promise.resolve(onSuccess());
+
+      await Promise.resolve(onSuccess(targetDocNo));
       onOpenChange(false);
     } catch (err: unknown) {
       const msg =
@@ -473,16 +577,24 @@ export function SalesCopyDocumentDialog({
     } finally {
       setIsCopying(false);
     }
-  }, [selectedDocNo, fromDocType, toDocNo, onSuccess, onOpenChange]);
+  }, [
+    selectedDocNo,
+    fromDocType,
+    toDocNo,
+    locationCode,
+    lobCode,
+    branchCode,
+    onCreateHeader,
+    onSuccess,
+    onOpenChange,
+  ]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         className={cn(
           "w-[95vw] overflow-hidden",
-          step === 1
-            ? "max-h-[60vh] sm:max-w-md"
-            : "h-[90vh] sm:max-w-5xl",
+          step === 1 ? "max-h-[90vh] sm:max-w-2xl" : "h-[90vh] sm:max-w-7xl",
         )}
       >
         <DialogHeader>
@@ -491,14 +603,65 @@ export function SalesCopyDocumentDialog({
             Copy Document
           </DialogTitle>
           <DialogDescription className="text-xs">
-            Copy lines and header data from another sales document into{" "}
-            <span className="text-foreground font-medium">{toDocNo}</span>.
+            {toDocNo ? (
+              <>
+                Copy lines and header data from another sales document into{" "}
+                <span className="text-foreground font-medium">{toDocNo}</span>.
+              </>
+            ) : (
+              "Select location and document type to copy from."
+            )}
           </DialogDescription>
         </DialogHeader>
 
-        {/* ── Step 1: choose fromDocType ── */}
+        {/* ── Step 1: choose LOB / Branch / Location + fromDocType ── */}
         {step === 1 && (
           <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <label className="text-muted-foreground text-xs font-medium">
+                LOB
+              </label>
+              <CascadingDimensionSelect
+                dimensionType="LOB"
+                value={lobCode}
+                onChange={handleLobChange}
+                placeholder="Select LOB"
+                userId={userId}
+                compactWhenSingle
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-muted-foreground text-xs font-medium">
+                Branch
+              </label>
+              <CascadingDimensionSelect
+                dimensionType="BRANCH"
+                value={branchCode}
+                onChange={handleBranchChange}
+                placeholder="Select Branch"
+                lobValue={lobCode}
+                userId={userId}
+                compactWhenSingle
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-muted-foreground text-xs font-medium">
+                Location
+              </label>
+              <CascadingDimensionSelect
+                dimensionType="LOC"
+                value={locationCode}
+                onChange={setLocationCode}
+                placeholder="Select Location"
+                lobValue={lobCode}
+                branchValue={branchCode}
+                userId={userId}
+                compactWhenSingle
+              />
+            </div>
+
             <div className="space-y-1.5">
               <label className="text-muted-foreground text-xs font-medium">
                 Copy from document type
@@ -545,20 +708,19 @@ export function SalesCopyDocumentDialog({
                 </span>{" "}
                 document
               </span>
-              <span className="text-muted-foreground text-xs">
-                ({totalCount} found)
-              </span>
+              <span className="text-muted-foreground text-xs">{`(${totalCount} found)`}</span>
             </div>
 
             <div className="relative">
               <Search className="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
               <Input
                 value={searchInput}
-                onChange={(e) => {
-                  setSearchInput(e.target.value);
-                  setSearchTerm(e.target.value);
+                onChange={(event) => {
+                  const value = event.target.value;
+                  setSearchInput(value);
+                  setSearchTerm(value);
                 }}
-                placeholder="Search by document no, customer no, or customer name…"
+                placeholder="Search by document no, customer no, or customer name"
                 className="h-9 pl-9 text-xs"
               />
             </div>
@@ -595,7 +757,7 @@ export function SalesCopyDocumentDialog({
                           >
                             {getSortIcon("No", sortBy, sortDirection)}
                           </button>
-                          <TextFilter
+                          <CopyDocTextFilter
                             label="Document No"
                             value={filters.documentNo ?? ""}
                             onChange={(v) =>
@@ -632,7 +794,7 @@ export function SalesCopyDocumentDialog({
                               sortDirection,
                             )}
                           </button>
-                          <TextFilter
+                          <CopyDocTextFilter
                             label="Customer No"
                             value={filters.customerNo ?? ""}
                             onChange={(v) =>
@@ -696,7 +858,7 @@ export function SalesCopyDocumentDialog({
                           >
                             {getSortIcon("Posting_Date", sortBy, sortDirection)}
                           </button>
-                          <DateFilter
+                          <CopyDocDateFilter
                             label="Posting Date"
                             valueFrom={filters.postingDateFrom ?? ""}
                             valueTo={filters.postingDateTo ?? ""}
@@ -719,11 +881,21 @@ export function SalesCopyDocumentDialog({
                           key={`skel-${i}`}
                           className="border-b transition-colors"
                         >
-                          {Array.from({ length: 5 }).map((_, j) => (
-                            <td key={j} className="px-3 py-3">
-                              <Skeleton className="h-3 w-20" />
-                            </td>
-                          ))}
+                          <td className="px-3 py-3 text-center">
+                            <Skeleton className="mx-auto h-3 w-6" />
+                          </td>
+                          <td className="px-3 py-3">
+                            <Skeleton className="h-3 w-24" />
+                          </td>
+                          <td className="px-3 py-3">
+                            <Skeleton className="h-3 w-20" />
+                          </td>
+                          <td className="px-3 py-3">
+                            <Skeleton className="h-3 w-32" />
+                          </td>
+                          <td className="px-3 py-3">
+                            <Skeleton className="h-3 w-20" />
+                          </td>
                         </tr>
                       ))}
 
@@ -739,7 +911,7 @@ export function SalesCopyDocumentDialog({
                     )}
 
                     {!isFetchingDocs &&
-                      docs.map((doc, idx) => (
+                      docs.map((doc, index) => (
                         <tr
                           key={doc.no}
                           className={cn(
@@ -749,7 +921,7 @@ export function SalesCopyDocumentDialog({
                           onClick={() => setSelectedDocNo(doc.no)}
                         >
                           <td className="text-muted-foreground px-3 py-3 text-center align-middle text-xs whitespace-nowrap">
-                            {idx + 1}
+                            {index + 1}
                           </td>
                           <td
                             className={cn(
@@ -792,6 +964,7 @@ export function SalesCopyDocumentDialog({
             {fetchError && (
               <p className="text-destructive text-xs">{fetchError}</p>
             )}
+
             {copyError && (
               <p className="text-destructive text-xs">{copyError}</p>
             )}
@@ -814,7 +987,9 @@ export function SalesCopyDocumentDialog({
               type="button"
               size="sm"
               onClick={handleProceedToStep2}
-              disabled={!fromDocType}
+              disabled={
+                !fromDocType || !locationCode || !lobCode || !branchCode
+              }
             >
               Next
             </Button>
@@ -828,7 +1003,7 @@ export function SalesCopyDocumentDialog({
               {isCopying ? (
                 <>
                   <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-                  Copying…
+                  Copying...
                 </>
               ) : (
                 <>

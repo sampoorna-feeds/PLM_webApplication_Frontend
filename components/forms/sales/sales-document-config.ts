@@ -40,6 +40,8 @@ export interface SalesDocumentCapabilities {
   postOptions: { value: "1" | "2" | "3"; label: string }[];
   /** Whether the Copy Document action is available (invoice, credit-memo, return-order) */
   supportsCopyDocument: boolean;
+  /** Whether Get Posted Line is available (invoice + credit-memo) */
+  supportsGetPostedLine: boolean;
 }
 
 export interface SalesDocumentConfig {
@@ -79,6 +81,7 @@ const SALES_DOCUMENT_CONFIG: Record<SalesDocumentType, SalesDocumentConfig> = {
         { value: "3", label: "Ship & Invoice" },
       ],
       supportsCopyDocument: false,
+      supportsGetPostedLine: false,
     },
   },
   invoice: {
@@ -103,6 +106,7 @@ const SALES_DOCUMENT_CONFIG: Record<SalesDocumentType, SalesDocumentConfig> = {
         { value: "3", label: "Ship & Invoice" },
       ],
       supportsCopyDocument: true,
+      supportsGetPostedLine: true,
     },
   },
   "return-order": {
@@ -127,6 +131,7 @@ const SALES_DOCUMENT_CONFIG: Record<SalesDocumentType, SalesDocumentConfig> = {
         { value: "3", label: "Return & Credit Memo" },
       ],
       supportsCopyDocument: true,
+      supportsGetPostedLine: false,
     },
   },
   "credit-memo": {
@@ -148,6 +153,7 @@ const SALES_DOCUMENT_CONFIG: Record<SalesDocumentType, SalesDocumentConfig> = {
       supportsPost: true,
       postOptions: [{ value: "2", label: "Credit Memo" }],
       supportsCopyDocument: true,
+      supportsGetPostedLine: true,
     },
   },
 };

@@ -81,6 +81,29 @@ export async function createSalesInvoice(
   }
 }
 
+/** Create a minimal sales invoice header for the Copy Document flow (no customer required). */
+export async function createSalesInvoiceCopyHeader(
+  locationCode: string,
+  lobCode: string,
+  branchCode: string,
+): Promise<CreateSalesDocumentResponse> {
+  try {
+    const endpoint = `/${HEADER_ENTITY}?company='${encodeURIComponent(COMPANY)}'`;
+    const payload = {
+      Location_Code: locationCode,
+      Shortcut_Dimension_1_Code: lobCode,
+      Shortcut_Dimension_2_Code: branchCode,
+      Shortcut_Dimension_3_Code: locationCode,
+    };
+    const response = await apiPost<CreateSalesDocumentApiResponse>(endpoint, payload);
+    if (!response) return { orderId: "", orderNo: "" };
+    const orderNo = response.No ?? response.orderNo ?? "";
+    return { orderId: response.orderId ?? orderNo, orderNo };
+  } catch (error) {
+    throw error as ApiError;
+  }
+}
+
 /** Add multiple line items to an invoice in sequence. */
 export async function addSalesInvoiceLineItems(
   documentNo: string,

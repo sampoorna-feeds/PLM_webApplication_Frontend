@@ -21,10 +21,10 @@ export function EditableQtyCell({
   className,
 }: EditableQtyCellProps) {
   const [text, setText] = useState<string>(value == null ? "" : String(value));
-  const editedRef = useRef(false);
+  const isFocused = useRef(false);
 
   useEffect(() => {
-    if (!editedRef.current) {
+    if (!isFocused.current) {
       setText(value == null ? "" : String(value));
     }
   }, [value]);
@@ -43,21 +43,31 @@ export function EditableQtyCell({
       onClick={(e) => e.stopPropagation()}
     >
       <Input
-        type="number"
+        type="text"
+        inputMode="decimal"
         value={text}
-        step="any"
+        onFocus={() => {
+          isFocused.current = true;
+        }}
         onChange={(e) => {
-          editedRef.current = true;
           setText(e.target.value);
           const next = parseFloat(e.target.value);
           if (!Number.isNaN(next)) onChange(next);
         }}
-        onBlur={() => {
-          editedRef.current = false;
+        onBlur={(e) => {
+          isFocused.current = false;
+          const parsed = parseFloat(e.target.value);
+          if (Number.isNaN(parsed)) {
+            setText(value == null ? "" : String(value));
+          } else {
+            setText(String(parsed));
+          }
         }}
         className={cn(
           "h-7 text-right text-xs",
-          isDirty && "border-amber-400 bg-amber-50",
+          isDirty
+            ? "border-amber-400 bg-amber-50 dark:border-amber-500 dark:bg-amber-950/30"
+            : "border-transparent bg-transparent focus:border-input focus:bg-background",
         )}
       />
     </TableCell>

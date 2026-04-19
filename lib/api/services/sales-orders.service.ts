@@ -14,6 +14,7 @@ export interface SalesOrder {
   No: string;
   Sell_to_Customer_No: string;
   Sell_to_Customer_Name: string;
+  Bill_to_Customer_No?: string;
   Ship_to_Code?: string;
   Ship_to_Name?: string;
   Order_Date?: string;
@@ -24,6 +25,7 @@ export interface SalesOrder {
   Amt_to_Customer?: number;
   Location_Code?: string;
   Invoice_Type?: string;
+  Currency_Code?: string;
   Shortcut_Dimension_1_Code?: string;
   Shortcut_Dimension_2_Code?: string;
   Shortcut_Dimension_3_Code?: string;

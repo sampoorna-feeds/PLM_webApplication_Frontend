@@ -63,6 +63,7 @@ export interface ItemChargeSourceLine {
 export type SourceType =
   | "Receipt"
   | "SalesShipment"
+  | "GetShipmentLine"
   | "Transfer"
   | "ReturnReceipt"
   | "ReturnShipment";
@@ -70,6 +71,7 @@ export type SourceType =
 const ENDPOINTS: Record<SourceType, string> = {
   Receipt: "PurchreceiptLine",
   SalesShipment: "SalesShipmentLine",
+  GetShipmentLine: "GetShipmentLine",
   Transfer: "PostedTransferReceiptLine",
   ReturnReceipt: "ReturnReceiptLine",
   ReturnShipment: "ReturnShipmentLine",
@@ -78,6 +80,7 @@ const ENDPOINTS: Record<SourceType, string> = {
 const GET_TYPE_MAP: Record<SourceType, string> = {
   Receipt: "GetreceiptLine",
   SalesShipment: "GetShipmentLine",
+  GetShipmentLine: "GetShipmentLine",
   Transfer: "GetTransferReceiptLine",
   ReturnReceipt: "GetReturnReceiptLine",
   ReturnShipment: "GetReturnShipmentLine",
@@ -88,6 +91,7 @@ const GET_TYPE_MAP: Record<SourceType, string> = {
 const ITEM_NO_FIELD_MAP: Record<SourceType, string> = {
   Receipt: "No",           // PurchreceiptLine uses 'No'
   SalesShipment: "No",     // SalesShipmentLine uses 'No'
+  GetShipmentLine: "No",   // GetShipmentLine uses 'No'
   Transfer: "Item_No",     // PostedTransferReceiptLine uses 'Item_No'
   ReturnReceipt: "No",     // ReturnReceiptLine uses 'No'
   ReturnShipment: "No",    // ReturnShipmentLine uses 'No'

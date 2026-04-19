@@ -27,10 +27,11 @@ const STATUS_OPTIONS = [
 
 const INVOICE_TYPE_OPTIONS = [
   { value: "", label: "All" },
-  { value: "Bill of supply", label: "Bill of supply" },
+  { value: "Bill of Supply", label: "Bill of Supply" },
   { value: "Taxable", label: "Taxable" },
   { value: "Export", label: "Export" },
   { value: "Supplementary", label: "Supplementary" },
+  { value: "Debit Note", label: "Debit Note" },
   { value: "Non-GST", label: "Non-GST" },
 ];
 

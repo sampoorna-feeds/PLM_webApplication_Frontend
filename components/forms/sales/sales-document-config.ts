@@ -18,7 +18,8 @@ export interface InvoiceTypeOption {
 }
 
 const STANDARD_INVOICE_TYPE_OPTIONS: InvoiceTypeOption[] = [
-  { value: "Bill of supply", label: "Bill of supply" },
+  { value: "", label: "None" },
+  { value: "Bill of Supply", label: "Bill of Supply" },
   { value: "Export", label: "Export" },
   { value: "Supplementary", label: "Supplementary" },
   { value: "Debit Note", label: "Debit Note" },

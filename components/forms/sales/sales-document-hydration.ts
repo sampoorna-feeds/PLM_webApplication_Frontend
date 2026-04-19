@@ -28,7 +28,7 @@ export function mapSalesHeaderToFormData(
     documentDate: toStringValue(header.Document_Date),
     orderDate: toStringValue(header.Order_Date),
     externalDocumentNo: toStringValue(header.External_Document_No),
-    invoiceType: toStringValue(header.Invoice_Type),
+    invoiceType: toStringValue(header.Invoice_Type).trim(),
     lob: toStringValue(header.Shortcut_Dimension_1_Code),
     branch: toStringValue(header.Shortcut_Dimension_2_Code),
     loc: toStringValue(header.Shortcut_Dimension_3_Code),

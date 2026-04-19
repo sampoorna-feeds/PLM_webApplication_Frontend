@@ -298,7 +298,7 @@ const EMPTY_FORM_STATE: CreateFormState = {
   documentDate: "",
   orderDate: "",
   externalDocumentNo: "",
-  invoiceType: "Bill of supply",
+  invoiceType: "Bill of Supply",
   lob: "",
   branch: "",
   loc: "",
@@ -978,18 +978,23 @@ export function SalesCreateDocumentFormContent({
             <ClearableField
               readOnly={areFieldsReadOnly}
               value={formData.invoiceType}
-              onClear={() => handleInputChange("invoiceType", "Bill of supply")}
+              onClear={() => handleInputChange("invoiceType", "")}
             >
               <Select
-                value={formData.invoiceType}
-                onValueChange={(v) => handleInputChange("invoiceType", v)}
+                value={formData.invoiceType.trim() || "__none__"}
+                onValueChange={(v) =>
+                  handleInputChange("invoiceType", v === "__none__" ? "" : v)
+                }
               >
                 <SelectTrigger className="h-9">
-                  <SelectValue placeholder="Select" />
+                  <SelectValue placeholder="None" />
                 </SelectTrigger>
                 <SelectContent>
                   {caps.invoiceTypeOptions.map((opt) => (
-                    <SelectItem key={opt.value} value={opt.value}>
+                    <SelectItem
+                      key={opt.value || "__none__"}
+                      value={opt.value || "__none__"}
+                    >
                       {opt.label}
                     </SelectItem>
                   ))}
@@ -1669,7 +1674,9 @@ export function SalesCreateDocumentFormContent({
           docType={
             (documentType === "invoice" ? "Invoice" : "CreditMemo") as SalesGetPostedLineDocType
           }
-          customerNo={orderHeader?.Sell_to_Customer_No}
+          sellToCustomerNo={orderHeader?.Sell_to_Customer_No}
+          billToCustomerNo={orderHeader?.Bill_to_Customer_No}
+          currencyCode={orderHeader?.Currency_Code}
           onSuccess={async () => {
             await refreshLines();
           }}

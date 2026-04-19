@@ -6,7 +6,7 @@ import {
   submitSalesPostedLine,
   type SalesGetPostedLineDocType,
 } from "@/lib/api/services/sales-get-posted-line.service";
-import { ItemChargeSourceLine } from "@/lib/api/services/item-charge-assignment.service";
+import type { ItemChargeSourceLine, SourceType } from "@/lib/api/services/item-charge-assignment.service";
 import { ItemChargeSelectionDialog } from "@/components/forms/purchase/item-charge-selection-dialog";
 
 interface SalesGetPostedLineDialogProps {
@@ -14,45 +14,59 @@ interface SalesGetPostedLineDialogProps {
   onOpenChange: (open: boolean) => void;
   documentNo: string;
   docType: SalesGetPostedLineDocType;
-  customerNo?: string;
+  /** Sell-to Customer No. from the sales document header */
+  sellToCustomerNo?: string;
+  /** Bill-to Customer No. from the sales document header */
+  billToCustomerNo?: string;
+  /** Currency Code from the sales document header */
   currencyCode?: string;
   onSuccess: () => void;
 }
-
-// Invoice → Posted Sales Shipment lines; CreditMemo → Posted Return Receipt lines
-const DOC_TYPE_SOURCE_TYPE = {
-  Invoice: "SalesShipment",
-  CreditMemo: "ReturnReceipt",
-} as const;
 
 export function SalesGetPostedLineDialog({
   open,
   onOpenChange,
   documentNo,
   docType,
-  customerNo,
+  sellToCustomerNo,
+  billToCustomerNo,
   currencyCode,
   onSuccess,
 }: SalesGetPostedLineDialogProps) {
   const [, setIsSubmitting] = useState(false);
 
-  const sourceType = DOC_TYPE_SOURCE_TYPE[docType];
+  // Invoice uses the dedicated GetShipmentLine endpoint with the full BC filter set.
+  // CreditMemo uses the standard ReturnReceiptLine endpoint.
+  const sourceType: SourceType = docType === "Invoice" ? "GetShipmentLine" : "ReturnReceipt";
 
   const extraFilters = useMemo(() => {
-    const filters: string[] = [];
     if (docType === "Invoice") {
-      filters.push("Quantity_Invoiced lt Quantity");
-    } else {
-      filters.push("Quantity_Invoiced lt Quantity");
+      const filters: string[] = [
+        "Qty_Shipped_Not_Invoiced ne 0",
+        "Authorized_for_Credit_Card eq false",
+      ];
+      if (billToCustomerNo) {
+        filters.push(`Bill_to_Customer_No eq '${billToCustomerNo.replace(/'/g, "''")}'`);
+      }
+      if (sellToCustomerNo) {
+        filters.push(`Sell_to_Customer_No eq '${sellToCustomerNo.replace(/'/g, "''")}'`);
+      }
+      if (currencyCode !== undefined) {
+        filters.push(`Currency_Code eq '${currencyCode.replace(/'/g, "''")}'`);
+      }
+      return filters;
     }
-    if (customerNo) {
-      filters.push(`Sell_to_Customer_No eq '${customerNo.replace(/'/g, "''")}'`);
+
+    // CreditMemo — return receipt lines not yet fully credited
+    const filters: string[] = ["Qty_Rtn_Shipped_Not_Invd ne 0"];
+    if (sellToCustomerNo) {
+      filters.push(`Sell_to_Customer_No eq '${sellToCustomerNo.replace(/'/g, "''")}'`);
     }
     if (currencyCode !== undefined) {
       filters.push(`Currency_Code eq '${currencyCode.replace(/'/g, "''")}'`);
     }
     return filters;
-  }, [docType, customerNo, currencyCode]);
+  }, [docType, sellToCustomerNo, billToCustomerNo, currencyCode]);
 
   const handleLinesSelected = async (lines: ItemChargeSourceLine[]) => {
     if (lines.length === 0) return;

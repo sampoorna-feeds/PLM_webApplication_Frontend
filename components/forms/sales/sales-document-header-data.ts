@@ -52,7 +52,7 @@ export function buildSalesCommonHeaderData(
     documentDate: formData.documentDate,
     orderDate: formData.orderDate || formData.postingDate,
     externalDocumentNo: formData.externalDocumentNo || "",
-    invoiceType: formData.invoiceType || "Bill of supply",
+    invoiceType: formData.invoiceType || "Bill of Supply",
     lob: formData.lob || "",
     branch: formData.branch || "",
     loc: formData.loc || "",

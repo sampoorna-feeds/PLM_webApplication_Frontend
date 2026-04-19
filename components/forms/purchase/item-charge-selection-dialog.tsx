@@ -234,6 +234,7 @@ export function ItemChargeSelectionDialog({
   const TITLES: Record<SourceType, string> = {
     Receipt: "Get Purchase Receipt Lines",
     SalesShipment: "Get Sales Shipment Lines",
+    GetShipmentLine: "Get Posted Shipment Lines",
     Transfer: "Get Transfer Receipt Lines",
     ReturnReceipt: "Get Return Receipt Lines",
     ReturnShipment: "Get Return Shipment Lines",

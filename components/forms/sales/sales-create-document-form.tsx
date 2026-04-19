@@ -484,7 +484,7 @@ export function SalesCreateDocumentFormContent({
       setOrderHeader(header);
       setLines(lineItems);
 
-      if ((isEditMode || isViewMode) && header) {
+      if (header) {
         setFormData(mapSalesHeaderToFormData(header));
       }
 
@@ -509,7 +509,34 @@ export function SalesCreateDocumentFormContent({
     } finally {
       setIsLoading(false);
     }
-  }, [initialOrderNo, ops, isEditMode, isViewMode]);
+  }, [initialOrderNo, ops]);
+
+  // Refresh only lines + stock without triggering the full loading skeleton.
+  // Used after add/edit/delete line operations.
+  const refreshLines = useCallback(async () => {
+    const docNo = initialOrderNo;
+    if (!docNo) return;
+    try {
+      const lineItems = await ops.fetchLines(docNo);
+      setLines(lineItems);
+
+      const locationCode = orderHeader?.Location_Code;
+      if (locationCode && lineItems.length > 0) {
+        const itemNos = [
+          ...new Set(lineItems.map((l) => String(l.No || ""))),
+        ].filter(Boolean);
+        const stockDate = new Date().toISOString().split("T")[0];
+        try {
+          const stock = await getItemStock(itemNos, locationCode, stockDate);
+          setLineStockMap(stock);
+        } catch {
+          setLineStockMap({});
+        }
+      }
+    } catch {
+      // non-fatal
+    }
+  }, [initialOrderNo, ops, orderHeader?.Location_Code]);
 
   useEffect(() => {
     if (!isCreateMode) {
@@ -678,7 +705,7 @@ export function SalesCreateDocumentFormContent({
         }
         toast.success(`Deleted ${selectedDeleteLineNos.length} line(s)`);
         setIsDeleteDialogOpen(false);
-        loadDocument();
+        refreshLines();
         return;
       }
       const allLineNos = lines
@@ -1431,12 +1458,12 @@ export function SalesCreateDocumentFormContent({
                   onDelete={async (line) => {
                     if (!currentDocNo || line.Line_No == null) return;
                     await ops.deleteLine(currentDocNo, line.Line_No);
-                    loadDocument();
+                    refreshLines();
                   }}
                   onInlineUpdate={async (line, patch) => {
                     if (!currentDocNo || line.Line_No == null) return;
                     await ops.updateLine(currentDocNo, line.Line_No, patch);
-                    await loadDocument();
+                    await refreshLines();
                   }}
                 />
 
@@ -1475,7 +1502,7 @@ export function SalesCreateDocumentFormContent({
         locationCode={orderHeader?.Location_Code || formData.locationCode || ""}
         customerPriceGroup={formData.customerPriceGroup}
         orderDate={formData.orderDate || formData.postingDate}
-        onSave={loadDocument}
+        onSave={refreshLines}
         addSingleLine={
           ops.addSingleLine as (
             documentNo: string,
@@ -1500,7 +1527,7 @@ export function SalesCreateDocumentFormContent({
               .toLowerCase()
           ]
         }
-        onSave={loadDocument}
+        onSave={refreshLines}
         onAssignTracking={(line) => {
           setSelectedTrackingLine(line);
           setIsTrackingDialogOpen(true);
@@ -1514,7 +1541,7 @@ export function SalesCreateDocumentFormContent({
           if (!currentDocNo || line.Line_No == null) return;
           await ops.deleteLine(currentDocNo, line.Line_No);
           setIsLineDialogOpen(false);
-          loadDocument();
+          refreshLines();
         }}
         updateLine={
           ops.updateLine as (
@@ -1555,7 +1582,7 @@ export function SalesCreateDocumentFormContent({
       <SalesItemTrackingDialog
         open={isTrackingDialogOpen}
         onOpenChange={setIsTrackingDialogOpen}
-        onSave={loadDocument}
+        onSave={refreshLines}
         orderNo={currentDocNo}
         locationCode={orderHeader?.Location_Code || ""}
         line={selectedTrackingLine}
@@ -1643,7 +1670,7 @@ export function SalesCreateDocumentFormContent({
           }
           customerNo={orderHeader?.Sell_to_Customer_No}
           onSuccess={async () => {
-            await loadDocument();
+            await refreshLines();
           }}
         />
       )}
@@ -1681,7 +1708,7 @@ export function SalesCreateDocumentFormContent({
               onSuccess(docNo);
               return;
             }
-            await loadDocument();
+            await refreshLines();
           }}
         />
       )}

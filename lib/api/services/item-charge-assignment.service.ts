@@ -58,6 +58,7 @@ export interface ItemChargeSourceLine {
   Quantity: number;
   Unit_of_Measure?: string;
   Posting_Date?: string;
+  Shipment_Date?: string; // GetShipmentLine uses Shipment_Date instead of Posting_Date
 }
 
 export type SourceType =

@@ -1253,7 +1253,7 @@ export function SalesCreateDocumentFormContent({
                   Delete
                 </Button>
               )}
-              {documentType === "order" && isViewMode && isOpen && (
+              {(documentType === "order" || documentType === "credit-memo") && isViewMode && isOpen && (
                 <Button
                   type="button"
                   size="sm"
@@ -1268,7 +1268,7 @@ export function SalesCreateDocumentFormContent({
                   )}
                 </Button>
               )}
-              {documentType === "order" && isViewMode && isPending && (
+              {(documentType === "order" || documentType === "credit-memo") && isViewMode && isPending && (
                 <Button
                   type="button"
                   size="sm"
@@ -1323,7 +1323,7 @@ export function SalesCreateDocumentFormContent({
                   Post
                 </Button>
               )}
-              {documentType === "order" && isViewMode && isReleased && (
+              {(documentType === "order" || documentType === "credit-memo") && isViewMode && isReleased && (
                 <Button
                   type="button"
                   size="sm"
@@ -1543,6 +1543,7 @@ export function SalesCreateDocumentFormContent({
           setIsLineDialogOpen(false);
           setIsItemChargeDialogOpen(true);
         }}
+        isReleased={isReleased}
         onDelete={async (line) => {
           if (!currentDocNo || line.Line_No == null) return;
           await ops.deleteLine(currentDocNo, line.Line_No);

@@ -54,7 +54,7 @@ const SELECTION_COLUMNS: ColumnConfig[] = [
   { id: "Description", label: "Description", sortable: true, filterType: "text", width: "250px" },
   { id: "Quantity", label: "Quantity", sortable: true, width: "100px", align: "right" },
   { id: "Unit_of_Measure", label: "UOM", sortable: true, width: "80px", align: "center" },
-  { id: "Posting_Date", label: "Posting Date", sortable: true, width: "120px" },
+  { id: "Posting_Date", label: "Date", sortable: true, width: "120px" },
 ];
 
 const TOTAL_COLS = SELECTION_COLUMNS.length + 1;
@@ -163,6 +163,7 @@ export function ItemChargeSelectionDialog({
         let valA = (a as unknown as Record<string, unknown>)[sortColumn];
         let valB = (b as unknown as Record<string, unknown>)[sortColumn];
         if (sortColumn === "Item_No") { valA = a.No || a.Item_No || ""; valB = b.No || b.Item_No || ""; }
+        if (sortColumn === "Posting_Date") { valA = valA ?? a.Shipment_Date; valB = valB ?? b.Shipment_Date; }
         if (valA === valB) return 0;
         if (valA == null) return 1;
         if (valB == null) return -1;
@@ -337,7 +338,7 @@ export function ItemChargeSelectionDialog({
                         <td className="max-w-64 truncate px-3 py-2 text-left align-middle text-[11px]">{line.Description}</td>
                         <td className="px-3 py-2 text-right align-middle text-[11px] tabular-nums">{line.Quantity.toLocaleString()}</td>
                         <td className="px-3 py-2 text-center align-middle text-[10px]">{line.Unit_of_Measure || "—"}</td>
-                        <td className="px-3 py-2 text-left align-middle text-[10px]">{line.Posting_Date || "—"}</td>
+                        <td className="px-3 py-2 text-left align-middle text-[10px]">{line.Posting_Date || line.Shipment_Date || "—"}</td>
                       </tr>
                     );
                   })}

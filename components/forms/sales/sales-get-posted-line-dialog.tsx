@@ -41,10 +41,7 @@ export function SalesGetPostedLineDialog({
 
   const extraFilters = useMemo(() => {
     if (docType === "Invoice") {
-      const filters: string[] = [
-        "Qty_Shipped_Not_Invoiced ne 0",
-        "Authorized_for_Credit_Card eq false",
-      ];
+      const filters: string[] = ["Qty_Shipped_Not_Invoiced ne 0"];
       if (billToCustomerNo) {
         filters.push(`Bill_to_Customer_No eq '${billToCustomerNo.replace(/'/g, "''")}'`);
       }

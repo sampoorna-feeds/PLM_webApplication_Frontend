@@ -57,6 +57,7 @@ interface SalesOrderLineEditDialogProps {
   orderNo: string;
   onDelete?: (line: SalesLine) => void | Promise<void>;
   hasTracking?: boolean;
+  isReleased?: boolean;
   onSave: () => void;
   onAssignTracking?: (line: SalesLine) => void;
   onOpenItemCharge?: (line: SalesLine) => void;
@@ -75,6 +76,7 @@ export function SalesOrderLineEditDialog({
   orderNo,
   onDelete,
   hasTracking = false,
+  isReleased = false,
   onSave,
   onAssignTracking,
   onOpenItemCharge,
@@ -350,12 +352,13 @@ export function SalesOrderLineEditDialog({
               <Label htmlFor="sl-description" className="text-xs">
                 Description
               </Label>
-              <ClearableField value={description} onClear={() => setDescription("")}>
+              <ClearableField value={description} onClear={() => setDescription("")} disabled={isReleased}>
                 <Input
                   id="sl-description"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   className={fieldInputClass}
+                  disabled={isReleased}
                 />
               </ClearableField>
             </div>
@@ -366,7 +369,7 @@ export function SalesOrderLineEditDialog({
                   <Label htmlFor="sl-qty" className="text-xs">
                     Quantity
                   </Label>
-                  <ClearableField value={quantity} onClear={() => setQuantity("")}>
+                  <ClearableField value={quantity} onClear={() => setQuantity("")} disabled={isReleased}>
                     <Input
                       id="sl-qty"
                       inputMode="decimal"
@@ -375,6 +378,7 @@ export function SalesOrderLineEditDialog({
                         if (isValidNum(e.target.value)) setQuantity(e.target.value);
                       }}
                       className={fieldInputClass}
+                      disabled={isReleased}
                     />
                   </ClearableField>
                 </div>
@@ -383,7 +387,7 @@ export function SalesOrderLineEditDialog({
                   <Label htmlFor="sl-unit-price" className="text-xs">
                     Unit Price
                   </Label>
-                  <ClearableField value={unitPrice} onClear={() => setUnitPrice("")}>
+                  <ClearableField value={unitPrice} onClear={() => setUnitPrice("")} disabled={isReleased}>
                     <Input
                       id="sl-unit-price"
                       inputMode="decimal"
@@ -392,6 +396,7 @@ export function SalesOrderLineEditDialog({
                         if (isValidNum(e.target.value)) setUnitPrice(e.target.value);
                       }}
                       className={fieldInputClass}
+                      disabled={isReleased}
                     />
                   </ClearableField>
                 </div>
@@ -400,7 +405,7 @@ export function SalesOrderLineEditDialog({
                   <Label htmlFor="sl-discount" className="text-xs">
                     Discount %
                   </Label>
-                  <ClearableField value={discountPct} onClear={() => setDiscountPct("")}>
+                  <ClearableField value={discountPct} onClear={() => setDiscountPct("")} disabled={isReleased}>
                     <Input
                       id="sl-discount"
                       inputMode="decimal"
@@ -409,6 +414,7 @@ export function SalesOrderLineEditDialog({
                         if (isValidNum(e.target.value)) setDiscountPct(e.target.value);
                       }}
                       className={fieldInputClass}
+                      disabled={isReleased}
                     />
                   </ClearableField>
                 </div>
@@ -458,6 +464,7 @@ export function SalesOrderLineEditDialog({
                       setGstGroupCode("");
                       setHsnSacCode("");
                     }}
+                    disabled={isReleased}
                   >
                     <SearchableSelect
                       value={gstGroupCode}
@@ -470,6 +477,7 @@ export function SalesOrderLineEditDialog({
                       placeholder="Select GST Group..."
                       searchPlaceholder="Search GST Groups..."
                       allowCustomValue={true}
+                      disabled={isReleased}
                     />
                   </ClearableField>
                 </div>
@@ -479,7 +487,7 @@ export function SalesOrderLineEditDialog({
                   <ClearableField
                     value={hsnSacCode}
                     onClear={() => setHsnSacCode("")}
-                    disabled={!gstGroupCode}
+                    disabled={!gstGroupCode || isReleased}
                   >
                     <SearchableSelect
                       value={hsnSacCode}
@@ -488,7 +496,7 @@ export function SalesOrderLineEditDialog({
                       isLoading={loadingOptions.hsn}
                       placeholder={gstGroupCode ? "Select HSN/SAC..." : "Select GST Group first"}
                       searchPlaceholder="Search HSN/SAC Codes..."
-                      disabled={!gstGroupCode}
+                      disabled={!gstGroupCode || isReleased}
                       allowCustomValue={true}
                     />
                   </ClearableField>
@@ -500,6 +508,7 @@ export function SalesOrderLineEditDialog({
                       id="sl-exempted"
                       checked={exempted}
                       onCheckedChange={(checked) => setExempted(checked === true)}
+                      disabled={isReleased}
                     />
                     <Label htmlFor="sl-exempted" className="cursor-pointer text-sm">
                       Exempted
@@ -510,6 +519,7 @@ export function SalesOrderLineEditDialog({
                       id="sl-foc"
                       checked={foc}
                       onCheckedChange={(checked) => setFoc(checked === true)}
+                      disabled={isReleased}
                     />
                     <Label htmlFor="sl-foc" className="cursor-pointer text-sm">
                       FOC
@@ -538,7 +548,7 @@ export function SalesOrderLineEditDialog({
                     "border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive",
                   )}
                   onClick={handleDelete}
-                  disabled={isDeleting || isSaving}
+                  disabled={isDeleting || isSaving || isReleased}
                 >
                   {isDeleting ? (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />

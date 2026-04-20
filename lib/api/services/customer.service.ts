@@ -272,48 +272,61 @@ export async function getCustomersForDialog(opts: {
     : defaultCols;
   const sel = selectCols.join(",");
 
-  const filterParts: string[] = [getBaseFilter()];
-
-  if (opts.search && opts.search.trim().length >= 2) {
-    const s = escapeODataValue(opts.search.trim());
-    filterParts.push(
-      `(contains(No,'${s}') or contains(Name,'${s}') or contains(P_A_N_No,'${s}') or contains(GST_Registration_No,'${s}'))`,
-    );
-  }
-
+  const baseFilterParts: string[] = [getBaseFilter()];
   if (opts.filters) {
     Object.entries(opts.filters).forEach(([col, val]) => {
       if (!val) return;
-      filterParts.push(`contains(${col},'${escapeODataValue(val.trim())}')`);
+      baseFilterParts.push(`contains(${col},'${escapeODataValue(val.trim())}')`);
     });
   }
-
-  const filterStr = filterParts.join(" and ");
+  const baseFilter = baseFilterParts.join(" and ");
 
   let orderbyClause = "No";
   if (opts.sortColumn && opts.sortDirection) {
     orderbyClause = `${opts.sortColumn} ${opts.sortDirection === "asc" ? "asc" : "desc"}`;
   }
 
-  const query = buildODataQuery({
-    $select: sel,
-    $filter: filterStr,
-    $orderby: orderbyClause,
-    $top: top,
-    $skip: skip,
-    $count: true,
-  });
-
-  const endpoint = `/CustomerCard?company='${encodeURIComponent(COMPANY)}'&${query}`;
-
-  try {
+  const fetchPage = async (filter: string): Promise<{ value: Customer[]; count: number }> => {
+    const query = buildODataQuery({
+      $select: sel,
+      $filter: filter,
+      $orderby: orderbyClause,
+      $top: top,
+      $skip: skip,
+      $count: true,
+    });
+    const endpoint = `/CustomerCard?company='${encodeURIComponent(COMPANY)}'&${query}`;
     const res = await apiGet<ODataResponse<Customer>>(endpoint);
     return {
       value: res.value || [],
       count: (res as unknown as Record<string, number>)["@odata.count"] ?? res.value?.length ?? 0,
     };
-  } catch (error) {
-    console.error("Error fetching customers for dialog:", error);
+  };
+
+  // No search — single paginated call
+  if (!opts.search || opts.search.trim().length < 2) {
+    try {
+      return await fetchPage(baseFilter);
+    } catch {
+      return { value: [], count: 0 };
+    }
+  }
+
+  // Search — BC OData does not support OR across distinct fields in one filter,
+  // so make one call per search field and merge the unique results client-side.
+  const s = escapeODataValue(opts.search.trim());
+  try {
+    const [byNo, byName] = await Promise.all([
+      fetchPage(`${baseFilter} and contains(No,'${s}')`),
+      fetchPage(`${baseFilter} and contains(Name,'${s}')`),
+    ]);
+
+    const map: Record<string, Customer> = {};
+    [...byNo.value, ...byName.value].forEach((c) => { map[c.No] = c; });
+    const merged = Object.values(map);
+
+    return { value: merged, count: merged.length };
+  } catch {
     return { value: [], count: 0 };
   }
 }

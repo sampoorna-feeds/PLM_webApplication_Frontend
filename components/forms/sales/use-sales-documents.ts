@@ -92,7 +92,7 @@ export function useSalesDocuments(options: UseSalesDocumentsOptions) {
   const [totalCount, setTotalCount] = useState(0);
   const [userBranchCodes, setUserBranchCodes] = useState<string[]>([]);
 
-  const [sortColumn, setSortColumn] = useState<string | null>("No");
+  const [sortColumn, setSortColumn] = useState<string | null>("Posting_Date");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
   const [searchQuery, setSearchQuery] = useState("");
   const [columnFilters, setColumnFilters] = useState<
@@ -143,7 +143,7 @@ export function useSalesDocuments(options: UseSalesDocumentsOptions) {
   }, [userID]);
 
   const getOrderByString = useCallback(() => {
-    if (!sortColumn || !sortDirection) return "No desc";
+    if (!sortColumn || !sortDirection) return "Posting_Date desc";
     return `${sortColumn} ${sortDirection}`;
   }, [sortColumn, sortDirection]);
 
@@ -278,7 +278,7 @@ export function useSalesDocuments(options: UseSalesDocumentsOptions) {
     setSearchQuery("");
     setColumnFilters({});
     setAdditionalFilters([]);
-    setSortColumn("No");
+    setSortColumn("Posting_Date");
     setSortDirection("desc");
     setCurrentPage(1);
   }, []);

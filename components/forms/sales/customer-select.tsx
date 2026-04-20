@@ -84,6 +84,13 @@ const DEFAULT_COLUMNS: ColumnConfig[] = [
     flex: true,
   },
   {
+    id: "Responsibility_Center",
+    label: "Responsibility Center",
+    sortable: true,
+    filterType: "text",
+    width: "170px",
+  },
+  {
     id: "City",
     label: "City",
     sortable: true,
@@ -134,13 +141,6 @@ const OPTIONAL_COLUMNS: ColumnConfig[] = [
     sortable: true,
     filterType: "text",
     width: "120px",
-  },
-  {
-    id: "Responsibility_Center",
-    label: "Responsibility Center",
-    sortable: true,
-    filterType: "text",
-    width: "170px",
   },
   {
     id: "Assessee_Code",
@@ -252,6 +252,9 @@ export function CustomerSelect({
   const sortDirectionRef = useRef(sortDirection);
   const columnFiltersRef = useRef(columnFilters);
   const visibleColumnsRef = useRef(visibleColumns);
+  const customersLengthRef = useRef(0);
+  const totalCountRef = useRef(0);
+  const isFetchingMoreRef = useRef(false);
 
   useEffect(() => {
     debouncedSearchRef.current = debouncedSearch;
@@ -259,13 +262,10 @@ export function CustomerSelect({
     sortDirectionRef.current = sortDirection;
     columnFiltersRef.current = columnFilters;
     visibleColumnsRef.current = visibleColumns;
-  }, [
-    debouncedSearch,
-    sortColumn,
-    sortDirection,
-    columnFilters,
-    visibleColumns,
-  ]);
+  }, [debouncedSearch, sortColumn, sortDirection, columnFilters, visibleColumns]);
+
+  useEffect(() => { customersLengthRef.current = customers.length; }, [customers]);
+  useEffect(() => { totalCountRef.current = totalCount; }, [totalCount]);
 
   const allFetched = totalCount > 0 && customers.length >= totalCount;
 
@@ -356,30 +356,25 @@ export function CustomerSelect({
     const sentinel = sentinelRef.current;
     if (!sentinel) return;
 
-    let isFetching = false;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting && !isFetching) {
-          setCustomers((prev) => {
-            setTotalCount((total) => {
-              const alreadyAll = total > 0 && prev.length >= total;
-              if (!alreadyAll && !isFetching) {
-                isFetching = true;
-                fetchMore(prev.length).finally(() => {
-                  isFetching = false;
-                });
-              }
-              return total;
-            });
-            return prev;
-          });
-        }
-      },
+    let obs: IntersectionObserver;
+
+    const checkAndFetch = () => {
+      const total = totalCountRef.current;
+      const count = customersLengthRef.current;
+      if ((total > 0 && count >= total) || isFetchingMoreRef.current) return;
+      isFetchingMoreRef.current = true;
+      fetchMore(count).finally(() => {
+        isFetchingMoreRef.current = false;
+      });
+    };
+
+    obs = new IntersectionObserver(
+      (entries) => { if (entries[0].isIntersecting) checkAndFetch(); },
       { threshold: 0.1 },
     );
-    observer.observe(sentinel);
-    return () => observer.disconnect();
-  }, [fetchMore, loading, loadingMore]);
+    obs.observe(sentinel);
+    return () => obs.disconnect();
+  }, [fetchMore, loading]);
 
   useEffect(() => {
     if (!value) {
@@ -517,7 +512,7 @@ export function CustomerSelect({
               <div className="relative flex-1">
                 <Search className="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
                 <Input
-                  placeholder="Search by customer No., Name, PAN No. or GST No. …"
+                  placeholder="Search by No. or Customer Name…"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="border-border/60 bg-background h-9 rounded-md pr-9 pl-9 text-sm shadow-none focus-visible:ring-1"

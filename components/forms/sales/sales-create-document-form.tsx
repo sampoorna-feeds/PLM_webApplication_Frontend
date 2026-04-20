@@ -756,6 +756,33 @@ export function SalesCreateDocumentFormContent({
     setIsPostDetailsOpen(true);
   };
 
+  const handleDirectInvoicePost = async () => {
+    if (!initialOrderNo) return;
+    const today = new Date().toISOString().split("T")[0];
+    setIsPostLoading(true);
+    try {
+      const patchPayload: Record<string, unknown> = {
+        Transporter_Code: "",
+        Transporter_Name: "",
+        Vehicle_No: "",
+        Driver_Mobile_No: "",
+        LR_RR_No: "",
+        LR_RR_Date: "",
+        Posting_Date: orderHeader?.Posting_Date || today,
+        External_Document_No: "",
+        Distance_km: 0,
+      };
+      await ops.patchHeader(initialOrderNo, patchPayload);
+      await ops.post(initialOrderNo, "2");
+      toast.success("Document posted successfully");
+      loadDocument();
+    } catch (err) {
+      setActionError(getErrorMessage(err, "Failed to post document."));
+    } finally {
+      setIsPostLoading(false);
+    }
+  };
+
   const isShipOption = postOption === "1" || postOption === "3";
   const netWeight =
     (parseFloat(postDetails.grossWeight) || 0) -
@@ -1337,6 +1364,9 @@ export function SalesCreateDocumentFormContent({
                       setPostOption(opts[0].value);
                       setPostDetails((prev) => ({ ...prev, postingDate: orderHeader?.Posting_Date || today }));
                       setIsPostDetailsOpen(true);
+                    } else if (documentType === "invoice") {
+                      setPostOption("2");
+                      handleDirectInvoicePost();
                     } else {
                       setPostOption(null);
                       setIsPostDialogOpen(true);

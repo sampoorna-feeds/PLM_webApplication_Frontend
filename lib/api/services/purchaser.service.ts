@@ -48,17 +48,26 @@ export async function searchPurchasers(
   skip: number = 0,
 ): Promise<Purchaser[]> {
   const escapedQuery = escapeODataValue(searchQuery);
-  const filter = `(contains(Code,'${escapedQuery}') or contains(Name,'${escapedQuery}'))`;
 
-  const query = buildODataQuery({
-    $select: "Code,Name",
-    $filter: filter,
-    $orderby: "Code",
-    $top: top,
-    $skip: skip,
-  });
+  const fetchByField = async (field: string): Promise<Purchaser[]> => {
+    const query = buildODataQuery({
+      $select: "Code,Name",
+      $filter: `contains(${field},'${escapedQuery}')`,
+      $orderby: "Code",
+      $top: top,
+      $skip: 0,
+    });
+    const endpoint = `/SalesPerson?company='${encodeURIComponent(COMPANY)}'&${query}`;
+    const response = await apiGet<ODataResponse<Purchaser>>(endpoint);
+    return response.value || [];
+  };
 
-  const endpoint = `/SalesPerson?company='${encodeURIComponent(COMPANY)}'&${query}`;
-  const response = await apiGet<ODataResponse<Purchaser>>(endpoint);
-  return response.value || [];
+  const [byCode, byName] = await Promise.all([
+    fetchByField("Code"),
+    fetchByField("Name"),
+  ]);
+
+  const map = new Map<string, Purchaser>();
+  [...byCode, ...byName].forEach((p) => { if (!map.has(p.Code)) map.set(p.Code, p); });
+  return Array.from(map.values()).slice(skip, skip + top);
 }

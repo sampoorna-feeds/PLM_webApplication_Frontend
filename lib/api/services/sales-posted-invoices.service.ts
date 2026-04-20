@@ -148,3 +148,33 @@ export async function getInvoiceReportPdf(
   const response = await apiPost<{ value: string }>(endpoint, { documentNo, custNo, postingDate });
   return response.value || "";
 }
+
+export async function generateEInvoice(docno: string): Promise<void> {
+  const endpoint = `/API_GenerateEinvoice?company='${encodeURIComponent(COMPANY)}'`;
+  await apiPost(endpoint, { doctype: "SalesInvoice", docno });
+}
+
+export async function cancelEInvoice(docno: string): Promise<void> {
+  const endpoint = `/API_CancelEinvoice?company='${encodeURIComponent(COMPANY)}'`;
+  await apiPost(endpoint, { doctype: "SalesInvoice", docno });
+}
+
+export async function generateEWayBill(docno: string): Promise<void> {
+  const endpoint = `/API_GenerateEWayBill?company='${encodeURIComponent(COMPANY)}'`;
+  await apiPost(endpoint, { doctype: "SalesInvoice", docno });
+}
+
+export async function cancelEWayBill(docno: string): Promise<void> {
+  const endpoint = `/API_CancelEWayBill?company='${encodeURIComponent(COMPANY)}'`;
+  await apiPost(endpoint, { doctype: "SalesInvoice", docno });
+}
+
+export async function updateVehicle(docno: string, ewaybillno: string): Promise<void> {
+  const endpoint = `/API_UpdateVehicle?company='${encodeURIComponent(COMPANY)}'`;
+  await apiPost(endpoint, { docno, ewaybillno });
+}
+
+export async function updateTransporter(docno: string, ewaybillno: string): Promise<void> {
+  const endpoint = `/API_UpdateTransporter?company='${encodeURIComponent(COMPANY)}'`;
+  await apiPost(endpoint, { docno, ewaybillno });
+}

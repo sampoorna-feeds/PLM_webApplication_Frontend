@@ -1186,7 +1186,7 @@ export function PurchaseCreateDocumentFormContent({
         setIsReceiptLoading(true);
         getPurchasereceipts(createdOrderNo)
           .then(setReceiptShipments)
-          .catch(() => toast.error("Failed to load receipts"))
+          .catch((err) => setPlaceOrderError(getErrorMessage(err, "Failed to load receipts.")))
           .finally(() => setIsReceiptLoading(false));
       }
     }
@@ -1215,12 +1215,12 @@ export function PurchaseCreateDocumentFormContent({
     try {
       const b64 = await getPurchaseOrderReport(createdOrderNo);
       if (!b64) {
-        toast.error("No report data found.");
+        setPlaceOrderError("No report data found.");
         return;
       }
       window.open(URL.createObjectURL(base64ToPdfBlob(b64)), "_blank");
-    } catch {
-      toast.error("Failed to generate report.");
+    } catch (err) {
+      setPlaceOrderError(getErrorMessage(err, "Failed to generate report."));
     } finally {
       setIsActionLoading(false);
     }
@@ -1231,12 +1231,12 @@ export function PurchaseCreateDocumentFormContent({
       try {
         const b64 = await getPurchasereceiptReport(mrnNo);
         if (!b64) {
-          toast.error("No report data found.");
+          setPlaceOrderError("No report data found.");
           return;
         }
         window.open(URL.createObjectURL(base64ToPdfBlob(b64)), "_blank");
-      } catch {
-        toast.error("Failed to generate MRN report.");
+      } catch (err) {
+        setPlaceOrderError(getErrorMessage(err, "Failed to generate MRN report."));
       }
     });
   };
@@ -2458,11 +2458,7 @@ export function PurchaseCreateDocumentFormContent({
                         }
                         await fetchLines(createdOrderNo);
                       } catch (err) {
-                        const msg =
-                          err instanceof Error
-                            ? err.message
-                            : "Failed to update line";
-                        alert(`Error: ${msg}`);
+                        setPlaceOrderError(getErrorMessage(err, "Failed to update line."));
                         throw err;
                       }
                     }}

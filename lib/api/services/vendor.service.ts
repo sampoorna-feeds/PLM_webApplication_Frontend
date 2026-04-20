@@ -145,48 +145,61 @@ export async function getVendorsForDialog(opts: {
     : defaultCols;
   const sel = selectCols.join(",");
 
-  let filterParts: string[] = [getBaseFilter(opts.brokerOnly)];
-
-  if (opts.search && opts.search.trim().length >= 2) {
-    const s = escapeODataValue(opts.search.trim());
-    const searchFilter = `(contains(No,'${s}') or contains(Name,'${s}') or contains(GST_Registration_No,'${s}') or contains(P_A_N_No,'${s}'))`;
-    filterParts.push(searchFilter);
-  }
-
+  const baseFilterParts: string[] = [getBaseFilter(opts.brokerOnly)];
   if (opts.filters) {
     Object.entries(opts.filters).forEach(([col, val]) => {
       if (!val) return;
-      const escaped = escapeODataValue(val.trim());
-      filterParts.push(`contains(${col},'${escaped}')`);
+      baseFilterParts.push(`contains(${col},'${escapeODataValue(val.trim())}')`);
     });
   }
-
-  const filterStr = filterParts.join(" and ");
+  const baseFilter = baseFilterParts.join(" and ");
 
   let orderbyClause = "No";
   if (opts.sortColumn && opts.sortDirection) {
     orderbyClause = `${opts.sortColumn} ${opts.sortDirection === "asc" ? "asc" : "desc"}`;
   }
 
-  const query = buildODataQuery({
-    $select: sel,
-    $filter: filterStr,
-    $orderby: orderbyClause,
-    $top: top,
-    $skip: skip,
-    $count: true,
-  });
-
-  const endpoint = `/VendorCard?company='${encodeURIComponent(COMPANY)}'&${query}`;
-
-  try {
+  const fetchPage = async (filter: string, pageSkip: number): Promise<{ value: Vendor[]; count: number }> => {
+    const query = buildODataQuery({
+      $select: sel,
+      $filter: filter,
+      $orderby: orderbyClause,
+      $top: top,
+      $skip: pageSkip,
+      $count: true,
+    });
+    const endpoint = `/VendorCard?company='${encodeURIComponent(COMPANY)}'&${query}`;
     const res = await apiGet<ODataResponse<Vendor>>(endpoint);
     return {
       value: res.value || [],
       count: (res as any)["@odata.count"] ?? res.value?.length ?? 0,
     };
-  } catch (error) {
-    console.error("Error fetching vendors for dialog:", error);
+  };
+
+  // No search — single paginated call
+  if (!opts.search || opts.search.trim().length < 2) {
+    try {
+      return await fetchPage(baseFilter, skip);
+    } catch {
+      return { value: [], count: 0 };
+    }
+  }
+
+  // Search — BC OData does not support OR across distinct fields,
+  // so make one call per field and merge unique results client-side.
+  const s = escapeODataValue(opts.search.trim());
+  const searchFields = ["No", "Name", "GST_Registration_No", "P_A_N_No", "Responsibility_Center"];
+  try {
+    const results = await Promise.all(
+      searchFields.map((field) =>
+        fetchPage(`${baseFilter} and contains(${field},'${s}')`, 0).then((r) => r.value),
+      ),
+    );
+    const map: Record<string, Vendor> = {};
+    results.forEach((list) => list.forEach((v) => { map[v.No] = v; }));
+    const merged = Object.values(map);
+    return { value: merged.slice(skip, skip + top), count: merged.length };
+  } catch {
     return { value: [], count: 0 };
   }
 }

@@ -889,6 +889,9 @@ export function VendorSelect({
   const sortDirectionRef = useRef(sortDirection);
   const columnFiltersRef = useRef(columnFilters);
   const visibleColumnsRef = useRef(visibleColumns);
+  const vendorsLengthRef = useRef(0);
+  const totalCountRef = useRef(0);
+  const isFetchingMoreRef = useRef(false);
 
   useEffect(() => {
     debouncedSearchRef.current = debouncedSearch;
@@ -896,13 +899,10 @@ export function VendorSelect({
     sortDirectionRef.current = sortDirection;
     columnFiltersRef.current = columnFilters;
     visibleColumnsRef.current = visibleColumns;
-  }, [
-    debouncedSearch,
-    sortColumn,
-    sortDirection,
-    columnFilters,
-    visibleColumns,
-  ]);
+  }, [debouncedSearch, sortColumn, sortDirection, columnFilters, visibleColumns]);
+
+  useEffect(() => { vendorsLengthRef.current = vendors.length; }, [vendors]);
+  useEffect(() => { totalCountRef.current = totalCount; }, [totalCount]);
 
   const allFetched = totalCount > 0 && vendors.length >= totalCount;
 
@@ -993,30 +993,23 @@ export function VendorSelect({
     const sentinel = sentinelRef.current;
     if (!sentinel) return;
 
-    let isFetching = false;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting && !isFetching) {
-          setVendors((prev) => {
-            setTotalCount((total) => {
-              const alreadyAll = total > 0 && prev.length >= total;
-              if (!alreadyAll && !isFetching) {
-                isFetching = true;
-                fetchMore(prev.length).finally(() => {
-                  isFetching = false;
-                });
-              }
-              return total;
-            });
-            return prev;
-          });
-        }
-      },
+    const checkAndFetch = () => {
+      const total = totalCountRef.current;
+      const count = vendorsLengthRef.current;
+      if ((total > 0 && count >= total) || isFetchingMoreRef.current) return;
+      isFetchingMoreRef.current = true;
+      fetchMore(count).finally(() => {
+        isFetchingMoreRef.current = false;
+      });
+    };
+
+    const obs = new IntersectionObserver(
+      (entries) => { if (entries[0].isIntersecting) checkAndFetch(); },
       { threshold: 0.1 },
     );
-    observer.observe(sentinel);
-    return () => observer.disconnect();
-  }, [fetchMore, loading, loadingMore]);
+    obs.observe(sentinel);
+    return () => obs.disconnect();
+  }, [fetchMore, loading]);
 
   useEffect(() => {
     if (!value) {

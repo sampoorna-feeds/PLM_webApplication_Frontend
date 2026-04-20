@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Eye, Loader2 } from "lucide-react";
+import { Eye, Loader2, Printer } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import { useFormStackContext } from "@/lib/form-stack/form-stack-context";
 import { Button } from "@/components/ui/button";
@@ -16,6 +17,7 @@ import {
 } from "./sales-posted-document-config";
 import { getDeliveryReportPdf } from "@/lib/api/services/sales-orders.service";
 import { getInvoiceReportPdf } from "@/lib/api/services/sales-posted-invoices.service";
+import { getDownloadRecordLink } from "@/lib/api/services/transfer-orders.service";
 import type { SalesOrder } from "@/lib/api/services/sales-orders.service";
 
 interface SalesPostedDocumentViewProps {
@@ -79,6 +81,34 @@ export function SalesPostedDocumentView({
   // PDF URL cache: docNo → object URL
   const pdfUrlsRef = useRef<Record<string, string>>({});
   const [loadingDocNo, setLoadingDocNo] = useState<string | null>(null);
+  const [loadingEWayDocNo, setLoadingEWayDocNo] = useState<string | null>(null);
+
+  const handlePrintEWayBill = useCallback(async (row: SalesOrder) => {
+    const no = row.No;
+    setLoadingEWayDocNo(no);
+    try {
+      const url = await getDownloadRecordLink({ documentType: "SalesInvoice", documentNo: no });
+      if (!url) {
+        toast.error("No URL returned for E-Way Bill.");
+        return;
+      }
+      const response = await fetch(url);
+      if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = blobUrl;
+      link.download = `${no}_ewaybill.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setTimeout(() => window.URL.revokeObjectURL(blobUrl), 5000);
+    } catch {
+      toast.error("Failed to print E-Way Bill.");
+    } finally {
+      setLoadingEWayDocNo(null);
+    }
+  }, []);
 
   const handleViewPrint = useCallback(async (row: SalesOrder) => {
     const no = row.No;
@@ -115,24 +145,60 @@ export function SalesPostedDocumentView({
   const renderRowAction = useCallback(
     (row: SalesOrder) => {
       const isThisLoading = loadingDocNo === row.No;
+      const isEWayLoading = loadingEWayDocNo === row.No;
       return (
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-7 px-2"
-          onClick={() => handleViewPrint(row)}
-          disabled={isThisLoading}
-          title="View / Print"
-        >
-          {isThisLoading ? (
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-          ) : (
-            <Eye className="h-3.5 w-3.5" />
+        <div className="flex items-center justify-center gap-1">
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 w-7 p-0"
+                  onClick={() => handleViewPrint(row)}
+                  disabled={isThisLoading}
+                >
+                  {isThisLoading ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Eye className="h-3.5 w-3.5" />
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="right">
+                <p>View / Print</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+
+          {documentType === "posted-invoice" && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 w-7 p-0"
+                    onClick={() => handlePrintEWayBill(row)}
+                    disabled={isEWayLoading}
+                  >
+                    {isEWayLoading ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Printer className="h-3.5 w-3.5" />
+                    )}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="right">
+                  <p>Print E-Way Bill</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           )}
-        </Button>
+        </div>
       );
     },
-    [loadingDocNo, handleViewPrint],
+    [loadingDocNo, loadingEWayDocNo, handleViewPrint, handlePrintEWayBill, documentType],
   );
 
   return (

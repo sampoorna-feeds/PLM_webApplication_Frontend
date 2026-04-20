@@ -106,16 +106,15 @@ function buildProductionOrderFilter(
   lobCodes: string[],
   branchCodes: string[] = [],
 ): string {
-  const lobFilter =
-    lobCodes.length > 0
-      ? `(${lobCodes.map((code) => `'${code}'`).join(",")})`
-      : "('CATTLE','CBF','FEED')"; // Fallback to default
+  const effectiveLobCodes =
+    lobCodes.length > 0 ? lobCodes : ["CATTLE", "CBF", "FEED"];
+  const lobFilter = `(${effectiveLobCodes.map((code) => `Shortcut_Dimension_1_Code eq '${code}'`).join(" or ")})`;
 
-  let filter = `Status eq '${status}' and Shortcut_Dimension_1_Code in ${lobFilter}`;
+  let filter = `Status eq '${status}' and ${lobFilter}`;
 
   if (branchCodes.length > 0) {
-    const branchFilter = `(${branchCodes.map((code) => `'${code}'`).join(",")})`;
-    filter += ` and Shortcut_Dimension_2_Code in ${branchFilter}`;
+    const branchFilter = `(${branchCodes.map((code) => `Shortcut_Dimension_2_Code eq '${code}'`).join(" or ")})`;
+    filter += ` and ${branchFilter}`;
   }
 
   return filter;

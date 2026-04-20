@@ -42,7 +42,7 @@ const searchCache = new Map<string, Customer[]>();
  * Builds the base filter for Customers
  */
 function getBaseFilter(): string {
-  return `Responsibility_Center in ('','feed','cattle','swime') and Blocked eq ' '`;
+  return `(Responsibility_Center eq '' or Responsibility_Center eq 'feed' or Responsibility_Center eq 'cattle' or Responsibility_Center eq 'swime') and Blocked eq ' '`;
 }
 
 /**

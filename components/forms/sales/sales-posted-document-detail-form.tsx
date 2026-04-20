@@ -24,7 +24,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Loader2, ChevronDown } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import {
   Accordion,
   AccordionContent,
@@ -108,32 +108,6 @@ function ViewField({ label, value }: { label: string; value?: string | number | 
     <div className={fieldClass}>
       <label className={labelClass}>{label}</label>
       <Input value={display} readOnly disabled className="bg-muted h-8 text-sm" />
-    </div>
-  );
-}
-
-function ActionField({
-  label,
-  value,
-  onAction,
-}: {
-  label: string;
-  value?: string;
-  onAction: () => void;
-}) {
-  return (
-    <div className={fieldClass}>
-      <label className={labelClass}>{label}</label>
-      <Button
-        variant="outline"
-        size="sm"
-        className="h-8 w-full justify-between px-3 text-left text-sm font-normal"
-        onClick={onAction}
-        type="button"
-      >
-        <span className="truncate text-foreground">{value || "—"}</span>
-        <ChevronDown className="ml-2 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-      </Button>
     </div>
   );
 }
@@ -508,11 +482,32 @@ export function SalesPostedDocumentDetailForm({ context }: Props) {
 
       <div className="flex h-full flex-col">
         {/* Action bar */}
-        <div className="flex items-center justify-between border-b px-4 py-2">
-          <span className="text-muted-foreground text-[10px] font-bold tracking-wider uppercase">
+        <div className="flex flex-wrap items-center gap-2 border-b px-4 py-2">
+          <span className="text-muted-foreground mr-auto text-[10px] font-bold tracking-wider uppercase">
             {isInvoice ? "Posted Invoice" : "Posted Shipment"}
           </span>
-          <span className="text-xs font-semibold">{header.No}</span>
+          {isInvoice && (
+            <>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-8"
+                onClick={() => setActionDialog({ open: true, type: "ewaybill" })}
+              >
+                E-Way Bill
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-8"
+                onClick={() => setActionDialog({ open: true, type: "einvoice" })}
+              >
+                E-Invoice
+              </Button>
+            </>
+          )}
         </div>
 
         {/* Body */}
@@ -661,16 +656,8 @@ export function SalesPostedDocumentDetailForm({ context }: Props) {
                     <section className="space-y-4">
                       <div className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 lg:grid-cols-4">
                         <ViewField label="E-Invoice Status" value={inv.E_Invoice_Status} />
-                        <ActionField
-                          label="E-Invoice No."
-                          value={inv.E_Invoice_No}
-                          onAction={() => setActionDialog({ open: true, type: "einvoice" })}
-                        />
-                        <ActionField
-                          label="E-Way Bill No."
-                          value={inv.E_Way_Bill_No}
-                          onAction={() => setActionDialog({ open: true, type: "ewaybill" })}
-                        />
+                        <ViewField label="E-Invoice No." value={inv.E_Invoice_No} />
+                        <ViewField label="E-Way Bill No." value={inv.E_Way_Bill_No} />
                       </div>
                     </section>
                   </AccordionContent>

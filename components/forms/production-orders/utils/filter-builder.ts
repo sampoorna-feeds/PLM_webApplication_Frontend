@@ -183,8 +183,10 @@ export function buildFilterString(params: FilterParams): string {
 
   // Base filter: LOB codes (required)
   if (lobCodes.length > 0) {
-    const lobFilter = lobCodes.map((c) => `'${escapeODataValue(c)}'`).join(",");
-    filterParts.push(`Shortcut_Dimension_1_Code in (${lobFilter})`);
+    const lobFilter = lobCodes
+      .map((c) => `Shortcut_Dimension_1_Code eq '${escapeODataValue(c)}'`)
+      .join(" or ");
+    filterParts.push(`(${lobFilter})`);
   }
 
   // Search filter - only add if searchField is specified

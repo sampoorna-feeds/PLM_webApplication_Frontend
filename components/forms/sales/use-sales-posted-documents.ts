@@ -33,11 +33,11 @@ function buildFilterString(
 
   // Branch filter — always applied from user setup, not from column filters
   if (branchCodes.length > 0) {
-    const list = branchCodes
-      .map((c) => `'${escapeOData(c.trim())}'`)
+    const branchParts = branchCodes
+      .map((c) => c.trim())
       .filter(Boolean)
-      .join(",");
-    if (list) parts.push(`Shortcut_Dimension_2_Code in (${list})`);
+      .map((c) => `Shortcut_Dimension_2_Code eq '${escapeOData(c)}'`);
+    if (branchParts.length > 0) parts.push(`(${branchParts.join(" or ")})`);
   }
 
   Object.entries(columnFilters).forEach(([id, f]) => {

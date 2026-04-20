@@ -60,6 +60,36 @@ export interface LocationCode {
   [key: string]: unknown;
 }
 
+export interface ItemStock {
+  No: string;
+  Net_Change: number;
+}
+
+// ============================================
+// ITEM AVAILABLE STOCK API
+// ============================================
+
+/**
+ * Get available stock (Net_Change) for a list of items at a specific location
+ * @param itemNos - Item numbers to fetch stock for
+ * @param locationCode - Location filter code
+ * @param dateFilter - Date filter (YYYY-MM-DD), stock calculated up to this date
+ */
+export async function getItemsAvailableStock(
+  itemNos: string[],
+  locationCode: string,
+  dateFilter: string,
+): Promise<ItemStock[]> {
+  if (itemNos.length === 0) return [];
+
+  const itemFilter = itemNos.map((no) => `No eq '${no}'`).join(" or ");
+  const filter = `(${itemFilter}) and Location_Filter eq '${locationCode}' and Date_Filter le '${dateFilter}'`;
+  const query = buildODataQuery({ $filter: filter, $select: "No,Net_Change" });
+  const endpoint = `/ItemList?company='${encodeURIComponent(COMPANY)}'&${query}`;
+  const response = await apiGet<ODataResponse<ItemStock>>(endpoint);
+  return response.value || [];
+}
+
 // ============================================
 // ITEM LIST API
 // ============================================

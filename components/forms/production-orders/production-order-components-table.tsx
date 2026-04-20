@@ -11,6 +11,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useItemTracking } from "./use-item-tracking";
+import { useAvailableStock } from "./use-available-stock";
 import { cn } from "@/lib/utils";
 
 /**
@@ -54,8 +55,8 @@ export function ProductionOrderComponentsTable({
   isLoading,
   onRowClick,
 }: ProductionOrderComponentsTableProps) {
-  // Fetch item tracking info for all components
   const { trackingMap } = useItemTracking(components);
+  const { stockMap, isLoading: isLoadingStock } = useAvailableStock(components);
 
   if (isLoading) {
     return (
@@ -86,6 +87,7 @@ export function ProductionOrderComponentsTable({
             <TableHead className="w-30">Item No.</TableHead>
             <TableHead>Description</TableHead>
             <TableHead className="w-30">Location Code</TableHead>
+            <TableHead className="w-30 text-right">Available Stock</TableHead>
             <TableHead className="w-25 text-right">Quantity Per</TableHead>
             <TableHead className="w-30 text-right">Expected Qty</TableHead>
             <TableHead className="w-30 text-right">Remaining Qty</TableHead>
@@ -96,11 +98,12 @@ export function ProductionOrderComponentsTable({
         </TableHeader>
         <TableBody>
           {components.map((component) => {
-            // Check if this item has a tracking code
             const itemKey = component.Item_No
               ? component.Item_No.trim().toLowerCase()
               : "";
             const hasTracking = trackingMap[itemKey] || false;
+            const stockKey = `${component.Item_No?.trim()}-${component.Location_Code}`;
+            const availableStock = stockMap[stockKey];
 
             return (
               <TableRow
@@ -118,6 +121,15 @@ export function ProductionOrderComponentsTable({
                 </TableCell>
                 <TableCell>{component.Description || "-"}</TableCell>
                 <TableCell>{component.Location_Code || "-"}</TableCell>
+                <TableCell className="text-right">
+                  {isLoadingStock ? (
+                    <Loader2 className="ml-auto h-3 w-3 animate-spin" />
+                  ) : availableStock != null ? (
+                    formatQuantity(availableStock)
+                  ) : (
+                    "-"
+                  )}
+                </TableCell>
                 <TableCell className="text-right">
                   {formatQuantity(component.Quantity_per)}
                 </TableCell>

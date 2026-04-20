@@ -135,12 +135,12 @@ export function buildSalesDocumentFilterString(
 
   // API-level branch filter
   if (branchCodes.length > 0) {
-    const branchFilter = branchCodes
-      .map((c) => `'${escapeODataValue(c.trim())}'`)
+    const branchParts = branchCodes
+      .map((c) => c.trim())
       .filter(Boolean)
-      .join(",");
-    if (branchFilter) {
-      filterParts.push(`Shortcut_Dimension_2_Code in (${branchFilter})`);
+      .map((c) => `Shortcut_Dimension_2_Code eq '${escapeODataValue(c)}'`);
+    if (branchParts.length > 0) {
+      filterParts.push(`(${branchParts.join(" or ")})`);
     }
   }
 

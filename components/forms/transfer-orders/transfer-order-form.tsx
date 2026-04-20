@@ -740,11 +740,22 @@ export function TransferOrderForm({
     setActiveReportDocNo(docNo);
     try {
       const url = await getDownloadRecordLink({ documentType: docType, documentNo: docNo });
-      if (url) {
-        window.open(url, "_blank", "noopener,noreferrer");
-      } else {
+      if (!url) {
         toast.info(`No URL returned for ${reportName}`);
+        return;
       }
+
+      const response = await fetch(url);
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = blobUrl;
+      link.download = `${docNo}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(blobUrl);
     } catch (err: any) {
       toast.error(err.message || `Failed to get ${reportName} link`);
     } finally {
@@ -761,19 +772,23 @@ export function TransferOrderForm({
         return;
       }
 
-      // Fetch the PDF to create a local blob for printing (handles CORS better in iframes)
+      // Fetch the PDF to create a local blob for downloading with extension
       const response = await fetch(url);
       if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
       const blob = await response.blob();
       const blobUrl = window.URL.createObjectURL(blob);
 
-      const iframe = document.createElement("iframe");
-      iframe.style.display = "none";
-      iframe.src = blobUrl;
-      document.body.appendChild(iframe);
-      iframe.onload = () => {
-        iframe.contentWindow?.print();
-      };
+      const link = document.createElement("a");
+      link.href = blobUrl;
+      link.download = `${docNo}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      // Clean up after delay
+      setTimeout(() => {
+        window.URL.revokeObjectURL(blobUrl);
+      }, 5000);
     } catch (err: any) {
       toast.error(err.message || `Failed to print ${reportName}`);
     } finally {

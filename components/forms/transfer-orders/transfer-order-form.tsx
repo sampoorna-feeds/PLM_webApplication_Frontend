@@ -347,7 +347,16 @@ export function TransferOrderForm({
 
         // Load initial transporters
         const vendorData = await getTransporters();
-        setTransporters(vendorData);
+        
+        // Ensure current order's transporter is in the list
+        let finalTransporters = [...vendorData];
+        if (formState.Transporter_Code && !finalTransporters.some(v => v.No === formState.Transporter_Code)) {
+          finalTransporters.push({ 
+            No: formState.Transporter_Code, 
+            Name: formState.Transporter_Name || "Loading..." 
+          } as any);
+        }
+        setTransporters(finalTransporters);
 
         // Auto-select LOB if only one exists and not currently set (only for new orders)
         if (
@@ -721,6 +730,52 @@ export function TransferOrderForm({
     }
   };
 
+  const handleNextStep = async () => {
+    const today = new Date().toISOString().split("T")[0];
+    const updates: any = {};
+
+    // 1. Smart defaults if fields are empty or 'zero'
+    if (!formState.Posting_Date || formState.Posting_Date === "0001-01-01") {
+      updates.Posting_Date = today;
+    }
+    if (!formState.LR_RR_Date || formState.LR_RR_Date === "0001-01-01") {
+      updates.LR_RR_Date = today;
+    }
+    if (!formState.Mode_of_Transport) {
+      updates.Mode_of_Transport = "Road";
+    }
+
+    // 2. Pre-fill from any existing posted shipment (helps both partial shipments and receipts)
+    if (formState.No) {
+      try {
+        const shipments = await getPostedTransferShipmentsByOrder(formState.No);
+        if (shipments && shipments.length > 0) {
+          const latest = shipments[0];
+          if (!formState.Vehicle_No && latest.Vehicle_No) updates.Vehicle_No = latest.Vehicle_No;
+          if (!formState.LR_RR_No && latest.LR_RR_No) updates.LR_RR_No = latest.LR_RR_No;
+          if ((!formState.LR_RR_Date || formState.LR_RR_Date === "0001-01-01") && latest.LR_RR_Date && latest.LR_RR_Date !== "0001-01-01") {
+            updates.LR_RR_Date = latest.LR_RR_Date;
+          }
+          if (!formState.External_Document_No && latest.External_Document_No) updates.External_Document_No = latest.External_Document_No;
+          if (!formState.Mode_of_Transport && (latest as any).Mode_of_Transport) updates.Mode_of_Transport = (latest as any).Mode_of_Transport;
+          
+          if (!formState.Transporter_Code && (latest as any).Transporter_Code) {
+            updates.Transporter_Code = (latest as any).Transporter_Code;
+            updates.Transporter_Name = (latest as any).Transporter_Name || "";
+          }
+        }
+      } catch (err) {
+        console.error("Error pre-filling from shipment:", err);
+      }
+    }
+
+    if (Object.keys(updates).length > 0) {
+      setFormState(prev => ({ ...prev, ...updates }));
+    }
+
+    setPostStep(2);
+  };
+
   const handlePrintReport = async (shipmentNo: string) => {
     try {
       const url = await getReportPdfUrl(shipmentNo);
@@ -740,11 +795,22 @@ export function TransferOrderForm({
     setActiveReportDocNo(docNo);
     try {
       const url = await getDownloadRecordLink({ documentType: docType, documentNo: docNo });
-      if (url) {
-        window.open(url, "_blank", "noopener,noreferrer");
-      } else {
+      if (!url) {
         toast.info(`No URL returned for ${reportName}`);
+        return;
       }
+
+      const response = await fetch(url);
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = blobUrl;
+      link.download = `${docNo}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(blobUrl);
     } catch (err: any) {
       toast.error(err.message || `Failed to get ${reportName} link`);
     } finally {
@@ -761,19 +827,23 @@ export function TransferOrderForm({
         return;
       }
 
-      // Fetch the PDF to create a local blob for printing (handles CORS better in iframes)
+      // Fetch the PDF to create a local blob for downloading with extension
       const response = await fetch(url);
       if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
       const blob = await response.blob();
       const blobUrl = window.URL.createObjectURL(blob);
 
-      const iframe = document.createElement("iframe");
-      iframe.style.display = "none";
-      iframe.src = blobUrl;
-      document.body.appendChild(iframe);
-      iframe.onload = () => {
-        iframe.contentWindow?.print();
-      };
+      const link = document.createElement("a");
+      link.href = blobUrl;
+      link.download = `${docNo}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      // Clean up after delay
+      setTimeout(() => {
+        window.URL.revokeObjectURL(blobUrl);
+      }, 5000);
     } catch (err: any) {
       toast.error(err.message || `Failed to print ${reportName}`);
     } finally {
@@ -1100,11 +1170,21 @@ export function TransferOrderForm({
                 </div>
                 <div className={fieldClass}>
                   <label className={labelClass}>Mode of Transport</label>
-                  <Input
+                  <SearchableSelect
+                    options={[
+                      { value: "Road", label: "Road" },
+                      { value: "Rail", label: "Rail" },
+                      { value: "Air", label: "Air" },
+                      { value: "Ship", label: "Ship" },
+                      { value: "Owner", label: "Owner" },
+                      { value: "Hand", label: "Hand" },
+                    ]}
                     value={formState.Mode_of_Transport || ""}
-                    readOnly
-                    disabled
-                    className="bg-muted h-8"
+                    onValueChange={(v) => {
+                      handleChange("Mode_of_Transport", v);
+                    }}
+                    placeholder="Select Mode"
+                    disabled={formState.Status === "Released"}
                   />
                 </div>
                 <div className={fieldClass}>
@@ -1412,7 +1492,7 @@ export function TransferOrderForm({
                 <div className="space-y-1.5">
                   <label className="text-muted-foreground text-[11px] font-bold uppercase tracking-wider">LR/RR Date</label>
                   <DateInput
-                    value={formState.LR_RR_Date ? formState.LR_RR_Date.split("T")[0] : ""}
+                    value={formState.LR_RR_Date && formState.LR_RR_Date !== "0001-01-01" ? formState.LR_RR_Date.split("T")[0] : ""}
                     onChange={(val) => handleChange("LR_RR_Date", val)}
                     className="h-10 border-border focus:border-green-600/50"
                   />
@@ -1518,7 +1598,7 @@ export function TransferOrderForm({
               Cancel
             </Button>
             <Button
-              onClick={postStep === 1 ? () => setPostStep(2) : handlePost}
+              onClick={postStep === 1 ? handleNextStep : handlePost}
               disabled={isSubmitting}
               className="bg-green-600 hover:bg-green-700 text-white font-bold px-10 h-10 rounded-xl shadow-lg shadow-green-900/20"
             >

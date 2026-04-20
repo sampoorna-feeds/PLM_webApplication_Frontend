@@ -180,6 +180,7 @@ export interface SalesLine {
   Shortcut_Dimension_1_Code?: string;
   Shortcut_Dimension_2_Code?: string;
   ShortcutDimCode3?: string;
+  Appl_to_Item_Entry?: number;
   [key: string]: unknown;
 }
 

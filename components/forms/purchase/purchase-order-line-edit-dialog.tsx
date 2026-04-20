@@ -25,7 +25,9 @@ import {
   updatePurchaseLine,
   getGstGroupCodes,
   getHsnSacCodes,
+  getItemLedgerEntriesForApply,
   type PurchaseLine,
+  type ApplyItemLedgerEntry,
 } from "@/lib/api/services/purchase-orders.service";
 import { getVendorTDSGroupCodes } from "@/lib/api/services/tds.service";
 import {
@@ -90,6 +92,9 @@ export function PurchaseOrderLineEditDialog({
   const [challanQty, setChallanQty] = useState("");
   const [weightQty, setWeightQty] = useState("");
   const [gstCredit, setGstCredit] = useState("");
+  const [applToItemEntry, setApplToItemEntry] = useState<string>("");
+  const [ledgerEntries, setLedgerEntries] = useState<ApplyItemLedgerEntry[]>([]);
+  const [isLoadingLedger, setIsLoadingLedger] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [apiError, setApiError] = useState<ApiErrorState | null>(null);
 
@@ -121,6 +126,7 @@ export function PurchaseOrderLineEditDialog({
     setChallanQty(line.Challan_Qty != null ? String(line.Challan_Qty) : "");
     setWeightQty(line.Weight_Qty != null ? String(line.Weight_Qty) : "");
     setGstCredit(line.GST_Credit || "Availment");
+    setApplToItemEntry(line.Appl_to_Item_Entry ? String(line.Appl_to_Item_Entry) : "");
   }, [line]);
 
   const [tdsOptions, setTdsOptions] = useState<SearchableSelectOption[]>([]);
@@ -159,6 +165,24 @@ export function PurchaseOrderLineEditDialog({
       mounted = false;
     };
   }, [open, line?.No]);
+
+  // Load item ledger entries for Apply to Item Entry
+  useEffect(() => {
+    const itemNo = line?.No;
+    const locationCode = line?.Location_Code;
+    const isItem = (line?.Type || "").trim() === "Item";
+    if (!open || !isItem || !itemNo || !locationCode) {
+      setLedgerEntries([]);
+      return;
+    }
+    let mounted = true;
+    setIsLoadingLedger(true);
+    getItemLedgerEntriesForApply(itemNo, locationCode)
+      .then((entries) => { if (mounted) setLedgerEntries(entries); })
+      .catch(() => { if (mounted) setLedgerEntries([]); })
+      .finally(() => { if (mounted) setIsLoadingLedger(false); });
+    return () => { mounted = false; };
+  }, [open, line?.No, line?.Location_Code, line?.Type]);
 
   // Load TDS and GST groups on mount
   useEffect(() => {
@@ -341,6 +365,9 @@ export function PurchaseOrderLineEditDialog({
         if (cQty !== (line.Challan_Qty || 0)) payload.Challan_Qty = cQty;
         if (wQty !== (line.Weight_Qty || 0)) payload.Weight_Qty = wQty;
       }
+
+      const applVal = applToItemEntry ? Number(applToItemEntry) : 0;
+      if (applVal !== (line.Appl_to_Item_Entry ?? 0)) payload.Appl_to_Item_Entry = applVal;
 
       if (Object.keys(payload).length === 0) {
         toast.info("No changes to save");
@@ -763,6 +790,24 @@ export function PurchaseOrderLineEditDialog({
                     </Select>
                   </ClearableField>
                 </div>
+
+                {(line.Type || "").trim() === "Item" && line.Location_Code && (
+                  <div className="space-y-1 overflow-hidden sm:col-span-2">
+                    <Label className="text-xs">Applies to Item Entry</Label>
+                    <SearchableSelect
+                      value={applToItemEntry}
+                      onValueChange={setApplToItemEntry}
+                      options={ledgerEntries.map((e) => ({
+                        value: String(e.Entry_No),
+                        label: `Entry: ${e.Entry_No} | Doc: ${e.Document_No} | Qty: ${e.Quantity ?? 0} | Rem: ${e.Remaining_Quantity ?? 0}`,
+                      }))}
+                      isLoading={isLoadingLedger}
+                      placeholder={isLoadingLedger ? "Loading entries..." : "Select entry (optional)"}
+                      searchPlaceholder="Search entries..."
+                      allowCustomValue={false}
+                    />
+                  </div>
+                )}
 
                 <div className="flex items-center gap-2 pt-5">
                   <Checkbox

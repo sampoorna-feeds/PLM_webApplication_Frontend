@@ -245,7 +245,28 @@ export interface PurchaseLine {
   Challan_Qty?: number;
   Weight_Qty?: number;
   GST_Credit?: string;
+  Appl_to_Item_Entry?: number;
   [key: string]: unknown;
+}
+
+export interface ApplyItemLedgerEntry {
+  Entry_No: number;
+  Document_No: string;
+  Item_No: string;
+  Posting_Date?: string;
+  Quantity?: number;
+  Remaining_Quantity?: number;
+  Vehicle_No?: string;
+}
+
+export async function getItemLedgerEntriesForApply(
+  itemNo: string,
+  locationCode: string,
+): Promise<ApplyItemLedgerEntry[]> {
+  const filter = `Item_No eq '${itemNo.replace(/'/g, "''")}' and Location_Code eq '${locationCode.replace(/'/g, "''")}' and Open eq true and Positive eq true`;
+  const endpoint = `/Itemledger_entry?company='${encodeURIComponent(COMPANY)}'&$top=500&$filter=${encodeURIComponent(filter)}`;
+  const response = await apiGet<ODataResponse<ApplyItemLedgerEntry>>(endpoint);
+  return response.value || [];
 }
 
 /**

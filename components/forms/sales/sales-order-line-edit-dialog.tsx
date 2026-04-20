@@ -34,6 +34,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import {
   getGstGroupCodes,
   getHsnSacCodes,
+  getItemLedgerEntriesForApply,
+  type ApplyItemLedgerEntry,
 } from "@/lib/api/services/purchase-orders.service";
 import {
   SearchableSelect,
@@ -94,6 +96,9 @@ export function SalesOrderLineEditDialog({
   const [hsnSacCode, setHsnSacCode] = useState("");
   const [exempted, setExempted] = useState(false);
   const [foc, setFoc] = useState(false);
+  const [applToItemEntry, setApplToItemEntry] = useState<string>("");
+  const [ledgerEntries, setLedgerEntries] = useState<ApplyItemLedgerEntry[]>([]);
+  const [isLoadingLedger, setIsLoadingLedger] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -132,7 +137,26 @@ export function SalesOrderLineEditDialog({
     setHsnSacCode(line.HSN_SAC_Code || "");
     setExempted(line.Exempted ?? false);
     setFoc((line as unknown as Record<string, unknown>).FOC === true);
+    setApplToItemEntry(line.Appl_to_Item_Entry ? String(line.Appl_to_Item_Entry) : "");
   }, [line]);
+
+  // Load item ledger entries for Apply to Item Entry
+  const lineLocationCode = line?.Location_Code as string | undefined;
+  useEffect(() => {
+    const itemNo = line?.No;
+    const isItem = (line?.Type || "").trim() === "Item";
+    if (!open || !isItem || !itemNo || !lineLocationCode) {
+      setLedgerEntries([]);
+      return;
+    }
+    let mounted = true;
+    setIsLoadingLedger(true);
+    getItemLedgerEntriesForApply(itemNo, lineLocationCode)
+      .then((entries) => { if (mounted) setLedgerEntries(entries); })
+      .catch(() => { if (mounted) setLedgerEntries([]); })
+      .finally(() => { if (mounted) setIsLoadingLedger(false); });
+    return () => { mounted = false; };
+  }, [open, line?.No, line?.Type, lineLocationCode]);
 
   // Load GST group codes when dialog opens
   useEffect(() => {
@@ -242,6 +266,8 @@ export function SalesOrderLineEditDialog({
         payload.GST_Group_Code = gstGroupCode.trim();
       if (hsnSacCode.trim() !== (line.HSN_SAC_Code || "").trim())
         payload.HSN_SAC_Code = hsnSacCode.trim();
+      const applVal = applToItemEntry ? Number(applToItemEntry) : 0;
+      if (applVal !== (line.Appl_to_Item_Entry ?? 0)) payload.Appl_to_Item_Entry = applVal;
 
       if (Object.keys(payload).length === 0) {
         toast.info("No changes to save");
@@ -526,6 +552,25 @@ export function SalesOrderLineEditDialog({
                     </Label>
                   </div>
                 </div>
+
+                {lineType === "Item" && lineLocationCode && (
+                  <div className="space-y-1 overflow-hidden sm:col-span-2">
+                    <Label className="text-xs">Applies to Item Entry</Label>
+                    <SearchableSelect
+                      value={applToItemEntry}
+                      onValueChange={setApplToItemEntry}
+                      options={ledgerEntries.map((e) => ({
+                        value: String(e.Entry_No),
+                        label: `Entry: ${e.Entry_No} | Doc: ${e.Document_No} | Qty: ${e.Quantity ?? 0} | Rem: ${e.Remaining_Quantity ?? 0}`,
+                      }))}
+                      isLoading={isLoadingLedger}
+                      placeholder={isLoadingLedger ? "Loading entries..." : "Select entry (optional)"}
+                      searchPlaceholder="Search entries..."
+                      allowCustomValue={false}
+                      disabled={isReleased}
+                    />
+                  </div>
+                )}
               </>
             )}
           </div>

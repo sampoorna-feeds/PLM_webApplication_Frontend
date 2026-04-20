@@ -1,4 +1,4 @@
-import { apiGet } from "../client";
+import { apiGet, apiPost } from "../client";
 import { buildODataQuery } from "../endpoints";
 import type { ODataResponse } from "../types";
 
@@ -138,4 +138,13 @@ export async function getPostedInvoiceLines(
   const endpoint = `/PostedSalesInvoiceLine?company='${encodeURIComponent(COMPANY)}'&${query}`;
   const response = await apiGet<ODataResponse<PostedSalesInvoiceLine>>(endpoint);
   return response.value || [];
+}
+export async function getInvoiceReportPdf(
+  documentNo: string,
+  custNo: string,
+  postingDate: string,
+): Promise<string> {
+  const endpoint = `/API_GetInvoiceReportWeb?company='${encodeURIComponent(COMPANY)}'`;
+  const response = await apiPost<{ value: string }>(endpoint, { documentNo, custNo, postingDate });
+  return response.value || "";
 }

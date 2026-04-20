@@ -74,6 +74,7 @@ import { SalesItemTrackingDialog } from "./sales-item-tracking-dialog";
 import { SalesLineItemsTable } from "./sales-line-items-table";
 import { SalesOrderLineEditDialog } from "./sales-order-line-edit-dialog";
 import { SalesItemChargeAssignmentDialog } from "./sales-item-charge-assignment-dialog";
+import { ApplyCustomerEntriesDialog } from "./apply-customer-entries-dialog";
 
 // ── Services ──────────────────────────────────────────────────────────────────
 import {
@@ -410,12 +411,15 @@ export function SalesCreateDocumentFormContent({
   // ── Get posted line dialog state ──────────────────────────────────────────
   const [isGetPostedLineOpen, setIsGetPostedLineOpen] = useState(false);
 
-  // ── Post dialog state (order only) ────────────────────────────────────────
-  const [isPostDialogOpen, setIsPostDialogOpen] = useState(false);
-  const [postOption, setPostOption] = useState<"1" | "2" | "3" | null>(null);
-  const [isPostLoading, setIsPostLoading] = useState(false);
-  const [isPostDetailsOpen, setIsPostDetailsOpen] = useState(false);
-  const [postDetails, setPostDetails] = useState({
+  // ── Post dialog state ─────────────────────────────────────────────────────
+  const loadSavedPostDetails = () => {
+    try {
+      const saved = localStorage.getItem("sales-post-details");
+      if (saved) return JSON.parse(saved) as Record<string, string>;
+    } catch { /* ignore */ }
+    return {};
+  };
+  const postDetailsDefault = {
     transporterCode: "",
     transporterName: "",
     vehicleNumber: "",
@@ -427,7 +431,22 @@ export function SalesCreateDocumentFormContent({
     distanceKm: "",
     grossWeight: "",
     tareWeight: "",
-  });
+  };
+  const [isPostDialogOpen, setIsPostDialogOpen] = useState(false);
+  const [postOption, setPostOption] = useState<"1" | "2" | "3" | null>(null);
+  const [isPostLoading, setIsPostLoading] = useState(false);
+  const [isPostDetailsOpen, setIsPostDetailsOpen] = useState(false);
+  const [postDetails, setPostDetails] = useState(() => ({
+    ...postDetailsDefault,
+    ...loadSavedPostDetails(),
+  }));
+
+  // Persist post details to localStorage whenever they change
+  useEffect(() => {
+    try {
+      localStorage.setItem("sales-post-details", JSON.stringify(postDetails));
+    } catch { /* ignore */ }
+  }, [postDetails]);
 
   // ── Delivery Challan state (order only) ───────────────────────────────────
   const [isChallanOpen, setIsChallanOpen] = useState(false);
@@ -731,19 +750,8 @@ export function SalesCreateDocumentFormContent({
       toast.error("Select a post option");
       return;
     }
-    setPostDetails({
-      transporterCode: "",
-      transporterName: "",
-      vehicleNumber: "",
-      driverPhone: "",
-      lrRrNumber: "",
-      lrRrDate: "",
-      postingDate: orderHeader?.Posting_Date || "",
-      externalDocumentNo: "",
-      distanceKm: "",
-      grossWeight: "",
-      tareWeight: "",
-    });
+    const today = new Date().toISOString().split("T")[0];
+    setPostDetails((prev) => ({ ...prev, postingDate: orderHeader?.Posting_Date || today }));
     setIsPostDialogOpen(false);
     setIsPostDetailsOpen(true);
   };
@@ -1283,6 +1291,14 @@ export function SalesCreateDocumentFormContent({
                   )}
                 </Button>
               )}
+              {isViewMode && initialOrderNo && (
+                <ApplyCustomerEntriesDialog
+                  documentNo={initialOrderNo}
+                  customerNo={formData.customerNo}
+                  onSuccess={loadDocument}
+                  disabled={isActionLoading}
+                />
+              )}
               {isViewMode && isReleased && caps.supportsDeliveryReport && (
                 <Button
                   type="button"
@@ -1309,14 +1325,22 @@ export function SalesCreateDocumentFormContent({
                   Copy Document
                 </Button>
               )}
-              {isViewMode && isReleased && caps.supportsPost && (
+              {isViewMode && caps.supportsPost && (isReleased || documentType !== "order") && (
                 <Button
                   type="button"
                   size="sm"
                   className="h-8"
                   onClick={() => {
-                    setPostOption(null);
-                    setIsPostDialogOpen(true);
+                    const opts = caps.postOptions;
+                    const today = new Date().toISOString().split("T")[0];
+                    if (opts.length === 1) {
+                      setPostOption(opts[0].value);
+                      setPostDetails((prev) => ({ ...prev, postingDate: orderHeader?.Posting_Date || today }));
+                      setIsPostDetailsOpen(true);
+                    } else {
+                      setPostOption(null);
+                      setIsPostDialogOpen(true);
+                    }
                   }}
                   disabled={isActionLoading}
                 >

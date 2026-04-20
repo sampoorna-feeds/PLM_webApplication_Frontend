@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import { ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 import type { SalesOrder } from "@/lib/api/services/sales-orders.service";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -20,6 +21,7 @@ interface SalesDocumentTableProps {
   onRowClick?: (orderNo: string) => void;
   onSort: (column: string) => void;
   onColumnFilter: (columnId: string, value: string, valueTo?: string) => void;
+  renderRowAction?: (row: SalesOrder) => React.ReactNode;
 }
 
 export function SalesDocumentTable({
@@ -36,6 +38,7 @@ export function SalesDocumentTable({
   onRowClick,
   onSort,
   onColumnFilter,
+  renderRowAction,
 }: SalesDocumentTableProps) {
   const columns = allColumns.filter((col) => visibleColumns.includes(col.id));
   const startingSerialNo = (currentPage - 1) * pageSize;
@@ -49,6 +52,9 @@ export function SalesDocumentTable({
               <th className="text-foreground h-10 w-12 px-3 py-3 text-center align-middle text-xs font-bold whitespace-nowrap">
                 S.No
               </th>
+              {renderRowAction && (
+                <th className="text-foreground bg-muted h-10 w-16 px-3 py-3 text-center align-middle text-xs font-bold whitespace-nowrap" />
+              )}
               {columns.map((column) => (
                 <SortableTableHead
                   key={column.id}
@@ -74,6 +80,7 @@ export function SalesDocumentTable({
                     <td className="text-muted-foreground p-2 px-3 py-3 text-center align-middle text-xs whitespace-nowrap">
                       {startingSerialNo + rowIndex + 1}
                     </td>
+                    {renderRowAction && <td className="px-3 py-3" />}
                     {columns.map((column) => (
                       <td
                         key={column.id}
@@ -89,7 +96,7 @@ export function SalesDocumentTable({
             {!isLoading && orders.length === 0 && (
               <tr className="border-b transition-colors">
                 <td
-                  colSpan={columns.length + 1}
+                  colSpan={columns.length + (renderRowAction ? 2 : 1)}
                   className="text-muted-foreground h-24 p-2 text-center align-middle"
                 >
                   {emptyMessage}
@@ -105,6 +112,7 @@ export function SalesDocumentTable({
                   columns={columns}
                   serialNo={startingSerialNo + index + 1}
                   onClick={onRowClick ? () => onRowClick(order.No) : undefined}
+                  renderRowAction={renderRowAction}
                 />
               ))}
           </tbody>
@@ -183,6 +191,7 @@ interface SalesDocumentRowProps {
   columns: ColumnConfig[];
   serialNo: number;
   onClick?: () => void;
+  renderRowAction?: (row: SalesOrder) => React.ReactNode;
 }
 
 function SalesDocumentRow({
@@ -190,6 +199,7 @@ function SalesDocumentRow({
   columns,
   serialNo,
   onClick,
+  renderRowAction,
 }: SalesDocumentRowProps) {
   const getCellValue = (columnId: string): string => {
     const value = (order as Record<string, unknown>)[columnId];
@@ -234,6 +244,11 @@ function SalesDocumentRow({
       <td className="text-muted-foreground p-2 px-3 py-3 text-center align-middle text-xs whitespace-nowrap">
         {serialNo}
       </td>
+      {renderRowAction && (
+        <td className="px-3 py-2 align-middle" onClick={(e) => e.stopPropagation()}>
+          {renderRowAction(order)}
+        </td>
+      )}
       {columns.map((column) => (
         <td
           key={column.id}

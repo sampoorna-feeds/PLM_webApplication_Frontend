@@ -3,7 +3,11 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/contexts/auth-context";
-import { getAllBranchesFromUserSetup } from "@/lib/api/services/dimension.service";
+import {
+  getAllBranchesFromUserSetup,
+  getLOBsFromUserSetup,
+  getAllLOCsFromUserSetup,
+} from "@/lib/api/services/dimension.service";
 import {
   getPostedShipmentsWithCount,
   searchPostedShipments,
@@ -24,13 +28,28 @@ function escapeOData(v: string) {
 }
 
 function buildFilterString(
+  lobCodes: string[],
   branchCodes: string[],
+  locCodes: string[],
   columnFilters: Record<string, { value: string; valueTo?: string }>,
   allColumnIds: string[],
   additionalFilters: FilterCondition[],
 ): string | undefined {
   const parts: string[] = [];
 
+  // LOB filter (Shortcut_Dimension_1_Code)
+  if (lobCodes.length > 0) {
+    if (lobCodes.length === 1) {
+      parts.push(`Shortcut_Dimension_1_Code eq '${escapeOData(lobCodes[0])}'`);
+    } else {
+      const group = lobCodes
+        .map((c) => `Shortcut_Dimension_1_Code eq '${escapeOData(c)}'`)
+        .join(" or ");
+      parts.push(`(${group})`);
+    }
+  }
+
+  // Branch filter (Shortcut_Dimension_2_Code)
   if (branchCodes.length > 0) {
     const list = branchCodes
       .map((c) => `'${escapeOData(c.trim())}'`)
@@ -39,8 +58,26 @@ function buildFilterString(
     if (list) parts.push(`Shortcut_Dimension_2_Code in (${list})`);
   }
 
+  // LOC filter (Location_Code)
+  if (locCodes.length > 0) {
+    if (locCodes.length === 1) {
+      parts.push(`Location_Code eq '${escapeOData(locCodes[0])}'`);
+    } else {
+      const group = locCodes
+        .map((c) => `Location_Code eq '${escapeOData(c)}'`)
+        .join(" or ");
+      parts.push(`(${group})`);
+    }
+  }
+
   Object.entries(columnFilters).forEach(([id, f]) => {
-    if (id === "Shortcut_Dimension_2_Code") return;
+    // Skip dimension/location columns handled above
+    if (
+      id === "Shortcut_Dimension_1_Code" ||
+      id === "Shortcut_Dimension_2_Code" ||
+      id === "Location_Code"
+    )
+      return;
     if (!allColumnIds.includes(id)) return;
     const { value, valueTo } = f;
     if (!value && !valueTo) return;
@@ -48,7 +85,11 @@ function buildFilterString(
     if (id.includes("_Date") || id === "Posting_Date" || id === "Document_Date") {
       if (value) parts.push(`${id} ge ${value}`);
       if (valueTo) parts.push(`${id} le ${valueTo}`);
-    } else if (id === "Amount_Including_VAT" || id === "Amount" || id === "Remaining_Amount") {
+    } else if (
+      id === "Amount_Including_VAT" ||
+      id === "Amount" ||
+      id === "Remaining_Amount"
+    ) {
       if (valueTo) {
         if (value) parts.push(`${id} ge ${value}`);
         parts.push(`${id} le ${valueTo}`);
@@ -109,8 +150,11 @@ export function useSalesPostedDocuments(documentType: SalesPostedDocumentType) {
   const [pageSize, setPageSize] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
+  const [isSetupLoaded, setIsSetupLoaded] = useState(false);
+  const [userLobCodes, setUserLobCodes] = useState<string[]>([]);
   const [userBranchCodes, setUserBranchCodes] = useState<string[]>([]);
-  const [sortColumn, setSortColumn] = useState<string | null>("No");
+  const [userLocCodes, setUserLocCodes] = useState<string[]>([]);
+  const [sortColumn, setSortColumn] = useState<string | null>("Posting_Date");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
   const [searchQuery, setSearchQuery] = useState("");
   const [columnFilters, setColumnFilters] = useState<
@@ -131,30 +175,55 @@ export function useSalesPostedDocuments(documentType: SalesPostedDocumentType) {
 
   useEffect(() => {
     if (!userID) return;
-    const fetch = async () => {
+    const fetchSetup = async () => {
       try {
-        const branches = await getAllBranchesFromUserSetup(userID);
-        const codes = branches.map((b) => b.Code);
-        setUserBranchCodes(codes);
-        if (codes.length > 0) {
-          setColumnFilters((prev) =>
-            prev.Shortcut_Dimension_2_Code !== undefined
-              ? prev
-              : { ...prev, Shortcut_Dimension_2_Code: { value: codes.join(",") } },
-          );
-        }
+        const [lobData, branchData, locData] = await Promise.all([
+          getLOBsFromUserSetup(userID),
+          getAllBranchesFromUserSetup(userID),
+          getAllLOCsFromUserSetup(userID),
+        ]);
+        const lCodes = lobData.map((l) => l.Code);
+        const bCodes = branchData.map((b) => b.Code);
+        const locCodes = locData.map((l) => l.Code);
+        setUserLobCodes(lCodes);
+        setUserBranchCodes(bCodes);
+        setUserLocCodes(locCodes);
+        setColumnFilters((prev) => {
+          const merged = { ...prev };
+          if (lCodes.length > 0 && prev.Shortcut_Dimension_1_Code === undefined)
+            merged.Shortcut_Dimension_1_Code = { value: lCodes.join(",") };
+          if (bCodes.length > 0 && prev.Shortcut_Dimension_2_Code === undefined)
+            merged.Shortcut_Dimension_2_Code = { value: bCodes.join(",") };
+          if (locCodes.length > 0 && prev.Location_Code === undefined)
+            merged.Location_Code = { value: locCodes.join(",") };
+          return merged;
+        });
       } catch {
         setUserBranchCodes([]);
+      } finally {
+        setIsSetupLoaded(true);
       }
     };
-    fetch();
+    fetchSetup();
   }, [userID]);
 
   const fetchOrders = useCallback(async () => {
+    if (!isSetupLoaded) return;
+
+    const lobFilterValue = columnFilters["Shortcut_Dimension_1_Code"]?.value;
+    const effectiveLobs = lobFilterValue
+      ? lobFilterValue.split(",").map((c) => c.trim()).filter(Boolean)
+      : userLobCodes;
+
     const branchFilterValue = columnFilters["Shortcut_Dimension_2_Code"]?.value;
     const effectiveBranches = branchFilterValue
       ? branchFilterValue.split(",").map((c) => c.trim()).filter(Boolean)
       : userBranchCodes;
+
+    const locFilterValue = columnFilters["Location_Code"]?.value;
+    const effectiveLocs = locFilterValue
+      ? locFilterValue.split(",").map((c) => c.trim()).filter(Boolean)
+      : userLocCodes;
 
     if (effectiveBranches.length === 0) {
       setOrders([]);
@@ -166,9 +235,18 @@ export function useSalesPostedDocuments(documentType: SalesPostedDocumentType) {
     setIsLoading(true);
     try {
       const allIds = columnConfig.allColumns.map((c) => c.id);
-      const filter = buildFilterString(effectiveBranches, columnFilters, allIds, additionalFilters);
+      const filter = buildFilterString(
+        effectiveLobs,
+        effectiveBranches,
+        effectiveLocs,
+        columnFilters,
+        allIds,
+        additionalFilters,
+      );
       const orderby =
-        sortColumn && sortDirection ? `${sortColumn} ${sortDirection}` : "No desc";
+        sortColumn && sortDirection
+          ? `${sortColumn} ${sortDirection}`
+          : "Posting_Date desc";
       const $select = columnConfig.buildSelectQuery(visibleColumns);
       const params = {
         $select,
@@ -199,11 +277,14 @@ export function useSalesPostedDocuments(documentType: SalesPostedDocumentType) {
     columnFilters,
     currentPage,
     documentType,
+    isSetupLoaded,
     pageSize,
     searchQuery,
     sortColumn,
     sortDirection,
     userBranchCodes,
+    userLobCodes,
+    userLocCodes,
     visibleColumns,
   ]);
 
@@ -290,7 +371,7 @@ export function useSalesPostedDocuments(documentType: SalesPostedDocumentType) {
     setSearchQuery("");
     setColumnFilters({});
     setAdditionalFilters([]);
-    setSortColumn("No");
+    setSortColumn("Posting_Date");
     setSortDirection("desc");
     setCurrentPage(1);
   }, []);

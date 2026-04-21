@@ -91,7 +91,11 @@ export function TransferOrderView({
           onRowClick={(orderNo) => {
             openTab("transfer-order", {
               title: `Order ${orderNo}`,
-              context: { orderNo, mode: "view" },
+              context: { 
+                orderNo, 
+                mode: "view",
+                onOrderPosted: () => refetch()
+              },
             });
           }}
           onSort={onSort}

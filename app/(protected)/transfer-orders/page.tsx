@@ -26,6 +26,9 @@ function TransferOrderPageContent() {
         onOrderCreated: () => {
           refetchRef.current?.();
         },
+        onOrderPosted: () => {
+          refetchRef.current?.();
+        },
       },
       autoCloseOnSuccess: true,
     });

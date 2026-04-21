@@ -603,6 +603,14 @@ export function TransferOrderForm({
         postReceipt: postSelection === "receive" ? "True" : "False",
       });
 
+      // Refresh page data to reflect changes (quantities, status etc)
+      fetchOrderData(formState.No);
+
+      // Notify parent list to refresh
+      if (context?.onOrderPosted) {
+        context.onOrderPosted();
+      }
+
       setSuccessInfo({
         title: isHeaderUpdated ? "Header Updated & Order Posted!" : "Order Posted Successfully!",
         message: isHeaderUpdated 

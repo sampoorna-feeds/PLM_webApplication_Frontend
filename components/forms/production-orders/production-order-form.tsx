@@ -44,10 +44,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  SearchableSelect,
-  type SearchableSelectOption,
-} from "@/components/ui/searchable-select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
+import { SourceNoSelect } from "./source-no-select";
 import { useFormStack } from "@/lib/form-stack/use-form-stack";
 import { getAuthCredentials } from "@/lib/auth/storage";
 import {
@@ -124,6 +122,13 @@ export function ProductionOrderForm({
   formData: initialFormData,
   context,
 }: ProductionOrderFormProps) {
+  const todayDate = new Date().toISOString().split("T")[0];
+  const initialSourceType: SourceType = ((initialFormData?.Source_Type as
+    | SourceType
+    | undefined) || "Item") as SourceType;
+  const initialDueDate =
+    (initialFormData?.Due_Date as string | undefined) || todayDate;
+
   const {
     tab,
     registerRefresh,
@@ -151,10 +156,10 @@ export function ProductionOrderForm({
     Shortcut_Dimension_1_Code: "", // LOB
     Shortcut_Dimension_2_Code: "", // Branch Code
     Shortcut_Dimension_3_Code: "", // LOC Code
-    Source_Type: "" as SourceType,
+    Source_Type: initialSourceType,
     Source_No: "",
     Quantity: "" as string | number, // Allow string for user input, parse on submit
-    Due_Date: "",
+    Due_Date: initialDueDate,
     Location_Code: "",
     Hatching_Date: "",
     Prod_Bom_No: "",
@@ -171,14 +176,6 @@ export function ProductionOrderForm({
   const [isLoadingDimensions, setIsLoadingDimensions] = useState(false);
 
   // Source No dropdown state
-  const [sourceOptions, setSourceOptions] = useState<
-    (Item | Family | SalesHeader)[]
-  >([]);
-  const [isLoadingSource, setIsLoadingSource] = useState(false);
-  const [sourceSearchQuery, setSourceSearchQuery] = useState("");
-  const [sourcePage, setSourcePage] = useState(1);
-  const [hasMoreSource, setHasMoreSource] = useState(false);
-  const [isLoadingMoreSource, setIsLoadingMoreSource] = useState(false);
 
   // BOM dropdown state
   const [bomOptions, setBomOptions] = useState<ProdOrderBOM[]>([]);
@@ -444,120 +441,6 @@ export function ProductionOrderForm({
     isViewMode,
   ]);
 
-  // Load Source No options when Source Type changes or search query changes (for create and edit modes)
-  useEffect(() => {
-    if (!formState.Source_Type || isViewMode) {
-      if (!isViewMode) {
-        setSourceOptions([]);
-        setHasMoreSource(false);
-      }
-      return;
-    }
-
-    const loadSourceOptions = async () => {
-      const isLoadMore = sourcePage > 1;
-
-      if (isLoadMore) {
-        setIsLoadingMoreSource(true);
-      } else {
-        setIsLoadingSource(true);
-      }
-
-      try {
-        let options: (Item | Family | SalesHeader)[] = [];
-        const PAGE_SIZE = 50;
-
-        switch (formState.Source_Type) {
-          case "Item": {
-            const skip = (sourcePage - 1) * PAGE_SIZE;
-            options = await getItems(
-              sourceSearchQuery || undefined,
-              formState.Shortcut_Dimension_1_Code,
-              skip,
-              PAGE_SIZE,
-            );
-
-            // If fewer items than page size returned, we've reached the end
-            setHasMoreSource(options.length === PAGE_SIZE);
-            break;
-          }
-          case "Family":
-            options = await getFamilies(sourceSearchQuery || undefined);
-            setHasMoreSource(false); // Pagination not implemented for Family yet
-            break;
-          case "Sales Header":
-            options = await getSalesHeaders(sourceSearchQuery || undefined);
-            setHasMoreSource(false); // Pagination not implemented for SalesHeader yet
-            break;
-        }
-
-        // Ensure selected item is always in options if it exists and not already included
-        // Only do this on initial load, not when loading more pages
-        if (
-          !isLoadMore &&
-          formState.Source_No &&
-          !options.some((opt) => opt.No === formState.Source_No)
-        ) {
-          try {
-            let selectedItem: Item | Family | SalesHeader | null = null;
-            switch (formState.Source_Type) {
-              case "Item":
-                selectedItem = await getItemByNo(formState.Source_No);
-                break;
-              case "Family":
-                // For Family and Sales Header, we create minimal objects
-                selectedItem = {
-                  No: formState.Source_No,
-                  Description: formState.Source_No,
-                } as Family;
-                break;
-              case "Sales Header":
-                selectedItem = {
-                  No: formState.Source_No,
-                  Sell_to_Customer_Name: formState.Source_No,
-                } as SalesHeader;
-                break;
-            }
-
-            if (selectedItem) {
-              options = [selectedItem, ...options];
-            }
-          } catch (error) {
-            console.warn("Could not fetch selected item:", error);
-          }
-        }
-
-        if (isLoadMore) {
-          setSourceOptions((prev) => [...prev, ...options]);
-        } else {
-          setSourceOptions(options);
-        }
-      } catch (error) {
-        console.error("Error loading source options:", {
-          message: error instanceof Error ? error.message : "Unknown error",
-          error,
-          sourceType: formState.Source_Type,
-          searchQuery: sourceSearchQuery,
-        });
-        if (!isLoadMore) {
-          setSourceOptions([]);
-        }
-      } finally {
-        setIsLoadingSource(false);
-        setIsLoadingMoreSource(false);
-      }
-    };
-
-    loadSourceOptions();
-  }, [
-    formState.Source_Type,
-    formState.Source_No,
-    formState.Shortcut_Dimension_1_Code,
-    sourceSearchQuery,
-    sourcePage, // Add sourcePage dependency
-    isViewMode,
-  ]);
-
   // Load BOM Versions when Prod BOM No changes
   useEffect(() => {
     if (!formState.Prod_Bom_No || formState.isProdBomFromItem || isViewMode) {
@@ -687,7 +570,7 @@ export function ProductionOrderForm({
       setFormState((prev) => ({
         ...prev,
         Prod_Bom_No: value,
-        BOM_Version_No: selectedBOM?.Active_Version_Code || "",
+        BOM_Version_No: selectedBOM?.ActiveVersionCode || "",
       }));
       updateTab({ isSaved: false });
     },
@@ -705,106 +588,49 @@ export function ProductionOrderForm({
         isProdBomFromItem: false,
       }));
       // Keep search query persistent, don't reset it
-      setSourceOptions([]);
-      setSourcePage(1); // Reset page
+
       updateTab({ isSaved: false });
     },
     [updateTab],
   );
 
-  // Handle source search
-  const handleSourceSearch = useCallback((query: string) => {
-    setSourceSearchQuery(query);
-    setSourcePage(1); // Reset page on search
-  }, []);
-
-  // Handle load more sources
-  const handleLoadMoreSource = useCallback(() => {
-    if (!hasMoreSource || isLoadingMoreSource) return;
-    setSourcePage((prev) => prev + 1);
-  }, [hasMoreSource, isLoadingMoreSource]);
-
   const handleSourceNoChange = useCallback(
     async (value: string) => {
-      // Find the selected option from current options
-      let selectedOption = sourceOptions.find((opt) => opt.No === value);
-
-      // If option not found in current list, create a temporary one immediately
-      if (!selectedOption) {
-        // Create temporary option based on source type for immediate display
-        if (formState.Source_Type === "Item") {
-          selectedOption = {
-            No: value,
-            Description: `Loading ${value}...`,
-          } as Item;
-        } else if (formState.Source_Type === "Family") {
-          selectedOption = {
-            No: value,
-            Description: `Loading ${value}...`,
-          } as Family;
-        } else if (formState.Source_Type === "Sales Header") {
-          selectedOption = {
-            No: value,
-            Sell_to_Customer_Name: `Loading ${value}...`,
-          } as SalesHeader;
-        }
-
-        // Add temporary option to sourceOptions immediately for display
-        if (selectedOption) {
-          setSourceOptions((prevOptions) => [selectedOption!, ...prevOptions]);
-        }
-      } else {
-        // Move existing option to top
-        setSourceOptions((prev) => {
-          const filtered = prev.filter((opt) => opt.No !== value);
-          return [selectedOption!, ...filtered];
-        });
-      }
-
-      setFormState((prev) => {
-        const newState = {
-          ...prev,
-          Source_No: value,
-          Prod_Bom_No: "",
-          BOM_Version_No: "",
-          isProdBomFromItem: false,
-        };
-        return newState;
-      });
+      setFormState((prev) => ({
+        ...prev,
+        Source_No: value,
+        Prod_Bom_No: "",
+        BOM_Version_No: "",
+        isProdBomFromItem: false,
+      }));
       setBomOptions([]);
       // Mark as unsaved when user changes source
       updateTab({ isSaved: false });
 
-      // Now fetch full details asynchronously and replace the temporary option
+      // Now fetch full details asynchronously
       if (formState.Source_Type === "Item") {
         try {
           const item = await getItemByNo(value);
-          if (item) {
-            // Replace temporary option with full item details
-            setSourceOptions((prevOptions) => {
-              const filtered = prevOptions.filter((opt) => opt.No !== value);
-              return [item, ...filtered];
-            });
-            // Check for BOM
-            if (item.Production_BOM_No) {
-              setFormState((p) => ({
-                ...p,
-                Prod_Bom_No: item.Production_BOM_No || "",
-                isProdBomFromItem: true,
-              }));
+          if (item?.Production_BOM_No) {
+            setFormState((p) => ({
+              ...p,
+              Prod_Bom_No: item.Production_BOM_No || "",
+              isProdBomFromItem: true,
+            }));
 
-              // Fetch BOM details asynchronously to get Active_Version_Code
-              try {
-                const bomDetails = await getProdOrderBOMByNo(item.Production_BOM_No);
-                if (bomDetails?.Active_Version_Code) {
-                  setFormState(p => ({
-                    ...p,
-                    BOM_Version_No: bomDetails.Active_Version_Code || ""
-                  }));
-                }
-              } catch (err) {
-                console.warn("Could not fetch active BOM version:", err);
+            // Fetch BOM details asynchronously to get ActiveVersionCode
+            try {
+              const bomDetails = await getProdOrderBOMByNo(
+                item.Production_BOM_No,
+              );
+              if (bomDetails?.ActiveVersionCode) {
+                setFormState((p) => ({
+                  ...p,
+                  BOM_Version_No: bomDetails.ActiveVersionCode || "",
+                }));
               }
+            } catch (err) {
+              console.warn("Could not fetch active BOM version:", err);
             }
           }
         } catch (error) {
@@ -812,7 +638,7 @@ export function ProductionOrderForm({
         }
       }
     },
-    [sourceOptions, formState.Source_Type, updateTab],
+    [formState.Source_Type, updateTab],
   );
 
   // Refresh order data without calling the refresh API
@@ -1127,26 +953,6 @@ export function ProductionOrderForm({
     }
   };
 
-  // Convert source options to SearchableSelectOption format
-  const sourceSelectOptions: SearchableSelectOption[] = sourceOptions.map(
-    (opt) => {
-      let label = opt.No;
-      if ("Description" in opt && opt.Description) {
-        label = `${opt.No} - ${opt.Description}`;
-      } else if ("Sell_to_Customer_Name" in opt && opt.Sell_to_Customer_Name) {
-        label = `${opt.No} - ${opt.Sell_to_Customer_Name}`;
-      }
-      return {
-        value: opt.No,
-        label,
-        description:
-          "Description" in opt && typeof opt.Description === "string"
-            ? opt.Description
-            : undefined,
-      };
-    },
-  );
-
   // Check if BOM fields should be shown
   const showBomFields = formState.Source_Type === "Item";
   const isBomEditable =
@@ -1451,30 +1257,11 @@ export function ProductionOrderForm({
                 className="bg-muted"
               />
             ) : (
-              <SearchableSelect
+              <SourceNoSelect
                 value={formState.Source_No}
-                onValueChange={handleSourceNoChange}
-                options={sourceSelectOptions}
-                placeholder="Select or enter source"
-                searchPlaceholder={
-                  formState.Source_Type === "Item"
-                    ? "Search by No or Description..."
-                    : formState.Source_Type === "Family"
-                      ? "Search by No or Description..."
-                      : "Search by No or Customer Name..."
-                }
-                emptyText={
-                  sourceSearchQuery.length > 0 && sourceSearchQuery.length < 2
-                    ? "Type at least 2 characters to search"
-                    : "No results found"
-                }
+                sourceType={formState.Source_Type}
+                onChange={handleSourceNoChange}
                 disabled={!formState.Source_Type}
-                isLoading={isLoadingSource}
-                onSearch={handleSourceSearch}
-                onLoadMore={handleLoadMoreSource}
-                hasMore={hasMoreSource}
-                isLoadingMore={isLoadingMoreSource}
-                allowCustomValue
               />
             )}
           </div>
@@ -1750,12 +1537,12 @@ export function ProductionOrderForm({
           >
             <SheetContent
               side="right"
-              className="flex w-screen flex-col gap-0 overflow-y-auto p-0 md:w-[75vw] lg:w-[70vw]"
+              className="flex w-screen flex-col gap-0 p-0 md:w-[75vw] lg:w-[70vw]"
             >
               <SheetHeader className="bg-background sticky top-0 z-10 border-b px-6 py-4">
                 <SheetTitle>Production Order Components</SheetTitle>
               </SheetHeader>
-              <div className="flex-1 px-6 py-4">
+              <div className="flex-1 overflow-hidden px-6 py-4">
                 <ProductionOrderComponentsTable
                   components={orderComponents}
                   isLoading={isLoadingComponents}

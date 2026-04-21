@@ -98,7 +98,7 @@ export async function searchPostedInvoices(
   params: GetPostedInvoicesParams & { searchTerm?: string },
 ): Promise<PaginatedPostedInvoicesResponse> {
   const { searchTerm, $top, $skip, ...rest } = params;
-  if (!searchTerm?.trim()) return getPostedInvoicesWithCount(rest);
+  if (!searchTerm?.trim()) return getPostedInvoicesWithCount({ ...rest, $top, $skip });
 
   const escaped = searchTerm.replace(/'/g, "''");
   const fields = ["No", "Sell_to_Customer_No", "Sell_to_Customer_Name", "Order_No"];

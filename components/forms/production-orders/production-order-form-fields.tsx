@@ -2,6 +2,8 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { Loader2 } from "lucide-react";
+import { SourceNoSelect } from "./source-no-select";
+import { FieldTitle } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -60,10 +62,6 @@ export function ProductionOrderFormFields({
   const [isLoadingDimensions, setIsLoadingDimensions] = useState(false);
 
   // Source No dropdown state
-  const [sourceOptions, setSourceOptions] = useState<
-    (Item | Family | SalesHeader)[]
-  >([]);
-  const [isLoadingSource, setIsLoadingSource] = useState(false);
 
   // BOM dropdown state
   const [bomOptions, setBomOptions] = useState<ProdOrderBOM[]>([]);
@@ -164,40 +162,6 @@ export function ProductionOrderFormFields({
       handleChange("Location_Code", data.Shortcut_Dimension_3_Code);
     }
   }, [data.Shortcut_Dimension_3_Code, data.Location_Code, handleChange]);
-
-  // Load Source No options when Source Type changes
-  useEffect(() => {
-    if (!data.Source_Type || isReadOnly) {
-      setSourceOptions([]);
-      return;
-    }
-
-    const loadSourceOptions = async () => {
-      setIsLoadingSource(true);
-      try {
-        let options: (Item | Family | SalesHeader)[] = [];
-        switch (data.Source_Type) {
-          case "Item":
-            options = await getItems(undefined, data.Shortcut_Dimension_1_Code);
-            break;
-          case "Family":
-            options = await getFamilies();
-            break;
-          case "Sales Header":
-            options = await getSalesHeaders();
-            break;
-        }
-        setSourceOptions(options);
-      } catch (error) {
-        console.error("Error loading source options:", error);
-        setSourceOptions([]);
-      } finally {
-        setIsLoadingSource(false);
-      }
-    };
-
-    loadSourceOptions();
-  }, [data.Source_Type, data.Shortcut_Dimension_1_Code, isReadOnly]);
 
   // Handle Source Type change - reset dependent fields
   const handleSourceTypeChange = (value: SourceType) => {
@@ -380,23 +344,15 @@ export function ProductionOrderFormFields({
           disabled={isReadOnly}
           required
         />
-        <SelectField
-          label="Source No"
-          value={data.Source_No}
-          options={sourceOptions.map((opt) => ({
-            value: opt.No,
-            label:
-              "Description" in opt
-                ? `${opt.No} - ${opt.Description}`
-                : "Sell_to_Customer_Name" in opt
-                  ? `${opt.No} - ${opt.Sell_to_Customer_Name}`
-                  : opt.No,
-          }))}
-          onChange={handleSourceNoChange}
-          disabled={isReadOnly || !data.Source_Type}
-          isLoading={isLoadingSource}
-          required
-        />
+                <div className="flex flex-col gap-1.5 min-w-0">
+          <FieldTitle required>Source No</FieldTitle>
+          <SourceNoSelect
+            value={data.Source_No}
+            sourceType={data.Source_Type}
+            onChange={handleSourceNoChange}
+            disabled={isReadOnly || !data.Source_Type}
+          />
+        </div>
         <FormField
           label="Quantity"
           value={data.Quantity?.toString() || ""}

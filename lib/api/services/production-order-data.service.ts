@@ -42,7 +42,7 @@ export interface ProdOrderBOM {
   Location_Code_1?: string;
   Item_No?: string;
   Unit_of_Measure_Code?: string;
-  Active_Version_Code?: string;
+  ActiveVersionCode?: string;
   [key: string]: unknown;
 }
 
@@ -271,7 +271,7 @@ export async function getProdOrderBOMs(
   const queryParams: Record<string, any> = {
     $filter: filter,
     $select:
-      "No,Description,Status,Location_Code_1,Item_No,Unit_of_Measure_Code,Active_Version_Code",
+      "No,Description,Status,Location_Code_1,Item_No,Unit_of_Measure_Code,ActiveVersionCode",
     $orderby: "No",
     $top: 50,
   };
@@ -298,7 +298,7 @@ export async function getProdOrderBOMsByItemOnly(
   const queryParams: Record<string, any> = {
     $filter: filter,
     $select:
-      "No,Description,Status,Location_Code_1,Item_No,Unit_of_Measure_Code,Active_Version_Code",
+      "No,Description,Status,Location_Code_1,Item_No,Unit_of_Measure_Code,ActiveVersionCode",
     $orderby: "No",
     $top: 50,
   };
@@ -328,7 +328,7 @@ export async function getProdOrderBOMByNo(
   const queryParams: Record<string, any> = {
     $filter: filter,
     $select:
-      "No,Description,Status,Location_Code_1,Item_No,Unit_of_Measure_Code,Active_Version_Code",
+      "No,Description,Status,Location_Code_1,Item_No,Unit_of_Measure_Code,ActiveVersionCode",
   };
 
   const query = buildODataQuery(queryParams);
@@ -535,4 +535,99 @@ export async function checkItemTracking(
     console.error("Error checking item tracking:", error);
     return false;
   }
+}
+
+export async function getSourcesForDialog(opts: {
+  sourceType: string;
+  skip?: number;
+  top?: number;
+  search?: string;
+  sortColumn?: string | null;
+  sortDirection?: "asc" | "desc" | null;
+  filters?: Record<string, string>;
+}): Promise<{ value: any[]; count: number }> {
+  const top = opts.top ?? 30;
+  const skip = opts.skip ?? 0;
+
+  let endpointPath = "";
+  let selectCols = "";
+  // Second field to search by (in addition to No)
+  let searchField2 = "";
+
+  if (opts.sourceType === "Item") {
+    endpointPath = "/ItemCard";
+    selectCols = "No,Description,Base_Unit_of_Measure,Inventory";
+    searchField2 = "Description";
+  } else if (opts.sourceType === "Family") {
+    endpointPath = "/FamilyList";
+    selectCols = "No,Description";
+    searchField2 = "Description";
+  } else if (opts.sourceType === "Sales Header") {
+    endpointPath = "/SalesOrderEntity";
+    selectCols = "No,Sell_to_Customer_Name,Document_Type";
+    searchField2 = "Sell_to_Customer_Name";
+  } else {
+    return { value: [], count: 0 };
+  }
+
+  const baseFilterParts: string[] = [];
+  if (opts.filters) {
+    Object.entries(opts.filters).forEach(([col, val]) => {
+      if (!val) return;
+      baseFilterParts.push(
+        `contains(${col},'${val.replace(/'/g, "''").trim()}')`,
+      );
+    });
+  }
+
+  let orderbyClause = "No";
+  if (opts.sortColumn && opts.sortDirection) {
+    orderbyClause = `${opts.sortColumn} ${opts.sortDirection === "asc" ? "asc" : "desc"}`;
+  }
+
+  const buildEndpoint = (extraFilter?: string) => {
+    const parts = [...baseFilterParts];
+    if (extraFilter) parts.push(extraFilter);
+    const query = buildODataQuery({
+      $select: selectCols,
+      $filter: parts.length > 0 ? parts.join(" and ") : undefined,
+      $orderby: orderbyClause,
+      $top: top,
+      $skip: skip,
+      $count: true,
+    });
+    return `${endpointPath}?company='${encodeURIComponent(COMPANY)}'&${query}`;
+  };
+
+  // BC OData does not support OR across distinct fields — use two parallel calls
+  if (opts.search && opts.search.trim().length > 0) {
+    const escaped = opts.search.replace(/'/g, "''").trim();
+    const [byNo, byField2] = await Promise.all([
+      apiGet<ODataResponse<any>>(
+        buildEndpoint(`contains(No,'${escaped}')`),
+      ),
+      apiGet<ODataResponse<any>>(
+        buildEndpoint(`contains(${searchField2},'${escaped}')`),
+      ),
+    ]);
+
+    const combined = [...(byNo.value || []), ...(byField2.value || [])];
+    const uniqueMap = new Map<string, any>();
+    combined.forEach((item) => {
+      if (!uniqueMap.has(item.No)) uniqueMap.set(item.No, item);
+    });
+    const value = Array.from(uniqueMap.values());
+
+    const count1 = byNo["@odata.count"] ?? byNo.value?.length ?? 0;
+    const count2 = byField2["@odata.count"] ?? byField2.value?.length ?? 0;
+
+    return { value, count: count1 + count2 };
+  }
+
+  const endpoint = buildEndpoint();
+  const res = await apiGet<ODataResponse<any>>(endpoint);
+  return {
+    value: res.value || [],
+    count: res["@odata.count"] ?? res.value?.length ?? 0,
+  };
 }

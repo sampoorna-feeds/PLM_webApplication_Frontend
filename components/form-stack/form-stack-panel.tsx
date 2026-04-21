@@ -127,6 +127,7 @@ export function FormStackPanel() {
               ? "w-screen md:w-[60vw]"
               : currentTab?.formType === "purchase-document" ||
                   currentTab?.formType === "sales-document" ||
+                  currentTab?.formType === "production-order" ||
                   currentTab?.formType === "qc-receipt-detail" ||
                   currentTab?.formType === "sales-posted-shipment-detail" ||
                   currentTab?.formType === "sales-posted-invoice-detail"

@@ -88,7 +88,7 @@ export async function searchPostedShipments(
   params: GetPostedShipmentsParams & { searchTerm?: string },
 ): Promise<PaginatedPostedShipmentsResponse> {
   const { searchTerm, $top, $skip, ...rest } = params;
-  if (!searchTerm?.trim()) return getPostedShipmentsWithCount(rest);
+  if (!searchTerm?.trim()) return getPostedShipmentsWithCount({ ...rest, $top, $skip });
 
   const escaped = searchTerm.replace(/'/g, "''");
   const fields = ["No", "Sell_to_Customer_No", "Sell_to_Customer_Name", "Order_No"];

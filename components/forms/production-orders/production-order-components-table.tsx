@@ -78,9 +78,9 @@ export function ProductionOrderComponentsTable({
   }
 
   return (
-    <div className="rounded-md border">
+    <div className="relative h-full overflow-auto rounded-md border">
       <Table>
-        <TableHeader>
+        <TableHeader className="bg-muted/50 sticky top-0 z-10 shadow-sm backdrop-blur">
           <TableRow>
             <TableHead className="w-20">Comp. Line</TableHead>
             <TableHead className="w-20">Prod. Line</TableHead>

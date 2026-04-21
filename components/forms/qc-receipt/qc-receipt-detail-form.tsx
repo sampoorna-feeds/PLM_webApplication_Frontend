@@ -16,6 +16,7 @@ import { Loader2, Send, Save, RotateCcw, ChevronDown } from "lucide-react";
 import { useFormStackContext } from "@/lib/form-stack/form-stack-context";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { getTransferAllLocationCodes, getTransferLocationCodes, type TransferLocationCode } from "@/lib/api/services/transfer-orders.service";
+import { getDimensionValueName } from "@/lib/api/services/dimension.service";
 
 interface QCReceiptDetailFormProps {
   tabId: string;
@@ -40,6 +41,7 @@ export function QCReceiptDetailForm({ tabId, context }: QCReceiptDetailFormProps
   
   const [locations, setLocations] = useState<TransferLocationCode[]>([]);
   const [isLoadingLocations, setIsLoadingLocations] = useState(false);
+  const [locationName, setLocationName] = useState("");
 
   useEffect(() => {
     if (initialReceipt) setReceipt(initialReceipt);
@@ -51,9 +53,15 @@ export function QCReceiptDetailForm({ tabId, context }: QCReceiptDetailFormProps
       try {
         const locs = await getTransferAllLocationCodes();
         let finalLocs = [...locs];
-        if (receipt?.Store_Location_Code && !finalLocs.some(l => l.Code === receipt.Store_Location_Code)) {
-          finalLocs.push({ Code: receipt.Store_Location_Code, Name: "" });
-        }
+        
+        // Ensure both Location_Code and Store_Location_Code are in the locations list
+        const missingCodes = [receipt?.Location_Code, receipt?.Store_Location_Code]
+          .filter((code): code is string => !!code && !finalLocs.some(l => l.Code === code));
+        
+        missingCodes.forEach(code => {
+          finalLocs.push({ Code: code, Name: "" });
+        });
+        
         setLocations(finalLocs);
       } catch (error) {
         console.error("Error loading locations:", error);
@@ -63,6 +71,16 @@ export function QCReceiptDetailForm({ tabId, context }: QCReceiptDetailFormProps
     };
     loadLocations();
   }, []);
+
+  useEffect(() => {
+    const fetchLocName = async () => {
+      if (receipt?.Location_Code) {
+        const name = await getDimensionValueName("LOC", receipt.Location_Code);
+        setLocationName(name);
+      }
+    };
+    fetchLocName();
+  }, [receipt?.Location_Code]);
 
   if (!receipt) {
     return <div className="p-4">No receipt selected</div>;
@@ -109,6 +127,11 @@ export function QCReceiptDetailForm({ tabId, context }: QCReceiptDetailFormProps
   const formatQty = (val?: number) => {
     if (val === undefined || val === null) return "-";
     return val.toLocaleString();
+  };
+
+  const getLocationName = (code: string) => {
+    const loc = locations.find(l => l.Code === code);
+    return loc?.Name || "";
   };
 
   return (
@@ -182,7 +205,14 @@ export function QCReceiptDetailForm({ tabId, context }: QCReceiptDetailFormProps
              <SummaryField label="Item Name" value={receipt.Item_Name} />
              <SummaryField label="Unit Of Measure" value={receipt.Unit_of_Measure} />
              <SummaryField label="Receipt Date" value={formatDate(receipt.Receipt_Date)} />
-             <SummaryField label="Location Code" value={receipt.Location_Code} />
+             <SummaryField 
+               label="Location Code" 
+               value={receipt.Location_Code ? (
+                 locationName 
+                   ? `${receipt.Location_Code} - ${locationName}` 
+                   : receipt.Location_Code
+               ) : "-"} 
+             />
              <SummaryField label="Vendor No." value={receipt.Buy_from_Vendor_No} />
              <SummaryField label="Vendor Name" value={receipt.Buy_from_Vendor_Name} />
              <SummaryField label="PO No." value={receipt.Purchase_Order_No} />

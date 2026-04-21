@@ -222,7 +222,8 @@ export function SearchableSelect({
                   <div
                     className="hover:bg-accent hover:text-accent-foreground bg-primary/10 relative flex cursor-pointer items-center rounded-sm px-2 py-1.5 text-sm font-medium transition-colors outline-none select-none"
                     onClick={() => {
-                      onValueChange(searchQuery.trim());
+                      const trimmedVal = searchQuery.trim();
+                      onValueChange(value === trimmedVal ? "" : trimmedVal);
                       setOpen(false);
                     }}
                   >
@@ -251,7 +252,8 @@ export function SearchableSelect({
                   <div
                     className="hover:bg-accent hover:text-accent-foreground bg-primary/10 relative mb-1 flex cursor-pointer items-center rounded-sm border-b px-2 py-1.5 text-sm font-medium transition-colors outline-none select-none"
                     onClick={() => {
-                      onValueChange(searchQuery.trim());
+                      const trimmedVal = searchQuery.trim();
+                      onValueChange(value === trimmedVal ? "" : trimmedVal);
                       setOpen(false);
                     }}
                   >
@@ -278,7 +280,7 @@ export function SearchableSelect({
                         : "hover:bg-muted hover:text-foreground",
                     )}
                     onClick={() => {
-                      onValueChange(option.value);
+                      onValueChange(value === option.value ? "" : option.value);
                       setTimeout(() => setOpen(false), 0); // ensure parent state updates before closing
                     }}
                   >

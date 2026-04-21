@@ -12,8 +12,10 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { DateInput } from "@/components/ui/date-input";
-import { Loader2, Send, Save, RotateCcw } from "lucide-react";
+import { Loader2, Send, Save, RotateCcw, ChevronDown } from "lucide-react";
 import { useFormStackContext } from "@/lib/form-stack/form-stack-context";
+import { SearchableSelect } from "@/components/ui/searchable-select";
+import { getTransferAllLocationCodes, getTransferLocationCodes, type TransferLocationCode } from "@/lib/api/services/transfer-orders.service";
 
 interface QCReceiptDetailFormProps {
   tabId: string;
@@ -35,10 +37,32 @@ export function QCReceiptDetailForm({ tabId, context }: QCReceiptDetailFormProps
   );
   const { postReceipt, isPosting } = useQCReceiptPosting();
   const { updateHeader, isUpdating: isHeaderUpdating } = useQCReceiptUpdate();
+  
+  const [locations, setLocations] = useState<TransferLocationCode[]>([]);
+  const [isLoadingLocations, setIsLoadingLocations] = useState(false);
 
   useEffect(() => {
     if (initialReceipt) setReceipt(initialReceipt);
   }, [initialReceipt]);
+
+  useEffect(() => {
+    const loadLocations = async () => {
+      setIsLoadingLocations(true);
+      try {
+        const locs = await getTransferAllLocationCodes();
+        let finalLocs = [...locs];
+        if (receipt?.Store_Location_Code && !finalLocs.some(l => l.Code === receipt.Store_Location_Code)) {
+          finalLocs.push({ Code: receipt.Store_Location_Code, Name: "" });
+        }
+        setLocations(finalLocs);
+      } catch (error) {
+        console.error("Error loading locations:", error);
+      } finally {
+        setIsLoadingLocations(false);
+      }
+    };
+    loadLocations();
+  }, []);
 
   if (!receipt) {
     return <div className="p-4">No receipt selected</div>;
@@ -256,11 +280,28 @@ export function QCReceiptDetailForm({ tabId, context }: QCReceiptDetailFormProps
                </EditFormField>
 
                <EditFormField label="Store Location Code" isReadOnly={isPosted}>
-                 <Input 
-                   value={receipt.Store_Location_Code || ""} 
-                   onChange={(e) => handleFieldChange("Store_Location_Code", e.target.value)}
-                   disabled={isPosted}
-                 />
+                  <SearchableSelect
+                    options={locations.map((loc) => ({
+                      value: loc.Code,
+                      label: loc.Name ? `${loc.Code} - ${loc.Name}` : loc.Code,
+                    }))}
+                    value={receipt.Store_Location_Code || ""}
+                    onValueChange={(val) => handleFieldChange("Store_Location_Code", val)}
+                    placeholder="Select Store Location"
+                    disabled={isPosted}
+                    isLoading={isLoadingLocations}
+                    onSearch={async (query) => {
+                      if (query.length >= 2) {
+                        const results = await getTransferLocationCodes(query);
+                        setLocations(prev => {
+                          const combined = [...prev, ...results];
+                          const uniqueMap = new Map();
+                          combined.forEach(l => uniqueMap.set(l.Code, l));
+                          return Array.from(uniqueMap.values());
+                        });
+                      }
+                    }}
+                  />
                </EditFormField>
 
                <div className="md:col-span-2 lg:col-span-3">

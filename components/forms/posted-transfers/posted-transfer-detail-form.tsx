@@ -8,8 +8,25 @@ import {
   getPostedTransferShipmentLines,
   getTransferReceiptLines,
 } from "@/lib/api/services/transfer-orders.service";
+import { 
+  generateEInvoice, 
+  cancelEInvoice, 
+  generateEWayBill, 
+  cancelEWayBill, 
+  updateVehicle, 
+  updateTransporter 
+} from "@/lib/api/services/eway-einvoice.service";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { ChevronDown, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 
 export interface PostedTransferDetailFormProps {
   tabId: string;
@@ -33,7 +50,20 @@ export function PostedTransferDetailForm({
   const [header, setHeader] = useState<any | null>(null);
   const [lines, setLines] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const handleAction = async (actionName: string, fn: () => Promise<void>) => {
+    try {
+      setActionLoading(actionName);
+      await fn();
+      toast.success(`${actionName} completed successfully`);
+    } catch (err: any) {
+      toast.error(err.message || `Failed to ${actionName.toLowerCase()}`);
+    } finally {
+      setActionLoading(null);
+    }
+  };
 
   useEffect(() => {
     if (!activeNo) return;
@@ -106,6 +136,71 @@ export function PostedTransferDetailForm({
   return (
     <div className="h-full overflow-y-auto">
       <div className="flex flex-col gap-6 p-4 pb-20">
+        <div className="flex items-center justify-between border-b pb-2">
+          <h1 className="text-xl font-bold tracking-tight">{title}</h1>
+          {type === "shipment" && (
+            <div className="flex items-center gap-3">
+              {/* E-Invoice Dropdown */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="gap-2" disabled={!!actionLoading}>
+                    {actionLoading?.startsWith("E-Invoice") ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : null}
+                    E-Invoice
+                    <ChevronDown className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => handleAction("E-Invoice Generation", () => generateEInvoice("Transfer", header.No))}>
+                    Generate E-invoice
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleAction("E-Invoice Cancellation", () => cancelEInvoice("Transfer", header.No))}>
+                    Cancel E-invoice
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              {/* E-Way Bill Dropdown */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="gap-2" disabled={!!actionLoading}>
+                    {actionLoading?.startsWith("E-Way") ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : null}
+                    E-Way Bill
+                    <ChevronDown className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => handleAction("E-Way Bill Generation", () => generateEWayBill("Transfer", header.No))}>
+                    Generate E-way Bill
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleAction("E-Way Bill Cancellation", () => cancelEWayBill("Transfer", header.No))}>
+                    Cancel E-way Bill
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleAction("Vehicle Update", () => {
+                    if (!header.E_Way_Bill_No) {
+                      throw new Error("E-Way Bill No. is missing on the document.");
+                    }
+                    return updateVehicle(header.No, header.E_Way_Bill_No);
+                  })}>
+                    Updated Vehicle
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleAction("Transporter Update", () => {
+                    if (!header.E_Way_Bill_No) {
+                      throw new Error("E-Way Bill No. is missing on the document.");
+                    }
+                    return updateTransporter(header.No, header.E_Way_Bill_No);
+                  })}>
+                    Update Transporter
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          )}
+        </div>
+
         <div>
           <h2 className="mb-2 text-base font-semibold uppercase tracking-wider text-muted-foreground border-b pb-1">
             General Information

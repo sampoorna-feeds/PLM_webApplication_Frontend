@@ -79,19 +79,8 @@ export function validateProductionOrderForm(
 
   if (!data.Due_Date) {
     errors.push({ field: "Due_Date", message: "Due Date is required" });
-  } else {
-    // Validate date is not in the past
-    const dueDate = new Date(data.Due_Date);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+  } 
 
-    if (dueDate < today) {
-      errors.push({
-        field: "Due_Date",
-        message: "Due Date cannot be in the past",
-      });
-    }
-  }
 
   if (!data.Location_Code?.trim()) {
     errors.push({

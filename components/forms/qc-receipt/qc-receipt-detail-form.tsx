@@ -89,7 +89,7 @@ export function QCReceiptDetailForm({ tabId, context }: QCReceiptDetailFormProps
 
   return (
     <div className="h-full overflow-y-auto bg-background">
-      <div className="flex flex-col gap-8 p-6 pb-20">
+      <div className="flex flex-col gap-6 p-6 pb-20">
         {/* ACTION BAR */}
         <div className="flex items-center justify-between border-b pb-4 sticky top-0 bg-background/95 backdrop-blur-sm z-20">
           <div>
@@ -149,7 +149,7 @@ export function QCReceiptDetailForm({ tabId, context }: QCReceiptDetailFormProps
           </div>
         </div>
 
-        <div className="flex flex-col gap-10">
+        <div className="flex flex-col gap-4">
           <SectionContainer title="">
              <SummaryField label="No." value={receipt.No} />
              <SummaryField label="Item No." value={receipt.Item_No} />
@@ -165,7 +165,7 @@ export function QCReceiptDetailForm({ tabId, context }: QCReceiptDetailFormProps
              <SummaryField label="Item Tracking" value={receipt.Item_Tracking} />
           </SectionContainer>
 
-          <div className="rounded-xl border bg-muted/20 p-6 shadow-sm">
+          <div className="rounded-xl border bg-muted/20 p-4 shadow-sm">
             <SectionContainer title="">
                <EditFormField 
                  label="QC Date" 
@@ -281,7 +281,7 @@ export function QCReceiptDetailForm({ tabId, context }: QCReceiptDetailFormProps
         <Separator />
 
         {/* Lines Section */}
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-2">
           <div className="flex items-center justify-between border-b pb-1">
             <h2 className="text-base font-semibold uppercase tracking-wider text-muted-foreground">
               Line Items
@@ -314,7 +314,7 @@ function EditFormField({
   isReadOnly?: boolean 
 }) {
   return (
-    <div className="flex flex-col gap-1.5 overflow-hidden">
+    <div className="flex flex-col gap-1 overflow-hidden">
       <Label className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground/60">{label}</Label>
       <div className="min-h-10">
         {children}
@@ -331,7 +331,7 @@ function SectionContainer({ title, children }: { title: string; children: React.
           {title}
         </h2>
       )}
-      <div className="grid grid-cols-2 gap-x-8 gap-y-6 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+      <div className="grid grid-cols-2 gap-x-4 gap-y-4 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
         {children}
       </div>
     </div>

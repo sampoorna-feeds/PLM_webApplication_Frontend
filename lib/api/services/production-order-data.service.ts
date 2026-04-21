@@ -42,6 +42,7 @@ export interface ProdOrderBOM {
   Location_Code_1?: string;
   Item_No?: string;
   Unit_of_Measure_Code?: string;
+  Active_Version_Code?: string;
   [key: string]: unknown;
 }
 
@@ -270,7 +271,7 @@ export async function getProdOrderBOMs(
   const queryParams: Record<string, any> = {
     $filter: filter,
     $select:
-      "No,Description,Status,Location_Code_1,Item_No,Unit_of_Measure_Code",
+      "No,Description,Status,Location_Code_1,Item_No,Unit_of_Measure_Code,Active_Version_Code",
     $orderby: "No",
     $top: 50,
   };
@@ -297,7 +298,7 @@ export async function getProdOrderBOMsByItemOnly(
   const queryParams: Record<string, any> = {
     $filter: filter,
     $select:
-      "No,Description,Status,Location_Code_1,Item_No,Unit_of_Measure_Code",
+      "No,Description,Status,Location_Code_1,Item_No,Unit_of_Measure_Code,Active_Version_Code",
     $orderby: "No",
     $top: 50,
   };
@@ -313,6 +314,28 @@ export async function getProdOrderBOMsByItemOnly(
     "BOMs",
   );
   return response.value || [];
+}
+
+/**
+ * Get a single production BOM by No
+ * @param bomNo - Production BOM No
+ */
+export async function getProdOrderBOMByNo(
+  bomNo: string,
+): Promise<ProdOrderBOM | null> {
+  const filter = `No eq '${bomNo}'`;
+
+  const queryParams: Record<string, any> = {
+    $filter: filter,
+    $select:
+      "No,Description,Status,Location_Code_1,Item_No,Unit_of_Measure_Code,Active_Version_Code",
+  };
+
+  const query = buildODataQuery(queryParams);
+  const endpoint = `/ProductionBOMList?company='${encodeURIComponent(COMPANY)}'&${query}`;
+
+  const response = await apiGet<ODataResponse<ProdOrderBOM>>(endpoint);
+  return response.value?.[0] || null;
 }
 
 // ============================================

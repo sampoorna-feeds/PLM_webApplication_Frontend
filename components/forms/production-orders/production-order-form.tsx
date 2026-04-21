@@ -62,7 +62,6 @@ import {
   getSalesHeaders,
   getProdOrderBOMs,
   getProdOrderBOMVersions,
-  getProdOrderBOMByNo,
   getItemByNo,
   type Item,
   type Family,
@@ -681,19 +680,6 @@ export function ProductionOrderForm({
     [updateTab],
   );
 
-  const handleProdBOMChange = useCallback(
-    (value: string) => {
-      const selectedBOM = bomOptions.find((b) => b.No === value);
-      setFormState((prev) => ({
-        ...prev,
-        Prod_Bom_No: value,
-        BOM_Version_No: selectedBOM?.Active_Version_Code || "",
-      }));
-      updateTab({ isSaved: false });
-    },
-    [bomOptions, updateTab],
-  );
-
   const handleSourceTypeChange = useCallback(
     (value: SourceType) => {
       setFormState((prev) => ({
@@ -793,18 +779,6 @@ export function ProductionOrderForm({
                 isProdBomFromItem: true,
               }));
 
-              // Fetch BOM details asynchronously to get Active_Version_Code
-              try {
-                const bomDetails = await getProdOrderBOMByNo(item.Production_BOM_No);
-                if (bomDetails?.Active_Version_Code) {
-                  setFormState(p => ({
-                    ...p,
-                    BOM_Version_No: bomDetails.Active_Version_Code || ""
-                  }));
-                }
-              } catch (err) {
-                console.warn("Could not fetch active BOM version:", err);
-              }
             }
           }
         } catch (error) {
@@ -1615,7 +1589,7 @@ export function ProductionOrderForm({
                   ) : (
                     <Select
                       value={formState.Prod_Bom_No}
-                      onValueChange={handleProdBOMChange}
+                      onValueChange={(v) => handleChange("Prod_Bom_No", v)}
                       disabled={isLoadingBom}
                     >
                       <SelectTrigger className="w-full">
@@ -1668,17 +1642,26 @@ export function ProductionOrderForm({
                       </p>
                     </div>
                   ) : (
-                    <SearchableSelect
-                      options={bomVersionOptions.map((v) => ({
-                        value: v.Version_Code,
-                        label: v.Description
-                          ? `${v.Version_Code} - ${v.Description}`
-                          : v.Version_Code,
-                      }))}
+                    <Select
                       value={formState.BOM_Version_No}
                       onValueChange={(v) => handleChange("BOM_Version_No", v)}
-                      placeholder="Select version"
-                    />
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select version" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {bomVersionOptions.map((v) => (
+                          <SelectItem
+                            key={v.Version_Code}
+                            value={v.Version_Code}
+                          >
+                            {v.Description
+                              ? `${v.Version_Code} - ${v.Description}`
+                              : v.Version_Code}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   )}
                 </div>
               )}

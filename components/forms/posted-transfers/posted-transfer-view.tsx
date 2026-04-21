@@ -11,6 +11,8 @@ import { type SortDirection, loadVisibleColumns, saveVisibleColumns, getDefaultV
 import { getPostedTransferShipments, getTransferReceipts, getTransferShipmentReport, getDownloadRecordLink, searchPostedTransferShipments, searchTransferReceiptsExtended } from "@/lib/api/services/transfer-orders.service";
 import { toast } from "sonner";
 import { useFormStackContext } from "@/lib/form-stack/form-stack-context";
+import { useAuth } from "@/lib/contexts/auth-context";
+import { getAllLOCsFromUserSetup } from "@/lib/api/services/dimension.service";
 
 interface PostedTransferViewProps {
   type: "shipment" | "receipt";
@@ -24,6 +26,10 @@ export function PostedTransferView({ type }: PostedTransferViewProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [activeReportDocNo, setActiveReportDocNo] = useState<string | null>(null);
   const [reportPdfUrls, setReportPdfUrls] = useState<Record<string, string>>({});
+  
+  const { userID } = useAuth();
+  const [authLocations, setAuthLocations] = useState<string[]>([]);
+  const [isAuthLoading, setIsAuthLoading] = useState(true);
   
   // New filtering/sorting states
   const [searchQuery, setSearchQuery] = useState("");
@@ -40,11 +46,28 @@ export function PostedTransferView({ type }: PostedTransferViewProps) {
     typeof window !== "undefined" ? loadVisibleColumns() : getDefaultVisibleColumns()
   );
 
+  // Fetch authorized locations for the current user
+  useEffect(() => {
+    const loadAuthLocations = async () => {
+      if (!userID) return;
+      setIsAuthLoading(true);
+      try {
+        const setup = await getAllLOCsFromUserSetup(userID);
+        setAuthLocations(setup.map(s => s.Code).filter(Boolean));
+      } catch (error) {
+        console.error("Error loading user authorized locations:", error);
+      } finally {
+        setIsAuthLoading(false);
+      }
+    };
+    loadAuthLocations();
+  }, [userID]);
+
   const title = type === "shipment" ? "Posted Transfer Shipment" : "Posted Transfer Receipt";
   const description = `Enter details to find posted transfer ${type}s.`;
 
   const fetchData = useCallback(async () => {
-    if (!filters) return;
+    if (!filters || (userID && isAuthLoading)) return;
     setIsLoading(true);
     try {
       const parts = [];
@@ -69,6 +92,23 @@ export function PostedTransferView({ type }: PostedTransferViewProps) {
         }
       });
 
+      // Mandatory Branch/Location Access Filter
+      // BC OData doesn't support OR across distinct fields (e.g., Transfer_from_Code and Transfer_to_Code).
+      // We filter by the primary location field based on the view type: 
+      // Shipments are outbound (from), Receipts are inbound (to).
+      if (authLocations.length > 0) {
+        const mainField = type === "shipment" ? "Transfer_from_Code" : "Transfer_to_Code";
+        const branchFilter = authLocations.map(loc => 
+          `${mainField} eq '${loc}'`
+        ).join(" or ");
+        parts.push(`(${branchFilter})`);
+      } else if (!isAuthLoading) {
+        // If user has no branches assigned and loading finished, they see nothing
+        // (unless we want to allow super-admins to see all, but usually there's at least one setup)
+        // For now, if setup exists but is empty, restrict to non-existent to show empty
+        parts.push("No eq 'NONE'");
+      }
+
       const filter = parts.join(" and ");
       const orderby = sortColumn && sortDirection && ["No", "Posting_Date", "Transfer_from_Code", "Transfer_to_Code", "Vehicle_No", "E_Way_Bill_No"].includes(sortColumn) 
         ? `${sortColumn} ${sortDirection}` 
@@ -92,7 +132,7 @@ export function PostedTransferView({ type }: PostedTransferViewProps) {
     } finally {
       setIsLoading(false);
     }
-  }, [type, filters, searchQuery, columnFilters, sortColumn, sortDirection, pageSize, currentPage]);
+  }, [type, filters, searchQuery, columnFilters, sortColumn, sortDirection, pageSize, currentPage, authLocations, isAuthLoading, userID]);
 
   useEffect(() => {
     fetchData();

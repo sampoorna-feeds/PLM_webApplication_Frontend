@@ -49,7 +49,7 @@ export function QCReceiptsTable({
         <table className="w-full caption-bottom text-sm">
           <thead className="bg-muted sticky top-0 z-10 [&_tr]:border-b">
             <tr className="border-b transition-colors">
-              <th className="text-foreground h-10 w-12 px-3 py-3 text-center align-middle text-xs font-bold whitespace-nowrap">
+              <th className="text-foreground h-10 w-12 px-3 py-3 text-center align-middle text-xs font-semibold whitespace-nowrap">
                 S.No
               </th>
               {columns.map((column) => (
@@ -150,7 +150,7 @@ function SortableTableHead({
 
   return (
     <th
-      className={`text-foreground h-10 px-2 px-3 py-3 text-left align-middle text-xs font-bold whitespace-nowrap select-none ${
+      className={`text-foreground h-10 px-2 px-3 py-3 text-left align-middle text-xs font-semibold whitespace-nowrap select-none ${
         isActive ? "text-primary" : ""
       }`}
     >

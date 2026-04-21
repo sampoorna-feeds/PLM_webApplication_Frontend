@@ -60,7 +60,6 @@ import {
   getSalesHeaders,
   getProdOrderBOMs,
   getProdOrderBOMVersions,
-  getProdOrderBOMByNo,
   getItemByNo,
   type Item,
   type Family,
@@ -576,6 +575,7 @@ export function ProductionOrderForm({
     },
     [bomOptions, updateTab],
   );
+
 
   const handleSourceTypeChange = useCallback(
     (value: SourceType) => {
@@ -1402,7 +1402,7 @@ export function ProductionOrderForm({
                   ) : (
                     <Select
                       value={formState.Prod_Bom_No}
-                      onValueChange={handleProdBOMChange}
+                      onValueChange={(v) => handleChange("Prod_Bom_No", v)}
                       disabled={isLoadingBom}
                     >
                       <SelectTrigger className="w-full">
@@ -1455,17 +1455,26 @@ export function ProductionOrderForm({
                       </p>
                     </div>
                   ) : (
-                    <SearchableSelect
-                      options={bomVersionOptions.map((v) => ({
-                        value: v.Version_Code,
-                        label: v.Description
-                          ? `${v.Version_Code} - ${v.Description}`
-                          : v.Version_Code,
-                      }))}
+                    <Select
                       value={formState.BOM_Version_No}
                       onValueChange={(v) => handleChange("BOM_Version_No", v)}
-                      placeholder="Select version"
-                    />
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select version" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {bomVersionOptions.map((v) => (
+                          <SelectItem
+                            key={v.Version_Code}
+                            value={v.Version_Code}
+                          >
+                            {v.Description
+                              ? `${v.Version_Code} - ${v.Description}`
+                              : v.Version_Code}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   )}
                 </div>
               )}

@@ -159,6 +159,10 @@ export function QCReceiptDetailForm({ tabId, context }: QCReceiptDetailFormProps
              <SummaryField label="Unit Of Measure" value={receipt.Unit_of_Measure} />
              <SummaryField label="Receipt Date" value={formatDate(receipt.Receipt_Date)} />
              <SummaryField label="Location Code" value={receipt.Location_Code} />
+             <SummaryField label="Vendor No." value={receipt.Buy_from_Vendor_No} />
+             <SummaryField label="Vendor Name" value={receipt.Buy_from_Vendor_Name} />
+             <SummaryField label="PO No." value={receipt.Purchase_Order_No} />
+             <SummaryField label="Item Tracking" value={receipt.Item_Tracking} />
           </SectionContainer>
 
           <div className="rounded-xl border bg-muted/20 p-6 shadow-sm">
@@ -183,7 +187,7 @@ export function QCReceiptDetailForm({ tabId, context }: QCReceiptDetailFormProps
                  />
                </EditFormField>
 
-               <EditFormField label="Quantity to Accpt" isReadOnly={isPosted}>
+               <EditFormField label="Quantity to Accept" isReadOnly={isPosted}>
                  <Input 
                    type="number" 
                    value={receipt.Quantity_to_Accept} 
@@ -201,7 +205,7 @@ export function QCReceiptDetailForm({ tabId, context }: QCReceiptDetailFormProps
                  />
                </EditFormField>
 
-               <EditFormField label="Quantity to reject" isReadOnly={isPosted}>
+               <EditFormField label="Quantity to Reject" isReadOnly={isPosted}>
                  <Input 
                    type="number" 
                    value={receipt.Quantity_to_Reject} 

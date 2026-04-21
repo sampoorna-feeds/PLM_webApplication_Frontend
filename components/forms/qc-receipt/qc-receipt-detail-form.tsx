@@ -12,8 +12,10 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { DateInput } from "@/components/ui/date-input";
-import { Loader2, Send, Save, RotateCcw } from "lucide-react";
+import { Loader2, Send, Save, RotateCcw, ChevronDown } from "lucide-react";
 import { useFormStackContext } from "@/lib/form-stack/form-stack-context";
+import { SearchableSelect } from "@/components/ui/searchable-select";
+import { getTransferAllLocationCodes, getTransferLocationCodes, type TransferLocationCode } from "@/lib/api/services/transfer-orders.service";
 
 interface QCReceiptDetailFormProps {
   tabId: string;
@@ -35,10 +37,32 @@ export function QCReceiptDetailForm({ tabId, context }: QCReceiptDetailFormProps
   );
   const { postReceipt, isPosting } = useQCReceiptPosting();
   const { updateHeader, isUpdating: isHeaderUpdating } = useQCReceiptUpdate();
+  
+  const [locations, setLocations] = useState<TransferLocationCode[]>([]);
+  const [isLoadingLocations, setIsLoadingLocations] = useState(false);
 
   useEffect(() => {
     if (initialReceipt) setReceipt(initialReceipt);
   }, [initialReceipt]);
+
+  useEffect(() => {
+    const loadLocations = async () => {
+      setIsLoadingLocations(true);
+      try {
+        const locs = await getTransferAllLocationCodes();
+        let finalLocs = [...locs];
+        if (receipt?.Store_Location_Code && !finalLocs.some(l => l.Code === receipt.Store_Location_Code)) {
+          finalLocs.push({ Code: receipt.Store_Location_Code, Name: "" });
+        }
+        setLocations(finalLocs);
+      } catch (error) {
+        console.error("Error loading locations:", error);
+      } finally {
+        setIsLoadingLocations(false);
+      }
+    };
+    loadLocations();
+  }, []);
 
   if (!receipt) {
     return <div className="p-4">No receipt selected</div>;
@@ -89,12 +113,12 @@ export function QCReceiptDetailForm({ tabId, context }: QCReceiptDetailFormProps
 
   return (
     <div className="h-full overflow-y-auto bg-background">
-      <div className="flex flex-col gap-8 p-6 pb-20">
+      <div className="flex flex-col gap-6 p-6 pb-20">
         {/* ACTION BAR */}
         <div className="flex items-center justify-between border-b pb-4 sticky top-0 bg-background/95 backdrop-blur-sm z-20">
           <div>
             <h1 className="text-xl font-bold tracking-tight">{receipt.No}</h1>
-            <p className="text-xs text-muted-foreground uppercase font-semibold">
+            <p className="text-xs text-muted-foreground uppercase font-medium">
               {receipt.Item_Name} • {receipt.Buy_from_Vendor_Name}
             </p>
           </div>
@@ -149,7 +173,7 @@ export function QCReceiptDetailForm({ tabId, context }: QCReceiptDetailFormProps
           </div>
         </div>
 
-        <div className="flex flex-col gap-10">
+        <div className="flex flex-col gap-4">
           <SectionContainer title="">
              <SummaryField label="No." value={receipt.No} />
              <SummaryField label="Item No." value={receipt.Item_No} />
@@ -159,9 +183,13 @@ export function QCReceiptDetailForm({ tabId, context }: QCReceiptDetailFormProps
              <SummaryField label="Unit Of Measure" value={receipt.Unit_of_Measure} />
              <SummaryField label="Receipt Date" value={formatDate(receipt.Receipt_Date)} />
              <SummaryField label="Location Code" value={receipt.Location_Code} />
+             <SummaryField label="Vendor No." value={receipt.Buy_from_Vendor_No} />
+             <SummaryField label="Vendor Name" value={receipt.Buy_from_Vendor_Name} />
+             <SummaryField label="PO No." value={receipt.Purchase_Order_No} />
+             <SummaryField label="Item Tracking" value={receipt.Item_Tracking} />
           </SectionContainer>
 
-          <div className="rounded-xl border bg-muted/20 p-6 shadow-sm">
+          <div className="rounded-xl border bg-muted/20 p-4 shadow-sm">
             <SectionContainer title="">
                <EditFormField 
                  label="QC Date" 
@@ -183,7 +211,7 @@ export function QCReceiptDetailForm({ tabId, context }: QCReceiptDetailFormProps
                  />
                </EditFormField>
 
-               <EditFormField label="Quantity to Accpt" isReadOnly={isPosted}>
+               <EditFormField label="Quantity to Accept" isReadOnly={isPosted}>
                  <Input 
                    type="number" 
                    value={receipt.Quantity_to_Accept} 
@@ -201,7 +229,7 @@ export function QCReceiptDetailForm({ tabId, context }: QCReceiptDetailFormProps
                  />
                </EditFormField>
 
-               <EditFormField label="Quantity to reject" isReadOnly={isPosted}>
+               <EditFormField label="Quantity to Reject" isReadOnly={isPosted}>
                  <Input 
                    type="number" 
                    value={receipt.Quantity_to_Reject} 
@@ -218,7 +246,7 @@ export function QCReceiptDetailForm({ tabId, context }: QCReceiptDetailFormProps
                       onCheckedChange={(val) => handleFieldChange("Approve", val)}
                       disabled={isPosted}
                     />
-                    <Label htmlFor="approve" className="text-[10px] uppercase font-bold text-muted-foreground/60">Approve</Label>
+                    <Label htmlFor="approve" className="text-[11px] uppercase font-semibold text-muted-foreground">Approve</Label>
                   </div>
 
                   <div className="flex items-center space-x-2">
@@ -228,7 +256,7 @@ export function QCReceiptDetailForm({ tabId, context }: QCReceiptDetailFormProps
                       onCheckedChange={(val) => handleFieldChange("Accepted_With_Approval", val)}
                       disabled={isPosted}
                     />
-                    <Label htmlFor="accepted-with-approval" className="text-[10px] uppercase font-bold text-muted-foreground/60">Accepted w/ Approval</Label>
+                    <Label htmlFor="accepted-with-approval" className="text-[11px] uppercase font-semibold text-muted-foreground">Accepted w/ Approval</Label>
                   </div>
 
                   <div className="flex items-center space-x-2">
@@ -238,7 +266,7 @@ export function QCReceiptDetailForm({ tabId, context }: QCReceiptDetailFormProps
                       onCheckedChange={(val) => handleFieldChange("Create_Bardana", val)}
                       disabled={isPosted}
                     />
-                    <Label htmlFor="create-bardana" className="text-[10px] uppercase font-bold text-muted-foreground/60">Create Bardana</Label>
+                    <Label htmlFor="create-bardana" className="text-[11px] uppercase font-semibold text-muted-foreground">Create Bardana</Label>
                   </div>
                </div>
 
@@ -252,11 +280,28 @@ export function QCReceiptDetailForm({ tabId, context }: QCReceiptDetailFormProps
                </EditFormField>
 
                <EditFormField label="Store Location Code" isReadOnly={isPosted}>
-                 <Input 
-                   value={receipt.Store_Location_Code || ""} 
-                   onChange={(e) => handleFieldChange("Store_Location_Code", e.target.value)}
-                   disabled={isPosted}
-                 />
+                  <SearchableSelect
+                    options={locations.map((loc) => ({
+                      value: loc.Code,
+                      label: loc.Name ? `${loc.Code} - ${loc.Name}` : loc.Code,
+                    }))}
+                    value={receipt.Store_Location_Code || ""}
+                    onValueChange={(val) => handleFieldChange("Store_Location_Code", val)}
+                    placeholder="Select Store Location"
+                    disabled={isPosted}
+                    isLoading={isLoadingLocations}
+                    onSearch={async (query) => {
+                      if (query.length >= 2) {
+                        const results = await getTransferLocationCodes(query);
+                        setLocations(prev => {
+                          const combined = [...prev, ...results];
+                          const uniqueMap = new Map();
+                          combined.forEach(l => uniqueMap.set(l.Code, l));
+                          return Array.from(uniqueMap.values());
+                        });
+                      }
+                    }}
+                  />
                </EditFormField>
 
                <div className="md:col-span-2 lg:col-span-3">
@@ -277,7 +322,7 @@ export function QCReceiptDetailForm({ tabId, context }: QCReceiptDetailFormProps
         <Separator />
 
         {/* Lines Section */}
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-2">
           <div className="flex items-center justify-between border-b pb-1">
             <h2 className="text-base font-semibold uppercase tracking-wider text-muted-foreground">
               Line Items
@@ -310,8 +355,8 @@ function EditFormField({
   isReadOnly?: boolean 
 }) {
   return (
-    <div className="flex flex-col gap-1.5 overflow-hidden">
-      <Label className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground/60">{label}</Label>
+    <div className="flex flex-col gap-1 overflow-hidden">
+      <Label className="text-[11px] uppercase font-semibold tracking-tight text-muted-foreground">{label}</Label>
       <div className="min-h-10">
         {children}
       </div>
@@ -323,11 +368,11 @@ function SectionContainer({ title, children }: { title: string; children: React.
   return (
     <div className="flex flex-col gap-4">
       {title && (
-        <h2 className="text-[11px] font-bold uppercase tracking-[0.2em] text-muted-foreground/50 border-b border-muted py-2 flex items-center justify-between">
+        <h2 className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground border-b border-muted py-1 flex items-center justify-between">
           {title}
         </h2>
       )}
-      <div className="grid grid-cols-2 gap-x-8 gap-y-6 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+      <div className="grid grid-cols-2 gap-x-4 gap-y-4 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
         {children}
       </div>
     </div>
@@ -339,7 +384,7 @@ function SummaryField({ label, value }: { label: string; value: any }) {
   
   return (
     <div className="flex flex-col gap-1">
-      <span className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground/60">{label}</span>
+      <span className="text-[11px] uppercase font-semibold tracking-tight text-muted-foreground">{label}</span>
       <div className={`text-sm font-medium ${isValueEmpty ? 'text-muted-foreground/30 italic' : 'text-foreground'}`}>
         {isValueEmpty ? '-' : (typeof value === 'number' ? value.toLocaleString() : value)}
       </div>

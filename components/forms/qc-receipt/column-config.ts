@@ -147,8 +147,27 @@ export function saveVisibleColumns(columns: string[]): void {
   }
 }
 
+export const REQUIRED_DETAIL_FIELDS = [
+  "Unit_of_Measure",
+  "Quantity_to_Accept",
+  "Qty_to_Accept_with_Deviation",
+  "Quantity_to_Reject",
+  "Approve",
+  "Accepted_With_Approval",
+  "Create_Bardana",
+  "Rabete_Percent",
+  "Store_Location_Code",
+  "Comment",
+  "Receipt_Date",
+  "Location_Code",
+  "Buy_from_Vendor_No",
+  "Buy_from_Vendor_Name",
+  "Purchase_Order_No",
+  "Item_Tracking",
+];
+
 export function buildSelectQuery(visibleColumns: string[]): string {
   const defaultIds = DEFAULT_COLUMNS.map((col) => col.id);
-  const allNeeded = [...new Set([...defaultIds, ...visibleColumns])];
+  const allNeeded = [...new Set([...defaultIds, ...visibleColumns, ...REQUIRED_DETAIL_FIELDS])];
   return allNeeded.join(",");
 }

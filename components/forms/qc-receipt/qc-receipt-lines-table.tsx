@@ -33,7 +33,7 @@ export function QCReceiptLinesTable({
       <div className="overflow-x-auto">
         <table className="w-full caption-bottom text-sm">
           <thead className="bg-muted sticky top-0 z-10 [&_tr]:border-b">
-            <tr className="border-b transition-colors text-[10px] uppercase tracking-wider font-bold">
+            <tr className="border-b transition-colors text-[10px] uppercase tracking-wider font-semibold">
               <th className="h-10 px-3 py-3 text-left w-12">Edit</th>
               <th className="h-10 px-3 py-3 text-left">Description</th>
               <th className="h-10 px-3 py-3 text-left">Type</th>
@@ -148,14 +148,14 @@ function EditPopover({
       <PopoverContent className="w-80" align="start" side="right">
         <form onSubmit={handleSave} className="grid gap-4">
           <div className="space-y-1">
-            <h4 className="font-bold text-xs uppercase tracking-tight">Edit Quality Parameter</h4>
+            <h4 className="font-semibold text-xs uppercase tracking-tight">Edit Quality Parameter</h4>
             <p className="text-[10px] text-muted-foreground uppercase">
               {line.Quality_Parameter_Code}: {line.Description}
             </p>
           </div>
           <div className="grid gap-3">
             <div className="grid grid-cols-3 items-center gap-4">
-              <Label htmlFor="actual-value" className="text-xs font-bold uppercase tracking-tighter">Actual Value</Label>
+              <Label htmlFor="actual-value" className="text-xs font-semibold uppercase tracking-tighter">Actual Value</Label>
               <Input
                 id="actual-value"
                 type="number"
@@ -167,7 +167,7 @@ function EditPopover({
               />
             </div>
             <div className="grid grid-cols-3 items-center gap-4">
-              <Label htmlFor="actual-text" className="text-xs font-bold uppercase tracking-tighter">Actual Text</Label>
+              <Label htmlFor="actual-text" className="text-xs font-semibold uppercase tracking-tighter">Actual Text</Label>
               <Input
                 id="actual-text"
                 className="col-span-2 h-8 text-xs font-medium"
@@ -181,7 +181,7 @@ function EditPopover({
               type="submit" 
               size="sm" 
               disabled={isUpdating}
-              className="h-8 gap-2 px-4 text-xs font-bold"
+              className="h-8 gap-2 px-4 text-xs font-semibold"
             >
               {isUpdating ? (
                 <Loader2 className="h-3 w-3 animate-spin" />

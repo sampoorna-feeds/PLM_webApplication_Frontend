@@ -118,7 +118,7 @@ export function QCReceiptDetailForm({ tabId, context }: QCReceiptDetailFormProps
         <div className="flex items-center justify-between border-b pb-4 sticky top-0 bg-background/95 backdrop-blur-sm z-20">
           <div>
             <h1 className="text-xl font-bold tracking-tight">{receipt.No}</h1>
-            <p className="text-xs text-muted-foreground uppercase font-semibold">
+            <p className="text-xs text-muted-foreground uppercase font-medium">
               {receipt.Item_Name} • {receipt.Buy_from_Vendor_Name}
             </p>
           </div>
@@ -246,7 +246,7 @@ export function QCReceiptDetailForm({ tabId, context }: QCReceiptDetailFormProps
                       onCheckedChange={(val) => handleFieldChange("Approve", val)}
                       disabled={isPosted}
                     />
-                    <Label htmlFor="approve" className="text-[10px] uppercase font-bold text-muted-foreground/60">Approve</Label>
+                    <Label htmlFor="approve" className="text-[11px] uppercase font-semibold text-muted-foreground">Approve</Label>
                   </div>
 
                   <div className="flex items-center space-x-2">
@@ -256,7 +256,7 @@ export function QCReceiptDetailForm({ tabId, context }: QCReceiptDetailFormProps
                       onCheckedChange={(val) => handleFieldChange("Accepted_With_Approval", val)}
                       disabled={isPosted}
                     />
-                    <Label htmlFor="accepted-with-approval" className="text-[10px] uppercase font-bold text-muted-foreground/60">Accepted w/ Approval</Label>
+                    <Label htmlFor="accepted-with-approval" className="text-[11px] uppercase font-semibold text-muted-foreground">Accepted w/ Approval</Label>
                   </div>
 
                   <div className="flex items-center space-x-2">
@@ -266,7 +266,7 @@ export function QCReceiptDetailForm({ tabId, context }: QCReceiptDetailFormProps
                       onCheckedChange={(val) => handleFieldChange("Create_Bardana", val)}
                       disabled={isPosted}
                     />
-                    <Label htmlFor="create-bardana" className="text-[10px] uppercase font-bold text-muted-foreground/60">Create Bardana</Label>
+                    <Label htmlFor="create-bardana" className="text-[11px] uppercase font-semibold text-muted-foreground">Create Bardana</Label>
                   </div>
                </div>
 
@@ -356,7 +356,7 @@ function EditFormField({
 }) {
   return (
     <div className="flex flex-col gap-1 overflow-hidden">
-      <Label className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground/60">{label}</Label>
+      <Label className="text-[11px] uppercase font-semibold tracking-tight text-muted-foreground">{label}</Label>
       <div className="min-h-10">
         {children}
       </div>
@@ -368,7 +368,7 @@ function SectionContainer({ title, children }: { title: string; children: React.
   return (
     <div className="flex flex-col gap-4">
       {title && (
-        <h2 className="text-[11px] font-bold uppercase tracking-[0.2em] text-muted-foreground/50 border-b border-muted py-2 flex items-center justify-between">
+        <h2 className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground border-b border-muted py-1 flex items-center justify-between">
           {title}
         </h2>
       )}
@@ -384,7 +384,7 @@ function SummaryField({ label, value }: { label: string; value: any }) {
   
   return (
     <div className="flex flex-col gap-1">
-      <span className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground/60">{label}</span>
+      <span className="text-[11px] uppercase font-semibold tracking-tight text-muted-foreground">{label}</span>
       <div className={`text-sm font-medium ${isValueEmpty ? 'text-muted-foreground/30 italic' : 'text-foreground'}`}>
         {isValueEmpty ? '-' : (typeof value === 'number' ? value.toLocaleString() : value)}
       </div>

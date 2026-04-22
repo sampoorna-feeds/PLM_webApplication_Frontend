@@ -104,6 +104,9 @@ export function QCReceiptDetailForm({ tabId, context }: QCReceiptDetailFormProps
     if (result) {
       setReceipt(result);
       setEditedFields({});
+      if (context?.onSuccess) {
+        context.onSuccess();
+      }
     }
   };
 
@@ -111,6 +114,9 @@ export function QCReceiptDetailForm({ tabId, context }: QCReceiptDetailFormProps
     if (!receipt) return;
     const success = await postReceipt(receipt.No);
     if (success) {
+      if (context?.onSuccess) {
+        context.onSuccess();
+      }
       closeTab(tabId);
     }
   };

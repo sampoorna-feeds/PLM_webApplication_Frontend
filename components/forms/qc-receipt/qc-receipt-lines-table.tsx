@@ -56,15 +56,34 @@ export function QCReceiptLinesTable({
       const nextRow = index + 1;
       if (nextRow < lines.length) {
         const nextInput = tableRef.current?.querySelector(
-          `input[data-row="${nextRow}"][data-field="${field}"]`
+          `input[data-row="${nextRow}"][data-field="${field}"]:not(:disabled)`
         ) as HTMLInputElement;
         
         if (nextInput) {
           nextInput.focus();
           nextInput.select();
+        } else {
+            // If next input is disabled in this column, try to find the very next enabled one below it
+            let scanRow = nextRow + 1;
+            while(scanRow < lines.length) {
+                const scanInput = tableRef.current?.querySelector(
+                    `input[data-row="${scanRow}"][data-field="${field}"]:not(:disabled)`
+                ) as HTMLInputElement;
+                if(scanInput) {
+                    scanInput.focus();
+                    scanInput.select();
+                    break;
+                }
+                scanRow++;
+            }
         }
       }
     }
+  };
+
+  const isTextField = (type?: string) => {
+    if (!type) return false;
+    return type.toLowerCase() === "text";
   };
 
   return (
@@ -106,66 +125,83 @@ export function QCReceiptLinesTable({
                 </td>
               </tr>
             ) : (
-              lines.map((line, index) => (
-                <tr key={`${line.No}-${line.Line_No}-${index}`} className="border-b transition-colors hover:bg-muted/30 group">
-                  <td className="p-3 align-middle whitespace-nowrap font-medium text-foreground/80">{line.Description || "-"}</td>
-                  <td className="p-3 align-middle whitespace-nowrap text-muted-foreground">{line.Type || "-"}</td>
-                  <td className="p-3 align-middle whitespace-nowrap text-muted-foreground">{line.Unit_of_Measure_Code || "-"}</td>
-                  <td className="p-3 align-middle text-right whitespace-nowrap text-muted-foreground/70">{line.Min_Value}</td>
-                  <td className="p-3 align-middle text-right whitespace-nowrap text-muted-foreground/70">{line.Max_Value}</td>
-                  <td className="p-3 align-middle text-right whitespace-nowrap text-muted-foreground/70">{line.Text_Value || "-"}</td>
-                  
-                  {/* EDITABLE COLUMN: Actual Value */}
-                  <td className="p-0 border-x border-dashed border-muted-foreground/20 bg-primary/5 group-hover:bg-primary/10 transition-colors">
-                    <div className="relative">
-                      <input
-                        type="number"
-                        step="any"
-                        defaultValue={line.Actual_Value}
-                        data-row={index}
-                        data-field="Actual_Value"
-                        disabled={isReadOnly || (isUpdatingLine === index)}
-                        onBlur={(e) => handleCellSave(index, "Actual_Value", Number(e.target.value))}
-                        onKeyDown={(e) => handleKeyDown(e, index, "Actual_Value")}
-                        className="w-full h-10 px-3 text-right bg-transparent border-0 focus:ring-2 focus:ring-primary focus:bg-background outline-none font-bold text-foreground disabled:opacity-50 transition-all"
-                      />
-                      {isUpdatingLine === index && (
-                        <div className="absolute right-1 top-1">
-                          <Loader2 className="h-3 w-3 animate-spin text-primary" />
-                        </div>
-                      )}
-                    </div>
-                  </td>
+              lines.map((line, index) => {
+                const isText = isTextField(line.Type);
+                
+                return (
+                  <tr key={`${line.No}-${line.Line_No}-${index}`} className="border-b transition-colors hover:bg-muted/30 group">
+                    <td className="p-3 align-middle whitespace-nowrap font-medium text-foreground/80">{line.Description || "-"}</td>
+                    <td className="p-3 align-middle whitespace-nowrap text-muted-foreground">{line.Type || "-"}</td>
+                    <td className="p-3 align-middle whitespace-nowrap text-muted-foreground">{line.Unit_of_Measure_Code || "-"}</td>
+                    <td className="p-3 align-middle text-right whitespace-nowrap text-muted-foreground/70">{line.Min_Value}</td>
+                    <td className="p-3 align-middle text-right whitespace-nowrap text-muted-foreground/70">{line.Max_Value}</td>
+                    <td className="p-3 align-middle text-right whitespace-nowrap text-muted-foreground/70">{line.Text_Value || "-"}</td>
+                    
+                    {/* EDITABLE COLUMN: Actual Value (Disabled if Type is Text) */}
+                    <td className={`p-0 border-x border-dashed border-muted-foreground/20 transition-colors ${!isText ? "bg-primary/5 group-hover:bg-primary/10" : "bg-muted/20"}`}>
+                      <div className="relative">
+                        <input
+                          type="number"
+                          step="any"
+                          defaultValue={line.Actual_Value}
+                          data-row={index}
+                          data-field="Actual_Value"
+                          disabled={isReadOnly || isText || (isUpdatingLine === index)}
+                          onBlur={(e) => !isText && handleCellSave(index, "Actual_Value", Number(e.target.value))}
+                          onKeyDown={(e) => !isText && handleKeyDown(e, index, "Actual_Value")}
+                          className="w-full h-10 px-3 text-right bg-transparent border-0 focus:ring-2 focus:ring-primary focus:bg-background outline-none font-bold text-foreground disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                        />
+                        {isUpdatingLine === index && !isText && (
+                          <div className="absolute right-1 top-1">
+                            <Loader2 className="h-3 w-3 animate-spin text-primary" />
+                          </div>
+                        )}
+                        {isText && (
+                          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                            <span className="text-[9px] uppercase text-muted-foreground/40 font-bold tracking-tighter">N/A</span>
+                          </div>
+                        )}
+                      </div>
+                    </td>
 
-                  {/* EDITABLE COLUMN: Actual Text */}
-                  <td className="p-0 border-r border-dashed border-muted-foreground/20 bg-primary/5 group-hover:bg-primary/10 transition-colors">
-                    <input
-                      type="text"
-                      defaultValue={line.Actual_Text || ""}
-                      data-row={index}
-                      data-field="Actual_Text"
-                      disabled={isReadOnly || (isUpdatingLine === index)}
-                      onBlur={(e) => handleCellSave(index, "Actual_Text", e.target.value)}
-                      onKeyDown={(e) => handleKeyDown(e, index, "Actual_Text")}
-                      className="w-full h-10 px-3 text-left bg-transparent border-0 focus:ring-2 focus:ring-primary focus:bg-background outline-none italic text-foreground disabled:opacity-50 transition-all font-medium"
-                    />
-                  </td>
+                    {/* EDITABLE COLUMN: Actual Text (Editable ONLY if Type is Text) */}
+                    <td className={`p-0 border-r border-dashed border-muted-foreground/20 transition-colors ${isText ? "bg-primary/5 group-hover:bg-primary/10" : "bg-muted/20"}`}>
+                      <div className="relative">
+                        <input
+                          type="text"
+                          defaultValue={line.Actual_Text || ""}
+                          data-row={index}
+                          data-field="Actual_Text"
+                          disabled={isReadOnly || !isText || (isUpdatingLine === index)}
+                          onBlur={(e) => isText && handleCellSave(index, "Actual_Text", e.target.value)}
+                          onKeyDown={(e) => isText && handleKeyDown(e, index, "Actual_Text")}
+                          className="w-full h-10 px-3 text-left bg-transparent border-0 focus:ring-2 focus:ring-primary focus:bg-background outline-none italic text-foreground disabled:opacity-30 disabled:cursor-not-allowed transition-all font-medium"
+                          placeholder={isText ? "Enter text..." : ""}
+                        />
+                        {!isText && (
+                           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                             <span className="text-[9px] uppercase text-muted-foreground/40 font-bold tracking-tighter">N/A</span>
+                           </div>
+                        )}
+                      </div>
+                    </td>
 
-                  <td className="p-3 align-middle text-right whitespace-nowrap font-medium">{line.Deviation_Percent}%</td>
-                  <td className="p-3 align-middle text-right whitespace-nowrap text-muted-foreground">{line.Max_Deviation_Allowed}</td>
-                  <td className="p-3 align-middle text-center">
-                    <span className={line.Rejection ? "text-red-500 font-bold" : "text-muted-foreground"}>
-                      {line.Rejection ? "Y" : "N"}
-                    </span>
-                  </td>
-                  <td className="p-3 align-middle text-right whitespace-nowrap text-muted-foreground">{line.Rejected_Qty}</td>
-                  <td className="p-3 align-middle text-center">
-                     <span className={line.Mandatory ? "text-primary font-bold" : "text-muted-foreground"}>
-                      {line.Mandatory ? "Y" : "N"}
-                    </span>
-                  </td>
-                </tr>
-              ))
+                    <td className="p-3 align-middle text-right whitespace-nowrap font-medium">{line.Deviation_Percent}%</td>
+                    <td className="p-3 align-middle text-right whitespace-nowrap text-muted-foreground">{line.Max_Deviation_Allowed}</td>
+                    <td className="p-3 align-middle text-center">
+                      <span className={line.Rejection ? "text-red-500 font-bold" : "text-muted-foreground"}>
+                        {line.Rejection ? "Y" : "N"}
+                      </span>
+                    </td>
+                    <td className="p-3 align-middle text-right whitespace-nowrap text-muted-foreground">{line.Rejected_Qty}</td>
+                    <td className="p-3 align-middle text-center">
+                       <span className={line.Mandatory ? "text-primary font-bold" : "text-muted-foreground"}>
+                        {line.Mandatory ? "Y" : "N"}
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>

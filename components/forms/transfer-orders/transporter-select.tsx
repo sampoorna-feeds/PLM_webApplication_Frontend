@@ -147,12 +147,18 @@ export function TransporterSelect({
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
+  const lastRequestId = useRef(0);
+
   const fetchData = useCallback(
     async (isNextPage = false) => {
-      if (loading || (isNextPage && (loadingMore || allFetched))) return;
+      if (isNextPage && (loading || loadingMore || allFetched)) return;
 
+      const requestId = ++lastRequestId.current;
       if (isNextPage) setLoadingMore(true);
-      else setLoading(true);
+      else {
+        setLoading(true);
+        setTransporters([]);
+      }
 
       try {
         const nextSkip = isNextPage ? (page + 1) * PAGE_SIZE : 0;
@@ -166,6 +172,8 @@ export function TransporterSelect({
           visibleColumns,
           transporterOnly: true,
         });
+
+        if (requestId !== lastRequestId.current) return;
 
         if (isNextPage) {
           setTransporters((prev) => [...prev, ...res.value]);
@@ -312,7 +320,7 @@ export function TransporterSelect({
               <div className="relative flex-1">
                 <Search className="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
                 <Input
-                  placeholder="Search by transporter No., Name, PAN or GST …"
+                  placeholder="Search by No. or Name …"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="bg-background h-9 pl-9 pr-9 text-sm focus-visible:ring-1"

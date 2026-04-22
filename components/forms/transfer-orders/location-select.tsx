@@ -136,12 +136,18 @@ export function LocationSelect({
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
+  const lastRequestId = useRef(0);
+
   const fetchData = useCallback(
     async (isNextPage = false) => {
-      if (loading || (isNextPage && (loadingMore || allFetched))) return;
+      if (isNextPage && (loading || loadingMore || allFetched)) return;
 
+      const requestId = ++lastRequestId.current;
       if (isNextPage) setLoadingMore(true);
-      else setLoading(true);
+      else {
+        setLoading(true);
+        setLocations([]); // Clear results for fresh search
+      }
 
       try {
         const nextSkip = isNextPage ? (page + 1) * PAGE_SIZE : 0;
@@ -154,6 +160,8 @@ export function LocationSelect({
           filters: columnFilters,
           authorizedCodes,
         });
+
+        if (requestId !== lastRequestId.current) return;
 
         if (isNextPage) {
           setLocations((prev) => [...prev, ...res.value]);
@@ -289,7 +297,7 @@ export function LocationSelect({
               <div className="relative flex-1">
                 <Search className="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
                 <Input
-                  placeholder="Search by Code, Name or City …"
+                  placeholder="Search by Code or Name …"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="bg-background h-9 pl-9 pr-9 text-sm focus-visible:ring-1"

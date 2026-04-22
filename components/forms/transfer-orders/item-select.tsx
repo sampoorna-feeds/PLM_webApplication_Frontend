@@ -119,12 +119,18 @@ export function ItemSelect({
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
+  const lastRequestId = useRef(0);
+
   const fetchData = useCallback(
     async (isNextPage = false) => {
-      if (loading || (isNextPage && (loadingMore || allFetched))) return;
+      if (isNextPage && (loading || loadingMore || allFetched)) return;
 
+      const requestId = ++lastRequestId.current;
       if (isNextPage) setLoadingMore(true);
-      else setLoading(true);
+      else {
+        setLoading(true);
+        setItems([]);
+      }
 
       try {
         const nextSkip = isNextPage ? (page + 1) * PAGE_SIZE : 0;
@@ -138,6 +144,8 @@ export function ItemSelect({
           locationCode,
           dateFilter,
         });
+
+        if (requestId !== lastRequestId.current) return;
 
         if (isNextPage) {
           setItems((prev) => [...prev, ...res.value]);

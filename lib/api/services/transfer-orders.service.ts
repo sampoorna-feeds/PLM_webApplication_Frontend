@@ -143,7 +143,10 @@ export async function searchTransferOrders(
     return getTransferOrdersWithCount(rest as GetTransferOrdersParams);
   }
 
-  const escaped = searchTerm.replace(/'/g, "''");
+  const s = searchTerm.replace(/'/g, "''");
+  const sLower = s.toLowerCase();
+  const sUpper = s.toUpperCase();
+  
   const fieldsToSearch = [
     "No",
     "Transfer_from_Code",
@@ -154,11 +157,14 @@ export async function searchTransferOrders(
 
   const responses = await Promise.all(
     fieldsToSearch.map((field) => {
-      const filterPart = `contains(${field},'${escaped}')`;
+      let filterPart = `(contains(${field},'${s}') or contains(${field},'${sLower}') or contains(${field},'${sUpper}'))`;
+      if (field === "No") {
+        filterPart = `(contains(No,'${s}') or No eq '${sUpper}' or contains(No,'${sLower}') or contains(No,'${sUpper}'))`;
+      }
       const filter = rest.$filter
-        ? `${rest.$filter} and ${filterPart}`
+        ? `(${rest.$filter}) and ${filterPart}`
         : filterPart;
-      return getTransferOrdersWithCount({ ...rest, $filter: filter });
+      return getTransferOrdersWithCount({ ...rest, $filter: filter }).catch(() => ({ orders: [], totalCount: 0 }));
     }),
   );
 

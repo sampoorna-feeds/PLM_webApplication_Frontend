@@ -99,13 +99,6 @@ const DEFAULT_COLUMNS: ColumnConfig[] = [
     filterType: "text",
     width: "100px",
   },
-  {
-    id: "County",
-    label: "State",
-    sortable: true,
-    filterType: "text",
-    width: "150px",
-  },
 ];
 
 export function LocationSelect({
@@ -219,7 +212,11 @@ export function LocationSelect({
   };
 
   const handleSelect = (l: Location) => {
-    onChange(l.Code, l);
+    if (value === l.Code) {
+      onChange("", undefined);
+    } else {
+      onChange(l.Code, l);
+    }
     setOpen(false);
   };
 

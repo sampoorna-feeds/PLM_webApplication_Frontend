@@ -198,7 +198,11 @@ export function ItemSelect({
   };
 
   const handleSelect = (i: Item) => {
-    onChange(i.No, i);
+    if (value === i.No) {
+      onChange("", undefined);
+    } else {
+      onChange(i.No, i);
+    }
     setOpen(false);
   };
 

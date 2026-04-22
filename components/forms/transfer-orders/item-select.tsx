@@ -49,6 +49,7 @@ interface ItemSelectProps {
   hasError?: boolean;
   locationCode?: string;
   dateFilter?: string;
+  customFilter?: string;
 }
 
 type SortDirection = "asc" | "desc" | null;
@@ -94,6 +95,7 @@ export function ItemSelect({
   hasError = false,
   locationCode,
   dateFilter,
+  customFilter,
 }: ItemSelectProps) {
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<Item[]>([]);
@@ -143,6 +145,7 @@ export function ItemSelect({
           filters: columnFilters,
           locationCode,
           dateFilter,
+          customFilter,
         });
 
         if (requestId !== lastRequestId.current) return;
@@ -164,12 +167,12 @@ export function ItemSelect({
         setLoadingMore(false);
       }
     },
-    [loading, loadingMore, allFetched, page, debouncedSearch, sortColumn, sortDirection, columnFilters, locationCode, dateFilter]
+    [loading, loadingMore, allFetched, page, debouncedSearch, sortColumn, sortDirection, columnFilters, locationCode, dateFilter, customFilter]
   );
 
   useEffect(() => {
     if (open) fetchData(false);
-  }, [debouncedSearch, sortColumn, sortDirection, columnFilters, open, locationCode]);
+  }, [debouncedSearch, sortColumn, sortDirection, columnFilters, open, locationCode, customFilter]);
 
   useEffect(() => {
     if (!open) return;

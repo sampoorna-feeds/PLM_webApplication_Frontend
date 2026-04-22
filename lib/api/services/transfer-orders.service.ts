@@ -1270,8 +1270,13 @@ export async function getTransferItemsForDialog(params: {
   filters?: Record<string, string>;
   locationCode?: string;
   dateFilter?: string;
+  customFilter?: string;
 }): Promise<{ value: TransferItem[]; count: number }> {
   const baseFilters: string[] = ["Blocked eq false"];
+  
+  if (params.customFilter) {
+    baseFilters.push(params.customFilter);
+  }
   
   if (params.filters) {
     Object.entries(params.filters).forEach(([col, val]) => {

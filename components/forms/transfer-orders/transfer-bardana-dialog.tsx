@@ -173,6 +173,7 @@ export function TransferBardanaDialog({
               onChange={(v, item) => handleItemSelect(v, item as any)}
               locationCode={locationCode}
               placeholder="Search bardana items…"
+              customFilter="(Blocked eq false) and (Status eq 'Approved') and (RM_Bardana_Item eq true)"
             />
 
           {/* UOM — read-only, auto-filled from selected item */}

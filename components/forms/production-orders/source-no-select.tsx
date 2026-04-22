@@ -43,6 +43,7 @@ interface SourceRecord {
   Inventory?: number;
   Sell_to_Customer_Name?: string;
   Document_Type?: string;
+  Production_BOM_No?: string;
   [key: string]: unknown;
 }
 
@@ -53,6 +54,7 @@ interface SourceNoSelectProps {
   disabled?: boolean;
   error?: boolean;
   placeholder?: string;
+  filters?: Record<string, string>;
 }
 
 interface ColumnConfig {
@@ -71,62 +73,28 @@ const DEBOUNCE_MS = 350;
 function getSourceColumns(sourceType: string): {
   defaultColumns: ColumnConfig[];
   optionalColumns: ColumnConfig[];
+  idField: string;
 } {
   if (sourceType === "Item") {
     return {
+      idField: "No",
       defaultColumns: [
-        {
-          id: "No",
-          label: "No.",
-          sortable: true,
-          filterType: "text",
-          width: "160px",
-        },
-        {
-          id: "Description",
-          label: "Description",
-          sortable: true,
-          filterType: "text",
-          flex: true,
-        },
-        {
-          id: "Base_Unit_of_Measure",
-          label: "UOM",
-          sortable: true,
-          filterType: "text",
-          width: "120px",
-        },
+        { id: "No", label: "No.", sortable: true, filterType: "text", width: "160px" },
+        { id: "Description", label: "Description", sortable: true, filterType: "text", flex: true },
+        { id: "Base_Unit_of_Measure", label: "UOM", sortable: true, filterType: "text", width: "120px" },
       ],
       optionalColumns: [
-        {
-          id: "Inventory",
-          label: "Inventory",
-          sortable: true,
-          filterType: "text",
-          width: "130px",
-          align: "right",
-        },
+        { id: "Inventory", label: "Inventory", sortable: true, filterType: "text", width: "130px", align: "right" },
       ],
     };
   }
 
   if (sourceType === "Family") {
     return {
+      idField: "No",
       defaultColumns: [
-        {
-          id: "No",
-          label: "No.",
-          sortable: true,
-          filterType: "text",
-          width: "180px",
-        },
-        {
-          id: "Description",
-          label: "Description",
-          sortable: true,
-          filterType: "text",
-          flex: true,
-        },
+        { id: "No", label: "No.", sortable: true, filterType: "text", width: "180px" },
+        { id: "Description", label: "Description", sortable: true, filterType: "text", flex: true },
       ],
       optionalColumns: [],
     };
@@ -134,43 +102,51 @@ function getSourceColumns(sourceType: string): {
 
   if (sourceType === "Sales Header") {
     return {
+      idField: "No",
       defaultColumns: [
-        {
-          id: "No",
-          label: "No.",
-          sortable: true,
-          filterType: "text",
-          width: "180px",
-        },
-        {
-          id: "Sell_to_Customer_Name",
-          label: "Customer Name",
-          sortable: true,
-          filterType: "text",
-          flex: true,
-        },
+        { id: "No", label: "No.", sortable: true, filterType: "text", width: "180px" },
+        { id: "Sell_to_Customer_Name", label: "Customer Name", sortable: true, filterType: "text", flex: true },
       ],
       optionalColumns: [
-        {
-          id: "Document_Type",
-          label: "Document Type",
-          sortable: true,
-          filterType: "text",
-          width: "170px",
-        },
+        { id: "Document_Type", label: "Document Type", sortable: true, filterType: "text", width: "170px" },
+      ],
+    };
+  }
+
+  if (sourceType === "BOM") {
+    return {
+      idField: "No",
+      defaultColumns: [
+        { id: "No", label: "BOM No.", sortable: true, filterType: "text", width: "160px" },
+        { id: "Description", label: "Description", sortable: true, filterType: "text", flex: true },
+        { id: "Status", label: "Status", sortable: true, filterType: "text", width: "120px" },
+      ],
+      optionalColumns: [
+        { id: "ActiveVersionCode", label: "Active Version", sortable: true, filterType: "text", width: "140px" },
+        { id: "Unit_of_Measure_Code", label: "UOM", sortable: true, filterType: "text", width: "100px" },
+      ],
+    };
+  }
+
+  if (sourceType === "BOM Version") {
+    return {
+      idField: "Version_Code",
+      defaultColumns: [
+        { id: "Version_Code", label: "Ver Code", sortable: true, filterType: "text", width: "120px" },
+        { id: "Starting_Date", label: "Start Date", sortable: true, filterType: "text", width: "140px" },
+        { id: "Status", label: "Status", sortable: true, filterType: "text", width: "120px" },
+        { id: "Description", label: "Description", sortable: true, filterType: "text", flex: true },
+      ],
+      optionalColumns: [
+        { id: "Production_BOM_No", label: "BOM No.", sortable: true, filterType: "text", width: "150px" },
       ],
     };
   }
 
   return {
+    idField: "No",
     defaultColumns: [
-      {
-        id: "No",
-        label: "No.",
-        sortable: true,
-        filterType: "text",
-        width: "180px",
-      },
+      { id: "No", label: "No.", sortable: true, filterType: "text", width: "180px" },
     ],
     optionalColumns: [],
   };
@@ -179,6 +155,9 @@ function getSourceColumns(sourceType: string): {
 function getSecondaryText(sourceType: string, record: SourceRecord): string {
   if (sourceType === "Sales Header") {
     return record.Sell_to_Customer_Name || "";
+  }
+  if (sourceType === "BOM Version") {
+    return record.Description || record.Production_BOM_No || "";
   }
   return record.Description || "";
 }
@@ -202,6 +181,7 @@ export function SourceNoSelect({
   disabled = false,
   error = false,
   placeholder = "Select source no",
+  filters,
 }: SourceNoSelectProps) {
   const [open, setOpen] = useState(false);
   const [sources, setSources] = useState<SourceRecord[]>([]);
@@ -217,7 +197,7 @@ export function SourceNoSelect({
   );
   const [displayLabel, setDisplayLabel] = useState("");
 
-  const { defaultColumns, optionalColumns } = useMemo(
+  const { defaultColumns, optionalColumns, idField } = useMemo(
     () => getSourceColumns(sourceType),
     [sourceType],
   );
@@ -297,7 +277,7 @@ export function SourceNoSelect({
           search: search || undefined,
           sortColumn: sortCol,
           sortDirection: sortDir,
-          filters: colFilters,
+          filters: { ...filters, ...colFilters },
         });
         setSources(result.value || []);
         setTotalCount(result.count || 0);
@@ -307,7 +287,7 @@ export function SourceNoSelect({
         setLoading(false);
       }
     },
-    [sourceType],
+    [sourceType, filters],
   );
 
   const fetchMore = useCallback(
@@ -323,13 +303,13 @@ export function SourceNoSelect({
           search: debouncedSearchRef.current || undefined,
           sortColumn: sortColumnRef.current,
           sortDirection: sortDirectionRef.current,
-          filters: columnFiltersRef.current,
+          filters: { ...filters, ...columnFiltersRef.current },
         });
 
         setSources((prev) => {
-          const seen = new Set(prev.map((item) => item.No));
+          const seen = new Set(prev.map((item) => item[idField]));
           const deduped = (result.value || []).filter(
-            (item) => !seen.has(item.No),
+            (item) => !seen.has(item[idField]),
           );
           return [...prev, ...deduped];
         });
@@ -340,7 +320,7 @@ export function SourceNoSelect({
         setLoadingMore(false);
       }
     },
-    [sourceType],
+    [sourceType, idField, filters],
   );
 
   useEffect(() => {
@@ -390,14 +370,15 @@ export function SourceNoSelect({
       return;
     }
 
-    const found = sources.find((item) => item.No === value);
+    const found = sources.find((item) => item[idField] === value);
     if (found) {
       const secondary = getSecondaryText(sourceType, found);
-      setDisplayLabel(secondary ? `${found.No} - ${secondary}` : found.No);
+      const idVal = found[idField] as string;
+      setDisplayLabel(secondary ? `${idVal} - ${secondary}` : idVal);
     } else if (!displayLabel) {
       setDisplayLabel(value);
     }
-  }, [value, sources, sourceType]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [value, sources, sourceType, idField]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleOpenChange = (next: boolean) => {
     if (disabled || !sourceType) return;
@@ -433,7 +414,7 @@ export function SourceNoSelect({
   };
 
   const handleSelect = (record: SourceRecord) => {
-    onChange(record.No);
+    onChange(record[idField] as string);
     setOpen(false);
   };
 
@@ -610,10 +591,10 @@ export function SourceNoSelect({
                 ) : (
                   (() => {
                     const selectedRecord = value
-                      ? sources.find((record) => record.No === value)
+                      ? sources.find((record) => record[idField] === value)
                       : null;
                     const remainingRecords = selectedRecord
-                      ? sources.filter((record) => record.No !== value)
+                      ? sources.filter((record) => record[idField] !== value)
                       : sources;
 
                     const renderRow = (
@@ -621,10 +602,10 @@ export function SourceNoSelect({
                       idx: number,
                       isSticky = false,
                     ) => {
-                      const isSelected = value === record.No;
+                      const isSelected = value === record[idField];
                       return (
                         <tr
-                          key={record.No}
+                          key={record[idField] as string}
                           onClick={() => handleSelect(record)}
                           className={cn(
                             "group cursor-pointer border-b transition-colors",
@@ -657,7 +638,7 @@ export function SourceNoSelect({
                             const raw = record[col.id];
                             const cellText = formatCellValue(raw);
 
-                            if (col.id === "No") {
+                            if (col.id === idField) {
                               return (
                                 <td
                                   key={col.id}

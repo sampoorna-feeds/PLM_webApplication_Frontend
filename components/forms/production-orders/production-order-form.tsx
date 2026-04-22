@@ -1392,12 +1392,10 @@ export function ProductionOrderForm({
               {formState.isProdBomFromItem ? (
                 <div className="space-y-2">
                   <FieldTitle required>Prod. BOM No</FieldTitle>
-                  <Input
-                    value={formState.Prod_Bom_No || "-"}
-                    disabled
-                    className="bg-muted"
-                  />
-                  <p className="text-muted-foreground text-xs">
+                  <div className="bg-muted flex h-9 items-center rounded-md border px-3 text-sm font-semibold opacity-80">
+                    {formState.Prod_Bom_No || "-"}
+                  </div>
+                  <p className="text-muted-foreground text-[10px]">
                     Auto-filled from selected item
                   </p>
                 </div>
@@ -1410,57 +1408,22 @@ export function ProductionOrderForm({
                       disabled
                       className="bg-muted"
                     />
-                  ) : !formState.Location_Code ? (
-                    <div>
-                      <Input
-                        value=""
-                        disabled
-                        placeholder="Select Location Code first"
-                        className="bg-muted"
-                      />
-                      <p className="text-muted-foreground mt-1 text-xs">
-                        Location Code is required to load location-specific
-                        BOMs. Item-only BOMs will be loaded as fallback.
-                      </p>
-                    </div>
-                  ) : bomOptions.length === 0 && !isLoadingBom ? (
-                    <div>
-                      <Input
-                        value=""
-                        disabled
-                        placeholder="No BOM No. available"
-                        className="bg-muted"
-                      />
-                      <p className="text-muted-foreground mt-1 text-xs">
-                        No BOMs found for this item/location
-                      </p>
-                    </div>
                   ) : (
-                    <Select
+                    <SourceNoSelect
+                      sourceType="BOM"
                       value={formState.Prod_Bom_No}
-                      onValueChange={(v) => handleProdBOMChange(v)}
-                      disabled={isLoadingBom}
-                    >
-                      <SelectTrigger className="w-full">
-                        {isLoadingBom ? (
-                          <div className="flex items-center gap-2">
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                            <span>Loading...</span>
-                          </div>
-                        ) : (
-                          <SelectValue placeholder="Select BOM" />
-                        )}
-                      </SelectTrigger>
-                      <SelectContent>
-                        {bomOptions.map((b) => (
-                          <SelectItem key={b.No} value={b.No}>
-                            {b.Description
-                              ? `${b.No} - ${b.Description}`
-                              : b.No}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      onChange={(v) => handleProdBOMChange(v)}
+                      disabled={!formState.Location_Code || !formState.Source_No}
+                      placeholder={
+                        !formState.Location_Code
+                          ? "Select Location Code first"
+                          : "Select BOM"
+                      }
+                      filters={{
+                        Item_No: formState.Source_No,
+                        Location_Code_1: formState.Location_Code,
+                      }}
+                    />
                   )}
                 </div>
               )}
@@ -1473,44 +1436,21 @@ export function ProductionOrderForm({
                       disabled
                       className="bg-muted"
                     />
-                  ) : isLoadingBomVersions ? (
-                    <div className="bg-muted flex h-9 items-center gap-2 rounded-md border px-3">
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      <span className="text-sm">Loading versions...</span>
-                    </div>
-                  ) : bomVersionOptions.length === 0 ? (
-                    <div>
-                      <Input
-                        value=""
-                        disabled
-                        placeholder="No versions available"
-                        className="bg-muted"
-                      />
-                      <p className="text-muted-foreground mt-1 text-xs">
-                        This BOM has no versions defined
-                      </p>
-                    </div>
                   ) : (
-                    <Select
+                    <SourceNoSelect
+                      sourceType="BOM Version"
                       value={formState.BOM_Version_No}
-                      onValueChange={(v) => handleChange("BOM_Version_No", v)}
-                    >
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select version" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {bomVersionOptions.map((v) => (
-                          <SelectItem
-                            key={v.Version_Code}
-                            value={v.Version_Code}
-                          >
-                            {v.Description
-                              ? `${v.Version_Code} - ${v.Description}`
-                              : v.Version_Code}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      onChange={(v) => handleChange("BOM_Version_No", v)}
+                      disabled={!formState.Prod_Bom_No}
+                      placeholder={
+                        !formState.Prod_Bom_No
+                          ? "Select BOM first"
+                          : "Select Version"
+                      }
+                      filters={{
+                        Production_BOM_No: formState.Prod_Bom_No,
+                      }}
+                    />
                   )}
                 </div>
               )}

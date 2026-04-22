@@ -63,7 +63,7 @@ export function QCReceiptLinesTable({
           nextInput.focus();
           nextInput.select();
         } else {
-            // If next input is disabled in this column, try to find the very next enabled one below it
+            // Scan for next enabled input
             let scanRow = nextRow + 1;
             while(scanRow < lines.length) {
                 const scanInput = tableRef.current?.querySelector(
@@ -90,21 +90,21 @@ export function QCReceiptLinesTable({
     <div className="bg-card flex flex-col overflow-hidden rounded-lg border">
       <div className="overflow-x-auto">
         <table ref={tableRef} className="w-full caption-bottom text-sm border-collapse">
-          <thead className="bg-muted sticky top-0 z-10 border-b">
-            <tr className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">
+          <thead className="bg-muted sticky top-0 z-10 border-b text-muted-foreground">
+            <tr className="text-[10px] uppercase tracking-wider font-semibold">
               <th className="h-10 px-3 py-3 text-left">Description</th>
-              <th className="h-10 px-3 py-3 text-left">Type</th>
-              <th className="h-10 px-3 py-3 text-left">UOM</th>
+              <th className="h-10 px-3 py-3 text-left w-[80px]">Type</th>
+              <th className="h-10 px-3 py-3 text-left w-[80px]">UOM</th>
               <th className="h-10 px-3 py-3 text-right">Min</th>
               <th className="h-10 px-3 py-3 text-right">Max</th>
-              <th className="h-10 px-3 py-3 text-right">Text Value</th>
-              <th className="h-10 px-3 py-3 text-right w-[120px]">Actual Value</th>
-              <th className="h-10 px-3 py-3 text-left w-[180px]">Actual Text</th>
-              <th className="h-10 px-3 py-3 text-right text-[9px] leading-tight">Dev %</th>
-              <th className="h-10 px-3 py-3 text-right text-[9px] leading-tight">Max Dev</th>
-              <th className="h-10 px-3 py-3 text-center text-[9px]">Rej</th>
-              <th className="h-10 px-3 py-3 text-right text-[9px]">Rej Qty</th>
-              <th className="h-10 px-3 py-3 text-center text-[9px]">Mand</th>
+              <th className="h-10 px-3 py-3 text-right">Text Val.</th>
+              <th className="h-10 px-3 py-3 text-right w-[110px]">Actual Val.</th>
+              <th className="h-10 px-3 py-3 text-left w-[170px]">Actual Text</th>
+              <th className="h-10 px-3 py-3 text-right text-[9px] leading-tight font-bold">Dev %</th>
+              <th className="h-10 px-3 py-3 text-right text-[9px] leading-tight w-[60px]">Max Dev</th>
+              <th className="h-10 px-3 py-3 text-center text-[9px] w-[40px]">Rej</th>
+              <th className="h-10 px-3 py-3 text-right text-[9px] w-[70px]">Rej Qty</th>
+              <th className="h-10 px-3 py-3 text-center text-[9px] w-[50px]">Mand</th>
             </tr>
           </thead>
           <tbody className="[&_tr:last-child]:border-0 text-[11px]">
@@ -131,15 +131,15 @@ export function QCReceiptLinesTable({
                 return (
                   <tr key={`${line.No}-${line.Line_No}-${index}`} className="border-b transition-colors hover:bg-muted/30 group">
                     <td className="p-3 align-middle whitespace-nowrap font-medium text-foreground/80">{line.Description || "-"}</td>
-                    <td className="p-3 align-middle whitespace-nowrap text-muted-foreground">{line.Type || "-"}</td>
+                    <td className="p-3 align-middle whitespace-nowrap text-muted-foreground capitalize">{line.Type || "-"}</td>
                     <td className="p-3 align-middle whitespace-nowrap text-muted-foreground">{line.Unit_of_Measure_Code || "-"}</td>
                     <td className="p-3 align-middle text-right whitespace-nowrap text-muted-foreground/70">{line.Min_Value}</td>
                     <td className="p-3 align-middle text-right whitespace-nowrap text-muted-foreground/70">{line.Max_Value}</td>
                     <td className="p-3 align-middle text-right whitespace-nowrap text-muted-foreground/70">{line.Text_Value || "-"}</td>
                     
-                    {/* EDITABLE COLUMN: Actual Value (Disabled if Type is Text) */}
-                    <td className={`p-0 border-x border-dashed border-muted-foreground/20 transition-colors ${!isText ? "bg-primary/5 group-hover:bg-primary/10" : "bg-muted/20"}`}>
-                      <div className="relative">
+                    {/* ACTUAL VALUE COLUMN: Editable IF !isText */}
+                    <td className={`p-0 border-x border-dashed border-muted-foreground/10 transition-colors ${!isText ? "bg-primary/5 group-hover:bg-primary/10" : "bg-muted/5"}`}>
+                      <div className="relative h-10">
                         <input
                           type="number"
                           step="any"
@@ -149,24 +149,25 @@ export function QCReceiptLinesTable({
                           disabled={isReadOnly || isText || (isUpdatingLine === index)}
                           onBlur={(e) => !isText && handleCellSave(index, "Actual_Value", Number(e.target.value))}
                           onKeyDown={(e) => !isText && handleKeyDown(e, index, "Actual_Value")}
-                          className="w-full h-10 px-3 text-right bg-transparent border-0 focus:ring-2 focus:ring-primary focus:bg-background outline-none font-bold text-foreground disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                          className={`w-full h-full px-3 text-right bg-transparent border-0 outline-none font-bold text-foreground transition-all 
+                            ${!isText ? "focus:ring-2 focus:ring-primary focus:bg-background cursor-text" : "cursor-not-allowed opacity-60"}`}
                         />
                         {isUpdatingLine === index && !isText && (
                           <div className="absolute right-1 top-1">
                             <Loader2 className="h-3 w-3 animate-spin text-primary" />
                           </div>
                         )}
-                        {isText && (
-                          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                            <span className="text-[9px] uppercase text-muted-foreground/40 font-bold tracking-tighter">N/A</span>
-                          </div>
+                        {isText && !line.Actual_Value && (
+                           <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-20">
+                             <span className="text-[9px] font-bold">N/A</span>
+                           </div>
                         )}
                       </div>
                     </td>
 
-                    {/* EDITABLE COLUMN: Actual Text (Editable ONLY if Type is Text) */}
-                    <td className={`p-0 border-r border-dashed border-muted-foreground/20 transition-colors ${isText ? "bg-primary/5 group-hover:bg-primary/10" : "bg-muted/20"}`}>
-                      <div className="relative">
+                    {/* ACTUAL TEXT COLUMN: Editable IF isText */}
+                    <td className={`p-0 border-r border-dashed border-muted-foreground/10 transition-colors ${isText ? "bg-primary/5 group-hover:bg-primary/10" : "bg-muted/5"}`}>
+                      <div className="relative h-10">
                         <input
                           type="text"
                           defaultValue={line.Actual_Text || ""}
@@ -175,18 +176,23 @@ export function QCReceiptLinesTable({
                           disabled={isReadOnly || !isText || (isUpdatingLine === index)}
                           onBlur={(e) => isText && handleCellSave(index, "Actual_Text", e.target.value)}
                           onKeyDown={(e) => isText && handleKeyDown(e, index, "Actual_Text")}
-                          className="w-full h-10 px-3 text-left bg-transparent border-0 focus:ring-2 focus:ring-primary focus:bg-background outline-none italic text-foreground disabled:opacity-30 disabled:cursor-not-allowed transition-all font-medium"
-                          placeholder={isText ? "Enter text..." : ""}
+                          className={`w-full h-full px-3 text-left bg-transparent border-0 outline-none italic text-foreground transition-all font-medium
+                            ${isText ? "focus:ring-2 focus:ring-primary focus:bg-background cursor-text" : "cursor-not-allowed opacity-60"}`}
                         />
-                        {!isText && (
-                           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                             <span className="text-[9px] uppercase text-muted-foreground/40 font-bold tracking-tighter">N/A</span>
+                        {isUpdatingLine === index && isText && (
+                          <div className="absolute right-1 top-1">
+                            <Loader2 className="h-3 w-3 animate-spin text-primary" />
+                          </div>
+                        )}
+                        {!isText && !line.Actual_Text && (
+                           <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-20">
+                             <span className="text-[9px] font-bold">N/A</span>
                            </div>
                         )}
                       </div>
                     </td>
 
-                    <td className="p-3 align-middle text-right whitespace-nowrap font-medium">{line.Deviation_Percent}%</td>
+                    <td className="p-3 align-middle text-right whitespace-nowrap font-bold text-foreground">{line.Deviation_Percent}%</td>
                     <td className="p-3 align-middle text-right whitespace-nowrap text-muted-foreground">{line.Max_Deviation_Allowed}</td>
                     <td className="p-3 align-middle text-center">
                       <span className={line.Rejection ? "text-red-500 font-bold" : "text-muted-foreground"}>

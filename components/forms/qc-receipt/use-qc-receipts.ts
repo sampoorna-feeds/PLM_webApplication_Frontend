@@ -342,10 +342,10 @@ export function useQCReceiptPosting() {
   const [isPosting, setIsPosting] = useState(false);
 
   const postReceipt = useCallback(
-    async (header: QCReceiptHeader, lines: QCReceiptLine[]) => {
+    async (receiptNo: string) => {
       setIsPosting(true);
       try {
-        await postQCReceipt(header, lines);
+        await postQCReceipt(receiptNo);
         toast.success("QC Receipt posted successfully!");
         return true;
       } catch (error: any) {

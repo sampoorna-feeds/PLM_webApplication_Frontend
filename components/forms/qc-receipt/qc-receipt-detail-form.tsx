@@ -108,7 +108,7 @@ export function QCReceiptDetailForm({ tabId, context }: QCReceiptDetailFormProps
 
   const handlePost = async () => {
     if (!receipt) return;
-    const success = await postReceipt(receipt, lines);
+    const success = await postReceipt(receipt.No);
     if (success) {
       closeTab(tabId);
     }

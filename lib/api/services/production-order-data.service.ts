@@ -549,8 +549,9 @@ export async function getSourcesForDialog(opts: {
 
   let endpointPath = "";
   let selectCols = "";
-  // Second field to search by (in addition to No)
+  // Second field to search by (in addition to ID)
   let searchField2 = "";
+  let idField = "No";
 
   if (opts.sourceType === "Item") {
     endpointPath = "/ItemCard";
@@ -564,11 +565,23 @@ export async function getSourcesForDialog(opts: {
     endpointPath = "/SalesOrderEntity";
     selectCols = "No,Sell_to_Customer_Name,Document_Type";
     searchField2 = "Sell_to_Customer_Name";
+  } else if (opts.sourceType === "BOM") {
+    endpointPath = "/ProductionBOMList";
+    selectCols = "No,Description,Status,Unit_of_Measure_Code,ActiveVersionCode";
+    searchField2 = "Description";
+  } else if (opts.sourceType === "BOM Version") {
+    endpointPath = "/ProdBOMVersionList";
+    selectCols = "Production_BOM_No,Version_Code,Starting_Date,Status,Description";
+    searchField2 = "Description";
+    idField = "Version_Code";
   } else {
     return { value: [], count: 0 };
   }
 
   const baseFilterParts: string[] = [];
+  if (opts.sourceType === "BOM Version") {
+    baseFilterParts.push("Status eq 'Certified'");
+  }
   if (opts.filters) {
     Object.entries(opts.filters).forEach(([col, val]) => {
       if (!val) return;
@@ -578,7 +591,7 @@ export async function getSourcesForDialog(opts: {
     });
   }
 
-  let orderbyClause = "No";
+  let orderbyClause = idField;
   if (opts.sortColumn && opts.sortDirection) {
     orderbyClause = `${opts.sortColumn} ${opts.sortDirection === "asc" ? "asc" : "desc"}`;
   }
@@ -600,23 +613,24 @@ export async function getSourcesForDialog(opts: {
   // BC OData does not support OR across distinct fields — use two parallel calls
   if (opts.search && opts.search.trim().length > 0) {
     const escaped = opts.search.replace(/'/g, "''").trim();
-    const [byNo, byField2] = await Promise.all([
+    const [byID, byField2] = await Promise.all([
       apiGet<ODataResponse<any>>(
-        buildEndpoint(`contains(No,'${escaped}')`),
+        buildEndpoint(`contains(${idField},'${escaped}')`),
       ),
       apiGet<ODataResponse<any>>(
         buildEndpoint(`contains(${searchField2},'${escaped}')`),
       ),
     ]);
 
-    const combined = [...(byNo.value || []), ...(byField2.value || [])];
+    const combined = [...(byID.value || []), ...(byField2.value || [])];
     const uniqueMap = new Map<string, any>();
     combined.forEach((item) => {
-      if (!uniqueMap.has(item.No)) uniqueMap.set(item.No, item);
+      const id = item[idField];
+      if (!uniqueMap.has(id)) uniqueMap.set(id, item);
     });
     const value = Array.from(uniqueMap.values());
 
-    const count1 = byNo["@odata.count"] ?? byNo.value?.length ?? 0;
+    const count1 = byID["@odata.count"] ?? byID.value?.length ?? 0;
     const count2 = byField2["@odata.count"] ?? byField2.value?.length ?? 0;
 
     return { value, count: count1 + count2 };

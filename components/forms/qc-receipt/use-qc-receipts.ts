@@ -12,6 +12,8 @@ import {
   type QCReceiptLine,
 } from "@/lib/api/services/qc-receipt.service";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useAuth } from "@/lib/contexts/auth-context";
+import { getAllLOCsFromUserSetup } from "@/lib/api/services/dimension.service";
 import { toast } from "sonner";
 import {
   ALL_COLUMNS,
@@ -66,6 +68,28 @@ export function useQCReceipts(initialFilters?: {
 
   const statusFilter = initialFilters?.statusFilter;
 
+  const { userID } = useAuth();
+  const [authLocations, setAuthLocations] = useState<string[]>([]);
+  const [isAuthLoading, setIsAuthLoading] = useState(true);
+
+  // Load user's authorized locations
+  useEffect(() => {
+    const loadAuthLocations = async () => {
+      if (!userID) return;
+      setIsAuthLoading(true);
+      try {
+        const setup = await getAllLOCsFromUserSetup(userID);
+        const locations = setup.map((s) => s.Code).filter(Boolean);
+        setAuthLocations(locations);
+      } catch (error) {
+        console.error("Error loading user authorized locations:", error);
+      } finally {
+        setIsAuthLoading(false);
+      }
+    };
+    loadAuthLocations();
+  }, [userID]);
+
   const totalPages = useMemo(
     () => Math.max(1, Math.ceil(totalCount / pageSize)),
     [totalCount, pageSize],
@@ -77,7 +101,7 @@ export function useQCReceipts(initialFilters?: {
   }, [sortColumn, sortDirection]);
 
   const fetchReceipts = useCallback(async () => {
-    if (!dateFilter) return;
+    if (!dateFilter || (userID && isAuthLoading)) return;
 
     setIsLoading(true);
 
@@ -107,6 +131,17 @@ export function useQCReceipts(initialFilters?: {
       const colFilterStr = buildQCReceiptFilterString({ columnFilters });
       if (colFilterStr) {
         filterParts.push(colFilterStr);
+      }
+
+      // Authorized locations filter
+      if (authLocations.length > 0) {
+        const locFilter = authLocations
+          .map((loc) => `Location_Code eq '${loc}'`)
+          .join(" or ");
+        filterParts.push(`(${locFilter})`);
+      } else if (!isAuthLoading) {
+        // If user has no locations assigned and loading finished, they see nothing
+        filterParts.push("No eq 'NONE'");
       }
 
       const filter =
@@ -158,6 +193,9 @@ export function useQCReceipts(initialFilters?: {
     statusFilter,
     dateFilter,
     initialFilters?.isPosted,
+    authLocations,
+    isAuthLoading,
+    userID,
   ]);
 
   useEffect(() => {

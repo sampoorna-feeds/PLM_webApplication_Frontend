@@ -238,8 +238,13 @@ export function SourceNoSelect({
   useEffect(() => {
     setVisibleColumns(defaultColumns.map((c) => c.id));
     setColumnFilters({});
-    setSortColumn(null);
-    setSortDirection(null);
+    if (sourceType === "BOM Version") {
+      setSortColumn("Starting_Date");
+      setSortDirection("desc");
+    } else {
+      setSortColumn(null);
+      setSortDirection(null);
+    }
     setSearchQuery("");
     setDebouncedSearch("");
   }, [sourceType, defaultColumns]);
@@ -397,15 +402,15 @@ export function SourceNoSelect({
 
   const handleSort = (columnId: string) => {
     if (sortColumn === columnId) {
-      if (sortDirection === "asc") {
-        setSortDirection("desc");
-      } else {
+      if (sortDirection === "desc") {
+        setSortDirection("asc");
+      } else if (sortDirection === "asc") {
         setSortColumn(null);
         setSortDirection(null);
       }
     } else {
       setSortColumn(columnId);
-      setSortDirection("asc");
+      setSortDirection("desc");
     }
   };
 

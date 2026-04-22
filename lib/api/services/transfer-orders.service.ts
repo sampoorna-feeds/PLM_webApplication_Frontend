@@ -1008,7 +1008,7 @@ export async function getPostedTransferReceiptsByOrder(orderNo: string, postingD
  */
 export async function getTransferReceipts(params: GetTransferOrdersParams = {}): Promise<{ orders: TransferReceipt[], totalCount: number }> {
   const {
-    $select = "No,Transfer_from_Code,Transfer_to_Code,Posting_Date,Vehicle_No,E_Way_Bill_No",
+    $select = "No,Transfer_from_Code,Transfer_to_Code,Posting_Date,Vehicle_No",
     $filter,
     $orderby = "No desc",
     $top = 10,
@@ -1044,7 +1044,6 @@ export async function searchTransferReceiptsExtended(
     "Transfer_from_Code",
     "Transfer_to_Code",
     "Vehicle_No",
-    "E_Way_Bill_No",
   ];
 
   const searchFilter = fieldsToSearch

@@ -78,7 +78,10 @@ export function PostedTransferView({ type }: PostedTransferViewProps) {
       if (filters.toLocation) parts.push(`Transfer_to_Code eq '${filters.toLocation}'`);
       
       // Column Filters (Server-side supported ones)
-      const allowedServerFilters = ["No", "Posting_Date", "Transfer_from_Code", "Transfer_to_Code", "Vehicle_No", "E_Way_Bill_No"];
+      const allowedServerFilters = ["No", "Posting_Date", "Transfer_from_Code", "Transfer_to_Code", "Vehicle_No"];
+      if (type === "shipment") {
+        allowedServerFilters.push("E_Way_Bill_No");
+      }
       
       Object.entries(columnFilters).forEach(([colId, f]) => {
         const { value, valueTo } = f;

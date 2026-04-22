@@ -1191,7 +1191,6 @@ export async function getTransferLocationsForDialog(params: {
   authorizedCodes?: string[];
 }): Promise<{ value: TransferLocationCode[]; count: number }> {
   const commonFilter: string[] = [];
-  
   if (params.authorizedCodes && params.authorizedCodes.length > 0) {
     const codeFilter = params.authorizedCodes
       .map((c) => `Code eq '${c.replace(/'/g, "''")}'`)
@@ -1199,44 +1198,63 @@ export async function getTransferLocationsForDialog(params: {
     commonFilter.push(`(${codeFilter})`);
   }
 
-  const odataFilters: string[] = [...commonFilter];
-  
-  if (params.search) {
-    const s = params.search.replace(/'/g, "''");
-    odataFilters.push(`(contains(Code,'${s}') or contains(Name,'${s}') or contains(City,'${s}'))`);
-  }
-
+  const columnFilters: string[] = [];
   if (params.filters) {
     Object.entries(params.filters).forEach(([col, val]) => {
-      if (val) odataFilters.push(`contains(${col},'${val.replace(/'/g, "''")}')`);
+      if (val) columnFilters.push(`contains(tolower(${col}),'${val.replace(/'/g, "''").toLowerCase()}')`);
     });
   }
 
-  const queryParams: any = {
-    $select: "Code,Name,City,Address,Post_Code",
-    $count: true,
-    $top: params.top,
-    $skip: params.skip,
+  const baseFilters = [...commonFilter, ...columnFilters];
+
+  const fetchBatch = async (searchFilter?: string) => {
+    const allFilters = [...baseFilters];
+    if (searchFilter) allFilters.push(searchFilter);
+    
+    const query = buildODataQuery({
+      $select: "Code,Name,City,Address,Post_Code",
+      $filter: allFilters.length > 0 ? allFilters.join(" and ") : undefined,
+      $orderby: params.sortColumn && params.sortDirection ? `${params.sortColumn} ${params.sortDirection}` : "Code asc",
+      $top: params.search ? 100 : params.top,
+      $skip: params.search ? 0 : params.skip,
+      $count: true,
+    });
+    const endpoint = `/LocationList?company='${encodeURIComponent(COMPANY)}'&${query}`;
+    return apiGet<ODataResponse<TransferLocationCode>>(endpoint);
   };
 
-  if (odataFilters.length > 0) {
-    queryParams.$filter = odataFilters.join(" and ");
+  if (!params.search || !params.search.trim()) {
+    const res = await fetchBatch();
+    return { value: res.value || [], count: res["@odata.count"] || res.value?.length || 0 };
   }
 
+  const s = params.search.trim().toLowerCase().replace(/'/g, "''");
+  const sUpper = params.search.trim().toUpperCase().replace(/'/g, "''");
+
+  const [resCode, resName] = await Promise.all([
+    fetchBatch(`(contains(tolower(Code),'${s}') or contains(Code,'${sUpper}') or Code eq '${sUpper}')`),
+    fetchBatch(`contains(tolower(Name),'${s}')`),
+  ]);
+
+  const map = new Map<string, TransferLocationCode>();
+  [...(resCode.value || []), ...(resName.value || [])].forEach(l => map.set(l.Code, l));
+  let merged = Array.from(map.values());
+
+  // Sort merged results
   if (params.sortColumn && params.sortDirection) {
-    queryParams.$orderby = `${params.sortColumn} ${params.sortDirection}`;
-  } else {
-    queryParams.$orderby = "Code asc";
+    const col = params.sortColumn as keyof TransferLocationCode;
+    const dir = params.sortDirection === "asc" ? 1 : -1;
+    merged.sort((a, b) => {
+      const valA = String(a[col] || "").toLowerCase();
+      const valB = String(b[col] || "").toLowerCase();
+      return valA.localeCompare(valB) * dir;
+    });
   }
 
-  const query = buildODataQuery(queryParams);
-  const endpoint = `/LocationList?company='${encodeURIComponent(COMPANY)}'&${query}`;
-  const response = await apiGet<ODataResponse<TransferLocationCode>>(endpoint);
-  
-  return {
-    value: response.value || [],
-    count: response["@odata.count"] || response.value?.length || 0,
-  };
+  const total = merged.length;
+  const paged = merged.slice(params.skip, params.skip + params.top);
+
+  return { value: paged, count: total };
 }
 
 /**
@@ -1252,25 +1270,13 @@ export async function getTransferItemsForDialog(params: {
   locationCode?: string;
   dateFilter?: string;
 }): Promise<{ value: TransferItem[]; count: number }> {
-  const odataFilters: string[] = ["Blocked eq false"];
+  const baseFilters: string[] = ["Blocked eq false"];
   
-  if (params.search) {
-    const s = params.search.replace(/'/g, "''");
-    odataFilters.push(`(contains(No,'${s}') or contains(Description,'${s}'))`);
-  }
-
   if (params.filters) {
     Object.entries(params.filters).forEach(([col, val]) => {
-      if (val) odataFilters.push(`contains(${col},'${val.replace(/'/g, "''")}')`);
+      if (val) baseFilters.push(`contains(tolower(${col}),'${val.replace(/'/g, "''").toLowerCase()}')`);
     });
   }
-
-  const queryParams: any = {
-    $select: "No,Description,Base_Unit_of_Measure,Net_Change",
-    $count: true,
-    $top: params.top,
-    $skip: params.skip,
-  };
 
   const extraFilters: string[] = [];
   if (params.locationCode) {
@@ -1280,28 +1286,59 @@ export async function getTransferItemsForDialog(params: {
     extraFilters.push(`Date_Filter le '${params.dateFilter}'`);
   }
 
-  if (odataFilters.length > 0) {
-    queryParams.$filter = odataFilters.join(" and ");
-  }
-  
-  if (extraFilters.length > 0) {
-    // These special filters (Location_Filter, Date_Filter) are often appended to the $filter in BC
-    queryParams.$filter = (queryParams.$filter ? queryParams.$filter + " and " : "") + extraFilters.join(" and ");
-  }
-
-  if (params.sortColumn && params.sortDirection) {
-    queryParams.$orderby = `${params.sortColumn} ${params.sortDirection}`;
-  } else {
-    queryParams.$orderby = "No asc";
-  }
-
-  const query = buildODataQuery(queryParams);
-  // ItemCard usually supports Location_Filter
-  const endpoint = `/ItemCard?Company=${encodeURIComponent(COMPANY)}&${query}`;
-  const response = await apiGet<ODataResponse<TransferItem>>(endpoint);
-  
-  return {
-    value: response.value || [],
-    count: response["@odata.count"] || response.value?.length || 0,
+  const fetchBatch = async (searchFilter?: string) => {
+    const allFilters = [...baseFilters];
+    if (searchFilter) allFilters.push(searchFilter);
+    const finalFilters = [...allFilters, ...extraFilters];
+    
+    const query = buildODataQuery({
+      $select: "No,Description,Base_Unit_of_Measure,Net_Change",
+      $filter: finalFilters.length > 0 ? finalFilters.join(" and ") : undefined,
+      $orderby: params.sortColumn && params.sortDirection ? `${params.sortColumn} ${params.sortDirection}` : "No asc",
+      $top: params.search ? 100 : params.top,
+      $skip: params.search ? 0 : params.skip,
+      $count: true,
+    });
+    const endpoint = `/ItemCard?Company=${encodeURIComponent(COMPANY)}&${query}`;
+    return apiGet<ODataResponse<TransferItem>>(endpoint);
   };
+
+  if (!params.search || !params.search.trim()) {
+    const res = await fetchBatch();
+    return { value: res.value || [], count: res["@odata.count"] || res.value?.length || 0 };
+  }
+
+  const s = params.search.trim().toLowerCase().replace(/'/g, "''");
+  const sUpper = params.search.trim().toUpperCase().replace(/'/g, "''");
+
+  const [resNo, resDesc] = await Promise.all([
+    fetchBatch(`(contains(tolower(No),'${s}') or contains(No,'${sUpper}') or No eq '${sUpper}')`),
+    fetchBatch(`contains(tolower(Description),'${s}')`),
+  ]);
+
+  const map = new Map<string, TransferItem>();
+  [...(resNo.value || []), ...(resDesc.value || [])].forEach(i => map.set(i.No, i));
+  let merged = Array.from(map.values());
+
+  // Local Sort
+  if (params.sortColumn && params.sortDirection) {
+    const col = params.sortColumn as keyof TransferItem;
+    const dir = params.sortDirection === "asc" ? 1 : -1;
+    merged.sort((a, b) => {
+      const valA = a[col];
+      const valB = b[col];
+      
+      if (typeof valA === "number" && typeof valB === "number") {
+        return (valA - valB) * dir;
+      }
+      const strA = String(valA || "").toLowerCase();
+      const strB = String(valB || "").toLowerCase();
+      return strA.localeCompare(strB) * dir;
+    });
+  }
+
+  const total = merged.length;
+  const paged = merged.slice(params.skip, params.skip + params.top);
+
+  return { value: paged, count: total };
 }

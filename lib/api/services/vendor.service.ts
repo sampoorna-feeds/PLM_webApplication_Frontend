@@ -150,7 +150,7 @@ export async function getVendorsForDialog(opts: {
   if (opts.filters) {
     Object.entries(opts.filters).forEach(([col, val]) => {
       if (!val) return;
-      baseFilterParts.push(`contains(${col},'${escapeODataValue(val.trim())}')`);
+      baseFilterParts.push(`contains(tolower(${col}),'${escapeODataValue(val.trim().toLowerCase())}')`);
     });
   }
   const baseFilter = baseFilterParts.join(" and ");
@@ -177,30 +177,68 @@ export async function getVendorsForDialog(opts: {
     };
   };
 
-  // No search — single paginated call
-  if (!opts.search || opts.search.trim().length < 2) {
+  const fetchBatch = async (searchFilter?: string): Promise<{ value: Vendor[]; count: number }> => {
+    let currentFilter = baseFilter;
+    if (searchFilter) {
+      currentFilter = currentFilter ? `(${currentFilter}) and (${searchFilter})` : searchFilter;
+    }
+
+    const query = buildODataQuery({
+      $select: sel,
+      $filter: currentFilter,
+      $orderby: orderbyClause,
+      $top: opts.search ? 100 : top,
+      $skip: opts.search ? 0 : skip,
+      $count: true,
+    });
+    const endpoint = `/VendorCard?company='${encodeURIComponent(COMPANY)}'&${query}`;
+    const res = await apiGet<ODataResponse<Vendor>>(endpoint);
+    return {
+      value: res.value || [],
+      count: (res as any)["@odata.count"] ?? res.value?.length ?? 0,
+    };
+  };
+
+  // Search logic
+  if (!opts.search || !opts.search.trim()) {
     try {
-      return await fetchPage(baseFilter, skip);
-    } catch {
-      return { value: [], count: 0 };
+      return await fetchBatch();
+    } catch (error) {
+       console.error("Error fetching vendors:", error);
+       return { value: [], count: 0 };
     }
   }
 
-  // Search — BC OData does not support OR across distinct fields,
-  // so make one call per field and merge unique results client-side.
-  const s = escapeODataValue(opts.search.trim());
-  const searchFields = ["No", "Name", "GST_Registration_No", "P_A_N_No", "Responsibility_Center"];
+  const s = escapeODataValue(opts.search.trim().toLowerCase());
+  const sUpper = escapeODataValue(opts.search.trim().toUpperCase());
+
   try {
-    const results = await Promise.all(
-      searchFields.map((field) =>
-        fetchPage(`${baseFilter} and contains(${field},'${s}')`, 0).then((r) => r.value),
-      ),
-    );
+    const [resNo, resName] = await Promise.all([
+      fetchBatch(`(contains(tolower(No),'${s}') or contains(No,'${sUpper}') or No eq '${sUpper}')`),
+      fetchBatch(`(contains(tolower(Name),'${s}') or contains(Name,'${sUpper}'))`),
+    ]);
+
     const map: Record<string, Vendor> = {};
-    results.forEach((list) => list.forEach((v) => { map[v.No] = v; }));
-    const merged = Object.values(map);
-    return { value: merged.slice(skip, skip + top), count: merged.length };
-  } catch {
+    [...resNo.value, ...resName.value].forEach((v) => { map[v.No] = v; });
+    let merged = Object.values(map);
+
+    // Local Sort if needed
+    if (opts.sortColumn && opts.sortDirection) {
+      const col = opts.sortColumn as keyof Vendor;
+      const dir = opts.sortDirection === "asc" ? 1 : -1;
+      merged.sort((a, b) => {
+        const valA = String(a[col] || "").toLowerCase();
+        const valB = String(b[col] || "").toLowerCase();
+        return valA.localeCompare(valB) * dir;
+      });
+    }
+
+    return { 
+      value: merged.slice(skip, skip + top), 
+      count: merged.length 
+    };
+  } catch (error) {
+    console.error("Error searching vendors:", error);
     return { value: [], count: 0 };
   }
 }

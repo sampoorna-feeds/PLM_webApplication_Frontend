@@ -24,7 +24,10 @@ import {
   searchBardanaItems,
   type Item,
 } from "@/lib/api/services/item.service";
-import { addTransferBardanaLine } from "@/lib/api/services/transfer-orders.service";
+import {
+  addTransferBardanaLine,
+  postTransferBardana,
+} from "@/lib/api/services/transfer-orders.service";
 
 interface TransferBardanaDialogProps {
   isOpen: boolean;
@@ -48,6 +51,7 @@ export function TransferBardanaDialog({
   const [uom, setUom] = useState("");
   const [quantity, setQuantity] = useState<string>("");
   const [isSaving, setIsSaving] = useState(false);
+  const [isPosting, setIsPosting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
@@ -58,6 +62,7 @@ export function TransferBardanaDialog({
       setUom("");
       setQuantity(noOfBags ? String(noOfBags) : "");
       setIsSaving(false);
+      setIsPosting(false);
       setError(null);
       setSuccess(false);
     }
@@ -101,6 +106,23 @@ export function TransferBardanaDialog({
       setError(msg);
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handlePost = async () => {
+    setIsPosting(true);
+    setError(null);
+    try {
+      await postTransferBardana(documentNo, lineNo);
+      onOpenChange(false);
+    } catch (err) {
+      const msg =
+        err && typeof (err as any).message === "string"
+          ? (err as any).message
+          : "Failed to post bardana.";
+      setError(msg);
+    } finally {
+      setIsPosting(false);
     }
   };
 
@@ -212,7 +234,26 @@ export function TransferBardanaDialog({
           >
             {success ? "Close" : "Cancel"}
           </Button>
-          {!success && (
+          {success ? (
+            <Button
+              type="button"
+              className="bg-green-600 hover:bg-green-700 text-white"
+              onClick={handlePost}
+              disabled={isPosting}
+            >
+              {isPosting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Posting…
+                </>
+              ) : (
+                <>
+                  <Package className="mr-2 h-4 w-4" />
+                  Post Bardana
+                </>
+              )}
+            </Button>
+          ) : (
             <Button type="button" onClick={handleSubmit} disabled={isSaving}>
               {isSaving ? (
                 <>

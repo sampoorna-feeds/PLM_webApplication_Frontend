@@ -20,6 +20,7 @@ import {
   getItemAvailableQuantity,
   getTransferItemByNo,
   getTransferItemLedgerEntries,
+  postTransferBardana,
   type TransferLine,
   type TransferItemLedgerEntry,
 } from "@/lib/api/services/transfer-orders.service";
@@ -59,6 +60,7 @@ export function TransferOrderLineDetailsDialog({
   const [isLoadingLine, setIsLoadingLine] = useState(false);
   const [canAddBardana, setCanAddBardana] = useState(false);
   const [isBardanaOpen, setIsBardanaOpen] = useState(false);
+  const [isPostingBardana, setIsPostingBardana] = useState(false);
 
 
   const [formData, setFormData] = useState<Partial<TransferLine>>({ ...line });
@@ -160,6 +162,21 @@ export function TransferOrderLineDetailsDialog({
       toast.error(err.message || "Failed to update line details");
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handlePostBardana = async () => {
+    if (!line?.Document_No || !line?.Line_No) return;
+    
+    setIsPostingBardana(true);
+    try {
+      await postTransferBardana(line.Document_No, line.Line_No);
+      toast.success("Bardana posted successfully");
+    } catch (err: any) {
+      console.error("Error posting bardana:", err);
+      toast.error(err.message || "Failed to post bardana");
+    } finally {
+      setIsPostingBardana(false);
     }
   };
 
@@ -393,14 +410,30 @@ export function TransferOrderLineDetailsDialog({
               </Button>
             )}
             {canAddBardana && (
-              <Button
-                variant="outline"
-                className="flex-1 text-primary border-border hover:bg-primary/5 font-bold h-10 rounded-xl text-sm flex items-center justify-center gap-2"
-                onClick={() => setIsBardanaOpen(true)}
-              >
-                <Package className="h-4 w-4" />
-                Add Bardana
-              </Button>
+              <div className="flex-1 flex gap-2">
+                <Button
+                  variant="outline"
+                  className="flex-1 text-primary border-border hover:bg-primary/5 font-bold h-10 rounded-xl text-sm flex items-center justify-center gap-2"
+                  onClick={() => setIsBardanaOpen(true)}
+                  disabled={isPostingBardana}
+                >
+                  <Package className="h-4 w-4" />
+                  Add Bardana
+                </Button>
+                <Button
+                  variant="outline"
+                  className="flex-1 text-green-600 border-border hover:bg-green-500/10 font-bold h-10 rounded-xl text-sm flex items-center justify-center gap-2"
+                  onClick={handlePostBardana}
+                  disabled={isPostingBardana}
+                >
+                  {isPostingBardana ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Package className="h-4 w-4" />
+                  )}
+                  Post Bardana
+                </Button>
+              </div>
             )}
           </div>
         </div>

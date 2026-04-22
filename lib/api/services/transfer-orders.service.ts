@@ -1160,3 +1160,16 @@ export async function addTransferBardanaLine(
     throw error;
   }
 }
+
+/**
+ * Post a bardana line for a transfer order.
+ */
+export async function postTransferBardana(docNo: string, lineNo: number): Promise<void> {
+  const endpoint = `/QCcode_PostBardana?company='${encodeURIComponent(COMPANY)}'`;
+  try {
+    await apiPost(endpoint, { docNo, lineNo });
+  } catch (error: any) {
+    console.error("Error posting transfer bardana:", error);
+    throw error;
+  }
+}

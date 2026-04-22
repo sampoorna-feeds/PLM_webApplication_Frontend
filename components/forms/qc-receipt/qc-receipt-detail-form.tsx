@@ -16,6 +16,7 @@ import { Loader2, Send, Save, RotateCcw, ChevronDown } from "lucide-react";
 import { useFormStackContext } from "@/lib/form-stack/form-stack-context";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { getTransferAllLocationCodes, getTransferLocationCodes, type TransferLocationCode } from "@/lib/api/services/transfer-orders.service";
+import { LocationSelect } from "../transfer-orders/location-select";
 import { getDimensionValueName } from "@/lib/api/services/dimension.service";
 
 interface QCReceiptDetailFormProps {
@@ -103,6 +104,9 @@ export function QCReceiptDetailForm({ tabId, context }: QCReceiptDetailFormProps
     if (result) {
       setReceipt(result);
       setEditedFields({});
+      if (context?.onSuccess) {
+        context.onSuccess();
+      }
     }
   };
 
@@ -110,6 +114,9 @@ export function QCReceiptDetailForm({ tabId, context }: QCReceiptDetailFormProps
     if (!receipt) return;
     const success = await postReceipt(receipt.No);
     if (success) {
+      if (context?.onSuccess) {
+        context.onSuccess();
+      }
       closeTab(tabId);
     }
   };
@@ -310,28 +317,13 @@ export function QCReceiptDetailForm({ tabId, context }: QCReceiptDetailFormProps
                </EditFormField>
 
                <EditFormField label="Store Location Code" isReadOnly={isPosted}>
-                  <SearchableSelect
-                    options={locations.map((loc) => ({
-                      value: loc.Code,
-                      label: loc.Name ? `${loc.Code} - ${loc.Name}` : loc.Code,
-                    }))}
-                    value={receipt.Store_Location_Code || ""}
-                    onValueChange={(val) => handleFieldChange("Store_Location_Code", val)}
-                    placeholder="Select Store Location"
-                    disabled={isPosted}
-                    isLoading={isLoadingLocations}
-                    onSearch={async (query) => {
-                      if (query.length >= 2) {
-                        const results = await getTransferLocationCodes(query);
-                        setLocations(prev => {
-                          const combined = [...prev, ...results];
-                          const uniqueMap = new Map();
-                          combined.forEach(l => uniqueMap.set(l.Code, l));
-                          return Array.from(uniqueMap.values());
-                        });
-                      }
-                    }}
-                  />
+                 <LocationSelect
+                   value={receipt.Store_Location_Code || ""}
+                   onChange={(val) => handleFieldChange("Store_Location_Code", val)}
+                   placeholder="Select Store Location"
+                   disabled={isPosted}
+                   className="h-10"
+                 />
                </EditFormField>
 
                <div className="md:col-span-2 lg:col-span-3">

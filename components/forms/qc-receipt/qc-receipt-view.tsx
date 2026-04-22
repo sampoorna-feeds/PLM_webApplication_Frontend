@@ -47,7 +47,7 @@ export function QCReceiptView({ statusFilter, isPosted, skipDateFilter }: QCRece
   const handleRowClick = (receipt: QCReceiptHeader) => {
     openTab("qc-receipt-detail", {
       title: `${isPosted ? "Posted QC Detail" : "QC Detail"}: ${receipt.No}`,
-      context: { receipt, isPosted },
+      context: { receipt, isPosted, onSuccess: refetch },
     });
   };
 

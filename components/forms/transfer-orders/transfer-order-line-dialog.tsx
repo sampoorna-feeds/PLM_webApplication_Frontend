@@ -248,8 +248,14 @@ export function TransferOrderLineDialog({
                     Description: item.Description,
                     Unit_of_Measure_Code: item.Base_Unit_of_Measure,
                   }));
-                  // Trigger handleItemChange logic if needed, or inline it
                   handleItemChange(item.No);
+                } else {
+                  setFormData(prev => ({
+                    ...prev,
+                    Item_No: "",
+                    Description: "",
+                    Unit_of_Measure_Code: "",
+                  }));
                 }
               }}
               locationCode={locationCode}

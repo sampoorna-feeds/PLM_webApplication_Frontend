@@ -1307,8 +1307,7 @@ export function TransferOrderForm({
                       setFormState((prev) => ({
                         ...prev,
                         Transporter_Code: v,
-                        Transporter_Name:
-                          transporter?.Name || prev.Transporter_Name || "",
+                        Transporter_Name: transporter?.Name || "",
                       }));
                       updateTab({ isSaved: false });
                     }}
@@ -1665,8 +1664,7 @@ export function TransferOrderForm({
                         setFormState((prev) => ({
                           ...prev,
                           Transporter_Code: v,
-                          Transporter_Name:
-                            transporter?.Name || prev.Transporter_Name || "",
+                          Transporter_Name: transporter?.Name || "",
                         }));
                         updateTab({ isSaved: false });
                       }}

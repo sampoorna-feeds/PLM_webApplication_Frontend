@@ -19,7 +19,6 @@ export interface TransferLocationCode {
   City?: string;
   Address?: string;
   Post_Code?: string;
-  County?: string;
   [key: string]: unknown;
 }
 
@@ -144,7 +143,10 @@ export async function searchTransferOrders(
     return getTransferOrdersWithCount(rest as GetTransferOrdersParams);
   }
 
-  const escaped = searchTerm.replace(/'/g, "''");
+  const s = searchTerm.replace(/'/g, "''");
+  const sLower = s.toLowerCase();
+  const sUpper = s.toUpperCase();
+  
   const fieldsToSearch = [
     "No",
     "Transfer_from_Code",
@@ -155,11 +157,14 @@ export async function searchTransferOrders(
 
   const responses = await Promise.all(
     fieldsToSearch.map((field) => {
-      const filterPart = `contains(${field},'${escaped}')`;
+      let filterPart = `(contains(${field},'${s}') or contains(${field},'${sLower}') or contains(${field},'${sUpper}'))`;
+      if (field === "No") {
+        filterPart = `(contains(No,'${s}') or No eq '${sUpper}' or contains(No,'${sLower}') or contains(No,'${sUpper}'))`;
+      }
       const filter = rest.$filter
-        ? `${rest.$filter} and ${filterPart}`
+        ? `(${rest.$filter}) and ${filterPart}`
         : filterPart;
-      return getTransferOrdersWithCount({ ...rest, $filter: filter });
+      return getTransferOrdersWithCount({ ...rest, $filter: filter }).catch(() => ({ orders: [], totalCount: 0 }));
     }),
   );
 
@@ -1213,7 +1218,7 @@ export async function getTransferLocationsForDialog(params: {
     if (searchFilter) allFilters.push(searchFilter);
     
     const query = buildODataQuery({
-      $select: "Code,Name,City,Address,Post_Code,County",
+      $select: "Code,Name,City,Address,Post_Code",
       $filter: allFilters.length > 0 ? allFilters.join(" and ") : undefined,
       $orderby: params.sortColumn && params.sortDirection ? `${params.sortColumn} ${params.sortDirection}` : "Code asc",
       $top: params.search ? 100 : params.top,

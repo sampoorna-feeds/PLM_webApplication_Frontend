@@ -238,7 +238,11 @@ export function TransporterSelect({
   };
 
   const handleSelect = (t: Transporter) => {
-    onChange(t.No, t);
+    if (value === t.No) {
+      onChange("", undefined);
+    } else {
+      onChange(t.No, t);
+    }
     setOpen(false);
   };
 

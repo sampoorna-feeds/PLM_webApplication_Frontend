@@ -19,6 +19,7 @@ export interface TransferLocationCode {
   City?: string;
   Address?: string;
   Post_Code?: string;
+  County?: string;
   [key: string]: unknown;
 }
 
@@ -1212,7 +1213,7 @@ export async function getTransferLocationsForDialog(params: {
     if (searchFilter) allFilters.push(searchFilter);
     
     const query = buildODataQuery({
-      $select: "Code,Name,City,Address,Post_Code",
+      $select: "Code,Name,City,Address,Post_Code,County",
       $filter: allFilters.length > 0 ? allFilters.join(" and ") : undefined,
       $orderby: params.sortColumn && params.sortDirection ? `${params.sortColumn} ${params.sortDirection}` : "Code asc",
       $top: params.search ? 100 : params.top,

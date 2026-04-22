@@ -101,13 +101,25 @@ const DEFAULT_COLUMNS: ColumnConfig[] = [
     filterType: "text",
     width: "210px",
   },
+  {
+    id: "Address",
+    label: "Address",
+    sortable: true,
+    filterType: "text",
+    width: "250px",
+  },
+  {
+    id: "State_Code",
+    label: "State",
+    sortable: true,
+    filterType: "text",
+    width: "120px",
+  },
 ];
 
 const OPTIONAL_COLUMNS: ColumnConfig[] = [
-  { id: "Address", label: "Address", sortable: true, filterType: "text", width: "150px" },
   { id: "Phone_No", label: "Phone No", sortable: true, filterType: "text", width: "150px" },
   { id: "E_Mail", label: "E Mail", sortable: true, filterType: "text", width: "150px" },
-  { id: "State_Code", label: "State Code", sortable: true, filterType: "text", width: "120px" },
 ];
 
 export function TransporterSelect({

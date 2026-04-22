@@ -499,9 +499,14 @@ export function TransferOrderForm({
       const payload: Partial<TransferOrder> = {
         Transfer_from_Code: formState.Transfer_from_Code,
         Transfer_to_Code: formState.Transfer_to_Code,
-        Transporter_Code: formState.Transporter_Code,
-        Transporter_Name: formState.Transporter_Name,
       };
+
+      // Priority: Send Transporter_Code if available, otherwise fallback to Transporter_Name
+      if (formState.Transporter_Code) {
+        payload.Transporter_Code = formState.Transporter_Code;
+      } else if (formState.Transporter_Name) {
+        payload.Transporter_Name = formState.Transporter_Name;
+      }
 
       // Clean empty strings
       Object.keys(payload).forEach((key) => {
@@ -575,6 +580,11 @@ export function TransferOrderForm({
         (diff as any)[key] = formState[key] || "";
       }
     });
+
+    // Ensure we don't send both Transporter_Code and Transporter_Name to avoid API conflicts
+    if (diff.Transporter_Code) {
+      delete diff.Transporter_Name;
+    }
 
     if (Object.keys(diff).length === 0) {
       toast.info("No changes to update");

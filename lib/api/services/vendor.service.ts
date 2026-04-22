@@ -209,13 +209,14 @@ export async function getVendorsForDialog(opts: {
     }
   }
 
-  const s = escapeODataValue(opts.search.trim().toLowerCase());
-  const sUpper = escapeODataValue(opts.search.trim().toUpperCase());
+  const s = escapeODataValue(opts.search.trim());
+  const sLower = s.toLowerCase();
+  const sUpper = s.toUpperCase();
 
   try {
     const [resNo, resName] = await Promise.all([
-      fetchBatch(`(contains(tolower(No),'${s}') or contains(No,'${sUpper}') or No eq '${sUpper}')`),
-      fetchBatch(`(contains(tolower(Name),'${s}') or contains(Name,'${sUpper}'))`),
+      fetchBatch(`(contains(No,'${s}') or contains(No,'${sLower}') or contains(No,'${sUpper}') or No eq '${sUpper}')`).catch(() => ({ value: [], count: 0 })),
+      fetchBatch(`(contains(Name,'${s}') or contains(Name,'${sLower}') or contains(Name,'${sUpper}'))`).catch(() => ({ value: [], count: 0 })),
     ]);
 
     const map: Record<string, Vendor> = {};

@@ -578,6 +578,26 @@ export async function updateProductionOrderLine(
 }
 
 // ============================================
+// DELETE PRODUCTION ORDER LINE
+// ============================================
+
+/**
+ * Delete a production order line
+ * Uses entity key format: ReleaseprodOrderLine(Status='Released',Prod_Order_No='...',Line_No=...)
+ * @param prodOrderNo - Production order number
+ * @param lineNo - Line number
+ */
+export async function deleteProductionOrderLine(
+  prodOrderNo: string,
+  lineNo: number,
+): Promise<void> {
+  const encodedProdOrderNo = encodeURIComponent(prodOrderNo);
+  const encodedCompany = encodeURIComponent(COMPANY);
+  const endpoint = `/Company('${encodedCompany}')/ReleaseprodOrderLine(Status='Released',Prod_Order_No='${encodedProdOrderNo}',Line_No=${lineNo})`;
+  await apiDelete<void>(endpoint);
+}
+
+// ============================================
 // UPDATE PRODUCTION ORDER COMPONENT
 // ============================================
 

@@ -38,6 +38,14 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -77,6 +85,7 @@ import {
   refreshProductionOrder,
   refreshProductionOrderJournal,
   changeProductionOrderStatus,
+  deleteProductionOrderLine,
   type ProductionOrder,
   type ProductionOrderLine,
   type ProductionOrderComponent,
@@ -184,6 +193,8 @@ export function ProductionOrderForm({
   >([]);
   const [isLoadingBom, setIsLoadingBom] = useState(false);
   const [isLoadingBomVersions, setIsLoadingBomVersions] = useState(false);
+  // Stores the ActiveVersionCode from /ProductionBOMList for auto-defaulting BOM Version
+  const [activeVersionCode, setActiveVersionCode] = useState<string>("");
 
   // Order lines and components for view/edit mode
   const [orderLines, setOrderLines] = useState<ProductionOrderLine[]>([]);
@@ -192,11 +203,16 @@ export function ProductionOrderForm({
   >([]);
   const [isLoadingLines, setIsLoadingLines] = useState(false);
   const [isLoadingComponents, setIsLoadingComponents] = useState(false);
+  const [isRefreshingLines, setIsRefreshingLines] = useState(false);
   const [isComponentsSheetOpen, setIsComponentsSheetOpen] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isManufacturing, setIsManufacturing] = useState(false);
+  // Change Status dialog — asks user for finished date before calling API
   const [isChangeStatusDialogOpen, setIsChangeStatusDialogOpen] =
     useState(false);
+  const [finishedDate, setFinishedDate] = useState(
+    new Date().toISOString().split("T")[0],
+  );
 
   // Line Dialog State
   const [selectedLine, setSelectedLine] = useState<ProductionOrderLine | null>(
@@ -442,6 +458,7 @@ export function ProductionOrderForm({
   ]);
 
   // Load BOM Versions when Prod BOM No changes
+  // Enriches list with ActiveVersionCode and auto-defaults BOM_Version_No
   useEffect(() => {
     if (!formState.Prod_Bom_No || formState.isProdBomFromItem || isViewMode) {
       setBomVersionOptions([]);
@@ -452,7 +469,28 @@ export function ProductionOrderForm({
       setIsLoadingBomVersions(true);
       try {
         const versions = await getProdOrderBOMVersions(formState.Prod_Bom_No);
-        setBomVersionOptions(versions);
+
+        // Ensure ActiveVersionCode is always present in the list
+        let enriched = [...versions];
+        if (
+          activeVersionCode &&
+          !versions.some((v) => v.Version_Code === activeVersionCode)
+        ) {
+          enriched = [
+            {
+              Production_BOM_No: formState.Prod_Bom_No,
+              Version_Code: activeVersionCode,
+              Status: "Certified",
+            },
+            ...versions,
+          ];
+        }
+        setBomVersionOptions(enriched);
+
+        // Auto-default BOM_Version_No to ActiveVersionCode if not already set
+        if (activeVersionCode && !formState.BOM_Version_No) {
+          setFormState((prev) => ({ ...prev, BOM_Version_No: activeVersionCode }));
+        }
       } catch (error) {
         console.error("Error loading BOM versions:", error);
         setBomVersionOptions([]);
@@ -462,16 +500,11 @@ export function ProductionOrderForm({
     };
 
     loadBomVersions();
-  }, [formState.Prod_Bom_No, formState.isProdBomFromItem, isViewMode]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formState.Prod_Bom_No, formState.isProdBomFromItem, isViewMode, activeVersionCode]);
 
   // Load BOM options when Source_No AND Location_Code are set (only for Item type without BOM from item)
   useEffect(() => {
-    // Only load BOMs if:
-    // 1. Source Type is Item
-    // 2. Source_No is selected
-    // 3. Location_Code is selected (required for BOM API per Postman)
-    // 4. BOM is not auto-filled from item
-    // 5. Not in view mode
     if (
       formState.Source_Type !== "Item" ||
       !formState.Source_No ||
@@ -485,14 +518,14 @@ export function ProductionOrderForm({
     const loadBomOptions = async () => {
       setIsLoadingBom(true);
       try {
-        // Fetch BOMs filtered by Item_No AND Location_Code_1 only
         const boms = await getProdOrderBOMs(
           formState.Source_No,
           formState.Location_Code,
         );
-
         setBomOptions(boms);
-
+        // Capture ActiveVersionCode from the fetched BOM
+        const fetchedActive = boms[0]?.ActiveVersionCode ?? "";
+        setActiveVersionCode(fetchedActive);
         if (boms.length === 0) {
           console.warn(
             `No BOMs found for item ${formState.Source_No} at location ${formState.Location_Code}`,
@@ -605,10 +638,10 @@ export function ProductionOrderForm({
         isProdBomFromItem: false,
       }));
       setBomOptions([]);
-      // Mark as unsaved when user changes source
+      setBomVersionOptions([]);
+      setActiveVersionCode("");
       updateTab({ isSaved: false });
 
-      // Now fetch full details asynchronously
       if (formState.Source_Type === "Item") {
         try {
           const item = await getItemByNo(value);
@@ -619,7 +652,7 @@ export function ProductionOrderForm({
               isProdBomFromItem: true,
             }));
 
-            // Fetch BOM details asynchronously to get ActiveVersionCode
+            // Fetch BOM details to get ActiveVersionCode and auto-set BOM_Version_No
             try {
               const bomDetails = await getProdOrderBOMByNo(
                 item.Production_BOM_No,
@@ -707,22 +740,17 @@ export function ProductionOrderForm({
     }
   }, [formState.No, refreshOrderData]);
 
-  // Handle Manufacture (Change Status to Finished)
+  // Handle Manufacture (Change Status to Finished) — uses user-selected date
   const handleManufacture = async () => {
     if (!formState.No) return;
 
-    // Close the dialog
     setIsChangeStatusDialogOpen(false);
-
-    // Get today's date in YYYY-MM-DD format
-    const today = new Date().toISOString().split("T")[0];
 
     setIsManufacturing(true);
     try {
-      await changeProductionOrderStatus(formState.No, today);
+      await changeProductionOrderStatus(formState.No, finishedDate);
       toast.success("Production Order status changed to Finished!");
 
-      // Trigger parent refresh if callback provided
       if (
         context?.onStatusChanged &&
         typeof context.onStatusChanged === "function"
@@ -730,7 +758,6 @@ export function ProductionOrderForm({
         context.onStatusChanged();
       }
 
-      // Close the form tab
       closeTab();
     } catch (error) {
       console.error("Error changing production order status:", error);
@@ -740,6 +767,38 @@ export function ProductionOrderForm({
       setIsManufacturing(false);
     }
   };
+
+  // Refresh only the order lines table (lightweight, no API refresh call)
+  const handleRefreshLines = useCallback(async () => {
+    if (!formState.No) return;
+    setIsRefreshingLines(true);
+    try {
+      const lines = await getProductionOrderLines(formState.No);
+      setOrderLines(lines);
+    } catch (error) {
+      console.error("Error refreshing order lines:", error);
+      toast.error("Failed to refresh order lines");
+    } finally {
+      setIsRefreshingLines(false);
+    }
+  }, [formState.No]);
+
+  // Handle Delete Line
+  const handleDeleteLine = useCallback(
+    async (line: ProductionOrderLine) => {
+      try {
+        await deleteProductionOrderLine(line.Prod_Order_No, line.Line_No);
+        toast.success(`Line ${line.Line_No} deleted`);
+        const lines = await getProductionOrderLines(line.Prod_Order_No);
+        setOrderLines(lines);
+      } catch (error) {
+        console.error("Error deleting line:", error);
+        const { message, code } = extractApiError(error);
+        setApiError({ title: "Delete Line Failed", message, code });
+      }
+    },
+    [],
+  );
 
   // Handle Line Row Click
   const handleLineClick = useCallback(
@@ -1001,43 +1060,19 @@ export function ProductionOrderForm({
               </div>
               {/* Change Status - hidden on xs/sm/md/lg, visible on xl+ */}
               <div className="hidden xl:block">
-                <AlertDialog
-                  open={isChangeStatusDialogOpen}
-                  onOpenChange={setIsChangeStatusDialogOpen}
+                <Button
+                  variant="default"
+                  size="sm"
+                  disabled={isRefreshing || isManufacturing}
+                  onClick={() => setIsChangeStatusDialogOpen(true)}
                 >
-                  <AlertDialogTrigger asChild>
-                    <Button
-                      variant="default"
-                      size="sm"
-                      disabled={isRefreshing || isManufacturing}
-                    >
-                      {isManufacturing ? (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      ) : (
-                        <Factory className="mr-2 h-4 w-4" />
-                      )}
-                      Change Status
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>
-                        Change Production Order Status?
-                      </AlertDialogTitle>
-                      <AlertDialogDescription>
-                        This will change the status of production order{" "}
-                        <strong>{formState.No}</strong> to Finished. This action
-                        cannot be undone.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction onClick={handleManufacture}>
-                        Confirm
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
+                  {isManufacturing ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Factory className="mr-2 h-4 w-4" />
+                  )}
+                  Change Status
+                </Button>
               </div>
 
               {/* Overflow dropdown - shows items hidden at current breakpoint */}
@@ -1403,7 +1438,7 @@ export function ProductionOrderForm({
                   ) : (
                     <Select
                       value={formState.Prod_Bom_No}
-                      onValueChange={(v) => handleChange("Prod_Bom_No", v)}
+                      onValueChange={(v) => handleProdBOMChange(v)}
                       disabled={isLoadingBom}
                     >
                       <SelectTrigger className="w-full">
@@ -1518,24 +1553,40 @@ export function ProductionOrderForm({
                 <h3 className="text-muted-foreground text-sm font-medium">
                   Release Production Order Line
                 </h3>
-                <Button
-                  variant="default"
-                  size="sm"
-                  onClick={() => setIsComponentsSheetOpen(true)}
-                  disabled={isLoadingComponents}
-                >
-                  {isLoadingComponents ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <List className="mr-2 h-4 w-4" />
-                  )}
-                  View Components ({orderComponents.length})
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleRefreshLines}
+                    disabled={isRefreshingLines || isLoadingLines}
+                    title="Refresh order lines"
+                  >
+                    {isRefreshingLines ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <RefreshCw className="h-4 w-4" />
+                    )}
+                  </Button>
+                  <Button
+                    variant="default"
+                    size="sm"
+                    onClick={() => setIsComponentsSheetOpen(true)}
+                    disabled={isLoadingComponents}
+                  >
+                    {isLoadingComponents ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <List className="mr-2 h-4 w-4" />
+                    )}
+                    View Components ({orderComponents.length})
+                  </Button>
+                </div>
               </div>
               <ProductionOrderLinesTable
                 lines={orderLines}
                 isLoading={isLoadingLines}
                 onRowClick={handleLineClick}
+                onDeleteLine={handleDeleteLine}
               />
             </div>
           )}
@@ -1619,6 +1670,51 @@ export function ProductionOrderForm({
       />
 
       <ApiErrorDialog error={apiError} onClose={() => setApiError(null)} />
+
+      {/* Change Status Date Dialog */}
+      <Dialog
+        open={isChangeStatusDialogOpen}
+        onOpenChange={setIsChangeStatusDialogOpen}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Change Production Order Status</DialogTitle>
+            <DialogDescription>
+              Select the finished date for production order{" "}
+              <strong>{formState.No}</strong>. This will mark the order as
+              Finished and cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <label className="text-sm font-medium">
+              Finished Date
+              <Input
+                type="date"
+                value={finishedDate}
+                onChange={(e) => setFinishedDate(e.target.value)}
+                className="mt-1.5"
+              />
+            </label>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsChangeStatusDialogOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleManufacture}
+              disabled={!finishedDate || isManufacturing}
+            >
+              {isManufacturing && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              )}
+              Confirm
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

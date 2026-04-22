@@ -8,6 +8,7 @@ export interface TransferItem {
   Production_BOM_No?: string;
   Base_Unit_of_Measure?: string;
   Item_Tracking_Code?: string;
+  Bardana_Generation_Enable?: boolean;
   [key: string]: unknown;
 }
 
@@ -727,7 +728,7 @@ export async function getTransferItems(
 ): Promise<TransferItem[]> {
   const queryParams: Record<string, any> = {
     $select:
-      "No,Description,Production_BOM_No,Base_Unit_of_Measure,GST_Group_Code,HSN_SAC_Code,Exempted",
+      "No,Description,Production_BOM_No,Base_Unit_of_Measure,GST_Group_Code,HSN_SAC_Code,Exempted,Bardana_Generation_Enable",
     $orderby: "No",
     $top: top,
     $skip: skip,
@@ -790,7 +791,7 @@ export async function getTransferItemByNo(
   const query = buildODataQuery({
     $filter: filter,
     $select:
-      "No,Description,Production_BOM_No,Base_Unit_of_Measure,GST_Group_Code,HSN_SAC_Code,Exempted,Item_Tracking_Code",
+      "No,Description,Production_BOM_No,Base_Unit_of_Measure,GST_Group_Code,HSN_SAC_Code,Exempted,Item_Tracking_Code,Bardana_Generation_Enable",
   });
   const endpoint = `/ItemCard?company='${encodeURIComponent(COMPANY)}'&${query}`;
   const response = await apiGet<ODataResponse<TransferItem>>(endpoint);
@@ -1130,6 +1131,32 @@ export async function getDownloadRecordLink(params: { documentType: string; docu
     return url;
   } catch (error) {
     console.error("Error fetching record link:", error);
+    throw error;
+  }
+}
+
+/**
+ * Add a bardana line for a transfer order line item.
+ */
+export async function addTransferBardanaLine(
+  documentNo: string,
+  documentLineNo: number,
+  itemNo: string,
+  uom: string,
+  quantity: number,
+): Promise<void> {
+  const endpoint = `/QCPurchaseBardanaList?company='${encodeURIComponent(COMPANY)}'`;
+  try {
+    await apiPost(endpoint, {
+      Document_Type: "Transfer Order",
+      Document_No: documentNo,
+      Document_Line_No: documentLineNo,
+      Item_No: itemNo,
+      UOM: uom,
+      Quantity: quantity,
+    });
+  } catch (error: any) {
+    console.error("Error adding transfer bardana line:", error);
     throw error;
   }
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Loader2, X } from "lucide-react";
+import { Loader2, X, Package } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,6 +27,7 @@ import { SearchableSelect } from "@/components/ui/searchable-select";
 import {
   TransferOrderItemTrackingDialog
 } from "./transfer-order-item-tracking-dialog";
+import { TransferBardanaDialog } from "./transfer-bardana-dialog";
 
 
 
@@ -56,6 +57,8 @@ export function TransferOrderLineDetailsDialog({
   const [ledgerEntries, setLedgerEntries] = useState<TransferItemLedgerEntry[]>([]);
   const [isLoadingLedger, setIsLoadingLedger] = useState(false);
   const [isLoadingLine, setIsLoadingLine] = useState(false);
+  const [canAddBardana, setCanAddBardana] = useState(false);
+  const [isBardanaOpen, setIsBardanaOpen] = useState(false);
 
 
   const [formData, setFormData] = useState<Partial<TransferLine>>({ ...line });
@@ -94,6 +97,7 @@ export function TransferOrderLineDetailsDialog({
           const isTrackedInMaster = !!itemResult?.Item_Tracking_Code?.trim();
           const tracked = ledgerTrackingResult || isTrackedInMaster;
           setHasTracking(tracked);
+          setCanAddBardana(itemResult?.Bardana_Generation_Enable === true);
           setAvailableQty(availableResult);
 
           if (!tracked) {
@@ -378,17 +382,27 @@ export function TransferOrderLineDetailsDialog({
             </Button>
           </div>
 
-          {hasTracking && (
-            <div className="pt-2 border-t border-border">
+          <div className="flex flex-wrap gap-3 pt-2 border-t border-border">
+            {hasTracking && (
               <Button
                 variant="outline"
-                className="w-full text-red-500 border-border hover:bg-red-500/10 hover:text-red-500 font-bold h-10 rounded-xl text-sm"
+                className="flex-1 text-red-500 border-border hover:bg-red-500/10 hover:text-red-500 font-bold h-10 rounded-xl text-sm"
                 onClick={() => setIsTrackingOpen(true)}
               >
                 Item Tracking
               </Button>
-            </div>
-          )}
+            )}
+            {canAddBardana && (
+              <Button
+                variant="outline"
+                className="flex-1 text-primary border-border hover:bg-primary/5 font-bold h-10 rounded-xl text-sm flex items-center justify-center gap-2"
+                onClick={() => setIsBardanaOpen(true)}
+              >
+                <Package className="h-4 w-4" />
+                Add Bardana
+              </Button>
+            )}
+          </div>
         </div>
       </DialogContent>
 
@@ -401,6 +415,16 @@ export function TransferOrderLineDetailsDialog({
         line={line}
         onSave={onSuccess}
       />
+
+      {isBardanaOpen && (
+        <TransferBardanaDialog
+          isOpen={isBardanaOpen}
+          onOpenChange={setIsBardanaOpen}
+          documentNo={line.Document_No}
+          lineNo={line.Line_No}
+          lineDescription={formData.Description}
+        />
+      )}
     </Dialog>
   );
 }

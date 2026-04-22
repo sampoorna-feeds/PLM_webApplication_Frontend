@@ -58,6 +58,7 @@ import {
 import { getAuthCredentials } from "@/lib/auth/storage";
 import { useFormStack } from "@/lib/form-stack/use-form-stack";
 import { cn } from "@/lib/utils";
+import { TransporterSelect } from "./transporter-select";
 import { Loader2, Plus, RefreshCw, Eye, Download, Printer } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -1229,31 +1230,15 @@ export function TransferOrderForm({
                   <label className={labelClass}>
                     Transporter Code (Optional)
                   </label>
-                  <SearchableSelect
-                    options={transporters.map((v) => ({
-                      value: v.No,
-                      label: `${v.No} - ${v.Name}`,
-                    }))}
+                  <TransporterSelect
                     value={formState.Transporter_Code || ""}
-                    onValueChange={(v) => {
-                      const vendor = transporters.find((t) => t.No === v);
+                    onChange={(v, transporter) => {
                       setFormState((prev) => ({
                         ...prev,
                         Transporter_Code: v,
-                        Transporter_Name: vendor?.Name || "",
+                        Transporter_Name: transporter?.Name || prev.Transporter_Name || "",
                       }));
                       updateTab({ isSaved: false });
-                    }}
-                    onSearch={async (q) => {
-                      if (q.length >= 2) {
-                        const results = await searchTransporters(q);
-                        setTransporters((prev) => {
-                          const combined = [...prev, ...results];
-                          const unique = new Map();
-                          combined.forEach((v) => unique.set(v.No, v));
-                          return Array.from(unique.values());
-                        });
-                      }
                     }}
                     placeholder="Select Transporter"
                     disabled={formState.Status === "Released"}
@@ -1544,31 +1529,15 @@ export function TransferOrderForm({
                 <div className="col-span-2 grid grid-cols-2 gap-6 bg-muted p-4 rounded-xl border border-border">
                   <div className="space-y-1.5">
                     <label className="text-muted-foreground text-[11px] font-bold uppercase tracking-wider">Transporter</label>
-                    <SearchableSelect
-                      options={transporters.map((v) => ({
-                        value: v.No,
-                        label: `${v.No} - ${v.Name}`,
-                      }))}
+                    <TransporterSelect
                       value={formState.Transporter_Code || ""}
-                      onValueChange={(v) => {
-                        const vendor = transporters.find((t) => t.No === v);
+                      onChange={(v, transporter) => {
                         setFormState((prev) => ({
                           ...prev,
                           Transporter_Code: v,
-                          Transporter_Name: vendor?.Name || "",
+                          Transporter_Name: transporter?.Name || prev.Transporter_Name || "",
                         }));
                         updateTab({ isSaved: false });
-                      }}
-                      onSearch={async (q) => {
-                        if (q.length >= 2) {
-                          const results = await searchTransporters(q);
-                          setTransporters((prev) => {
-                            const combined = [...prev, ...results];
-                            const unique = new Map();
-                            combined.forEach((v) => unique.set(v.No, v));
-                            return Array.from(unique.values());
-                          });
-                        }
                       }}
                       placeholder="Select Transporter"
                     />

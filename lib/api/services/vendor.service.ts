@@ -135,6 +135,7 @@ export async function getVendorsForDialog(opts: {
   filters?: Record<string, string>;
   visibleColumns?: string[];
   brokerOnly?: boolean;
+  transporterOnly?: boolean;
 }): Promise<{ value: Vendor[]; count: number }> {
   const top = opts.top ?? 30;
   const skip = opts.skip ?? 0;
@@ -145,7 +146,7 @@ export async function getVendorsForDialog(opts: {
     : defaultCols;
   const sel = selectCols.join(",");
 
-  const baseFilterParts: string[] = [getBaseFilter(opts.brokerOnly)];
+  const baseFilterParts: string[] = [getBaseFilter(opts.brokerOnly, opts.transporterOnly)];
   if (opts.filters) {
     Object.entries(opts.filters).forEach(([col, val]) => {
       if (!val) return;
@@ -213,10 +214,13 @@ const searchCache = new Map<string, Vendor[]>();
 /**
  * Builds the base filter for Vendors
  */
-function getBaseFilter(brokerOnly?: boolean): string {
+function getBaseFilter(brokerOnly?: boolean, transporterOnly?: boolean): string {
   let base = `(Responsibility_Center eq '' or Responsibility_Center eq 'FEED' or Responsibility_Center eq 'CATTLE' or Responsibility_Center eq 'SWINE') and Blocked eq ' '`;
   if (brokerOnly) {
     base += ` and Broker eq true`;
+  }
+  if (transporterOnly) {
+    base += ` and Transporter eq true`;
   }
   return base;
 }

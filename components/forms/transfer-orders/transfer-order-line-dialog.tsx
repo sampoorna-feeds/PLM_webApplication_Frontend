@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Loader2 } from "lucide-react";
+import { Loader2, Package } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,6 +26,7 @@ import {
   type TransferLine,
   type TransferItemLedgerEntry,
 } from "@/lib/api/services/transfer-orders.service";
+import { TransferBardanaDialog } from "./transfer-bardana-dialog";
 
 interface TransferOrderLineDialogProps {
   isOpen: boolean;
@@ -59,6 +60,8 @@ export function TransferOrderLineDialog({
   const [ledgerEntries, setLedgerEntries] = useState<TransferItemLedgerEntry[]>([]);
   const [isLoadingLedgerEntries, setIsLoadingLedgerEntries] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [isBardanaOpen, setIsBardanaOpen] = useState(false);
+  const [canAddBardana, setCanAddBardana] = useState(false);
 
   const [formData, setFormData] = useState<Partial<TransferLine>>({
     Document_No: documentNo,
@@ -145,6 +148,23 @@ export function TransferOrderLineDialog({
       loadLedgerEntries();
     }
   }, [isOpen, formData.Item_No, locationCode]);
+
+  // Check if bardana can be added
+  useEffect(() => {
+    const checkBardana = async () => {
+      if (!formData.Item_No) {
+        setCanAddBardana(false);
+        return;
+      }
+      try {
+        const item = items.find(i => i.No === formData.Item_No) || await getTransferItemByNo(formData.Item_No);
+        setCanAddBardana(item?.Bardana_Generation_Enable === true);
+      } catch (err) {
+        setCanAddBardana(false);
+      }
+    };
+    if (isOpen) checkBardana();
+  }, [formData.Item_No, items, isOpen]);
 
   const handleItemChange = async (itemNo: string) => {
     const item = await getTransferItemByNo(itemNo);
@@ -305,16 +325,41 @@ export function TransferOrderLineDialog({
 
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
-          <Button onClick={handleSubmit} disabled={isSubmitting}>
-            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {isEdit ? "Update Line" : "Add Line"}
-          </Button>
+        <DialogFooter className="flex justify-between items-center sm:justify-between w-full">
+          <div className="flex-1 flex justify-start">
+            {isEdit && canAddBardana && (
+              <Button
+                variant="outline"
+                type="button"
+                className="flex items-center gap-2 border-primary/40 text-primary hover:bg-primary/5 h-9"
+                onClick={() => setIsBardanaOpen(true)}
+              >
+                <Package className="h-4 w-4" />
+                Add Bardana
+              </Button>
+            )}
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleSubmit} disabled={isSubmitting}>
+              {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {isEdit ? "Update Line" : "Add Line"}
+            </Button>
+          </div>
         </DialogFooter>
       </DialogContent>
+
+      {isBardanaOpen && (
+        <TransferBardanaDialog
+          isOpen={isBardanaOpen}
+          onOpenChange={setIsBardanaOpen}
+          documentNo={documentNo}
+          lineNo={line?.Line_No || 0}
+          lineDescription={formData.Description}
+        />
+      )}
     </Dialog>
   );
 }

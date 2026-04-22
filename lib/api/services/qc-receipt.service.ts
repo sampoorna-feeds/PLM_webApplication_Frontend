@@ -152,69 +152,21 @@ export async function getQCReceiptLines(
 }
 
 /**
- * Post a QC receipt by creating records in QCReceiptPostedH and QCReceiptPostedLine.
- * @param header The QC receipt header to post.
- * @param lines The QC receipt lines to post.
+ * Post a QC receipt using the backend action.
+ * @param receiptNo The QC receipt number to post.
  */
-export async function postQCReceipt(
-  header: QCReceiptHeader,
-  lines: QCReceiptLine[],
-): Promise<void> {
-  const headerEndpoint = `/QCReceiptPostedH?company='${encodeURIComponent(COMPANY)}'`;
-  const lineEndpoint = `/QCReceiptPostedLine?company='${encodeURIComponent(COMPANY)}'`;
-
-  // Helper to remove metadata and empty/calculated fields
-  const cleanData = (data: any) => {
-    const { "@odata.etag": _, ...rest } = data;
-    return Object.entries(rest).reduce(
-      (acc, [key, value]) => {
-        // Remove empty strings, nulls, and potentially read-only calculated fields (start with Total_)
-        if (
-          value !== undefined &&
-          value !== null &&
-          !(typeof value === "string" && value.trim() === "") &&
-          !key.startsWith("Total_")
-        ) {
-          acc[key] = value;
-        }
-        return acc;
-      },
-      {} as Record<string, any>,
-    );
+export async function postQCReceipt(receiptNo: string): Promise<void> {
+  const endpoint = `/QCcode_postQC?company='${encodeURIComponent(COMPANY)}'`;
+  const payload = {
+    docNo: receiptNo,
   };
 
-  const headerData = cleanData(header);
-
   try {
-    console.log("Posting QC Header:", headerData);
-    await apiPost(headerEndpoint, headerData);
+    await apiPost(endpoint, payload);
   } catch (error: any) {
-    console.error("Error posting QC receipt header:", {
-      message: error.message,
-      details: error.details,
-      status: error.status,
-      error,
-    });
+    console.error("Error posting QC receipt:", error);
     const detail = error.details || error.message || JSON.stringify(error);
-    throw new Error(`Failed to post header: ${detail}`);
-  }
-
-  // Then post each line
-  try {
-    for (const line of lines) {
-      const lineData = cleanData(line);
-      console.log(`Posting QC Line ${line.Line_No}:`, lineData);
-      await apiPost(lineEndpoint, lineData);
-    }
-  } catch (error: any) {
-    console.error("Error posting QC receipt lines:", {
-      message: error.message,
-      details: error.details,
-      status: error.status,
-      error,
-    });
-    const detail = error.details || error.message || JSON.stringify(error);
-    throw new Error(`Failed to post lines: ${detail}`);
+    throw new Error(`Failed to post QC receipt: ${detail}`);
   }
 }
 

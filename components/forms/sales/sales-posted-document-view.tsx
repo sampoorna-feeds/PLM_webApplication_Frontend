@@ -5,6 +5,7 @@ import { Eye, Loader2, Printer } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import { useFormStackContext } from "@/lib/form-stack/form-stack-context";
+import { useAuth } from "@/lib/contexts/auth-context";
 import { Button } from "@/components/ui/button";
 import { SalesDocumentTable } from "./sales-document-table";
 import { SalesDocumentFilterBar } from "./sales-document-filter-bar";
@@ -40,6 +41,7 @@ export function SalesPostedDocumentView({
   registerRefetch,
 }: SalesPostedDocumentViewProps) {
   const { openTab } = useFormStackContext();
+  const { userID } = useAuth();
   const config = POSTED_DOCUMENT_CONFIGS[documentType];
 
   const {
@@ -119,16 +121,22 @@ export function SalesPostedDocumentView({
     }
     const rawRow = row as unknown as Record<string, unknown>;
     const customerNo = String(rawRow.Sell_to_Customer_No || "").trim();
-    const postingDate = String(rawRow.Posting_Date || "").trim();
-    if (!customerNo || !postingDate) {
-      toast.error("Missing customer or posting date for PDF generation.");
+    if (!customerNo) {
+      toast.error("Missing customer number for PDF generation.");
       return;
     }
+
+    // postingDate is always today's date per requirement
+    const today = new Date();
+    const postingDate = today.toISOString().split("T")[0]; // YYYY-MM-DD
+    const printdateTime = today.toISOString(); // ISO 8601 datetime
+    const resolvedUserID = userID ?? "";
+
     setLoadingDocNo(no);
     try {
       const base64 =
         documentType === "posted-invoice"
-          ? await getInvoiceReportPdf(no, customerNo, postingDate)
+          ? await getInvoiceReportPdf(no, customerNo, postingDate, resolvedUserID, printdateTime)
           : await getDeliveryReportPdf(no, customerNo, postingDate);
       if (!base64) throw new Error("No PDF content returned");
       const blob = base64ToPdfBlob(base64);
@@ -140,7 +148,7 @@ export function SalesPostedDocumentView({
     } finally {
       setLoadingDocNo(null);
     }
-  }, [documentType]);
+  }, [documentType, userID]);
 
   const renderRowAction = useCallback(
     (row: SalesOrder) => {

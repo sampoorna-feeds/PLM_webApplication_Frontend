@@ -266,22 +266,19 @@ export async function getProdOrderBOMs(
   locationCode: string,
 ): Promise<ProdOrderBOM[]> {
   // Both Item_No and Location_Code_1 are required per Postman collection
+  // Returns a single BOM entry — no $orderby or $top needed
   const filter = `Item_No eq '${itemNo}' and Location_Code_1 eq '${locationCode}'`;
 
   const queryParams: Record<string, any> = {
     $filter: filter,
     $select:
       "No,Description,Status,Location_Code_1,Item_No,Unit_of_Measure_Code,ActiveVersionCode",
-    $orderby: "No",
-    $top: 50,
   };
 
   const query = buildODataQuery(queryParams);
   const endpoint = `/ProductionBOMList?company='${encodeURIComponent(COMPANY)}'&${query}`;
 
-  console.log("Fetching BOMs from:", endpoint);
   const response = await apiGet<ODataResponse<ProdOrderBOM>>(endpoint);
-  console.log("BOM API response - count:", response.value?.length, "BOMs");
   return response.value || [];
 }
 

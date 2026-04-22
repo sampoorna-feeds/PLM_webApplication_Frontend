@@ -125,7 +125,7 @@ export async function getPostedShipmentLines(
 ): Promise<PostedSalesShipmentLine[]> {
   const filter = `Document_No eq '${documentNo.replace(/'/g, "''")}'`;
   const query = buildODataQuery({ $filter: filter, $orderby: "Line_No asc" });
-  const endpoint = `/SalesShipmentLine?company='${encodeURIComponent(COMPANY)}'&${query}`;
+  const endpoint = `/PostedSalesShptSubform?company='${encodeURIComponent(COMPANY)}'&${query}`;
   const response = await apiGet<ODataResponse<PostedSalesShipmentLine>>(endpoint);
   return response.value || [];
 }

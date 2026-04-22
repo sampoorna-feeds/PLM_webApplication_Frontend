@@ -70,6 +70,8 @@ export function ProductionOrderFormFields({
   >([]);
   const [isLoadingBom, setIsLoadingBom] = useState(false);
   const [isLoadingBomVersions, setIsLoadingBomVersions] = useState(false);
+  // Tracks the ActiveVersionCode returned from /ProductionBOMList
+  const [activeVersionCode, setActiveVersionCode] = useState<string>("");
 
   // Handle field changes
   const handleChange = useCallback(
@@ -184,6 +186,9 @@ export function ProductionOrderFormFields({
       BOM_Version_No: "",
       isProdBomFromItem: false,
     });
+    setActiveVersionCode("");
+    setBomOptions([]);
+    setBomVersionOptions([]);
 
     // If source type is Item, check if the item has a Production BOM
     if (data.Source_Type === "Item" && value) {
@@ -203,9 +208,13 @@ export function ProductionOrderFormFields({
           if (data.Location_Code) {
             setIsLoadingBom(true);
             try {
-              // Fetch BOMs filtered by Item_No AND Location_Code_1 only
+              // Returns a single BOM entry for this item + location
               const boms = await getProdOrderBOMs(value, data.Location_Code);
               setBomOptions(boms);
+
+              // Capture the ActiveVersionCode from the fetched BOM
+              const fetchedActiveVersion = boms[0]?.ActiveVersionCode ?? "";
+              setActiveVersionCode(fetchedActiveVersion);
 
               if (boms.length === 0) {
                 console.warn(
@@ -227,6 +236,7 @@ export function ProductionOrderFormFields({
   };
 
   // Load BOM Versions when Prod BOM No changes (only for manual selection)
+  // Also ensures ActiveVersionCode is present in options and defaults BOM_Version_No to it
   useEffect(() => {
     if (!data.Prod_Bom_No || data.isProdBomFromItem || isReadOnly) {
       setBomVersionOptions([]);
@@ -237,7 +247,31 @@ export function ProductionOrderFormFields({
       setIsLoadingBomVersions(true);
       try {
         const versions = await getProdOrderBOMVersions(data.Prod_Bom_No);
-        setBomVersionOptions(versions);
+
+        // Ensure the ActiveVersionCode entry is always present in the list.
+        // /ProdBOMVersionList only returns Certified versions, but ActiveVersionCode
+        // must still be selectable even if it isn't in that filtered result.
+        let enrichedVersions = [...versions];
+        if (
+          activeVersionCode &&
+          !versions.some((v) => v.Version_Code === activeVersionCode)
+        ) {
+          enrichedVersions = [
+            {
+              Production_BOM_No: data.Prod_Bom_No,
+              Version_Code: activeVersionCode,
+              Status: "Certified",
+            },
+            ...versions,
+          ];
+        }
+
+        setBomVersionOptions(enrichedVersions);
+
+        // Default BOM_Version_No to the ActiveVersionCode if not already set
+        if (activeVersionCode && !data.BOM_Version_No) {
+          onChange({ ...data, BOM_Version_No: activeVersionCode });
+        }
       } catch (error) {
         console.error("Error loading BOM versions:", error);
         setBomVersionOptions([]);
@@ -247,7 +281,8 @@ export function ProductionOrderFormFields({
     };
 
     loadBomVersions();
-  }, [data.Prod_Bom_No, data.isProdBomFromItem, isReadOnly]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data.Prod_Bom_No, data.isProdBomFromItem, isReadOnly, activeVersionCode]);
 
   // Reset Branch and LOC when LOB changes
   const handleLOBChange = (value: string) => {

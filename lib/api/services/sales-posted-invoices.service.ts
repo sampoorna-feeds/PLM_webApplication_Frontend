@@ -143,9 +143,17 @@ export async function getInvoiceReportPdf(
   documentNo: string,
   custNo: string,
   postingDate: string,
+  userID: string,
+  printdateTime: string,
 ): Promise<string> {
   const endpoint = `/API_GetInvoiceReportWeb?company='${encodeURIComponent(COMPANY)}'`;
-  const response = await apiPost<{ value: string }>(endpoint, { documentNo, custNo, postingDate });
+  const response = await apiPost<{ value: string }>(endpoint, {
+    documentNo,
+    custNo,
+    postingDate,
+    userID,
+    printdateTime,
+  });
   return response.value || "";
 }
 

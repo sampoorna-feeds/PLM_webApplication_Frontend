@@ -1228,12 +1228,13 @@ export async function getTransferLocationsForDialog(params: {
     return { value: res.value || [], count: res["@odata.count"] || res.value?.length || 0 };
   }
 
-  const s = params.search.trim().toLowerCase().replace(/'/g, "''");
-  const sUpper = params.search.trim().toUpperCase().replace(/'/g, "''");
+  const s = params.search.trim().replace(/'/g, "''");
+  const sLower = s.toLowerCase();
+  const sUpper = s.toUpperCase();
 
   const [resCode, resName] = await Promise.all([
-    fetchBatch(`(contains(tolower(Code),'${s}') or contains(Code,'${sUpper}') or Code eq '${sUpper}')`),
-    fetchBatch(`contains(tolower(Name),'${s}')`),
+    fetchBatch(`(contains(Code,'${s}') or contains(Code,'${sLower}') or contains(Code,'${sUpper}') or Code eq '${sUpper}')`).catch(() => ({ value: [], count: 0 })),
+    fetchBatch(`(contains(Name,'${s}') or contains(Name,'${sLower}') or contains(Name,'${sUpper}'))`).catch(() => ({ value: [], count: 0 })),
   ]);
 
   const map = new Map<string, TransferLocationCode>();
@@ -1308,12 +1309,13 @@ export async function getTransferItemsForDialog(params: {
     return { value: res.value || [], count: res["@odata.count"] || res.value?.length || 0 };
   }
 
-  const s = params.search.trim().toLowerCase().replace(/'/g, "''");
-  const sUpper = params.search.trim().toUpperCase().replace(/'/g, "''");
+  const s = params.search.trim().replace(/'/g, "''");
+  const sLower = s.toLowerCase();
+  const sUpper = s.toUpperCase();
 
   const [resNo, resDesc] = await Promise.all([
-    fetchBatch(`(contains(tolower(No),'${s}') or contains(No,'${sUpper}') or No eq '${sUpper}')`),
-    fetchBatch(`contains(tolower(Description),'${s}')`),
+    fetchBatch(`(contains(No,'${s}') or contains(No,'${sLower}') or contains(No,'${sUpper}') or No eq '${sUpper}')`).catch(() => ({ value: [], count: 0 })),
+    fetchBatch(`(contains(Description,'${s}') or contains(Description,'${sLower}') or contains(Description,'${sUpper}'))`).catch(() => ({ value: [], count: 0 })),
   ]);
 
   const map = new Map<string, TransferItem>();

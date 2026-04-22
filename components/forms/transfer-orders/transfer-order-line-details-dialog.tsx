@@ -456,6 +456,7 @@ export function TransferOrderLineDetailsDialog({
           documentNo={line.Document_No}
           lineNo={line.Line_No}
           lineDescription={formData.Description}
+          locationCode={locationCode}
         />
       )}
     </Dialog>

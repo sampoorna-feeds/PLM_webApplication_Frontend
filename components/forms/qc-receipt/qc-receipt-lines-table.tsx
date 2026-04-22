@@ -5,6 +5,7 @@ import type { QCReceiptLine } from "@/lib/api/services/qc-receipt.service";
 import { Loader2 } from "lucide-react";
 import { useState, useRef } from "react";
 import { useQCReceiptLineUpdate } from "./use-qc-receipts";
+import { toast } from "sonner";
 
 interface QCReceiptLinesTableProps {
   lines: QCReceiptLine[];
@@ -27,6 +28,12 @@ export function QCReceiptLinesTable({
     if (isReadOnly) return;
     const line = lines[index];
     
+    // Validation: prevent negative values for Actual_Value
+    if (field === "Actual_Value" && typeof value === "number" && value < 0) {
+      toast.error("Negative values are not allowed for Actual Value");
+      return;
+    }
+
     // Don't save if value hasn't changed
     const currentValue = (line as any)[field];
     if (currentValue === value || (currentValue === null && value === "")) return;
@@ -48,8 +55,15 @@ export function QCReceiptLinesTable({
     if (e.key === "Enter") {
       e.preventDefault();
       
-      // Save current cell value
       const value = field === "Actual_Value" ? Number(e.currentTarget.value) : e.currentTarget.value;
+      
+      // Validation check before moving down
+      if (field === "Actual_Value" && typeof value === "number" && value < 0) {
+        toast.error("Negative values are not allowed");
+        return;
+      }
+
+      // Save current cell value
       handleCellSave(index, field, value);
 
       // Focus next row's cell in same column
@@ -137,12 +151,13 @@ export function QCReceiptLinesTable({
                     <td className="p-3 align-middle text-right whitespace-nowrap text-muted-foreground/70">{line.Max_Value}</td>
                     <td className="p-3 align-middle text-right whitespace-nowrap text-muted-foreground/70">{line.Text_Value || "-"}</td>
                     
-                    {/* ACTUAL VALUE COLUMN: Editable IF !isText */}
+                    {/* ACTUAL VALUE COLUMN */}
                     <td className={`p-0 border-x border-dashed border-muted-foreground/10 transition-colors ${!isText ? "bg-primary/5 group-hover:bg-primary/10" : "bg-muted/5"}`}>
                       <div className="relative h-10">
                         <input
                           type="number"
                           step="any"
+                          min="0"
                           defaultValue={line.Actual_Value}
                           data-row={index}
                           data-field="Actual_Value"
@@ -165,7 +180,7 @@ export function QCReceiptLinesTable({
                       </div>
                     </td>
 
-                    {/* ACTUAL TEXT COLUMN: Editable IF isText */}
+                    {/* ACTUAL TEXT COLUMN */}
                     <td className={`p-0 border-r border-dashed border-muted-foreground/10 transition-colors ${isText ? "bg-primary/5 group-hover:bg-primary/10" : "bg-muted/5"}`}>
                       <div className="relative h-10">
                         <input

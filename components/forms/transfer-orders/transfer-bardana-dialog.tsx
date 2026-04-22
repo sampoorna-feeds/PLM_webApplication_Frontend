@@ -7,6 +7,7 @@
 
 import React, { useCallback, useEffect, useState } from "react";
 import { Loader2, Package } from "lucide-react";
+import { ItemSelect } from "./item-select";
 import {
   Dialog,
   DialogContent,
@@ -37,6 +38,7 @@ interface TransferBardanaDialogProps {
   noOfBags?: number;
   /** Line description for context display */
   lineDescription?: string;
+  locationCode?: string;
 }
 
 export function TransferBardanaDialog({
@@ -46,6 +48,7 @@ export function TransferBardanaDialog({
   lineNo,
   noOfBags,
   lineDescription,
+  locationCode,
 }: TransferBardanaDialogProps) {
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
   const [uom, setUom] = useState("");
@@ -162,27 +165,15 @@ export function TransferBardanaDialog({
 
         <div className="space-y-3">
           {/* Bardana Item */}
-          <div className="space-y-1">
             <FieldTitle>
               Bardana Item <span className="text-red-500">*</span>
             </FieldTitle>
-            <SearchableSelect<Item>
+            <ItemSelect
               value={selectedItem?.No || ""}
-              onChange={handleItemSelect}
+              onChange={(v, item) => handleItemSelect(v, item as any)}
+              locationCode={locationCode}
               placeholder="Search bardana items…"
-              loadInitial={() => getBardanaItems(20)}
-              searchItems={searchBardanaItems}
-              loadMore={(skip, search) => getBardanaItemsPage(skip, search, 20)}
-              getDisplayValue={(item) => `${item.No} - ${item.Description}`}
-              getItemValue={(item) => item.No}
-              supportsDualSearch={false}
             />
-            {selectedItem && (
-              <p className="pl-1 text-[10px] font-medium text-green-600">
-                {selectedItem.Description}
-              </p>
-            )}
-          </div>
 
           {/* UOM — read-only, auto-filled from selected item */}
           <div className="space-y-1">

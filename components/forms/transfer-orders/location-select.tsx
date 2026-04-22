@@ -1,10 +1,9 @@
 "use client";
 
 /**
- * TransporterSelect component for Transfer Order forms
+ * LocationSelect component for Transfer Order forms
  * Opens a Dialog with a searchable, sortable, filterable, infinite-scroll table.
- * Columns: No., Name, PAN No., GST Reg. No.
- * Search covers all fields server-side (using getVendorsForDialog with transporterOnly=true).
+ * Columns: Code, Name, City, Address, PIN Code
  */
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
@@ -18,17 +17,14 @@ import {
   ArrowUpDown,
   Filter,
   Check,
-  Truck,
+  MapPin,
   Settings2,
-  RotateCcw,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -41,17 +37,19 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import {
-  getVendorsForDialog,
-  type Vendor as Transporter,
-} from "@/lib/api/services/vendor.service";
+  getTransferLocationsForDialog,
+  type TransferLocationCode as Location,
+} from "@/lib/api/services/transfer-orders.service";
 
-interface TransporterSelectProps {
+interface LocationSelectProps {
   value: string;
-  onChange: (value: string, transporter?: Transporter) => void;
+  onChange: (value: string, location?: Location) => void;
   placeholder?: string;
   disabled?: boolean;
   className?: string;
   hasError?: boolean;
+  authorizedCodes?: string[];
+  title?: string;
 }
 
 type SortDirection = "asc" | "desc" | null;
@@ -67,15 +65,15 @@ interface ColumnConfig {
 
 const DEFAULT_COLUMNS: ColumnConfig[] = [
   {
-    id: "No",
-    label: "No.",
+    id: "Code",
+    label: "Code",
     sortable: true,
     filterType: "text",
-    width: "140px",
+    width: "120px",
   },
   {
     id: "Name",
-    label: "Transporter Name",
+    label: "Name",
     sortable: true,
     filterType: "text",
     flex: true,
@@ -88,38 +86,33 @@ const DEFAULT_COLUMNS: ColumnConfig[] = [
     width: "150px",
   },
   {
-    id: "P_A_N_No",
-    label: "PAN No.",
+    id: "Address",
+    label: "Address",
     sortable: true,
     filterType: "text",
-    width: "170px",
+    width: "250px",
   },
   {
-    id: "GST_Registration_No",
-    label: "GST No.",
+    id: "Post_Code",
+    label: "PIN Code",
     sortable: true,
     filterType: "text",
-    width: "210px",
+    width: "100px",
   },
 ];
 
-const OPTIONAL_COLUMNS: ColumnConfig[] = [
-  { id: "Address", label: "Address", sortable: true, filterType: "text", width: "150px" },
-  { id: "Phone_No", label: "Phone No", sortable: true, filterType: "text", width: "150px" },
-  { id: "E_Mail", label: "E Mail", sortable: true, filterType: "text", width: "150px" },
-  { id: "State_Code", label: "State Code", sortable: true, filterType: "text", width: "120px" },
-];
-
-export function TransporterSelect({
+export function LocationSelect({
   value,
   onChange,
-  placeholder = "Select Transporter",
+  placeholder = "Select Location",
   disabled = false,
   className,
   hasError = false,
-}: TransporterSelectProps) {
+  authorizedCodes,
+  title = "Select Location",
+}: LocationSelectProps) {
   const [open, setOpen] = useState(false);
-  const [transporters, setTransporters] = useState<Transporter[]>([]);
+  const [locations, setLocations] = useState<Location[]>([]);
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   
@@ -129,14 +122,10 @@ export function TransporterSelect({
   const [page, setPage] = useState(0);
   const [allFetched, setAllFetched] = useState(false);
   
-  const [sortColumn, setSortColumn] = useState<string | null>("No");
+  const [sortColumn, setSortColumn] = useState<string | null>("Code");
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
   const [columnFilters, setColumnFilters] = useState<Record<string, string>>({});
   
-  const [visibleColumns, setVisibleColumns] = useState<string[]>(() => 
-    DEFAULT_COLUMNS.map(c => c.id)
-  );
-
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const sentinelRef = useRef<HTMLTableRowElement>(null);
   const PAGE_SIZE = 30;
@@ -156,40 +145,39 @@ export function TransporterSelect({
 
       try {
         const nextSkip = isNextPage ? (page + 1) * PAGE_SIZE : 0;
-        const res = await getVendorsForDialog({
+        const res = await getTransferLocationsForDialog({
           skip: nextSkip,
           top: PAGE_SIZE,
           search: debouncedSearch,
           sortColumn,
           sortDirection,
           filters: columnFilters,
-          visibleColumns,
-          transporterOnly: true,
+          authorizedCodes,
         });
 
         if (isNextPage) {
-          setTransporters((prev) => [...prev, ...res.value]);
+          setLocations((prev) => [...prev, ...res.value]);
           setPage((p) => p + 1);
         } else {
-          setTransporters(res.value);
+          setLocations(res.value);
           setPage(0);
         }
 
         setTotalCount(res.count);
         setAllFetched(res.value.length < PAGE_SIZE);
       } catch (error) {
-        console.error("Error fetching transporters:", error);
+        console.error("Error fetching locations:", error);
       } finally {
         setLoading(false);
         setLoadingMore(false);
       }
     },
-    [loading, loadingMore, allFetched, page, debouncedSearch, sortColumn, sortDirection, columnFilters, visibleColumns]
+    [loading, loadingMore, allFetched, page, debouncedSearch, sortColumn, sortDirection, columnFilters, authorizedCodes]
   );
 
   useEffect(() => {
     if (open) fetchData(false);
-  }, [debouncedSearch, sortColumn, sortDirection, columnFilters, visibleColumns, open]);
+  }, [debouncedSearch, sortColumn, sortDirection, columnFilters, open]);
 
   // Infinite scroll
   useEffect(() => {
@@ -212,13 +200,11 @@ export function TransporterSelect({
     if (!newOpen) {
       setSearchQuery("");
       setColumnFilters({});
-      setSortColumn("No");
-      setSortDirection("asc");
     }
   };
 
-  const handleSelect = (t: Transporter) => {
-    onChange(t.No, t);
+  const handleSelect = (l: Location) => {
+    onChange(l.Code, l);
     setOpen(false);
   };
 
@@ -241,20 +227,11 @@ export function TransporterSelect({
     });
   };
 
-  const onColumnToggle = (id: string) => {
-    setVisibleColumns(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
-  };
-
-  const onResetColumns = () => setVisibleColumns(DEFAULT_COLUMNS.map(c => c.id));
-  const onShowAllColumns = () => setVisibleColumns([...DEFAULT_COLUMNS, ...OPTIONAL_COLUMNS].map(c => c.id));
-
   const hasActiveFilters = Object.keys(columnFilters).length > 0;
   const activeFilterCount = Object.keys(columnFilters).length;
-  const currentColumns = [...DEFAULT_COLUMNS, ...OPTIONAL_COLUMNS].filter(c => visibleColumns.includes(c.id));
 
-  // Find current label
-  const selectedTransporter = transporters.find(t => t.No === value);
-  const displayLabel = selectedTransporter ? `${selectedTransporter.No} - ${selectedTransporter.Name}` : value;
+  const selectedLocation = locations.find(l => l.Code === value);
+  const displayLabel = selectedLocation ? `${selectedLocation.Code} - ${selectedLocation.Name}` : value;
 
   return (
     <>
@@ -278,15 +255,15 @@ export function TransporterSelect({
 
       <Dialog open={open} onOpenChange={handleOpenChange}>
         <DialogContent
-          className="flex h-[88vh] flex-col gap-0 p-0"
-          style={{ width: "min(1160px, 92vw)", maxWidth: "none" }}
+          className="flex h-[85vh] flex-col gap-0 p-0"
+          style={{ width: "min(1000px, 92vw)", maxWidth: "none" }}
         >
-          <DialogHeader className="shrink-0 border-b px-5 py-3.5">
+          <DialogHeader className="shrink-0 border-b px-5 py-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2.5">
-                <Truck className="text-muted-foreground h-4 w-4" />
+                <MapPin className="text-muted-foreground h-4 w-4" />
                 <DialogTitle className="text-[15px] font-semibold">
-                  Select Transporter
+                  {title}
                 </DialogTitle>
                 {!loading && totalCount > 0 && (
                   <Badge variant="secondary" className="h-5 rounded-sm px-1.5 text-[10px] font-bold">
@@ -300,7 +277,7 @@ export function TransporterSelect({
                   onClick={() => setColumnFilters({})}
                   className="text-primary hover:text-primary/80 flex items-center gap-1 text-[11px] font-medium"
                 >
-                  <span>{activeFilterCount} filter{activeFilterCount > 1 ? "s" : ""} active</span>
+                  <span>{activeFilterCount} filter active</span>
                   <X className="h-3 w-3" />
                 </button>
               )}
@@ -312,7 +289,7 @@ export function TransporterSelect({
               <div className="relative flex-1">
                 <Search className="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
                 <Input
-                  placeholder="Search by transporter No., Name, PAN or GST …"
+                  placeholder="Search by Code, Name or City …"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="bg-background h-9 pl-9 pr-9 text-sm focus-visible:ring-1"
@@ -324,14 +301,6 @@ export function TransporterSelect({
                   </button>
                 )}
               </div>
-              <TransporterColumnVisibility
-                visibleColumns={visibleColumns}
-                defaultColumns={DEFAULT_COLUMNS}
-                optionalColumns={OPTIONAL_COLUMNS}
-                onColumnToggle={onColumnToggle}
-                onResetColumns={onResetColumns}
-                onShowAllColumns={onShowAllColumns}
-              />
             </div>
           </div>
 
@@ -340,8 +309,8 @@ export function TransporterSelect({
               <thead className="sticky top-0 z-10 bg-muted">
                 <tr>
                   <th className="w-10 border-b px-3" />
-                  {currentColumns.map((col) => (
-                    <TransporterTableHead
+                  {DEFAULT_COLUMNS.map((col) => (
+                    <LocationTableHead
                       key={col.id}
                       column={col}
                       isActive={sortColumn === col.id}
@@ -356,55 +325,41 @@ export function TransporterSelect({
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan={currentColumns.length + 1} className="py-20 text-center">
+                    <td colSpan={DEFAULT_COLUMNS.length + 1} className="py-20 text-center">
                       <Loader2 className="mx-auto h-6 w-6 animate-spin text-muted-foreground" />
-                      <p className="mt-2 text-xs text-muted-foreground">Loading transporters…</p>
                     </td>
                   </tr>
-                ) : transporters.length === 0 ? (
+                ) : locations.length === 0 ? (
                   <tr>
-                    <td colSpan={currentColumns.length + 1} className="py-20 text-center">
-                      <Truck className="mx-auto h-8 w-8 text-muted-foreground/40" />
-                      <p className="mt-2 text-sm font-medium text-muted-foreground">No transporters found</p>
+                    <td colSpan={DEFAULT_COLUMNS.length + 1} className="py-20 text-center text-muted-foreground">
+                      No locations found
                     </td>
                   </tr>
                 ) : (
-                  transporters.map((t, idx) => (
+                  locations.map((l, idx) => (
                     <tr
-                      key={t.No}
-                      onClick={() => handleSelect(t)}
+                      key={l.Code}
+                      onClick={() => handleSelect(l)}
                       className={cn(
                         "group cursor-pointer border-b transition-colors hover:bg-primary/5",
                         idx % 2 === 0 ? "bg-background" : "bg-muted/20",
-                        value === t.No && "bg-primary/10"
+                        value === l.Code && "bg-primary/10"
                       )}
                     >
                       <td className="w-10 px-3 py-2.5 text-center">
-                        {value === t.No && <Check className="mx-auto h-3.5 w-3.5 text-primary" />}
+                        {value === l.Code && <Check className="mx-auto h-3.5 w-3.5 text-primary" />}
                       </td>
-                      {currentColumns.map((col) => (
-                        <td key={col.id} className={cn("px-3 py-2.5 text-xs whitespace-nowrap", col.id === "No" && "font-mono font-semibold")}>
-                          {(t as any)[col.id] || <span className="opacity-30">—</span>}
+                      {DEFAULT_COLUMNS.map((col) => (
+                        <td key={col.id} className={cn("px-3 py-2 text-xs", col.id === "Code" && "font-mono font-semibold")}>
+                          {(l as any)[col.id] || <span className="opacity-30">—</span>}
                         </td>
                       ))}
                     </tr>
                   ))
                 )}
-                {!loading && <tr ref={sentinelRef}><td colSpan={currentColumns.length + 1} className="h-px" /></tr>}
-                {loadingMore && (
-                  <tr>
-                    <td colSpan={currentColumns.length + 1} className="py-3 text-center">
-                      <Loader2 className="mx-auto h-4 w-4 animate-spin text-muted-foreground" />
-                    </td>
-                  </tr>
-                )}
+                {!loading && <tr ref={sentinelRef}><td colSpan={DEFAULT_COLUMNS.length + 1} className="h-px" /></tr>}
               </tbody>
             </table>
-          </div>
-
-          <div className="bg-muted/20 border-t px-5 py-2 flex items-center justify-between text-[11px] text-muted-foreground">
-             <span>Showing {transporters.length} of {totalCount} transporters</span>
-             {value && <span className="font-semibold text-primary">Selected: {displayLabel}</span>}
           </div>
         </DialogContent>
       </Dialog>
@@ -412,30 +367,28 @@ export function TransporterSelect({
   );
 }
 
-interface TransporterTableHeadProps {
-  column: ColumnConfig;
-  isActive: boolean;
-  sortDirection: SortDirection;
-  filterValue: string;
-  onSort: (id: string) => void;
-  onFilter: (id: string, value: string) => void;
-}
-
-function TransporterTableHead({
+function LocationTableHead({
   column,
   isActive,
   sortDirection,
   filterValue,
   onSort,
   onFilter,
-}: TransporterTableHeadProps) {
+}: {
+  column: ColumnConfig;
+  isActive: boolean;
+  sortDirection: SortDirection;
+  filterValue: string;
+  onSort: (id: string) => void;
+  onFilter: (id: string, value: string) => void;
+}) {
   return (
     <th
-      className={cn("bg-muted h-10 border-b px-2 py-3 text-left align-middle text-xs font-bold whitespace-nowrap", isActive && "text-primary")}
+      className={cn("bg-muted h-10 border-b px-2 py-2 text-left align-middle text-xs font-bold", isActive && "text-primary")}
       style={column.width ? { width: column.width, minWidth: column.width } : undefined}
     >
       <div className="flex items-center gap-1.5">
-        <span className="cursor-pointer hover:text-primary" onClick={() => column.sortable && onSort(column.id)}>{column.label}</span>
+        <span className="cursor-pointer" onClick={() => column.sortable && onSort(column.id)}>{column.label}</span>
         {column.sortable && (
            <button onClick={() => onSort(column.id)}>
              {!isActive || !sortDirection ? <ArrowUpDown className="h-3 w-3 opacity-50" /> : sortDirection === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
@@ -444,70 +397,21 @@ function TransporterTableHead({
         {column.filterType && (
            <Popover>
              <PopoverTrigger asChild>
-               <button className={cn("p-0.5 rounded hover:bg-background/50", filterValue ? "text-primary" : "text-muted-foreground/50")}>
+               <button className={cn("p-0.5 rounded", filterValue ? "text-primary" : "text-muted-foreground/30")}>
                  <Filter className="h-3 w-3" />
                </button>
              </PopoverTrigger>
              <PopoverContent className="w-52 p-3">
-                <Label className="text-xs font-semibold mb-2 block">Filter by {column.label}</Label>
+                <Label className="text-xs mb-2 block">Filter</Label>
                 <Input 
-                  placeholder="Search…" 
                   value={filterValue} 
                   onChange={(e) => onFilter(column.id, e.target.value)} 
                   className="h-8 text-xs mb-2"
                 />
-                <Button size="sm" className="w-full h-7 text-xs" onClick={() => onFilter(column.id, filterValue)}>Apply</Button>
              </PopoverContent>
            </Popover>
         )}
       </div>
     </th>
-  );
-}
-
-interface TransporterColumnVisibilityProps {
-  visibleColumns: string[];
-  defaultColumns: ColumnConfig[];
-  optionalColumns: ColumnConfig[];
-  onColumnToggle: (columnId: string) => void;
-  onResetColumns: () => void;
-  onShowAllColumns: () => void;
-}
-
-function TransporterColumnVisibility({
-  visibleColumns,
-  defaultColumns,
-  optionalColumns,
-  onColumnToggle,
-  onResetColumns,
-  onShowAllColumns,
-}: TransporterColumnVisibilityProps) {
-  const allColumns = [...defaultColumns, ...optionalColumns];
-  return (
-    <Popover>
-      <PopoverTrigger asChild>
-        <Button variant="outline" size="sm" className="gap-2 shrink-0">
-          <Settings2 className="h-4 w-4" />
-          Columns ({visibleColumns.length}/{allColumns.length})
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-56 p-2">
-         <div className="flex items-center justify-between px-2 py-1 mb-2">
-           <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Columns</span>
-           <div className="flex gap-1">
-             <Button variant="ghost" size="xs" className="h-6 text-[10px]" onClick={onShowAllColumns}>All</Button>
-             <Button variant="ghost" size="xs" className="h-6 text-[10px]" onClick={onResetColumns}>Reset</Button>
-           </div>
-         </div>
-         <div className="max-h-60 overflow-auto space-y-1">
-           {allColumns.map(c => (
-              <div key={c.id} className="flex items-center gap-2 px-2 py-1 hover:bg-muted rounded cursor-pointer" onClick={() => onColumnToggle(c.id)}>
-                <Checkbox checked={visibleColumns.includes(c.id)} />
-                <span className="text-xs">{c.label}</span>
-              </div>
-           ))}
-         </div>
-      </PopoverContent>
-    </Popover>
   );
 }

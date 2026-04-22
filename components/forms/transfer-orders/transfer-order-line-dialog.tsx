@@ -13,9 +13,8 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import {
-  SearchableSelect,
-} from "@/components/ui/searchable-select";
+import { ItemSelect } from "./item-select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import {
   createTransferLine,
   updateTransferLine,
@@ -237,17 +236,26 @@ export function TransferOrderLineDialog({
         </DialogHeader>
 
         <div className="grid grid-cols-2 gap-4 py-4">
-          <div className="space-y-2 col-span-2">
-            <FieldTitle required>Item No.</FieldTitle>
-            <SearchableSelect
-              options={items.map(i => ({ value: i.No, label: `${i.No} - ${i.Description}` }))}
-              value={formData.Item_No}
-              onValueChange={handleItemChange}
-              onSearch={setSearchQuery}
-              isLoading={isLoadingItems}
+          <div className="space-y-1">
+            <FieldTitle>Item No. <span className="text-red-500">*</span></FieldTitle>
+            <ItemSelect
+              value={formData.Item_No || ""}
+              onChange={(v, item) => {
+                if (item) {
+                  setFormData(prev => ({
+                    ...prev,
+                    Item_No: item.No,
+                    Description: item.Description,
+                    Unit_of_Measure_Code: item.Base_Unit_of_Measure,
+                  }));
+                  // Trigger handleItemChange logic if needed, or inline it
+                  handleItemChange(item.No);
+                }
+              }}
+              locationCode={locationCode}
               placeholder="Select Item"
+              disabled={isEdit}
             />
-
           </div>
 
           <div className="space-y-2 col-span-2">
@@ -357,6 +365,7 @@ export function TransferOrderLineDialog({
           onOpenChange={setIsBardanaOpen}
           documentNo={documentNo}
           lineNo={line?.Line_No || 0}
+          locationCode={locationCode}
           lineDescription={formData.Description}
         />
       )}

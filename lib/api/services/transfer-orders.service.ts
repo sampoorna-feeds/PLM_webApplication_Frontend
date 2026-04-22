@@ -9,12 +9,16 @@ export interface TransferItem {
   Base_Unit_of_Measure?: string;
   Item_Tracking_Code?: string;
   Bardana_Generation_Enable?: boolean;
+  Net_Change?: number;
   [key: string]: unknown;
 }
 
 export interface TransferLocationCode {
   Code: string;
-  Name?: string;
+  Name: string;
+  City?: string;
+  Address?: string;
+  Post_Code?: string;
   [key: string]: unknown;
 }
 
@@ -815,7 +819,7 @@ export async function getTransferLocationCodes(
 
   if (!search || search.length < 2) {
     const queryParams: Record<string, any> = {
-      $select: "Code,Name",
+      $select: "Code,Name,City,Address,Post_Code",
       $orderby: "Code",
       $top: 50,
     };
@@ -1172,4 +1176,132 @@ export async function postTransferBardana(docNo: string, lineNo: number): Promis
     console.error("Error posting transfer bardana:", error);
     throw error;
   }
+}
+
+/**
+ * Enhanced Location fetcher for selection dialogs
+ */
+export async function getTransferLocationsForDialog(params: {
+  skip: number;
+  top: number;
+  search?: string;
+  sortColumn?: string | null;
+  sortDirection?: "asc" | "desc" | null;
+  filters?: Record<string, string>;
+  authorizedCodes?: string[];
+}): Promise<{ value: TransferLocationCode[]; count: number }> {
+  const commonFilter: string[] = [];
+  
+  if (params.authorizedCodes && params.authorizedCodes.length > 0) {
+    const codeFilter = params.authorizedCodes
+      .map((c) => `Code eq '${c.replace(/'/g, "''")}'`)
+      .join(" or ");
+    commonFilter.push(`(${codeFilter})`);
+  }
+
+  const odataFilters: string[] = [...commonFilter];
+  
+  if (params.search) {
+    const s = params.search.replace(/'/g, "''");
+    odataFilters.push(`(contains(Code,'${s}') or contains(Name,'${s}') or contains(City,'${s}'))`);
+  }
+
+  if (params.filters) {
+    Object.entries(params.filters).forEach(([col, val]) => {
+      if (val) odataFilters.push(`contains(${col},'${val.replace(/'/g, "''")}')`);
+    });
+  }
+
+  const queryParams: any = {
+    $select: "Code,Name,City,Address,Post_Code",
+    $count: true,
+    $top: params.top,
+    $skip: params.skip,
+  };
+
+  if (odataFilters.length > 0) {
+    queryParams.$filter = odataFilters.join(" and ");
+  }
+
+  if (params.sortColumn && params.sortDirection) {
+    queryParams.$orderby = `${params.sortColumn} ${params.sortDirection}`;
+  } else {
+    queryParams.$orderby = "Code asc";
+  }
+
+  const query = buildODataQuery(queryParams);
+  const endpoint = `/LocationList?company='${encodeURIComponent(COMPANY)}'&${query}`;
+  const response = await apiGet<ODataResponse<TransferLocationCode>>(endpoint);
+  
+  return {
+    value: response.value || [],
+    count: response["@odata.count"] || response.value?.length || 0,
+  };
+}
+
+/**
+ * Enhanced Item fetcher for selection dialogs with Stock (Net_Change) support
+ */
+export async function getTransferItemsForDialog(params: {
+  skip: number;
+  top: number;
+  search?: string;
+  sortColumn?: string | null;
+  sortDirection?: "asc" | "desc" | null;
+  filters?: Record<string, string>;
+  locationCode?: string;
+  dateFilter?: string;
+}): Promise<{ value: TransferItem[]; count: number }> {
+  const odataFilters: string[] = ["Blocked eq false"];
+  
+  if (params.search) {
+    const s = params.search.replace(/'/g, "''");
+    odataFilters.push(`(contains(No,'${s}') or contains(Description,'${s}'))`);
+  }
+
+  if (params.filters) {
+    Object.entries(params.filters).forEach(([col, val]) => {
+      if (val) odataFilters.push(`contains(${col},'${val.replace(/'/g, "''")}')`);
+    });
+  }
+
+  const queryParams: any = {
+    $select: "No,Description,Base_Unit_of_Measure,Net_Change",
+    $count: true,
+    $top: params.top,
+    $skip: params.skip,
+  };
+
+  const extraFilters: string[] = [];
+  if (params.locationCode) {
+    extraFilters.push(`Location_Filter eq '${params.locationCode.replace(/'/g, "''")}'`);
+  }
+  if (params.dateFilter) {
+    extraFilters.push(`Date_Filter le '${params.dateFilter}'`);
+  }
+
+  if (odataFilters.length > 0) {
+    queryParams.$filter = odataFilters.join(" and ");
+  }
+  
+  if (extraFilters.length > 0) {
+    // These special filters (Location_Filter, Date_Filter) are often appended to the $filter in BC
+    queryParams.$filter = (queryParams.$filter ? queryParams.$filter + " and " : "") + extraFilters.join(" and ");
+  }
+
+  if (params.sortColumn && params.sortDirection) {
+    queryParams.$orderby = `${params.sortColumn} ${params.sortDirection}`;
+  } else {
+    queryParams.$orderby = "No asc";
+  }
+
+  const query = buildODataQuery(queryParams);
+  // ItemCard usually supports Location_Filter
+  const endpoint = `/ItemCard?Company=${encodeURIComponent(COMPANY)}&${query}`;
+  const response = await apiGet<ODataResponse<TransferItem>>(endpoint);
+  
+  return {
+    value: response.value || [],
+    count: response["@odata.count"] || response.value?.length || 0,
+  };
 }

@@ -16,7 +16,7 @@ import { Loader2, Send, Save, RotateCcw, ChevronDown } from "lucide-react";
 import { useFormStackContext } from "@/lib/form-stack/form-stack-context";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { getTransferAllLocationCodes, getTransferLocationCodes, type TransferLocationCode } from "@/lib/api/services/transfer-orders.service";
-import { LocationSelect } from "../transfer-orders/location-select";
+import { LocationSelect } from "@/components/forms/shared/location-select";
 import { getDimensionValueName } from "@/lib/api/services/dimension.service";
 
 interface QCReceiptDetailFormProps {

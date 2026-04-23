@@ -210,6 +210,9 @@ export function TransferOrderForm({
           setOriginalState(order);
           const linesData = await getTransferOrderLines(no);
           setLines(linesData);
+        } else {
+          // Order might have been deleted/moved after posting
+          console.log(`Order ${no} not found, likely posted and moved to history.`);
         }
       } catch (err) {
         console.error("Error fetching order data:", err);
@@ -650,6 +653,11 @@ export function TransferOrderForm({
             formState[key] || (typeof formState[key] === "number" ? 0 : "");
         }
       });
+
+      // Ensure we don't send both Transporter_Code and Transporter_Name to avoid API conflicts
+      if (diff.Transporter_Code) {
+        delete diff.Transporter_Name;
+      }
 
       let isHeaderUpdated = false;
       if (Object.keys(diff).length > 0) {
@@ -1916,7 +1924,7 @@ export function TransferOrderForm({
         message={successInfo.message}
         onClose={() => {
           // If we just posted, we might want to trigger the original handleSuccess
-          if (successInfo.title === "Order Posted!") {
+          if (successInfo.title.includes("Posted")) {
             handleSuccess();
           }
         }}

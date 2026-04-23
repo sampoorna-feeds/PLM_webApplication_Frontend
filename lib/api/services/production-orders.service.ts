@@ -724,6 +724,8 @@ export interface AssignItemTrackingParams {
   trackingType?: "line" | "component" | "journal";
   /** User ID - required for journal entries (used as sourceBatch) */
   sourceBatch?: string;
+  /** Entry Type - required for journal entries (Consumption vs Output) */
+  entryType?: string | number;
 }
 
 /**
@@ -756,8 +758,19 @@ export async function assignItemTracking(
     sourceType = 5406; // line
   }
 
-  // Source Subtype: 3 for lines/components, 5 for journals
-  const sourceSubType = isJournal ? 5 : 3;
+  // Source Subtype: 3 for lines/components, 5 for journals (consumption), 6 for journals (output)
+  let sourceSubType = 3;
+  if (isJournal) {
+    if (
+      params.entryType === "Output" ||
+      params.entryType === 1 ||
+      params.entryType === "1"
+    ) {
+      sourceSubType = 6;
+    } else {
+      sourceSubType = 5;
+    }
+  }
 
   // Lines use POSITIVE quantities, components and journals use NEGATIVE
   const quantity = isLine
@@ -1009,12 +1022,15 @@ export async function printQRCode(prodOrderNo: string): Promise<string> {
 
 export interface ProductionJournalEntry {
   Line_No: number;
-  Entry_Type: string;
+  Entry_Type: string | number;
   Item_No_: string;
   Description?: string;
   Quantity: number;
   Output_Quantity: number;
   Location_Code?: string;
+  Order_No?: string;
+  Journal_Batch_Name?: string;
+  Journal_Template_Name?: string;
   [key: string]: unknown;
 }
 
@@ -1048,7 +1064,7 @@ export async function getProductionJournal(
 ): Promise<ProductionJournalEntry[]> {
   const filter = `Order_No eq '${orderNo}' and Journal_Template_Name eq 'PROD.ORDEA'`;
   const select =
-    "Line_No,Entry_Type,Item_No_,Description,Quantity,Output_Quantity,Location_Code";
+    "Line_No,Entry_Type,Item_No_,Description,Quantity,Output_Quantity,Location_Code,Order_No,Journal_Batch_Name,Journal_Template_Name";
   const query = buildODataQuery({
     $filter: filter,
     $select: select,

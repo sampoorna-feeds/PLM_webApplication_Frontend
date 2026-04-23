@@ -168,9 +168,14 @@ export function ItemTrackingDialog({
         console.error("userId is required for journal entry tracking");
         return "";
       }
-      // For journals: Source_ID = template name, Source_Prod_Order_Line = journal Line_No, Source_Ref_No_ = 0
+      
+      const src = source as ProductionJournalEntry;
+      const isOutput = src.Entry_Type === "Output" || src.Entry_Type === 1 || src.Entry_Type === "1";
+      const subtype = isOutput ? "6" : "5";
+
+      // For journals: Source_ID = template name, Source_Prod_Order_Line = 0, Source_Ref_No_ = journal Line_No
       // Source_Prod_Order_Line, Source_Ref_No_, Source_Type are Int32; Source_Subtype is String
-      return `Source_ID eq 'PROD.ORDEA' and Source_Prod_Order_Line eq ${source.Line_No} and Source_Ref_No_ eq 0 and Source_Type eq 83 and Source_Subtype eq '5' and Source_Batch_Name eq '${userId}'`;
+      return `Source_ID eq 'PROD.ORDEA' and Source_Prod_Order_Line eq 0 and Source_Ref_No_ eq ${src.Line_No} and Source_Type eq 83 and Source_Subtype eq '${subtype}' and Source_Batch_Name eq '${userId}'`;
     }
 
     // Production order line
@@ -358,6 +363,9 @@ export function ItemTrackingDialog({
         expirationDate: expirationDate || undefined,
         trackingType: trackingType,
         sourceBatch: isJournalSource ? userId : undefined,
+        entryType: isJournalSource
+          ? (source as ProductionJournalEntry).Entry_Type
+          : undefined,
       });
 
       toast.success("Item tracking assigned successfully");

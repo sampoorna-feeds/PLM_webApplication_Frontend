@@ -84,7 +84,7 @@ export function ProductionOrderComponentsTable({
   }
 
   return (
-    <div className="flex-1 min-h-0 overflow-auto rounded-md border">
+    <div className="flex-1 min-h-0 rounded-md border [&_[data-slot=table-container]]:h-full [&_[data-slot=table-container]]:overflow-auto">
       <Table>
         <TableHeader className="bg-muted/50 sticky top-0 z-10 shadow-sm backdrop-blur">
           <TableRow>
@@ -117,7 +117,7 @@ export function ProductionOrderComponentsTable({
                 key={`${component.Prod_Order_No}-${component.Prod_Order_Line_No}-${component.Line_No}`}
                 className={cn(
                   isAssigned
-                    ? "text-green-600 bg-green-50/50 hover:bg-green-50"
+                    ? "text-green-600"
                     : hasTracking
                       ? "text-red-600"
                       : "",

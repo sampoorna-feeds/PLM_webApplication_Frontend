@@ -3,16 +3,12 @@
 import { useState } from "react";
 import { ClipboardList, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
 import { getWorkOrder } from "@/lib/api/services/production-orders.service";
-import { toast } from "sonner";
+import {
+  ApiErrorDialog,
+  extractApiError,
+  type ApiErrorState,
+} from "./api-error-dialog";
 
 interface ProductionOrderWorkOrderDialogProps {
   prodOrderNo: string;
@@ -21,57 +17,67 @@ interface ProductionOrderWorkOrderDialogProps {
 export function ProductionOrderWorkOrderDialog({
   prodOrderNo,
 }: ProductionOrderWorkOrderDialogProps) {
-  const [open, setOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [data, setData] = useState<any>(null);
+  const [error, setError] = useState<ApiErrorState | null>(null);
 
-  const handleOpenChange = async (isOpen: boolean) => {
-    setOpen(isOpen);
-    if (isOpen && !data) {
-      loadWorkOrder();
-    }
-  };
-
-  const loadWorkOrder = async () => {
+  const handleWorkOrderClick = async () => {
     try {
       setIsLoading(true);
+      setError(null);
+
       const response = await getWorkOrder(prodOrderNo);
-      setData(response);
-    } catch (error) {
-      console.error("Error loading Work Order:", error);
-      toast.error("Error loading Work Order");
-      setData({ error: "Failed to load work order data." });
+
+      if (response && response.value) {
+        // Convert base64 to Blob
+        const base64Data = response.value;
+        const byteCharacters = atob(base64Data);
+        const byteNumbers = new Array(byteCharacters.length);
+        for (let i = 0; i < byteCharacters.length; i++) {
+          byteNumbers[i] = byteCharacters.charCodeAt(i);
+        }
+        const byteArray = new Uint8Array(byteNumbers);
+        const blob = new Blob([byteArray], { type: "application/pdf" });
+
+        // Create blob URL and open in new tab
+        const blobUrl = URL.createObjectURL(blob);
+        window.open(blobUrl, "_blank");
+        
+        // Note: URL.revokeObjectURL(blobUrl) is intentionally omitted here 
+        // to ensure the new tab has time to load the PDF.
+      } else {
+        throw new Error("Invalid response format: missing PDF data.");
+      }
+    } catch (err) {
+      console.error("Error loading Work Order:", err);
+      setError({
+        title: "Work Order Error",
+        ...extractApiError(err),
+      });
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger asChild>
-        <Button variant="default" size="sm" data-work-order-trigger>
+    <>
+      <Button
+        variant="default"
+        size="sm"
+        onClick={handleWorkOrderClick}
+        disabled={isLoading}
+      >
+        {isLoading ? (
+          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+        ) : (
           <ClipboardList className="mr-2 h-4 w-4" />
-          Work Order
-        </Button>
-      </DialogTrigger>
-      <DialogContent className="flex h-[80vh] max-w-[95vw] flex-col p-4 sm:max-w-[85vw] sm:p-6 md:max-w-4xl md:p-8">
-        <DialogHeader>
-          <DialogTitle>Work Order Response</DialogTitle>
-          <DialogDescription>Raw API Response for Production Order {prodOrderNo}</DialogDescription>
-        </DialogHeader>
+        )}
+        Work Order
+      </Button>
 
-        <div className="bg-muted relative w-full flex-1 overflow-auto rounded-md p-4">
-          {isLoading ? (
-            <div className="absolute inset-0 flex items-center justify-center">
-              <Loader2 className="text-muted-foreground h-8 w-8 animate-spin" />
-            </div>
-          ) : (
-            <pre className="text-sm">
-              {JSON.stringify(data, null, 2)}
-            </pre>
-          )}
-        </div>
-      </DialogContent>
-    </Dialog>
+      <ApiErrorDialog
+        error={error}
+        onClose={() => setError(null)}
+      />
+    </>
   );
 }

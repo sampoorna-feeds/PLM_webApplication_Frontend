@@ -5,7 +5,7 @@ import { DateInput } from "@/components/ui/date-input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { getConsumptionReport } from "@/lib/api/services/report-ledger.service";
-import { Loader2, FileDown, Eye } from "lucide-react";
+import { Loader2, FileDown } from "lucide-react";
 import { toast } from "sonner";
 
 export function ConsumptionReportForm() {
@@ -17,7 +17,7 @@ export function ConsumptionReportForm() {
   );
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleFetchReport = async (mode: "download" | "view") => {
+  const handleFetchReport = async () => {
     if (!startingDate || !endingDate) {
       toast.error("Please select both starting and ending dates");
       return;
@@ -37,19 +37,18 @@ export function ConsumptionReportForm() {
         byteNumbers[i] = byteCharacters.charCodeAt(i);
       }
       const byteArray = new Uint8Array(byteNumbers);
-      const blob = new Blob([byteArray], { type: "application/pdf" });
+      const blob = new Blob([byteArray], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      });
       const url = URL.createObjectURL(blob);
 
-      if (mode === "view") {
-        window.open(url, "_blank");
-      } else {
-        const link = document.createElement("a");
-        link.href = url;
-        link.download = `Consumption_Report_${startingDate}_to_${endingDate}.pdf`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-      }
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `Consumption_Report_${startingDate}_to_${endingDate}.xlsx`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
     } catch (error: any) {
       console.error("Error fetching consumption report:", error);
       toast.error(error.message || "Failed to fetch consumption report");
@@ -78,22 +77,9 @@ export function ConsumptionReportForm() {
           </div>
         </div>
 
-        <div className="flex justify-end gap-4 pt-4 border-t">
+        <div className="flex justify-end pt-4 border-t">
           <Button
-            variant="outline"
-            onClick={() => handleFetchReport("view")}
-            disabled={isLoading}
-            className="w-full sm:w-auto"
-          >
-            {isLoading ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <Eye className="mr-2 h-4 w-4" />
-            )}
-            View Report
-          </Button>
-          <Button
-            onClick={() => handleFetchReport("download")}
+            onClick={handleFetchReport}
             disabled={isLoading}
             className="w-full sm:w-auto bg-primary text-primary-foreground shadow hover:bg-primary/90"
           >
@@ -102,7 +88,7 @@ export function ConsumptionReportForm() {
             ) : (
               <FileDown className="mr-2 h-4 w-4" />
             )}
-            Download PDF
+            Download Excel
           </Button>
         </div>
       </CardContent>

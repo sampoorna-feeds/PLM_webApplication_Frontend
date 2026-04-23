@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { getStockReport } from "@/lib/api/services/report-ledger.service";
 import { getTransferItemsForDialog } from "@/lib/api/services/transfer-orders.service";
 import { SearchableSelect } from "@/components/ui/searchable-select";
-import { Loader2, FileDown, Eye } from "lucide-react";
+import { Loader2, FileDown } from "lucide-react";
 import { toast } from "sonner";
 
 export function StockReportForm() {
@@ -22,9 +22,9 @@ export function StockReportForm() {
   const [isSearching, setIsSearching] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleFetchReport = async (mode: "download" | "view") => {
-    if (!startingDate || !endingDate || !itemNo) {
-      toast.error("Please fill in all fields (Dates and Item No)");
+  const handleFetchReport = async () => {
+    if (!startingDate || !endingDate) {
+      toast.error("Please fill in both dates");
       return;
     }
 
@@ -42,19 +42,19 @@ export function StockReportForm() {
         byteNumbers[i] = byteCharacters.charCodeAt(i);
       }
       const byteArray = new Uint8Array(byteNumbers);
-      const blob = new Blob([byteArray], { type: "application/pdf" });
+      const blob = new Blob([byteArray], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      });
       const url = URL.createObjectURL(blob);
 
-      if (mode === "view") {
-        window.open(url, "_blank");
-      } else {
-        const link = document.createElement("a");
-        link.href = url;
-        link.download = `Stock_Report_${itemNo}_${startingDate}_to_${endingDate}.pdf`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-      }
+      const link = document.createElement("a");
+      link.href = url;
+      const fileNameSuffix = itemNo ? `_${itemNo}` : "";
+      link.download = `Stock_Report${fileNameSuffix}_${startingDate}_to_${endingDate}.xlsx`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
     } catch (error: any) {
       console.error("Error fetching stock report:", error);
       toast.error(error.message || "Failed to fetch stock report");
@@ -111,9 +111,9 @@ export function StockReportForm() {
         </div>
 
         <div className="space-y-2">
-          <label className="text-sm font-medium">Item</label>
+          <label className="text-sm font-medium">Item (Optional)</label>
           <SearchableSelect
-            placeholder="Search and select an item..."
+            placeholder="Search and select an item (optional)..."
             value={itemNo}
             onValueChange={setItemNo}
             onSearch={fetchItems}
@@ -122,22 +122,9 @@ export function StockReportForm() {
           />
         </div>
 
-        <div className="flex justify-end gap-4 pt-4 border-t">
+        <div className="flex justify-end pt-4 border-t">
           <Button
-            variant="outline"
-            onClick={() => handleFetchReport("view")}
-            disabled={isLoading}
-            className="w-full sm:w-auto"
-          >
-            {isLoading ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <Eye className="mr-2 h-4 w-4" />
-            )}
-            View Report
-          </Button>
-          <Button
-            onClick={() => handleFetchReport("download")}
+            onClick={handleFetchReport}
             disabled={isLoading}
             className="w-full sm:w-auto bg-primary text-primary-foreground shadow hover:bg-primary/90"
           >
@@ -146,7 +133,7 @@ export function StockReportForm() {
             ) : (
               <FileDown className="mr-2 h-4 w-4" />
             )}
-            Download PDF
+            Download Excel
           </Button>
         </div>
       </CardContent>

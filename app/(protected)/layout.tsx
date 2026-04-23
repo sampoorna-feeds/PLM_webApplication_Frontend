@@ -123,6 +123,18 @@ export default function ProtectedLayout({
         { label: "Vendor Ledger", href: null },
       ];
     }
+    if (pathname === "/ledger/consumption-report") {
+      return [
+        { label: "Ledger", href: "#" },
+        { label: "Consumption Report", href: null },
+      ];
+    }
+    if (pathname === "/ledger/stock-report") {
+      return [
+        { label: "Ledger", href: "#" },
+        { label: "Stock Report", href: null },
+      ];
+    }
     if (pathname?.startsWith("/settings")) {
       if (pathname === "/settings/account") {
         return [

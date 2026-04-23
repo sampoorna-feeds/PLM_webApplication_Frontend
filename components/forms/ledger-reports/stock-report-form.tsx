@@ -10,8 +10,11 @@ import { SearchableSelect } from "@/components/ui/searchable-select";
 import { LocationSelect } from "@/components/forms/shared/location-select";
 import { Loader2, FileDown } from "lucide-react";
 import { toast } from "sonner";
+import { useAuth } from "@/lib/contexts/auth-context";
+import { getAllLOCsFromUserSetup } from "@/lib/api/services/dimension.service";
 
 export function StockReportForm() {
+  const { userID } = useAuth();
   const [startingDate, setStartingDate] = useState<string>(
     new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split("T")[0]
   );
@@ -23,16 +26,29 @@ export function StockReportForm() {
   const [options, setOptions] = useState<{ value: string; label: string }[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [authorizedLOCs, setAuthorizedLOCs] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (userID) {
+      getAllLOCsFromUserSetup(userID)
+        .then(locs => setAuthorizedLOCs(locs.map(l => l.Code)))
+        .catch(err => console.error("Error fetching authorized locations:", err));
+    }
+  }, [userID]);
 
   const handleFetchReport = async () => {
     if (!startingDate || !endingDate) {
       toast.error("Please fill in both dates");
       return;
     }
+    if (!loc) {
+      toast.error("Please select a location");
+      return;
+    }
 
     setIsLoading(true);
     try {
-      const base64 = await getStockReport({ startingDate, endingDate, itemNo, loc });
+      const base64 = await getStockReport({ startingDate, endingDate, itemNo, loc, userID: userID || "" });
       if (!base64) {
         toast.error("No data received for the selected parameters");
         return;
@@ -114,6 +130,15 @@ export function StockReportForm() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-2">
+            <label className="text-sm font-medium">Location</label>
+            <LocationSelect
+              value={loc}
+              onChange={(v) => setLoc(v)}
+              authorizedCodes={authorizedLOCs}
+              placeholder="Search and select a location..."
+            />
+          </div>
+          <div className="space-y-2">
             <label className="text-sm font-medium">Item (Optional)</label>
             <SearchableSelect
               placeholder="Search and select an item..."
@@ -122,14 +147,6 @@ export function StockReportForm() {
               onSearch={fetchItems}
               options={options}
               isLoading={isSearching}
-            />
-          </div>
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Location (Optional)</label>
-            <LocationSelect
-              value={loc}
-              onChange={(v) => setLoc(v)}
-              placeholder="Search and select a location..."
             />
           </div>
         </div>

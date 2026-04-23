@@ -839,12 +839,15 @@ export async function getTransferLocationCodes(
   }
 
   try {
-    const escapedSearch = search.replace(/'/g, "''");
+    const s = search.replace(/'/g, "''");
+    const sLower = s.toLowerCase();
+    const sUpper = s.toUpperCase();
+    
     const [resultsByCode, resultsByName] = await Promise.all([
       (async () => {
         const filter = [
           ...commonFilter,
-          `contains(Code,'${escapedSearch}')`,
+          `(contains(Code,'${s}') or contains(Code,'${sLower}') or contains(Code,'${sUpper}'))`,
         ].join(" and ");
         const query = buildODataQuery({
           $select: "Code,Name",
@@ -860,7 +863,7 @@ export async function getTransferLocationCodes(
       (async () => {
         const filter = [
           ...commonFilter,
-          `contains(Name,'${escapedSearch}')`,
+          `(contains(Name,'${s}') or contains(Name,'${sLower}') or contains(Name,'${sUpper}'))`,
         ].join(" and ");
         const query = buildODataQuery({
           $select: "Code,Name",
@@ -896,35 +899,54 @@ export async function getTransferAllLocationCodes(
   codes?: string[],
   searchTerm?: string,
 ): Promise<TransferLocationCode[]> {
-  const queryParams: Record<string, any> = {
-    $select: "Code,Name",
-    $orderby: "Code",
-    $top: 1000,
-  };
-  const parts: string[] = [];
+  const commonFilter: string[] = [];
   if (codes && codes.length > 0) {
     const codeFilter = codes
       .map((c) => `Code eq '${c.replace(/'/g, "''")}'`)
       .join(" or ");
-    parts.push(`(${codeFilter})`);
+    commonFilter.push(`(${codeFilter})`);
   }
 
-  if (searchTerm) {
-    const escaped = searchTerm.replace(/'/g, "''");
-    parts.push(`(contains(Code,'${escaped}') or contains(Name,'${escaped}'))`);
+  const fetchBatch = async (filterPart?: string) => {
+    const filters = [...commonFilter];
+    if (filterPart) filters.push(filterPart);
+    
+    const query = buildODataQuery({
+      $select: "Code,Name",
+      $filter: filters.length > 0 ? filters.join(" and ") : undefined,
+      $orderby: "Code",
+      $top: 1000,
+    });
+    const endpoint = `/LocationList?company='${encodeURIComponent(COMPANY)}'&${query}`;
+    return apiGet<ODataResponse<TransferLocationCode>>(endpoint);
+  };
+
+  if (!searchTerm || !searchTerm.trim()) {
+    try {
+      const res = await fetchBatch();
+      return res.value || [];
+    } catch (error) {
+      console.error("Error fetching location codes:", error);
+      return [];
+    }
   }
 
-  if (parts.length > 0) {
-    queryParams.$filter = parts.join(" and ");
-  }
-  const query = buildODataQuery(queryParams);
-  const endpoint = `/LocationList?company='${encodeURIComponent(COMPANY)}'&${query}`;
+  const s = searchTerm.trim().replace(/'/g, "''");
+  const sLower = s.toLowerCase();
+  const sUpper = s.toUpperCase();
+  
   try {
-    const response =
-      await apiGet<ODataResponse<TransferLocationCode>>(endpoint);
-    return response.value || [];
+    const [resCode, resName] = await Promise.all([
+      fetchBatch(`(contains(Code,'${s}') or contains(Code,'${sLower}') or contains(Code,'${sUpper}'))`).catch(() => ({ value: [] })),
+      fetchBatch(`(contains(Name,'${s}') or contains(Name,'${sLower}') or contains(Name,'${sUpper}'))`).catch(() => ({ value: [] })),
+    ]);
+
+    const map = new Map<string, TransferLocationCode>();
+    [...(resCode.value || []), ...(resName.value || [])].forEach(l => map.set(l.Code, l));
+    
+    return Array.from(map.values()).sort((a, b) => a.Code.localeCompare(b.Code));
   } catch (error) {
-    console.error("Error fetching location codes:", error);
+    console.error("Error searching location codes:", error);
     return [];
   }
 }
@@ -1239,7 +1261,7 @@ export async function getTransferLocationsForDialog(params: {
   const sUpper = s.toUpperCase();
 
   const [resCode, resName] = await Promise.all([
-    fetchBatch(`(contains(Code,'${s}') or contains(Code,'${sLower}') or contains(Code,'${sUpper}') or Code eq '${sUpper}')`).catch(() => ({ value: [], count: 0 })),
+    fetchBatch(`(contains(Code,'${s}') or contains(Code,'${sLower}') or contains(Code,'${sUpper}'))`).catch(() => ({ value: [], count: 0 })),
     fetchBatch(`(contains(Name,'${s}') or contains(Name,'${sLower}') or contains(Name,'${sUpper}'))`).catch(() => ({ value: [], count: 0 })),
   ]);
 

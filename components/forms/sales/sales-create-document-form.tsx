@@ -831,8 +831,6 @@ export function SalesCreateDocumentFormContent({
     setIsPostLoading(true);
     try {
       const patchPayload: Record<string, unknown> = {
-        Transporter_Code: postDetails.transporterCode || "",
-        Transporter_Name: postDetails.transporterName || "",
         Vehicle_No: postDetails.vehicleNumber || "",
         Driver_Mobile_No: postDetails.driverPhone || "",
         LR_RR_No: postDetails.lrRrNumber || "",
@@ -843,6 +841,15 @@ export function SalesCreateDocumentFormContent({
           ? Number(postDetails.distanceKm)
           : 0,
       };
+
+      if (postDetails.transporterCode) {
+        patchPayload.Transporter_Code = postDetails.transporterCode;
+        patchPayload.Transporter_Name = "";
+      } else {
+        patchPayload.Transporter_Code = "";
+        patchPayload.Transporter_Name = postDetails.transporterName || "";
+      }
+
       if (isShipOption) {
         patchPayload.Gross_Weight = postDetails.grossWeight
           ? Number(postDetails.grossWeight)
@@ -1850,23 +1857,38 @@ export function SalesCreateDocumentFormContent({
               )}
               {caps.supportsTransporter && (
                 <>
-                  <div className="space-y-1">
-                    <Label>
-                      Transporter Name{" "}
-                      {isShipOption && (
-                        <span className="text-destructive">*</span>
-                      )}
-                    </Label>
+                  <div className="space-y-1 text-left">
+                    <Label className="text-xs font-semibold">Transporter Code</Label>
                     <TransporterSelect
                       value={postDetails.transporterCode}
                       onChange={(val, item) =>
                         setPostDetails((p) => ({
                           ...p,
                           transporterCode: val,
-                          transporterName: item?.Name || val,
+                          transporterName: item?.Name || val || p.transporterName,
                         }))
                       }
-                      placeholder="Select Transporter"
+                      placeholder="Select Code"
+                    />
+                  </div>
+                  <div className="space-y-1 text-left">
+                    <Label className="text-xs font-semibold">
+                      Transporter Name{" "}
+                      {isShipOption && (
+                        <span className="text-destructive">*</span>
+                      )}
+                    </Label>
+                    <Input
+                      value={postDetails.transporterName}
+                      onChange={(e) =>
+                        setPostDetails((p) => ({
+                          ...p,
+                          transporterName: e.target.value,
+                        }))
+                      }
+                      disabled={!!postDetails.transporterCode}
+                      className={cn("h-9", !!postDetails.transporterCode && "bg-muted")}
+                      placeholder="Enter Name"
                     />
                   </div>
                   <div className="space-y-1">

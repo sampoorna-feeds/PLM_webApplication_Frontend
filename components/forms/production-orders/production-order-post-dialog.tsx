@@ -74,7 +74,7 @@ export function ProductionOrderPostSheet({
     Item_No: entry.Item_No_,
   }));
   const { trackingMap } = useItemTracking(journalEntriesWithItemNo);
-  const { assignedMap } = useAssignedTracking({
+  const { assignedMap, refresh: refreshAssignedTracking } = useAssignedTracking({
     sourceType: 83,
     sourceId: "PROD.ORDEA",
     sourceBatchName: userId,
@@ -313,10 +313,16 @@ export function ProductionOrderPostSheet({
         journalEntry={selectedEntry}
         hasTracking={selectedEntryHasTracking}
         open={isTrackingDialogOpen}
-        onOpenChange={setIsTrackingDialogOpen}
+        onOpenChange={(open) => {
+          setIsTrackingDialogOpen(open);
+          if (!open) {
+            refreshAssignedTracking();
+          }
+        }}
         onSave={() => {
           // Refresh entries after tracking assignment
           fetchJournalEntries();
+          refreshAssignedTracking();
         }}
         prodOrderNo={prodOrderNo}
         userId={userId}

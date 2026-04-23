@@ -49,18 +49,21 @@ interface ProductionOrderComponentsTableProps {
     component: ProductionOrderComponent,
     hasTracking: boolean,
   ) => void;
+  trackingRefreshTrigger?: number;
 }
 
 export function ProductionOrderComponentsTable({
   components,
   isLoading,
   onRowClick,
+  trackingRefreshTrigger = 0,
 }: ProductionOrderComponentsTableProps) {
   const { trackingMap } = useItemTracking(components);
   const { assignedMap } = useAssignedTracking({
     sourceType: 5407,
     sourceId: components.length > 0 ? components[0].Prod_Order_No : undefined,
     enabled: components.length > 0,
+    refreshTrigger: trackingRefreshTrigger,
   });
   const { stockMap, isLoading: isLoadingStock } = useAvailableStock(components);
 

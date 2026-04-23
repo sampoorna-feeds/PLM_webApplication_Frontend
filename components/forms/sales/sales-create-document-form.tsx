@@ -430,22 +430,37 @@ export function SalesCreateDocumentFormContent({
 
   // Initialize post details from orderHeader when dialog opens
   useEffect(() => {
-    if (isPostDetailsOpen && orderHeader) {
-      setPostDetails({
-        transporterCode: (orderHeader.Transporter_Code as string) || "",
-        transporterName: (orderHeader.Transporter_Name as string) || "",
-        vehicleNumber: (orderHeader.Vehicle_No as string) || "",
-        driverPhone: (orderHeader.Driver_Mobile_No as string) || "",
-        lrRrNumber: (orderHeader.LR_RR_No as string) || "",
-        lrRrDate: (orderHeader.LR_RR_Date as string)?.split("T")[0] || "",
-        postingDate: orderHeader.Posting_Date || today,
-        externalDocumentNo: orderHeader.External_Document_No || "",
-        distanceKm: orderHeader.Distance_km ? String(orderHeader.Distance_km) : "",
-        grossWeight: orderHeader.Gross_Weight ? String(orderHeader.Gross_Weight) : "",
-        tareWeight: orderHeader.Tier_Weight ? String(orderHeader.Tier_Weight) : "",
-      });
-    }
-  }, [isPostDetailsOpen, orderHeader, today]);
+    const fetchFreshData = async () => {
+      if (isPostDetailsOpen && initialOrderNo) {
+        setIsPostLoading(true);
+        try {
+          const freshHeader = await ops.fetchHeader(initialOrderNo);
+          if (freshHeader) {
+            setOrderHeader(freshHeader);
+            setPostDetails({
+              transporterCode: (freshHeader.Transporter_Code as string) || "",
+              transporterName: (freshHeader.Transporter_Name as string) || "",
+              vehicleNumber: (freshHeader.Vehicle_No as string) || "",
+              driverPhone: (freshHeader.Driver_Mobile_No as string) || "",
+              lrRrNumber: (freshHeader.LR_RR_No as string) || "",
+              lrRrDate: (freshHeader.LR_RR_Date as string)?.split("T")[0] || "",
+              postingDate: freshHeader.Posting_Date || today,
+              externalDocumentNo: freshHeader.External_Document_No || "",
+              distanceKm: freshHeader.Distance_km ? String(freshHeader.Distance_km) : "",
+              grossWeight: freshHeader.Gross_Weight ? String(freshHeader.Gross_Weight) : "",
+              tareWeight: freshHeader.Tier_Weight ? String(freshHeader.Tier_Weight) : "",
+            });
+          }
+        } catch (err) {
+          console.error("Failed to fetch fresh header for post details:", err);
+        } finally {
+          setIsPostLoading(false);
+        }
+      }
+    };
+
+    fetchFreshData();
+  }, [isPostDetailsOpen, initialOrderNo, ops, today]);
 
   // ── Delivery Challan state (order only) ───────────────────────────────────
   const [isChallanOpen, setIsChallanOpen] = useState(false);
@@ -1827,7 +1842,12 @@ export function SalesCreateDocumentFormContent({
             <DialogHeader>
               <DialogTitle>Post Details</DialogTitle>
             </DialogHeader>
-            <div className="grid gap-4 py-2 sm:grid-cols-2">
+            <div className="grid gap-4 py-2 sm:grid-cols-2 relative">
+              {isPostLoading && (
+                <div className="absolute inset-0 z-50 flex items-center justify-center bg-background/50 backdrop-blur-[1px]">
+                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                </div>
+              )}
               {caps.supportsTransporter && (
                 <>
                   <div className="space-y-1">

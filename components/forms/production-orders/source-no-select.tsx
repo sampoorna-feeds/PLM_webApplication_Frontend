@@ -190,8 +190,12 @@ export function SourceNoSelect({
   const [loadingMore, setLoadingMore] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [sortColumn, setSortColumn] = useState<string | null>(null);
-  const [sortDirection, setSortDirection] = useState<SortDirection>(null);
+  const [sortColumn, setSortColumn] = useState<string | null>(() => 
+    sourceType === "BOM Version" ? "Starting_Date" : null
+  );
+  const [sortDirection, setSortDirection] = useState<SortDirection>(() => 
+    sourceType === "BOM Version" ? "desc" : null
+  );
   const [columnFilters, setColumnFilters] = useState<Record<string, string>>(
     {},
   );

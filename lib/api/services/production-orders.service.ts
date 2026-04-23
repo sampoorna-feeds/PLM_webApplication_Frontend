@@ -421,6 +421,26 @@ export async function refreshProductionOrder(
 }
 
 // ============================================
+// WORK ORDER
+// ============================================
+
+/**
+ * Get work order details
+ * @param orderNo - Production Order No
+ */
+export async function getWorkOrder(orderNo: string): Promise<any> {
+  const endpoint = `/API_GetWorkOrder?company='${encodeURIComponent(COMPANY)}'`;
+  const payload = { orderNo };
+
+  try {
+    return await apiPost<any>(endpoint, payload);
+  } catch (error) {
+    console.error("Error getting work order:", error);
+    throw error;
+  }
+}
+
+// ============================================
 // CREATE PRODUCTION ORDER
 // ============================================
 

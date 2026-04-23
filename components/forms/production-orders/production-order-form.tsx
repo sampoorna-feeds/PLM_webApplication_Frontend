@@ -16,6 +16,7 @@ import {
   MoreVertical,
   FileText,
   QrCode,
+  ClipboardList,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -91,6 +92,7 @@ import {
   type ProductionOrderComponent,
 } from "@/lib/api/services/production-orders.service";
 import { ProductionOrderQRDialog } from "./production-order-qr-dialog";
+import { ProductionOrderWorkOrderDialog } from "./production-order-work-order-dialog";
 import { ProductionOrderPostDialog } from "./production-order-post-dialog";
 import { ProductionOrderLinesTable } from "./production-order-lines-table";
 import { ProductionOrderComponentsTable } from "./production-order-components-table";
@@ -1042,6 +1044,10 @@ export function ProductionOrderForm({
               <div className="hidden md:block">
                 <ProductionOrderQRDialog prodOrderNo={formState.No} />
               </div>
+              {/* Work Order - hidden on xs/sm, visible on md+ */}
+              <div className="hidden md:block">
+                <ProductionOrderWorkOrderDialog prodOrderNo={formState.No} />
+              </div>
               {/* Refresh - hidden on xs/sm/md, visible on lg+ */}
               <div className="hidden lg:block">
                 <Button
@@ -1108,6 +1114,18 @@ export function ProductionOrderForm({
                   >
                     <QrCode className="mr-2 h-4 w-4" />
                     QR Code
+                  </DropdownMenuItem>
+                  {/* Work Order - show in dropdown on xs/sm */}
+                  <DropdownMenuItem
+                    className="md:hidden"
+                    onClick={() => {
+                      const trigger =
+                        document.querySelector("[data-work-order-trigger]");
+                      if (trigger instanceof HTMLElement) trigger.click();
+                    }}
+                  >
+                    <ClipboardList className="mr-2 h-4 w-4" />
+                    Work Order
                   </DropdownMenuItem>
                   {/* Refresh - show in dropdown on xs/sm/md */}
                   <DropdownMenuItem
@@ -1543,7 +1561,7 @@ export function ProductionOrderForm({
               <SheetHeader className="bg-background sticky top-0 z-10 border-b px-6 py-4">
                 <SheetTitle>Production Order Components</SheetTitle>
               </SheetHeader>
-              <div className="flex-1 overflow-hidden px-6 py-4">
+              <div className="flex-1 overflow-hidden flex flex-col p-6 pt-4">
                 <ProductionOrderComponentsTable
                   components={orderComponents}
                   isLoading={isLoadingComponents}

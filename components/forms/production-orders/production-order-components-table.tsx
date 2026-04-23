@@ -11,6 +11,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useItemTracking } from "./use-item-tracking";
+import { useAssignedTracking } from "./use-assigned-tracking";
 import { useAvailableStock } from "./use-available-stock";
 import { cn } from "@/lib/utils";
 
@@ -56,6 +57,11 @@ export function ProductionOrderComponentsTable({
   onRowClick,
 }: ProductionOrderComponentsTableProps) {
   const { trackingMap } = useItemTracking(components);
+  const { assignedMap } = useAssignedTracking({
+    sourceType: 5407,
+    sourceId: components.length > 0 ? components[0].Prod_Order_No : undefined,
+    enabled: components.length > 0,
+  });
   const { stockMap, isLoading: isLoadingStock } = useAvailableStock(components);
 
   if (isLoading) {
@@ -78,7 +84,7 @@ export function ProductionOrderComponentsTable({
   }
 
   return (
-    <div className="relative h-full overflow-auto rounded-md border">
+    <div className="flex-1 min-h-0 overflow-auto rounded-md border">
       <Table>
         <TableHeader className="bg-muted/50 sticky top-0 z-10 shadow-sm backdrop-blur">
           <TableRow>
@@ -102,6 +108,7 @@ export function ProductionOrderComponentsTable({
               ? component.Item_No.trim().toLowerCase()
               : "";
             const hasTracking = trackingMap[itemKey] || false;
+            const isAssigned = assignedMap[component.Line_No] || false;
             const stockKey = `${component.Item_No?.trim()}-${component.Location_Code}`;
             const availableStock = stockMap[stockKey];
 
@@ -109,7 +116,11 @@ export function ProductionOrderComponentsTable({
               <TableRow
                 key={`${component.Prod_Order_No}-${component.Prod_Order_Line_No}-${component.Line_No}`}
                 className={cn(
-                  hasTracking && "text-red-600",
+                  isAssigned
+                    ? "text-green-600 bg-green-50/50 hover:bg-green-50"
+                    : hasTracking
+                      ? "text-red-600"
+                      : "",
                   "hover:bg-muted/50 cursor-pointer",
                 )}
                 onClick={() => onRowClick?.(component, hasTracking)}

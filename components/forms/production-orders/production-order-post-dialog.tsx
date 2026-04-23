@@ -29,6 +29,7 @@ import {
 import { ItemTrackingDialog } from "./item-tracking-dialog";
 import { ProductionOrderPostConfirmationDialog } from "./production-order-post-confirmation-dialog";
 import { useItemTracking } from "./use-item-tracking";
+import { useAssignedTracking } from "./use-assigned-tracking";
 import {
   ApiErrorDialog,
   extractApiError,
@@ -73,6 +74,12 @@ export function ProductionOrderPostSheet({
     Item_No: entry.Item_No_,
   }));
   const { trackingMap } = useItemTracking(journalEntriesWithItemNo);
+  const { assignedMap } = useAssignedTracking({
+    sourceType: 83,
+    sourceId: "PROD.ORDEA",
+    sourceBatchName: userId,
+    enabled: journalEntries.length > 0,
+  });
 
   // Fetch journal entries
   const fetchJournalEntries = useCallback(async () => {
@@ -220,7 +227,7 @@ export function ProductionOrderPostSheet({
             </div>
           </SheetHeader>
 
-          <div className="flex-1 overflow-auto px-6 py-4">
+          <div className="flex-1 overflow-hidden flex flex-col p-6 pt-4">
             {isCreating ? (
               <div className="flex flex-col items-center justify-center gap-2 py-12">
                 <Loader2 className="text-muted-foreground h-8 w-8 animate-spin" />
@@ -240,9 +247,9 @@ export function ProductionOrderPostSheet({
                 No journal entries found for this production order.
               </div>
             ) : (
-              <div className="rounded-md border">
+              <div className="flex-1 min-h-0 overflow-auto rounded-md border">
                 <Table>
-                  <TableHeader>
+                  <TableHeader className="bg-muted/50 sticky top-0 z-10 shadow-sm backdrop-blur">
                     <TableRow>
                       <TableHead className="w-32">Entry Type</TableHead>
                       <TableHead>Item No.</TableHead>
@@ -263,12 +270,17 @@ export function ProductionOrderPostSheet({
                         ? entry.Item_No_.trim().toLowerCase()
                         : "";
                       const hasTracking = trackingMap[itemKey] || false;
+                      const isAssigned = assignedMap[entry.Line_No] || false;
 
                       return (
                         <TableRow
                           key={`${entry.Line_No}-${index}`}
                           className={cn(
-                            hasTracking && "text-red-600",
+                            isAssigned
+                              ? "text-green-600 bg-green-50/50 hover:bg-green-50"
+                              : hasTracking
+                                ? "text-red-600"
+                                : "",
                             "hover:bg-muted/50 cursor-pointer",
                           )}
                           onClick={() => handleRowClick(entry, hasTracking)}

@@ -111,9 +111,9 @@ export default function ProtectedLayout({
         { label: "Production Order", href: null },
       ];
     }
-    if (pathname === "/report-ledger") {
+    if (pathname === "/ledger/report-ledger") {
       return [
-        { label: "Forms", href: "#" },
+        { label: "Ledger", href: "#" },
         { label: "Report Ledger", href: null },
       ];
     }
@@ -149,7 +149,6 @@ export default function ProtectedLayout({
     pathname !== "/voucher-form" &&
     pathname !== "/sales-form" &&
     pathname !== "/production-orders" &&
-    pathname !== "/report-ledger" &&
     pathname !== "/" &&
     !pathname.includes("/sales") &&
     !pathname.includes("/purchase") &&

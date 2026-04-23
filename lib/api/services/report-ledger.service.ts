@@ -3,7 +3,7 @@
  * Handles fetching report ledger entries from ERP OData V4 API
  */
 
-import { apiGet, apiPost, apiPatch, apiDelete } from "../client";
+import { apiGet, apiPost, apiPatch, apiDelete, apiRequest } from "../client";
 import { buildODataQuery } from "../endpoints";
 import type { ODataResponse } from "../types";
 
@@ -138,4 +138,47 @@ export async function getItemLedgerEntries(
     entries: response.value || [],
     totalCount: response["@odata.count"] ?? 0,
   };
+}
+
+/**
+ * Get Consumption Report as base64 string
+ */
+export async function getConsumptionReport(params: {
+  startingDate: string;
+  endingDate: string;
+}): Promise<string> {
+  // Matching the endpoint spelling from user's CURL: API_ConsumptionRepor (no 't')
+  const endpoint = `/API_ConsumptionRepor?company='${encodeURIComponent(COMPANY)}'`;
+  const response = await apiRequest<{ value: string } | string>(endpoint, {
+    method: "POST",
+    headers: { "If-Match": "*" },
+    body: JSON.stringify({
+      staringDate: params.startingDate,
+      endingDate: params.endingDate,
+    }),
+  });
+  if (typeof response === "string") return response;
+  return response?.value || "";
+}
+
+/**
+ * Get Stock Report as base64 string
+ */
+export async function getStockReport(params: {
+  startingDate: string;
+  endingDate: string;
+  itemNo: string;
+}): Promise<string> {
+  const endpoint = `/API_StockReport?company='${encodeURIComponent(COMPANY)}'`;
+  const response = await apiRequest<{ value: string } | string>(endpoint, {
+    method: "POST",
+    headers: { "If-Match": "*" },
+    body: JSON.stringify({
+      staringDate: params.startingDate,
+      endingDate: params.endingDate,
+      itemNo: params.itemNo,
+    }),
+  });
+  if (typeof response === "string") return response;
+  return response?.value || "";
 }

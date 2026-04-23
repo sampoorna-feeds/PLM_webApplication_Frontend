@@ -114,6 +114,16 @@ const ledgerSubItems = [
     url: "/ledger/report-ledger",
     icon: BookOpenCheck,
   },
+  {
+    title: "Consumption Report",
+    url: "/ledger/consumption-report",
+    icon: BookOpenCheck,
+  },
+  {
+    title: "Stock Report",
+    url: "/ledger/stock-report",
+    icon: BookOpenCheck,
+  },
 ];
 
 const formsItems = [

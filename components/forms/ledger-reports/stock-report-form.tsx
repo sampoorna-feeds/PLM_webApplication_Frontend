@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { getStockReport } from "@/lib/api/services/report-ledger.service";
 import { getTransferItemsForDialog } from "@/lib/api/services/transfer-orders.service";
 import { SearchableSelect } from "@/components/ui/searchable-select";
+import { LocationSelect } from "@/components/forms/shared/location-select";
 import { Loader2, FileDown } from "lucide-react";
 import { toast } from "sonner";
 
@@ -18,6 +19,7 @@ export function StockReportForm() {
     new Date().toISOString().split("T")[0]
   );
   const [itemNo, setItemNo] = useState<string>("");
+  const [loc, setLoc] = useState<string>("");
   const [options, setOptions] = useState<{ value: string; label: string }[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -30,7 +32,7 @@ export function StockReportForm() {
 
     setIsLoading(true);
     try {
-      const base64 = await getStockReport({ startingDate, endingDate, itemNo });
+      const base64 = await getStockReport({ startingDate, endingDate, itemNo, loc });
       if (!base64) {
         toast.error("No data received for the selected parameters");
         return;
@@ -110,16 +112,26 @@ export function StockReportForm() {
           </div>
         </div>
 
-        <div className="space-y-2">
-          <label className="text-sm font-medium">Item (Optional)</label>
-          <SearchableSelect
-            placeholder="Search and select an item (optional)..."
-            value={itemNo}
-            onValueChange={setItemNo}
-            onSearch={fetchItems}
-            options={options}
-            isLoading={isSearching}
-          />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Item (Optional)</label>
+            <SearchableSelect
+              placeholder="Search and select an item..."
+              value={itemNo}
+              onValueChange={setItemNo}
+              onSearch={fetchItems}
+              options={options}
+              isLoading={isSearching}
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Location (Optional)</label>
+            <LocationSelect
+              value={loc}
+              onChange={(v) => setLoc(v)}
+              placeholder="Search and select a location..."
+            />
+          </div>
         </div>
 
         <div className="flex justify-end pt-4 border-t">

@@ -483,7 +483,11 @@ export async function addSalesLine(
   line: AddSalesLinePayload,
 ): Promise<unknown> {
   const endpoint = `/SalesLine?company='${encodeURIComponent(COMPANY)}'`;
-  return apiPost<unknown>(endpoint, line);
+  const payload = {
+    ...line,
+    ShortcutDimCode3: line.Location_Code,
+  };
+  return apiPost<unknown>(endpoint, payload);
 }
 
 /**

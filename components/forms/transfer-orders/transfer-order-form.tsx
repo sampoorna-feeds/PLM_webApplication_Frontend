@@ -9,6 +9,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { LocationSelect } from "@/components/forms/shared/location-select";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { SuccessDialog } from "@/components/ui/success-dialog";
 import {
@@ -49,16 +50,16 @@ import {
   type TransferOrder,
 } from "@/lib/api/services/transfer-orders.service";
 import {
-  getTransporters,
-  type Vendor,
+  getVendorsForDialog,
+  type Vendor as Transporter,
 } from "@/lib/api/services/vendor.service";
-import { getAuthCredentials } from "@/lib/auth/storage";
+import { useAuth } from "@/components/providers/auth-provider";
 import { useFormStack } from "@/lib/form-stack/use-form-stack";
 import { cn } from "@/lib/utils";
 import { Download, Eye, Loader2, Plus, Printer, RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { LocationSelect } from "./location-select";
+import { ItemSelect } from "./item-select";
 import { TransferOrderLineDetailsDialog } from "./transfer-order-line-details-dialog";
 import { TransferOrderLineDialog } from "./transfer-order-line-dialog";
 import { TransferOrderLinesTable } from "./transfer-order-lines-table";

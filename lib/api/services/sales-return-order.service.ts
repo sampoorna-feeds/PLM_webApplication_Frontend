@@ -119,7 +119,10 @@ export async function addSalesReturnOrderLineItems(
       No: item.no,
       Quantity: item.quantity,
     };
-    if (locationCode) linePayload.Location_Code = locationCode;
+    if (locationCode) {
+      linePayload.Location_Code = locationCode;
+      linePayload.ShortcutDimCode3 = locationCode;
+    }
     if (item.uom) linePayload.Unit_of_Measure_Code = item.uom;
     await apiPost(endpoint, linePayload);
   }
@@ -138,7 +141,10 @@ export async function addSingleSalesReturnOrderLine(
     No: line.no,
     Quantity: line.quantity,
   };
-  if (locationCode) payload.Location_Code = locationCode;
+  if (locationCode) {
+    payload.Location_Code = locationCode;
+    payload.ShortcutDimCode3 = locationCode;
+  }
   if (line.uom) payload.Unit_of_Measure_Code = line.uom;
   if (line.description != null) payload.Description = line.description;
   if (line.unitPrice != null) payload.Unit_Price = line.unitPrice;

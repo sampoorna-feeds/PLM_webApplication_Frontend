@@ -168,6 +168,7 @@ export async function getStockReport(params: {
   startingDate: string;
   endingDate: string;
   itemNo?: string;
+  loc?: string;
 }): Promise<string> {
   const endpoint = `/API_StockReport?company='${encodeURIComponent(COMPANY)}'`;
   const response = await apiRequest<{ value: string } | string>(endpoint, {
@@ -177,6 +178,7 @@ export async function getStockReport(params: {
       staringDate: params.startingDate,
       endingDate: params.endingDate,
       itemNo: params.itemNo || "",
+      loc: params.loc || "",
     }),
   });
   if (typeof response === "string") return response;

@@ -1,3 +1,5 @@
+import { LocationSelect } from "@/components/forms/shared/location-select";
+import { TransporterSelect } from "@/components/forms/shared/transporter-select";
 import { Button } from "@/components/ui/button";
 import { DateInput } from "@/components/ui/date-input";
 import {
@@ -9,7 +11,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { LocationSelect } from "@/components/forms/shared/location-select";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { SuccessDialog } from "@/components/ui/success-dialog";
 import {
@@ -49,21 +50,16 @@ import {
   type TransferLocationCode,
   type TransferOrder,
 } from "@/lib/api/services/transfer-orders.service";
-import {
-  getVendorsForDialog,
-  type Vendor as Transporter,
-} from "@/lib/api/services/vendor.service";
-import { useAuth } from "@/components/providers/auth-provider";
+import { getTransporters, Vendor } from "@/lib/api/services/vendor.service";
+import { getAuthCredentials } from "@/lib/auth/storage";
 import { useFormStack } from "@/lib/form-stack/use-form-stack";
 import { cn } from "@/lib/utils";
 import { Download, Eye, Loader2, Plus, Printer, RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { ItemSelect } from "./item-select";
 import { TransferOrderLineDetailsDialog } from "./transfer-order-line-details-dialog";
 import { TransferOrderLineDialog } from "./transfer-order-line-dialog";
 import { TransferOrderLinesTable } from "./transfer-order-lines-table";
-import { TransporterSelect } from "@/components/forms/shared/transporter-select";
 
 interface TransferOrderFormProps {
   tabId: string;
@@ -213,7 +209,9 @@ export function TransferOrderForm({
           setLines(linesData);
         } else {
           // Order might have been deleted/moved after posting
-          console.log(`Order ${no} not found, likely posted and moved to history.`);
+          console.log(
+            `Order ${no} not found, likely posted and moved to history.`,
+          );
         }
       } catch (err) {
         console.error("Error fetching order data:", err);

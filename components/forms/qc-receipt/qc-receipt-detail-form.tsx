@@ -1,23 +1,21 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { toast } from "sonner";
-import { useQCReceiptLines, useQCReceiptPosting, useQCReceiptUpdate } from "./use-qc-receipts";
-import { QCReceiptLinesTable } from "./qc-receipt-lines-table";
-import type { QCReceiptHeader, QCReceiptLine } from "@/lib/api/services/qc-receipt.service";
-import { Separator } from "@/components/ui/separator";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
-import { DateInput } from "@/components/ui/date-input";
-import { Loader2, Send, Save, RotateCcw, ChevronDown } from "lucide-react";
-import { useFormStackContext } from "@/lib/form-stack/form-stack-context";
-import { SearchableSelect } from "@/components/ui/searchable-select";
-import { getTransferAllLocationCodes, getTransferLocationCodes, type TransferLocationCode } from "@/lib/api/services/transfer-orders.service";
 import { LocationSelect } from "@/components/forms/shared/location-select";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { DateInput } from "@/components/ui/date-input";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
+import { Textarea } from "@/components/ui/textarea";
 import { getDimensionValueName } from "@/lib/api/services/dimension.service";
+import type { QCReceiptHeader, QCReceiptLine } from "@/lib/api/services/qc-receipt.service";
+import { getTransferAllLocationCodes, type TransferLocationCode } from "@/lib/api/services/transfer-orders.service";
+import { useFormStackContext } from "@/lib/form-stack/form-stack-context";
+import { Loader2, RotateCcw, Save, Send } from "lucide-react";
+import { useEffect, useState } from "react";
+import { QCReceiptLinesTable } from "./qc-receipt-lines-table";
+import { useQCReceiptLines, useQCReceiptPosting, useQCReceiptUpdate } from "./use-qc-receipts";
 
 interface QCReceiptDetailFormProps {
   tabId: string;

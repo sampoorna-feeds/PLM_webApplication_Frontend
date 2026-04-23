@@ -109,6 +109,11 @@ const ledgerSubItems = [
     url: "/ledger/gl-entry",
     icon: BookOpenCheck,
   },
+  {
+    title: "Report Ledger",
+    url: "/ledger/report-ledger",
+    icon: BookOpenCheck,
+  },
 ];
 
 const formsItems = [
@@ -121,11 +126,6 @@ const formsItems = [
     title: "Production Order",
     url: "/production-orders",
     icon: Factory,
-  },
-  {
-    title: "Report Ledger",
-    url: "/report-ledger",
-    icon: BookOpenCheck,
   },
 ];
 

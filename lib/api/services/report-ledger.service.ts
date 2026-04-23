@@ -167,7 +167,7 @@ export async function getConsumptionReport(params: {
 export async function getStockReport(params: {
   startingDate: string;
   endingDate: string;
-  itemNo: string;
+  itemNo?: string;
 }): Promise<string> {
   const endpoint = `/API_StockReport?company='${encodeURIComponent(COMPANY)}'`;
   const response = await apiRequest<{ value: string } | string>(endpoint, {
@@ -176,7 +176,7 @@ export async function getStockReport(params: {
     body: JSON.stringify({
       staringDate: params.startingDate,
       endingDate: params.endingDate,
-      itemNo: params.itemNo,
+      itemNo: params.itemNo || "",
     }),
   });
   if (typeof response === "string") return response;

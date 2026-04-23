@@ -62,7 +62,7 @@ import { LocationSelect } from "./location-select";
 import { TransferOrderLineDetailsDialog } from "./transfer-order-line-details-dialog";
 import { TransferOrderLineDialog } from "./transfer-order-line-dialog";
 import { TransferOrderLinesTable } from "./transfer-order-lines-table";
-import { TransporterSelect } from "./transporter-select";
+import { TransporterSelect } from "@/components/forms/shared/transporter-select";
 
 interface TransferOrderFormProps {
   tabId: string;

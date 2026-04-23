@@ -75,6 +75,7 @@ import { SalesLineItemsTable } from "./sales-line-items-table";
 import { SalesOrderLineEditDialog } from "./sales-order-line-edit-dialog";
 import { SalesItemChargeAssignmentDialog } from "./sales-item-charge-assignment-dialog";
 import { ApplyCustomerEntriesDialog } from "./apply-customer-entries-dialog";
+import { TransporterSelect } from "@/components/forms/shared/transporter-select";
 
 // ── Services ──────────────────────────────────────────────────────────────────
 import {
@@ -114,9 +115,6 @@ import {
   getSalesShipmentsByOrder,
   getDeliveryReportPdf,
   updateSalesLine as updateLine_order,
-  getTransporters,
-  getTransportersPage,
-  searchTransportersByField,
   type SalesOrder,
   type SalesLine,
   type Transporter,
@@ -411,14 +409,6 @@ export function SalesCreateDocumentFormContent({
   // ── Get posted line dialog state ──────────────────────────────────────────
   const [isGetPostedLineOpen, setIsGetPostedLineOpen] = useState(false);
 
-  // ── Post dialog state ─────────────────────────────────────────────────────
-  const loadSavedPostDetails = () => {
-    try {
-      const saved = localStorage.getItem("sales-post-details");
-      if (saved) return JSON.parse(saved) as Record<string, string>;
-    } catch { /* ignore */ }
-    return {};
-  };
   const postDetailsDefault = {
     transporterCode: "",
     transporterName: "",
@@ -436,17 +426,41 @@ export function SalesCreateDocumentFormContent({
   const [postOption, setPostOption] = useState<"1" | "2" | "3" | null>(null);
   const [isPostLoading, setIsPostLoading] = useState(false);
   const [isPostDetailsOpen, setIsPostDetailsOpen] = useState(false);
-  const [postDetails, setPostDetails] = useState(() => ({
-    ...postDetailsDefault,
-    ...loadSavedPostDetails(),
-  }));
+  const [postDetails, setPostDetails] = useState(postDetailsDefault);
 
-  // Persist post details to localStorage whenever they change
+  // Initialize post details from orderHeader when dialog opens
   useEffect(() => {
-    try {
-      localStorage.setItem("sales-post-details", JSON.stringify(postDetails));
-    } catch { /* ignore */ }
-  }, [postDetails]);
+    const fetchFreshData = async () => {
+      if (isPostDetailsOpen && initialOrderNo) {
+        setIsPostLoading(true);
+        try {
+          const freshHeader = await ops.fetchHeader(initialOrderNo);
+          if (freshHeader) {
+            setOrderHeader(freshHeader);
+            setPostDetails({
+              transporterCode: (freshHeader.Transporter_Code as string) || "",
+              transporterName: (freshHeader.Transporter_Name as string) || "",
+              vehicleNumber: (freshHeader.Vehicle_No as string) || "",
+              driverPhone: (freshHeader.Driver_Mobile_No as string) || "",
+              lrRrNumber: (freshHeader.LR_RR_No as string) || "",
+              lrRrDate: (freshHeader.LR_RR_Date as string)?.split("T")[0] || "",
+              postingDate: freshHeader.Posting_Date || today,
+              externalDocumentNo: freshHeader.External_Document_No || "",
+              distanceKm: freshHeader.Distance_km ? String(freshHeader.Distance_km) : "",
+              grossWeight: freshHeader.Gross_Weight ? String(freshHeader.Gross_Weight) : "",
+              tareWeight: freshHeader.Tier_Weight ? String(freshHeader.Tier_Weight) : "",
+            });
+          }
+        } catch (err) {
+          console.error("Failed to fetch fresh header for post details:", err);
+        } finally {
+          setIsPostLoading(false);
+        }
+      }
+    };
+
+    fetchFreshData();
+  }, [isPostDetailsOpen, initialOrderNo, ops, today]);
 
   // ── Delivery Challan state (order only) ───────────────────────────────────
   const [isChallanOpen, setIsChallanOpen] = useState(false);
@@ -1828,7 +1842,12 @@ export function SalesCreateDocumentFormContent({
             <DialogHeader>
               <DialogTitle>Post Details</DialogTitle>
             </DialogHeader>
-            <div className="grid gap-4 py-2 sm:grid-cols-2">
+            <div className="grid gap-4 py-2 sm:grid-cols-2 relative">
+              {isPostLoading && (
+                <div className="absolute inset-0 z-50 flex items-center justify-center bg-background/50 backdrop-blur-[1px]">
+                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                </div>
+              )}
               {caps.supportsTransporter && (
                 <>
                   <div className="space-y-1">
@@ -1838,7 +1857,7 @@ export function SalesCreateDocumentFormContent({
                         <span className="text-destructive">*</span>
                       )}
                     </Label>
-                    <SearchableSelect<Transporter>
+                    <TransporterSelect
                       value={postDetails.transporterCode}
                       onChange={(val, item) =>
                         setPostDetails((p) => ({
@@ -1847,13 +1866,6 @@ export function SalesCreateDocumentFormContent({
                           transporterName: item?.Name || val,
                         }))
                       }
-                      loadInitial={() => getTransporters()}
-                      searchItems={(q) => searchTransportersByField(q, "Name")}
-                      loadMore={(skip, search) =>
-                        getTransportersPage(skip, search)
-                      }
-                      getDisplayValue={(t) => t.Name || t.No}
-                      getItemValue={(t) => t.No}
                       placeholder="Select Transporter"
                     />
                   </div>

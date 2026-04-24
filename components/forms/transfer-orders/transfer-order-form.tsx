@@ -499,25 +499,19 @@ export function TransferOrderForm({
 
     setIsSubmitting(true);
     try {
-      // Only send fields specifically requested for initial creation
-      const payload: Partial<TransferOrder> = {
-        Transfer_from_Code: formState.Transfer_from_Code,
-        Transfer_to_Code: formState.Transfer_to_Code,
-      };
+      // Send all form fields except system/internal ones
+      const payload: Partial<TransferOrder> = { ...formState };
 
-      // Priority: Send Transporter_Code if available, otherwise fallback to Transporter_Name
-      if (formState.Transporter_Code) {
-        payload.Transporter_Code = formState.Transporter_Code;
-      } else if (formState.Transporter_Name) {
-        payload.Transporter_Name = formState.Transporter_Name;
+      // Remove fields that should not be sent for creation
+      delete payload.No;
+      delete (payload as any)["@odata.etag"];
+      delete payload.Transfer_from_Name;
+      delete payload.Transfer_to_Name;
+
+      // Ensure we don't send both code and name for transporter to avoid API conflicts
+      if (payload.Transporter_Code) {
+        delete payload.Transporter_Name;
       }
-
-      // Clean empty strings
-      Object.keys(payload).forEach((key) => {
-        if ((payload as any)[key] === "") {
-          delete (payload as any)[key];
-        }
-      });
 
       console.log("Creating transfer order header with payload:", payload);
 

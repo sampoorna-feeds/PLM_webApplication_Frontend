@@ -1333,7 +1333,7 @@ export function TransferOrderForm({
                     />
                     <Button
                       type="button"
-                      variant="outline"
+                      variant="default"
                       size="sm"
                       onClick={handleFetchDistance}
                       disabled={isFetchingDistance || formState.Status === "Released"}
@@ -1684,7 +1684,7 @@ export function TransferOrderForm({
                     />
                     <Button
                       type="button"
-                      variant="outline"
+                      variant="default"
                       size="sm"
                       onClick={handleFetchDistance}
                       disabled={isFetchingDistance || isSubmitting}

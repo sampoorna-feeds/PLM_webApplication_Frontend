@@ -2060,7 +2060,7 @@ export function SalesCreateDocumentFormContent({
                       />
                       <Button
                         type="button"
-                        variant="outline"
+                        variant="default"
                         size="sm"
                         onClick={handleFetchDistance}
                         disabled={isFetchingDistance || isPostLoading}

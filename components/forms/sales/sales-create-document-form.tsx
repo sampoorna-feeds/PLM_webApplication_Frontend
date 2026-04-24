@@ -427,6 +427,7 @@ export function SalesCreateDocumentFormContent({
     distanceKm: "",
     grossWeight: "",
     tareWeight: "",
+    freightValue: "",
   };
   const [isPostDialogOpen, setIsPostDialogOpen] = useState(false);
   const [postOption, setPostOption] = useState<"1" | "2" | "3" | null>(null);
@@ -456,6 +457,7 @@ export function SalesCreateDocumentFormContent({
               distanceKm: freshHeader.Distance_km ? String(freshHeader.Distance_km) : "",
               grossWeight: freshHeader.Gross_Weight ? String(freshHeader.Gross_Weight) : "",
               tareWeight: freshHeader.Tier_Weight ? String(freshHeader.Tier_Weight) : "",
+              freightValue: freshHeader.Freight_Value ? String(freshHeader.Freight_Value) : "",
             });
           }
         } catch (err) {
@@ -919,6 +921,9 @@ export function SalesCreateDocumentFormContent({
         External_Document_No: postDetails.externalDocumentNo || "",
         Distance_km: postDetails.distanceKm
           ? Number(postDetails.distanceKm)
+          : 0,
+        Freight_Value: postDetails.freightValue
+          ? Number(postDetails.freightValue)
           : 0,
       };
 
@@ -2115,6 +2120,24 @@ export function SalesCreateDocumentFormContent({
                   className="h-9"
                 />
               </div>
+              {documentType === "order" && (
+                <div className="space-y-1">
+                  <Label>Freight Value</Label>
+                  <Input
+                    type="number"
+                    value={postDetails.freightValue}
+                    onChange={(e) =>
+                      setPostDetails((p) => ({
+                        ...p,
+                        freightValue: e.target.value,
+                      }))
+                    }
+                    className="h-9"
+                    placeholder="0"
+                    min={0}
+                  />
+                </div>
+              )}
               {caps.supportsTransporter && isShipOption && (
                 <>
                   <div className="space-y-1">

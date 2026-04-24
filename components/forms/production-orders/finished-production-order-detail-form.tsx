@@ -7,12 +7,17 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Loader2 } from "lucide-react";
+import { Loader2, RefreshCw } from "lucide-react";
 import { useFormStack } from "@/lib/form-stack/use-form-stack";
 import {
   getFinishedProductionOrderByNo,
+  getFinishedProductionOrderLines,
   type ProductionOrder,
+  type ProductionOrderLine,
 } from "@/lib/api/services/production-orders.service";
+import { ProductionOrderQRDialog } from "./production-order-qr-dialog";
+import { ProductionOrderLinesTable } from "./production-order-lines-table";
+import { Button } from "@/components/ui/button";
 
 interface FinishedProductionOrderDetailFormProps {
   tabId: string;
@@ -196,6 +201,10 @@ export function FinishedProductionOrderDetailForm({
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const [orderLines, setOrderLines] = useState<ProductionOrderLine[]>([]);
+  const [isLoadingLines, setIsLoadingLines] = useState(false);
+  const [isRefreshingLines, setIsRefreshingLines] = useState(false);
+
   // Load order data on mount / when orderNo changes
   useEffect(() => {
     if (!orderNo) {
@@ -232,6 +241,42 @@ export function FinishedProductionOrderDetailForm({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orderNo]);
 
+  // Load order lines on mount
+  useEffect(() => {
+    if (!orderNo) return;
+
+    let cancelled = false;
+    setIsLoadingLines(true);
+
+    getFinishedProductionOrderLines(orderNo)
+      .then((lines) => {
+        if (!cancelled) setOrderLines(lines);
+      })
+      .catch(() => {
+        if (!cancelled) setOrderLines([]);
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoadingLines(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [orderNo]);
+
+  const handleRefreshLines = async () => {
+    if (!orderNo) return;
+    setIsRefreshingLines(true);
+    try {
+      const lines = await getFinishedProductionOrderLines(orderNo);
+      setOrderLines(lines);
+    } catch {
+      // silent
+    } finally {
+      setIsRefreshingLines(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center py-16">
@@ -266,11 +311,12 @@ export function FinishedProductionOrderDetailForm({
 
   return (
     <div className="flex flex-col gap-6 px-6 py-4">
-      {/* Read-only badge */}
-      <div className="flex items-center gap-2">
+      {/* Header row: Read-only badge + QR Code button */}
+      <div className="flex items-center justify-between gap-2">
         <span className="bg-muted text-muted-foreground rounded-md px-2 py-0.5 text-xs font-medium">
           Read Only
         </span>
+        {orderNo && <ProductionOrderQRDialog prodOrderNo={orderNo} />}
       </div>
 
       {/* Field groups */}
@@ -334,6 +380,32 @@ export function FinishedProductionOrderDetailForm({
           </div>
         </div>
       )}
+
+      {/* Finished Production Order Lines */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h3 className="text-muted-foreground text-sm font-medium">
+            Finished Production Order Lines
+          </h3>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleRefreshLines}
+            disabled={isRefreshingLines || isLoadingLines}
+            title="Refresh order lines"
+          >
+            {isRefreshingLines ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <RefreshCw className="h-4 w-4" />
+            )}
+          </Button>
+        </div>
+        <ProductionOrderLinesTable
+          lines={orderLines}
+          isLoading={isLoadingLines}
+        />
+      </div>
     </div>
   );
 }

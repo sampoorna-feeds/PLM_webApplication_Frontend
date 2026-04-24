@@ -25,6 +25,7 @@ export function ProductionOrderQRDialog({
   const [open, setOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const [noQR, setNoQR] = useState(false);
 
   // Clean up blob URL on unmount or when URL changes to prevent memory leaks
   useEffect(() => {
@@ -38,13 +39,16 @@ export function ProductionOrderQRDialog({
   // Fetch PDF when dialog opens
   const handleOpenChange = async (isOpen: boolean) => {
     setOpen(isOpen);
-    if (isOpen && !pdfUrl) {
+    if (isOpen && !pdfUrl && !noQR) {
       loadPdf();
     }
-    if (!isOpen && pdfUrl) {
-      // Revoke the old URL when dialog closes so it can be re-fetched fresh next time
-      window.URL.revokeObjectURL(pdfUrl);
-      setPdfUrl(null);
+    if (!isOpen) {
+      if (pdfUrl) {
+        // Revoke the old URL when dialog closes so it can be re-fetched fresh next time
+        window.URL.revokeObjectURL(pdfUrl);
+        setPdfUrl(null);
+      }
+      setNoQR(false);
     }
   };
 
@@ -54,7 +58,7 @@ export function ProductionOrderQRDialog({
       const base64Data = await printQRCode(prodOrderNo);
 
       if (!base64Data) {
-        toast.error("Failed to generate QR Code PDF");
+        setNoQR(true);
         return;
       }
 
@@ -136,6 +140,11 @@ export function ProductionOrderQRDialog({
           {isLoading ? (
             <div className="absolute inset-0 flex items-center justify-center">
               <Loader2 className="text-muted-foreground h-8 w-8 animate-spin" />
+            </div>
+          ) : noQR ? (
+            <div className="text-muted-foreground absolute inset-0 flex flex-col items-center justify-center gap-2">
+              <QrCode className="h-10 w-10 opacity-30" />
+              <span className="text-sm">No QR available for this order</span>
             </div>
           ) : pdfUrl ? (
             <iframe

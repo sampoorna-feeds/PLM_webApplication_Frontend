@@ -34,7 +34,7 @@ export function StockReportForm() {
 
     setIsLoading(true);
     try {
-      const base64 = await getStockReport({ startingDate, endingDate, itemNo, loc, userID });
+      const base64 = await getStockReport({ startingDate, endingDate, itemNo, loc, userID: userID?.toString() || "" });
       if (!base64) {
         toast.error("No data received for the selected parameters");
         return;

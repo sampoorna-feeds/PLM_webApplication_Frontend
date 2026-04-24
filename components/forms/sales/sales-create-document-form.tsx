@@ -157,6 +157,7 @@ import {
   updateSalesLine as updateLine_cm,
 } from "@/lib/api/services/sales-credit-memos.service";
 import { getItemsByNos, getItemStock } from "@/lib/api/services/item.service";
+import { getDistance, getLocationPostCode } from "@/lib/api/services/distance.service";
 
 // ── Config + utilities ────────────────────────────────────────────────────────
 import {
@@ -427,6 +428,7 @@ export function SalesCreateDocumentFormContent({
   const [isPostDialogOpen, setIsPostDialogOpen] = useState(false);
   const [postOption, setPostOption] = useState<"1" | "2" | "3" | null>(null);
   const [isPostLoading, setIsPostLoading] = useState(false);
+  const [isFetchingDistance, setIsFetchingDistance] = useState(false);
   const [isPostDetailsOpen, setIsPostDetailsOpen] = useState(false);
   const [postDetails, setPostDetails] = useState(postDetailsDefault);
 
@@ -772,6 +774,33 @@ export function SalesCreateDocumentFormContent({
     setPostDetails((prev) => ({ ...prev, postingDate: orderHeader?.Posting_Date || today }));
     setIsPostDialogOpen(false);
     setIsPostDetailsOpen(true);
+  };
+
+  const handleFetchDistance = async () => {
+    const locationCode = orderHeader?.Location_Code as string | undefined;
+    const shipToPostCode = orderHeader?.Ship_to_Post_Code as string | null | undefined;
+    const billToPostCode = orderHeader?.Bill_to_Post_Code as string | null | undefined;
+    const toPIN = shipToPostCode || billToPostCode || "";
+
+    if (!locationCode || !toPIN) {
+      toast.error("Not enough data available");
+      return;
+    }
+
+    setIsFetchingDistance(true);
+    try {
+      const fromPIN = await getLocationPostCode(locationCode);
+      if (!fromPIN) {
+        toast.error("Not enough data available");
+        return;
+      }
+      const distance = await getDistance(fromPIN, toPIN);
+      setPostDetails((p) => ({ ...p, distanceKm: String(distance) }));
+    } catch (err) {
+      toast.error(getErrorMessage(err, "Failed to fetch distance"));
+    } finally {
+      setIsFetchingDistance(false);
+    }
   };
 
   const handleDirectInvoicePost = async () => {
@@ -2018,16 +2047,32 @@ export function SalesCreateDocumentFormContent({
                 <>
                   <div className="space-y-1">
                     <Label>Distance (km)</Label>
-                    <Input
-                      value={postDetails.distanceKm}
-                      onChange={(e) =>
-                        setPostDetails((p) => ({
-                          ...p,
-                          distanceKm: e.target.value,
-                        }))
-                      }
-                      className="h-9"
-                    />
+                    <div className="flex gap-2">
+                      <Input
+                        value={postDetails.distanceKm}
+                        onChange={(e) =>
+                          setPostDetails((p) => ({
+                            ...p,
+                            distanceKm: e.target.value,
+                          }))
+                        }
+                        className="h-9"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={handleFetchDistance}
+                        disabled={isFetchingDistance || isPostLoading}
+                        className="h-9 shrink-0"
+                      >
+                        {isFetchingDistance ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          "Fetch"
+                        )}
+                      </Button>
+                    </div>
                   </div>
                   <div className="space-y-1">
                     <Label>Gross Weight</Label>

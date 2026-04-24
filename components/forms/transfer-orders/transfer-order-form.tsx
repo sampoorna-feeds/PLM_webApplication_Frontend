@@ -51,6 +51,7 @@ import {
   type TransferOrder,
 } from "@/lib/api/services/transfer-orders.service";
 import { getTransporters, Vendor } from "@/lib/api/services/vendor.service";
+import { getDistance, getLocationPostCode } from "@/lib/api/services/distance.service";
 import { getAuthCredentials } from "@/lib/auth/storage";
 import { useFormStack } from "@/lib/form-stack/use-form-stack";
 import { cn } from "@/lib/utils";
@@ -137,6 +138,7 @@ export function TransferOrderForm({
     "ship",
   );
   const [postStep, setPostStep] = useState<1 | 2>(1);
+  const [isFetchingDistance, setIsFetchingDistance] = useState(false);
 
   // Report states
   const [isReportDialogOpen, setIsReportDialogOpen] = useState(false);
@@ -622,6 +624,36 @@ export function TransferOrderForm({
       setLines(updatedLines);
     } catch (err: any) {
       toast.error(err.message || "Failed to delete line");
+    }
+  };
+
+  const handleFetchDistance = async () => {
+    const fromCode = formState.Transfer_from_Code;
+    const toCode = formState.Transfer_to_Code;
+
+    if (!fromCode || !toCode) {
+      toast.error("Not enough data available");
+      return;
+    }
+
+    setIsFetchingDistance(true);
+    try {
+      const [fromPIN, toPIN] = await Promise.all([
+        getLocationPostCode(fromCode),
+        getLocationPostCode(toCode),
+      ]);
+
+      if (!fromPIN || !toPIN) {
+        toast.error("Not enough data available");
+        return;
+      }
+
+      const distance = await getDistance(fromPIN, toPIN);
+      handleChange("Distance_Km", distance);
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to fetch distance");
+    } finally {
+      setIsFetchingDistance(false);
     }
   };
 
@@ -1286,18 +1318,34 @@ export function TransferOrderForm({
                 </div>
                 <div className={fieldClass}>
                   <label className={labelClass}>Distance (Km)</label>
-                  <Input
-                    type="number"
-                    value={formState.Distance_Km || 0}
-                    onChange={(e) =>
-                      handleChange(
-                        "Distance_Km",
-                        parseFloat(e.target.value) || 0,
-                      )
-                    }
-                    disabled={formState.Status === "Released"}
-                    className="h-8"
-                  />
+                  <div className="flex gap-2">
+                    <Input
+                      type="number"
+                      value={formState.Distance_Km || 0}
+                      onChange={(e) =>
+                        handleChange(
+                          "Distance_Km",
+                          parseFloat(e.target.value) || 0,
+                        )
+                      }
+                      disabled={formState.Status === "Released"}
+                      className="h-8"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleFetchDistance}
+                      disabled={isFetchingDistance || formState.Status === "Released"}
+                      className="h-8 shrink-0"
+                    >
+                      {isFetchingDistance ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        "Fetch"
+                      )}
+                    </Button>
+                  </div>
                 </div>
                 <div className={fieldClass}>
                   <label className={labelClass}>Freight Value</label>
@@ -1622,17 +1670,33 @@ export function TransferOrderForm({
                   <label className="text-muted-foreground text-[11px] font-bold tracking-wider uppercase">
                     Distance (Km)
                   </label>
-                  <Input
-                    type="number"
-                    value={formState.Distance_Km || 0}
-                    onChange={(e) =>
-                      handleChange(
-                        "Distance_Km",
-                        parseFloat(e.target.value) || 0,
-                      )
-                    }
-                    className="border-border h-10 focus:border-green-600/50"
-                  />
+                  <div className="flex gap-2">
+                    <Input
+                      type="number"
+                      value={formState.Distance_Km || 0}
+                      onChange={(e) =>
+                        handleChange(
+                          "Distance_Km",
+                          parseFloat(e.target.value) || 0,
+                        )
+                      }
+                      className="border-border h-10 focus:border-green-600/50"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleFetchDistance}
+                      disabled={isFetchingDistance || isSubmitting}
+                      className="h-10 shrink-0"
+                    >
+                      {isFetchingDistance ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        "Fetch"
+                      )}
+                    </Button>
+                  </div>
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-muted-foreground text-[11px] font-bold tracking-wider uppercase">

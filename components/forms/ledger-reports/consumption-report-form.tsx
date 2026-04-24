@@ -1,21 +1,47 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { DateInput } from "@/components/ui/date-input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { getConsumptionReport } from "@/lib/api/services/report-ledger.service";
+import { getAllLOCsFromUserSetup } from "@/lib/api/services/dimension.service";
+import { LocationSelect } from "@/components/forms/shared/location-select";
+import { useAuth } from "@/lib/contexts/auth-context";
 import { Loader2, FileDown } from "lucide-react";
 import { toast } from "sonner";
 
 export function ConsumptionReportForm() {
+  const { userID } = useAuth();
   const [startingDate, setStartingDate] = useState<string>(
     new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split("T")[0]
   );
   const [endingDate, setEndingDate] = useState<string>(
     new Date().toISOString().split("T")[0]
   );
+  const [loc, setLoc] = useState<string>("");
+  const [authorizedCodes, setAuthorizedCodes] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    const loadAuthorizedLOCs = async () => {
+      if (userID) {
+        try {
+          const locs = await getAllLOCsFromUserSetup(userID);
+          const codes = locs.map((l) => l.Code);
+          setAuthorizedCodes(codes);
+          
+          // Auto-select if only one location is authorized
+          if (codes.length === 1) {
+            setLoc(codes[0]);
+          }
+        } catch (error) {
+          console.error("Error loading authorized locations:", error);
+        }
+      }
+    };
+    loadAuthorizedLOCs();
+  }, [userID]);
 
   const handleFetchReport = async () => {
     if (!startingDate || !endingDate) {
@@ -23,11 +49,16 @@ export function ConsumptionReportForm() {
       return;
     }
 
+    if (!loc) {
+      toast.error("Please select a location");
+      return;
+    }
+
     setIsLoading(true);
     try {
-      const base64 = await getConsumptionReport({ startingDate, endingDate });
+      const base64 = await getConsumptionReport({ startingDate, endingDate, loc });
       if (!base64) {
-        toast.error("No data received for the selected dates");
+        toast.error("No data received for the selected criteria");
         return;
       }
 
@@ -44,7 +75,7 @@ export function ConsumptionReportForm() {
 
       const link = document.createElement("a");
       link.href = url;
-      link.download = `Consumption_Report_${startingDate}_to_${endingDate}.xlsx`;
+      link.download = `Consumption_Report_${loc}_${startingDate}_to_${endingDate}.xlsx`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -62,7 +93,7 @@ export function ConsumptionReportForm() {
       <CardHeader>
         <CardTitle className="text-xl">Consumption Report</CardTitle>
         <CardDescription>
-          Generate a detailed consumption report for the selected period
+          Generate a detailed consumption report for the selected period and location
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -75,6 +106,16 @@ export function ConsumptionReportForm() {
             <label className="text-sm font-medium">Ending Date</label>
             <DateInput value={endingDate} onChange={setEndingDate} />
           </div>
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-sm font-medium">Location Filter <span className="text-destructive">*</span></label>
+          <LocationSelect 
+            value={loc} 
+            onChange={(val) => setLoc(val)} 
+            authorizedCodes={authorizedCodes}
+            placeholder="Search and select allowed location..."
+          />
         </div>
 
         <div className="flex justify-end pt-4 border-t">

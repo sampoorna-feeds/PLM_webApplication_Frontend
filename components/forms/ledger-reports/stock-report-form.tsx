@@ -9,6 +9,7 @@ import { getTransferItemsForDialog } from "@/lib/api/services/transfer-orders.se
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { LocationSelect } from "@/components/forms/shared/location-select";
 import { Loader2, FileDown } from "lucide-react";
+import { useAuth } from "@/lib/contexts/auth-context";
 import { toast } from "sonner";
 
 export function StockReportForm() {
@@ -23,6 +24,7 @@ export function StockReportForm() {
   const [options, setOptions] = useState<{ value: string; label: string }[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const { userID } = useAuth();
 
   const handleFetchReport = async () => {
     if (!startingDate || !endingDate || !loc) {
@@ -32,7 +34,7 @@ export function StockReportForm() {
 
     setIsLoading(true);
     try {
-      const base64 = await getStockReport({ startingDate, endingDate, itemNo, loc });
+      const base64 = await getStockReport({ startingDate, endingDate, itemNo, loc, userID });
       if (!base64) {
         toast.error("No data received for the selected parameters");
         return;
@@ -116,12 +118,13 @@ export function StockReportForm() {
           <div className="space-y-2">
             <label className="text-sm font-medium">Item (Optional)</label>
             <SearchableSelect
-              placeholder="Search and select an item..."
+              placeholder="Search and select items..."
               value={itemNo}
               onValueChange={setItemNo}
               onSearch={fetchItems}
               options={options}
               isLoading={isSearching}
+              isMulti
             />
           </div>
           <div className="space-y-2">

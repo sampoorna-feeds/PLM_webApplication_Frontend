@@ -2138,37 +2138,39 @@ export function SalesCreateDocumentFormContent({
                   />
                 </div>
               )}
+              {caps.supportsTransporter && (
+                <div className="space-y-1">
+                  <Label>Distance (km)</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      value={postDetails.distanceKm}
+                      onChange={(e) =>
+                        setPostDetails((p) => ({
+                          ...p,
+                          distanceKm: e.target.value,
+                        }))
+                      }
+                      className="h-9"
+                    />
+                    <Button
+                      type="button"
+                      variant="default"
+                      size="sm"
+                      onClick={handleFetchDistance}
+                      disabled={isFetchingDistance || isPostLoading}
+                      className="h-9 shrink-0"
+                    >
+                      {isFetchingDistance ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        "Fetch"
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              )}
               {caps.supportsTransporter && isShipOption && (
                 <>
-                  <div className="space-y-1">
-                    <Label>Distance (km)</Label>
-                    <div className="flex gap-2">
-                      <Input
-                        value={postDetails.distanceKm}
-                        onChange={(e) =>
-                          setPostDetails((p) => ({
-                            ...p,
-                            distanceKm: e.target.value,
-                          }))
-                        }
-                        className="h-9"
-                      />
-                      <Button
-                        type="button"
-                        variant="default"
-                        size="sm"
-                        onClick={handleFetchDistance}
-                        disabled={isFetchingDistance || isPostLoading}
-                        className="h-9 shrink-0"
-                      >
-                        {isFetchingDistance ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          "Fetch"
-                        )}
-                      </Button>
-                    </div>
-                  </div>
                   <div className="space-y-1">
                     <Label>Gross Weight</Label>
                     <Input

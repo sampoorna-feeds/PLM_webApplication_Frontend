@@ -26,6 +26,7 @@ export interface Item {
   /** For inventory summary */
   Base_Unit_of_Measure?: string;
   Inventory_Posting_Group?: string;
+  Net_Change?: number;
 }
 
 export interface ItemUnitOfMeasure {
@@ -345,6 +346,96 @@ export async function getItemsByNos(itemNos: string[]): Promise<Item[]> {
  */
 export function clearItemCache(): void {
   searchCache.clear();
+}
+
+/**
+ * Enhanced Item fetcher for sales selection dialogs.
+ * Returns paginated items with count, supporting search/sort/filters.
+ */
+export async function getSalesItemsForDialog(params: {
+  skip: number;
+  top: number;
+  search?: string;
+  sortColumn?: string | null;
+  sortDirection?: "asc" | "desc" | null;
+  filters?: Record<string, string>;
+  locationCode?: string;
+}): Promise<{ value: Item[]; count: number }> {
+  const baseFilters: string[] = ["Blocked eq false"];
+
+  if (params.filters) {
+    Object.entries(params.filters).forEach(([col, val]) => {
+      if (val) {
+        const escaped = val.replace(/'/g, "''").toLowerCase();
+        baseFilters.push(`contains(tolower(${col}),'${escaped}')`);
+      }
+    });
+  }
+
+  const locationFilters: string[] = [];
+  if (params.locationCode) {
+    locationFilters.push(`Location_Filter eq '${params.locationCode.replace(/'/g, "''")}'`);
+  }
+
+  const fetchBatch = async (searchFilter?: string) => {
+    const allFilters = [...baseFilters];
+    if (searchFilter) allFilters.push(searchFilter);
+    const finalFilters = [...allFilters, ...locationFilters];
+
+    const params2 = new URLSearchParams();
+    params2.set("$select", "No,Description,Unit_Price,Sales_Unit_of_Measure,Base_Unit_of_Measure,Net_Change");
+    params2.set("$filter", finalFilters.join(" and "));
+    params2.set(
+      "$orderby",
+      params.sortColumn && params.sortDirection
+        ? `${params.sortColumn} ${params.sortDirection}`
+        : "No asc",
+    );
+    if (params.search) {
+      params2.set("$top", "100");
+      params2.set("$skip", "0");
+    } else {
+      params2.set("$top", String(params.top));
+      params2.set("$skip", String(params.skip));
+    }
+    params2.set("$count", "true");
+
+    const endpoint = `/ItemCard?Company=${encodeURIComponent(COMPANY)}&${params2.toString()}`;
+    return apiGet<ODataResponse<Item>>(endpoint);
+  };
+
+  if (!params.search?.trim()) {
+    const res = await fetchBatch();
+    return { value: res.value || [], count: res["@odata.count"] ?? res.value?.length ?? 0 };
+  }
+
+  const s = params.search.trim().replace(/'/g, "''");
+  const sL = s.toLowerCase();
+  const sU = s.toUpperCase();
+
+  const [resNo, resDesc] = await Promise.all([
+    fetchBatch(`(contains(No,'${s}') or contains(No,'${sL}') or contains(No,'${sU}'))`).catch(() => ({ value: [], "@odata.count": 0 })),
+    fetchBatch(`(contains(Description,'${s}') or contains(Description,'${sL}') or contains(Description,'${sU}'))`).catch(() => ({ value: [], "@odata.count": 0 })),
+  ]);
+
+  const map = new Map<string, Item>();
+  [...(resNo.value || []), ...(resDesc.value || [])].forEach((i) => {
+    if (!map.has(i.No)) map.set(i.No, i);
+  });
+
+  let merged = Array.from(map.values());
+  if (params.sortColumn && params.sortDirection) {
+    const dir = params.sortDirection === "asc" ? 1 : -1;
+    merged.sort((a, b) => {
+      const aVal = String((a as any)[params.sortColumn!] ?? "").toLowerCase();
+      const bVal = String((b as any)[params.sortColumn!] ?? "").toLowerCase();
+      return aVal.localeCompare(bVal) * dir;
+    });
+  }
+
+  const total = merged.length;
+  const paged = merged.slice(params.skip, params.skip + params.top);
+  return { value: paged, count: total };
 }
 
 // ─── Summary Table Helpers ───

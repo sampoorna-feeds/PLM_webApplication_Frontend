@@ -30,15 +30,12 @@ import {
   type SearchableSelectOption,
 } from "@/components/ui/searchable-select";
 import {
-  getItems,
-  searchItems,
-  getItemsPage,
-  searchItemsByField,
   getItemUnitOfMeasures,
   getItemByNo,
   type Item,
   type ItemUnitOfMeasure,
 } from "@/lib/api/services/item.service";
+import { SalesItemSelectDialog } from "./sales-item-select-dialog";
 import {
   getGLAccounts,
   searchGLAccounts,
@@ -554,31 +551,13 @@ export function SalesAddLineDialog({
                       />
                     </ClearableField>
                   ) : (
-                    <ClearableField
+                    <SalesItemSelectDialog
                       key="sel-item"
                       value={form.no}
-                      onClear={() => handleItemChange("", undefined)}
-                    >
-                      <MasterSearchableSelect<Item>
-                        key="ms-item"
-                        value={form.no}
-                        onChange={handleItemChange}
-                        placeholder="Select Item"
-                        loadInitial={() => getItems(20, locationCode || undefined)}
-                        searchItems={(q) => searchItems(q, locationCode || undefined)}
-                        loadMore={(skip, search) =>
-                          getItemsPage(skip, search, 20, locationCode || undefined)
-                        }
-                        getDisplayValue={(item) =>
-                          `${item.No} - ${item.Description}`
-                        }
-                        getItemValue={(item) => item.No}
-                        supportsDualSearch
-                        searchByField={(q, field) =>
-                          searchItemsByField(q, field, locationCode || undefined)
-                        }
-                      />
-                    </ClearableField>
+                      onChange={handleItemChange}
+                      placeholder="Select Item"
+                      locationCode={locationCode || undefined}
+                    />
                   )}
                 </div>
               )}

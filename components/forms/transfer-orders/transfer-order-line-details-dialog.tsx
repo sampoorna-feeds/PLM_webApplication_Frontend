@@ -5,6 +5,7 @@ import { Loader2, X, Package } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { CalculatorInput } from "@/components/ui/calculator-input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import {
@@ -262,10 +263,9 @@ export function TransferOrderLineDetailsDialog({
 
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-muted-foreground">Qty to Ship</label>
-              <Input
-                type="number"
+              <CalculatorInput
                 value={formData.Qty_to_Ship || ""}
-                onChange={(e) => handleChange("Qty_to_Ship", Number(e.target.value))}
+                onValueChange={(v) => handleChange("Qty_to_Ship", v)}
                 className="h-9 text-sm focus:border-red-500/50 transition-colors"
                 placeholder="0"
               />
@@ -273,11 +273,11 @@ export function TransferOrderLineDetailsDialog({
 
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-muted-foreground">Qty to Receive</label>
-              <Input
-                type="number"
+              <CalculatorInput
                 value={formData.Qty_to_Receive || ""}
-                onChange={(e) => handleChange("Qty_to_Receive", Number(e.target.value))}
+                onValueChange={(v) => handleChange("Qty_to_Receive", v)}
                 className="h-9 text-sm focus:border-red-500/50 transition-colors"
+                placeholder="0"
               />
             </div>
 

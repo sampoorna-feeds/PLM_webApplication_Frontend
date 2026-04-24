@@ -5,6 +5,7 @@ import { Loader2, Package } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { CalculatorInput } from "@/components/ui/calculator-input";
 import { FieldTitle } from "@/components/ui/field";
 import {
   Dialog,
@@ -274,10 +275,10 @@ export function TransferOrderLineDialog({
 
           <div className="space-y-2">
             <FieldTitle required>Quantity</FieldTitle>
-            <Input
-              type="number"
-              value={formData.Quantity}
-              onChange={(e) => handleChange("Quantity", Number(e.target.value))}
+            <CalculatorInput
+              value={formData.Quantity || ""}
+              onValueChange={(v) => handleChange("Quantity", v)}
+              placeholder="0.00"
             />
           </div>
 
@@ -292,10 +293,10 @@ export function TransferOrderLineDialog({
 
           <div className="space-y-2">
             <FieldTitle>Transfer Price</FieldTitle>
-            <Input
-              type="number"
-              value={formData.Transfer_Price}
-              onChange={(e) => handleChange("Transfer_Price", Number(e.target.value))}
+            <CalculatorInput
+              value={formData.Transfer_Price || ""}
+              onValueChange={(v) => handleChange("Transfer_Price", v)}
+              placeholder="0.00"
             />
           </div>
           <div className="space-y-2">

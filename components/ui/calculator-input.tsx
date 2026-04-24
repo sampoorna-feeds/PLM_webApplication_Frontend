@@ -7,6 +7,8 @@ import { cn } from "@/lib/utils";
 export interface CalculatorInputProps
   extends Omit<React.ComponentProps<typeof Input>, "onChange"> {
   onValueChange?: (value: string) => void;
+  // Triggered only after Enter or Blur, with the evaluated result
+  onCommit?: (value: string) => void;
   // If true, the input will only allow numerical characters and math operators
   strict?: boolean;
 }
@@ -19,7 +21,7 @@ export interface CalculatorInputProps
 export const CalculatorInput = React.forwardRef<
   HTMLInputElement,
   CalculatorInputProps
->(({ className, value, onValueChange, onBlur, onKeyDown, strict = true, ...props }, ref) => {
+>(({ className, value, onValueChange, onCommit, onBlur, onKeyDown, strict = true, ...props }, ref) => {
   const [inputValue, setInputValue] = React.useState<string>(String(value || ""));
 
   // Sync with external value changes
@@ -62,6 +64,7 @@ export const CalculatorInput = React.forwardRef<
       setInputValue(result);
       onValueChange?.(result);
     }
+    onCommit?.(result);
     onBlur?.(e);
   };
 
@@ -72,6 +75,7 @@ export const CalculatorInput = React.forwardRef<
         setInputValue(result);
         onValueChange?.(result);
       }
+      onCommit?.(result);
       // Prevent form submission if inside a form
       e.preventDefault();
     }

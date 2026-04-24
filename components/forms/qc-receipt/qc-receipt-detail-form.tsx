@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DateInput } from "@/components/ui/date-input";
 import { Input } from "@/components/ui/input";
+import { CalculatorInput } from "@/components/ui/calculator-input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
@@ -237,41 +238,37 @@ export function QCReceiptDetailForm({ tabId, context }: QCReceiptDetailFormProps
                  />
                </EditFormField>
 
-               <EditFormField label="Inspection QTY" isReadOnly={isPosted}>
-                 <Input 
-                   type="number" 
-                   value={receipt.Inspection_Quantity} 
-                   onChange={(e) => handleFieldChange("Inspection_Quantity", Number(e.target.value))}
-                   disabled={isPosted}
-                 />
-               </EditFormField>
+                <EditFormField label="Inspection QTY" isReadOnly={isPosted}>
+                  <CalculatorInput 
+                    value={receipt.Inspection_Quantity || ""} 
+                    onCommit={(val) => handleFieldChange("Inspection_Quantity", val)}
+                    disabled={isPosted}
+                  />
+                </EditFormField>
 
-               <EditFormField label="Quantity to Accept" isReadOnly={isPosted}>
-                 <Input 
-                   type="number" 
-                   value={receipt.Quantity_to_Accept} 
-                   onChange={(e) => handleFieldChange("Quantity_to_Accept", Number(e.target.value))}
-                   disabled={isPosted}
-                 />
-               </EditFormField>
+                <EditFormField label="Quantity to Accept" isReadOnly={isPosted}>
+                  <CalculatorInput 
+                    value={receipt.Quantity_to_Accept || ""} 
+                    onCommit={(val) => handleFieldChange("Quantity_to_Accept", val)}
+                    disabled={isPosted}
+                  />
+                </EditFormField>
 
-               <EditFormField label="Qty Accept (Dev.)" isReadOnly={isPosted}>
-                 <Input 
-                   type="number" 
-                   value={receipt.Qty_to_Accept_with_Deviation} 
-                   onChange={(e) => handleFieldChange("Qty_to_Accept_with_Deviation", Number(e.target.value))}
-                   disabled={isPosted}
-                 />
-               </EditFormField>
+                <EditFormField label="Qty Accept (Dev.)" isReadOnly={isPosted}>
+                  <CalculatorInput 
+                    value={receipt.Qty_to_Accept_with_Deviation || ""} 
+                    onCommit={(val) => handleFieldChange("Qty_to_Accept_with_Deviation", val)}
+                    disabled={isPosted}
+                  />
+                </EditFormField>
 
-               <EditFormField label="Quantity to Reject" isReadOnly={isPosted}>
-                 <Input 
-                   type="number" 
-                   value={receipt.Quantity_to_Reject} 
-                   onChange={(e) => handleFieldChange("Quantity_to_Reject", Number(e.target.value))}
-                   disabled={isPosted}
-                 />
-               </EditFormField>
+                <EditFormField label="Quantity to Reject" isReadOnly={isPosted}>
+                  <CalculatorInput 
+                    value={receipt.Quantity_to_Reject || ""} 
+                    onCommit={(val) => handleFieldChange("Quantity_to_Reject", val)}
+                    disabled={isPosted}
+                  />
+                </EditFormField>
 
                <div className="flex flex-col gap-4 mt-1">
                   <div className="flex items-center space-x-2">
@@ -305,14 +302,13 @@ export function QCReceiptDetailForm({ tabId, context }: QCReceiptDetailFormProps
                   </div>
                </div>
 
-               <EditFormField label="Rebate %" isReadOnly={isPosted}>
-                 <Input 
-                   type="number" 
-                   value={receipt.Rabete_Percent} 
-                   onChange={(e) => handleFieldChange("Rabete_Percent", Number(e.target.value))}
-                   disabled={isPosted || !receipt.Accepted_With_Approval}
-                 />
-               </EditFormField>
+                <EditFormField label="Rebate %" isReadOnly={isPosted}>
+                  <CalculatorInput 
+                    value={receipt.Rabete_Percent || ""} 
+                    onCommit={(val) => handleFieldChange("Rabete_Percent", val)}
+                    disabled={isPosted || !receipt.Accepted_With_Approval}
+                  />
+                </EditFormField>
 
                <EditFormField label="Store Location Code" isReadOnly={isPosted}>
                  <LocationSelect

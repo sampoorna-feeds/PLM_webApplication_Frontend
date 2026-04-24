@@ -4,6 +4,7 @@ import * as React from "react";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { Calendar } from "lucide-react";
+import { toast } from "sonner";
 
 interface DateInputProps {
   value?: string; // YYYY-MM-DD format
@@ -94,18 +95,34 @@ export function DateInput({
 
     const parsedDate = parseUserInput(displayValue);
     if (parsedDate) {
+      // Check min/max range for manual entry
+      if (min && min !== "0001-01-01" && parsedDate < min) {
+        toast.error(`Selected date cannot be before ${min}`);
+        revertToPrevious();
+        return;
+      }
+      if (max && max !== "0001-01-01" && parsedDate > max) {
+        toast.error(`Selected date cannot be after ${max}`);
+        revertToPrevious();
+        return;
+      }
+
       onChange(parsedDate);
       // Update display to standardized format
       const parts = parsedDate.split("-");
       setDisplayValue(`${parts[2]}/${parts[1]}/${parts[0]}`);
     } else {
-      // Invalid format - revert to previous value or clear
-      if (value) {
-        const parts = value.split("-");
-        setDisplayValue(`${parts[2]}/${parts[1]}/${parts[0]}`);
-      } else {
-        setDisplayValue("");
-      }
+      revertToPrevious();
+    }
+  };
+
+  const revertToPrevious = () => {
+    // Invalid format or out of range - revert to previous value or clear
+    if (value && value !== "0001-01-01") {
+      const parts = value.split("-");
+      setDisplayValue(`${parts[2]}/${parts[1]}/${parts[0]}`);
+    } else {
+      setDisplayValue("");
     }
   };
 

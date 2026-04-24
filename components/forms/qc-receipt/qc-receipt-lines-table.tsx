@@ -23,6 +23,7 @@ export function QCReceiptLinesTable({
 }: QCReceiptLinesTableProps) {
   const [isUpdatingLine, setIsUpdatingLine] = useState<number | null>(null);
   const { updateLine } = useQCReceiptLineUpdate();
+  const savingRef = useRef<Record<string, any>>({});
   const tableRef = useRef<HTMLTableElement>(null);
 
   const handleCellSave = async (index: number, field: string, value: any) => {
@@ -41,7 +42,13 @@ export function QCReceiptLinesTable({
     
     if (currentValue === finalValue || (currentValue === null && (value === "" || value === null))) return;
 
+    // Prevent duplicate concurrent updates for the same value
+    const cellKey = `${line.No}-${line.Line_No}-${field}`;
+    if (savingRef.current[cellKey] === finalValue) return;
+    
+    savingRef.current[cellKey] = finalValue;
     setIsUpdatingLine(index);
+    
     try {
       const result = await updateLine(line.No, line.Line_No, line["@odata.etag"] || "*", {
         [field]: finalValue,
@@ -49,8 +56,16 @@ export function QCReceiptLinesTable({
       if (result) {
         onUpdate?.(index, result);
       }
+    } catch (error) {
+       // Clear on error so user can retry
+       delete savingRef.current[cellKey];
     } finally {
       setIsUpdatingLine(null);
+      // We keep the value in savingRef for a brief moment to catch redundant events 
+      // that might fire before the component fully re-renders with new data.
+      setTimeout(() => {
+        delete savingRef.current[cellKey];
+      }, 1000);
     }
   };
 
@@ -58,7 +73,7 @@ export function QCReceiptLinesTable({
     if (e.key === "Enter") {
       e.preventDefault();
       
-      const value = field === "Actual_Value" ? e.currentTarget.value : e.currentTarget.value;
+      const value = e.currentTarget.value;
       const numValue = Number(value);
       
       // Validation check before moving down
@@ -67,11 +82,15 @@ export function QCReceiptLinesTable({
         return;
       }
 
-      // Save current cell value
-      handleCellSave(index, field, value);
+      // Instead of calling handleCellSave directly, we trigger a blur
+      // which will call handleCellSave via onBlur or onCommit (for CalculatorInput).
+      // This avoids double-firing if both handleKeyDown and onBlur are active.
+      const currentTarget = e.currentTarget;
 
       // Focus next row's cell in same column
       const nextRow = index + 1;
+      let focusMoved = false;
+      
       if (nextRow < lines.length) {
         const nextInput = tableRef.current?.querySelector(
           `input[data-row="${nextRow}"][data-field="${field}"]:not(:disabled)`
@@ -80,6 +99,7 @@ export function QCReceiptLinesTable({
         if (nextInput) {
           nextInput.focus();
           nextInput.select();
+          focusMoved = true;
         } else {
             // Scan for next enabled input
             let scanRow = nextRow + 1;
@@ -90,11 +110,17 @@ export function QCReceiptLinesTable({
                 if(scanInput) {
                     scanInput.focus();
                     scanInput.select();
+                    focusMoved = true;
                     break;
                 }
                 scanRow++;
             }
         }
+      }
+
+      // If focus didn't move (e.g. last row), manually trigger blur to ensure save
+      if (!focusMoved) {
+        currentTarget.blur();
       }
     }
   };

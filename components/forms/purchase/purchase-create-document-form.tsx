@@ -1165,12 +1165,23 @@ export function PurchaseCreateDocumentFormContent({
       return;
     }
     if (action === "Post") {
+      let initialDate = "";
       const today = new Date().toISOString().split("T")[0];
+      if (webUserProfile) {
+        const from = webUserProfile.Allow_Posting_From?.split("T")[0];
+        const to = webUserProfile.Allow_Posting_To?.split("T")[0];
+        const isAfterFrom = !from || from === "0001-01-01" || today >= from;
+        const isBeforeTo = !to || to === "0001-01-01" || today <= to;
+        if (isAfterFrom && isBeforeTo) {
+          initialDate = today;
+        }
+      }
+
       if (documentType === "invoice" || documentType === "credit-memo") {
         // Single option: Invoice — skip options dialog, go straight to details
         setPostOption("invoice");
         setPostDetails({
-          postingDate: "",
+          postingDate: initialDate,
           documentDate: formData.documentDate || today,
           vehicleNo: "",
           vendorInvoiceNo: formData.vendorInvoiceNo || "",
@@ -2743,9 +2754,20 @@ export function PurchaseCreateDocumentFormContent({
                 disabled={!postOption}
                 onClick={() => {
                   if (!postOption) return;
+                  let initialDate = "";
                   const today = new Date().toISOString().split("T")[0];
+                  if (webUserProfile) {
+                    const from = webUserProfile.Allow_Posting_From?.split("T")[0];
+                    const to = webUserProfile.Allow_Posting_To?.split("T")[0];
+                    const isAfterFrom = !from || from === "0001-01-01" || today >= from;
+                    const isBeforeTo = !to || to === "0001-01-01" || today <= to;
+                    if (isAfterFrom && isBeforeTo) {
+                      initialDate = today;
+                    }
+                  }
+
                   setPostDetails({
-                    postingDate: "",
+                    postingDate: initialDate,
                     documentDate: formData.documentDate || today,
                     vehicleNo: "",
                     vendorInvoiceNo: formData.vendorInvoiceNo || "",

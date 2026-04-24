@@ -59,6 +59,21 @@ export function ProductionOrderPostConfirmationDialog({
     }
   }, []);
 
+  useEffect(() => {
+    if (open && webUserProfile) {
+      const today = new Date().toISOString().split("T")[0];
+      const from = webUserProfile.Allow_Posting_From?.split("T")[0];
+      const to = webUserProfile.Allow_Posting_To?.split("T")[0];
+      const isAfterFrom = !from || from === "0001-01-01" || today >= from;
+      const isBeforeTo = !to || to === "0001-01-01" || today <= to;
+      if (isAfterFrom && isBeforeTo) {
+        setPostingDate(today);
+      } else {
+        setPostingDate("");
+      }
+    }
+  }, [open, webUserProfile]);
+
   const handlePost = async () => {
     // Validate posting date
     if (!postingDate) {

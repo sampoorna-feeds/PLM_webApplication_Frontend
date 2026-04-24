@@ -301,6 +301,8 @@ const EMPTY_FORM_STATE: CreateFormState = {
   lob: "",
   branch: "",
   loc: "",
+  gstRegistrationNo: "",
+  panNo: "",
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -632,6 +634,8 @@ export function SalesCreateDocumentFormContent({
       shipToCode: "",
       shipToName: "",
       locationCode: "",
+      gstRegistrationNo: customer?.GST_Registration_No || "",
+      panNo: customer?.P_A_N_No || "",
     }));
   };
 
@@ -1143,6 +1147,28 @@ export function SalesCreateDocumentFormContent({
               {(formData as unknown as Record<string, string>).shipToName}
             </p>
           )}
+        </div>
+      </div>
+
+      {/* GST No | PAN No */}
+      <div className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className={fieldClass}>
+          <label className={labelClass}>GST Reg. No.</label>
+          <Input
+            value={formData.gstRegistrationNo || ""}
+            disabled
+            className="bg-muted h-8 text-[11px] font-mono"
+            readOnly
+          />
+        </div>
+        <div className={fieldClass}>
+          <label className={labelClass}>PAN No.</label>
+          <Input
+            value={formData.panNo || ""}
+            disabled
+            className="bg-muted h-8 text-[11px] font-mono"
+            readOnly
+          />
         </div>
       </div>
 

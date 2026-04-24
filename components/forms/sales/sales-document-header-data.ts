@@ -21,6 +21,8 @@ export interface SalesDocumentHeaderFormState {
   lob: string;
   branch: string;
   loc: string;
+  gstRegistrationNo?: string;
+  panNo?: string;
 }
 
 export interface SalesDocumentHeaderData {

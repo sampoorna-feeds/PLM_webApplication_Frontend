@@ -32,6 +32,8 @@ export function mapSalesHeaderToFormData(
     lob: toStringValue(header.Shortcut_Dimension_1_Code),
     branch: toStringValue(header.Shortcut_Dimension_2_Code),
     loc: toStringValue(header.Shortcut_Dimension_3_Code),
+    gstRegistrationNo: toStringValue(header.GST_Registration_No),
+    panNo: toStringValue(header.P_A_N_No),
   };
 }
 

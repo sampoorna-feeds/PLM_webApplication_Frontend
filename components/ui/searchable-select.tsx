@@ -33,6 +33,8 @@ interface SearchableSelectProps {
   className?: string;
   /** Allow user to enter custom values not in the options list */
   allowCustomValue?: boolean;
+  /** Allow multiple selection */
+  isMulti?: boolean;
 }
 
 export function SearchableSelect({
@@ -50,21 +52,29 @@ export function SearchableSelect({
   isLoadingMore = false,
   className,
   allowCustomValue = false,
+  isMulti = false,
 }: SearchableSelectProps) {
   const [open, setOpen] = React.useState(false);
   const [searchQuery, setSearchQuery] = React.useState("");
   const listRef = React.useRef<HTMLDivElement>(null);
   const searchTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
 
-  // Get the selected option's label (or show value if custom)
-  const selectedOption = options.find((opt) => opt.value === value);
-  const displayLabel =
-    selectedOption?.label ??
-    (allowCustomValue && value
-      ? value
-      : disabled && value
-        ? "None"
-        : undefined);
+  // Get the selected options' labels
+  const values = isMulti ? (value ? value.split("|") : []) : (value ? [value] : []);
+  const selectedOptions = options.filter((opt) => values.includes(opt.value));
+  
+  const displayLabel = isMulti
+    ? values.length > 1
+      ? `${values.length} items selected`
+      : values.length === 1
+        ? (selectedOptions[0]?.label ?? values[0])
+        : placeholder
+    : selectedOptions[0]?.label ??
+      (allowCustomValue && value
+        ? value
+        : disabled && value
+          ? "None"
+          : undefined);
 
   // Handle search with debounce
   const handleSearchChange = (query: string) => {
@@ -146,8 +156,16 @@ export function SearchableSelect({
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" && allowCustomValue && searchQuery.trim()) {
       e.preventDefault();
-      onValueChange(searchQuery.trim());
-      setOpen(false);
+      const trimmedVal = searchQuery.trim();
+      if (isMulti) {
+        const newValues = values.includes(trimmedVal)
+          ? values.filter((v) => v !== trimmedVal)
+          : [...values, trimmedVal];
+        onValueChange(newValues.join("|"));
+      } else {
+        onValueChange(trimmedVal);
+        setOpen(false);
+      }
     }
   };
 
@@ -169,6 +187,10 @@ export function SearchableSelect({
             <div className="flex items-center gap-2">
               <Loader2 className="h-4 w-4 animate-spin" />
               <span>Loading...</span>
+            </div>
+          ) : isMulti && selectedOptions.length > 0 ? (
+            <div className="flex flex-1 flex-wrap gap-1 overflow-hidden">
+               <span className="truncate">{selectedOptions.length} items selected</span>
             </div>
           ) : displayLabel ? (
             <span className="truncate">{displayLabel}</span>
@@ -246,14 +268,21 @@ export function SearchableSelect({
                     className="hover:bg-accent hover:text-accent-foreground bg-primary/10 relative flex cursor-pointer items-center rounded-sm px-2 py-1.5 text-sm font-medium transition-colors outline-none select-none"
                     onClick={() => {
                       const trimmedVal = searchQuery.trim();
-                      onValueChange(value === trimmedVal ? "" : trimmedVal);
-                      setOpen(false);
+                      if (isMulti) {
+                        const newValues = values.includes(trimmedVal)
+                          ? values.filter((v) => v !== trimmedVal)
+                          : [...values, trimmedVal];
+                        onValueChange(newValues.join("|"));
+                      } else {
+                        onValueChange(value === trimmedVal ? "" : trimmedVal);
+                        setOpen(false);
+                      }
                     }}
                   >
                     <Check
                       className={cn(
                         "mr-2 h-4 w-4",
-                        value === searchQuery.trim()
+                        values.includes(searchQuery.trim())
                           ? "opacity-100"
                           : "opacity-0",
                       )}
@@ -276,14 +305,21 @@ export function SearchableSelect({
                     className="hover:bg-accent hover:text-accent-foreground bg-primary/10 relative mb-1 flex cursor-pointer items-center rounded-sm border-b px-2 py-1.5 text-sm font-medium transition-colors outline-none select-none"
                     onClick={() => {
                       const trimmedVal = searchQuery.trim();
-                      onValueChange(value === trimmedVal ? "" : trimmedVal);
-                      setOpen(false);
+                      if (isMulti) {
+                        const newValues = values.includes(trimmedVal)
+                          ? values.filter((v) => v !== trimmedVal)
+                          : [...values, trimmedVal];
+                        onValueChange(newValues.join("|"));
+                      } else {
+                        onValueChange(value === trimmedVal ? "" : trimmedVal);
+                        setOpen(false);
+                      }
                     }}
                   >
                     <Check
                       className={cn(
                         "mr-2 h-4 w-4",
-                        value === searchQuery.trim()
+                        values.includes(searchQuery.trim())
                           ? "opacity-100"
                           : "opacity-0",
                       )}
@@ -293,34 +329,44 @@ export function SearchableSelect({
                     </span>
                   </div>
                 )}
-                {filteredOptions.map((option) => (
-                  <div
-                    key={option.value}
-                    className={cn(
-                      "group relative flex cursor-pointer items-start rounded-sm px-2 py-1.5 text-sm transition-colors outline-none select-none",
-                      value === option.value
-                        ? "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
-                        : "hover:bg-muted hover:text-foreground",
-                    )}
-                    onClick={() => {
-                      onValueChange(value === option.value ? "" : option.value);
-                      setTimeout(() => setOpen(false), 0); // ensure parent state updates before closing
-                    }}
-                  >
-                    <Check
+                {filteredOptions.map((option) => {
+                  const isSelected = values.includes(option.value);
+                  return (
+                    <div
+                      key={option.value}
                       className={cn(
-                        "mr-2 h-4 w-4",
-                        value === option.value ? "opacity-100" : "opacity-0",
+                        "group relative flex cursor-pointer items-start rounded-sm px-2 py-1.5 text-sm transition-colors outline-none select-none",
+                        isSelected
+                          ? "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
+                          : "hover:bg-muted hover:text-foreground",
                       )}
-                    />
-                    <span
-                      className="block w-full truncate text-left group-hover:wrap-break-word group-hover:whitespace-normal"
-                      title={option.label}
+                      onClick={() => {
+                        if (isMulti) {
+                          const newValues = isSelected
+                            ? values.filter((v) => v !== option.value)
+                            : [...values, option.value];
+                          onValueChange(newValues.join("|"));
+                        } else {
+                          onValueChange(isSelected ? "" : option.value);
+                          setTimeout(() => setOpen(false), 0);
+                        }
+                      }}
                     >
-                      {option.label}
-                    </span>
-                  </div>
-                ))}
+                      <Check
+                        className={cn(
+                          "mr-2 h-4 w-4",
+                          isSelected ? "opacity-100" : "opacity-0",
+                        )}
+                      />
+                      <span
+                        className="block w-full truncate text-left group-hover:wrap-break-word group-hover:whitespace-normal"
+                        title={option.label}
+                      >
+                        {option.label}
+                      </span>
+                    </div>
+                  );
+                })}
 
                 {/* Load More Indicator */}
                 {isLoadingMore && (

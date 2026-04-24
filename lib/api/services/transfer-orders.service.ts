@@ -899,54 +899,56 @@ export async function getTransferAllLocationCodes(
   codes?: string[],
   searchTerm?: string,
 ): Promise<TransferLocationCode[]> {
-  const commonFilter: string[] = [];
+  const queryParams: Record<string, any> = {
+    $select: "Code,Name",
+    $orderby: "Code",
+    $top: 1000,
+  };
+  
+  const commonParts: string[] = [];
   if (codes && codes.length > 0) {
     const codeFilter = codes
       .map((c) => `Code eq '${c.replace(/'/g, "''")}'`)
       .join(" or ");
-    commonFilter.push(`(${codeFilter})`);
+    commonParts.push(`(${codeFilter})`);
   }
 
-  const fetchBatch = async (filterPart?: string) => {
-    const filters = [...commonFilter];
-    if (filterPart) filters.push(filterPart);
+  const fetchBatch = async (searchFilter?: string) => {
+    const parts = [...commonParts];
+    if (searchFilter) parts.push(searchFilter);
     
     const query = buildODataQuery({
-      $select: "Code,Name",
-      $filter: filters.length > 0 ? filters.join(" and ") : undefined,
-      $orderby: "Code",
-      $top: 1000,
+      ...queryParams,
+      $filter: parts.length > 0 ? parts.join(" and ") : undefined,
     });
     const endpoint = `/LocationList?company='${encodeURIComponent(COMPANY)}'&${query}`;
-    return apiGet<ODataResponse<TransferLocationCode>>(endpoint);
+    const response = await apiGet<ODataResponse<TransferLocationCode>>(endpoint);
+    return response.value || [];
   };
 
-  if (!searchTerm || !searchTerm.trim()) {
-    try {
-      const res = await fetchBatch();
-      return res.value || [];
-    } catch (error) {
-      console.error("Error fetching location codes:", error);
-      return [];
-    }
+  if (!searchTerm) {
+    return fetchBatch();
   }
 
-  const s = searchTerm.trim().replace(/'/g, "''");
-  const sLower = s.toLowerCase();
-  const sUpper = s.toUpperCase();
-  
   try {
+    const escaped = searchTerm.replace(/'/g, "''");
+    // Split into two parallel calls to avoid OR across distinct fields
     const [resCode, resName] = await Promise.all([
-      fetchBatch(`(contains(Code,'${s}') or contains(Code,'${sLower}') or contains(Code,'${sUpper}'))`).catch(() => ({ value: [] })),
-      fetchBatch(`(contains(Name,'${s}') or contains(Name,'${sLower}') or contains(Name,'${sUpper}'))`).catch(() => ({ value: [] })),
+      fetchBatch(`contains(Code,'${escaped}')`),
+      fetchBatch(`contains(Name,'${escaped}')`),
     ]);
 
-    const map = new Map<string, TransferLocationCode>();
-    [...(resCode.value || []), ...(resName.value || [])].forEach(l => map.set(l.Code, l));
-    
-    return Array.from(map.values()).sort((a, b) => a.Code.localeCompare(b.Code));
+    const combined = [...resCode, ...resName];
+    const uniqueMap = new Map<string, TransferLocationCode>();
+    combined.forEach((loc) => {
+      uniqueMap.set(loc.Code, loc);
+    });
+
+    return Array.from(uniqueMap.values()).sort((a, b) =>
+      a.Code.localeCompare(b.Code),
+    );
   } catch (error) {
-    console.error("Error searching location codes:", error);
+    console.error("Error fetching location codes:", error);
     return [];
   }
 }

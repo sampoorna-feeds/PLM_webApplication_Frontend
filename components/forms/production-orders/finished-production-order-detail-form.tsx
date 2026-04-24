@@ -16,6 +16,7 @@ import {
   type ProductionOrderLine,
 } from "@/lib/api/services/production-orders.service";
 import { ProductionOrderQRDialog } from "./production-order-qr-dialog";
+import { ProductionOrderWorkOrderDialog } from "./production-order-work-order-dialog";
 import { ProductionOrderLinesTable } from "./production-order-lines-table";
 import { Button } from "@/components/ui/button";
 
@@ -316,7 +317,10 @@ export function FinishedProductionOrderDetailForm({
         <span className="bg-muted text-muted-foreground rounded-md px-2 py-0.5 text-xs font-medium">
           Read Only
         </span>
-        {orderNo && <ProductionOrderQRDialog prodOrderNo={orderNo} />}
+        <div className="flex items-center gap-2">
+          {orderNo && <ProductionOrderQRDialog prodOrderNo={orderNo} />}
+          {orderNo && <ProductionOrderWorkOrderDialog prodOrderNo={orderNo} />}
+        </div>
       </div>
 
       {/* Field groups */}

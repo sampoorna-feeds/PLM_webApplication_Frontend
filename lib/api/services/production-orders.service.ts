@@ -442,13 +442,29 @@ export async function refreshProductionOrder(
 // WORK ORDER
 // ============================================
 
+export interface GetWorkOrderPayload {
+  orderNo: string;
+  PUserID: string;
+  PrintDateTime: string;
+}
+
 /**
  * Get work order details
  * @param orderNo - Production Order No
+ * @param PUserID - Current user ID
+ * @param PrintDateTime - Local print datetime with timezone offset
  */
-export async function getWorkOrder(orderNo: string): Promise<any> {
+export async function getWorkOrder(
+  orderNo: string,
+  PUserID: string,
+  PrintDateTime: string,
+): Promise<any> {
   const endpoint = `/API_GetWorkOrder?company='${encodeURIComponent(COMPANY)}'`;
-  const payload = { orderNo };
+  const payload: GetWorkOrderPayload = {
+    orderNo,
+    PUserID,
+    PrintDateTime,
+  };
 
   try {
     return await apiPost<any>(endpoint, payload);

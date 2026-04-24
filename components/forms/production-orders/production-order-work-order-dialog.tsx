@@ -4,6 +4,7 @@ import { useState } from "react";
 import { ClipboardList, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getWorkOrder } from "@/lib/api/services/production-orders.service";
+import { getAuthCredentials } from "@/lib/auth/storage";
 import {
   ApiErrorDialog,
   extractApiError,
@@ -12,6 +13,29 @@ import {
 
 interface ProductionOrderWorkOrderDialogProps {
   prodOrderNo: string;
+}
+
+function getLocalDateTimeWithOffset(date: Date = new Date()): string {
+  const year = String(date.getFullYear());
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  const hours = String(date.getHours()).padStart(2, "0");
+  const minutes = String(date.getMinutes()).padStart(2, "0");
+  const seconds = String(date.getSeconds()).padStart(2, "0");
+
+  const offsetMinutes = -date.getTimezoneOffset();
+  const sign = offsetMinutes >= 0 ? "+" : "-";
+  const absoluteOffsetMinutes = Math.abs(offsetMinutes);
+  const offsetHours = String(Math.floor(absoluteOffsetMinutes / 60)).padStart(
+    2,
+    "0",
+  );
+  const offsetRemainderMinutes = String(absoluteOffsetMinutes % 60).padStart(
+    2,
+    "0",
+  );
+
+  return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}${sign}${offsetHours}:${offsetRemainderMinutes}`;
 }
 
 export function ProductionOrderWorkOrderDialog({
@@ -25,7 +49,15 @@ export function ProductionOrderWorkOrderDialog({
       setIsLoading(true);
       setError(null);
 
-      const response = await getWorkOrder(prodOrderNo);
+      const credentials = getAuthCredentials();
+      const currentUserId = credentials?.userID || "";
+      const printDateTime = getLocalDateTimeWithOffset();
+
+      const response = await getWorkOrder(
+        prodOrderNo,
+        currentUserId,
+        printDateTime,
+      );
 
       if (response && response.value) {
         // Convert base64 to Blob
@@ -65,6 +97,7 @@ export function ProductionOrderWorkOrderDialog({
         size="sm"
         onClick={handleWorkOrderClick}
         disabled={isLoading}
+        data-work-order-trigger
       >
         {isLoading ? (
           <Loader2 className="mr-2 h-4 w-4 animate-spin" />

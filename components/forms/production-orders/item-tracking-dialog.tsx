@@ -49,6 +49,11 @@ import {
   type ApiErrorState,
 } from "./api-error-dialog";
 
+/** Round to at most 6 decimal places to eliminate JS floating-point noise */
+function roundQty(n: number): number {
+  return Math.round(n * 1_000_000) / 1_000_000;
+}
+
 /** Union type for line, component, or journal entry */
 type TrackingSource =
   | ProductionOrderLine
@@ -130,15 +135,11 @@ export function ItemTrackingDialog({
 
   // Calculate total quantity already assigned in tracking lines (using absolute values)
   const assignedQuantity = useMemo(() => {
-    if (editingLine) {
-      // When editing, exclude the line being edited from the total
-      return trackingLines
-        .filter((line) => line.Entry_No !== editingLine.Entry_No)
-        .reduce((sum, line) => sum + Math.abs(line.Quantity_Base || 0), 0);
-    }
-    return trackingLines.reduce(
-      (sum, line) => sum + Math.abs(line.Quantity_Base || 0),
-      0,
+    const lines = editingLine
+      ? trackingLines.filter((line) => line.Entry_No !== editingLine.Entry_No)
+      : trackingLines;
+    return roundQty(
+      lines.reduce((sum, line) => sum + Math.abs(line.Quantity_Base || 0), 0),
     );
   }, [trackingLines, editingLine]);
 
@@ -153,7 +154,7 @@ export function ItemTrackingDialog({
 
   // Calculate available quantity for new assignment
   const availableForAssignment = useMemo(() => {
-    return Math.max(0, remainingQuantity - assignedQuantity);
+    return roundQty(Math.max(0, remainingQuantity - assignedQuantity));
   }, [remainingQuantity, assignedQuantity]);
 
   const filter = useMemo(() => {
@@ -251,9 +252,8 @@ export function ItemTrackingDialog({
     const expDate = lot.Expiration_Date?.split("T")[0] || "";
     setExpirationDate(expDate);
     // Auto-suggest the smaller of: available lot qty, available for assignment
-    const suggestedQty = Math.min(
-      lot.RemainingQty || 0,
-      availableForAssignment,
+    const suggestedQty = roundQty(
+      Math.min(lot.RemainingQty || 0, availableForAssignment),
     );
     setQuantity(suggestedQty.toString());
   };
@@ -396,8 +396,8 @@ export function ItemTrackingDialog({
     setEditingLine(line);
     setLotNo(line.Lot_No || "");
     setExpirationDate(line.Expiration_Date?.split("T")[0] || "");
-    // Convert negative quantity to positive for display
-    setQuantity(Math.abs(line.Quantity_Base || 0).toString());
+    // Convert negative quantity to positive for display, rounded to avoid float noise
+    setQuantity(roundQty(Math.abs(line.Quantity_Base || 0)).toString());
   };
 
   const handleCancelEdit = () => {

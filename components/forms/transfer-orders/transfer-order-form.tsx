@@ -55,6 +55,7 @@ import { getDistance, getLocationPostCode } from "@/lib/api/services/distance.se
 import { getAuthCredentials } from "@/lib/auth/storage";
 import { useFormStack } from "@/lib/form-stack/use-form-stack";
 import { cn } from "@/lib/utils";
+import { getWebUser, type WebUser } from "@/lib/api/services/web-user.service";
 import { Download, Eye, Loader2, Plus, Printer, RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -174,6 +175,7 @@ export function TransferOrderForm({
   }, [locations, allLocations]);
 
   const [userSetup, setUserSetup] = useState<WebUserSetup[]>([]);
+  const [webUserProfile, setWebUserProfile] = useState<WebUser | null>(null);
 
   // Get logged-in user ID and setup
   useEffect(() => {
@@ -189,10 +191,14 @@ export function TransferOrderForm({
         }
 
         try {
-          const setup = await getWebUserSetup(credentials.userID);
+          const [setup, profile] = await Promise.all([
+            getWebUserSetup(credentials.userID),
+            getWebUser(credentials.userID),
+          ]);
           setUserSetup(setup);
+          setWebUserProfile(profile);
         } catch (err) {
-          console.error("Error loading user setup:", err);
+          console.error("Error loading user context:", err);
         }
       }
     };
@@ -656,6 +662,40 @@ export function TransferOrderForm({
   const handlePost = async () => {
     if (!formState.No) return;
 
+    if (!formState.Posting_Date || formState.Posting_Date === "0001-01-01") {
+      toast.error("Please select a Posting Date");
+      return;
+    }
+
+    // Date range validation if profile is available
+    if (webUserProfile) {
+      const postingDate = new Date(formState.Posting_Date);
+      if (
+        webUserProfile.Allow_Posting_From &&
+        webUserProfile.Allow_Posting_From !== "0001-01-01"
+      ) {
+        const fromDate = new Date(webUserProfile.Allow_Posting_From);
+        if (postingDate < fromDate) {
+          toast.error(
+            `Posting Date must be after ${new Date(webUserProfile.Allow_Posting_From).toLocaleDateString()}`,
+          );
+          return;
+        }
+      }
+      if (
+        webUserProfile.Allow_Posting_To &&
+        webUserProfile.Allow_Posting_To !== "0001-01-01"
+      ) {
+        const toDate = new Date(webUserProfile.Allow_Posting_To);
+        if (postingDate > toDate) {
+          toast.error(
+            `Posting Date must be before ${new Date(webUserProfile.Allow_Posting_To).toLocaleDateString()}`,
+          );
+          return;
+        }
+      }
+    }
+
     setIsSubmitting(true);
     try {
       // First, save any header changes before posting
@@ -866,9 +906,7 @@ export function TransferOrderForm({
     const updates: any = {};
 
     // 1. Smart defaults if fields are empty or 'zero'
-    if (!formState.Posting_Date || formState.Posting_Date === "0001-01-01") {
-      updates.Posting_Date = today;
-    }
+    // Posting Date is intentionally left empty per user requirement
     if (!formState.LR_RR_Date || formState.LR_RR_Date === "0001-01-01") {
       updates.LR_RR_Date = today;
     }
@@ -1069,6 +1107,8 @@ export function TransferOrderForm({
                       onClick={() => {
                         setPostStep(1);
                         setPostSelection("ship");
+                        // Clear posting date by default in the modal
+                        handleChange("Posting_Date", "");
                         setIsPostDialogOpen(true);
                       }}
                       variant="default"
@@ -1630,6 +1670,18 @@ export function TransferOrderForm({
                         : ""
                     }
                     onChange={(val) => handleChange("Posting_Date", val)}
+                    min={
+                      webUserProfile?.Allow_Posting_From &&
+                      webUserProfile.Allow_Posting_From !== "0001-01-01"
+                        ? webUserProfile.Allow_Posting_From.split("T")[0]
+                        : undefined
+                    }
+                    max={
+                      webUserProfile?.Allow_Posting_To &&
+                      webUserProfile.Allow_Posting_To !== "0001-01-01"
+                        ? webUserProfile.Allow_Posting_To.split("T")[0]
+                        : undefined
+                    }
                     className="border-border h-10 focus:border-green-600/50"
                   />
                 </div>

@@ -12,6 +12,8 @@ interface DateInputProps {
   disabled?: boolean;
   className?: string;
   id?: string;
+  min?: string;
+  max?: string;
 }
 
 /**
@@ -28,6 +30,8 @@ export function DateInput({
   disabled = false,
   className,
   id,
+  min,
+  max,
 }: DateInputProps) {
   const [displayValue, setDisplayValue] = React.useState("");
   const nativeInputRef = React.useRef<HTMLInputElement>(null);
@@ -141,6 +145,8 @@ export function DateInput({
         type="date"
         value={value || ""}
         onChange={(e) => onChange(e.target.value)}
+        min={min}
+        max={max}
         className="pointer-events-none absolute inset-0 opacity-0"
         tabIndex={-1}
       />

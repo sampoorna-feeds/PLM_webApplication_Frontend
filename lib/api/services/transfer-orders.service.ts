@@ -901,28 +901,49 @@ export async function getTransferAllLocationCodes(
     $orderby: "Code",
     $top: 1000,
   };
-  const parts: string[] = [];
+  
+  const commonParts: string[] = [];
   if (codes && codes.length > 0) {
     const codeFilter = codes
       .map((c) => `Code eq '${c.replace(/'/g, "''")}'`)
       .join(" or ");
-    parts.push(`(${codeFilter})`);
+    commonParts.push(`(${codeFilter})`);
   }
 
-  if (searchTerm) {
-    const escaped = searchTerm.replace(/'/g, "''");
-    parts.push(`(contains(Code,'${escaped}') or contains(Name,'${escaped}'))`);
-  }
-
-  if (parts.length > 0) {
-    queryParams.$filter = parts.join(" and ");
-  }
-  const query = buildODataQuery(queryParams);
-  const endpoint = `/LocationList?company='${encodeURIComponent(COMPANY)}'&${query}`;
-  try {
-    const response =
-      await apiGet<ODataResponse<TransferLocationCode>>(endpoint);
+  const fetchBatch = async (searchFilter?: string) => {
+    const parts = [...commonParts];
+    if (searchFilter) parts.push(searchFilter);
+    
+    const query = buildODataQuery({
+      ...queryParams,
+      $filter: parts.length > 0 ? parts.join(" and ") : undefined,
+    });
+    const endpoint = `/LocationList?company='${encodeURIComponent(COMPANY)}'&${query}`;
+    const response = await apiGet<ODataResponse<TransferLocationCode>>(endpoint);
     return response.value || [];
+  };
+
+  if (!searchTerm) {
+    return fetchBatch();
+  }
+
+  try {
+    const escaped = searchTerm.replace(/'/g, "''");
+    // Split into two parallel calls to avoid OR across distinct fields
+    const [resCode, resName] = await Promise.all([
+      fetchBatch(`contains(Code,'${escaped}')`),
+      fetchBatch(`contains(Name,'${escaped}')`),
+    ]);
+
+    const combined = [...resCode, ...resName];
+    const uniqueMap = new Map<string, TransferLocationCode>();
+    combined.forEach((loc) => {
+      uniqueMap.set(loc.Code, loc);
+    });
+
+    return Array.from(uniqueMap.values()).sort((a, b) =>
+      a.Code.localeCompare(b.Code),
+    );
   } catch (error) {
     console.error("Error fetching location codes:", error);
     return [];

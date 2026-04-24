@@ -4,7 +4,6 @@ import { useState } from "react";
 import { ClipboardList, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getWorkOrder } from "@/lib/api/services/production-orders.service";
-import { getAuthCredentials } from "@/lib/auth/storage";
 import {
   ApiErrorDialog,
   extractApiError,
@@ -49,13 +48,12 @@ export function ProductionOrderWorkOrderDialog({
       setIsLoading(true);
       setError(null);
 
-      const credentials = getAuthCredentials();
-      const currentUserId = credentials?.userID || "";
+      const puserID = "Jobqueue";
       const printDateTime = getLocalDateTimeWithOffset();
 
       const response = await getWorkOrder(
         prodOrderNo,
-        currentUserId,
+        puserID,
         printDateTime,
       );
 

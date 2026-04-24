@@ -270,12 +270,8 @@ export function useReportLedger() {
   }, [sortColumn, sortDirection]);
 
   const fetchEntries = useCallback(async () => {
-    // Only locations + dates are required; item is optional
-    if (
-      appliedFilters.locationCodes.length === 0 ||
-      !appliedFilters.postingDateFrom ||
-      !appliedFilters.postingDateTo
-    ) {
+    // Only location is required; item and dates are optional
+    if (appliedFilters.locationCodes.length === 0) {
       setEntries([]);
       setTotalCount(0);
       return;
@@ -343,14 +339,18 @@ export function useReportLedger() {
     (additionalFilters: FilterCondition[]) => {
       setFilters((prev) => {
         const next = { ...prev, additionalFilters };
-        if (
-          next.locationCodes.length > 0 &&
-          next.postingDateFrom &&
-          next.postingDateTo &&
-          next.postingDateFrom <= next.postingDateTo
-        ) {
-          setAppliedFilters(next);
-          setCurrentPage(1);
+        if (next.locationCodes.length > 0) {
+          // If dates are provided, ensure they are valid in relation to each other
+          if (
+            next.postingDateFrom &&
+            next.postingDateTo &&
+            next.postingDateFrom > next.postingDateTo
+          ) {
+            // We just skip applying to state if dates are invalid
+          } else {
+            setAppliedFilters(next);
+            setCurrentPage(1);
+          }
         }
         return next;
       });
@@ -359,15 +359,8 @@ export function useReportLedger() {
   );
 
   const handleApplyFilters = useCallback(() => {
-    // Only locations + dates are required
-    if (
-      filters.locationCodes.length === 0 ||
-      !filters.postingDateFrom ||
-      !filters.postingDateTo
-    ) {
-      toast.error(
-        "Please select at least one location and fill in date fields",
-      );
+    if (filters.locationCodes.length === 0) {
+      toast.error("Please select at least one location");
       return;
     }
 

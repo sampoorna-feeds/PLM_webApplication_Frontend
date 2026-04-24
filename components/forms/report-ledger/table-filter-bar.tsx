@@ -285,7 +285,7 @@ export function TableFilterBar({
         {/* Posting Date From */}
         <div className="space-y-1.5">
           <Label htmlFor="date-from-filter" className="text-xs font-medium">
-            Posting Date From <span className="text-destructive">*</span>
+            Posting Date From
           </Label>
           <DateInput
             id="date-from-filter"
@@ -299,7 +299,7 @@ export function TableFilterBar({
         {/* Posting Date To */}
         <div className="space-y-1.5">
           <Label htmlFor="date-to-filter" className="text-xs font-medium">
-            Posting Date To <span className="text-destructive">*</span>
+            Posting Date To
           </Label>
           <DateInput
             id="date-to-filter"

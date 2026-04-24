@@ -311,9 +311,7 @@ export function ProductionOrderFormFields({
   const showBomFields = data.Source_Type === "Item";
   // Check if BOM is editable (manual entry needed)
   const isBomEditable = showBomFields && !data.isProdBomFromItem && !isReadOnly;
-  // Check if BOM Version should be shown (only when manually filling BOM)
-  const showBomVersion =
-    showBomFields && !data.isProdBomFromItem && data.Prod_Bom_No;
+  const showBomVersion = showBomFields && !!data.Prod_Bom_No;
 
   return (
     <div className="space-y-6">
@@ -418,13 +416,6 @@ export function ProductionOrderFormFields({
           disabled
           helpText="Auto-filled from LOC Code"
           required
-        />
-        <FormField
-          label="Hatching Date"
-          value={data.Hatching_Date}
-          onChange={(v) => handleChange("Hatching_Date", v)}
-          disabled={isReadOnly}
-          type="date"
         />
       </FormSection>
 

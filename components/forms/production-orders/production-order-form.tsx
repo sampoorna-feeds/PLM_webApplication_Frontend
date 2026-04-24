@@ -1088,8 +1088,7 @@ export function ProductionOrderForm({
   const showBomFields = formState.Source_Type === "Item";
   const isBomEditable =
     showBomFields && !formState.isProdBomFromItem && !isViewMode;
-  const showBomVersion =
-    showBomFields && !formState.isProdBomFromItem && formState.Prod_Bom_No;
+  const showBomVersion = showBomFields && !!formState.Prod_Bom_No;
 
   return (
     <div className="flex h-full flex-col">
@@ -1456,23 +1455,6 @@ export function ProductionOrderForm({
               </Select>
             )}
           </div>
-          <div className="space-y-2">
-            <FieldTitle>Hatching Date</FieldTitle>
-            {isViewMode ? (
-              <Input
-                value={formState.Hatching_Date || "-"}
-                disabled
-                className="bg-muted"
-              />
-            ) : (
-              <Input
-                type="date"
-                value={formState.Hatching_Date}
-                onChange={(e) => handleChange("Hatching_Date", e.target.value)}
-              />
-            )}
-          </div>
-
           {/* BOM Fields */}
           {showBomFields && (
             <>

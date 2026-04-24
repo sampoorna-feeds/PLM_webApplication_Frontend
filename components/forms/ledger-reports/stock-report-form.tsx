@@ -11,7 +11,6 @@ import { LocationSelect } from "@/components/forms/shared/location-select";
 import { Loader2, FileDown } from "lucide-react";
 import { useAuth } from "@/lib/contexts/auth-context";
 import { toast } from "sonner";
-import { useAuth } from "@/lib/contexts/auth-context";
 import { getAllLOCsFromUserSetup } from "@/lib/api/services/dimension.service";
 
 export function StockReportForm() {
@@ -27,7 +26,7 @@ export function StockReportForm() {
   const [options, setOptions] = useState<{ value: string; label: string }[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const { userID } = useAuth();
+  const [authorizedLOCs, setAuthorizedLOCs] = useState<string[]>([]);
 
   const handleFetchReport = async () => {
     if (!startingDate || !endingDate || !loc) {
@@ -92,10 +91,22 @@ export function StockReportForm() {
     }
   };
 
-  // Trigger initial fetch
+  // Load items and authorized locations
   useEffect(() => {
     fetchItems("");
-  }, []);
+
+    const loadAuthLocs = async () => {
+      if (userID) {
+        try {
+          const locs = await getAllLOCsFromUserSetup(userID.toString());
+          setAuthorizedLOCs(locs.map(l => l.Code).filter(Boolean) as string[]);
+        } catch (error) {
+          console.error("Error loading authorized locations:", error);
+        }
+      }
+    };
+    loadAuthLocs();
+  }, [userID]);
 
   return (
     <Card className="w-full max-w-2xl mx-auto mt-8 border-border shadow-sm">
@@ -137,14 +148,6 @@ export function StockReportForm() {
               options={options}
               isLoading={isSearching}
               isMulti
-            />
-          </div>
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Location</label>
-            <LocationSelect
-              value={loc}
-              onChange={(v) => setLoc(v)}
-              placeholder="Search and select a location..."
             />
           </div>
         </div>

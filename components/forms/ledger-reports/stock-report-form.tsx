@@ -25,8 +25,8 @@ export function StockReportForm() {
   const [isLoading, setIsLoading] = useState(false);
 
   const handleFetchReport = async () => {
-    if (!startingDate || !endingDate) {
-      toast.error("Please fill in both dates");
+    if (!startingDate || !endingDate || !loc) {
+      toast.error("Please fill in both dates and select a location");
       return;
     }
 
@@ -125,7 +125,7 @@ export function StockReportForm() {
             />
           </div>
           <div className="space-y-2">
-            <label className="text-sm font-medium">Location (Optional)</label>
+            <label className="text-sm font-medium">Location</label>
             <LocationSelect
               value={loc}
               onChange={(v) => setLoc(v)}

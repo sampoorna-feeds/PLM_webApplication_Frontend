@@ -1066,7 +1066,11 @@ export function TransferOrderForm({
                   formState.Status === "Open") &&
                   formState.No && (
                     <Button
-                      onClick={() => setIsPostDialogOpen(true)}
+                      onClick={() => {
+                        setPostStep(1);
+                        setPostSelection("ship");
+                        setIsPostDialogOpen(true);
+                      }}
                       variant="default"
                       size="sm"
                       className="bg-green-600 font-bold text-white shadow-md transition-all hover:scale-105 hover:bg-green-700 active:scale-95"

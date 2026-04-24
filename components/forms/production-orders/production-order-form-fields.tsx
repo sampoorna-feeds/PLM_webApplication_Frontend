@@ -178,10 +178,11 @@ export function ProductionOrderFormFields({
   };
 
   // Handle Source No change - check for item's Production BOM
-  const handleSourceNoChange = async (value: string) => {
+  const handleSourceNoChange = async (value: string, description: string) => {
     onChange({
       ...data,
       Source_No: value,
+      Description: description,
       Prod_Bom_No: "",
       BOM_Version_No: "",
       isProdBomFromItem: false,
@@ -199,6 +200,7 @@ export function ProductionOrderFormFields({
           onChange({
             ...data,
             Source_No: value,
+            Description: item.Description || description,
             Prod_Bom_No: item.Production_BOM_No,
             BOM_Version_No: "",
             isProdBomFromItem: true,

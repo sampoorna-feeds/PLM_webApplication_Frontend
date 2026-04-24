@@ -50,7 +50,7 @@ interface SourceRecord {
 interface SourceNoSelectProps {
   value: string;
   sourceType: string;
-  onChange: (value: string) => void;
+  onChange: (value: string, description: string) => void;
   disabled?: boolean;
   error?: boolean;
   placeholder?: string;
@@ -423,7 +423,7 @@ export function SourceNoSelect({
   };
 
   const handleSelect = (record: SourceRecord) => {
-    onChange(record[idField] as string);
+    onChange(record[idField] as string, getSecondaryText(sourceType, record));
     setOpen(false);
   };
 

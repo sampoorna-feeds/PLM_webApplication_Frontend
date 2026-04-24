@@ -5,7 +5,7 @@
 
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { toast } from "sonner";
 import {
   Loader2,
@@ -198,6 +198,23 @@ export function ProductionOrderForm({
   // Stores the ActiveVersionCode from /ProductionBOMList for auto-defaulting BOM Version
   const [activeVersionCode, setActiveVersionCode] = useState<string>("");
 
+  // Snapshot of form state at last load/save — used to diff for PATCH payload
+  const originalFormStateRef = useRef<{
+    Description: string;
+    Source_Type: string;
+    Source_No: string;
+    Quantity: number;
+    Due_Date: string;
+    Location_Code: string;
+    Hatching_Date: string;
+    Prod_Bom_No: string;
+    BOM_Version_No: string;
+    Batch_Size: string;
+    Shortcut_Dimension_1_Code: string;
+    Shortcut_Dimension_2_Code: string;
+    Shortcut_Dimension_3_Code: string;
+  } | null>(null);
+
   // Order lines and components for view/edit mode
   const [orderLines, setOrderLines] = useState<ProductionOrderLine[]>([]);
   const [orderComponents, setOrderComponents] = useState<
@@ -267,9 +284,7 @@ export function ProductionOrderForm({
       try {
         const order = await getProductionOrderByNo(orderNo);
         if (order) {
-          setFormState((prev) => ({
-            ...prev,
-            No: order.No,
+          const snapshot = {
             Description: order.Description || "",
             Shortcut_Dimension_1_Code: order.Shortcut_Dimension_1_Code || "",
             Shortcut_Dimension_2_Code: order.Shortcut_Dimension_2_Code || "",
@@ -282,8 +297,14 @@ export function ProductionOrderForm({
             Hatching_Date: order.Hatching_Date || "",
             Prod_Bom_No: order.Prod_Bom_No || "",
             BOM_Version_No: order.BOM_Version_No || "",
-            isProdBomFromItem: !!order.Prod_Bom_No,
             Batch_Size: (order.Batch_Size as BatchSize) || "",
+          };
+          originalFormStateRef.current = snapshot;
+          setFormState((prev) => ({
+            ...prev,
+            No: order.No,
+            ...snapshot,
+            isProdBomFromItem: !!order.Prod_Bom_No,
           }));
         }
 
@@ -641,10 +662,11 @@ export function ProductionOrderForm({
   );
 
   const handleSourceNoChange = useCallback(
-    async (value: string) => {
+    async (value: string, description: string) => {
       setFormState((prev) => ({
         ...prev,
         Source_No: value,
+        Description: description,
         Prod_Bom_No: "",
         BOM_Version_No: "",
         isProdBomFromItem: false,
@@ -660,6 +682,7 @@ export function ProductionOrderForm({
           if (item?.Production_BOM_No) {
             setFormState((p) => ({
               ...p,
+              Description: item.Description || description,
               Prod_Bom_No: item.Production_BOM_No || "",
               isProdBomFromItem: true,
             }));
@@ -957,34 +980,54 @@ export function ProductionOrderForm({
           throw new Error("Production Order No is required for update");
         }
 
-        // Build update payload with only changed fields
-        const updatePayload: {
-          Description?: string;
-          Quantity?: number;
-          Due_Date?: string;
-          Location_Code?: string;
-          Batch_Size?: string;
-        } = {};
+        // Build patch payload — only include fields that changed from the original
+        const orig = originalFormStateRef.current;
+        const currentQty =
+          typeof formState.Quantity === "string"
+            ? parseFloat(formState.Quantity)
+            : formState.Quantity;
+        const origQty = orig?.Quantity ?? currentQty;
 
-        // Only include fields that should be updateable
-        if (formState.Description) {
+        const updatePayload: Parameters<typeof updateProductionOrder>[1] = {};
+
+        if (formState.Description !== orig?.Description)
           updatePayload.Description = formState.Description;
-        }
-        if (formState.Quantity) {
-          updatePayload.Quantity =
-            typeof formState.Quantity === "string"
-              ? parseFloat(formState.Quantity)
-              : formState.Quantity;
-        }
-        if (formState.Due_Date) {
+        if (formState.Source_Type !== orig?.Source_Type)
+          updatePayload.Source_Type = formState.Source_Type;
+        if (formState.Source_No !== orig?.Source_No)
+          updatePayload.Source_No = formState.Source_No;
+        if (currentQty !== origQty)
+          updatePayload.Quantity = currentQty;
+        if (formState.Due_Date !== orig?.Due_Date)
           updatePayload.Due_Date = formState.Due_Date;
-        }
-        if (formState.Location_Code) {
+        if (formState.Location_Code !== orig?.Location_Code)
           updatePayload.Location_Code = formState.Location_Code;
-        }
-        if (formState.Batch_Size) {
+        if (formState.Hatching_Date !== orig?.Hatching_Date)
+          updatePayload.Hatching_Date = formState.Hatching_Date;
+        if (formState.Prod_Bom_No !== orig?.Prod_Bom_No)
+          updatePayload.Prod_Bom_No = formState.Prod_Bom_No;
+        if (formState.BOM_Version_No !== orig?.BOM_Version_No)
+          updatePayload.BOM_Version_No = formState.BOM_Version_No;
+        if (formState.Batch_Size !== orig?.Batch_Size)
           updatePayload.Batch_Size = formState.Batch_Size;
-        }
+        if (
+          formState.Shortcut_Dimension_1_Code !==
+          orig?.Shortcut_Dimension_1_Code
+        )
+          updatePayload.Shortcut_Dimension_1_Code =
+            formState.Shortcut_Dimension_1_Code;
+        if (
+          formState.Shortcut_Dimension_2_Code !==
+          orig?.Shortcut_Dimension_2_Code
+        )
+          updatePayload.Shortcut_Dimension_2_Code =
+            formState.Shortcut_Dimension_2_Code;
+        if (
+          formState.Shortcut_Dimension_3_Code !==
+          orig?.Shortcut_Dimension_3_Code
+        )
+          updatePayload.Shortcut_Dimension_3_Code =
+            formState.Shortcut_Dimension_3_Code;
 
         await updateProductionOrder(formState.No, updatePayload);
 
@@ -993,13 +1036,29 @@ export function ProductionOrderForm({
         // Refresh order data
         const updatedOrder = await getProductionOrderByNo(formState.No);
         if (updatedOrder) {
-          setFormState((prev) => ({
-            ...prev,
+          const newSnapshot = {
             Description: updatedOrder.Description || "",
+            Source_Type: mapSourceType(updatedOrder.Source_Type),
+            Source_No: updatedOrder.Source_No || "",
             Quantity: updatedOrder.Quantity || 0,
             Due_Date: updatedOrder.Due_Date || "",
             Location_Code: updatedOrder.Location_Code || "",
+            Hatching_Date: updatedOrder.Hatching_Date || "",
+            Prod_Bom_No: updatedOrder.Prod_Bom_No || "",
+            BOM_Version_No: updatedOrder.BOM_Version_No || "",
             Batch_Size: (updatedOrder.Batch_Size as BatchSize) || "",
+            Shortcut_Dimension_1_Code:
+              updatedOrder.Shortcut_Dimension_1_Code || "",
+            Shortcut_Dimension_2_Code:
+              updatedOrder.Shortcut_Dimension_2_Code || "",
+            Shortcut_Dimension_3_Code:
+              updatedOrder.Shortcut_Dimension_3_Code || "",
+          };
+          originalFormStateRef.current = newSnapshot;
+          setFormState((prev) => ({
+            ...prev,
+            ...newSnapshot,
+            isProdBomFromItem: !!updatedOrder.Prod_Bom_No,
           }));
         }
 

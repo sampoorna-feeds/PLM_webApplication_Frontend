@@ -452,7 +452,7 @@ export interface GetWorkOrderPayload {
  * Get work order details
  * @param orderNo - Production Order No
  * @param puserID - Current user ID
- * @param printDateTime - Local print datetime with timezone offset
+ * @param printDateTime - Local print datetime in DD/MM/YY HH:mm:ss.SSS format
  */
 export async function getWorkOrder(
   orderNo: string,

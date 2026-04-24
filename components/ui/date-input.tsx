@@ -12,6 +12,9 @@ interface DateInputProps {
   disabled?: boolean;
   className?: string;
   id?: string;
+  min?: string;
+  max?: string;
+  required?: boolean;
 }
 
 /**
@@ -28,6 +31,9 @@ export function DateInput({
   disabled = false,
   className,
   id,
+  min,
+  max,
+  required = false,
 }: DateInputProps) {
   const [displayValue, setDisplayValue] = React.useState("");
   const nativeInputRef = React.useRef<HTMLInputElement>(null);
@@ -124,6 +130,7 @@ export function DateInput({
         onKeyDown={handleKeyDown}
         placeholder={placeholder}
         disabled={disabled}
+        required={required}
         className={cn("pr-9", className)}
       />
       <button
@@ -141,6 +148,8 @@ export function DateInput({
         type="date"
         value={value || ""}
         onChange={(e) => onChange(e.target.value)}
+        min={min}
+        max={max}
         className="pointer-events-none absolute inset-0 opacity-0"
         tabIndex={-1}
       />

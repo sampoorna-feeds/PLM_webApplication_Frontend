@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Calendar, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -15,6 +15,9 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { postProductionOrder } from "@/lib/api/services/production-orders.service";
+import { getWebUser, type WebUser } from "@/lib/api/services/web-user.service";
+import { DateInput } from "@/components/ui/date-input";
+import { getAuthCredentials } from "@/lib/auth/storage";
 import {
   ApiErrorDialog,
   extractApiError,
@@ -44,11 +47,17 @@ export function ProductionOrderPostConfirmationDialog({
   prodOrderNo,
   onSuccess,
 }: ProductionOrderPostConfirmationDialogProps) {
-  const [postingDate, setPostingDate] = useState<string>(
-    formatDate(new Date()),
-  );
+  const [postingDate, setPostingDate] = useState<string>("");
   const [isPosting, setIsPosting] = useState(false);
   const [apiError, setApiError] = useState<ApiErrorState | null>(null);
+  const [webUserProfile, setWebUserProfile] = useState<WebUser | null>(null);
+
+  useEffect(() => {
+    const creds = getAuthCredentials();
+    if (creds?.userID) {
+      getWebUser(creds.userID).then(setWebUserProfile).catch(console.error);
+    }
+  }, []);
 
   const handlePost = async () => {
     // Validate posting date
@@ -62,6 +71,32 @@ export function ProductionOrderPostConfirmationDialog({
     if (!dateRegex.test(postingDate)) {
       toast.error("Invalid date format. Use YYYY-MM-DD");
       return;
+    }
+
+    if (webUserProfile) {
+      const { Allow_Posting_From, Allow_Posting_To } = webUserProfile;
+      const selectedDate = postingDate;
+
+      if (
+        Allow_Posting_From &&
+        Allow_Posting_From !== "0001-01-01" &&
+        selectedDate < Allow_Posting_From.split("T")[0]
+      ) {
+        toast.error(
+          `Posting Date cannot be before ${Allow_Posting_From.split("T")[0]}`,
+        );
+        return;
+      }
+      if (
+        Allow_Posting_To &&
+        Allow_Posting_To !== "0001-01-01" &&
+        selectedDate > Allow_Posting_To.split("T")[0]
+      ) {
+        toast.error(
+          `Posting Date cannot be after ${Allow_Posting_To.split("T")[0]}`,
+        );
+        return;
+      }
     }
 
     setIsPosting(true);
@@ -96,17 +131,24 @@ export function ProductionOrderPostConfirmationDialog({
               <Label htmlFor="postingDate">
                 Posting Date <span className="text-destructive">*</span>
               </Label>
-              <div className="relative">
-                <Input
+                <DateInput
                   id="postingDate"
-                  type="date"
                   value={postingDate}
-                  onChange={(e) => setPostingDate(e.target.value)}
+                  onChange={(val) => setPostingDate(val)}
+                  min={
+                    webUserProfile?.Allow_Posting_From &&
+                    webUserProfile.Allow_Posting_From !== "0001-01-01"
+                      ? webUserProfile.Allow_Posting_From.split("T")[0]
+                      : undefined
+                  }
+                  max={
+                    webUserProfile?.Allow_Posting_To &&
+                    webUserProfile.Allow_Posting_To !== "0001-01-01"
+                      ? webUserProfile.Allow_Posting_To.split("T")[0]
+                      : undefined
+                  }
                   required
-                  className="pr-10"
                 />
-                <Calendar className="text-muted-foreground pointer-events-none absolute top-1/2 right-3 h-4 w-4 -translate-y-1/2" />
-              </div>
               <p className="text-muted-foreground text-xs">
                 Format: YYYY-MM-DD (e.g., {formatDate(new Date())})
               </p>

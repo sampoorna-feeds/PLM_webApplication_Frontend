@@ -146,6 +146,7 @@ export async function getItemLedgerEntries(
 export async function getConsumptionReport(params: {
   startingDate: string;
   endingDate: string;
+  loc: string;
 }): Promise<string> {
   // Matching the endpoint spelling from user's CURL: API_ConsumptionRepor (no 't')
   const endpoint = `/API_ConsumptionRepor?company='${encodeURIComponent(COMPANY)}'`;
@@ -155,6 +156,7 @@ export async function getConsumptionReport(params: {
     body: JSON.stringify({
       staringDate: params.startingDate,
       endingDate: params.endingDate,
+      loc: params.loc,
     }),
   });
   if (typeof response === "string") return response;

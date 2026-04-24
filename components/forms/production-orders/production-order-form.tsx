@@ -209,7 +209,7 @@ export function ProductionOrderForm({
     Hatching_Date: string;
     Prod_Bom_No: string;
     BOM_Version_No: string;
-    Batch_Size: string;
+    Batch_Size: BatchSize;
     Shortcut_Dimension_1_Code: string;
     Shortcut_Dimension_2_Code: string;
     Shortcut_Dimension_3_Code: string;
@@ -297,7 +297,7 @@ export function ProductionOrderForm({
             Hatching_Date: order.Hatching_Date || "",
             Prod_Bom_No: order.Prod_Bom_No || "",
             BOM_Version_No: order.BOM_Version_No || "",
-            Batch_Size: (order.Batch_Size as BatchSize) || "",
+            Batch_Size: ((order.Batch_Size || "") as BatchSize),
           };
           originalFormStateRef.current = snapshot;
           setFormState((prev) => ({
@@ -1046,7 +1046,7 @@ export function ProductionOrderForm({
             Hatching_Date: updatedOrder.Hatching_Date || "",
             Prod_Bom_No: updatedOrder.Prod_Bom_No || "",
             BOM_Version_No: updatedOrder.BOM_Version_No || "",
-            Batch_Size: (updatedOrder.Batch_Size as BatchSize) || "",
+            Batch_Size: ((updatedOrder.Batch_Size || "") as BatchSize),
             Shortcut_Dimension_1_Code:
               updatedOrder.Shortcut_Dimension_1_Code || "",
             Shortcut_Dimension_2_Code:

@@ -305,6 +305,7 @@ export function PostedTransferView({ type }: PostedTransferViewProps) {
         onApply={(f) => setFilters(f)}
         title={title}
         description={description}
+        type={type}
       />
     );
   }

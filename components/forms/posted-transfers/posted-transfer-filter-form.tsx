@@ -24,9 +24,10 @@ interface PostedTransferFilterFormProps {
   onApply: (filters: PostedTransferFilters) => void;
   title: string;
   description: string;
+  type: "shipment" | "receipt";
 }
 
-export function PostedTransferFilterForm({ onApply, title, description }: PostedTransferFilterFormProps) {
+export function PostedTransferFilterForm({ onApply, title, description, type }: PostedTransferFilterFormProps) {
   const [filters, setFilters] = useState<PostedTransferFilters>({
     fromDate: new Date().toISOString().split("T")[0],
     toDate: new Date().toISOString().split("T")[0],
@@ -46,23 +47,25 @@ export function PostedTransferFilterForm({ onApply, title, description }: Posted
       setIsLoadingTo(true);
       
       try {
-        // Load To Locations (all)
-        const allLocs = await getTransferAllLocationCodes();
-        setToLocationOptions(allLocs.map(l => ({ value: l.Code, label: `${l.Code} - ${l.Name || ''}` })));
+        const authLOCEntries = userId ? await getAllLOCsFromUserSetup(userId) : [];
+        const authCodes = authLOCEntries.map(l => l.Code).filter(Boolean) as string[];
         
-        // Load From Locations (authorized only)
-        if (userId) {
-          const authLOCEntries = await getAllLOCsFromUserSetup(userId);
-          const authCodes = authLOCEntries.map(l => l.Code).filter(Boolean);
-          if (authCodes.length > 0) {
-            const authLocs = await getTransferAllLocationCodes(authCodes);
-            setFromLocationOptions(authLocs.map(l => ({ value: l.Code, label: `${l.Code} - ${l.Name || ''}` })));
-          } else {
-            // If no authorized codes, show nothing for From
-            setFromLocationOptions([]);
-          }
+        if (type === "shipment") {
+          // Shipment: From is Authorized, To is All
+          const [authLocs, allLocs] = await Promise.all([
+            getTransferAllLocationCodes(authCodes),
+            getTransferAllLocationCodes()
+          ]);
+          setFromLocationOptions(authLocs.map(l => ({ value: l.Code, label: `${l.Code} - ${l.Name || ''}` })));
+          setToLocationOptions(allLocs.map(l => ({ value: l.Code, label: `${l.Code} - ${l.Name || ''}` })));
         } else {
-          setFromLocationOptions([]);
+          // Receipt: To is Authorized, From is All
+          const [allLocs, authLocs] = await Promise.all([
+            getTransferAllLocationCodes(),
+            getTransferAllLocationCodes(authCodes)
+          ]);
+          setFromLocationOptions(allLocs.map(l => ({ value: l.Code, label: `${l.Code} - ${l.Name || ''}` })));
+          setToLocationOptions(authLocs.map(l => ({ value: l.Code, label: `${l.Code} - ${l.Name || ''}` })));
         }
       } catch (error) {
         console.error("Error loading initial locations:", error);
@@ -78,13 +81,18 @@ export function PostedTransferFilterForm({ onApply, title, description }: Posted
     if (search.length < 1) return;
     setIsLoadingFrom(true);
     try {
-      const credentials = getAuthCredentials();
-      const userId = credentials?.userID;
-      if (userId) {
-         const authLOCEntries = await getAllLOCsFromUserSetup(userId);
-         const authCodes = authLOCEntries.map(l => l.Code).filter(Boolean);
-         const items = await getTransferAllLocationCodes(authCodes, search);
-         setFromLocationOptions(items.map(l => ({ value: l.Code, label: `${l.Code} - ${l.Name || ''}` })));
+      if (type === "shipment") {
+        const credentials = getAuthCredentials();
+        const userId = credentials?.userID;
+        if (userId) {
+           const authLOCEntries = await getAllLOCsFromUserSetup(userId);
+           const authCodes = authLOCEntries.map(l => l.Code).filter(Boolean) as string[];
+           const items = await getTransferAllLocationCodes(authCodes, search);
+           setFromLocationOptions(items.map(l => ({ value: l.Code, label: `${l.Code} - ${l.Name || ''}` })));
+        }
+      } else {
+        const items = await getTransferAllLocationCodes(undefined, search);
+        setFromLocationOptions(items.map(l => ({ value: l.Code, label: `${l.Code} - ${l.Name || ''}` })));
       }
     } catch (error) {
       console.error("Error searching from locations:", error);
@@ -97,8 +105,19 @@ export function PostedTransferFilterForm({ onApply, title, description }: Posted
     if (search.length < 1) return;
     setIsLoadingTo(true);
     try {
-      const items = await getTransferAllLocationCodes(undefined, search);
-      setToLocationOptions(items.map(l => ({ value: l.Code, label: `${l.Code} - ${l.Name || ''}` })));
+      if (type === "receipt") {
+        const credentials = getAuthCredentials();
+        const userId = credentials?.userID;
+        if (userId) {
+           const authLOCEntries = await getAllLOCsFromUserSetup(userId);
+           const authCodes = authLOCEntries.map(l => l.Code).filter(Boolean) as string[];
+           const items = await getTransferAllLocationCodes(authCodes, search);
+           setToLocationOptions(items.map(l => ({ value: l.Code, label: `${l.Code} - ${l.Name || ''}` })));
+        }
+      } else {
+        const items = await getTransferAllLocationCodes(undefined, search);
+        setToLocationOptions(items.map(l => ({ value: l.Code, label: `${l.Code} - ${l.Name || ''}` })));
+      }
     } catch (error) {
       console.error("Error searching to locations:", error);
     } finally {

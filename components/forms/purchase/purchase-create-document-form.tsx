@@ -189,6 +189,8 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { SearchableSelect } from "@/components/ui/searchable-select";
+import { getWebUser, type WebUser } from "@/lib/api/services/web-user.service";
+import { DateInput } from "@/components/ui/date-input";
 
 export type PurchaseCreateDocumentType =
   | "order"
@@ -510,6 +512,7 @@ export function PurchaseCreateDocumentFormContent({
   );
   const [placeOrderError, setPlaceOrderError] = useState<string | null>(null);
   const [isCopyDocOpen, setIsCopyDocOpen] = useState(false);
+  const [webUserProfile, setWebUserProfile] = useState<WebUser | null>(null);
 
   // Stores the raw hydrated header so we can read BC field names directly
   const hydratedHeaderRef = useRef<PurchaseOrder | null>(null);
@@ -589,6 +592,11 @@ export function PurchaseCreateDocumentFormContent({
       .getPaymentTermsPage(0, "", MASTER_DROPDOWN_PAGE_SIZE)
       .then(setPaymentTermList)
       .catch((err) => console.error("Error fetching payment terms:", err));
+
+    const creds = getAuthCredentials();
+    if (creds?.userID) {
+      getWebUser(creds.userID).then(setWebUserProfile).catch(console.error);
+    }
   }, []);
 
   const persist = (data: Record<string, any>) => {
@@ -1162,7 +1170,7 @@ export function PurchaseCreateDocumentFormContent({
         // Single option: Invoice — skip options dialog, go straight to details
         setPostOption("invoice");
         setPostDetails({
-          postingDate: today,
+          postingDate: "",
           documentDate: formData.documentDate || today,
           vehicleNo: "",
           vendorInvoiceNo: formData.vendorInvoiceNo || "",
@@ -1250,6 +1258,32 @@ export function PurchaseCreateDocumentFormContent({
     if (!postDetails.documentDate) {
       toast.error("Document Date is required.");
       return;
+    }
+
+    if (webUserProfile) {
+      const { Allow_Posting_From, Allow_Posting_To } = webUserProfile;
+      const selectedDate = postDetails.postingDate;
+
+      if (
+        Allow_Posting_From &&
+        Allow_Posting_From !== "0001-01-01" &&
+        selectedDate < Allow_Posting_From.split("T")[0]
+      ) {
+        toast.error(
+          `Posting Date cannot be before ${Allow_Posting_From.split("T")[0]}`,
+        );
+        return;
+      }
+      if (
+        Allow_Posting_To &&
+        Allow_Posting_To !== "0001-01-01" &&
+        selectedDate > Allow_Posting_To.split("T")[0]
+      ) {
+        toast.error(
+          `Posting Date cannot be after ${Allow_Posting_To.split("T")[0]}`,
+        );
+        return;
+      }
     }
     const isInvoiceOption =
       postOption === "invoice" ||
@@ -2711,7 +2745,7 @@ export function PurchaseCreateDocumentFormContent({
                   if (!postOption) return;
                   const today = new Date().toISOString().split("T")[0];
                   setPostDetails({
-                    postingDate: today,
+                    postingDate: "",
                     documentDate: formData.documentDate || today,
                     vehicleNo: "",
                     vendorInvoiceNo: formData.vendorInvoiceNo || "",
@@ -2739,14 +2773,25 @@ export function PurchaseCreateDocumentFormContent({
           <div className="grid grid-cols-1 gap-3 py-4 sm:grid-cols-2">
             <div className="space-y-1">
               <Label className="text-xs font-semibold">Posting Date *</Label>
-              <Input
-                type="date"
+              <DateInput
                 value={postDetails.postingDate}
-                onChange={(e) =>
+                onChange={(val) =>
                   setPostDetails((p) => ({
                     ...p,
-                    postingDate: e.target.value,
+                    postingDate: val,
                   }))
+                }
+                min={
+                  webUserProfile?.Allow_Posting_From &&
+                  webUserProfile.Allow_Posting_From !== "0001-01-01"
+                    ? webUserProfile.Allow_Posting_From.split("T")[0]
+                    : undefined
+                }
+                max={
+                  webUserProfile?.Allow_Posting_To &&
+                  webUserProfile.Allow_Posting_To !== "0001-01-01"
+                    ? webUserProfile.Allow_Posting_To.split("T")[0]
+                    : undefined
                 }
                 className="h-8"
               />

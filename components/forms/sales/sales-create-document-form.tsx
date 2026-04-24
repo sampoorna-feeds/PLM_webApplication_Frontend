@@ -158,6 +158,8 @@ import {
 } from "@/lib/api/services/sales-credit-memos.service";
 import { getItemsByNos, getItemStock } from "@/lib/api/services/item.service";
 import { getDistance, getLocationPostCode } from "@/lib/api/services/distance.service";
+import { getWebUser, type WebUser } from "@/lib/api/services/web-user.service";
+import { DateInput } from "@/components/ui/date-input";
 
 // ── Config + utilities ────────────────────────────────────────────────────────
 import {
@@ -383,6 +385,7 @@ export function SalesCreateDocumentFormContent({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [isActionLoading, setIsActionLoading] = useState(false);
+  const [webUserProfile, setWebUserProfile] = useState<WebUser | null>(null);
 
   // ── Line dialog state ─────────────────────────────────────────────────────
   const [selectedLine, setSelectedLine] = useState<SalesLine | null>(null);
@@ -498,6 +501,13 @@ export function SalesCreateDocumentFormContent({
   }, []);
 
   // Sync locationCode with loc dimension
+  useEffect(() => {
+    const creds = getAuthCredentials();
+    if (creds?.userID) {
+      getWebUser(creds.userID).then(setWebUserProfile).catch(console.error);
+    }
+  }, []);
+
   useEffect(() => {
     setFormData((prev) => {
       if (prev.loc !== prev.locationCode) {
@@ -771,7 +781,7 @@ export function SalesCreateDocumentFormContent({
       return;
     }
     const today = new Date().toISOString().split("T")[0];
-    setPostDetails((prev) => ({ ...prev, postingDate: orderHeader?.Posting_Date || today }));
+    setPostDetails((prev) => ({ ...prev, postingDate: "" }));
     setIsPostDialogOpen(false);
     setIsPostDetailsOpen(true);
   };
@@ -857,6 +867,33 @@ export function SalesCreateDocumentFormContent({
       }
       if (!postDetails.lrRrDate) {
         toast.error("LR/RR Date is required for shipping");
+        return;
+      }
+    }
+
+    if (!postDetails.postingDate) {
+      toast.error("Posting Date is required");
+      return;
+    }
+
+    if (webUserProfile) {
+      const { Allow_Posting_From, Allow_Posting_To } = webUserProfile;
+      const selectedDate = postDetails.postingDate;
+
+      if (
+        Allow_Posting_From &&
+        Allow_Posting_From !== "0001-01-01" &&
+        selectedDate < Allow_Posting_From.split("T")[0]
+      ) {
+        toast.error(`Posting Date cannot be before ${Allow_Posting_From.split("T")[0]}`);
+        return;
+      }
+      if (
+        Allow_Posting_To &&
+        Allow_Posting_To !== "0001-01-01" &&
+        selectedDate > Allow_Posting_To.split("T")[0]
+      ) {
+        toast.error(`Posting Date cannot be after ${Allow_Posting_To.split("T")[0]}`);
         return;
       }
     }
@@ -2016,16 +2053,27 @@ export function SalesCreateDocumentFormContent({
                   </div>
                 </>
               )}
-              <div className="space-y-1">
-                <Label>Posting Date</Label>
-                <Input
-                  type="date"
+              <div className="space-y-1 text-left">
+                <Label className="text-xs font-semibold uppercase tracking-wider">Posting Date</Label>
+                <DateInput
                   value={postDetails.postingDate}
-                  onChange={(e) =>
+                  onChange={(val) =>
                     setPostDetails((p) => ({
                       ...p,
-                      postingDate: e.target.value,
+                      postingDate: val,
                     }))
+                  }
+                  min={
+                    webUserProfile?.Allow_Posting_From &&
+                    webUserProfile.Allow_Posting_From !== "0001-01-01"
+                      ? webUserProfile.Allow_Posting_From.split("T")[0]
+                      : undefined
+                  }
+                  max={
+                    webUserProfile?.Allow_Posting_To &&
+                    webUserProfile.Allow_Posting_To !== "0001-01-01"
+                      ? webUserProfile.Allow_Posting_To.split("T")[0]
+                      : undefined
                   }
                   className="h-9"
                 />

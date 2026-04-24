@@ -160,6 +160,8 @@ export function TransferOrderForm({
   // Success Dialog State
   const [successDialogOpen, setSuccessDialogOpen] = useState(false);
   const [successInfo, setSuccessInfo] = useState({ title: "", message: "" });
+  const [printPromptOpen, setPrintPromptOpen] = useState(false);
+  const [lastPostedShipmentNo, setLastPostedShipmentNo] = useState<string | null>(null);
 
   // Debug: Monitor locations state changes
   useEffect(() => {
@@ -703,6 +705,23 @@ export function TransferOrderForm({
       // Notify parent list to refresh
       if (context?.onOrderPosted) {
         context.onOrderPosted();
+      }
+
+      // Handle print prompt if shipment was posted
+      if (postSelection === "ship") {
+        try {
+          const shipments = await getPostedTransferShipmentsByOrder(formState.No);
+          if (shipments && shipments.length > 0) {
+            // Sort by number descending or just take the first one (usually latest)
+            const latestShipment = shipments.sort((a,b) => b.No.localeCompare(a.No))[0];
+            setLastPostedShipmentNo(latestShipment.No);
+            setPrintPromptOpen(true);
+            setIsPostDialogOpen(false);
+            return; // Skip standard success dialog if we're showing print prompt
+          }
+        } catch (shipmentErr) {
+          console.error("Error fetching shipment for print prompt:", shipmentErr);
+        }
       }
 
       setSuccessInfo({
@@ -1986,6 +2005,45 @@ export function TransferOrderForm({
           }
         }}
       />
+
+      {/* Print Shipment Prompt */}
+      <Dialog open={printPromptOpen} onOpenChange={setPrintPromptOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Printer className="h-5 w-5 text-primary" />
+              Transfer Order Posted
+            </DialogTitle>
+            <DialogDescription className="py-4">
+              Transfer Order <strong>{formState.No}</strong> has been posted successfully and shipment <strong>{lastPostedShipmentNo}</strong> has been created.
+              <br /><br />
+              Would you like to print the transfer shipment document now?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex gap-2 sm:justify-between">
+            <Button
+              variant="outline"
+              onClick={() => setPrintPromptOpen(false)}
+              className="flex-1"
+            >
+              No, Thanks
+            </Button>
+            <Button
+              onClick={() => {
+                if (lastPostedShipmentNo) {
+                  handlePreviewReport(lastPostedShipmentNo);
+                  setPrintPromptOpen(false);
+                }
+              }}
+              disabled={!lastPostedShipmentNo}
+              className="flex-1 gap-2"
+            >
+              <Printer className="h-4 w-4" />
+              Yes, Print
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

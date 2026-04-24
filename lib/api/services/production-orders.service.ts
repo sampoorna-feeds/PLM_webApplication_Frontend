@@ -587,17 +587,9 @@ export async function updateProductionOrder(
   prodOrderNo: string,
   data: {
     Description?: string;
-    Source_Type?: string;
-    Source_No?: string;
     Quantity?: number;
     Due_Date?: string;
     Location_Code?: string;
-    Hatching_Date?: string;
-    Shortcut_Dimension_1_Code?: string;
-    Shortcut_Dimension_2_Code?: string;
-    Shortcut_Dimension_3_Code?: string;
-    Prod_Bom_No?: string;
-    BOM_Version_No?: string;
     Batch_Size?: string;
   },
 ): Promise<void> {

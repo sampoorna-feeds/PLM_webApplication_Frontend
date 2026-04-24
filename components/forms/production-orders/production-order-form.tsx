@@ -957,29 +957,34 @@ export function ProductionOrderForm({
           throw new Error("Production Order No is required for update");
         }
 
-        const updatePayload: Parameters<typeof updateProductionOrder>[1] = {
-          Description: formState.Description || undefined,
-          Source_Type: formState.Source_Type || undefined,
-          Source_No: formState.Source_No || undefined,
-          Quantity:
-            formState.Quantity !== "" && formState.Quantity != null
-              ? typeof formState.Quantity === "string"
-                ? parseFloat(formState.Quantity)
-                : formState.Quantity
-              : undefined,
-          Due_Date: formState.Due_Date || undefined,
-          Location_Code: formState.Location_Code || undefined,
-          Hatching_Date: formState.Hatching_Date || undefined,
-          Shortcut_Dimension_1_Code:
-            formState.Shortcut_Dimension_1_Code || undefined,
-          Shortcut_Dimension_2_Code:
-            formState.Shortcut_Dimension_2_Code || undefined,
-          Shortcut_Dimension_3_Code:
-            formState.Shortcut_Dimension_3_Code || undefined,
-          Prod_Bom_No: formState.Prod_Bom_No || undefined,
-          BOM_Version_No: formState.BOM_Version_No || undefined,
-          Batch_Size: formState.Batch_Size || undefined,
-        };
+        // Build update payload with only changed fields
+        const updatePayload: {
+          Description?: string;
+          Quantity?: number;
+          Due_Date?: string;
+          Location_Code?: string;
+          Batch_Size?: string;
+        } = {};
+
+        // Only include fields that should be updateable
+        if (formState.Description) {
+          updatePayload.Description = formState.Description;
+        }
+        if (formState.Quantity) {
+          updatePayload.Quantity =
+            typeof formState.Quantity === "string"
+              ? parseFloat(formState.Quantity)
+              : formState.Quantity;
+        }
+        if (formState.Due_Date) {
+          updatePayload.Due_Date = formState.Due_Date;
+        }
+        if (formState.Location_Code) {
+          updatePayload.Location_Code = formState.Location_Code;
+        }
+        if (formState.Batch_Size) {
+          updatePayload.Batch_Size = formState.Batch_Size;
+        }
 
         await updateProductionOrder(formState.No, updatePayload);
 

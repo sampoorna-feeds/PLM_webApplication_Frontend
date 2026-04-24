@@ -216,7 +216,10 @@ export async function createTransferOrder(
   // Using the path-based company format as requested by user
   const encodedCompany = encodeURIComponent(COMPANY);
   const endpoint = `/company('${encodedCompany}')/TransferHeader`;
-  return apiPost<TransferOrder>(endpoint, data);
+
+  const payload = stripEmptyValues(data as Record<string, unknown>);
+
+  return apiPost<TransferOrder>(endpoint, payload);
 }
 
 /**

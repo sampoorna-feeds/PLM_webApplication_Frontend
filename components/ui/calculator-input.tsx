@@ -23,10 +23,12 @@ export const CalculatorInput = React.forwardRef<
   CalculatorInputProps
 >(({ className, value, onValueChange, onCommit, onBlur, onKeyDown, strict = true, ...props }, ref) => {
   const [inputValue, setInputValue] = React.useState<string>(String(value || ""));
+  const lastCommittedValue = React.useRef<string>(String(value || ""));
 
   // Sync with external value changes
   React.useEffect(() => {
     setInputValue(String(value || ""));
+    lastCommittedValue.current = String(value || "");
   }, [value]);
 
   const evaluateExpression = (val: string) => {
@@ -64,7 +66,12 @@ export const CalculatorInput = React.forwardRef<
       setInputValue(result);
       onValueChange?.(result);
     }
-    onCommit?.(result);
+    
+    // Only commit if the value is different from what we last committed
+    if (result !== lastCommittedValue.current) {
+      lastCommittedValue.current = result;
+      onCommit?.(result);
+    }
     onBlur?.(e);
   };
 
@@ -75,7 +82,12 @@ export const CalculatorInput = React.forwardRef<
         setInputValue(result);
         onValueChange?.(result);
       }
-      onCommit?.(result);
+      
+      // Only commit if the value is different from what we last committed
+      if (result !== lastCommittedValue.current) {
+        lastCommittedValue.current = result;
+        onCommit?.(result);
+      }
       // Prevent form submission if inside a form
       e.preventDefault();
     }

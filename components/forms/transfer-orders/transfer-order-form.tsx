@@ -1107,8 +1107,20 @@ export function TransferOrderForm({
                       onClick={() => {
                         setPostStep(1);
                         setPostSelection("ship");
-                        // Clear posting date by default in the modal
-                        handleChange("Posting_Date", "");
+                        let initialDate = "";
+                        const today = new Date().toISOString().split("T")[0];
+                        if (webUserProfile) {
+                          const from = webUserProfile.Allow_Posting_From?.split("T")[0];
+                          const to = webUserProfile.Allow_Posting_To?.split("T")[0];
+                          const isAfterFrom =
+                            !from || from === "0001-01-01" || today >= from;
+                          const isBeforeTo =
+                            !to || to === "0001-01-01" || today <= to;
+                          if (isAfterFrom && isBeforeTo) {
+                            initialDate = today;
+                          }
+                        }
+                        handleChange("Posting_Date", initialDate);
                         setIsPostDialogOpen(true);
                       }}
                       variant="default"

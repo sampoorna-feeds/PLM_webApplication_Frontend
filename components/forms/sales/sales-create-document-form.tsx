@@ -780,8 +780,18 @@ export function SalesCreateDocumentFormContent({
       toast.error("Select a post option");
       return;
     }
+    let initialDate = "";
     const today = new Date().toISOString().split("T")[0];
-    setPostDetails((prev) => ({ ...prev, postingDate: "" }));
+    if (webUserProfile) {
+      const from = webUserProfile.Allow_Posting_From?.split("T")[0];
+      const to = webUserProfile.Allow_Posting_To?.split("T")[0];
+      const isAfterFrom = !from || from === "0001-01-01" || today >= from;
+      const isBeforeTo = !to || to === "0001-01-01" || today <= to;
+      if (isAfterFrom && isBeforeTo) {
+        initialDate = today;
+      }
+    }
+    setPostDetails((prev) => ({ ...prev, postingDate: initialDate }));
     setIsPostDialogOpen(false);
     setIsPostDetailsOpen(true);
   };
@@ -1472,10 +1482,24 @@ export function SalesCreateDocumentFormContent({
                   className="h-8"
                   onClick={() => {
                     const opts = caps.postOptions;
+                    let initialDate = "";
                     const today = new Date().toISOString().split("T")[0];
+                    if (webUserProfile) {
+                      const from = webUserProfile.Allow_Posting_From?.split("T")[0];
+                      const to = webUserProfile.Allow_Posting_To?.split("T")[0];
+                      const isAfterFrom = !from || from === "0001-01-01" || today >= from;
+                      const isBeforeTo = !to || to === "0001-01-01" || today <= to;
+                      if (isAfterFrom && isBeforeTo) {
+                        initialDate = today;
+                      }
+                    }
+
                     if (opts.length === 1) {
                       setPostOption(opts[0].value);
-                      setPostDetails((prev) => ({ ...prev, postingDate: orderHeader?.Posting_Date || today }));
+                      setPostDetails((prev) => ({
+                        ...prev,
+                        postingDate: initialDate,
+                      }));
                       setIsPostDetailsOpen(true);
                     } else if (documentType === "invoice") {
                       setPostOption("2");

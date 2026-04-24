@@ -395,6 +395,9 @@ export function ProductionOrderForm({
       try {
         const lobData = await getLOBsFromUserSetup(userId);
         setLobs(lobData);
+        if (lobData.length === 1 && !formState.Shortcut_Dimension_1_Code) {
+          handleLOBChange(lobData[0].Code);
+        }
       } catch (error) {
         console.error("Error loading LOBs:", error);
       } finally {
@@ -419,6 +422,9 @@ export function ProductionOrderForm({
           userId,
         );
         setBranches(branchData);
+        if (branchData.length === 1 && !formState.Shortcut_Dimension_2_Code) {
+          handleBranchChange(branchData[0].Code);
+        }
       } catch (error) {
         console.error("Error loading branches:", error);
       }
@@ -447,6 +453,9 @@ export function ProductionOrderForm({
           userId,
         );
         setLocs(locData);
+        if (locData.length === 1 && !formState.Shortcut_Dimension_3_Code) {
+          handleLOCChange(locData[0].Code);
+        }
       } catch (error) {
         console.error("Error loading LOCs:", error);
       }
@@ -1179,7 +1188,7 @@ export function ProductionOrderForm({
                 <SelectContent>
                   {lobs.map((l) => (
                     <SelectItem key={l.Code} value={l.Code}>
-                      {l.Code} - {l.Name}
+                      {l.Name ? `${l.Code} - ${l.Name}` : l.Code}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -1233,7 +1242,7 @@ export function ProductionOrderForm({
                 <SelectContent>
                   {locs.map((l) => (
                     <SelectItem key={l.Code} value={l.Code}>
-                      {l.Code} - {l.Name}
+                      {l.Name ? `${l.Code} - ${l.Name}` : l.Code}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -1381,7 +1390,7 @@ export function ProductionOrderForm({
                 <SelectContent>
                   {locs.map((l) => (
                     <SelectItem key={l.Code} value={l.Code}>
-                      {l.Code} - {l.Name}
+                      {l.Name ? `${l.Code} - ${l.Name}` : l.Code}
                     </SelectItem>
                   ))}
                 </SelectContent>

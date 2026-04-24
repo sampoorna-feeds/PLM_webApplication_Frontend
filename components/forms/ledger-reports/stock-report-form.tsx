@@ -11,8 +11,11 @@ import { LocationSelect } from "@/components/forms/shared/location-select";
 import { Loader2, FileDown } from "lucide-react";
 import { useAuth } from "@/lib/contexts/auth-context";
 import { toast } from "sonner";
+import { useAuth } from "@/lib/contexts/auth-context";
+import { getAllLOCsFromUserSetup } from "@/lib/api/services/dimension.service";
 
 export function StockReportForm() {
+  const { userID } = useAuth();
   const [startingDate, setStartingDate] = useState<string>(
     new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split("T")[0]
   );
@@ -115,6 +118,15 @@ export function StockReportForm() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Location</label>
+            <LocationSelect
+              value={loc}
+              onChange={(v) => setLoc(v)}
+              authorizedCodes={authorizedLOCs}
+              placeholder="Search and select a location..."
+            />
+          </div>
           <div className="space-y-2">
             <label className="text-sm font-medium">Item (Optional)</label>
             <SearchableSelect

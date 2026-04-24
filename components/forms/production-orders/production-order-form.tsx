@@ -207,6 +207,7 @@ export function ProductionOrderForm({
   const [isLoadingComponents, setIsLoadingComponents] = useState(false);
   const [isRefreshingLines, setIsRefreshingLines] = useState(false);
   const [isComponentsSheetOpen, setIsComponentsSheetOpen] = useState(false);
+  const [trackingRefreshTrigger, setTrackingRefreshTrigger] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isManufacturing, setIsManufacturing] = useState(false);
   // Change Status dialog — asks user for finished date before calling API
@@ -1566,6 +1567,7 @@ export function ProductionOrderForm({
                   components={orderComponents}
                   isLoading={isLoadingComponents}
                   onRowClick={handleComponentClick}
+                  trackingRefreshTrigger={trackingRefreshTrigger}
                 />
               </div>
             </SheetContent>
@@ -1618,7 +1620,12 @@ export function ProductionOrderForm({
 
       <ItemTrackingDialog
         open={isItemTrackingDialogOpen}
-        onOpenChange={setIsItemTrackingDialogOpen}
+        onOpenChange={(open) => {
+          setIsItemTrackingDialogOpen(open);
+          if (!open) {
+            setTrackingRefreshTrigger((prev) => prev + 1);
+          }
+        }}
         component={
           trackingSourceType === "component" ? selectedComponent : undefined
         }

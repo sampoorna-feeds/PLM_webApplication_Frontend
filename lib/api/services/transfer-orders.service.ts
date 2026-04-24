@@ -839,12 +839,15 @@ export async function getTransferLocationCodes(
   }
 
   try {
-    const escapedSearch = search.replace(/'/g, "''");
+    const s = search.replace(/'/g, "''");
+    const sLower = s.toLowerCase();
+    const sUpper = s.toUpperCase();
+    
     const [resultsByCode, resultsByName] = await Promise.all([
       (async () => {
         const filter = [
           ...commonFilter,
-          `contains(Code,'${escapedSearch}')`,
+          `(contains(Code,'${s}') or contains(Code,'${sLower}') or contains(Code,'${sUpper}'))`,
         ].join(" and ");
         const query = buildODataQuery({
           $select: "Code,Name",
@@ -860,7 +863,7 @@ export async function getTransferLocationCodes(
       (async () => {
         const filter = [
           ...commonFilter,
-          `contains(Name,'${escapedSearch}')`,
+          `(contains(Name,'${s}') or contains(Name,'${sLower}') or contains(Name,'${sUpper}'))`,
         ].join(" and ");
         const query = buildODataQuery({
           $select: "Code,Name",
@@ -1260,7 +1263,7 @@ export async function getTransferLocationsForDialog(params: {
   const sUpper = s.toUpperCase();
 
   const [resCode, resName] = await Promise.all([
-    fetchBatch(`(contains(Code,'${s}') or contains(Code,'${sLower}') or contains(Code,'${sUpper}') or Code eq '${sUpper}')`).catch(() => ({ value: [], count: 0 })),
+    fetchBatch(`(contains(Code,'${s}') or contains(Code,'${sLower}') or contains(Code,'${sUpper}'))`).catch(() => ({ value: [], count: 0 })),
     fetchBatch(`(contains(Name,'${s}') or contains(Name,'${sLower}') or contains(Name,'${sUpper}'))`).catch(() => ({ value: [], count: 0 })),
   ]);
 

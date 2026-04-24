@@ -8,6 +8,7 @@ interface UseAssignedTrackingParams {
   sourceId?: string;
   sourceBatchName?: string;
   enabled: boolean;
+  refreshTrigger?: number;
 }
 
 /**
@@ -19,10 +20,14 @@ export function useAssignedTracking({
   sourceId,
   sourceBatchName,
   enabled,
+  refreshTrigger = 0,
 }: UseAssignedTrackingParams) {
   // Map of Source_Ref_No_ -> boolean
   const [assignedMap, setAssignedMap] = useState<Record<number, boolean>>({});
   const [isLoading, setIsLoading] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  const refresh = () => setRefreshKey((prev) => prev + 1);
 
   useEffect(() => {
     if (!enabled || !sourceType || !sourceId) {
@@ -57,7 +62,7 @@ export function useAssignedTracking({
     };
 
     fetchAssignedTracking();
-  }, [sourceType, sourceId, sourceBatchName, enabled]);
+  }, [sourceType, sourceId, sourceBatchName, enabled, refreshKey, refreshTrigger]);
 
-  return { assignedMap, isLoading };
+  return { assignedMap, isLoading, refresh };
 }

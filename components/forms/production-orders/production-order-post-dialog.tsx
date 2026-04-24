@@ -74,7 +74,7 @@ export function ProductionOrderPostSheet({
     Item_No: entry.Item_No_,
   }));
   const { trackingMap } = useItemTracking(journalEntriesWithItemNo);
-  const { assignedMap } = useAssignedTracking({
+  const { assignedMap, refresh: refreshAssignedTracking } = useAssignedTracking({
     sourceType: 83,
     sourceId: "PROD.ORDEA",
     sourceBatchName: userId,
@@ -247,7 +247,7 @@ export function ProductionOrderPostSheet({
                 No journal entries found for this production order.
               </div>
             ) : (
-              <div className="flex-1 min-h-0 overflow-auto rounded-md border">
+              <div className="flex-1 min-h-0 rounded-md border [&_[data-slot=table-container]]:h-full [&_[data-slot=table-container]]:overflow-auto">
                 <Table>
                   <TableHeader className="bg-muted/50 sticky top-0 z-10 shadow-sm backdrop-blur">
                     <TableRow>
@@ -277,7 +277,7 @@ export function ProductionOrderPostSheet({
                           key={`${entry.Line_No}-${index}`}
                           className={cn(
                             isAssigned
-                              ? "text-green-600 bg-green-50/50 hover:bg-green-50"
+                              ? "text-green-600"
                               : hasTracking
                                 ? "text-red-600"
                                 : "",
@@ -313,10 +313,16 @@ export function ProductionOrderPostSheet({
         journalEntry={selectedEntry}
         hasTracking={selectedEntryHasTracking}
         open={isTrackingDialogOpen}
-        onOpenChange={setIsTrackingDialogOpen}
+        onOpenChange={(open) => {
+          setIsTrackingDialogOpen(open);
+          if (!open) {
+            refreshAssignedTracking();
+          }
+        }}
         onSave={() => {
           // Refresh entries after tracking assignment
           fetchJournalEntries();
+          refreshAssignedTracking();
         }}
         prodOrderNo={prodOrderNo}
         userId={userId}

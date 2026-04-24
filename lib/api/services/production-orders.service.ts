@@ -234,6 +234,24 @@ export async function getFinishedProductionOrderByNo(
   return response.value?.[0] || null;
 }
 
+export async function getFinishedProductionOrderLines(
+  prodOrderNo: string,
+  top: number = 100,
+): Promise<ProductionOrderLine[]> {
+  const filter = `Prod_Order_No eq '${prodOrderNo}'`;
+  const select =
+    "Item_No,Description,Location_Code,Quantity,Unit_of_Measure_Code,Finished_Quantity,Line_No,Prod_Order_No,Due_Date";
+  const query = buildODataQuery({
+    $filter: filter,
+    $select: select,
+    $top: top,
+  });
+  const endpoint = `/FinishedprodOrderLine?company='${encodeURIComponent(COMPANY)}'&${query}`;
+
+  const response = await apiGet<ODataResponse<ProductionOrderLine>>(endpoint);
+  return response.value || [];
+}
+
 // ============================================
 // FINISHED PRODUCTION ORDERS API
 // ============================================
@@ -1028,12 +1046,11 @@ export async function printQRCode(prodOrderNo: string): Promise<string> {
   // We'll cast to any for flexibility first, but ideally we'd know the shape.
   const response = await apiPost<any>(endpoint, payload);
 
-  // Check if response itself is the string, or inside value
   if (typeof response === "string") return response;
-  if (response && response.value) return response.value;
-
-  // Fallback: return response if it looks like a string, or empty
-  return (response as string) || "";
+  // Use hasOwnProperty check so empty string "" is returned as-is (not skipped as falsy)
+  if (response !== null && response !== undefined && "value" in response)
+    return response.value ?? "";
+  return "";
 }
 
 // ============================================

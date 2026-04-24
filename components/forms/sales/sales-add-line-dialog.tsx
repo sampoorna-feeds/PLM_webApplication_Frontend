@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Loader2, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { CalculatorInput } from "@/components/ui/calculator-input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import {
@@ -262,7 +263,7 @@ export function SalesAddLineDialog({
 
   const setNum = useCallback(
     (field: keyof FormState, value: string) => {
-      if (value === "" || /^\d*\.?\d*$/.test(value)) set(field, value as any);
+      if (value === "" || /^[0-9\+\-\*\/\.\(\)\s]*$/.test(value)) set(field, value as any);
     },
     [set],
   );
@@ -645,17 +646,11 @@ export function SalesAddLineDialog({
                       value={form.quantity}
                       onClear={() => set("quantity", "")}
                     >
-                      <Input
-                        type="text"
-                        inputMode="decimal"
+                      <CalculatorInput
                         value={form.quantity}
-                        onChange={(e) => setNum("quantity", e.target.value)}
-                        onWheel={(e) => e.currentTarget.blur()}
+                        onValueChange={(v) => setNum("quantity", v)}
                         placeholder="0.00"
-                        className={cn(
-                          "h-8 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none",
-                          fieldInputClass,
-                        )}
+                        className={cn("h-8", fieldInputClass)}
                       />
                     </ClearableField>
                   </div>
@@ -666,17 +661,11 @@ export function SalesAddLineDialog({
                       value={form.unitPrice}
                       onClear={() => set("unitPrice", "")}
                     >
-                      <Input
-                        type="text"
-                        inputMode="decimal"
+                      <CalculatorInput
                         value={form.unitPrice}
-                        onChange={(e) => setNum("unitPrice", e.target.value)}
-                        onWheel={(e) => e.currentTarget.blur()}
+                        onValueChange={(v) => setNum("unitPrice", v)}
                         placeholder="0.00"
-                        className={cn(
-                          "h-8 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none",
-                          fieldInputClass,
-                        )}
+                        className={cn("h-8", fieldInputClass)}
                       />
                     </ClearableField>
                   </div>
@@ -688,17 +677,11 @@ export function SalesAddLineDialog({
                         value={form.mrp}
                         onClear={() => set("mrp", "")}
                       >
-                        <Input
-                          type="text"
-                          inputMode="decimal"
+                        <CalculatorInput
                           value={form.mrp}
-                          onChange={(e) => setNum("mrp", e.target.value)}
-                          onWheel={(e) => e.currentTarget.blur()}
+                          onValueChange={(v) => setNum("mrp", v)}
                           placeholder="0.00"
-                          className={cn(
-                            "h-8 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none",
-                            fieldInputClass,
-                          )}
+                          className={cn("h-8", fieldInputClass)}
                         />
                       </ClearableField>
                     </div>
@@ -710,17 +693,11 @@ export function SalesAddLineDialog({
                       value={form.discount}
                       onClear={() => set("discount", "")}
                     >
-                      <Input
-                        type="text"
-                        inputMode="decimal"
+                      <CalculatorInput
                         value={form.discount}
-                        onChange={(e) => setNum("discount", e.target.value)}
-                        onWheel={(e) => e.currentTarget.blur()}
+                        onValueChange={(v) => setNum("discount", v)}
                         placeholder="0.00"
-                        className={cn(
-                          "h-8 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none",
-                          fieldInputClass,
-                        )}
+                        className={cn("h-8", fieldInputClass)}
                       />
                     </ClearableField>
                   </div>

@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { CalculatorInput } from "@/components/ui/calculator-input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -220,7 +221,7 @@ export function SalesOrderLineEditDialog({
     };
   }, [open, gstGroupCode]);
 
-  const isValidNum = (v: string) => v === "" || /^[0-9]*\.?[0-9]*$/.test(v);
+  const isValidNum = (v: string) => v === "" || /^[0-9\+\-\*\/\.\(\)\s]*\.?[0-9]*$/.test(v);
 
   const handleSave = async () => {
     if (!line || !line.Line_No || !orderNo) return;
@@ -396,12 +397,11 @@ export function SalesOrderLineEditDialog({
                     Quantity
                   </Label>
                   <ClearableField value={quantity} onClear={() => setQuantity("")} disabled={isReleased}>
-                    <Input
+                    <CalculatorInput
                       id="sl-qty"
-                      inputMode="decimal"
                       value={quantity}
-                      onChange={(e) => {
-                        if (isValidNum(e.target.value)) setQuantity(e.target.value);
+                      onValueChange={(v) => {
+                        if (isValidNum(v)) setQuantity(v);
                       }}
                       className={fieldInputClass}
                       disabled={isReleased}
@@ -414,12 +414,11 @@ export function SalesOrderLineEditDialog({
                     Unit Price
                   </Label>
                   <ClearableField value={unitPrice} onClear={() => setUnitPrice("")} disabled={isReleased}>
-                    <Input
+                    <CalculatorInput
                       id="sl-unit-price"
-                      inputMode="decimal"
                       value={unitPrice}
-                      onChange={(e) => {
-                        if (isValidNum(e.target.value)) setUnitPrice(e.target.value);
+                      onValueChange={(v) => {
+                        if (isValidNum(v)) setUnitPrice(v);
                       }}
                       className={fieldInputClass}
                       disabled={isReleased}
@@ -432,12 +431,11 @@ export function SalesOrderLineEditDialog({
                     Discount %
                   </Label>
                   <ClearableField value={discountPct} onClear={() => setDiscountPct("")} disabled={isReleased}>
-                    <Input
+                    <CalculatorInput
                       id="sl-discount"
-                      inputMode="decimal"
                       value={discountPct}
-                      onChange={(e) => {
-                        if (isValidNum(e.target.value)) setDiscountPct(e.target.value);
+                      onValueChange={(v) => {
+                        if (isValidNum(v)) setDiscountPct(v);
                       }}
                       className={fieldInputClass}
                       disabled={isReleased}
@@ -452,12 +450,11 @@ export function SalesOrderLineEditDialog({
                         {qtyToShipLabel}
                       </Label>
                       <ClearableField value={qtyToShip} onClear={() => setQtyToShip("")}>
-                        <Input
+                        <CalculatorInput
                           id="sl-qty-to-ship"
-                          inputMode="decimal"
                           value={qtyToShip}
-                          onChange={(e) => {
-                            if (isValidNum(e.target.value)) setQtyToShip(e.target.value);
+                          onValueChange={(v) => {
+                            if (isValidNum(v)) setQtyToShip(v);
                           }}
                         />
                       </ClearableField>
@@ -468,12 +465,11 @@ export function SalesOrderLineEditDialog({
                         Qty to Invoice
                       </Label>
                       <ClearableField value={qtyToInvoice} onClear={() => setQtyToInvoice("")}>
-                        <Input
+                        <CalculatorInput
                           id="sl-qty-to-invoice"
-                          inputMode="decimal"
                           value={qtyToInvoice}
-                          onChange={(e) => {
-                            if (isValidNum(e.target.value)) setQtyToInvoice(e.target.value);
+                          onValueChange={(v) => {
+                            if (isValidNum(v)) setQtyToInvoice(v);
                           }}
                         />
                       </ClearableField>

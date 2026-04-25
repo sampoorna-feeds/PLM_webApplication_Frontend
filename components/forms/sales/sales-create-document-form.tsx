@@ -785,7 +785,11 @@ export function SalesCreateDocumentFormContent({
         initialDate = today;
       }
     }
-    setPostDetails((prev) => ({ ...prev, postingDate: initialDate }));
+    setPostDetails((prev) => ({
+      ...prev,
+      postingDate: initialDate,
+      lrRrDate: initialDate,
+    }));
     setIsPostDialogOpen(false);
     setIsPostDetailsOpen(true);
   };
@@ -1505,6 +1509,7 @@ export function SalesCreateDocumentFormContent({
                       setPostDetails((prev) => ({
                         ...prev,
                         postingDate: initialDate,
+                        lrRrDate: initialDate,
                       }));
                       setIsPostDetailsOpen(true);
                     } else if (documentType === "invoice") {
@@ -2069,14 +2074,25 @@ export function SalesCreateDocumentFormContent({
                         <span className="text-destructive">*</span>
                       )}
                     </Label>
-                    <Input
-                      type="date"
+                    <DateInput
                       value={postDetails.lrRrDate}
-                      onChange={(e) =>
+                      onChange={(val) =>
                         setPostDetails((p) => ({
                           ...p,
-                          lrRrDate: e.target.value,
+                          lrRrDate: val,
                         }))
+                      }
+                      min={
+                        webUserProfile?.Allow_Posting_From &&
+                        webUserProfile.Allow_Posting_From !== "0001-01-01"
+                          ? webUserProfile.Allow_Posting_From.split("T")[0]
+                          : undefined
+                      }
+                      max={
+                        webUserProfile?.Allow_Posting_To &&
+                        webUserProfile.Allow_Posting_To !== "0001-01-01"
+                          ? webUserProfile.Allow_Posting_To.split("T")[0]
+                          : undefined
                       }
                       className="h-9"
                     />

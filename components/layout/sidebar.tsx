@@ -137,6 +137,11 @@ const formsItems = [
     url: "/production-orders",
     icon: Factory,
   },
+  {
+    title: "Consume Inventory",
+    url: "/consume-inventory",
+    icon: Package,
+  },
 ];
 
 const qcSubItems = [

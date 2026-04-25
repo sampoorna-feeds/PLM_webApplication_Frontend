@@ -1179,16 +1179,6 @@ export function SalesCreateDocumentFormContent({
           )}
         </div>
         <div className={fieldClass}>
-          <label className={labelClass}>Location</label>
-          <LocationCodeSelectDialog
-            value={formData.locationCode}
-            onChange={(v) => handleInputChange("locationCode", v)}
-            branchCode={formData.branch}
-            disabled={areFieldsReadOnly}
-            placeholder="Select Location"
-          />
-        </div>
-        <div className={fieldClass}>
           <label className={labelClass}>Sales Person</label>
           <ClearableField
             readOnly={areFieldsReadOnly}

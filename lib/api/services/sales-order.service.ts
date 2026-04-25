@@ -75,6 +75,7 @@ export async function createSalesOrder(
       Invoice_Type: data.invoiceType || "Bill of supply",
       Shortcut_Dimension_1_Code: data.lob || "",
       Shortcut_Dimension_2_Code: data.branch || "",
+      Created_From_Web: true,
     };
 
     const response = await apiPost<CreateSalesOrderApiResponse>(

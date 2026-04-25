@@ -20,6 +20,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import {
   Popover,
@@ -233,54 +234,54 @@ export function LocationCodeSelectDialog({
   // Find selected item for display
   const selectedItem =
     locations.find((l) => l.Code === value) ?? selectedItemRef.current;
-  const displayLabel = selectedItem
-    ? selectedItem.Name
-      ? `${selectedItem.Code} – ${selectedItem.Name}`
-      : selectedItem.Code
-    : value || "";
 
   const triggerDisabled = isDisabled || noBranch;
 
   return (
     <>
-      {/* Trigger button */}
-      <Button
-        type="button"
-        variant="outline"
-        onClick={() => !triggerDisabled && setOpen(true)}
-        disabled={triggerDisabled}
-        className={cn(
-          "h-9 w-full justify-between px-3 text-left font-normal",
-          !value && "text-muted-foreground",
-          hasError && "border-destructive/50 ring-1 ring-destructive/20",
-          className,
-        )}
-      >
-        <span className="flex min-w-0 items-center gap-1.5 truncate text-sm">
-          <MapPin className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-          <span className="truncate">
-            {noBranch && !isDisabled
-              ? "Select Branch first"
-              : displayLabel || placeholder}
-          </span>
-        </span>
-        <div className="flex shrink-0 items-center gap-0.5">
-          {value && !isDisabled && (
-            <div
-              role="button"
-              tabIndex={0}
-              className="rounded-full p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-              onClick={handleClear}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") handleClear(e as unknown as React.MouseEvent);
-              }}
-            >
-              <X className="h-3 w-3" />
-            </div>
+      {/* Trigger button + selected location name */}
+      <div className="space-y-1">
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => !triggerDisabled && setOpen(true)}
+          disabled={triggerDisabled}
+          className={cn(
+            "h-9 w-full justify-between px-3 text-left font-normal",
+            !value && "text-muted-foreground",
+            hasError && "border-destructive/50 ring-1 ring-destructive/20",
+            className,
           )}
-          <ChevronDownIcon className="h-4 w-4 shrink-0 opacity-40" />
-        </div>
-      </Button>
+        >
+          <span className="flex min-w-0 items-center gap-1.5 truncate text-sm">
+            <MapPin className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+            <span className="truncate font-mono font-semibold">
+              {noBranch && !isDisabled
+                ? "Select Branch first"
+                : value || placeholder}
+            </span>
+          </span>
+          <div className="flex shrink-0 items-center gap-0.5">
+            {value && !isDisabled && (
+              <div
+                role="button"
+                tabIndex={0}
+                className="rounded-full p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                onClick={handleClear}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") handleClear(e as unknown as React.MouseEvent);
+                }}
+              >
+                <X className="h-3 w-3" />
+              </div>
+            )}
+            <ChevronDownIcon className="h-4 w-4 shrink-0 opacity-40" />
+          </div>
+        </Button>
+        {selectedItem?.Name && (
+          <p className="text-muted-foreground text-xs">{selectedItem.Name}</p>
+        )}
+      </div>
 
       {/* Dialog */}
       <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -290,21 +291,55 @@ export function LocationCodeSelectDialog({
         >
           {/* Header */}
           <DialogHeader className="shrink-0 border-b px-5 py-3">
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2.5">
-                <MapPin className="h-4 w-4 text-muted-foreground" />
-                <DialogTitle className="text-[15px] font-semibold">
-                  Select Location
-                </DialogTitle>
-                {!loading && locations.length > 0 && (
-                  <Badge
-                    variant="secondary"
-                    className="h-5 rounded-sm px-1.5 text-[10px] font-bold"
+            <div className="flex items-center gap-2.5">
+              <MapPin className="h-4 w-4 text-muted-foreground" />
+              <DialogTitle className="text-[15px] font-semibold">
+                Select Location
+              </DialogTitle>
+              {!loading && locations.length > 0 && (
+                <Badge
+                  variant="secondary"
+                  className="h-5 rounded-sm px-1.5 text-[10px] font-bold"
+                >
+                  {filtered.length !== locations.length
+                    ? `${filtered.length} / ${locations.length}`
+                    : locations.length}
+                </Badge>
+              )}
+            </div>
+          </DialogHeader>
+
+          {/* Selected location - sticky */}
+          {selectedItem && (
+            <div className="sticky top-0 z-20 border-b bg-primary/5 px-5 py-2.5">
+              <p className="text-xs font-medium">
+                Selected: <span className="font-mono font-semibold">{selectedItem.Code}</span>
+                {selectedItem.Name && (
+                  <span className="text-muted-foreground"> – {selectedItem.Name}</span>
+                )}
+              </p>
+            </div>
+          )}
+
+          {/* Search bar + Column control */}
+          <div className="shrink-0 border-b bg-muted/30 px-5 py-2.5">
+            <div className="flex items-center gap-2">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  placeholder="Search by Code, Name or City…"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="h-9 bg-background pl-9 pr-9 text-sm focus-visible:ring-1"
+                  autoFocus
+                />
+                {searchQuery && (
+                  <button
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    onClick={() => setSearchQuery("")}
                   >
-                    {filtered.length !== locations.length
-                      ? `${filtered.length} / ${locations.length}`
-                      : locations.length}
-                  </Badge>
+                    <X className="h-3.5 w-3.5" />
+                  </button>
                 )}
               </div>
 
@@ -314,7 +349,7 @@ export function LocationCodeSelectDialog({
                   <Button
                     variant="outline"
                     size="sm"
-                    className="h-7 gap-1.5 text-xs"
+                    className="h-9 gap-1.5 shrink-0 text-xs"
                   >
                     <Columns className="h-3.5 w-3.5" />
                     Columns
@@ -358,28 +393,6 @@ export function LocationCodeSelectDialog({
                   </div>
                 </PopoverContent>
               </Popover>
-            </div>
-          </DialogHeader>
-
-          {/* Search bar */}
-          <div className="shrink-0 border-b bg-muted/30 px-5 py-2.5">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder="Search by Code, Name or City…"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="h-9 bg-background pl-9 pr-9 text-sm focus-visible:ring-1"
-                autoFocus
-              />
-              {searchQuery && (
-                <button
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                  onClick={() => setSearchQuery("")}
-                >
-                  <X className="h-3.5 w-3.5" />
-                </button>
-              )}
             </div>
           </div>
 
@@ -478,6 +491,17 @@ export function LocationCodeSelectDialog({
               </tbody>
             </table>
           </div>
+
+          {/* Footer */}
+          <DialogFooter className="shrink-0 border-t px-5 py-3">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setOpen(false)}
+            >
+              Cancel
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </>

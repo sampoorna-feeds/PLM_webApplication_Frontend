@@ -640,7 +640,6 @@ export function SalesCreateDocumentFormContent({
         "",
       shipToCode: "",
       shipToName: "",
-      locationCode: "",
       gstRegistrationNo: customer?.GST_Registration_No || "",
       panNo: customer?.P_A_N_No || "",
     }));

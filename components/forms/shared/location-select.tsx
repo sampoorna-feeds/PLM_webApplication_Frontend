@@ -50,6 +50,7 @@ interface LocationSelectProps {
   hasError?: boolean;
   authorizedCodes?: string[];
   title?: string;
+  branchCode?: string;
 }
 
 type SortDirection = "asc" | "desc" | null;
@@ -110,6 +111,7 @@ export function LocationSelect({
   hasError = false,
   authorizedCodes,
   title = "Select Location",
+  branchCode,
 }: LocationSelectProps) {
   const [open, setOpen] = useState(false);
   const [locations, setLocations] = useState<Location[]>([]);
@@ -159,6 +161,7 @@ export function LocationSelect({
           sortDirection,
           filters: columnFilters,
           authorizedCodes,
+          branchCode,
         });
 
         if (requestId !== lastRequestId.current) return;
@@ -180,7 +183,7 @@ export function LocationSelect({
         setLoadingMore(false);
       }
     },
-    [loading, loadingMore, allFetched, page, debouncedSearch, sortColumn, sortDirection, columnFilters, authorizedCodes]
+    [loading, loadingMore, allFetched, page, debouncedSearch, sortColumn, sortDirection, columnFilters, authorizedCodes, branchCode]
   );
 
   useEffect(() => {

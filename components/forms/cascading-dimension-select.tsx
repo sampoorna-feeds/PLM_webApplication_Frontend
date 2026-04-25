@@ -6,7 +6,7 @@
  */
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Loader2, ChevronDownIcon, CheckIcon } from "lucide-react";
+import { Loader2, ChevronDownIcon, CheckIcon, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -294,7 +294,30 @@ export function CascadingDimensionSelect({
                   ? `No ${dimensionType} found. Please contact IT.`
                   : displayValue || (disabled ? "None" : placeholder)}
           </span>
-          <ChevronDownIcon className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+          <div className="flex items-center gap-1 shrink-0">
+            {value && !disabled && (
+              <div
+                role="button"
+                tabIndex={0}
+                className="hover:text-foreground p-1 text-muted-foreground transition-colors hover:bg-muted rounded-full"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onChange("");
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onChange("");
+                  }
+                }}
+              >
+                <X className="h-3 w-3" />
+              </div>
+            )}
+            <ChevronDownIcon className="h-4 w-4 shrink-0 opacity-40" />
+          </div>
         </Button>
       </PopoverTrigger>
       <PopoverContent
@@ -393,8 +416,12 @@ export function CascadingDimensionSelect({
                       focusedIndex === index && "bg-accent text-accent-foreground",
                     )}
                     onClick={() => {
-                      onChange(item.Code);
-                      onSelectItem?.(item);
+                      if (value === item.Code) {
+                        onChange("");
+                      } else {
+                        onChange(item.Code);
+                        onSelectItem?.(item);
+                      }
                       setIsOpen(false);
                     }}
                   >

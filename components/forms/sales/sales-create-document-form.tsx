@@ -665,7 +665,7 @@ export function SalesCreateDocumentFormContent({
       formData.salesPersonCode &&
       formData.postingDate &&
       formData.documentDate &&
-      formData.invoiceType
+      (!caps.supportsInvoiceType || formData.invoiceType)
     );
   };
 

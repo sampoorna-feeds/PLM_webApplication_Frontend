@@ -30,7 +30,9 @@ import {
   postConsumeInventory,
   type ConsumeInventoryEntry,
 } from "@/lib/api/services/consume-inventory.service";
+import { getItemLedgerEntries, type ItemLedgerEntry } from "@/lib/api/services/report-ledger.service";
 import { useAuth } from "@/lib/contexts/auth-context";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Info, Loader2, Package, Plus, Send, Trash2, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -52,13 +54,68 @@ export function ConsumeInventoryForm() {
     "Branch Code": "",
     "Employee Code": "",
     "Assignment Code": "",
+    "Applies-to Entry": undefined,
+    "Applies-from Entry": undefined,
   });
+
+  const [applyToEntries, setApplyToEntries] = useState<ItemLedgerEntry[]>([]);
+  const [applyFromEntries, setApplyFromEntries] = useState<ItemLedgerEntry[]>([]);
+  const [loadingApplyTo, setLoadingApplyTo] = useState(false);
+  const [loadingApplyFrom, setLoadingApplyFrom] = useState(false);
 
   useEffect(() => {
     if (userID) {
       loadEntries();
     }
   }, [userID]);
+
+  useEffect(() => {
+    const fetchApplyToEntries = async () => {
+      const itemNo = formState["Item No."];
+      if (!itemNo) {
+        setApplyToEntries([]);
+        return;
+      }
+      setLoadingApplyTo(true);
+      try {
+        const { entries } = await getItemLedgerEntries({
+          $filter: `Item_No eq '${itemNo.replace(/'/g, "''")}' and Open eq true`,
+          $top: 100,
+        });
+        setApplyToEntries(entries);
+      } catch (err) {
+        console.error("Error fetching apply-to entries:", err);
+      } finally {
+        setLoadingApplyTo(false);
+      }
+    };
+
+    fetchApplyToEntries();
+  }, [formState["Item No."]]);
+
+  useEffect(() => {
+    const fetchApplyFromEntries = async () => {
+      const itemNo = formState["Item No."];
+      if (!itemNo) {
+        setApplyFromEntries([]);
+        return;
+      }
+      setLoadingApplyFrom(true);
+      try {
+        const { entries } = await getItemLedgerEntries({
+          $filter: `Item_No eq '${itemNo.replace(/'/g, "''")}' and Positive eq false and Consumption eq true`,
+          $top: 100,
+        });
+        setApplyFromEntries(entries);
+      } catch (err) {
+        console.error("Error fetching apply-from entries:", err);
+      } finally {
+        setLoadingApplyFrom(false);
+      }
+    };
+
+    fetchApplyFromEntries();
+  }, [formState["Item No."]]);
 
   const loadEntries = async () => {
     if (!userID) return;
@@ -185,7 +242,7 @@ export function ConsumeInventoryForm() {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-5">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-3 lg:grid-cols-6">
             <div className="space-y-1">
               <label className="text-muted-foreground ml-1 text-[11px] font-bold tracking-wider uppercase">
                 Posting Date
@@ -300,16 +357,17 @@ export function ConsumeInventoryForm() {
               <ItemSelect
                 value={formState["Item No."] || ""}
                 onChange={(v, item) => {
-                  handleChange("Item No.", v);
-                  if (item) {
-                    handleChange("Description", item.Description);
-                    handleChange(
-                      "Unit of Measure Code",
-                      item.Base_Unit_of_Measure,
-                    );
-                  }
+                  setFormState((prev) => ({
+                    ...prev,
+                    "Item No.": v,
+                    Description: item?.Description || "",
+                    "Unit of Measure Code": item?.Base_Unit_of_Measure || "",
+                    "Applies-to Entry": undefined,
+                    "Applies-from Entry": undefined,
+                  }));
                 }}
                 className="h-10"
+                locationCode={formState["Location Code"]}
               />
             </div>
 
@@ -333,6 +391,40 @@ export function ConsumeInventoryForm() {
                 value={formState["Assignment Code"] || ""}
                 onChange={(v) => handleChange("Assignment Code", v)}
                 className="h-10"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-muted-foreground ml-1 text-[11px] font-bold tracking-wider uppercase text-blue-400">
+                Apply to Entry
+              </label>
+              <SearchableSelect
+                options={applyToEntries.map((e) => ({
+                  value: String(e.Entry_No),
+                  label: `${e.Entry_No} (Rem: ${e.Remaining_Quantity}) - ${e.Lot_No || "No Lot"}`,
+                }))}
+                value={formState["Applies-to Entry"] ? String(formState["Applies-to Entry"]) : ""}
+                onValueChange={(v) => handleChange("Applies-to Entry", v ? Number(v) : undefined)}
+                isLoading={loadingApplyTo}
+                placeholder={formState["Item No."] ? "Select Entry" : "Select Item first"}
+                disabled={!formState["Item No."]}
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-muted-foreground ml-1 text-[11px] font-bold tracking-wider uppercase text-green-400">
+                Apply From Entry
+              </label>
+              <SearchableSelect
+                options={applyFromEntries.map((e) => ({
+                  value: String(e.Entry_No),
+                  label: `${e.Entry_No} (Qty: ${e.Quantity}) - ${e.Lot_No || "No Lot"}`,
+                }))}
+                value={formState["Applies-from Entry"] ? String(formState["Applies-from Entry"]) : ""}
+                onValueChange={(v) => handleChange("Applies-from Entry", v ? Number(v) : undefined)}
+                isLoading={loadingApplyFrom}
+                placeholder={formState["Item No."] ? "Select Entry" : "Select Item first"}
+                disabled={!formState["Item No."]}
               />
             </div>
           </div>

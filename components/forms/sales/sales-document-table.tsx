@@ -46,14 +46,21 @@ export function SalesDocumentTable({
   return (
     <div className="bg-card flex h-full flex-1 flex-col overflow-hidden rounded-lg border">
       <div className="flex-1 overflow-auto">
-        <table className="w-full caption-bottom text-sm">
+        <table className="w-full caption-bottom text-sm table-auto">
+          <colgroup>
+            <col className="w-12" />
+            {renderRowAction && <col className="w-16" />}
+            {columns.map((column) => (
+              <col key={column.id} className={column.width ? undefined : "w-auto"} style={column.width ? { width: column.width } : undefined} />
+            ))}
+          </colgroup>
           <thead className="bg-muted sticky top-0 z-10 [&_tr]:border-b">
             <tr className="border-b transition-colors">
-              <th className="text-foreground h-10 w-12 px-3 py-3 text-center align-middle text-xs font-bold whitespace-nowrap">
+              <th className="text-foreground h-12 w-12 px-1 py-3 text-center align-middle text-xs font-bold whitespace-nowrap">
                 S.No
               </th>
               {renderRowAction && (
-                <th className="text-foreground bg-muted h-10 w-16 px-3 py-3 text-center align-middle text-xs font-bold whitespace-nowrap" />
+                <th className="text-foreground bg-muted h-12 w-16 px-1 py-3 text-center align-middle text-xs font-bold whitespace-nowrap" />
               )}
               {columns.map((column) => (
                 <SortableTableHead
@@ -77,14 +84,14 @@ export function SalesDocumentTable({
                     key={`skeleton-${rowIndex}`}
                     className="border-b transition-colors"
                   >
-                    <td className="text-muted-foreground p-2 px-3 py-3 text-center align-middle text-xs whitespace-nowrap">
+                    <td className="text-muted-foreground p-1 px-1 py-3 text-center align-middle text-xs whitespace-nowrap">
                       {startingSerialNo + rowIndex + 1}
                     </td>
-                    {renderRowAction && <td className="px-3 py-3" />}
+                    {renderRowAction && <td className="px-1 py-3" />}
                     {columns.map((column) => (
                       <td
                         key={column.id}
-                        className="p-2 px-3 py-3 align-middle whitespace-nowrap"
+                        className="p-1 px-1 py-3 align-middle whitespace-nowrap"
                       >
                         <Skeleton className="h-4 w-full" />
                       </td>
@@ -153,9 +160,10 @@ function SortableTableHead({
 
   return (
     <th
-      className={`text-foreground h-10 px-2 py-3 text-left align-middle text-xs font-bold whitespace-nowrap select-none ${
+      className={`text-foreground h-12 px-1 py-3 text-left align-middle text-xs font-bold whitespace-nowrap select-none ${column.width ? "" : "min-w-max"} ${
         isActive ? "text-primary" : ""
       }`}
+      style={column.width ? { width: column.width, minWidth: column.width } : undefined}
     >
       <div className="flex items-center gap-1.5">
         <span
@@ -241,18 +249,18 @@ function SalesDocumentRow({
       }`}
       onClick={onClick}
     >
-      <td className="text-muted-foreground p-2 px-3 py-3 text-center align-middle text-xs whitespace-nowrap">
+      <td className="text-muted-foreground p-1 px-1 py-3 text-center align-middle text-xs whitespace-nowrap">
         {serialNo}
       </td>
       {renderRowAction && (
-        <td className="px-3 py-2 align-middle" onClick={(e) => e.stopPropagation()}>
+        <td className="px-1 py-3 align-middle" onClick={(e) => e.stopPropagation()}>
           {renderRowAction(order)}
         </td>
       )}
       {columns.map((column) => (
         <td
           key={column.id}
-          className="p-2 px-3 py-3 align-middle text-xs whitespace-nowrap"
+          className="p-1 px-1 py-3 align-middle text-xs whitespace-nowrap"
         >
           {getCellValue(column.id)}
         </td>

@@ -1044,7 +1044,7 @@ export function SalesCreateDocumentFormContent({
   const areFieldsReadOnly = isViewMode;
 
   // ── Render helpers ─────────────────────────────────────────────────────────
-  const fieldClass = "min-w-0 space-y-1";
+  const fieldClass = "min-w-0 space-y-1.5";
   const labelClass = "text-muted-foreground block text-xs font-medium";
 
   const renderHeaderFields = () => (
@@ -1056,7 +1056,7 @@ export function SalesCreateDocumentFormContent({
       {/* ── General ── */}
       <AccordionItem value="general" className="border-none">
         <AccordionTrigger className="py-0 hover:no-underline [&>svg]:size-4">
-          <h3 className="px-2 py-1 text-left text-[10px] font-bold tracking-wider uppercase">
+          <h3 className="px-2 py-1 text-left text-xs font-bold tracking-wider uppercase">
             General
           </h3>
         </AccordionTrigger>
@@ -1067,9 +1067,7 @@ export function SalesCreateDocumentFormContent({
           )}
         >
           <Separator className="mb-3" />
-          <section className="space-y-4">
-      {/* LOB | Branch | LOC | Invoice Type */}
-      <div className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-x-4 gap-y-4 sm:grid-cols-3 lg:grid-cols-6">
         <div className={fieldClass}>
           <label className={labelClass}>LOB</label>
           <ClearableField
@@ -1158,10 +1156,7 @@ export function SalesCreateDocumentFormContent({
             </ClearableField>
           </div>
         )}
-      </div>
-
       {/* Customer | Location | Sales Person | Ship To */}
-      <div className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 lg:grid-cols-4">
         <div className={fieldClass}>
           <label className={labelClass}>Customer</label>
           <ClearableField
@@ -1234,10 +1229,7 @@ export function SalesCreateDocumentFormContent({
             </p>
           )}
         </div>
-      </div>
-
       {/* GST No | PAN No */}
-      <div className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 lg:grid-cols-4">
         <div className={fieldClass}>
           <label className={labelClass}>GST Reg. No.</label>
           <Input
@@ -1256,10 +1248,7 @@ export function SalesCreateDocumentFormContent({
             readOnly
           />
         </div>
-      </div>
-
       {/* Dates | External Doc No. */}
-      <div className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 lg:grid-cols-4">
         <div className={fieldClass}>
           <label className={labelClass}>Posting Date</label>
           <ClearableField
@@ -1321,8 +1310,7 @@ export function SalesCreateDocumentFormContent({
             />
           </ClearableField>
         </div>
-      </div>
-          </section>
+          </div>
         </AccordionContent>
       </AccordionItem>
     </Accordion>

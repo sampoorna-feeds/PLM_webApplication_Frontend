@@ -94,7 +94,7 @@ function fmtBool(v?: boolean) {
   return "";
 }
 
-const fieldClass = "min-w-0 space-y-1";
+const fieldClass = "min-w-0 space-y-1.5";
 const labelClass = "text-muted-foreground block text-xs font-medium";
 
 function ViewField({ label, value }: { label: string; value?: string | number | boolean | null }) {
@@ -521,14 +521,13 @@ export function SalesPostedDocumentDetailForm({ context }: Props) {
               {/* General */}
               <AccordionItem value="general" className="border-none">
                 <AccordionTrigger className="py-0 hover:no-underline [&>svg]:size-4">
-                  <h3 className="px-2 py-1 text-left text-[10px] font-bold tracking-wider uppercase">
+                  <h3 className="px-2 py-1 text-left text-xs font-bold tracking-wider uppercase">
                     General
                   </h3>
                 </AccordionTrigger>
                 <AccordionContent className="pb-2">
                   <Separator className="mb-3" />
-                  <section className="space-y-4">
-                    <div className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 lg:grid-cols-4">
+                  <div className="grid grid-cols-1 gap-x-4 gap-y-4 sm:grid-cols-2 lg:grid-cols-4">
                       <ViewField
                         label={isInvoice ? "Invoice No." : "Shipment No."}
                         value={header.No}
@@ -545,7 +544,6 @@ export function SalesPostedDocumentDetailForm({ context }: Props) {
                       {isInvoice && <ViewField label="Invoice Type" value={inv.Invoice_Type} />}
                       <ViewField label="Currency Code" value={header.Currency_Code} />
                     </div>
-                  </section>
                 </AccordionContent>
               </AccordionItem>
 
@@ -554,14 +552,13 @@ export function SalesPostedDocumentDetailForm({ context }: Props) {
               {/* Customer */}
               <AccordionItem value="customer" className="border-none">
                 <AccordionTrigger className="py-0 hover:no-underline [&>svg]:size-4">
-                  <h3 className="px-2 py-1 text-left text-[10px] font-bold tracking-wider uppercase">
+                  <h3 className="px-2 py-1 text-left text-xs font-bold tracking-wider uppercase">
                     Customer
                   </h3>
                 </AccordionTrigger>
                 <AccordionContent className="pb-2">
                   <Separator className="mb-3" />
-                  <section className="space-y-4">
-                    <div className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 lg:grid-cols-4">
+                  <div className="grid grid-cols-1 gap-x-4 gap-y-4 sm:grid-cols-2 lg:grid-cols-4">
                       <ViewField label="Customer No." value={header.Sell_to_Customer_No} />
                       <ViewField label="Customer Name" value={header.Sell_to_Customer_Name} />
                       <ViewField label="Bill-to Customer No." value={header.Bill_to_Customer_No} />
@@ -569,7 +566,6 @@ export function SalesPostedDocumentDetailForm({ context }: Props) {
                       <ViewField label="Ship-to Code" value={header.Ship_to_Code} />
                       <ViewField label="Ship-to Name" value={header.Ship_to_Name} />
                     </div>
-                  </section>
                 </AccordionContent>
               </AccordionItem>
 
@@ -578,20 +574,18 @@ export function SalesPostedDocumentDetailForm({ context }: Props) {
               {/* Transport */}
               <AccordionItem value="transport" className="border-none">
                 <AccordionTrigger className="py-0 hover:no-underline [&>svg]:size-4">
-                  <h3 className="px-2 py-1 text-left text-[10px] font-bold tracking-wider uppercase">
+                  <h3 className="px-2 py-1 text-left text-xs font-bold tracking-wider uppercase">
                     Transport & Logistics
                   </h3>
                 </AccordionTrigger>
                 <AccordionContent className="pb-2">
                   <Separator className="mb-3" />
-                  <section className="space-y-4">
-                    <div className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 lg:grid-cols-4">
+                  <div className="grid grid-cols-1 gap-x-4 gap-y-4 sm:grid-cols-2 lg:grid-cols-4">
                       <ViewField label="Transporter Code" value={header.Transporter_Code} />
                       <ViewField label="Vehicle No." value={header.Vehicle_No} />
                       <ViewField label="LR/RR No." value={header.LR_RR_No} />
                       <ViewField label="LR/RR Date" value={fmtDate(header.LR_RR_Date)} />
                     </div>
-                  </section>
                 </AccordionContent>
               </AccordionItem>
 
@@ -600,20 +594,18 @@ export function SalesPostedDocumentDetailForm({ context }: Props) {
               {/* Dimensions */}
               <AccordionItem value="dimensions" className="border-none">
                 <AccordionTrigger className="py-0 hover:no-underline [&>svg]:size-4">
-                  <h3 className="px-2 py-1 text-left text-[10px] font-bold tracking-wider uppercase">
+                  <h3 className="px-2 py-1 text-left text-xs font-bold tracking-wider uppercase">
                     Dimensions & Location
                   </h3>
                 </AccordionTrigger>
                 <AccordionContent className="pb-2">
                   <Separator className="mb-3" />
-                  <section className="space-y-4">
-                    <div className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 lg:grid-cols-4">
+                  <div className="grid grid-cols-1 gap-x-4 gap-y-4 sm:grid-cols-2 lg:grid-cols-4">
                       <ViewField label="Location" value={header.Location_Code} />
                       <ViewField label="Salesperson" value={header.Salesperson_Code} />
                       <ViewField label="LOB" value={header.Shortcut_Dimension_1_Code} />
                       <ViewField label="Branch" value={header.Shortcut_Dimension_2_Code} />
                     </div>
-                  </section>
                 </AccordionContent>
               </AccordionItem>
 
@@ -622,22 +614,20 @@ export function SalesPostedDocumentDetailForm({ context }: Props) {
               {isInvoice && (
                 <AccordionItem value="amounts" className="border-none">
                   <AccordionTrigger className="py-0 hover:no-underline [&>svg]:size-4">
-                    <h3 className="px-2 py-1 text-left text-[10px] font-bold tracking-wider uppercase">
+                    <h3 className="px-2 py-1 text-left text-xs font-bold tracking-wider uppercase">
                       Amounts
                     </h3>
                   </AccordionTrigger>
                   <AccordionContent className="pb-2">
                     <Separator className="mb-3" />
-                    <section className="space-y-4">
-                      <div className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 lg:grid-cols-4">
-                        <ViewField label="Amount" value={fmtCurrency(inv.Amount)} />
-                        <ViewField label="Amount (incl. VAT)" value={fmtCurrency(inv.Amount_Including_VAT)} />
-                        <ViewField label="Remaining Amount" value={fmtCurrency(inv.Remaining_Amount)} />
-                        <ViewField label="Due Date" value={fmtDate(inv.Due_Date)} />
-                        <ViewField label="Closed" value={fmtBool(inv.Closed)} />
-                        <ViewField label="Cancelled" value={fmtBool(inv.Cancelled)} />
-                      </div>
-                    </section>
+                    <div className="grid grid-cols-1 gap-x-4 gap-y-4 sm:grid-cols-2 lg:grid-cols-4">
+                      <ViewField label="Amount" value={fmtCurrency(inv.Amount)} />
+                      <ViewField label="Amount (incl. VAT)" value={fmtCurrency(inv.Amount_Including_VAT)} />
+                      <ViewField label="Remaining Amount" value={fmtCurrency(inv.Remaining_Amount)} />
+                      <ViewField label="Due Date" value={fmtDate(inv.Due_Date)} />
+                      <ViewField label="Closed" value={fmtBool(inv.Closed)} />
+                      <ViewField label="Cancelled" value={fmtBool(inv.Cancelled)} />
+                    </div>
                   </AccordionContent>
                 </AccordionItem>
               )}
@@ -647,19 +637,17 @@ export function SalesPostedDocumentDetailForm({ context }: Props) {
               {isInvoice && (
                 <AccordionItem value="einvoice" className="border-none">
                   <AccordionTrigger className="py-0 hover:no-underline [&>svg]:size-4">
-                    <h3 className="px-2 py-1 text-left text-[10px] font-bold tracking-wider uppercase">
+                    <h3 className="px-2 py-1 text-left text-xs font-bold tracking-wider uppercase">
                       E-Invoice & E-Way Bill
                     </h3>
                   </AccordionTrigger>
                   <AccordionContent className="pb-2">
                     <Separator className="mb-3" />
-                    <section className="space-y-4">
-                      <div className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 lg:grid-cols-4">
-                        <ViewField label="E-Invoice Status" value={inv.E_Invoice_Status} />
-                        <ViewField label="E-Invoice No." value={inv.E_Invoice_No} />
-                        <ViewField label="E-Way Bill No." value={inv.E_Way_Bill_No} />
-                      </div>
-                    </section>
+                    <div className="grid grid-cols-1 gap-x-4 gap-y-4 sm:grid-cols-2 lg:grid-cols-4">
+                      <ViewField label="E-Invoice Status" value={inv.E_Invoice_Status} />
+                      <ViewField label="E-Invoice No." value={inv.E_Invoice_No} />
+                      <ViewField label="E-Way Bill No." value={inv.E_Way_Bill_No} />
+                    </div>
                   </AccordionContent>
                 </AccordionItem>
               )}

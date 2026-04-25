@@ -28,26 +28,26 @@ export type SalesDocColumnType =
 // ---------------------------------------------------------------------------
 
 const ORDER_DEFAULT_COLUMNS: ColumnConfig[] = [
-  { id: "No", label: "Order No", sortable: true, defaultVisible: true, filterType: "text" },
-  { id: "Sell_to_Customer_No", label: "Customer No", sortable: true, defaultVisible: true, filterType: "text" },
-  { id: "Sell_to_Customer_Name", label: "Customer Name", sortable: true, defaultVisible: true, filterType: "text" },
-  { id: "Order_Date", label: "Order Date", sortable: true, defaultVisible: true, filterType: "date" },
-  { id: "Posting_Date", label: "Posting Date", sortable: true, defaultVisible: true, filterType: "date" },
-  { id: "Document_Date", label: "Document Date", sortable: true, defaultVisible: true, filterType: "date" },
-  { id: "External_Document_No", label: "External Doc No", sortable: true, defaultVisible: true, filterType: "text" },
-  { id: "Status", label: "Status", sortable: true, defaultVisible: true, filterType: "enum" },
-  { id: "Amt_to_Customer", label: "Amount", sortable: true, defaultVisible: true, filterType: "number" },
+  { id: "No", label: "Order No", sortable: true, defaultVisible: true, filterType: "text", width: "w-24" },
+  { id: "Sell_to_Customer_No", label: "Customer No", sortable: true, defaultVisible: true, filterType: "text", width: "w-28" },
+  { id: "Sell_to_Customer_Name", label: "Customer Name", sortable: true, defaultVisible: true, filterType: "text", width: "w-48" },
+  { id: "Order_Date", label: "Order Date", sortable: true, defaultVisible: true, filterType: "date", width: "w-28" },
+  { id: "Posting_Date", label: "Posting Date", sortable: true, defaultVisible: true, filterType: "date", width: "w-28" },
+  { id: "Document_Date", label: "Document Date", sortable: true, defaultVisible: true, filterType: "date", width: "w-28" },
+  { id: "External_Document_No", label: "External Doc No", sortable: true, defaultVisible: true, filterType: "text", width: "w-32" },
+  { id: "Status", label: "Status", sortable: true, defaultVisible: true, filterType: "enum", width: "w-24" },
+  { id: "Amt_to_Customer", label: "Amount", sortable: true, defaultVisible: true, filterType: "number", width: "w-28" },
 ];
 
 const ORDER_OPTIONAL_COLUMNS: ColumnConfig[] = [
-  { id: "Ship_to_Code", label: "Ship-to Code", sortable: true, defaultVisible: false, filterType: "text" },
-  { id: "Ship_to_Name", label: "Ship-to Name", sortable: true, defaultVisible: false, filterType: "text" },
-  { id: "Location_Code", label: "Location", sortable: true, defaultVisible: false, filterType: "text" },
-  { id: "Invoice_Type", label: "Invoice Type", sortable: true, defaultVisible: false, filterType: "enum" },
-  { id: "Shortcut_Dimension_1_Code", label: "LOB", sortable: true, defaultVisible: false, filterType: "text" },
-  { id: "Shortcut_Dimension_2_Code", label: "Branch", sortable: true, defaultVisible: false, filterType: "text" },
-  { id: "Shortcut_Dimension_3_Code", label: "LOC", sortable: true, defaultVisible: false, filterType: "text" },
-  { id: "Salesperson_Code", label: "Salesperson", sortable: true, defaultVisible: false, filterType: "text" },
+  { id: "Ship_to_Code", label: "Ship-to Code", sortable: true, defaultVisible: false, filterType: "text", width: "w-28" },
+  { id: "Ship_to_Name", label: "Ship-to Name", sortable: true, defaultVisible: false, filterType: "text", width: "w-40" },
+  { id: "Location_Code", label: "Location", sortable: true, defaultVisible: false, filterType: "text", width: "w-24" },
+  { id: "Invoice_Type", label: "Invoice Type", sortable: true, defaultVisible: false, filterType: "enum", width: "w-28" },
+  { id: "Shortcut_Dimension_1_Code", label: "LOB", sortable: true, defaultVisible: false, filterType: "text", width: "w-20" },
+  { id: "Shortcut_Dimension_2_Code", label: "Branch", sortable: true, defaultVisible: false, filterType: "text", width: "w-24" },
+  { id: "Shortcut_Dimension_3_Code", label: "LOC", sortable: true, defaultVisible: false, filterType: "text", width: "w-20" },
+  { id: "Salesperson_Code", label: "Salesperson", sortable: true, defaultVisible: false, filterType: "text", width: "w-28" },
 ];
 
 // ---------------------------------------------------------------------------
@@ -55,25 +55,25 @@ const ORDER_OPTIONAL_COLUMNS: ColumnConfig[] = [
 // ---------------------------------------------------------------------------
 
 const INVOICE_DEFAULT_COLUMNS: ColumnConfig[] = [
-  { id: "No", label: "Invoice No", sortable: true, defaultVisible: true, filterType: "text" },
-  { id: "Sell_to_Customer_No", label: "Customer No", sortable: true, defaultVisible: true, filterType: "text" },
-  { id: "Sell_to_Customer_Name", label: "Customer Name", sortable: true, defaultVisible: true, filterType: "text" },
-  { id: "Posting_Date", label: "Posting Date", sortable: true, defaultVisible: true, filterType: "date" },
-  { id: "Document_Date", label: "Document Date", sortable: true, defaultVisible: true, filterType: "date" },
-  { id: "External_Document_No", label: "External Doc No", sortable: true, defaultVisible: true, filterType: "text" },
-  { id: "Status", label: "Status", sortable: true, defaultVisible: true, filterType: "enum" },
-  { id: "Amt_to_Customer", label: "Amount", sortable: true, defaultVisible: true, filterType: "number" },
+  { id: "No", label: "Invoice No", sortable: true, defaultVisible: true, filterType: "text", width: "w-28" },
+  { id: "Sell_to_Customer_No", label: "Customer No", sortable: true, defaultVisible: true, filterType: "text", width: "w-28" },
+  { id: "Sell_to_Customer_Name", label: "Customer Name", sortable: true, defaultVisible: true, filterType: "text", width: "w-48" },
+  { id: "Posting_Date", label: "Posting Date", sortable: true, defaultVisible: true, filterType: "date", width: "w-28" },
+  { id: "Document_Date", label: "Document Date", sortable: true, defaultVisible: true, filterType: "date", width: "w-28" },
+  { id: "External_Document_No", label: "External Doc No", sortable: true, defaultVisible: true, filterType: "text", width: "w-32" },
+  { id: "Status", label: "Status", sortable: true, defaultVisible: true, filterType: "enum", width: "w-24" },
+  { id: "Amt_to_Customer", label: "Amount", sortable: true, defaultVisible: true, filterType: "number", width: "w-28" },
 ];
 
 const INVOICE_OPTIONAL_COLUMNS: ColumnConfig[] = [
-  { id: "Ship_to_Code", label: "Ship-to Code", sortable: true, defaultVisible: false, filterType: "text" },
-  { id: "Ship_to_Name", label: "Ship-to Name", sortable: true, defaultVisible: false, filterType: "text" },
-  { id: "Location_Code", label: "Location", sortable: true, defaultVisible: false, filterType: "text" },
-  { id: "Invoice_Type", label: "Invoice Type", sortable: true, defaultVisible: false, filterType: "enum" },
-  { id: "Shortcut_Dimension_1_Code", label: "LOB", sortable: true, defaultVisible: false, filterType: "text" },
-  { id: "Shortcut_Dimension_2_Code", label: "Branch", sortable: true, defaultVisible: false, filterType: "text" },
-  { id: "Shortcut_Dimension_3_Code", label: "LOC", sortable: true, defaultVisible: false, filterType: "text" },
-  { id: "Salesperson_Code", label: "Salesperson", sortable: true, defaultVisible: false, filterType: "text" },
+  { id: "Ship_to_Code", label: "Ship-to Code", sortable: true, defaultVisible: false, filterType: "text", width: "w-28" },
+  { id: "Ship_to_Name", label: "Ship-to Name", sortable: true, defaultVisible: false, filterType: "text", width: "w-40" },
+  { id: "Location_Code", label: "Location", sortable: true, defaultVisible: false, filterType: "text", width: "w-24" },
+  { id: "Invoice_Type", label: "Invoice Type", sortable: true, defaultVisible: false, filterType: "enum", width: "w-28" },
+  { id: "Shortcut_Dimension_1_Code", label: "LOB", sortable: true, defaultVisible: false, filterType: "text", width: "w-20" },
+  { id: "Shortcut_Dimension_2_Code", label: "Branch", sortable: true, defaultVisible: false, filterType: "text", width: "w-24" },
+  { id: "Shortcut_Dimension_3_Code", label: "LOC", sortable: true, defaultVisible: false, filterType: "text", width: "w-20" },
+  { id: "Salesperson_Code", label: "Salesperson", sortable: true, defaultVisible: false, filterType: "text", width: "w-28" },
 ];
 
 // ---------------------------------------------------------------------------
@@ -81,25 +81,25 @@ const INVOICE_OPTIONAL_COLUMNS: ColumnConfig[] = [
 // ---------------------------------------------------------------------------
 
 const RETURN_ORDER_DEFAULT_COLUMNS: ColumnConfig[] = [
-  { id: "No", label: "Return No", sortable: true, defaultVisible: true, filterType: "text" },
-  { id: "Sell_to_Customer_No", label: "Customer No", sortable: true, defaultVisible: true, filterType: "text" },
-  { id: "Sell_to_Customer_Name", label: "Customer Name", sortable: true, defaultVisible: true, filterType: "text" },
-  { id: "Posting_Date", label: "Posting Date", sortable: true, defaultVisible: true, filterType: "date" },
-  { id: "Document_Date", label: "Document Date", sortable: true, defaultVisible: true, filterType: "date" },
-  { id: "External_Document_No", label: "External Doc No", sortable: true, defaultVisible: true, filterType: "text" },
-  { id: "Status", label: "Status", sortable: true, defaultVisible: true, filterType: "enum" },
-  { id: "Amt_to_Customer", label: "Amount", sortable: true, defaultVisible: true, filterType: "number" },
+  { id: "No", label: "Return No", sortable: true, defaultVisible: true, filterType: "text", width: "w-28" },
+  { id: "Sell_to_Customer_No", label: "Customer No", sortable: true, defaultVisible: true, filterType: "text", width: "w-28" },
+  { id: "Sell_to_Customer_Name", label: "Customer Name", sortable: true, defaultVisible: true, filterType: "text", width: "w-48" },
+  { id: "Posting_Date", label: "Posting Date", sortable: true, defaultVisible: true, filterType: "date", width: "w-28" },
+  { id: "Document_Date", label: "Document Date", sortable: true, defaultVisible: true, filterType: "date", width: "w-28" },
+  { id: "External_Document_No", label: "External Doc No", sortable: true, defaultVisible: true, filterType: "text", width: "w-32" },
+  { id: "Status", label: "Status", sortable: true, defaultVisible: true, filterType: "enum", width: "w-24" },
+  { id: "Amt_to_Customer", label: "Amount", sortable: true, defaultVisible: true, filterType: "number", width: "w-28" },
 ];
 
 const RETURN_ORDER_OPTIONAL_COLUMNS: ColumnConfig[] = [
-  { id: "Ship_to_Code", label: "Ship-to Code", sortable: true, defaultVisible: false, filterType: "text" },
-  { id: "Ship_to_Name", label: "Ship-to Name", sortable: true, defaultVisible: false, filterType: "text" },
-  { id: "Location_Code", label: "Location", sortable: true, defaultVisible: false, filterType: "text" },
-  { id: "Invoice_Type", label: "Invoice Type", sortable: true, defaultVisible: false, filterType: "enum" },
-  { id: "Shortcut_Dimension_1_Code", label: "LOB", sortable: true, defaultVisible: false, filterType: "text" },
-  { id: "Shortcut_Dimension_2_Code", label: "Branch", sortable: true, defaultVisible: false, filterType: "text" },
-  { id: "Shortcut_Dimension_3_Code", label: "LOC", sortable: true, defaultVisible: false, filterType: "text" },
-  { id: "Salesperson_Code", label: "Salesperson", sortable: true, defaultVisible: false, filterType: "text" },
+  { id: "Ship_to_Code", label: "Ship-to Code", sortable: true, defaultVisible: false, filterType: "text", width: "w-28" },
+  { id: "Ship_to_Name", label: "Ship-to Name", sortable: true, defaultVisible: false, filterType: "text", width: "w-40" },
+  { id: "Location_Code", label: "Location", sortable: true, defaultVisible: false, filterType: "text", width: "w-24" },
+  { id: "Invoice_Type", label: "Invoice Type", sortable: true, defaultVisible: false, filterType: "enum", width: "w-28" },
+  { id: "Shortcut_Dimension_1_Code", label: "LOB", sortable: true, defaultVisible: false, filterType: "text", width: "w-20" },
+  { id: "Shortcut_Dimension_2_Code", label: "Branch", sortable: true, defaultVisible: false, filterType: "text", width: "w-24" },
+  { id: "Shortcut_Dimension_3_Code", label: "LOC", sortable: true, defaultVisible: false, filterType: "text", width: "w-20" },
+  { id: "Salesperson_Code", label: "Salesperson", sortable: true, defaultVisible: false, filterType: "text", width: "w-28" },
 ];
 
 // ---------------------------------------------------------------------------
@@ -107,25 +107,25 @@ const RETURN_ORDER_OPTIONAL_COLUMNS: ColumnConfig[] = [
 // ---------------------------------------------------------------------------
 
 const CREDIT_MEMO_DEFAULT_COLUMNS: ColumnConfig[] = [
-  { id: "No", label: "Credit Memo No", sortable: true, defaultVisible: true, filterType: "text" },
-  { id: "Sell_to_Customer_No", label: "Customer No", sortable: true, defaultVisible: true, filterType: "text" },
-  { id: "Sell_to_Customer_Name", label: "Customer Name", sortable: true, defaultVisible: true, filterType: "text" },
-  { id: "Posting_Date", label: "Posting Date", sortable: true, defaultVisible: true, filterType: "date" },
-  { id: "Document_Date", label: "Document Date", sortable: true, defaultVisible: true, filterType: "date" },
-  { id: "External_Document_No", label: "External Doc No", sortable: true, defaultVisible: true, filterType: "text" },
-  { id: "Status", label: "Status", sortable: true, defaultVisible: true, filterType: "enum" },
-  { id: "Amt_to_Customer", label: "Amount", sortable: true, defaultVisible: true, filterType: "number" },
+  { id: "No", label: "Credit Memo No", sortable: true, defaultVisible: true, filterType: "text", width: "w-32" },
+  { id: "Sell_to_Customer_No", label: "Customer No", sortable: true, defaultVisible: true, filterType: "text", width: "w-28" },
+  { id: "Sell_to_Customer_Name", label: "Customer Name", sortable: true, defaultVisible: true, filterType: "text", width: "w-48" },
+  { id: "Posting_Date", label: "Posting Date", sortable: true, defaultVisible: true, filterType: "date", width: "w-28" },
+  { id: "Document_Date", label: "Document Date", sortable: true, defaultVisible: true, filterType: "date", width: "w-28" },
+  { id: "External_Document_No", label: "External Doc No", sortable: true, defaultVisible: true, filterType: "text", width: "w-32" },
+  { id: "Status", label: "Status", sortable: true, defaultVisible: true, filterType: "enum", width: "w-24" },
+  { id: "Amt_to_Customer", label: "Amount", sortable: true, defaultVisible: true, filterType: "number", width: "w-28" },
 ];
 
 const CREDIT_MEMO_OPTIONAL_COLUMNS: ColumnConfig[] = [
-  { id: "Ship_to_Code", label: "Ship-to Code", sortable: true, defaultVisible: false, filterType: "text" },
-  { id: "Ship_to_Name", label: "Ship-to Name", sortable: true, defaultVisible: false, filterType: "text" },
-  { id: "Location_Code", label: "Location", sortable: true, defaultVisible: false, filterType: "text" },
-  { id: "Invoice_Type", label: "Invoice Type", sortable: true, defaultVisible: false, filterType: "enum" },
-  { id: "Shortcut_Dimension_1_Code", label: "LOB", sortable: true, defaultVisible: false, filterType: "text" },
-  { id: "Shortcut_Dimension_2_Code", label: "Branch", sortable: true, defaultVisible: false, filterType: "text" },
-  { id: "Shortcut_Dimension_3_Code", label: "LOC", sortable: true, defaultVisible: false, filterType: "text" },
-  { id: "Salesperson_Code", label: "Salesperson", sortable: true, defaultVisible: false, filterType: "text" },
+  { id: "Ship_to_Code", label: "Ship-to Code", sortable: true, defaultVisible: false, filterType: "text", width: "w-28" },
+  { id: "Ship_to_Name", label: "Ship-to Name", sortable: true, defaultVisible: false, filterType: "text", width: "w-40" },
+  { id: "Location_Code", label: "Location", sortable: true, defaultVisible: false, filterType: "text", width: "w-24" },
+  { id: "Invoice_Type", label: "Invoice Type", sortable: true, defaultVisible: false, filterType: "enum", width: "w-28" },
+  { id: "Shortcut_Dimension_1_Code", label: "LOB", sortable: true, defaultVisible: false, filterType: "text", width: "w-20" },
+  { id: "Shortcut_Dimension_2_Code", label: "Branch", sortable: true, defaultVisible: false, filterType: "text", width: "w-24" },
+  { id: "Shortcut_Dimension_3_Code", label: "LOC", sortable: true, defaultVisible: false, filterType: "text", width: "w-20" },
+  { id: "Salesperson_Code", label: "Salesperson", sortable: true, defaultVisible: false, filterType: "text", width: "w-28" },
 ];
 
 // ---------------------------------------------------------------------------

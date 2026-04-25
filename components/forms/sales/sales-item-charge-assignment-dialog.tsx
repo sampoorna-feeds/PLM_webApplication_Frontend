@@ -5,8 +5,10 @@ import {
   Loader2,
   Search,
   X,
+  ArrowUp,
   ArrowDown,
   ArrowUpDown,
+  Filter,
   Zap,
   Trash2,
   ChevronLeft,
@@ -35,8 +37,15 @@ import {
 import type {
   ItemChargeAssignment,
   ItemChargeSourceLine,
+  SourceType,
 } from "@/lib/api/services/item-charge-assignment.service";
+import { ItemChargeSelectionDialog } from "@/components/forms/purchase/item-charge-selection-dialog";
 import { cn } from "@/lib/utils";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -52,6 +61,137 @@ import { Label } from "@/components/ui/label";
 const PAGE_SIZE = 200;
 
 type SortDirection = "asc" | "desc" | null;
+
+interface ColumnConfig {
+  id: keyof ItemChargeAssignment | string;
+  label: string;
+  sortable?: boolean;
+  filterType?: "text" | "number";
+  align?: "left" | "right" | "center";
+  width?: string;
+  editable?: boolean;
+}
+
+const ASSIGNMENT_COLUMNS: ColumnConfig[] = [
+  {
+    id: "Applies_toDocType",
+    label: "Doc. Type",
+    sortable: true,
+    filterType: "text",
+    width: "110px",
+  },
+  {
+    id: "Applies_toDocNo",
+    label: "Doc. No.",
+    sortable: true,
+    filterType: "text",
+    width: "150px",
+  },
+  {
+    id: "Applies_toDocLineNo",
+    label: "Line No.",
+    sortable: true,
+    width: "80px",
+    align: "center",
+  },
+  {
+    id: "ItemNo",
+    label: "Item No.",
+    sortable: true,
+    filterType: "text",
+    width: "120px",
+  },
+  {
+    id: "Description",
+    label: "Description",
+    sortable: true,
+    filterType: "text",
+    width: "200px",
+  },
+  {
+    id: "QtytoAssign",
+    label: "Qty. to Assign",
+    sortable: true,
+    width: "110px",
+    align: "right",
+    editable: true,
+  },
+  {
+    id: "QtytoHandle",
+    label: "Qty. to Handle",
+    sortable: true,
+    width: "110px",
+    align: "right",
+    editable: true,
+  },
+  {
+    id: "QtyAssigned",
+    label: "Qty. Assigned",
+    sortable: true,
+    width: "110px",
+    align: "right",
+  },
+  {
+    id: "AmounttoAssign",
+    label: "Amt. to Assign",
+    sortable: true,
+    width: "120px",
+    align: "right",
+    editable: true,
+  },
+  {
+    id: "AmounttoHandle",
+    label: "Amt. to Handle",
+    sortable: true,
+    width: "120px",
+    align: "right",
+    editable: true,
+  },
+  {
+    id: "GrossWeight",
+    label: "Gross Wt.",
+    sortable: true,
+    width: "100px",
+    align: "right",
+  },
+  {
+    id: "UnitVolume",
+    label: "Unit Vol.",
+    sortable: true,
+    width: "100px",
+    align: "right",
+  },
+  {
+    id: "QtyToReceiveBase",
+    label: "Qty. Rec. (B)",
+    sortable: true,
+    width: "110px",
+    align: "right",
+  },
+  {
+    id: "QtyReceivedBase",
+    label: "Qty. Rec'd (B)",
+    sortable: true,
+    width: "110px",
+    align: "right",
+  },
+  {
+    id: "QtyToShipBase",
+    label: "Qty. Ship (B)",
+    sortable: true,
+    width: "110px",
+    align: "right",
+  },
+  {
+    id: "QtyShippedBase",
+    label: "Qty. Shipp'd (B)",
+    sortable: true,
+    width: "115px",
+    align: "right",
+  },
+];
+
+const TOTAL_COLS = ASSIGNMENT_COLUMNS.length + 1;
 
 interface SalesItemChargeAssignmentDialogProps {
   open: boolean;
@@ -79,25 +219,24 @@ export function SalesItemChargeAssignmentDialog({
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+
   const [lines, setLines] = useState<ItemChargeAssignment[]>([]);
   const [totalCount, setTotalCount] = useState<number>(0);
   const [selectedLines, setSelectedLines] = useState<Set<string>>(new Set());
+
   const sentinelRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const tbodyRef = useRef<HTMLTableSectionElement>(null);
+
   const [sortColumn, setSortColumn] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>(null);
+  const [columnFilters, setColumnFilters] = useState<
+    Record<string, { value: string }>
+  >({});
 
   const [selectionOpen, setSelectionOpen] = useState(false);
   const [selectionType, setSelectionType] =
     useState<SalesChargeSourceType>("SalesShipment");
-  const [selectionLines, setSelectionLines] = useState<ItemChargeSourceLine[]>(
-    [],
-  );
-  const [selectionSearch, setSelectionSearch] = useState("");
-  const [selectionLoading, setSelectionLoading] = useState(false);
-  const [selectionSelected, setSelectionSelected] = useState<
-    Set<string | number>
-  >(new Set());
 
   const [errorDialogOpen, setErrorDialogOpen] = useState(false);
   const [errorTitle, setErrorTitle] = useState("");
@@ -106,10 +245,11 @@ export function SalesItemChargeAssignmentDialog({
   const [deleteConfirmLine, setDeleteConfirmLine] =
     useState<ItemChargeAssignment | null>(null);
   const [deleteConfirmBulk, setDeleteConfirmBulk] = useState(false);
-  const [isSuggestDialogOpen, setIsSuggestDialogOpen] = useState(false);
-  const [selectedSuggestMethod, setSelectedSuggestMethod] = useState("Equally");
 
-  // Drag-select
+  const [isSuggestDialogOpen, setIsSuggestDialogOpen] = useState(false);
+  const [selectedSuggestMethod, setSelectedSuggestMethod] =
+    useState("Equally");
+
   const isDraggingRef = useRef(false);
   const dragSelectingRef = useRef<boolean | null>(null);
 
@@ -117,12 +257,9 @@ export function SalesItemChargeAssignmentDialog({
   const canFetchMore = !allFetched && !loading && !loadingMore;
 
   const showError = (title: string, message: string, error?: unknown) => {
-    const err = error as {
-      message?: string;
-      code?: string;
-      status?: number;
-      details?: unknown;
-    };
+    const err = error as
+      | { message?: string; code?: string; status?: number; details?: unknown }
+      | undefined;
     setErrorTitle(title);
     setErrorMessage(message);
     setApiErrors(
@@ -132,8 +269,7 @@ export function SalesItemChargeAssignmentDialog({
               message: err.message || "Unknown error",
               code: err.code,
               status: err.status,
-              details:
-                typeof err.details === "string" ? err.details : undefined,
+              details: typeof err.details === "string" ? err.details : undefined,
             },
           ]
         : [],
@@ -147,7 +283,9 @@ export function SalesItemChargeAssignmentDialog({
       setLines([]);
       setTotalCount(0);
       setSelectedLines(new Set());
-      if (scrollContainerRef.current) scrollContainerRef.current.scrollTop = 0;
+      if (scrollContainerRef.current) {
+        scrollContainerRef.current.scrollTop = 0;
+      }
       const result = await salesItemChargeAssignmentService.getAssignments({
         docType,
         docNo,
@@ -159,11 +297,7 @@ export function SalesItemChargeAssignmentDialog({
       setLines(result.value);
       setTotalCount(result.count);
     } catch (error) {
-      showError(
-        "Fetch Failed",
-        "Could not load assignments from the server.",
-        error,
-      );
+      showError("Fetch Failed", "Could not load assignments from the server.", error);
     } finally {
       setLoading(false);
     }
@@ -207,55 +341,32 @@ export function SalesItemChargeAssignmentDialog({
     return () => observer.disconnect();
   }, [fetchMore]);
 
-  // Source line selection
-  const openSelection = async (type: SalesChargeSourceType) => {
+  const handleOpenSelection = (type: SalesChargeSourceType) => {
     setSelectionType(type);
-    setSelectionLines([]);
-    setSelectionSearch("");
-    setSelectionSelected(new Set());
     setSelectionOpen(true);
-    setSelectionLoading(true);
-    try {
-      const result = await salesItemChargeAssignmentService.getSourceLines(
-        type,
-        { top: PAGE_SIZE },
-      );
-      setSelectionLines(result.value);
-    } catch (error) {
-      showError("Fetch Failed", "Could not load source lines.", error);
-    } finally {
-      setSelectionLoading(false);
-    }
   };
 
-  const handleAddSelected = async () => {
-    const toAdd = selectionLines.filter((sl) =>
-      selectionSelected.has(sl.Line_No),
-    );
-    if (toAdd.length === 0) return;
+  const handleLinesAdded = async (sourceLines: ItemChargeSourceLine[]) => {
     setLoading(true);
-    setSelectionOpen(false);
     try {
-      const apiGetType =
-        salesItemChargeAssignmentService.getApiGetType(selectionType);
+      const apiGetType = salesItemChargeAssignmentService.getApiGetType(selectionType);
       await Promise.all(
-        toAdd.map((sl) =>
+        sourceLines.map((sl) =>
           salesItemChargeAssignmentService.postAssignment({
             sourceDoc: docNo,
             sourceLine: docLineNo,
             getType: apiGetType,
             chargeDocNo: sl.Document_No,
             chargeLineNo: sl.Line_No,
-            assignmentType: "Sale",
           }),
         ),
       );
-      toast.success(`Added ${toAdd.length} assignment(s)`);
+      toast.success(`Successfully added ${sourceLines.length} assignments`);
       await fetchInitial();
     } catch (error) {
       showError(
         "Assignment Failed",
-        "Failed to add some assignments.",
+        "Failed to sync some assignments with the server.",
         error,
       );
       await fetchInitial();
@@ -276,7 +387,7 @@ export function SalesItemChargeAssignmentDialog({
         totalAmtToHandle: totalAmount,
         selectionTxt: criteria,
       });
-      toast.success(`Suggested by ${criteria}`);
+      toast.success(`Successfully suggested assignments by ${criteria}`);
       setIsSuggestDialogOpen(false);
       await fetchInitial();
     } catch (error) {
@@ -286,7 +397,16 @@ export function SalesItemChargeAssignmentDialog({
     }
   };
 
-  const filteredLines = useMemo(() => {
+  const handleSuggestClick = () => {
+    if (lines.length === 0) return;
+    if (lines.length === 1) {
+      handleSuggest("Equally");
+    } else {
+      setIsSuggestDialogOpen(true);
+    }
+  };
+
+  const filteredAndSortedLines = useMemo(() => {
     let result = lines;
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
@@ -294,55 +414,71 @@ export function SalesItemChargeAssignmentDialog({
         (l) =>
           l.Applies_toDocNo.toLowerCase().includes(q) ||
           l.Description.toLowerCase().includes(q) ||
-          l.ItemNo.toLowerCase().includes(q),
+          l.ItemNo.toLowerCase().includes(q) ||
+          l.Applies_toDocType.toLowerCase().includes(q),
       );
     }
+    Object.entries(columnFilters).forEach(([columnId, filter]) => {
+      if (!filter.value) return;
+      result = result.filter((line) => {
+        const value = (line as unknown as Record<string, unknown>)[columnId];
+        if (value === null || value === undefined) return false;
+        return String(value).toLowerCase().includes(filter.value.toLowerCase());
+      });
+    });
     if (sortColumn && sortDirection) {
       result = [...result].sort((a, b) => {
-        const va = (a as unknown as Record<string, unknown>)[sortColumn];
-        const vb = (b as unknown as Record<string, unknown>)[sortColumn];
-        if (va === vb) return 0;
-        if (va == null) return 1;
-        if (vb == null) return -1;
-        const cmp = va < vb ? -1 : 1;
+        const valA = (a as unknown as Record<string, unknown>)[sortColumn];
+        const valB = (b as unknown as Record<string, unknown>)[sortColumn];
+        if (valA === valB) return 0;
+        if (valA == null) return 1;
+        if (valB == null) return -1;
+        const cmp = valA < valB ? -1 : 1;
         return sortDirection === "asc" ? cmp : -cmp;
       });
     }
     return result;
-  }, [lines, searchQuery, sortColumn, sortDirection]);
+  }, [lines, searchQuery, columnFilters, sortColumn, sortDirection]);
 
   const totals = useMemo(() => {
-    const toAssignQty = lines.reduce(
-      (s, l) => s + (Number(l.QtytoAssign) || 0),
-      0,
-    );
+    const toAssignQty = lines.reduce((s, l) => s + (Number(l.QtytoAssign) || 0), 0);
     const toAssignAmt = lines.reduce(
       (s, l) => s + (Number(l.AmounttoAssign) || 0),
       0,
     );
+    const toHandleQty = lines.reduce((s, l) => s + (Number(l.QtytoHandle) || 0), 0);
+    const toHandleAmt = lines.reduce(
+      (s, l) => s + (Number(l.AmounttoHandle) || 0),
+      0,
+    );
     return {
+      assignableQty: totalQuantity,
+      assignableAmt: totalAmount,
       toAssignQty,
       toAssignAmt,
-      remQty: totalQuantity - toAssignQty,
-      remAmt: totalAmount - toAssignAmt,
+      remToAssignQty: totalQuantity - toAssignQty,
+      remToAssignAmt: totalAmount - toAssignAmt,
+      toHandleQty,
+      toHandleAmt,
+      remToHandleQty: totalQuantity - toHandleQty,
+      remToHandleAmt: totalAmount - toHandleAmt,
     };
   }, [lines, totalQuantity, totalAmount]);
 
-  const lineKey = (l: ItemChargeAssignment) =>
-    `${l.Applies_toDocNo}-${l.Line_No}`;
+  const lineKey = (l: ItemChargeAssignment) => `${l.Applies_toDocNo}-${l.Line_No}`;
 
-  const toggleAll = () => {
+  const toggleSelectAll = () => {
     if (
-      selectedLines.size === filteredLines.length &&
-      filteredLines.length > 0
+      selectedLines.size === filteredAndSortedLines.length &&
+      filteredAndSortedLines.length > 0
     ) {
       setSelectedLines(new Set());
     } else {
-      setSelectedLines(new Set(filteredLines.map(lineKey)));
+      setSelectedLines(new Set(filteredAndSortedLines.map(lineKey)));
     }
   };
 
-  const toggleLine = (line: ItemChargeAssignment) => {
+  const toggleSelectLine = (line: ItemChargeAssignment) => {
     const key = lineKey(line);
     setSelectedLines((prev) => {
       const next = new Set(prev);
@@ -386,6 +522,26 @@ export function SalesItemChargeAssignmentDialog({
     return () => window.removeEventListener("mouseup", onMouseUp);
   }, []);
 
+  const handleSort = (column: string) => {
+    if (sortColumn === column) {
+      setSortDirection((prev) => (prev === "asc" ? "desc" : null));
+      setSortColumn((prev) => (sortDirection === "desc" ? null : prev));
+    } else {
+      setSortColumn(column);
+      setSortDirection("asc");
+    }
+  };
+
+  const handleColumnFilter = (columnId: string, value: string) => {
+    setColumnFilters((prev) => {
+      if (!value) {
+        const { [columnId]: _, ...rest } = prev;
+        return rest;
+      }
+      return { ...prev, [columnId]: { value } };
+    });
+  };
+
   const handleDeleteLine = async (line: ItemChargeAssignment) => {
     try {
       setLoading(true);
@@ -402,9 +558,14 @@ export function SalesItemChargeAssignmentDialog({
         ),
       );
       setTotalCount((prev) => Math.max(0, prev - 1));
+      setSelectedLines((prev) => {
+        const next = new Set(prev);
+        next.delete(lineKey(line));
+        return next;
+      });
       toast.success("Assignment deleted");
     } catch (error) {
-      showError("Delete Failed", "Failed to delete assignment.", error);
+      showError("Deletion Failed", "Failed to delete assignment from server.", error);
     } finally {
       setLoading(false);
       setDeleteConfirmLine(null);
@@ -417,17 +578,17 @@ export function SalesItemChargeAssignmentDialog({
     try {
       setLoading(true);
       await Promise.all(
-        toDelete.map((l) =>
-          salesItemChargeAssignmentService.deleteAssignment(l),
-        ),
+        toDelete.map((l) => salesItemChargeAssignmentService.deleteAssignment(l)),
       );
-      const deleted = new Set(toDelete.map(lineKey));
-      setLines((prev) => prev.filter((l) => !deleted.has(lineKey(l))));
+      const deletedKeys = new Set(toDelete.map(lineKey));
+      setLines((prev) => prev.filter((l) => !deletedKeys.has(lineKey(l))));
       setTotalCount((prev) => Math.max(0, prev - toDelete.length));
       setSelectedLines(new Set());
-      toast.success(`${toDelete.length} assignment(s) deleted`);
+      toast.success(
+        `${toDelete.length} assignment${toDelete.length > 1 ? "s" : ""} deleted`,
+      );
     } catch (error) {
-      showError("Delete Failed", "Failed to delete some assignments.", error);
+      showError("Deletion Failed", "Failed to delete some assignments.", error);
     } finally {
       setLoading(false);
       setDeleteConfirmBulk(false);
@@ -447,63 +608,53 @@ export function SalesItemChargeAssignmentDialog({
   const editableCellClass =
     "h-9 w-full rounded-none border-0 bg-transparent px-2 text-right text-xs tabular-nums ring-0 focus-visible:ring-1 focus-visible:ring-primary/40 focus:bg-background/80";
 
-  const selectionTypeLabel: Record<SalesChargeSourceType, string> = {
-    SalesShipment: "Sales Shipment Lines",
-    ReturnShipment: "Return Shipment Lines",
-    Transfer: "Transfer Receipt Lines",
-  };
-
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="border-border bg-background flex h-[95vh] w-[95vw] flex-col gap-0 overflow-hidden p-0 sm:max-w-[95vw]">
           <DialogHeader className="border-b px-4 py-3 shrink-0">
-            <DialogTitle className="text-foreground flex items-center gap-2 text-sm font-bold">
-              Sales Item Charge Assignment
-              <span className="bg-primary/10 text-primary rounded-full px-2 py-0.5 text-[10px] font-bold tabular-nums">
-                {itemChargeNo} — {itemChargeDescription}
-              </span>
-            </DialogTitle>
+            <div className="flex items-center justify-between">
+              <DialogTitle className="text-foreground flex items-center gap-2 text-sm font-bold">
+                Item Charge Assignment
+                <span className="bg-primary/10 text-primary rounded-full px-2 py-0.5 text-[10px] font-bold tabular-nums">
+                  {itemChargeNo} - {itemChargeDescription}
+                </span>
+              </DialogTitle>
+            </div>
 
             <div className="mt-2 flex flex-wrap items-center gap-1.5">
               <Button
                 variant="outline"
                 size="sm"
                 className="h-7 px-3 text-[10px] font-bold tracking-wider uppercase"
-                onClick={() => openSelection("SalesShipment")}
+                onClick={() => handleOpenSelection("SalesShipment")}
               >
-                <ArrowDown className="mr-1 h-3 w-3" /> Get Shipment Lines
+                <ArrowDown className="mr-1 h-3 w-3" /> Get Sales Shipment Lines
               </Button>
               <Button
                 variant="outline"
                 size="sm"
                 className="h-7 px-3 text-[10px] font-bold tracking-wider uppercase"
-                onClick={() => openSelection("ReturnShipment")}
+                onClick={() => handleOpenSelection("Transfer")}
               >
-                <ChevronLeft className="mr-1 h-3 w-3" /> Get Return Shipment
-                Lines
+                <ArrowUpDown className="mr-1 h-3 w-3" /> Get Transfer Receipt Lines
               </Button>
               <Button
                 variant="outline"
                 size="sm"
                 className="h-7 px-3 text-[10px] font-bold tracking-wider uppercase"
-                onClick={() => openSelection("Transfer")}
+                onClick={() => handleOpenSelection("ReturnShipment")}
               >
-                <ArrowUpDown className="mr-1 h-3 w-3" /> Get Transfer Receipt
-                Lines
+                <ChevronLeft className="mr-1 h-3 w-3" /> Get Return Shipment Lines
               </Button>
               <Button
                 variant="outline"
                 size="sm"
                 className="border-primary/30 text-primary h-7 px-3 text-[10px] font-bold tracking-wider uppercase"
-                onClick={() => {
-                  if (lines.length === 0) return;
-                  if (lines.length === 1) handleSuggest("Equally");
-                  else setIsSuggestDialogOpen(true);
-                }}
+                onClick={handleSuggestClick}
                 disabled={loading || lines.length === 0}
               >
-                <Zap className="mr-1 h-3 w-3 fill-current" /> Suggest
+                <Zap className="mr-1 h-3 w-3 fill-current" /> Suggest Assignment
               </Button>
             </div>
 
@@ -531,9 +682,7 @@ export function SalesItemChargeAssignmentDialog({
               <div className="flex flex-1 items-center justify-center">
                 <div className="flex flex-col items-center gap-3">
                   <Loader2 className="text-primary h-8 w-8 animate-spin" />
-                  <p className="text-muted-foreground text-sm">
-                    Fetching assignments...
-                  </p>
+                  <p className="text-muted-foreground text-sm">Fetching assignments...</p>
                 </div>
               </div>
             ) : (
@@ -545,44 +694,42 @@ export function SalesItemChargeAssignmentDialog({
                 >
                   <table className="w-full border-collapse text-sm">
                     <thead className="sticky top-0 z-30">
-                      <tr className="bg-muted border-b whitespace-nowrap">
-                        <th className="bg-muted sticky left-0 z-40 h-10 w-28 px-3 text-center align-middle">
+                      <tr className="bg-muted border-b border-border whitespace-nowrap">
+                        <th className="bg-muted sticky left-0 z-40 w-28 h-10 px-3 text-center align-middle">
                           <div className="flex items-center justify-center gap-1.5">
+                            <span className="text-foreground w-5 text-[9px] font-bold tracking-wider uppercase">
+                              #
+                            </span>
                             <Checkbox
                               checked={
-                                filteredLines.length > 0 &&
-                                selectedLines.size === filteredLines.length
+                                filteredAndSortedLines.length > 0 &&
+                                selectedLines.size === filteredAndSortedLines.length
                               }
-                              onCheckedChange={toggleAll}
+                              onCheckedChange={toggleSelectAll}
+                              className="rounded shadow-none"
                             />
+                            <div className="w-6" />
                           </div>
                         </th>
-                        {[
-                          "Doc. Type",
-                          "Doc. No.",
-                          "Line No.",
-                          "Item No.",
-                          "Description",
-                          "Qty to Assign",
-                          "Qty to Handle",
-                          "Qty Assigned",
-                          "Amt to Assign",
-                          "Amt to Handle",
-                        ].map((h) => (
-                          <th
-                            key={h}
-                            className="text-primary px-3 py-2 text-left text-[10px] font-bold tracking-wider uppercase"
-                          >
-                            {h}
-                          </th>
+                        {ASSIGNMENT_COLUMNS.map((col) => (
+                          <AssignmentTableHead
+                            key={col.id as string}
+                            column={col}
+                            isActive={sortColumn === col.id}
+                            sortDirection={sortColumn === col.id ? sortDirection : null}
+                            filterValue={columnFilters[col.id as string]?.value ?? ""}
+                            onSort={handleSort}
+                            onFilter={handleColumnFilter}
+                            bgClass="bg-muted"
+                          />
                         ))}
                       </tr>
                     </thead>
-                    <tbody>
-                      {filteredLines.length === 0 && !loading ? (
+                    <tbody ref={tbodyRef}>
+                      {filteredAndSortedLines.length === 0 && !loading ? (
                         <tr>
                           <td
-                            colSpan={11}
+                            colSpan={TOTAL_COLS}
                             className="text-muted-foreground h-40 text-center text-xs italic"
                           >
                             {searchQuery
@@ -592,7 +739,7 @@ export function SalesItemChargeAssignmentDialog({
                         </tr>
                       ) : (
                         <>
-                          {filteredLines.map((line, idx) => {
+                          {filteredAndSortedLines.map((line, idx) => {
                             const key = lineKey(line);
                             const isSelected = selectedLines.has(key);
                             return (
@@ -600,14 +747,10 @@ export function SalesItemChargeAssignmentDialog({
                                 key={key}
                                 className={cn(
                                   "border-b whitespace-nowrap transition-colors",
-                                  isSelected
-                                    ? "bg-primary/5"
-                                    : "hover:bg-muted/50",
+                                  isSelected ? "bg-primary/5" : "hover:bg-muted/50",
                                   "cursor-pointer",
                                 )}
-                                onMouseDown={(e) =>
-                                  handleRowMouseDown(line, e)
-                                }
+                                onMouseDown={(e) => handleRowMouseDown(line, e)}
                                 onMouseEnter={() => handleRowMouseEnter(line)}
                               >
                                 <td
@@ -620,7 +763,8 @@ export function SalesItemChargeAssignmentDialog({
                                     </span>
                                     <Checkbox
                                       checked={isSelected}
-                                      onCheckedChange={() => toggleLine(line)}
+                                      onCheckedChange={() => toggleSelectLine(line)}
+                                      className="rounded shadow-none"
                                     />
                                     <Button
                                       variant="ghost"
@@ -635,26 +779,23 @@ export function SalesItemChargeAssignmentDialog({
                                     </Button>
                                   </div>
                                 </td>
-                                <td className="text-muted-foreground px-3 py-2 text-[10px]">
-                                  {line.Applies_toDocType || "—"}
+                                <td className="text-muted-foreground px-3 py-2 text-center align-middle text-[10px] whitespace-nowrap">
+                                  {line.Applies_toDocType || "-"}
                                 </td>
-                                <td className="text-primary px-3 py-2 text-xs font-medium tabular-nums">
+                                <td className="text-primary px-3 py-2 text-center align-middle text-xs font-medium tabular-nums">
                                   {line.Applies_toDocNo}
                                 </td>
-                                <td className="text-muted-foreground px-3 py-2 text-center text-[10px] tabular-nums">
+                                <td className="text-muted-foreground px-3 py-2 text-center align-middle text-[10px] tabular-nums">
                                   {line.Applies_toDocLineNo}
                                 </td>
-                                <td className="px-3 py-2 text-xs tabular-nums">
+                                <td className="px-3 py-2 text-center align-middle text-xs tabular-nums">
                                   {line.ItemNo}
                                 </td>
-                                <td className="max-w-50 truncate px-3 py-2 text-left text-[10px]">
+                                <td className="max-w-50 truncate px-3 py-2 text-left align-middle text-[10px]">
                                   {line.Description}
                                 </td>
-                                <td
-                                  className="p-0 align-middle"
-                                  onClick={(e) => e.stopPropagation()}
-                                >
-                                  <input
+                                <td className="p-0 align-middle" onClick={(e) => e.stopPropagation()}>
+                                  <Input
                                     type="number"
                                     className={editableCellClass}
                                     value={line.QtytoAssign}
@@ -667,11 +808,8 @@ export function SalesItemChargeAssignmentDialog({
                                     }
                                   />
                                 </td>
-                                <td
-                                  className="p-0 align-middle"
-                                  onClick={(e) => e.stopPropagation()}
-                                >
-                                  <input
+                                <td className="p-0 align-middle" onClick={(e) => e.stopPropagation()}>
+                                  <Input
                                     type="number"
                                     className={editableCellClass}
                                     value={line.QtytoHandle}
@@ -684,14 +822,11 @@ export function SalesItemChargeAssignmentDialog({
                                     }
                                   />
                                 </td>
-                                <td className="px-3 py-2 text-right text-[11px] tabular-nums">
+                                <td className="px-3 py-2 text-right align-middle text-[11px] font-medium tabular-nums">
                                   {line.QtyAssigned}
                                 </td>
-                                <td
-                                  className="p-0 align-middle"
-                                  onClick={(e) => e.stopPropagation()}
-                                >
-                                  <input
+                                <td className="p-0 align-middle" onClick={(e) => e.stopPropagation()}>
+                                  <Input
                                     type="number"
                                     className={editableCellClass}
                                     value={line.AmounttoAssign}
@@ -704,11 +839,8 @@ export function SalesItemChargeAssignmentDialog({
                                     }
                                   />
                                 </td>
-                                <td
-                                  className="p-0 align-middle"
-                                  onClick={(e) => e.stopPropagation()}
-                                >
-                                  <input
+                                <td className="p-0 align-middle" onClick={(e) => e.stopPropagation()}>
+                                  <Input
                                     type="number"
                                     className={editableCellClass}
                                     value={line.AmounttoHandle}
@@ -721,14 +853,32 @@ export function SalesItemChargeAssignmentDialog({
                                     }
                                   />
                                 </td>
+                                <td className="px-3 py-2 text-right align-middle text-[11px] tabular-nums">
+                                  {line.GrossWeight}
+                                </td>
+                                <td className="px-3 py-2 text-right align-middle text-[11px] tabular-nums">
+                                  {line.UnitVolume}
+                                </td>
+                                <td className="px-3 py-2 text-right align-middle text-[11px] tabular-nums">
+                                  {line.QtyToReceiveBase || 0}
+                                </td>
+                                <td className="px-3 py-2 text-right align-middle text-[11px] tabular-nums">
+                                  {line.QtyReceivedBase || 0}
+                                </td>
+                                <td className="px-3 py-2 text-right align-middle text-[11px] tabular-nums">
+                                  {line.QtyToShipBase || 0}
+                                </td>
+                                <td className="px-3 py-2 text-right align-middle text-[11px] tabular-nums">
+                                  {line.QtyShippedBase || 0}
+                                </td>
                               </tr>
                             );
                           })}
                           <tr>
-                            <td colSpan={11} className="py-2 text-center">
+                            <td colSpan={TOTAL_COLS} className="py-2 text-center">
                               {allFetched ? (
                                 <span className="text-muted-foreground/50 text-[10px] italic">
-                                  — End of records —
+                                  - End of records -
                                 </span>
                               ) : (
                                 <div
@@ -753,11 +903,35 @@ export function SalesItemChargeAssignmentDialog({
                   </table>
                 </div>
 
-                {/* Status bar */}
-                <div className="flex shrink-0 items-center justify-between border-t px-4 py-2">
-                  <span className="text-muted-foreground text-[10px] font-bold tracking-wider uppercase">
-                    {lines.length} Record{lines.length !== 1 ? "s" : ""}
-                  </span>
+                <div className="border-t px-4 py-2 flex items-center justify-between shrink-0">
+                  <div className="flex items-center gap-3">
+                    <span className="text-muted-foreground text-[10px] font-bold tracking-wider uppercase">
+                      {loading ? (
+                        "Loading..."
+                      ) : (
+                        <>
+                          {lines.length.toLocaleString()}
+                          {totalCount > 0 && (
+                            <span className="text-foreground/50 ml-1">
+                              / {totalCount.toLocaleString()} total
+                            </span>
+                          )}
+                          Records
+                          {(searchQuery || Object.keys(columnFilters).length > 0) && (
+                            <span className="text-primary ml-2">
+                              ({filteredAndSortedLines.length} filtered)
+                            </span>
+                          )}
+                        </>
+                      )}
+                    </span>
+                    {loading && lines.length > 0 && (
+                      <>
+                        <Loader2 className="text-primary h-3 w-3 animate-spin" />
+                        <span className="text-muted-foreground text-[10px]">Refreshing...</span>
+                      </>
+                    )}
+                  </div>
                   <div className="flex items-center gap-2">
                     {selectedLines.size > 0 && (
                       <span className="text-primary text-[10px] font-bold">
@@ -767,60 +941,128 @@ export function SalesItemChargeAssignmentDialog({
                     <Button
                       variant="outline"
                       size="sm"
-                      className="h-8 border-destructive/40 px-3 text-xs text-destructive hover:bg-destructive/10"
+                      className="h-8 border-destructive/40 px-3 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive disabled:opacity-40"
                       onClick={() => setDeleteConfirmBulk(true)}
                       disabled={selectedLines.size === 0 || loading}
                     >
                       <Trash2 className="mr-1.5 h-3.5 w-3.5" />
-                      Delete Selected ({selectedLines.size})
+                      {selectedLines.size > 0
+                        ? `Delete ${selectedLines.size} Selected`
+                        : "Delete Selected"}
                     </Button>
                   </div>
                 </div>
 
-                {/* Totals */}
                 {!loading && lines.length > 0 && (
-                  <div className="shrink-0 overflow-x-auto border-t bg-muted/10 px-4 py-2">
-                    <div className="flex items-center gap-6 text-xs">
-                      <div>
-                        <span className="text-muted-foreground">
-                          Total Qty to Assign:
-                        </span>
-                        <span
-                          className={cn(
-                            "ml-2 font-bold tabular-nums",
-                            totals.remQty !== 0
-                              ? "text-destructive"
-                              : "text-green-600",
-                          )}
-                        >
-                          {totals.toAssignQty} / {totalQuantity} (rem:{" "}
-                          {totals.remQty})
-                        </span>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground">
-                          Total Amt to Assign:
-                        </span>
-                        <span
-                          className={cn(
-                            "ml-2 font-bold tabular-nums",
-                            totals.remAmt !== 0
-                              ? "text-destructive"
-                              : "text-green-600",
-                          )}
-                        >
-                          {totals.toAssignAmt.toFixed(2)} / {totalAmount.toFixed(2)} (rem:{" "}
-                          {totals.remAmt.toFixed(2)})
-                        </span>
-                      </div>
-                    </div>
+                  <div className="border-t bg-muted/10 overflow-x-auto px-4 py-2 shrink-0">
+                    <table className="border-collapse">
+                      <thead>
+                        <tr>
+                          <th className="w-36" />
+                          {[
+                            "Assignable",
+                            "To Assign",
+                            "Rem. to Assign",
+                            "To Handle",
+                            "Rem. to Handle",
+                          ].map((h) => (
+                            <th
+                              key={h}
+                              className="text-muted-foreground w-28 px-4 text-right text-[9px] font-bold tracking-wider uppercase"
+                            >
+                              {h}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td className="text-foreground px-4 py-0.5 text-[11px] font-bold">
+                            Total (Qty.)
+                          </td>
+                          <td className="px-4 py-0.5 text-right text-[12px] font-black tabular-nums">
+                            {totals.assignableQty.toLocaleString()}
+                          </td>
+                          <td className="px-4 py-0.5 text-right text-[12px] font-black tabular-nums">
+                            {totals.toAssignQty.toLocaleString()}
+                          </td>
+                          <td
+                            className={cn(
+                              "px-4 py-0.5 text-right text-[12px] font-black tabular-nums",
+                              totals.remToAssignQty !== 0
+                                ? "text-destructive"
+                                : "text-green-600",
+                            )}
+                          >
+                            {totals.remToAssignQty.toLocaleString()}
+                          </td>
+                          <td className="px-4 py-0.5 text-right text-[12px] font-black tabular-nums">
+                            {totals.toHandleQty.toLocaleString()}
+                          </td>
+                          <td
+                            className={cn(
+                              "px-4 py-0.5 text-right text-[12px] font-black tabular-nums",
+                              totals.remToHandleQty !== 0
+                                ? "text-destructive"
+                                : "text-green-600",
+                            )}
+                          >
+                            {totals.remToHandleQty.toLocaleString()}
+                          </td>
+                        </tr>
+                        <tr>
+                          <td className="text-foreground px-4 py-0.5 text-[11px] font-bold">
+                            Total (Amount)
+                          </td>
+                          <td className="px-4 py-0.5 text-right text-[12px] font-black tabular-nums">
+                            {totals.assignableAmt.toLocaleString(undefined, {
+                              minimumFractionDigits: 2,
+                            })}
+                          </td>
+                          <td className="px-4 py-0.5 text-right text-[12px] font-black tabular-nums">
+                            {totals.toAssignAmt.toLocaleString(undefined, {
+                              minimumFractionDigits: 2,
+                            })}
+                          </td>
+                          <td
+                            className={cn(
+                              "px-4 py-0.5 text-right text-[12px] font-black tabular-nums",
+                              totals.remToAssignAmt !== 0
+                                ? "text-destructive"
+                                : "text-green-600",
+                            )}
+                          >
+                            {totals.remToAssignAmt.toLocaleString(undefined, {
+                              minimumFractionDigits: 2,
+                            })}
+                          </td>
+                          <td className="px-4 py-0.5 text-right text-[12px] font-black tabular-nums">
+                            {totals.toHandleAmt.toLocaleString(undefined, {
+                              minimumFractionDigits: 2,
+                            })}
+                          </td>
+                          <td
+                            className={cn(
+                              "px-4 py-0.5 text-right text-[12px] font-black tabular-nums",
+                              totals.remToHandleAmt !== 0
+                                ? "text-destructive"
+                                : "text-green-600",
+                            )}
+                          >
+                            {totals.remToHandleAmt.toLocaleString(undefined, {
+                              minimumFractionDigits: 2,
+                            })}
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
                   </div>
                 )}
               </>
             )}
           </div>
 
-          <DialogFooter className="shrink-0 border-t px-4 py-2">
+          <DialogFooter className="border-t px-4 py-2 shrink-0">
             <Button variant="outline" onClick={() => onOpenChange(false)}>
               Close
             </Button>
@@ -828,211 +1070,12 @@ export function SalesItemChargeAssignmentDialog({
         </DialogContent>
       </Dialog>
 
-      {/* Source line selection dialog */}
-      <Dialog open={selectionOpen} onOpenChange={setSelectionOpen}>
-        <DialogContent className="flex h-[80vh] w-[80vw] flex-col gap-0 overflow-hidden p-0 sm:max-w-[80vw]">
-          <DialogHeader className="border-b px-4 py-3">
-            <DialogTitle className="text-sm font-bold">
-              Select {selectionTypeLabel[selectionType]}
-            </DialogTitle>
-            <div className="relative mt-2">
-              <Search className="text-muted-foreground absolute top-1/2 left-3 h-3.5 w-3.5 -translate-y-1/2" />
-              <Input
-                placeholder="Search..."
-                value={selectionSearch}
-                onChange={(e) => setSelectionSearch(e.target.value)}
-                className="h-8 pl-8 text-xs"
-              />
-            </div>
-          </DialogHeader>
-          <div className="flex-1 overflow-auto">
-            {selectionLoading ? (
-              <div className="flex h-full items-center justify-center">
-                <Loader2 className="text-primary h-6 w-6 animate-spin" />
-              </div>
-            ) : (
-              <table className="w-full border-collapse text-sm">
-                <thead className="sticky top-0 bg-muted z-10">
-                  <tr>
-                    <th className="w-10 px-3 py-2 text-center">
-                      <Checkbox
-                        checked={
-                          selectionLines.length > 0 &&
-                          selectionSelected.size === selectionLines.length
-                        }
-                        onCheckedChange={(c) =>
-                          setSelectionSelected(
-                            c
-                              ? new Set(selectionLines.map((l) => l.Line_No))
-                              : new Set(),
-                          )
-                        }
-                      />
-                    </th>
-                    {["Document No.", "Line No.", "Description", "Quantity", "Posting Date"].map((h) => (
-                      <th key={h} className="text-primary px-3 py-2 text-left text-[10px] font-bold tracking-wider uppercase">
-                        {h}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {selectionLines
-                    .filter((l) => {
-                      if (!selectionSearch) return true;
-                      const q = selectionSearch.toLowerCase();
-                      return (
-                        l.Document_No.toLowerCase().includes(q) ||
-                        l.Description.toLowerCase().includes(q)
-                      );
-                    })
-                    .map((line) => (
-                      <tr
-                        key={line.Line_No}
-                        className={cn(
-                          "cursor-pointer border-b transition-colors",
-                          selectionSelected.has(line.Line_No)
-                            ? "bg-primary/5"
-                            : "hover:bg-muted/50",
-                        )}
-                        onClick={() =>
-                          setSelectionSelected((prev) => {
-                            const next = new Set(prev);
-                            if (next.has(line.Line_No)) next.delete(line.Line_No);
-                            else next.add(line.Line_No);
-                            return next;
-                          })
-                        }
-                      >
-                        <td
-                          className="px-3 py-2 text-center"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <Checkbox
-                            checked={selectionSelected.has(line.Line_No)}
-                            onCheckedChange={() =>
-                              setSelectionSelected((prev) => {
-                                const next = new Set(prev);
-                                if (next.has(line.Line_No))
-                                  next.delete(line.Line_No);
-                                else next.add(line.Line_No);
-                                return next;
-                              })
-                            }
-                          />
-                        </td>
-                        <td className="px-3 py-2 text-xs font-medium">
-                          {line.Document_No}
-                        </td>
-                        <td className="px-3 py-2 text-center text-xs tabular-nums">
-                          {line.Line_No}
-                        </td>
-                        <td className="px-3 py-2 text-xs">
-                          {line.Description}
-                        </td>
-                        <td className="px-3 py-2 text-right text-xs tabular-nums">
-                          {line.Quantity}
-                        </td>
-                        <td className="px-3 py-2 text-xs">
-                          {line.Posting_Date}
-                        </td>
-                      </tr>
-                    ))}
-                </tbody>
-              </table>
-            )}
-          </div>
-          <DialogFooter className="border-t px-4 py-2">
-            <Button variant="outline" onClick={() => setSelectionOpen(false)}>
-              Cancel
-            </Button>
-            <Button
-              onClick={handleAddSelected}
-              disabled={selectionSelected.size === 0}
-            >
-              Add {selectionSelected.size} Selected
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Suggest dialog */}
-      <Dialog open={isSuggestDialogOpen} onOpenChange={setIsSuggestDialogOpen}>
-        <DialogContent className="sm:max-w-sm">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Zap className="text-primary h-4 w-4 fill-current" /> Suggest
-              Assignment
-            </DialogTitle>
-          </DialogHeader>
-          <div className="grid gap-2 py-2">
-            {[
-              { id: "Equally", icon: Equal, desc: "Divide uniformly" },
-              { id: "By Amount", icon: Coins, desc: "Proportional to values" },
-              { id: "By Weight", icon: Scale, desc: "Based on gross weights" },
-              { id: "By Volume", icon: Package, desc: "Based on unit volumes" },
-            ].map((method) => {
-              const Icon = method.icon;
-              const isSelected = selectedSuggestMethod === method.id;
-              return (
-                <button
-                  key={method.id}
-                  onClick={() => setSelectedSuggestMethod(method.id)}
-                  className={cn(
-                    "flex items-center gap-3 rounded-lg border p-3 text-left transition-colors",
-                    isSelected
-                      ? "border-primary bg-primary/5"
-                      : "border-border hover:border-primary/40 hover:bg-muted/50",
-                  )}
-                >
-                  <div
-                    className={cn(
-                      "shrink-0 rounded-md p-1.5",
-                      isSelected
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-muted text-muted-foreground",
-                    )}
-                  >
-                    <Icon className="h-4 w-4" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-xs font-bold tracking-wide uppercase">
-                      {method.id}
-                    </p>
-                    <p className="text-muted-foreground text-[10px]">
-                      {method.desc}
-                    </p>
-                  </div>
-                  {isSelected && (
-                    <CheckCircle2 className="text-primary ml-auto h-4 w-4 shrink-0" />
-                  )}
-                </button>
-              );
-            })}
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setIsSuggestDialogOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={() => handleSuggest(selectedSuggestMethod)}
-              disabled={loading}
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-                  Processing...
-                </>
-              ) : (
-                "Confirm"
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ItemChargeSelectionDialog
+        open={selectionOpen}
+        onOpenChange={setSelectionOpen}
+        onAddSelected={handleLinesAdded}
+        type={selectionType as SourceType}
+      />
 
       <AlertDialog
         open={!!deleteConfirmLine}
@@ -1042,11 +1085,11 @@ export function SalesItemChargeAssignmentDialog({
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Assignment</AlertDialogTitle>
             <AlertDialogDescription>
-              Delete assignment for{" "}
+              Delete the assignment for item{" "}
               <span className="text-foreground font-semibold">
                 {deleteConfirmLine?.ItemNo}
               </span>{" "}
-              from{" "}
+              ({deleteConfirmLine?.Description}) from{" "}
               <span className="text-foreground font-semibold">
                 {deleteConfirmLine?.Applies_toDocNo}
               </span>
@@ -1064,9 +1107,13 @@ export function SalesItemChargeAssignmentDialog({
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {loading ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : null}
-              Delete
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                "Delete"
+              )}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -1082,7 +1129,9 @@ export function SalesItemChargeAssignmentDialog({
               Delete {selectedLines.size} Assignments
             </AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently delete {selectedLines.size} assignment(s).
+              This will permanently delete all {selectedLines.size} selected
+              assignment{selectedLines.size > 1 ? "s" : ""}. This cannot be
+              undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -1096,9 +1145,13 @@ export function SalesItemChargeAssignmentDialog({
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {loading ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : null}
-              Delete {selectedLines.size}
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                `Delete ${selectedLines.size}`
+              )}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -1111,6 +1164,253 @@ export function SalesItemChargeAssignmentDialog({
         message={errorMessage}
         errors={apiErrors}
       />
+
+      <Dialog open={isSuggestDialogOpen} onOpenChange={setIsSuggestDialogOpen}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Zap className="text-primary h-4 w-4 fill-current" /> Suggest Assignment
+            </DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-2 py-2">
+            {[
+              {
+                id: "Equally",
+                icon: Equal,
+                label: "Equally",
+                desc: "Divide uniformly across all lines",
+              },
+              {
+                id: "By Amount",
+                icon: Coins,
+                label: "By Amount",
+                desc: "Proportional to line item values",
+              },
+              {
+                id: "By Weight",
+                icon: Scale,
+                label: "By Weight",
+                desc: "Based on gross weights of items",
+              },
+              {
+                id: "By Volume",
+                icon: Package,
+                label: "By Volume",
+                desc: "Based on unit volumes of items",
+              },
+            ].map((method) => {
+              const Icon = method.icon;
+              const isSelected = selectedSuggestMethod === method.id;
+              return (
+                <button
+                  key={method.id}
+                  onClick={() => setSelectedSuggestMethod(method.id)}
+                  className={cn(
+                    "flex items-center gap-3 rounded-lg border p-3 text-left transition-colors",
+                    isSelected
+                      ? "border-primary bg-primary/5"
+                      : "border-border hover:border-primary/40 hover:bg-muted/50",
+                  )}
+                >
+                  <div
+                    className={cn(
+                      "rounded-md p-1.5 shrink-0",
+                      isSelected
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted text-muted-foreground",
+                    )}
+                  >
+                    <Icon className="h-4 w-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold tracking-wide uppercase">
+                      {method.label}
+                    </p>
+                    <p className="text-muted-foreground text-[10px]">{method.desc}</p>
+                  </div>
+                  {isSelected && (
+                    <CheckCircle2 className="text-primary ml-auto h-4 w-4 shrink-0" />
+                  )}
+                </button>
+              );
+            })}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsSuggestDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={() => handleSuggest(selectedSuggestMethod)} disabled={loading}>
+              {loading ? (
+                <>
+                  <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                  Processing...
+                </>
+              ) : (
+                "Confirm"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
+  );
+}
+
+interface AssignmentTableHeadProps {
+  column: ColumnConfig;
+  isActive: boolean;
+  sortDirection: SortDirection;
+  filterValue: string;
+  onSort: (id: string) => void;
+  onFilter: (id: string, value: string) => void;
+  bgClass?: string;
+}
+
+function AssignmentTableHead({
+  column,
+  isActive,
+  sortDirection,
+  filterValue,
+  onSort,
+  onFilter,
+  bgClass = "bg-muted",
+}: AssignmentTableHeadProps) {
+  const SortIcon =
+    !isActive || !sortDirection
+      ? ArrowUpDown
+      : sortDirection === "asc"
+        ? ArrowUp
+        : ArrowDown;
+  return (
+    <th
+      className={cn(
+        bgClass,
+        "text-foreground h-10 px-3 text-left align-middle text-[10px] font-bold tracking-wider whitespace-nowrap uppercase select-none",
+        column.align === "right" && "text-right",
+        column.align === "center" && "text-center",
+      )}
+      style={{ minWidth: column.width }}
+    >
+      <div
+        className={cn(
+          "flex items-center gap-1",
+          column.align === "right"
+            ? "justify-end"
+            : column.align === "center"
+              ? "justify-center"
+              : "",
+        )}
+      >
+        <span
+          className="cursor-pointer hover:opacity-70 transition-opacity"
+          onClick={() => column.sortable && onSort(column.id as string)}
+        >
+          {column.label}
+        </span>
+        {column.sortable && (
+          <button
+            type="button"
+            className="hover:opacity-70 transition-opacity"
+            onClick={() => onSort(column.id as string)}
+          >
+            <SortIcon className={cn("h-3 w-3", !isActive && "opacity-30")} />
+          </button>
+        )}
+        {column.filterType && (
+          <AssignmentColumnFilter
+            column={column}
+            value={filterValue}
+            onChange={(v) => onFilter(column.id as string, v)}
+          />
+        )}
+      </div>
+    </th>
+  );
+}
+
+interface AssignmentColumnFilterProps {
+  column: ColumnConfig;
+  value: string;
+  onChange: (value: string) => void;
+}
+
+function AssignmentColumnFilter({
+  column,
+  value,
+  onChange,
+}: AssignmentColumnFilterProps) {
+  const [open, setOpen] = useState(false);
+  const [local, setLocal] = useState(value);
+
+  useEffect(() => {
+    setLocal(value);
+  }, [value]);
+
+  const hasFilter = !!value;
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className={cn(
+            "rounded p-0.5 transition-colors",
+            hasFilter
+              ? "text-primary"
+              : "text-primary/30 hover:text-primary/60",
+          )}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <Filter className={cn("h-3 w-3", hasFilter && "fill-current")} />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        className="w-48 p-3"
+        align="start"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="space-y-2">
+          <Label className="text-xs">Filter {column.label}</Label>
+          <Input
+            placeholder="Search..."
+            value={local}
+            onChange={(e) => setLocal(e.target.value)}
+            className="h-7 text-xs"
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                onChange(local);
+                setOpen(false);
+              }
+            }}
+          />
+        </div>
+        <div className="mt-2 flex gap-2">
+          <Button
+            size="sm"
+            className="h-7 flex-1 text-xs"
+            onClick={() => {
+              onChange(local);
+              setOpen(false);
+            }}
+          >
+            Apply
+          </Button>
+          {hasFilter && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 px-2"
+              onClick={() => {
+                setLocal("");
+                onChange("");
+                setOpen(false);
+              }}
+            >
+              <X className="h-3 w-3" />
+            </Button>
+          )}
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 }

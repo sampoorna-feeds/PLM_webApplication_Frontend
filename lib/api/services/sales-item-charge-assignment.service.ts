@@ -125,7 +125,7 @@ export const salesItemChargeAssignmentService = {
   },
 
   async postAssignment(
-    payload: PostItemChargeAssignmentPayload,
+    payload: Omit<PostItemChargeAssignmentPayload, "assignmentType">,
   ): Promise<void> {
     // Same endpoint, but assignmentType should be "Sale"
     const endpoint = `/API_PostItemChargeAssignment?company='${encodeURIComponent(COMPANY)}'`;
@@ -137,7 +137,7 @@ export const salesItemChargeAssignmentService = {
   },
 
   async suggestAssignment(payload: SuggestAssignmentPayload): Promise<void> {
-    const endpoint = `/API_SuggestAssgnmt?company='${encodeURIComponent(COMPANY)}'`;
+    const endpoint = `/API_SuggestAssgmentSales?company='${encodeURIComponent(COMPANY)}'`;
     await apiPost(endpoint, payload);
   },
 

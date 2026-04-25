@@ -1,11 +1,21 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Plus, Trash2, Loader2, Send, Package, Info } from "lucide-react";
-import { toast } from "sonner";
+import { CascadingDimensionSelect } from "@/components/forms/cascading-dimension-select";
+import { DimensionSelect } from "@/components/forms/dimension-select";
+import { LocationSelect } from "@/components/forms/shared/location-select";
+import { ItemSelect } from "@/components/forms/transfer-orders/item-select";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DateInput } from "@/components/ui/date-input";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -15,26 +25,15 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ItemSelect } from "@/components/forms/transfer-orders/item-select";
-import { LocationSelect } from "@/components/forms/shared/location-select";
-import { DimensionSelect } from "@/components/forms/dimension-select";
-import { CascadingDimensionSelect } from "@/components/forms/cascading-dimension-select";
-import { useAuth } from "@/lib/contexts/auth-context";
-import {
   createConsumeInventoryEntry,
-  postConsumeInventory,
   getConsumeInventoryEntries,
+  postConsumeInventory,
   type ConsumeInventoryEntry,
 } from "@/lib/api/services/consume-inventory.service";
-import { cn } from "@/lib/utils";
-import { Badge } from "@/components/ui/badge";
+import { useAuth } from "@/lib/contexts/auth-context";
+import { Info, Loader2, Package, Plus, Send, Trash2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
 
 export function ConsumeInventoryForm() {
   const { userID } = useAuth();
@@ -76,7 +75,19 @@ export function ConsumeInventoryForm() {
   };
 
   const handleChange = (field: keyof ConsumeInventoryEntry, value: any) => {
-    setFormState((prev) => ({ ...prev, [field]: value }));
+    setFormState((prev) => {
+      const newState = { ...prev, [field]: value };
+      
+      // Reset dependent fields
+      if (field === "Lob Code") {
+        newState["Branch Code"] = "";
+        newState["Location Code"] = "";
+      } else if (field === "Branch Code") {
+        newState["Location Code"] = "";
+      }
+      
+      return newState;
+    });
   };
 
   const handleAddEntry = async () => {
@@ -174,7 +185,7 @@ export function ConsumeInventoryForm() {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-4 lg:grid-cols-8">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-5">
             <div className="space-y-1">
               <label className="text-muted-foreground ml-1 text-[11px] font-bold tracking-wider uppercase">
                 Posting Date
@@ -192,7 +203,7 @@ export function ConsumeInventoryForm() {
                 value={formState["Entry Type"]}
                 onValueChange={(v) => handleChange("Entry Type", v)}
               >
-                <SelectTrigger className="h-10 shadow-sm transition-all focus:ring-1">
+                <SelectTrigger className="w-full h-10 shadow-sm transition-all focus:ring-1">
                   <SelectValue placeholder="Select Type" />
                 </SelectTrigger>
                 <SelectContent>
@@ -200,59 +211,6 @@ export function ConsumeInventoryForm() {
                   <SelectItem value="Return">Return</SelectItem>
                 </SelectContent>
               </Select>
-            </div>
-            <div className="space-y-1">
-              <label className="text-muted-foreground ml-1 text-[11px] font-bold tracking-wider uppercase">
-                Location
-              </label>
-              <LocationSelect
-                value={formState["Location Code"] || ""}
-                onChange={(v) => handleChange("Location Code", v)}
-                className="h-10"
-              />
-            </div>
-            <div className="space-y-1 lg:col-span-2">
-              <label className="text-muted-foreground ml-1 text-[11px] font-bold tracking-wider uppercase">
-                Item Selection
-              </label>
-              <ItemSelect
-                value={formState["Item No."] || ""}
-                onChange={(v, item) => {
-                  handleChange("Item No.", v);
-                  if (item) {
-                    handleChange("Description", item.Description);
-                    handleChange(
-                      "Unit of Measure Code",
-                      item.Base_Unit_of_Measure,
-                    );
-                  }
-                }}
-                className="h-10"
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="text-muted-foreground ml-1 text-[11px] font-bold tracking-wider uppercase">
-                Quantity
-              </label>
-              <Input
-                type="number"
-                className="text-primary h-10 font-mono text-lg font-bold shadow-sm focus:ring-1"
-                value={formState.Quantity}
-                onChange={(e) =>
-                  handleChange("Quantity", parseFloat(e.target.value) || 0)
-                }
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="text-muted-foreground ml-1 text-[11px] font-bold tracking-wider uppercase">
-                UOM
-              </label>
-              <Input
-                className="bg-muted/50 h-10 border-dashed font-medium"
-                value={formState["Unit of Measure Code"]}
-                disabled
-                placeholder="Auto-filled"
-              />
             </div>
 
             <div className="space-y-1">
@@ -280,6 +238,67 @@ export function ConsumeInventoryForm() {
                 className="h-10"
               />
             </div>
+
+            <div className="space-y-1">
+              <label className="text-muted-foreground ml-1 text-[11px] font-bold tracking-wider uppercase">
+                Location
+              </label>
+              <LocationSelect
+                value={formState["Location Code"] || ""}
+                onChange={(v) => handleChange("Location Code", v)}
+                className="h-10"
+                branchCode={formState["Branch Code"]}
+                disabled={!formState["Lob Code"] || !formState["Branch Code"]}
+                placeholder={!formState["Branch Code"] ? "Select Branch First" : "Select Location"}
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-muted-foreground ml-1 text-[11px] font-bold tracking-wider uppercase">
+                Quantity
+              </label>
+              <Input
+                type="number"
+                className="text-primary h-10 font-mono text-lg font-bold shadow-sm focus:ring-1"
+                value={formState.Quantity}
+                onChange={(e) =>
+                  handleChange("Quantity", parseFloat(e.target.value) || 0)
+                }
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-muted-foreground ml-1 text-[11px] font-bold tracking-wider uppercase">
+                UOM
+              </label>
+              <Input
+                className="bg-muted/50 h-10 border-dashed font-medium"
+                value={formState["Unit of Measure Code"]}
+                disabled
+                placeholder="Auto-filled"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-muted-foreground ml-1 text-[11px] font-bold tracking-wider uppercase">
+                Item Selection
+              </label>
+              <ItemSelect
+                value={formState["Item No."] || ""}
+                onChange={(v, item) => {
+                  handleChange("Item No.", v);
+                  if (item) {
+                    handleChange("Description", item.Description);
+                    handleChange(
+                      "Unit of Measure Code",
+                      item.Base_Unit_of_Measure,
+                    );
+                  }
+                }}
+                className="h-10"
+              />
+            </div>
+
             <div className="space-y-1">
               <label className="text-muted-foreground ml-1 text-[11px] font-bold tracking-wider uppercase">
                 Employee

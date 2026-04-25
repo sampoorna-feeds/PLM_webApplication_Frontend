@@ -1222,6 +1222,7 @@ export async function getTransferLocationsForDialog(params: {
   sortDirection?: "asc" | "desc" | null;
   filters?: Record<string, string>;
   authorizedCodes?: string[];
+  branchCode?: string;
 }): Promise<{ value: TransferLocationCode[]; count: number }> {
   const commonFilter: string[] = [];
   if (params.authorizedCodes && params.authorizedCodes.length > 0) {
@@ -1229,6 +1230,10 @@ export async function getTransferLocationsForDialog(params: {
       .map((c) => `Code eq '${c.replace(/'/g, "''")}'`)
       .join(" or ");
     commonFilter.push(`(${codeFilter})`);
+  }
+
+  if (params.branchCode) {
+    commonFilter.push(`Global_Dimension_2_Code eq '${params.branchCode.replace(/'/g, "''")}'`);
   }
 
   const columnFilters: string[] = [];

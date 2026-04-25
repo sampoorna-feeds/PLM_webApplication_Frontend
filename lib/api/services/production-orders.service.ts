@@ -1095,6 +1095,26 @@ export interface ProductionJournalEntry {
   [key: string]: unknown;
 }
 
+export interface ProductionJournalEntryKey {
+  Journal_Template_Name: string;
+  Journal_Batch_Name: string;
+  Line_No: number;
+}
+
+export interface ProductionJournalUpdatePayload {
+  Quantity?: number;
+  Output_Quantity?: number;
+}
+
+function buildProductionJournalEntryEndpoint(
+  keys: ProductionJournalEntryKey,
+): string {
+  const encodedTemplate = encodeURIComponent(keys.Journal_Template_Name);
+  const encodedBatch = encodeURIComponent(keys.Journal_Batch_Name);
+
+  return `/ProductionJn(Journal_Template_Name='${encodedTemplate}',Journal_Batch_Name='${encodedBatch}',Line_No=${keys.Line_No})?company='${encodeURIComponent(COMPANY)}'`;
+}
+
 /**
  * Create production journal entries for a production order
  * @param prodOrderNo - Production Order No
@@ -1135,6 +1155,31 @@ export async function getProductionJournal(
   const response =
     await apiGet<ODataResponse<ProductionJournalEntry>>(endpoint);
   return response.value || [];
+}
+
+/**
+ * Update a production journal line by key
+ */
+export async function updateProductionJournalEntry(
+  keys: ProductionJournalEntryKey,
+  data: ProductionJournalUpdatePayload,
+): Promise<void> {
+  if (Object.keys(data).length === 0) {
+    return;
+  }
+
+  const endpoint = buildProductionJournalEntryEndpoint(keys);
+  await apiPatch<void>(endpoint, data);
+}
+
+/**
+ * Delete a production journal line by key
+ */
+export async function deleteProductionJournalEntry(
+  keys: ProductionJournalEntryKey,
+): Promise<void> {
+  const endpoint = buildProductionJournalEntryEndpoint(keys);
+  await apiDelete<void>(endpoint);
 }
 
 // ============================================

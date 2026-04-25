@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { Loader2, FileText, Send, XIcon } from "lucide-react";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { Loader2, FileText, Send, Trash2, XIcon } from "lucide-react";
 import { toast } from "sonner";
 import {
   Sheet,
@@ -12,6 +12,17 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   Table,
   TableBody,
@@ -21,10 +32,12 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
-  getProductionJournal,
-  deleteProdJnlLines,
   createProductionJournal,
+  deleteProdJnlLines,
+  deleteProductionJournalEntry,
+  getProductionJournal,
   type ProductionJournalEntry,
+  updateProductionJournalEntry,
 } from "@/lib/api/services/production-orders.service";
 import { ItemTrackingDialog } from "./item-tracking-dialog";
 import { ProductionOrderPostConfirmationDialog } from "./production-order-post-confirmation-dialog";
@@ -43,6 +56,18 @@ interface ProductionOrderPostSheetProps {
   userId: string;
 }
 
+type JournalEditableField = "Quantity" | "Output_Quantity";
+type JournalRowDraftValues = Record<JournalEditableField, string>;
+type JournalRowChanges = Partial<Record<JournalEditableField, number>>;
+
+function parseJournalNumber(value: string): number | null {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+
+  const parsed = Number(trimmed);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
 export function ProductionOrderPostSheet({
   prodOrderNo,
   prodOrderLineNo = 10000,
@@ -55,6 +80,19 @@ export function ProductionOrderPostSheet({
   const [journalEntries, setJournalEntries] = useState<
     ProductionJournalEntry[]
   >([]);
+  const [rowDrafts, setRowDrafts] = useState<
+    Record<number, JournalRowDraftValues>
+  >({});
+  const [rowChanges, setRowChanges] = useState<
+    Record<number, JournalRowChanges>
+  >({});
+  const [savingLineNo, setSavingLineNo] = useState<number | null>(null);
+  const [deletingLineNo, setDeletingLineNo] = useState<number | null>(null);
+  const [entryToDelete, setEntryToDelete] =
+    useState<ProductionJournalEntry | null>(null);
+  const pendingDebounceRef = useRef<
+    Record<number, ReturnType<typeof setTimeout>>
+  >({});
 
   // Post confirmation dialog state
   const [isPostConfirmationOpen, setIsPostConfirmationOpen] = useState(false);
@@ -74,12 +112,233 @@ export function ProductionOrderPostSheet({
     Item_No: entry.Item_No_,
   }));
   const { trackingMap } = useItemTracking(journalEntriesWithItemNo);
-  const { assignedMap, refresh: refreshAssignedTracking } = useAssignedTracking({
-    sourceType: 83,
-    sourceId: "PROD.ORDEA",
-    sourceBatchName: userId,
-    enabled: journalEntries.length > 0,
-  });
+  const { assignedMap, refresh: refreshAssignedTracking } = useAssignedTracking(
+    {
+      sourceType: 83,
+      sourceId: "PROD.ORDEA",
+      sourceBatchName: userId,
+      enabled: journalEntries.length > 0,
+    },
+  );
+
+  const getEntryNumericValue = useCallback(
+    (entry: ProductionJournalEntry, field: JournalEditableField): number => {
+      if (field === "Quantity") {
+        return Number(entry.Quantity ?? 0);
+      }
+
+      return Number(entry.Output_Quantity ?? 0);
+    },
+    [],
+  );
+
+  const getEntryKeys = useCallback((entry: ProductionJournalEntry) => {
+    const templateName =
+      typeof entry.Journal_Template_Name === "string"
+        ? entry.Journal_Template_Name.trim()
+        : "";
+    const batchName =
+      typeof entry.Journal_Batch_Name === "string"
+        ? entry.Journal_Batch_Name.trim()
+        : "";
+
+    if (!templateName || !batchName) {
+      return null;
+    }
+
+    return {
+      Journal_Template_Name: templateName,
+      Journal_Batch_Name: batchName,
+      Line_No: entry.Line_No,
+    };
+  }, []);
+
+  const clearRowEditState = useCallback((lineNo: number) => {
+    const pendingTimeout = pendingDebounceRef.current[lineNo];
+    if (pendingTimeout) {
+      clearTimeout(pendingTimeout);
+      delete pendingDebounceRef.current[lineNo];
+    }
+
+    setRowDrafts((prev) => {
+      if (!(lineNo in prev)) return prev;
+      const next = { ...prev };
+      delete next[lineNo];
+      return next;
+    });
+
+    setRowChanges((prev) => {
+      if (!(lineNo in prev)) return prev;
+      const next = { ...prev };
+      delete next[lineNo];
+      return next;
+    });
+  }, []);
+
+  const handleEditableValueChange = useCallback(
+    (
+      entry: ProductionJournalEntry,
+      field: JournalEditableField,
+      rawValue: string,
+    ) => {
+      setRowDrafts((prev) => {
+        const existing = prev[entry.Line_No] ?? {
+          Quantity: String(entry.Quantity ?? ""),
+          Output_Quantity: String(entry.Output_Quantity ?? ""),
+        };
+
+        return {
+          ...prev,
+          [entry.Line_No]: {
+            ...existing,
+            [field]: rawValue,
+          },
+        };
+      });
+
+      const parsed = parseJournalNumber(rawValue);
+      const originalValue = getEntryNumericValue(entry, field);
+
+      setRowChanges((prev) => {
+        const current = prev[entry.Line_No] ?? {};
+        const next = { ...current };
+
+        if (parsed === null || parsed === originalValue) {
+          delete next[field];
+        } else {
+          next[field] = parsed;
+        }
+
+        if (Object.keys(next).length === 0) {
+          if (!(entry.Line_No in prev)) {
+            return prev;
+          }
+
+          const withoutLine = { ...prev };
+          delete withoutLine[entry.Line_No];
+          return withoutLine;
+        }
+
+        return {
+          ...prev,
+          [entry.Line_No]: next,
+        };
+      });
+    },
+    [getEntryNumericValue],
+  );
+
+  const runAutoPatchForLine = useCallback(
+    async (lineNo: number) => {
+      const entry = journalEntries.find((line) => line.Line_No === lineNo);
+      const lineChanges = rowChanges[lineNo];
+
+      if (!entry || !lineChanges || Object.keys(lineChanges).length === 0) {
+        return;
+      }
+
+      const keys = getEntryKeys(entry);
+      if (!keys) {
+        setApiError({
+          title: "Update Failed",
+          message:
+            "Journal line keys are missing. Refresh the journal and try again.",
+        });
+        return;
+      }
+
+      setSavingLineNo(lineNo);
+      try {
+        await updateProductionJournalEntry(keys, lineChanges);
+
+        setJournalEntries((prev) =>
+          prev.map((line) =>
+            line.Line_No === lineNo
+              ? {
+                  ...line,
+                  ...lineChanges,
+                }
+              : line,
+          ),
+        );
+
+        clearRowEditState(lineNo);
+      } catch (error) {
+        console.error("Error updating journal line:", error);
+        const { message, code } = extractApiError(error);
+        setApiError({ title: "Update Failed", message, code });
+      } finally {
+        setSavingLineNo((current) => (current === lineNo ? null : current));
+      }
+    },
+    [clearRowEditState, getEntryKeys, journalEntries, rowChanges],
+  );
+
+  useEffect(() => {
+    for (const [lineNoKey, timeout] of Object.entries(
+      pendingDebounceRef.current,
+    )) {
+      const lineNo = Number(lineNoKey);
+      if (!rowChanges[lineNo]) {
+        clearTimeout(timeout);
+        delete pendingDebounceRef.current[lineNo];
+      }
+    }
+
+    for (const lineNoKey of Object.keys(rowChanges)) {
+      const lineNo = Number(lineNoKey);
+      const previousTimeout = pendingDebounceRef.current[lineNo];
+      if (previousTimeout) {
+        clearTimeout(previousTimeout);
+      }
+
+      pendingDebounceRef.current[lineNo] = setTimeout(() => {
+        delete pendingDebounceRef.current[lineNo];
+        void runAutoPatchForLine(lineNo);
+      }, 750);
+    }
+  }, [rowChanges, runAutoPatchForLine]);
+
+  useEffect(() => {
+    return () => {
+      for (const timeout of Object.values(pendingDebounceRef.current)) {
+        clearTimeout(timeout);
+      }
+      pendingDebounceRef.current = {};
+    };
+  }, []);
+
+  const handleConfirmDelete = useCallback(async () => {
+    if (!entryToDelete) return;
+
+    const keys = getEntryKeys(entryToDelete);
+    if (!keys) {
+      setApiError({
+        title: "Delete Failed",
+        message:
+          "Journal line keys are missing. Refresh the journal and try again.",
+      });
+      setEntryToDelete(null);
+      return;
+    }
+
+    setDeletingLineNo(entryToDelete.Line_No);
+    try {
+      await deleteProductionJournalEntry(keys);
+      setJournalEntries((prev) =>
+        prev.filter((line) => line.Line_No !== entryToDelete.Line_No),
+      );
+      clearRowEditState(entryToDelete.Line_No);
+      setEntryToDelete(null);
+      toast.success(`Line ${entryToDelete.Line_No} deleted`);
+    } catch (error) {
+      console.error("Error deleting journal line:", error);
+      const { message, code } = extractApiError(error);
+      setApiError({ title: "Delete Failed", message, code });
+    } finally {
+      setDeletingLineNo(null);
+    }
+  }, [clearRowEditState, entryToDelete, getEntryKeys]);
 
   // Fetch journal entries
   const fetchJournalEntries = useCallback(async () => {
@@ -89,6 +348,9 @@ export function ProductionOrderPostSheet({
     try {
       const entries = await getProductionJournal(prodOrderNo);
       setJournalEntries(entries);
+      setRowDrafts({});
+      setRowChanges({});
+      setEntryToDelete(null);
       if (entries.length === 0) {
         toast.info("No journal entries found for this production order");
       }
@@ -97,6 +359,9 @@ export function ProductionOrderPostSheet({
       const { message, code } = extractApiError(error);
       setApiError({ title: "Load Journal Failed", message, code });
       setJournalEntries([]);
+      setRowDrafts({});
+      setRowChanges({});
+      setEntryToDelete(null);
     } finally {
       setIsLoading(false);
     }
@@ -132,12 +397,18 @@ export function ProductionOrderPostSheet({
     try {
       // Delete all journal lines
       await deleteProdJnlLines(prodOrderNo, prodOrderLineNo.toString());
+      setRowDrafts({});
+      setRowChanges({});
+      setEntryToDelete(null);
       // Close the sheet
       setIsOpen(false);
     } catch (error) {
       console.error("Error deleting journal lines:", error);
       const { message, code } = extractApiError(error);
       setApiError({ title: "Delete Failed", message, code });
+      setRowDrafts({});
+      setRowChanges({});
+      setEntryToDelete(null);
       // Still close the sheet even if delete fails
       setIsOpen(false);
     } finally {
@@ -227,7 +498,7 @@ export function ProductionOrderPostSheet({
             </div>
           </SheetHeader>
 
-          <div className="flex-1 overflow-hidden flex flex-col p-6 pt-4">
+          <div className="flex flex-1 flex-col overflow-hidden p-6 pt-4">
             {isCreating ? (
               <div className="flex flex-col items-center justify-center gap-2 py-12">
                 <Loader2 className="text-muted-foreground h-8 w-8 animate-spin" />
@@ -247,10 +518,10 @@ export function ProductionOrderPostSheet({
                 No journal entries found for this production order.
               </div>
             ) : (
-              <div className="flex-1 min-h-0 rounded-md border [&_[data-slot=table-container]]:h-full [&_[data-slot=table-container]]:overflow-auto">
+              <div className="min-h-0 flex-1 rounded-md border **:data-[slot=table-container]:h-full **:data-[slot=table-container]:overflow-auto">
                 <Table>
-                  <TableHeader className="bg-muted/50 sticky top-0 z-10 shadow-sm backdrop-blur">
-                    <TableRow>
+                  <TableHeader className="bg-muted sticky top-0 z-30 rounded-t-md shadow-sm">
+                    <TableRow className="[&>th:first-child]:rounded-tl-md [&>th:last-child]:rounded-tr-md">
                       <TableHead className="w-32">Entry Type</TableHead>
                       <TableHead>Item No.</TableHead>
                       <TableHead>Description</TableHead>
@@ -260,6 +531,9 @@ export function ProductionOrderPostSheet({
                       </TableHead>
                       <TableHead className="w-32 text-right">
                         Output Qty
+                      </TableHead>
+                      <TableHead className="bg-muted sticky right-0 z-40 w-40 text-right shadow-[-8px_0_14px_-8px_rgba(0,0,0,0.24)]">
+                        Actions
                       </TableHead>
                     </TableRow>
                   </TableHeader>
@@ -271,6 +545,16 @@ export function ProductionOrderPostSheet({
                         : "";
                       const hasTracking = trackingMap[itemKey] || false;
                       const isAssigned = assignedMap[entry.Line_No] || false;
+                      const draftValues = rowDrafts[entry.Line_No];
+                      const lineChanges = rowChanges[entry.Line_No];
+                      const isLineBusy =
+                        savingLineNo === entry.Line_No ||
+                        deletingLineNo === entry.Line_No;
+                      const quantityInputValue =
+                        draftValues?.Quantity ?? String(entry.Quantity ?? "");
+                      const outputQtyInputValue =
+                        draftValues?.Output_Quantity ??
+                        String(entry.Output_Quantity ?? "");
 
                       return (
                         <TableRow
@@ -291,11 +575,75 @@ export function ProductionOrderPostSheet({
                           </TableCell>
                           <TableCell>{entry.Description || "-"}</TableCell>
                           <TableCell>{entry.Location_Code || "-"}</TableCell>
-                          <TableCell className="text-right">
-                            {entry.Quantity?.toLocaleString() ?? "-"}
+                          <TableCell
+                            className="p-1"
+                            onClick={(event) => event.stopPropagation()}
+                          >
+                            <Input
+                              type="text"
+                              inputMode="decimal"
+                              value={quantityInputValue}
+                              onChange={(event) =>
+                                handleEditableValueChange(
+                                  entry,
+                                  "Quantity",
+                                  event.target.value,
+                                )
+                              }
+                              disabled={isLineBusy}
+                              className={cn(
+                                "focus-visible:border-input focus-visible:bg-background h-8 border-transparent bg-transparent px-2 text-right text-xs tabular-nums shadow-none",
+                                lineChanges?.Quantity !== undefined &&
+                                  "border-amber-300 bg-amber-50/70 focus-visible:border-amber-400 dark:border-amber-500 dark:bg-amber-950/30",
+                              )}
+                            />
                           </TableCell>
-                          <TableCell className="text-right">
-                            {entry.Output_Quantity?.toLocaleString() ?? "-"}
+                          <TableCell
+                            className="p-1"
+                            onClick={(event) => event.stopPropagation()}
+                          >
+                            <Input
+                              type="text"
+                              inputMode="decimal"
+                              value={outputQtyInputValue}
+                              onChange={(event) =>
+                                handleEditableValueChange(
+                                  entry,
+                                  "Output_Quantity",
+                                  event.target.value,
+                                )
+                              }
+                              disabled={isLineBusy}
+                              className={cn(
+                                "focus-visible:border-input focus-visible:bg-background h-8 border-transparent bg-transparent px-2 text-right text-xs tabular-nums shadow-none",
+                                lineChanges?.Output_Quantity !== undefined &&
+                                  "border-amber-300 bg-amber-50/70 focus-visible:border-amber-400 dark:border-amber-500 dark:bg-amber-950/30",
+                              )}
+                            />
+                          </TableCell>
+                          <TableCell
+                            className="bg-background/95 sticky right-0 z-0 py-1 pr-2 text-right shadow-[-8px_0_14px_-8px_rgba(0,0,0,0.24)]"
+                            onClick={(event) => event.stopPropagation()}
+                          >
+                            <div className="flex items-center justify-end gap-1">
+                              {savingLineNo === entry.Line_No && (
+                                <Loader2 className="text-muted-foreground h-3.5 w-3.5 animate-spin" />
+                              )}
+                              <Button
+                                variant="outline"
+                                size="icon-sm"
+                                className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                                disabled={isLineBusy}
+                                onClick={() => setEntryToDelete(entry)}
+                              >
+                                {deletingLineNo === entry.Line_No ? (
+                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                ) : (
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                )}
+                                <span className="sr-only">Delete line</span>
+                              </Button>
+                            </div>
                           </TableCell>
                         </TableRow>
                       );
@@ -307,6 +655,37 @@ export function ProductionOrderPostSheet({
           </div>
         </SheetContent>
       </Sheet>
+
+      <AlertDialog
+        open={!!entryToDelete}
+        onOpenChange={(open) => {
+          if (!open && !deletingLineNo) {
+            setEntryToDelete(null);
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Journal Line</AlertDialogTitle>
+            <AlertDialogDescription>
+              Delete line {entryToDelete?.Line_No} for item{" "}
+              {entryToDelete?.Item_No_ || "-"}? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={!!deletingLineNo}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDelete}
+              disabled={!!deletingLineNo}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Item Tracking Dialog for Journal Entries */}
       <ItemTrackingDialog

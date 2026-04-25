@@ -1221,6 +1221,16 @@ export function ProductionOrderForm({
               </Select>
             )}
           </div>
+          <div className="space-y-2">
+            <FieldTitle required>Location Code</FieldTitle>
+            <LocationCodeSelectDialog
+              value={formState.Location_Code}
+              onChange={handleLocationCodeChange}
+              branchCode={formState.Shortcut_Dimension_2_Code}
+              disabled={isViewMode}
+              placeholder="Select Location"
+            />
+          </div>
           {/* Order No - only show in view mode (auto-generated) */}
           {isViewMode && (
             <div className="space-y-2">
@@ -1340,16 +1350,6 @@ export function ProductionOrderForm({
                 onChange={(e) => handleChange("Due_Date", e.target.value)}
               />
             )}
-          </div>
-          <div className="space-y-2">
-            <FieldTitle required>Location Code</FieldTitle>
-            <LocationCodeSelectDialog
-              value={formState.Location_Code}
-              onChange={handleLocationCodeChange}
-              branchCode={formState.Shortcut_Dimension_2_Code}
-              disabled={isViewMode}
-              placeholder="Select Location"
-            />
           </div>
           {/* BOM Fields */}
           {showBomFields && (

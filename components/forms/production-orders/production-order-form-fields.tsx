@@ -291,6 +291,19 @@ export function ProductionOrderFormFields({
           disabled={isReadOnly || !data.Shortcut_Dimension_1_Code}
           required
         />
+        <div className="flex flex-col gap-1.5 min-w-0">
+          <Label className="text-muted-foreground text-xs font-medium">
+            Location Code
+            <span className="text-destructive ml-1">*</span>
+          </Label>
+          <LocationCodeSelectDialog
+            value={data.Location_Code}
+            onChange={(v) => handleChange("Location_Code", v)}
+            branchCode={data.Shortcut_Dimension_2_Code}
+            disabled={isReadOnly}
+            placeholder="Select Location"
+          />
+        </div>
       </FormSection>
 
       {/* General Information */}
@@ -344,8 +357,8 @@ export function ProductionOrderFormFields({
         />
       </FormSection>
 
-      {/* Dates & Location */}
-      <FormSection title="Dates & Location">
+      {/* Dates */}
+      <FormSection title="Dates">
         <FormField
           label="Due Date"
           value={data.Due_Date}
@@ -354,19 +367,6 @@ export function ProductionOrderFormFields({
           type="date"
           required
         />
-        <div className="flex flex-col gap-1.5 min-w-0">
-          <Label className="text-muted-foreground text-xs font-medium">
-            Location Code
-            <span className="text-destructive ml-1">*</span>
-          </Label>
-          <LocationCodeSelectDialog
-            value={data.Location_Code}
-            onChange={(v) => handleChange("Location_Code", v)}
-            branchCode={data.Shortcut_Dimension_2_Code}
-            disabled={isReadOnly}
-            placeholder="Select Location"
-          />
-        </div>
       </FormSection>
 
       {/* BOM Fields - Only for Item source type */}

@@ -60,9 +60,9 @@ import { getAuthCredentials } from "@/lib/auth/storage";
 import {
   getLOBsFromUserSetup,
   getBranchesFromUserSetup,
-  getLOCsFromUserSetup,
   type DimensionValue,
 } from "@/lib/api/services/dimension.service";
+import { LocationCodeSelectDialog } from "@/components/forms/location-code-select-dialog";
 import {
   getItems,
   getFamilies,
@@ -166,7 +166,6 @@ export function ProductionOrderForm({
     Description: "",
     Shortcut_Dimension_1_Code: "", // LOB
     Shortcut_Dimension_2_Code: "", // Branch Code
-    Shortcut_Dimension_3_Code: "", // LOC Code
     Source_Type: initialSourceType,
     Source_No: "",
     Quantity: "" as string | number, // Allow string for user input, parse on submit
@@ -183,7 +182,6 @@ export function ProductionOrderForm({
   // Dimension dropdowns state
   const [lobs, setLobs] = useState<DimensionValue[]>([]);
   const [branches, setBranches] = useState<DimensionValue[]>([]);
-  const [locs, setLocs] = useState<DimensionValue[]>([]);
   const [isLoadingDimensions, setIsLoadingDimensions] = useState(false);
 
   // Source No dropdown state
@@ -212,7 +210,6 @@ export function ProductionOrderForm({
     Batch_Size: BatchSize;
     Shortcut_Dimension_1_Code: string;
     Shortcut_Dimension_2_Code: string;
-    Shortcut_Dimension_3_Code: string;
   } | null>(null);
 
   // Order lines and components for view/edit mode
@@ -288,7 +285,6 @@ export function ProductionOrderForm({
             Description: order.Description || "",
             Shortcut_Dimension_1_Code: order.Shortcut_Dimension_1_Code || "",
             Shortcut_Dimension_2_Code: order.Shortcut_Dimension_2_Code || "",
-            Shortcut_Dimension_3_Code: order.Shortcut_Dimension_3_Code || "",
             Source_Type: mapSourceType(order.Source_Type),
             Source_No: order.Source_No || "",
             Quantity: order.Quantity || 0,
@@ -355,7 +351,6 @@ export function ProductionOrderForm({
             Description: order.Description || "",
             Shortcut_Dimension_1_Code: order.Shortcut_Dimension_1_Code || "",
             Shortcut_Dimension_2_Code: order.Shortcut_Dimension_2_Code || "",
-            Shortcut_Dimension_3_Code: order.Shortcut_Dimension_3_Code || "",
             Source_Type: mapSourceType(order.Source_Type),
             Source_No: order.Source_No || "",
             Quantity: order.Quantity || 0,
@@ -453,42 +448,6 @@ export function ProductionOrderForm({
 
     loadBranches();
   }, [userId, formState.Shortcut_Dimension_1_Code, isViewMode]);
-
-  // Load LOCs when Branch changes (for create and edit modes)
-  useEffect(() => {
-    if (
-      !userId ||
-      !formState.Shortcut_Dimension_1_Code ||
-      !formState.Shortcut_Dimension_2_Code ||
-      isViewMode
-    ) {
-      if (!isViewMode) setLocs([]);
-      return;
-    }
-
-    const loadLOCs = async () => {
-      try {
-        const locData = await getLOCsFromUserSetup(
-          formState.Shortcut_Dimension_1_Code,
-          formState.Shortcut_Dimension_2_Code,
-          userId,
-        );
-        setLocs(locData);
-        if (locData.length === 1 && !formState.Shortcut_Dimension_3_Code) {
-          handleLOCChange(locData[0].Code);
-        }
-      } catch (error) {
-        console.error("Error loading LOCs:", error);
-      }
-    };
-
-    loadLOCs();
-  }, [
-    userId,
-    formState.Shortcut_Dimension_1_Code,
-    formState.Shortcut_Dimension_2_Code,
-    isViewMode,
-  ]);
 
   // Load BOM Versions when Prod BOM No changes
   // Enriches list with ActiveVersionCode and auto-defaults BOM_Version_No
@@ -597,7 +556,6 @@ export function ProductionOrderForm({
         ...prev,
         Shortcut_Dimension_1_Code: value,
         Shortcut_Dimension_2_Code: "",
-        Shortcut_Dimension_3_Code: "",
         Location_Code: "",
       }));
       updateTab({ isSaved: false });
@@ -610,7 +568,6 @@ export function ProductionOrderForm({
       setFormState((prev) => ({
         ...prev,
         Shortcut_Dimension_2_Code: value,
-        Shortcut_Dimension_3_Code: "",
         Location_Code: "",
       }));
       updateTab({ isSaved: false });
@@ -618,13 +575,9 @@ export function ProductionOrderForm({
     [updateTab],
   );
 
-  const handleLOCChange = useCallback(
+  const handleLocationCodeChange = useCallback(
     (value: string) => {
-      setFormState((prev) => ({
-        ...prev,
-        Shortcut_Dimension_3_Code: value,
-        Location_Code: value, // Prefill Location Code
-      }));
+      setFormState((prev) => ({ ...prev, Location_Code: value }));
       updateTab({ isSaved: false });
     },
     [updateTab],
@@ -723,7 +676,6 @@ export function ProductionOrderForm({
           Description: order.Description || "",
           Shortcut_Dimension_1_Code: order.Shortcut_Dimension_1_Code || "",
           Shortcut_Dimension_2_Code: order.Shortcut_Dimension_2_Code || "",
-          Shortcut_Dimension_3_Code: order.Shortcut_Dimension_3_Code || "",
           Source_Type: mapSourceType(order.Source_Type),
           Source_No: order.Source_No || "",
           Quantity: order.Quantity || 0,
@@ -891,7 +843,6 @@ export function ProductionOrderForm({
       Description: formState.Description,
       Shortcut_Dimension_1_Code: formState.Shortcut_Dimension_1_Code,
       Shortcut_Dimension_2_Code: formState.Shortcut_Dimension_2_Code,
-      Shortcut_Dimension_3_Code: formState.Shortcut_Dimension_3_Code,
       Source_Type: formState.Source_Type,
       Source_No: formState.Source_No,
       Quantity: formState.Quantity,
@@ -932,7 +883,6 @@ export function ProductionOrderForm({
           Hatching_Date: formState.Hatching_Date || undefined,
           Shortcut_Dimension_1_Code: formState.Shortcut_Dimension_1_Code,
           Shortcut_Dimension_2_Code: formState.Shortcut_Dimension_2_Code,
-          Shortcut_Dimension_3_Code: formState.Shortcut_Dimension_3_Code,
           Prod_Bom_No: formState.Prod_Bom_No || undefined,
           // Only include BOM_Version_No if Prod_Bom_No was manually selected (not from item)
           BOM_Version_No:
@@ -1022,13 +972,6 @@ export function ProductionOrderForm({
         )
           updatePayload.Shortcut_Dimension_2_Code =
             formState.Shortcut_Dimension_2_Code;
-        if (
-          formState.Shortcut_Dimension_3_Code !==
-          orig?.Shortcut_Dimension_3_Code
-        )
-          updatePayload.Shortcut_Dimension_3_Code =
-            formState.Shortcut_Dimension_3_Code;
-
         await updateProductionOrder(formState.No, updatePayload);
 
         toast.success(`Production Order ${formState.No} updated successfully!`);
@@ -1051,8 +994,6 @@ export function ProductionOrderForm({
               updatedOrder.Shortcut_Dimension_1_Code || "",
             Shortcut_Dimension_2_Code:
               updatedOrder.Shortcut_Dimension_2_Code || "",
-            Shortcut_Dimension_3_Code:
-              updatedOrder.Shortcut_Dimension_3_Code || "",
           };
           originalFormStateRef.current = newSnapshot;
           setFormState((prev) => ({
@@ -1280,34 +1221,6 @@ export function ProductionOrderForm({
               </Select>
             )}
           </div>
-          <div className="space-y-2">
-            <FieldTitle required>LOC</FieldTitle>
-            {isViewMode ? (
-              <Input
-                value={formState.Shortcut_Dimension_3_Code || "-"}
-                disabled
-                className="bg-muted"
-              />
-            ) : (
-              <Select
-                value={formState.Shortcut_Dimension_3_Code}
-                onValueChange={handleLOCChange}
-                disabled={!formState.Shortcut_Dimension_2_Code}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select LOC" />
-                </SelectTrigger>
-                <SelectContent>
-                  {locs.map((l) => (
-                    <SelectItem key={l.Code} value={l.Code}>
-                      {l.Name ? `${l.Code} - ${l.Name}` : l.Code}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-          </div>
-
           {/* Order No - only show in view mode (auto-generated) */}
           {isViewMode && (
             <div className="space-y-2">
@@ -1430,30 +1343,13 @@ export function ProductionOrderForm({
           </div>
           <div className="space-y-2">
             <FieldTitle required>Location Code</FieldTitle>
-            {isViewMode ? (
-              <Input
-                value={formState.Location_Code || "-"}
-                disabled
-                className="bg-muted"
-              />
-            ) : (
-              <Select
-                disabled
-                value={formState.Location_Code}
-                onValueChange={(v) => handleChange("Location_Code", v)}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select location" />
-                </SelectTrigger>
-                <SelectContent>
-                  {locs.map((l) => (
-                    <SelectItem key={l.Code} value={l.Code}>
-                      {l.Name ? `${l.Code} - ${l.Name}` : l.Code}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
+            <LocationCodeSelectDialog
+              value={formState.Location_Code}
+              onChange={handleLocationCodeChange}
+              branchCode={formState.Shortcut_Dimension_2_Code}
+              disabled={isViewMode}
+              placeholder="Select Location"
+            />
           </div>
           {/* BOM Fields */}
           {showBomFields && (

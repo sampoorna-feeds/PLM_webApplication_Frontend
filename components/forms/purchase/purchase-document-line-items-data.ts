@@ -36,9 +36,6 @@ export function buildPurchaseCommonLineItemsData<
   })) as T[];
 }
 
-export function resolvePurchaseLocationCode(
-  locationCode: string,
-  loc: string,
-): string {
-  return locationCode || loc || "";
+export function resolvePurchaseLocationCode(locationCode: string): string {
+  return locationCode || "";
 }

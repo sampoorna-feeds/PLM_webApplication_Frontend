@@ -63,14 +63,13 @@ export async function createSalesReturnOrder(
       Sell_to_Customer_No: data.customerNo,
       Ship_to_Code: data.shipToCode || "",
       Salesperson_Code: data.salesPersonCode || "",
-      Location_Code: data.locationCode || data.loc || "",
+      Location_Code: data.locationCode || "",
       Posting_Date: data.postingDate,
       Document_Date: data.documentDate,
       External_Document_No: data.externalDocumentNo || "",
       Invoice_Type: data.invoiceType || "Bill of supply",
       Shortcut_Dimension_1_Code: data.lob || "",
       Shortcut_Dimension_2_Code: data.branch || "",
-      Shortcut_Dimension_3_Code: data.loc || "",
     };
     const response = await apiPost<CreateSalesDocumentApiResponse>(endpoint, payload);
     if (!response) return { orderId: "", orderNo: "" };

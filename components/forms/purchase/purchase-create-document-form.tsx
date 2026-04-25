@@ -30,6 +30,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { CascadingDimensionSelect } from "@/components/forms/cascading-dimension-select";
+import { LocationCodeSelectDialog } from "@/components/forms/location-code-select-dialog";
 import { VendorSelect, type PurchaseVendor } from "./vendor-select";
 import { BrokerSelect } from "./broker-select";
 import { OrderAddressSelect } from "./order-address-select";
@@ -168,7 +169,6 @@ import {
   getPurchasereceiptReport,
   type PurchaseReceipt,
 } from "@/lib/api/services/purchase-orders.service";
-import { getDimensionValueName } from "@/lib/api/services/dimension.service";
 import { buildPurchaseHeaderPayload } from "@/lib/api/services/purchase-header-payload";
 import {
   cancelApprovalRequest,
@@ -262,7 +262,6 @@ interface PurchaseCreateDocumentFormState {
   invoiceType: string;
   lob: string;
   branch: string;
-  loc: string;
   poType: string;
   serviceType: string;
   vendorGstRegNo: string;
@@ -465,7 +464,6 @@ export function PurchaseCreateDocumentFormContent({
     invoiceType: "",
     lob: "",
     branch: "",
-    loc: "",
     // New fields
     poType: "Goods",
     serviceType: "",
@@ -518,7 +516,6 @@ export function PurchaseCreateDocumentFormContent({
   const hydratedHeaderRef = useRef<PurchaseOrder | null>(null);
 
   // ── PO Advanced State (used only when documentType === 'order') ────────────
-  const [locationName, setLocationName] = useState("");
   const [selectedLine, setSelectedLine] = useState<PurchaseLine | null>(null);
   const [purchaseLines, setPurchaseLines] = useState<PurchaseLine[]>([]);
   const [isAttachmentDialogOpen, setIsAttachmentDialogOpen] = useState(false);
@@ -566,18 +563,6 @@ export function PurchaseCreateDocumentFormContent({
   const [termList, setTermList] = useState<TermAndCondition[]>([]);
   const [mandiList, setMandiList] = useState<MandiMaster[]>([]);
   const [paymentTermList, setPaymentTermList] = useState<PaymentTerm[]>([]);
-
-  // Fetch LOC dimension name whenever the LOC field changes (on load and on user select)
-  useEffect(() => {
-    const loc = formData.loc;
-    if (!loc) {
-      setLocationName("");
-      return;
-    }
-    getDimensionValueName("LOC", loc)
-      .then(setLocationName)
-      .catch(() => setLocationName(""));
-  }, [formData.loc]);
 
   useEffect(() => {
     purchaseDropdownsService
@@ -710,16 +695,6 @@ export function PurchaseCreateDocumentFormContent({
     };
   }, [config, isCreateMode, orderNo]);
 
-  // Sync Location Code with LOC value
-  useEffect(() => {
-    setFormData((prev) => {
-      if (prev.loc !== prev.locationCode) {
-        return { ...prev, locationCode: prev.loc || "" };
-      }
-      return prev;
-    });
-  }, [formData.loc]);
-
   // Simple input change handler
   const handleInputChange = (field: string, value: string) => {
     if (isReadOnlyMode) return;
@@ -764,9 +739,8 @@ export function PurchaseCreateDocumentFormContent({
     return !!(
       formData.lob &&
       formData.branch &&
-      formData.loc &&
+      formData.locationCode &&
       formData.vendorNo &&
-      (formData.locationCode || formData.loc) &&
       formData.postingDate &&
       formData.documentDate &&
       (!capabilities.supportsOrderDate || formData.orderDate) &&
@@ -927,10 +901,7 @@ export function PurchaseCreateDocumentFormContent({
       noOfBags: lineItem.noOfBags,
     };
 
-    const locationCode = resolvePurchaseLocationCode(
-      formData.locationCode,
-      formData.loc,
-    );
+    const locationCode = resolvePurchaseLocationCode(formData.locationCode);
 
     try {
       if (lineItem.lineNo) {
@@ -1455,12 +1426,18 @@ export function PurchaseCreateDocumentFormContent({
                       <ClearableField
                         readOnly={areFieldsReadOnly}
                         value={formData.lob}
-                        onClear={() => handleInputChange("lob", "")}
+                        onClear={() => {
+                          handleInputChange("lob", "");
+                          handleInputChange("locationCode", "");
+                        }}
                       >
                         <CascadingDimensionSelect
                           dimensionType="LOB"
                           value={formData.lob}
-                          onChange={(value) => handleInputChange("lob", value)}
+                          onChange={(value) => {
+                            handleInputChange("lob", value);
+                            handleInputChange("locationCode", "");
+                          }}
                           placeholder="Select LOB"
                           userId={userId}
                           compactWhenSingle
@@ -1472,14 +1449,18 @@ export function PurchaseCreateDocumentFormContent({
                       <ClearableField
                         readOnly={areFieldsReadOnly}
                         value={formData.branch}
-                        onClear={() => handleInputChange("branch", "")}
+                        onClear={() => {
+                          handleInputChange("branch", "");
+                          handleInputChange("locationCode", "");
+                        }}
                       >
                         <CascadingDimensionSelect
                           dimensionType="BRANCH"
                           value={formData.branch}
-                          onChange={(value) =>
-                            handleInputChange("branch", value)
-                          }
+                          onChange={(value) => {
+                            handleInputChange("branch", value);
+                            handleInputChange("locationCode", "");
+                          }}
                           placeholder="Select Branch"
                           lobValue={formData.lob}
                           userId={userId}
@@ -1488,43 +1469,14 @@ export function PurchaseCreateDocumentFormContent({
                       </ClearableField>
                     </div>
                     <div className={fieldClass}>
-                      <label className={labelClass}>LOC</label>
-                      <ClearableField
-                        readOnly={areFieldsReadOnly}
-                        value={formData.loc}
-                        onClear={() => handleInputChange("loc", "")}
-                      >
-                        <CascadingDimensionSelect
-                          dimensionType="LOC"
-                          value={formData.loc}
-                          onChange={(value) => handleInputChange("loc", value)}
-                          placeholder="Select LOC"
-                          lobValue={formData.lob}
-                          branchValue={formData.branch}
-                          userId={userId}
-                          compactWhenSingle
-                        />
-                      </ClearableField>
-                      {formData.loc && locationName && (
-                        <p className="mt-0.5 truncate pl-1 text-[10px] font-medium text-green-600">
-                          {locationName}
-                        </p>
-                      )}
-                    </div>
-                    <div className={fieldClass}>
                       <label className={labelClass}>Location Code</label>
-                      <Input
-                        value={formData.locationCode || formData.loc || ""}
-                        disabled
-                        className="bg-muted h-8 text-xs"
-                        readOnly
+                      <LocationCodeSelectDialog
+                        value={formData.locationCode}
+                        onChange={(v) => handleInputChange("locationCode", v)}
+                        branchCode={formData.branch}
+                        disabled={areFieldsReadOnly}
+                        placeholder="Select Location"
                       />
-                      {locationName &&
-                        (formData.locationCode || formData.loc) && (
-                          <p className="mt-0.5 truncate pl-1 text-[10px] font-medium text-green-600">
-                            {locationName}
-                          </p>
-                        )}
                     </div>
                   </div>
                 </section>
@@ -2547,7 +2499,7 @@ export function PurchaseCreateDocumentFormContent({
           lineItem={selectedLineItem}
           documentType={documentType}
           vendorNo={formData.vendorNo}
-          locationCode={formData.locationCode || formData.loc || ""}
+          locationCode={formData.locationCode || ""}
           onSave={handleLineItemSave}
           onRemove={(line) => handleRemoveLineItem(line.id)}
           isSaving={isSavingLine}
@@ -2573,7 +2525,6 @@ export function PurchaseCreateDocumentFormContent({
                 lob: lobCode,
                 branch: branchCode,
                 locationCode: locCode,
-                loc: locCode,
               }));
               setCreatedOrderNo(returnedNo);
               setDocumentStatus("Open");
@@ -2582,7 +2533,6 @@ export function PurchaseCreateDocumentFormContent({
                 lob: lobCode,
                 branch: branchCode,
                 locationCode: locCode,
-                loc: locCode,
                 lineItems,
                 createdOrderNo: returnedNo,
                 status: "Open",
@@ -2685,7 +2635,7 @@ export function PurchaseCreateDocumentFormContent({
           onOpenChange={setIsTrackingOpen}
           line={trackingLine}
           orderNo={createdOrderNo}
-          locationCode={formData.locationCode || formData.loc || ""}
+          locationCode={formData.locationCode || ""}
           documentType={documentType}
           onSave={() => {
             if (createdOrderNo) fetchLines(createdOrderNo);

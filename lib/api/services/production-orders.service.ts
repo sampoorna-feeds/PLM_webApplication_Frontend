@@ -489,7 +489,6 @@ export interface CreateProductionOrderPayload {
   Hatching_Date?: string;
   Shortcut_Dimension_1_Code: string; // LOB Code
   Shortcut_Dimension_2_Code: string; // Branch Code
-  Shortcut_Dimension_3_Code: string; // LOC Code
   Prod_Bom_No?: string;
   BOM_Version_No?: string;
   Batch_Size?: string;
@@ -517,7 +516,6 @@ export async function createProductionOrder(
     Hatching_Date: data.Hatching_Date || "0001-01-01",
     Shortcut_Dimension_1_Code: data.Shortcut_Dimension_1_Code,
     Shortcut_Dimension_2_Code: data.Shortcut_Dimension_2_Code,
-    Shortcut_Dimension_3_Code: data.Shortcut_Dimension_3_Code,
   };
 
   // Add Prod_Bom_No if provided
@@ -598,7 +596,6 @@ export async function updateProductionOrder(
     Batch_Size?: string;
     Shortcut_Dimension_1_Code?: string;
     Shortcut_Dimension_2_Code?: string;
-    Shortcut_Dimension_3_Code?: string;
   },
 ): Promise<void> {
   // Encode the production order number for URL (handles slashes)

@@ -60,7 +60,6 @@ export interface ProductionOrderFormData {
   // Dimension fields
   Shortcut_Dimension_1_Code: string; // LOB
   Shortcut_Dimension_2_Code: string; // Branch Code
-  Shortcut_Dimension_3_Code: string; // LOC Code
   // Source fields
   Source_Type: SourceType;
   Source_No: string;
@@ -82,7 +81,6 @@ export const EMPTY_FORM_DATA: ProductionOrderFormData = {
   Description: "",
   Shortcut_Dimension_1_Code: "",
   Shortcut_Dimension_2_Code: "",
-  Shortcut_Dimension_3_Code: "",
   Source_Type: "Item",
   Source_No: "",
   Quantity: 0,

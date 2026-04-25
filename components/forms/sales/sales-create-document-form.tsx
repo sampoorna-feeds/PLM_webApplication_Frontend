@@ -18,6 +18,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { CascadingDimensionSelect } from "@/components/forms/cascading-dimension-select";
+import { LocationCodeSelectDialog } from "@/components/forms/location-code-select-dialog";
 import { CustomerSelect, type SalesCustomer } from "./customer-select";
 import { ShipToSelect } from "./shipto-select";
 import { SalesPersonSelect } from "./sales-person-select";
@@ -303,7 +304,6 @@ const EMPTY_FORM_STATE: CreateFormState = {
   invoiceType: "Bill of Supply",
   lob: "",
   branch: "",
-  loc: "",
   gstRegistrationNo: "",
   panNo: "",
 };
@@ -512,15 +512,6 @@ export function SalesCreateDocumentFormContent({
     }
   }, []);
 
-  useEffect(() => {
-    setFormData((prev) => {
-      if (prev.loc !== prev.locationCode) {
-        return { ...prev, locationCode: prev.loc || "" };
-      }
-      return prev;
-    });
-  }, [formData.loc]);
-
   // ── Load document for view/edit ───────────────────────────────────────────
   const loadDocument = useCallback(async () => {
     const docNo = initialOrderNo;
@@ -669,7 +660,7 @@ export function SalesCreateDocumentFormContent({
     return !!(
       formData.lob &&
       formData.branch &&
-      formData.loc &&
+      formData.locationCode &&
       formData.customerNo &&
       formData.salesPersonCode &&
       formData.postingDate &&
@@ -1081,12 +1072,18 @@ export function SalesCreateDocumentFormContent({
           <ClearableField
             readOnly={areFieldsReadOnly}
             value={formData.lob}
-            onClear={() => handleInputChange("lob", "")}
+            onClear={() => {
+              handleInputChange("lob", "");
+              handleInputChange("locationCode", "");
+            }}
           >
             <CascadingDimensionSelect
               dimensionType="LOB"
               value={formData.lob}
-              onChange={(v) => handleInputChange("lob", v)}
+              onChange={(v) => {
+                handleInputChange("lob", v);
+                handleInputChange("locationCode", "");
+              }}
               placeholder="Select LOB"
               userId={userId}
               compactWhenSingle
@@ -1098,12 +1095,18 @@ export function SalesCreateDocumentFormContent({
           <ClearableField
             readOnly={areFieldsReadOnly}
             value={formData.branch}
-            onClear={() => handleInputChange("branch", "")}
+            onClear={() => {
+              handleInputChange("branch", "");
+              handleInputChange("locationCode", "");
+            }}
           >
             <CascadingDimensionSelect
               dimensionType="BRANCH"
               value={formData.branch}
-              onChange={(v) => handleInputChange("branch", v)}
+              onChange={(v) => {
+                handleInputChange("branch", v);
+                handleInputChange("locationCode", "");
+              }}
               placeholder="Select Branch"
               lobValue={formData.lob}
               userId={userId}
@@ -1112,23 +1115,14 @@ export function SalesCreateDocumentFormContent({
           </ClearableField>
         </div>
         <div className={fieldClass}>
-          <label className={labelClass}>LOC</label>
-          <ClearableField
-            readOnly={areFieldsReadOnly}
-            value={formData.loc}
-            onClear={() => handleInputChange("loc", "")}
-          >
-            <CascadingDimensionSelect
-              dimensionType="LOC"
-              value={formData.loc}
-              onChange={(v) => handleInputChange("loc", v)}
-              placeholder="Select LOC"
-              lobValue={formData.lob}
-              branchValue={formData.branch}
-              userId={userId}
-              compactWhenSingle
-            />
-          </ClearableField>
+          <label className={labelClass}>Location Code</label>
+          <LocationCodeSelectDialog
+            value={formData.locationCode}
+            onChange={(v) => handleInputChange("locationCode", v)}
+            branchCode={formData.branch}
+            disabled={areFieldsReadOnly}
+            placeholder="Select Location"
+          />
         </div>
         {caps.supportsInvoiceType && (
           <div className={fieldClass}>
@@ -1186,11 +1180,12 @@ export function SalesCreateDocumentFormContent({
         </div>
         <div className={fieldClass}>
           <label className={labelClass}>Location</label>
-          <Input
-            value={formData.locationCode || formData.loc || ""}
-            disabled
-            className="bg-muted h-8"
-            readOnly
+          <LocationCodeSelectDialog
+            value={formData.locationCode}
+            onChange={(v) => handleInputChange("locationCode", v)}
+            branchCode={formData.branch}
+            disabled={areFieldsReadOnly}
+            placeholder="Select Location"
           />
         </div>
         <div className={fieldClass}>
@@ -1237,7 +1232,7 @@ export function SalesCreateDocumentFormContent({
               onChange={handleShipToChange}
               placeholder="Select (optional)"
               tabId=""
-              loc={formData.loc}
+              loc={formData.locationCode}
             />
           </ClearableField>
           {(formData as unknown as Record<string, string>).shipToName && (

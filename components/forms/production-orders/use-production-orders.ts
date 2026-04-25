@@ -495,7 +495,6 @@ export function useProductionOrderSheet() {
       Description: selectedOrder.Description || "",
       Shortcut_Dimension_1_Code: selectedOrder.Shortcut_Dimension_1_Code || "",
       Shortcut_Dimension_2_Code: selectedOrder.Shortcut_Dimension_2_Code || "",
-      Shortcut_Dimension_3_Code: selectedOrder.Shortcut_Dimension_3_Code || "",
       Source_Type: mapSourceType(selectedOrder.Source_Type),
       Source_No: selectedOrder.Source_No || "",
       Quantity: selectedOrder.Quantity || 0,

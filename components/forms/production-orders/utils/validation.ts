@@ -9,7 +9,6 @@ export interface ProductionOrderFormData {
   Description: string;
   Shortcut_Dimension_1_Code: string;
   Shortcut_Dimension_2_Code: string;
-  Shortcut_Dimension_3_Code: string;
   Source_Type: string;
   Source_No: string;
   Quantity: number | string; // Can be string during form input
@@ -100,13 +99,6 @@ export function validateProductionOrderForm(
     errors.push({
       field: "Shortcut_Dimension_2_Code",
       message: "Branch is required",
-    });
-  }
-
-  if (!data.Shortcut_Dimension_3_Code?.trim()) {
-    errors.push({
-      field: "Shortcut_Dimension_3_Code",
-      message: "LOC is required",
     });
   }
 

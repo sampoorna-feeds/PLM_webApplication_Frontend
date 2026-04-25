@@ -42,7 +42,6 @@ export function mapPurchaseHeaderToFormData(
     invoiceType: toStringValue(header.Invoice_Type),
     lob: toStringValue(header.Shortcut_Dimension_1_Code),
     branch: toStringValue(header.Shortcut_Dimension_2_Code),
-    loc: toStringValue(header.Shortcut_Dimension_3_Code),
     poType: toStringValue(header.PO_Type) || "Goods",
     serviceType: toStringValue(header.Service_Type),
     vendorGstRegNo: toStringValue(header.Vendor_GST_Reg_No),

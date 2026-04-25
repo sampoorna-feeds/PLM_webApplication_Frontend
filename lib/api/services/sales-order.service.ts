@@ -67,7 +67,7 @@ export async function createSalesOrder(
       Sell_to_Customer_No: data.customerNo,
       Ship_to_Code: data.shipToCode || "",
       Salesperson_Code: data.salesPersonCode || "",
-      Location_Code: data.locationCode || data.loc || "",
+      Location_Code: data.locationCode || "",
       Posting_Date: data.postingDate,
       Document_Date: data.documentDate,
       Order_Date: data.orderDate || data.postingDate,
@@ -75,7 +75,6 @@ export async function createSalesOrder(
       Invoice_Type: data.invoiceType || "Bill of supply",
       Shortcut_Dimension_1_Code: data.lob || "",
       Shortcut_Dimension_2_Code: data.branch || "",
-      Shortcut_Dimension_3_Code: data.loc || "",
     };
 
     const response = await apiPost<CreateSalesOrderApiResponse>(

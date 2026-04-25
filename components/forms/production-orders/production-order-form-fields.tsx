@@ -17,9 +17,9 @@ import { useAuth } from "@/lib/contexts/auth-context";
 import {
   getLOBsFromUserSetup,
   getBranchesFromUserSetup,
-  getLOCsFromUserSetup,
   type DimensionValue,
 } from "@/lib/api/services/dimension.service";
+import { LocationCodeSelectDialog } from "@/components/forms/location-code-select-dialog";
 import {
   getItems,
   getFamilies,
@@ -58,7 +58,6 @@ export function ProductionOrderFormFields({
   // Dimension dropdowns state
   const [lobs, setLobs] = useState<DimensionValue[]>([]);
   const [branches, setBranches] = useState<DimensionValue[]>([]);
-  const [locs, setLocs] = useState<DimensionValue[]>([]);
   const [isLoadingDimensions, setIsLoadingDimensions] = useState(false);
 
   // Source No dropdown state
@@ -124,46 +123,6 @@ export function ProductionOrderFormFields({
 
     loadBranches();
   }, [userID, data.Shortcut_Dimension_1_Code, isReadOnly]);
-
-  // Load LOCs when Branch changes
-  useEffect(() => {
-    if (
-      !userID ||
-      !data.Shortcut_Dimension_1_Code ||
-      !data.Shortcut_Dimension_2_Code ||
-      isReadOnly
-    ) {
-      setLocs([]);
-      return;
-    }
-
-    const loadLOCs = async () => {
-      try {
-        const locData = await getLOCsFromUserSetup(
-          data.Shortcut_Dimension_1_Code,
-          data.Shortcut_Dimension_2_Code,
-          userID,
-        );
-        setLocs(locData);
-      } catch (error) {
-        console.error("Error loading LOCs:", error);
-      }
-    };
-
-    loadLOCs();
-  }, [
-    userID,
-    data.Shortcut_Dimension_1_Code,
-    data.Shortcut_Dimension_2_Code,
-    isReadOnly,
-  ]);
-
-  // Prefill Location_Code when LOC changes
-  useEffect(() => {
-    if (data.Shortcut_Dimension_3_Code && !data.Location_Code) {
-      handleChange("Location_Code", data.Shortcut_Dimension_3_Code);
-    }
-  }, [data.Shortcut_Dimension_3_Code, data.Location_Code, handleChange]);
 
   // Handle Source Type change - reset dependent fields
   const handleSourceTypeChange = (value: SourceType) => {
@@ -286,23 +245,21 @@ export function ProductionOrderFormFields({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data.Prod_Bom_No, data.isProdBomFromItem, isReadOnly, activeVersionCode]);
 
-  // Reset Branch and LOC when LOB changes
+  // Reset Branch and Location Code when LOB changes
   const handleLOBChange = (value: string) => {
     onChange({
       ...data,
       Shortcut_Dimension_1_Code: value,
       Shortcut_Dimension_2_Code: "",
-      Shortcut_Dimension_3_Code: "",
       Location_Code: "",
     });
   };
 
-  // Reset LOC when Branch changes
+  // Reset Location Code when Branch changes
   const handleBranchChange = (value: string) => {
     onChange({
       ...data,
       Shortcut_Dimension_2_Code: value,
-      Shortcut_Dimension_3_Code: "",
       Location_Code: "",
     });
   };
@@ -332,18 +289,6 @@ export function ProductionOrderFormFields({
           options={branches.map((b) => ({ value: b.Code, label: b.Code }))}
           onChange={(v) => handleBranchChange(v)}
           disabled={isReadOnly || !data.Shortcut_Dimension_1_Code}
-          required
-        />
-        <SelectField
-          label="LOC Code"
-          value={data.Shortcut_Dimension_3_Code}
-          options={locs.map((l) => ({ value: l.Code, label: `${l.Code} - ${l.Name || ""}` }))}
-          onChange={(v) => {
-            handleChange("Shortcut_Dimension_3_Code", v);
-            // Prefill Location Code with LOC value
-            handleChange("Location_Code", v);
-          }}
-          disabled={isReadOnly || !data.Shortcut_Dimension_2_Code}
           required
         />
       </FormSection>
@@ -409,14 +354,19 @@ export function ProductionOrderFormFields({
           type="date"
           required
         />
-        <FormField
-          label="Location Code"
-          value={data.Location_Code}
-          onChange={() => {}}
-          disabled
-          helpText="Auto-filled from LOC Code"
-          required
-        />
+        <div className="flex flex-col gap-1.5 min-w-0">
+          <Label className="text-muted-foreground text-xs font-medium">
+            Location Code
+            <span className="text-destructive ml-1">*</span>
+          </Label>
+          <LocationCodeSelectDialog
+            value={data.Location_Code}
+            onChange={(v) => handleChange("Location_Code", v)}
+            branchCode={data.Shortcut_Dimension_2_Code}
+            disabled={isReadOnly}
+            placeholder="Select Location"
+          />
+        </div>
       </FormSection>
 
       {/* BOM Fields - Only for Item source type */}

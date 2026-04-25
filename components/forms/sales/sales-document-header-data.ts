@@ -20,7 +20,6 @@ export interface SalesDocumentHeaderFormState {
   invoiceType: string;
   lob: string;
   branch: string;
-  loc: string;
   gstRegistrationNo?: string;
   panNo?: string;
 }
@@ -38,7 +37,6 @@ export interface SalesDocumentHeaderData {
   invoiceType?: string;
   lob?: string;
   branch?: string;
-  loc?: string;
 }
 
 export function buildSalesCommonHeaderData(
@@ -49,7 +47,7 @@ export function buildSalesCommonHeaderData(
     customerName: formData.customerName,
     shipToCode: formData.shipToCode || "",
     salesPersonCode: formData.salesPersonCode || "",
-    locationCode: formData.locationCode || formData.loc || "",
+    locationCode: formData.locationCode || "",
     postingDate: formData.postingDate,
     documentDate: formData.documentDate,
     orderDate: formData.orderDate || formData.postingDate,
@@ -57,7 +55,6 @@ export function buildSalesCommonHeaderData(
     invoiceType: formData.invoiceType || "Bill of Supply",
     lob: formData.lob || "",
     branch: formData.branch || "",
-    loc: formData.loc || "",
   };
 }
 
@@ -69,14 +66,13 @@ export function buildSalesHeaderPatchPayload(
   const payload: Record<string, unknown> = {
     Ship_to_Code: formData.shipToCode || "",
     Salesperson_Code: formData.salesPersonCode || "",
-    Location_Code: formData.locationCode || formData.loc || "",
+    Location_Code: formData.locationCode || "",
     Posting_Date: formData.postingDate,
     Document_Date: formData.documentDate,
     External_Document_No: formData.externalDocumentNo || "",
     Invoice_Type: formData.invoiceType || "",
     Shortcut_Dimension_1_Code: formData.lob || "",
     Shortcut_Dimension_2_Code: formData.branch || "",
-    Shortcut_Dimension_3_Code: formData.loc || "",
   };
 
   if (supportsOrderDate) {

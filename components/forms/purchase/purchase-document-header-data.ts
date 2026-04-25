@@ -9,7 +9,6 @@ export interface PurchaseCommonHeaderFormData {
   invoiceType: string;
   lob: string;
   branch: string;
-  loc: string;
   poType: string;
   serviceType: string;
   vendorGstRegNo: string;
@@ -35,14 +34,13 @@ export function buildPurchaseCommonHeaderData(
     vendorNo: formData.vendorNo,
     vendorName: formData.vendorName,
     purchasePersonCode: formData.purchasePersonCode,
-    locationCode: formData.locationCode || formData.loc,
+    locationCode: formData.locationCode,
     postingDate: formData.postingDate,
     documentDate: formData.documentDate,
     orderDate: formData.orderDate,
     invoiceType: formData.invoiceType,
     lob: formData.lob,
     branch: formData.branch,
-    loc: formData.loc,
     poType: formData.poType,
     serviceType: formData.serviceType,
     vendorGstRegNo: formData.vendorGstRegNo,

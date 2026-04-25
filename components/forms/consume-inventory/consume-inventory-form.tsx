@@ -31,7 +31,7 @@ import {
   type ConsumeInventoryEntry,
 } from "@/lib/api/services/consume-inventory.service";
 import { useAuth } from "@/lib/contexts/auth-context";
-import { Info, Loader2, Package, Plus, Send, Trash2 } from "lucide-react";
+import { Info, Loader2, Package, Plus, Send, Trash2, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -199,18 +199,32 @@ export function ConsumeInventoryForm() {
               <label className="text-muted-foreground ml-1 text-[11px] font-bold tracking-wider uppercase">
                 Entry Type
               </label>
-              <Select
-                value={formState["Entry Type"]}
-                onValueChange={(v) => handleChange("Entry Type", v)}
-              >
-                <SelectTrigger className="w-full h-10 shadow-sm transition-all focus:ring-1">
-                  <SelectValue placeholder="Select Type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Issue">Issue</SelectItem>
-                  <SelectItem value="Return">Return</SelectItem>
-                </SelectContent>
-              </Select>
+              <div className="relative group">
+                <Select
+                  value={formState["Entry Type"]}
+                  onValueChange={(v) => handleChange("Entry Type", v)}
+                >
+                  <SelectTrigger className="w-full h-10 shadow-sm transition-all focus:ring-1 pr-8">
+                    <SelectValue placeholder="Select Type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Issue">Issue</SelectItem>
+                    <SelectItem value="Return">Return</SelectItem>
+                  </SelectContent>
+                </Select>
+                {formState["Entry Type"] && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      handleChange("Entry Type", "");
+                    }}
+                    className="absolute right-7 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
             </div>
 
             <div className="space-y-1">

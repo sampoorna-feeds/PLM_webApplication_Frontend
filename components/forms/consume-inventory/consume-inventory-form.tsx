@@ -30,12 +30,24 @@ import {
   postConsumeInventory,
   type ConsumeInventoryEntry,
 } from "@/lib/api/services/consume-inventory.service";
-import { getItemLedgerEntries, type ItemLedgerEntry } from "@/lib/api/services/report-ledger.service";
+import {
+  getItemLedgerEntries,
+  type ItemLedgerEntry,
+} from "@/lib/api/services/report-ledger.service";
 import { useAuth } from "@/lib/contexts/auth-context";
-import { SearchableSelect } from "@/components/ui/searchable-select";
-import { Info, Loader2, Package, Plus, Send, Trash2, X } from "lucide-react";
+import {
+  Info,
+  Loader2,
+  Package,
+  Plus,
+  Search,
+  Send,
+  Trash2,
+  X,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { LedgerEntryModal } from "./ledger-entry-modal";
 
 export function ConsumeInventoryForm() {
   const { userID } = useAuth();
@@ -59,9 +71,13 @@ export function ConsumeInventoryForm() {
   });
 
   const [applyToEntries, setApplyToEntries] = useState<ItemLedgerEntry[]>([]);
-  const [applyFromEntries, setApplyFromEntries] = useState<ItemLedgerEntry[]>([]);
+  const [applyFromEntries, setApplyFromEntries] = useState<ItemLedgerEntry[]>(
+    [],
+  );
   const [loadingApplyTo, setLoadingApplyTo] = useState(false);
   const [loadingApplyFrom, setLoadingApplyFrom] = useState(false);
+  const [isApplyToModalOpen, setIsApplyToModalOpen] = useState(false);
+  const [isApplyFromModalOpen, setIsApplyFromModalOpen] = useState(false);
 
   useEffect(() => {
     if (userID) {
@@ -134,7 +150,7 @@ export function ConsumeInventoryForm() {
   const handleChange = (field: keyof ConsumeInventoryEntry, value: any) => {
     setFormState((prev) => {
       const newState = { ...prev, [field]: value };
-      
+
       // Reset dependent fields
       if (field === "Lob Code") {
         newState["Branch Code"] = "";
@@ -142,7 +158,7 @@ export function ConsumeInventoryForm() {
       } else if (field === "Branch Code") {
         newState["Location Code"] = "";
       }
-      
+
       return newState;
     });
   };
@@ -256,12 +272,12 @@ export function ConsumeInventoryForm() {
               <label className="text-muted-foreground ml-1 text-[11px] font-bold tracking-wider uppercase">
                 Entry Type
               </label>
-              <div className="relative group">
+              <div className="group relative">
                 <Select
                   value={formState["Entry Type"]}
                   onValueChange={(v) => handleChange("Entry Type", v)}
                 >
-                  <SelectTrigger className="w-full h-10 shadow-sm transition-all focus:ring-1 pr-8">
+                  <SelectTrigger className="h-10 w-full pr-8 shadow-sm transition-all focus:ring-1">
                     <SelectValue placeholder="Select Type" />
                   </SelectTrigger>
                   <SelectContent>
@@ -276,7 +292,7 @@ export function ConsumeInventoryForm() {
                       e.preventDefault();
                       handleChange("Entry Type", "");
                     }}
-                    className="absolute right-7 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity"
+                    className="text-muted-foreground hover:text-foreground absolute top-1/2 right-7 -translate-y-1/2 p-1 opacity-0 transition-opacity group-hover:opacity-100"
                   >
                     <X className="h-3.5 w-3.5" />
                   </button>
@@ -320,7 +336,11 @@ export function ConsumeInventoryForm() {
                 className="h-10"
                 branchCode={formState["Branch Code"]}
                 disabled={!formState["Lob Code"] || !formState["Branch Code"]}
-                placeholder={!formState["Branch Code"] ? "Select Branch First" : "Select Location"}
+                placeholder={
+                  !formState["Branch Code"]
+                    ? "Select Branch First"
+                    : "Select Location"
+                }
               />
             </div>
 
@@ -395,39 +415,119 @@ export function ConsumeInventoryForm() {
             </div>
 
             <div className="space-y-1">
-              <label className="text-muted-foreground ml-1 text-[11px] font-bold tracking-wider uppercase text-blue-400">
+              <label className="text-muted-foreground ml-1 text-[11px] font-bold tracking-wider text-blue-400 uppercase">
                 Apply to Entry
               </label>
-              <SearchableSelect
-                options={applyToEntries.map((e) => ({
-                  value: String(e.Entry_No),
-                  label: `${e.Entry_No} (Rem: ${e.Remaining_Quantity}) - ${e.Lot_No || "No Lot"}`,
-                }))}
-                value={formState["Applies-to Entry"] ? String(formState["Applies-to Entry"]) : ""}
-                onValueChange={(v) => handleChange("Applies-to Entry", v ? Number(v) : undefined)}
-                isLoading={loadingApplyTo}
-                placeholder={formState["Item No."] ? "Select Entry" : "Select Item first"}
-                disabled={!formState["Item No."]}
-              />
+              <div className="group relative">
+                <Input
+                  className="bg-muted/30 h-10 cursor-pointer border-dashed pr-10 font-medium"
+                  value={formState["Applies-to Entry"] || ""}
+                  placeholder={
+                    formState["Item No."]
+                      ? "Click to select"
+                      : "Select Item first"
+                  }
+                  readOnly
+                  onClick={() =>
+                    formState["Item No."] && setIsApplyToModalOpen(true)
+                  }
+                  disabled={!formState["Item No."]}
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="text-muted-foreground hover:text-primary absolute top-0 right-0 h-10 w-10"
+                  onClick={() =>
+                    formState["Item No."] && setIsApplyToModalOpen(true)
+                  }
+                  disabled={!formState["Item No."]}
+                >
+                  <Search className="h-4 w-4" />
+                </Button>
+                {formState["Applies-to Entry"] && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleChange("Applies-to Entry", undefined);
+                    }}
+                    className="text-muted-foreground hover:text-foreground absolute top-1/2 right-9 -translate-y-1/2 p-1 opacity-0 transition-opacity group-hover:opacity-100"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
             </div>
 
             <div className="space-y-1">
-              <label className="text-muted-foreground ml-1 text-[11px] font-bold tracking-wider uppercase text-green-400">
+              <label className="text-muted-foreground ml-1 text-[11px] font-bold tracking-wider text-green-400 uppercase">
                 Apply From Entry
               </label>
-              <SearchableSelect
-                options={applyFromEntries.map((e) => ({
-                  value: String(e.Entry_No),
-                  label: `${e.Entry_No} (Qty: ${e.Quantity}) - ${e.Lot_No || "No Lot"}`,
-                }))}
-                value={formState["Applies-from Entry"] ? String(formState["Applies-from Entry"]) : ""}
-                onValueChange={(v) => handleChange("Applies-from Entry", v ? Number(v) : undefined)}
-                isLoading={loadingApplyFrom}
-                placeholder={formState["Item No."] ? "Select Entry" : "Select Item first"}
-                disabled={!formState["Item No."]}
-              />
+              <div className="group relative">
+                <Input
+                  className="bg-muted/30 h-10 cursor-pointer border-dashed pr-10 font-medium"
+                  value={formState["Applies-from Entry"] || ""}
+                  placeholder={
+                    formState["Item No."]
+                      ? "Click to select"
+                      : "Select Item first"
+                  }
+                  readOnly
+                  onClick={() =>
+                    formState["Item No."] && setIsApplyFromModalOpen(true)
+                  }
+                  disabled={!formState["Item No."]}
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="text-muted-foreground hover:text-primary absolute top-0 right-0 h-10 w-10"
+                  onClick={() =>
+                    formState["Item No."] && setIsApplyFromModalOpen(true)
+                  }
+                  disabled={!formState["Item No."]}
+                >
+                  <Search className="h-4 w-4" />
+                </Button>
+                {formState["Applies-from Entry"] && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleChange("Applies-from Entry", undefined);
+                    }}
+                    className="text-muted-foreground hover:text-foreground absolute top-1/2 right-9 -translate-y-1/2 p-1 opacity-0 transition-opacity group-hover:opacity-100"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
             </div>
           </div>
+
+          <LedgerEntryModal
+            isOpen={isApplyToModalOpen}
+            onClose={() => setIsApplyToModalOpen(false)}
+            entries={applyToEntries}
+            onSelect={(entry) =>
+              handleChange("Applies-to Entry", entry.Entry_No)
+            }
+            title={`Select Apply-to Entry for ${formState["Item No."]}`}
+            isLoading={loadingApplyTo}
+          />
+
+          <LedgerEntryModal
+            isOpen={isApplyFromModalOpen}
+            onClose={() => setIsApplyFromModalOpen(false)}
+            entries={applyFromEntries}
+            onSelect={(entry) =>
+              handleChange("Applies-from Entry", entry.Entry_No)
+            }
+            title={`Select Apply-from Entry for ${formState["Item No."]}`}
+            isLoading={loadingApplyFrom}
+          />
         </CardContent>
       </Card>
 

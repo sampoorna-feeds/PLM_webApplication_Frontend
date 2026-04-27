@@ -41,8 +41,10 @@ import {
 } from "@/components/ui/table";
 import {
   bulkInsertConsumeInventoryEntries,
+  getConsumptionPostingSetup,
   postConsumeInventory,
   type ConsumeInventoryEntry,
+  type ConsumptionPostingSetup,
 } from "@/lib/api/services/consume-inventory.service";
 import {
   getItemLedgerEntries,
@@ -72,10 +74,14 @@ export function ConsumeInventoryForm() {
   const [entries, setEntries] = useState<ConsumeInventoryEntry[]>([]);
   const [selectedIndices, setSelectedIndices] = useState<number[]>([]);
   const [isConfirmPostOpen, setIsConfirmPostOpen] = useState(false);
+  const [consumptionOptions, setConsumptionOptions] = useState<ConsumptionPostingSetup[]>([]);
+  const [fetchingOptions, setFetchingOptions] = useState(false);
   const [formState, setFormState] = useState<Partial<ConsumeInventoryEntry>>({
     "Posting Date": new Date().toISOString().split("T")[0],
     "Entry Type": "Issue",
     "Item No.": "",
+    Consumption: true,
+    Consumption_Posting: "",
     Description: "",
     "Location Code": "",
     Quantity: 0,
@@ -98,10 +104,32 @@ export function ConsumeInventoryForm() {
   const [isApplyFromModalOpen, setIsApplyFromModalOpen] = useState(false);
 
   useEffect(() => {
-    if (userID) {
-      loadEntries();
-    }
+    loadEntries();
   }, [userID]);
+
+  useEffect(() => {
+    const fetchOptions = async () => {
+      const itemNo = (formState["Item No."] || "").trim();
+      if (itemNo) {
+        setFetchingOptions(true);
+        try {
+          const options = await getConsumptionPostingSetup(itemNo);
+          setConsumptionOptions(options);
+          // If only one option, auto-select it
+          if (options.length === 1) {
+            setFormState(prev => ({ ...prev, "Consumption Posting": options[0].Posting_Group }));
+          }
+        } catch (error) {
+          console.error("Error fetching consumption options:", error);
+        } finally {
+          setFetchingOptions(false);
+        }
+      } else {
+        setConsumptionOptions([]);
+      }
+    };
+    fetchOptions();
+  }, [formState["Item No."]]);
 
   useEffect(() => {
     const fetchApplyToEntries = async () => {
@@ -386,6 +414,96 @@ export function ConsumeInventoryForm() {
 
             <div className="space-y-1">
               <label className="text-muted-foreground ml-1 text-[11px] font-bold tracking-wider uppercase">
+                Item Selection
+              </label>
+              <ItemSelect
+                value={formState["Item No."] || ""}
+                onChange={(v, item) => {
+                  setFormState((prev) => ({
+                    ...prev,
+                    "Item No.": v,
+                    Description: item?.Description || "",
+                    "Unit of Measure Code": item?.Base_Unit_of_Measure || "",
+                    "Applies-to Entry": undefined,
+                    "Applies-from Entry": undefined,
+                  }));
+                }}
+                className="h-10"
+                locationCode={formState["Location Code"]}
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-muted-foreground ml-1 text-[11px] font-bold tracking-wider uppercase">
+                Consumption Posting
+              </label>
+              <Select
+                value={formState["Consumption Posting"] || "none"}
+                onValueChange={(v) => handleChange("Consumption Posting", v === "none" ? "" : v)}
+                disabled={fetchingOptions}
+              >
+                <SelectTrigger className="h-10 shadow-sm focus:ring-1">
+                  <SelectValue 
+                    placeholder={
+                      fetchingOptions 
+                        ? "Loading..." 
+                        : !formState["Item No."] 
+                          ? "Select Item first" 
+                          : consumptionOptions.length === 0 
+                            ? "No options found" 
+                            : "Select Type"
+                    } 
+                  />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">None</SelectItem>
+                  {!formState["Item No."] && (
+                    <div className="text-muted-foreground px-2 py-4 text-center text-[10px] italic">
+                      Please select an item first
+                    </div>
+                  )}
+                  {consumptionOptions.map((opt, i) => (
+                    <SelectItem key={i} value={opt.Posting_Group}>
+                      <div className="flex flex-col">
+                        <span className="font-bold">{opt.Posting_Group}</span>
+                        <span className="text-muted-foreground text-[10px]">
+                          {opt.Name}
+                        </span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-muted-foreground ml-1 text-[11px] font-bold tracking-wider uppercase">
+                UOM
+              </label>
+              <Input
+                className="bg-muted/50 h-10 border-dashed font-medium"
+                value={formState["Unit of Measure Code"]}
+                disabled
+                placeholder="Auto-filled"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-muted-foreground ml-1 text-[11px] font-bold tracking-wider uppercase">
+                Quantity
+              </label>
+              <Input
+                type="number"
+                className="text-primary h-10 font-mono text-lg font-bold shadow-sm focus:ring-1"
+                value={formState.Quantity}
+                onChange={(e) =>
+                  handleChange("Quantity", parseFloat(e.target.value) || 0)
+                }
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-muted-foreground ml-1 text-[11px] font-bold tracking-wider uppercase">
                 LOB
               </label>
               <CascadingDimensionSelect
@@ -424,53 +542,6 @@ export function ConsumeInventoryForm() {
                   !formState["Branch Code"]
                     ? "Select Branch First"
                     : "Select Location"
-                }
-              />
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-muted-foreground ml-1 text-[11px] font-bold tracking-wider uppercase">
-                UOM
-              </label>
-              <Input
-                className="bg-muted/50 h-10 border-dashed font-medium"
-                value={formState["Unit of Measure Code"]}
-                disabled
-                placeholder="Auto-filled"
-              />
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-muted-foreground ml-1 text-[11px] font-bold tracking-wider uppercase">
-                Item Selection
-              </label>
-              <ItemSelect
-                value={formState["Item No."] || ""}
-                onChange={(v, item) => {
-                  setFormState((prev) => ({
-                    ...prev,
-                    "Item No.": v,
-                    Description: item?.Description || "",
-                    "Unit of Measure Code": item?.Base_Unit_of_Measure || "",
-                    "Applies-to Entry": undefined,
-                    "Applies-from Entry": undefined,
-                  }));
-                }}
-                className="h-10"
-                locationCode={formState["Location Code"]}
-              />
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-muted-foreground ml-1 text-[11px] font-bold tracking-wider uppercase">
-                Quantity
-              </label>
-              <Input
-                type="number"
-                className="text-primary h-10 font-mono text-lg font-bold shadow-sm focus:ring-1"
-                value={formState.Quantity}
-                onChange={(e) =>
-                  handleChange("Quantity", parseFloat(e.target.value) || 0)
                 }
               />
             </div>
@@ -682,6 +753,9 @@ export function ConsumeInventoryForm() {
                   Doc No.
                 </TableHead>
                 <TableHead className="py-4 text-xs font-bold tracking-wider uppercase">
+                  Cons. Post
+                </TableHead>
+                <TableHead className="py-4 text-xs font-bold tracking-wider uppercase">
                   LOB
                 </TableHead>
                 <TableHead className="py-4 text-xs font-bold tracking-wider uppercase">
@@ -719,7 +793,7 @@ export function ConsumeInventoryForm() {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={15} className="h-64 text-center">
+                  <TableCell colSpan={16} className="h-64 text-center">
                     <div className="text-muted-foreground flex flex-col items-center gap-3">
                       <Loader2 className="text-primary/40 h-10 w-10 animate-spin" />
                       <p className="text-sm font-medium">
@@ -730,7 +804,7 @@ export function ConsumeInventoryForm() {
                 </TableRow>
               ) : entries.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={15} className="h-64 text-center">
+                  <TableCell colSpan={16} className="h-64 text-center">
                     <div className="text-muted-foreground/50 flex flex-col items-center gap-4">
                       <Package className="h-16 w-16 opacity-20" />
                       <p className="text-base font-medium italic">
@@ -773,6 +847,9 @@ export function ConsumeInventoryForm() {
                     </TableCell>
                     <TableCell className="text-xs font-mono">
                       {entry["Document No."] || "—"}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground text-[10px] font-bold">
+                      {entry["Consumption Posting"] || "—"}
                     </TableCell>
                     <TableCell className="text-xs font-bold">
                       {entry["Lob Code"]}

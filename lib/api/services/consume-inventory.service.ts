@@ -35,6 +35,23 @@ export async function getConsumeInventoryEntries(userId: string): Promise<Consum
   return response.value || [];
 }
 
+export interface ConsumptionPostingSetup {
+  Item_No: string;
+  Posting_Group: string;
+  Name: string;
+}
+
+export async function getConsumptionPostingSetup(itemNo: string): Promise<ConsumptionPostingSetup[]> {
+  if (!itemNo) return [];
+  const encodedCompany = encodeURIComponent(COMPANY);
+  const filter = `Item_No eq '${itemNo.replace(/'/g, "''")}'`;
+  // Using exact format from curl command for reliability
+  const endpoint = `/ConsuPostingSetup?company='${encodedCompany}'&$filter=${encodeURIComponent(filter)}`;
+  
+  const response = await apiGet<ODataResponse<ConsumptionPostingSetup>>(endpoint);
+  return response.value || [];
+}
+
 function transformConsumeEntry(entry: Partial<ConsumeInventoryEntry>): Record<string, unknown> {
   const result: Record<string, unknown> = {
     Journal_Template_Name: "ITEM",
@@ -56,7 +73,7 @@ function transformConsumeEntry(entry: Partial<ConsumeInventoryEntry>): Record<st
     ShortcutDimCode7: "",
     ShortcutDimCode8: "",
     Consumption: true,
-    Consumption_Posting: "",
+    Consumption_Posting: entry["Consumption Posting"] || "",
     userID: (entry.UserID as string || "JOBQUEUE").toUpperCase(),
   };
 

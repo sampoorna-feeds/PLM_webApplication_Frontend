@@ -41,6 +41,7 @@ import {
 } from "@/components/ui/table";
 import {
   bulkInsertConsumeInventoryEntries,
+  deleteConsumeInventoryEntry,
   getConsumptionPostingSetup,
   getNextDocumentNo,
   postConsumeInventory,
@@ -75,9 +76,10 @@ export function ConsumeInventoryForm() {
   const [entries, setEntries] = useState<ConsumeInventoryEntry[]>([]);
   const [selectedIndices, setSelectedIndices] = useState<number[]>([]);
   const [isConfirmPostOpen, setIsConfirmPostOpen] = useState(false);
-  const [consumptionOptions, setConsumptionOptions] = useState<ConsumptionPostingSetup[]>([]);
+  const [consumptionOptions, setConsumptionOptions] = useState<
+    ConsumptionPostingSetup[]
+  >([]);
   const [fetchingOptions, setFetchingOptions] = useState(false);
-  const [fetchingDocNo, setFetchingDocNo] = useState(false);
   const [formState, setFormState] = useState<Partial<ConsumeInventoryEntry>>({
     "Posting Date": new Date().toISOString().split("T")[0],
     "Entry Type": "Issue",
@@ -119,7 +121,10 @@ export function ConsumeInventoryForm() {
           setConsumptionOptions(options);
           // If only one option, auto-select it
           if (options.length === 1) {
-            setFormState(prev => ({ ...prev, "Consumption Posting": options[0].Posting_Group }));
+            setFormState((prev) => ({
+              ...prev,
+              "Consumption Posting": options[0].Posting_Group,
+            }));
           }
         } catch (error) {
           console.error("Error fetching consumption options:", error);
@@ -132,25 +137,6 @@ export function ConsumeInventoryForm() {
     };
     fetchOptions();
   }, [formState["Item No."]]);
-
-  useEffect(() => {
-    const fetchDocNo = async () => {
-      const date = formState["Posting Date"];
-      if (date) {
-        setFetchingDocNo(true);
-        try {
-          const docNo = await getNextDocumentNo(date);
-          setFormState(prev => ({ ...prev, "Document No.": docNo }));
-        } catch (error) {
-          console.error("Error fetching document no:", error);
-        } finally {
-          setFetchingDocNo(false);
-        }
-      }
-    };
-    // Fetch only if it's currently empty or on date change
-    fetchDocNo();
-  }, [formState["Posting Date"]]);
 
   useEffect(() => {
     const fetchApplyToEntries = async () => {
@@ -219,17 +205,26 @@ export function ConsumeInventoryForm() {
 
   const handleChange = (field: keyof ConsumeInventoryEntry, value: any) => {
     setFormState((prev) => {
-      const newState = { ...prev, [field]: value };
+      const next = { ...prev, [field]: value };
+
+      // If Entry Type changes, clear incompatible application fields
+      if (field === "Entry Type") {
+        if (value === "Issue") {
+          next["Applies-from Entry"] = undefined;
+        } else if (value === "Return") {
+          next["Applies-to Entry"] = undefined;
+        }
+      }
 
       // Reset dependent fields
       if (field === "Lob Code") {
-        newState["Branch Code"] = "";
-        newState["Location Code"] = "";
+        next["Branch Code"] = "";
+        next["Location Code"] = "";
       } else if (field === "Branch Code") {
-        newState["Location Code"] = "";
+        next["Location Code"] = "";
       }
 
-      return newState;
+      return next;
     });
   };
 
@@ -311,23 +306,58 @@ export function ConsumeInventoryForm() {
     setSubmitting(true);
     try {
       const selectedEntries = selectedIndices.map((i) => entries[i]);
-      // Bulk insert selected entries first
-      await bulkInsertConsumeInventoryEntries(selectedEntries);
+      if (selectedEntries.length === 0) return;
 
-      // Then trigger the post API
-      const result = await postConsumeInventory(userID!);
-      toast.success(result || "Posted successfully");
+      const entriesWithDocNo: ConsumeInventoryEntry[] = [];
 
-      // Remove posted entries from state and local storage
-      const remainingEntries = entries.filter(
-        (_, i) => !selectedIndices.includes(i),
-      );
-      setEntries(remainingEntries);
-      setSelectedIndices([]);
-      localStorage.setItem(
-        `pending_consumption_entries_${userID}`,
-        JSON.stringify(remainingEntries),
-      );
+      // Fetch unique Doc No for each entry sequentially to ensure number series integrity
+      for (const entry of selectedEntries) {
+        const postingDate = entry["Posting Date"] || new Date().toISOString().split("T")[0];
+        try {
+          const generatedDocNo = await getNextDocumentNo(postingDate);
+          entriesWithDocNo.push({
+            ...entry,
+            "Document No.": generatedDocNo
+          });
+        } catch (error) {
+          console.error(`Error generating Doc No for item ${entry["Item No."]}:`, error);
+          throw new Error(`Failed to generate Document No for ${entry["Item No."]}`);
+        }
+      }
+
+      // Bulk insert selected entries with their unique Doc Nos
+      const createdEntries = await bulkInsertConsumeInventoryEntries(entriesWithDocNo);
+
+      try {
+        // Then trigger the post API
+        const result = await postConsumeInventory(userID!);
+        toast.success(result || "Posted successfully");
+
+        // Remove posted entries from state and local storage
+        const remainingEntries = entries.filter(
+          (_, i) => !selectedIndices.includes(i),
+        );
+        setEntries(remainingEntries);
+        setSelectedIndices([]);
+        localStorage.setItem(
+          `pending_consumption_entries_${userID}`,
+          JSON.stringify(remainingEntries),
+        );
+      } catch (postError: any) {
+        console.error("Posting failed, rolling back entries...", postError);
+        toast.error(`Posting failed: ${postError.message}. Rolling back...`);
+        
+        // Rollback: Delete the entries we just created
+        for (const entry of createdEntries) {
+          try {
+            await deleteConsumeInventoryEntry(entry);
+          } catch (delError) {
+            console.error(`Failed to delete entry Line_No ${entry.Line_No}:`, delError);
+          }
+        }
+        
+        throw postError; // Re-throw to be caught by outer catch
+      }
     } catch (error: any) {
       toast.error(error.message || "Failed to post");
     } finally {
@@ -390,25 +420,7 @@ export function ConsumeInventoryForm() {
                 onChange={(v) => handleChange("Posting Date", v)}
               />
             </div>
-            <div className="space-y-1">
-              <label className="text-muted-foreground ml-1 text-[11px] font-bold tracking-wider uppercase">
-                Document No.
-              </label>
-              <div className="relative">
-                <Input
-                  className="h-10 pr-10 font-mono font-medium shadow-sm focus:ring-1"
-                  value={formState["Document No."]}
-                  onChange={(e) => handleChange("Document No.", e.target.value)}
-                  placeholder="e.g. ISSUE/001"
-                  disabled={fetchingDocNo}
-                />
-                {fetchingDocNo && (
-                  <div className="absolute top-1/2 right-3 -translate-y-1/2">
-                    <Loader2 className="text-primary h-4 w-4 animate-spin" />
-                  </div>
-                )}
-              </div>
-            </div>
+
             <div className="space-y-1">
               <label className="text-muted-foreground ml-1 text-[11px] font-bold tracking-wider uppercase">
                 Entry Type
@@ -440,111 +452,6 @@ export function ConsumeInventoryForm() {
                   </button>
                 )}
               </div>
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-muted-foreground ml-1 text-[11px] font-bold tracking-wider uppercase">
-                Item Selection
-              </label>
-              <ItemSelect
-                value={formState["Item No."] || ""}
-                onChange={(v, item) => {
-                  setFormState((prev) => ({
-                    ...prev,
-                    "Item No.": v,
-                    Description: item?.Description || "",
-                    "Unit of Measure Code": item?.Base_Unit_of_Measure || "",
-                    "Applies-to Entry": undefined,
-                    "Applies-from Entry": undefined,
-                  }));
-                }}
-                className="h-10"
-                locationCode={formState["Location Code"]}
-              />
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-muted-foreground ml-1 text-[11px] font-bold tracking-wider uppercase">
-                Consumption Posting
-              </label>
-              <div className="group relative">
-                <Select
-                  value={formState["Consumption Posting"] || "none"}
-                  onValueChange={(v) => handleChange("Consumption Posting", v === "none" ? "" : v)}
-                  disabled={fetchingOptions}
-                >
-                  <SelectTrigger className="h-10 pr-8 shadow-sm focus:ring-1">
-                    <SelectValue 
-                      placeholder={
-                        fetchingOptions 
-                          ? "Loading..." 
-                          : !formState["Item No."] 
-                            ? "Select Item first" 
-                            : consumptionOptions.length === 0 
-                              ? "No options found" 
-                              : "Select Type"
-                      } 
-                    />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">None</SelectItem>
-                    {!formState["Item No."] && (
-                      <div className="text-muted-foreground px-2 py-4 text-center text-[10px] italic">
-                        Please select an item first
-                      </div>
-                    )}
-                    {consumptionOptions.map((opt, i) => (
-                      <SelectItem key={i} value={opt.Posting_Group}>
-                        <div className="flex flex-col">
-                          <span className="font-bold">{opt.Posting_Group}</span>
-                          <span className="text-muted-foreground text-[10px]">
-                            {opt.Name}
-                          </span>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {formState["Consumption Posting"] && (
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      handleChange("Consumption Posting", "");
-                    }}
-                    className="text-muted-foreground hover:text-foreground hover:bg-muted absolute top-1/2 right-11 -translate-y-1/2 rounded-full p-1 transition-colors"
-                  >
-                    <X className="h-3 w-3" />
-                  </button>
-                )}
-              </div>
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-muted-foreground ml-1 text-[11px] font-bold tracking-wider uppercase">
-                UOM
-              </label>
-              <Input
-                className="bg-muted/50 h-10 border-dashed font-medium"
-                value={formState["Unit of Measure Code"]}
-                disabled
-                placeholder="Auto-filled"
-              />
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-muted-foreground ml-1 text-[11px] font-bold tracking-wider uppercase">
-                Quantity
-              </label>
-              <Input
-                type="number"
-                className="text-primary h-10 font-mono text-lg font-bold shadow-sm focus:ring-1"
-                value={formState.Quantity}
-                onChange={(e) =>
-                  handleChange("Quantity", parseFloat(e.target.value) || 0)
-                }
-              />
             </div>
 
             <div className="space-y-1">
@@ -585,7 +492,7 @@ export function ConsumeInventoryForm() {
                 disabled={!formState["Lob Code"] || !formState["Branch Code"]}
                 placeholder={
                   !formState["Branch Code"]
-                    ? "Select Branch First"
+                    ? "Select Branch first"
                     : "Select Location"
                 }
               />
@@ -593,25 +500,97 @@ export function ConsumeInventoryForm() {
 
             <div className="space-y-1">
               <label className="text-muted-foreground ml-1 text-[11px] font-bold tracking-wider uppercase">
-                Employee
+                Item Selection
               </label>
-              <DimensionSelect
-                dimensionType="EMPLOYEE"
-                value={formState["Employee Code"] || ""}
-                onChange={(v) => handleChange("Employee Code", v)}
+              <ItemSelect
+                value={formState["Item No."] || ""}
+                onChange={(v, item) => {
+                  setFormState((prev) => ({
+                    ...prev,
+                    "Item No.": v,
+                    Description: item?.Description || "",
+                    "Unit of Measure Code": item?.Base_Unit_of_Measure || "",
+                    "Applies-to Entry": undefined,
+                    "Applies-from Entry": undefined,
+                  }));
+                }}
                 className="h-10"
+                locationCode={formState["Location Code"]}
               />
             </div>
+
             <div className="space-y-1">
               <label className="text-muted-foreground ml-1 text-[11px] font-bold tracking-wider uppercase">
-                Assignment
+                Quantity
               </label>
-              <DimensionSelect
-                dimensionType="ASSIGNMENT"
-                value={formState["Assignment Code"] || ""}
-                onChange={(v) => handleChange("Assignment Code", v)}
-                className="h-10"
+              <Input
+                type="number"
+                className="text-primary h-10 font-mono text-lg font-bold shadow-sm focus:ring-1"
+                value={formState.Quantity}
+                onChange={(e) =>
+                  handleChange("Quantity", parseFloat(e.target.value) || 0)
+                }
               />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-muted-foreground ml-1 text-[11px] font-bold tracking-wider uppercase">
+                Consumption Posting
+              </label>
+              <div className="group relative">
+                <Select
+                  value={formState["Consumption Posting"] || "none"}
+                  onValueChange={(v) =>
+                    handleChange("Consumption Posting", v === "none" ? "" : v)
+                  }
+                  disabled={fetchingOptions}
+                >
+                  <SelectTrigger className="h-10 pr-8 shadow-sm focus:ring-1">
+                    <SelectValue
+                      placeholder={
+                        fetchingOptions
+                          ? "Loading..."
+                          : !formState["Item No."]
+                            ? "Select Item first"
+                            : consumptionOptions.length === 0
+                              ? "No options found"
+                              : "Select Type"
+                      }
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">None</SelectItem>
+                    {!formState["Item No."] && (
+                      <div className="text-muted-foreground px-2 py-4 text-center text-[10px] italic">
+                        Please select an item first
+                      </div>
+                    )}
+                    {consumptionOptions.map((opt, i) => (
+                      <SelectItem key={i} value={opt.Posting_Group}>
+                        <div className="flex flex-col">
+                          <span className="font-bold">{opt.Posting_Group}</span>
+                          <span className="text-muted-foreground text-[10px]">
+                            {opt.Name}
+                          </span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {formState["Consumption Posting"] && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleChange("Consumption Posting", "");
+                    }}
+                    className="text-muted-foreground hover:text-foreground hover:bg-muted absolute top-1/2 right-11 -translate-y-1/2 rounded-full p-1 transition-colors"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                )}
+              </div>
             </div>
 
             <div className="space-y-1">
@@ -623,15 +602,19 @@ export function ConsumeInventoryForm() {
                   className="bg-muted/30 h-10 cursor-pointer border-dashed pr-10 font-medium"
                   value={formState["Applies-to Entry"] || ""}
                   placeholder={
-                    formState["Item No."]
-                      ? "Click to select"
-                      : "Select Item first"
+                    !formState["Item No."]
+                      ? "Select Item first"
+                      : formState["Entry Type"] !== "Issue"
+                        ? "Enabled for Issue only"
+                        : "Click to select"
                   }
                   readOnly
                   onClick={() =>
-                    formState["Item No."] && setIsApplyToModalOpen(true)
+                    formState["Item No."] && 
+                    formState["Entry Type"] === "Issue" && 
+                    setIsApplyToModalOpen(true)
                   }
-                  disabled={!formState["Item No."]}
+                  disabled={!formState["Item No."] || formState["Entry Type"] !== "Issue"}
                 />
                 <Button
                   type="button"
@@ -639,9 +622,11 @@ export function ConsumeInventoryForm() {
                   size="icon"
                   className="text-muted-foreground hover:text-primary absolute top-0 right-0 h-10 w-10"
                   onClick={() =>
-                    formState["Item No."] && setIsApplyToModalOpen(true)
+                    formState["Item No."] && 
+                    formState["Entry Type"] === "Issue" && 
+                    setIsApplyToModalOpen(true)
                   }
-                  disabled={!formState["Item No."]}
+                  disabled={!formState["Item No."] || formState["Entry Type"] !== "Issue"}
                 >
                   <Search className="h-4 w-4" />
                 </Button>
@@ -669,15 +654,19 @@ export function ConsumeInventoryForm() {
                   className="bg-muted/30 h-10 cursor-pointer border-dashed pr-10 font-medium"
                   value={formState["Applies-from Entry"] || ""}
                   placeholder={
-                    formState["Item No."]
-                      ? "Click to select"
-                      : "Select Item first"
+                    !formState["Item No."]
+                      ? "Select Item first"
+                      : formState["Entry Type"] !== "Return"
+                        ? "Enabled for Return only"
+                        : "Click to select"
                   }
                   readOnly
                   onClick={() =>
-                    formState["Item No."] && setIsApplyFromModalOpen(true)
+                    formState["Item No."] && 
+                    formState["Entry Type"] === "Return" && 
+                    setIsApplyFromModalOpen(true)
                   }
-                  disabled={!formState["Item No."]}
+                  disabled={!formState["Item No."] || formState["Entry Type"] !== "Return"}
                 />
                 <Button
                   type="button"
@@ -685,9 +674,11 @@ export function ConsumeInventoryForm() {
                   size="icon"
                   className="text-muted-foreground hover:text-primary absolute top-0 right-0 h-10 w-10"
                   onClick={() =>
-                    formState["Item No."] && setIsApplyFromModalOpen(true)
+                    formState["Item No."] && 
+                    formState["Entry Type"] === "Return" && 
+                    setIsApplyFromModalOpen(true)
                   }
-                  disabled={!formState["Item No."]}
+                  disabled={!formState["Item No."] || formState["Entry Type"] !== "Return"}
                 >
                   <Search className="h-4 w-4" />
                 </Button>
@@ -704,6 +695,41 @@ export function ConsumeInventoryForm() {
                   </button>
                 )}
               </div>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-muted-foreground ml-1 text-[11px] font-bold tracking-wider uppercase">
+                UOM
+              </label>
+              <Input
+                className="bg-muted/50 h-10 border-dashed font-medium"
+                value={formState["Unit of Measure Code"]}
+                disabled
+                placeholder="Auto-filled"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-muted-foreground ml-1 text-[11px] font-bold tracking-wider uppercase">
+                Employee
+              </label>
+              <DimensionSelect
+                dimensionType="EMPLOYEE"
+                value={formState["Employee Code"] || ""}
+                onChange={(v) => handleChange("Employee Code", v)}
+                className="h-10"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-muted-foreground ml-1 text-[11px] font-bold tracking-wider uppercase">
+                Assignment
+              </label>
+              <DimensionSelect
+                dimensionType="ASSIGNMENT"
+                value={formState["Assignment Code"] || ""}
+                onChange={(v) => handleChange("Assignment Code", v)}
+                className="h-10"
+              />
             </div>
           </div>
 
@@ -890,7 +916,7 @@ export function ConsumeInventoryForm() {
                         {entry["Entry Type"]}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-xs font-mono">
+                    <TableCell className="font-mono text-xs">
                       {entry["Document No."] || "—"}
                     </TableCell>
                     <TableCell className="text-muted-foreground text-[10px] font-bold">

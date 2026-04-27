@@ -1,4 +1,4 @@
-import { apiGet, apiPost } from "../client";
+import { apiDelete, apiGet, apiPost } from "../client";
 import { buildODataQuery } from "../endpoints";
 import type { ODataResponse } from "../types";
 
@@ -127,10 +127,21 @@ export async function createConsumeInventoryEntry(
  */
 export async function bulkInsertConsumeInventoryEntries(
   entries: Partial<ConsumeInventoryEntry>[],
-): Promise<void> {
+): Promise<ConsumeInventoryEntry[]> {
+  const created: ConsumeInventoryEntry[] = [];
   for (const entry of entries) {
-    await createConsumeInventoryEntry(entry);
+    created.push(await createConsumeInventoryEntry(entry));
   }
+  return created;
+}
+
+export async function deleteConsumeInventoryEntry(
+  entry: ConsumeInventoryEntry,
+): Promise<void> {
+  const encodedCompany = encodeURIComponent(COMPANY);
+  // Using the path-based format from the user's curl request for DELETE
+  const endpoint = `/company('${encodedCompany}')/ConsumeInventory(Journal_Template_Name='${entry.Journal_Template_Name}',Journal_Batch_Name='${entry.Journal_Batch_Name}',Line_No=${entry.Line_No})`;
+  await apiDelete(endpoint);
 }
 
 export async function postConsumeInventory(userId: string): Promise<string> {

@@ -9,9 +9,7 @@ import { apiGet, apiDelete, apiPost } from "../client";
 const COMPANY =
   process.env.NEXT_PUBLIC_API_COMPANY || "Sampoorna Feeds Pvt. Ltd";
 
-// Re-export shared types from the purchase service (same data shape)
 export type {
-  ItemChargeAssignment,
   ItemChargeSourceLine,
   PostItemChargeAssignmentPayload,
   SuggestAssignmentPayload,
@@ -19,12 +17,36 @@ export type {
 } from "./item-charge-assignment.service";
 
 import type {
-  ItemChargeAssignment,
   ItemChargeSourceLine,
   PagedResult,
   PostItemChargeAssignmentPayload,
   SuggestAssignmentPayload,
 } from "./item-charge-assignment.service";
+
+export interface SalesItemChargeAssignment {
+  "@odata.etag"?: string;
+  Document_Type: string;
+  Document_No: string;
+  Document_Line_No: number;
+  Line_No: number;
+  ItemChargeNo: string;
+  Applies_to_Doc_Type: string;
+  Applies_to_Doc_No_: string;
+  Applies_to_Doc_Line_No_: number;
+  Item_No_: string;
+  Description: string;
+  Qty_to_Assign: number;
+  Qty_to_Handle: number;
+  Qty_Assigned: number;
+  Amount_to_Assign: number;
+  Amount_to_Handle: number;
+  GrossWeight: number;
+  UnitVolume: number;
+  QtyToShipBase: number;
+  QtyShippedBase: number;
+  QtyToRetReceiveBase: number;
+  QtyRetReceivedBase: number;
+}
 
 export type SalesChargeSourceType =
   | "SalesShipment"
@@ -43,7 +65,6 @@ const SALES_GET_TYPE_MAP: Record<SalesChargeSourceType, string> = {
   Transfer: "GetTransferReceiptLine",
 };
 
-// Field used for item number varies by endpoint
 const ITEM_NO_FIELD_MAP: Record<SalesChargeSourceType, string> = {
   SalesShipment: "No",
   ReturnShipment: "No",
@@ -58,7 +79,7 @@ export const salesItemChargeAssignmentService = {
     itemChargeNo: string;
     skip?: number;
     top?: number;
-  }): Promise<PagedResult<ItemChargeAssignment>> {
+  }): Promise<PagedResult<SalesItemChargeAssignment>> {
     const { skip = 0, top = 200 } = filters;
     const filter = `Document_Type eq '${filters.docType}' and Document_No eq '${filters.docNo}' and Document_Line_No eq ${filters.docLineNo} and ItemChargeNo eq '${filters.itemChargeNo}'`;
     const endpoint =
@@ -68,7 +89,7 @@ export const salesItemChargeAssignmentService = {
       `&$top=${top}` +
       `&$skip=${skip}`;
     const response = await apiGet<{
-      value: ItemChargeAssignment[];
+      value: SalesItemChargeAssignment[];
       "@odata.count"?: number;
     }>(endpoint);
     return {
@@ -96,7 +117,9 @@ export const salesItemChargeAssignmentService = {
     if (extraFilters?.length) filters.push(...extraFilters);
     if (search) {
       const s = search.replace(/'/g, "''");
-      filters.push(`contains(Document_No,'${s}')`);
+      filters.push(
+        `(contains(Document_No,'${s}') or contains(${itemNoField},'${s}'))`,
+      );
     }
 
     const filterStr =
@@ -125,7 +148,6 @@ export const salesItemChargeAssignmentService = {
   async postAssignment(
     payload: Omit<PostItemChargeAssignmentPayload, "assignmentType">,
   ): Promise<void> {
-    // Same endpoint, but assignmentType should be "Sale"
     const endpoint = `/API_PostItemChargeAssignment?company='${encodeURIComponent(COMPANY)}'`;
     await apiPost(endpoint, { ...payload, assignmentType: "Sale" });
   },
@@ -139,7 +161,7 @@ export const salesItemChargeAssignmentService = {
     await apiPost(endpoint, payload);
   },
 
-  async deleteAssignment(assignment: ItemChargeAssignment): Promise<void> {
+  async deleteAssignment(assignment: SalesItemChargeAssignment): Promise<void> {
     const filter = `Document_Type='${assignment.Document_Type}',Document_No='${assignment.Document_No}',Document_Line_No=${assignment.Document_Line_No},Line_No=${assignment.Line_No}`;
     const endpoint = `/ItemChargeAssignmentSales(${filter})?company='${encodeURIComponent(COMPANY)}'`;
     await apiDelete(endpoint);

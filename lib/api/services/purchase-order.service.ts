@@ -48,6 +48,7 @@ export interface PurchaseOrderData {
   appliesToDocType?: string;
   appliesToDocNo?: string;
   vendorAuthorizationNo?: string;
+  no?: string;
 }
 
 export interface PurchaseOrderLineItem {
@@ -90,6 +91,18 @@ const COMPANY =
   process.env.NEXT_PUBLIC_API_COMPANY || "Sampoorna Feeds Pvt. Ltd";
 
 /**
+ * Fetch the next document number for a service-type purchase order.
+ */
+export async function createNoSeriesForPO(postingDate: string): Promise<string> {
+  const endpoint = `/API_CreateNoSeriesForVouchers?company='${encodeURIComponent(COMPANY)}'`;
+  const response = await apiPost<{ value: string }>(endpoint, {
+    seriesCode: "POS",
+    postingDate,
+  });
+  return response.value;
+}
+
+/**
  * Create a new purchase order
  * Returns the order ID and order number. API returns document number as "No".
  */
@@ -115,6 +128,10 @@ export async function createPurchaseOrder(
       includeAppliesToFields: true,
       stripEmpty: true,
     });
+
+    if (orderData.no) {
+      filteredPayload.No = orderData.no;
+    }
 
     console.log("[PO Create] Endpoint:", endpoint);
     console.log(

@@ -150,6 +150,7 @@ import { patchPurchaseDocumentLineByKey } from "@/lib/api/services/purchase-docu
 import { updatePurchaseLine } from "@/lib/api/services/purchase-orders.service";
 import {
   createPurchaseOrder,
+  createNoSeriesForPO,
   addPurchaseOrderLineItems,
   addSinglePurchaseOrderLine,
   updateSinglePurchaseOrderLine,
@@ -699,8 +700,7 @@ export function PurchaseCreateDocumentFormContent({
   const handleInputChange = (field: string, value: string) => {
     if (isReadOnlyMode) return;
 
-    const newData = { ...formData, [field]: value };
-    setFormData(newData);
+    setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
   // Vendor change handler — also fetches GST / PAN and resets order address
@@ -788,7 +788,12 @@ export function PurchaseCreateDocumentFormContent({
 
     setIsCreatingHeader(true);
     try {
-      const orderResponse = await config.createHeader(buildOrderData());
+      const baseData = buildOrderData();
+      if (documentType === "order" && formData.poType === "Service") {
+        const no = await createNoSeriesForPO(formData.orderDate);
+        baseData.no = no;
+      }
+      const orderResponse = await config.createHeader(baseData);
       const orderNo = orderResponse.orderNo || orderResponse.orderId;
 
       if (!orderNo) {
@@ -1840,8 +1845,8 @@ export function PurchaseCreateDocumentFormContent({
                           onChange={(e) =>
                             handleInputChange("orderDate", e.target.value)
                           }
-                          disabled
-                          className="bg-muted h-8 text-xs"
+                          disabled={formData.poType !== "Service"}
+                          className={cn("h-8 text-xs", formData.poType !== "Service" && "bg-muted")}
                         />
                       </div>
                     )}

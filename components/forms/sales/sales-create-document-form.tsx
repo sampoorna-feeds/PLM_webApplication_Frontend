@@ -1600,9 +1600,6 @@ export function SalesCreateDocumentFormContent({
                         lrRrDate: initialDate,
                       }));
                       setIsPostDetailsOpen(true);
-                    } else if (documentType === "invoice") {
-                      setPostOption("2");
-                      handleDirectInvoicePost();
                     } else {
                       setPostOption(null);
                       setIsPostDialogOpen(true);

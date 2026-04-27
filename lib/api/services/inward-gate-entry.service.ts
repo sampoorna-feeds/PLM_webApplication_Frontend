@@ -12,7 +12,7 @@ export interface InwardGateEntryHeader {
   Entry_Type: string;
   No: string;
   Location_Code: string;
-  Station_From: string;
+  Station_From_To: string;
   Description: string;
   Item_Description: string;
   Document_Date: string;
@@ -72,10 +72,9 @@ export async function createInwardGateEntryHeader(data: Partial<InwardGateEntryH
   return apiPost<InwardGateEntryHeader>(endpoint, data);
 }
 
-export async function updateInwardGateEntryHeader(id: string, data: Partial<InwardGateEntryHeader>): Promise<InwardGateEntryHeader> {
+export async function updateInwardGateEntryHeader(gateEntryNo: string, entryType: string, data: Partial<InwardGateEntryHeader>): Promise<InwardGateEntryHeader> {
   const encodedCompany = encodeURIComponent(COMPANY);
-  // Using the identifier in the URL. If it contains '/', it's likely a No. which needs escaping.
-  const endpoint = `/InwardGateEntry(No='${id.replace(/'/g, "''")}')?company='${encodedCompany}'`;
+  const endpoint = `/Company('${encodedCompany}')/InwardGateEntry(Entry_Type='${entryType}',No='${gateEntryNo.replace(/'/g, "''")}')`;
   return apiPatch<InwardGateEntryHeader>(endpoint, data);
 }
 

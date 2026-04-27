@@ -36,12 +36,12 @@ export function InwardGateEntryForm({ tabId, context }: InwardGateEntryFormProps
   const [entry, setEntry] = useState<Partial<InwardGateEntryHeader>>(initialEntry || {
     Entry_Type: "Inward",
     Document_Date: new Date().toISOString().split("T")[0],
-    Document_Time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }),
-    Station_From: "",
+    Document_Time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }),
+    Station_From_To: "",
     Description: "",
     Item_Description: "",
     Posting_Date: new Date().toISOString().split("T")[0],
-    Posting_Time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }),
+    Posting_Time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }),
     LR_RR_No: "",
     LR_RR_Date: new Date().toISOString().split("T")[0],
     Vehicle_No: "",
@@ -108,8 +108,31 @@ export function InwardGateEntryForm({ tabId, context }: InwardGateEntryFormProps
   async function handleSave() {
     setIsSaving(true);
     try {
+      // Clean payload: remove empty strings, Net_Weight, and Posting_No_Series
+      // For updates (PATCH), only send modified fields
+      const cleanPayload = Object.entries(entry).reduce((acc, [key, value]) => {
+        // Exclusions
+        if (key === "Net_Weight" || key === "Posting_No_Series" || key === "@odata.etag" || key === "id") return acc;
+        if (value === "" || value === undefined || value === null) return acc;
+        
+        // Dirty tracking for updates
+        if (mode !== "create") {
+          const initialValue = initialEntry?.[key as keyof InwardGateEntryHeader];
+          if (value === initialValue) return acc;
+        }
+
+        // Ensure time fields have :00 if they only have HH:mm
+        let processedValue = value;
+        if ((key === "Document_Time" || key === "Posting_Time") && typeof processedValue === "string") {
+          if (processedValue.length === 5) processedValue = `${processedValue}:00`;
+        }
+        
+        acc[key] = processedValue;
+        return acc;
+      }, {} as any);
+
       if (mode === "create") {
-        const result = await createInwardGateEntryHeader(entry);
+        const result = await createInwardGateEntryHeader(cleanPayload);
         toast.success(`Gate Entry ${result.No} created successfully`);
         setEntry(result);
         
@@ -125,8 +148,17 @@ export function InwardGateEntryForm({ tabId, context }: InwardGateEntryFormProps
         onRefetch?.();
       } else {
         const identifier = entry.No;
+        const entryType = entry.Entry_Type || "Inward";
         if (!identifier) throw new Error("Document No. is missing");
-        const result = await updateInwardGateEntryHeader(identifier, entry);
+        
+        // If no fields changed, just mark as saved and return
+        if (Object.keys(cleanPayload).length === 0) {
+          toast.info("No changes to update");
+          markAsSaved();
+          return;
+        }
+
+        const result = await updateInwardGateEntryHeader(identifier, entryType, cleanPayload);
         toast.success(`Gate Entry ${result.No} updated successfully`);
         setEntry(result);
         
@@ -250,14 +282,16 @@ export function InwardGateEntryForm({ tabId, context }: InwardGateEntryFormProps
         {/* General Section */}
         <section className="rounded-md border p-4 space-y-4">
           <div className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8">
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-bold tracking-wider uppercase">No.</label>
-              <Input
-                value={entry.No || ""}
-                onChange={(e) => handleInputChange("No", e.target.value)}
-                className="h-8 text-xs"
-              />
-            </div>
+            {mode !== "create" && (
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold tracking-wider uppercase">No.</label>
+                <Input
+                  value={entry.No || ""}
+                  onChange={(e) => handleInputChange("No", e.target.value)}
+                  className="h-8 text-xs"
+                />
+              </div>
+            )}
 
             <div className="space-y-1.5">
               <label className="text-[10px] font-bold tracking-wider uppercase">Location Code</label>
@@ -268,10 +302,10 @@ export function InwardGateEntryForm({ tabId, context }: InwardGateEntryFormProps
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-[10px] font-bold tracking-wider uppercase">Station From</label>
+              <label className="text-[10px] font-bold tracking-wider uppercase">Station From/To</label>
               <Input
-                value={entry.Station_From || ""}
-                onChange={(e) => handleInputChange("Station_From", e.target.value)}
+                value={entry.Station_From_To || ""}
+                onChange={(e) => handleInputChange("Station_From_To", e.target.value)}
                 className="h-8 text-xs"
               />
             </div>
@@ -338,14 +372,16 @@ export function InwardGateEntryForm({ tabId, context }: InwardGateEntryFormProps
               />
             </div>
 
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-bold tracking-wider uppercase">Posting No. Series</label>
-              <Input
-                value={entry.Posting_No_Series || ""}
-                onChange={(e) => handleInputChange("Posting_No_Series", e.target.value)}
-                className="h-8 text-xs"
-              />
-            </div>
+            {mode !== "create" && (
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold tracking-wider uppercase">Posting No. Series</label>
+                <Input
+                  value={entry.Posting_No_Series || ""}
+                  onChange={(e) => handleInputChange("Posting_No_Series", e.target.value)}
+                  className="h-8 text-xs"
+                />
+              </div>
+            )}
 
             <div className="space-y-1.5">
               <label className="text-[10px] font-bold tracking-wider uppercase">Gross Weight</label>

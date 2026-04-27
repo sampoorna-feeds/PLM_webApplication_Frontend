@@ -29,57 +29,51 @@ export async function getConsumeInventoryEntries(userId: string): Promise<Consum
   const encodedCompany = encodeURIComponent(COMPANY);
   const filter = `UserID eq '${userId.replace(/'/g, "''")}'`;
   const query = buildODataQuery({ $filter: filter });
-  const endpoint = `/company('${encodedCompany}')/ConsumeInventory?${query}`;
+  const endpoint = `/ConsumeInventory?company='${encodedCompany}'&${query}`;
   
   const response = await apiGet<ODataResponse<ConsumeInventoryEntry>>(endpoint);
   return response.value || [];
 }
 
-/**
- * Transforms an entry according to specific rules:
- * 1. Remove empty fields
- * 2. Remove "Description"
- * 3. Ensure "Quantity" field is after "Item No." field
- */
 function transformConsumeEntry(entry: Partial<ConsumeInventoryEntry>): Record<string, unknown> {
-  const result: Record<string, unknown> = {};
-  
-  // 1. Filter out empty fields and Description
-  const validEntries = Object.entries(entry).filter(([key, value]) => 
-    key !== "Description" && 
-    value !== undefined && 
-    value !== null && 
-    value !== ""
+  const result: Record<string, unknown> = {
+    Journal_Template_Name: "ITEM",
+    Journal_Batch_Name: "WEBAPP",
+    Posting_Date: entry["Posting Date"] || "",
+    EntryType: entry["Entry Type"] || "Issue",
+    Document_No: entry["Document No."] || "",
+    Item_No: entry["Item No."] || "",
+    Location_Code: entry["Location Code"] || "",
+    Quantity: entry.Quantity || 0,
+    Applies_to_Entry: entry["Applies-to Entry"] || 0,
+    Applies_from_Entry: entry["Applies-from Entry"] || 0,
+    Shortcut_Dimension_1_Code: entry["Lob Code"] || "",
+    Shortcut_Dimension_2_Code: entry["Branch Code"] || "",
+    ShortcutDimCode3: entry["Location Code"] || "",
+    ShortcutDimCode4: entry["Employee Code"] || "",
+    ShortcutDimCode5: entry["Assignment Code"] || "",
+    ShortcutDimCode6: "",
+    ShortcutDimCode7: "",
+    ShortcutDimCode8: "",
+    Consumption: true,
+    Consumption_Posting: "",
+    userID: (entry.UserID as string || "JOBQUEUE").toUpperCase(),
+  };
+
+  // Remove any fields that are undefined, null, or empty string (except for required fixed ones)
+  return Object.fromEntries(
+    Object.entries(result).filter(([key, value]) => {
+      // Keep required fixed values even if empty-ish
+      const required = ["Consumption", "Quantity", "Applies_to_Entry", "Applies_from_Entry"];
+      if (required.includes(key)) return true;
+      return value !== undefined && value !== null && value !== "";
+    })
   );
-
-  // 2. Identify Item No. and Quantity for specific placement
-  const itemNo = entry["Item No."];
-  const quantity = entry["Quantity"];
-
-  // 3. Add fields in order: [others..., Item No., Quantity, others...]
-  // We'll add all fields except Quantity first, then insert Quantity after Item No.
-  validEntries.forEach(([key, value]) => {
-    if (key !== "Quantity") {
-      result[key] = value;
-      
-      // If we just added Item No., add Quantity immediately after it
-      if (key === "Item No." && quantity !== undefined && quantity !== null) {
-        result["Quantity"] = quantity;
-      }
-    }
-  });
-
-  // 4. If Quantity wasn't added (because Item No. was missing or filtered), add it at the end
-  if (result["Quantity"] === undefined && quantity !== undefined && quantity !== null) {
-    result["Quantity"] = quantity;
-  }
-
-  return result;
 }
 
 export async function createConsumeInventoryEntry(data: Partial<ConsumeInventoryEntry>): Promise<ConsumeInventoryEntry> {
   const encodedCompany = encodeURIComponent(COMPANY);
-  const endpoint = `/company('${encodedCompany}')/ConsumeInventory`;
+  const endpoint = `/ConsumeInventory?company='${encodedCompany}'`;
   const transformedData = transformConsumeEntry(data);
   return apiPost<ConsumeInventoryEntry>(endpoint, transformedData);
 }
@@ -95,7 +89,7 @@ export async function bulkInsertConsumeInventoryEntries(entries: Partial<Consume
 
 export async function postConsumeInventory(userId: string): Promise<string> {
   const encodedCompany = encodeURIComponent(COMPANY);
-  const endpoint = `/company('${encodedCompany}')/API_PostConsumeInventory`;
-  const response = await apiPost<{ value: string }>(endpoint, { UserID: userId });
+  const endpoint = `/API_PostConsumeInventory?company='${encodedCompany}'`;
+  const response = await apiPost<{ value: string }>(endpoint, { userID: userId.toUpperCase() });
   return response.value;
 }

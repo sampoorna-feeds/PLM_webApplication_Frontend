@@ -331,7 +331,7 @@ export function ConsumeInventoryForm() {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-3 lg:grid-cols-6">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-3 lg:grid-cols-7">
             <div className="space-y-1">
               <label className="text-muted-foreground ml-1 text-[11px] font-bold tracking-wider uppercase">
                 Posting Date
@@ -339,6 +339,17 @@ export function ConsumeInventoryForm() {
               <DateInput
                 value={formState["Posting Date"]}
                 onChange={(v) => handleChange("Posting Date", v)}
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-muted-foreground ml-1 text-[11px] font-bold tracking-wider uppercase">
+                Document No.
+              </label>
+              <Input
+                className="h-10 font-mono font-medium shadow-sm focus:ring-1"
+                value={formState["Document No."]}
+                onChange={(e) => handleChange("Document No.", e.target.value)}
+                placeholder="e.g. ISSUE/001"
               />
             </div>
             <div className="space-y-1">
@@ -668,6 +679,9 @@ export function ConsumeInventoryForm() {
                   Type
                 </TableHead>
                 <TableHead className="py-4 text-xs font-bold tracking-wider uppercase">
+                  Doc No.
+                </TableHead>
+                <TableHead className="py-4 text-xs font-bold tracking-wider uppercase">
                   LOB
                 </TableHead>
                 <TableHead className="py-4 text-xs font-bold tracking-wider uppercase">
@@ -705,7 +719,7 @@ export function ConsumeInventoryForm() {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={14} className="h-64 text-center">
+                  <TableCell colSpan={15} className="h-64 text-center">
                     <div className="text-muted-foreground flex flex-col items-center gap-3">
                       <Loader2 className="text-primary/40 h-10 w-10 animate-spin" />
                       <p className="text-sm font-medium">
@@ -716,7 +730,7 @@ export function ConsumeInventoryForm() {
                 </TableRow>
               ) : entries.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={14} className="h-64 text-center">
+                  <TableCell colSpan={15} className="h-64 text-center">
                     <div className="text-muted-foreground/50 flex flex-col items-center gap-4">
                       <Package className="h-16 w-16 opacity-20" />
                       <p className="text-base font-medium italic">
@@ -756,6 +770,9 @@ export function ConsumeInventoryForm() {
                       >
                         {entry["Entry Type"]}
                       </Badge>
+                    </TableCell>
+                    <TableCell className="text-xs font-mono">
+                      {entry["Document No."] || "—"}
                     </TableCell>
                     <TableCell className="text-xs font-bold">
                       {entry["Lob Code"]}

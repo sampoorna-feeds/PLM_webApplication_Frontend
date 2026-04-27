@@ -108,8 +108,16 @@ export function InwardGateEntryForm({ tabId, context }: InwardGateEntryFormProps
   async function handleSave() {
     setIsSaving(true);
     try {
+      // Clean payload: remove empty strings, Net_Weight, and Posting_No_Series
+      const cleanPayload = Object.entries(entry).reduce((acc, [key, value]) => {
+        if (key === "Net_Weight" || key === "Posting_No_Series") return acc;
+        if (value === "" || value === undefined || value === null) return acc;
+        acc[key] = value;
+        return acc;
+      }, {} as any);
+
       if (mode === "create") {
-        const result = await createInwardGateEntryHeader(entry);
+        const result = await createInwardGateEntryHeader(cleanPayload);
         toast.success(`Gate Entry ${result.No} created successfully`);
         setEntry(result);
         
@@ -126,7 +134,7 @@ export function InwardGateEntryForm({ tabId, context }: InwardGateEntryFormProps
       } else {
         const identifier = entry.No;
         if (!identifier) throw new Error("Document No. is missing");
-        const result = await updateInwardGateEntryHeader(identifier, entry);
+        const result = await updateInwardGateEntryHeader(identifier, cleanPayload);
         toast.success(`Gate Entry ${result.No} updated successfully`);
         setEntry(result);
         
@@ -250,14 +258,16 @@ export function InwardGateEntryForm({ tabId, context }: InwardGateEntryFormProps
         {/* General Section */}
         <section className="rounded-md border p-4 space-y-4">
           <div className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8">
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-bold tracking-wider uppercase">No.</label>
-              <Input
-                value={entry.No || ""}
-                onChange={(e) => handleInputChange("No", e.target.value)}
-                className="h-8 text-xs"
-              />
-            </div>
+            {mode !== "create" && (
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold tracking-wider uppercase">No.</label>
+                <Input
+                  value={entry.No || ""}
+                  onChange={(e) => handleInputChange("No", e.target.value)}
+                  className="h-8 text-xs"
+                />
+              </div>
+            )}
 
             <div className="space-y-1.5">
               <label className="text-[10px] font-bold tracking-wider uppercase">Location Code</label>
@@ -338,14 +348,16 @@ export function InwardGateEntryForm({ tabId, context }: InwardGateEntryFormProps
               />
             </div>
 
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-bold tracking-wider uppercase">Posting No. Series</label>
-              <Input
-                value={entry.Posting_No_Series || ""}
-                onChange={(e) => handleInputChange("Posting_No_Series", e.target.value)}
-                className="h-8 text-xs"
-              />
-            </div>
+            {mode !== "create" && (
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold tracking-wider uppercase">Posting No. Series</label>
+                <Input
+                  value={entry.Posting_No_Series || ""}
+                  onChange={(e) => handleInputChange("Posting_No_Series", e.target.value)}
+                  className="h-8 text-xs"
+                />
+              </div>
+            )}
 
             <div className="space-y-1.5">
               <label className="text-[10px] font-bold tracking-wider uppercase">Gross Weight</label>

@@ -13,6 +13,8 @@ import { loginUser } from "@/lib/api/services/auth.service";
 import { setAuthCredentials, getRememberedUsername } from "@/lib/auth/storage";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
+import { FirstLoginModal } from "@/components/modals/first-login-modal";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { cn } from "@/lib/utils";
@@ -56,6 +58,10 @@ export function LoginForm({
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showFirstLoginModal, setShowFirstLoginModal] = useState(false);
+  const [pendingLoginData, setPendingLoginData] = useState<LoginFormState | null>(
+    null,
+  );
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -90,6 +96,13 @@ export function LoginForm({
       const response = await loginUser(formData.username, formData.password);
 
       // Check if login was successful (ERP returns "OK" in value field)
+      if (response.value === "First Login") {
+        setPendingLoginData(formData);
+        setShowFirstLoginModal(true);
+        setIsSubmitting(false);
+        return;
+      }
+
       if (response.value !== "OK") {
         setError(
           "Invalid credentials. Please check your username and password.",
@@ -131,6 +144,13 @@ export function LoginForm({
       }
       setIsSubmitting(false);
     }
+  };
+
+  const handleResetSuccess = async (newPassword: string) => {
+    // We don't auto-login anymore, just clear state so user can login with new password
+    setShowFirstLoginModal(false);
+    setPendingLoginData(null);
+    setFormData((prev) => ({ ...prev, password: "" })); // Clear password field
   };
 
   const updateField = (
@@ -181,9 +201,8 @@ export function LoginForm({
           <div className="flex items-center">
             <FieldLabel htmlFor="password">Password</FieldLabel>
           </div>
-          <Input
+          <PasswordInput
             id="password"
-            type="password"
             value={formData.password}
             onChange={(e) => updateField("password", e.target.value)}
             placeholder="Enter password"
@@ -227,6 +246,16 @@ export function LoginForm({
           </Button>
         </Field>
       </FieldGroup>
+
+      {pendingLoginData && (
+        <FirstLoginModal
+          isOpen={showFirstLoginModal}
+          onClose={() => setShowFirstLoginModal(false)}
+          onSuccess={handleResetSuccess}
+          userID={pendingLoginData.username}
+          oldPassword={pendingLoginData.password}
+        />
+      )}
     </form>
   );
 }

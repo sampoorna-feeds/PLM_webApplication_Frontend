@@ -78,6 +78,24 @@ export async function updateInwardGateEntryHeader(gateEntryNo: string, entryType
   return apiPatch<InwardGateEntryHeader>(endpoint, data);
 }
 
+export async function createInwardGateEntryLine(data: Partial<InwardGateEntryLine>): Promise<InwardGateEntryLine> {
+  const encodedCompany = encodeURIComponent(COMPANY);
+  const endpoint = `/InwardGateEntrySubForm?company='${encodedCompany}'`;
+  return apiPost<InwardGateEntryLine>(endpoint, data);
+}
+
+export async function updateInwardGateEntryLine(gateEntryNo: string, entryType: string, lineNo: number, data: Partial<InwardGateEntryLine>): Promise<InwardGateEntryLine> {
+  const encodedCompany = encodeURIComponent(COMPANY);
+  const endpoint = `/InwardGateEntrySubForm(Entry_Type='${entryType}',Gate_Entry_No='${gateEntryNo.replace(/'/g, "''")}',Line_No=${lineNo})?company='${encodedCompany}'`;
+  return apiPatch<InwardGateEntryLine>(endpoint, data);
+}
+
+export async function deleteInwardGateEntryLine(gateEntryNo: string, entryType: string, lineNo: number): Promise<void> {
+  const encodedCompany = encodeURIComponent(COMPANY);
+  const endpoint = `/InwardGateEntrySubForm(Entry_Type='${entryType}',Gate_Entry_No='${gateEntryNo.replace(/'/g, "''")}',Line_No=${lineNo})?company='${encodedCompany}'`;
+  await apiDelete(endpoint);
+}
+
 export async function deleteInwardGateEntryHeader(id: string): Promise<void> {
   const encodedCompany = encodeURIComponent(COMPANY);
   const endpoint = `/InwardGateEntry(id='${id}')?company='${encodedCompany}'`;

@@ -431,11 +431,12 @@ export function ConsumeInventoryForm() {
                     type="button"
                     onClick={(e) => {
                       e.preventDefault();
+                      e.stopPropagation();
                       handleChange("Entry Type", "");
                     }}
-                    className="text-muted-foreground hover:text-foreground absolute top-1/2 right-7 -translate-y-1/2 p-1 opacity-0 transition-opacity group-hover:opacity-100"
+                    className="text-muted-foreground hover:text-foreground hover:bg-muted absolute top-1/2 right-11 -translate-y-1/2 rounded-full p-1 transition-colors"
                   >
-                    <X className="h-3.5 w-3.5" />
+                    <X className="h-3 w-3" />
                   </button>
                 )}
               </div>
@@ -466,43 +467,58 @@ export function ConsumeInventoryForm() {
               <label className="text-muted-foreground ml-1 text-[11px] font-bold tracking-wider uppercase">
                 Consumption Posting
               </label>
-              <Select
-                value={formState["Consumption Posting"] || "none"}
-                onValueChange={(v) => handleChange("Consumption Posting", v === "none" ? "" : v)}
-                disabled={fetchingOptions}
-              >
-                <SelectTrigger className="h-10 shadow-sm focus:ring-1">
-                  <SelectValue 
-                    placeholder={
-                      fetchingOptions 
-                        ? "Loading..." 
-                        : !formState["Item No."] 
-                          ? "Select Item first" 
-                          : consumptionOptions.length === 0 
-                            ? "No options found" 
-                            : "Select Type"
-                    } 
-                  />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">None</SelectItem>
-                  {!formState["Item No."] && (
-                    <div className="text-muted-foreground px-2 py-4 text-center text-[10px] italic">
-                      Please select an item first
-                    </div>
-                  )}
-                  {consumptionOptions.map((opt, i) => (
-                    <SelectItem key={i} value={opt.Posting_Group}>
-                      <div className="flex flex-col">
-                        <span className="font-bold">{opt.Posting_Group}</span>
-                        <span className="text-muted-foreground text-[10px]">
-                          {opt.Name}
-                        </span>
+              <div className="group relative">
+                <Select
+                  value={formState["Consumption Posting"] || "none"}
+                  onValueChange={(v) => handleChange("Consumption Posting", v === "none" ? "" : v)}
+                  disabled={fetchingOptions}
+                >
+                  <SelectTrigger className="h-10 pr-8 shadow-sm focus:ring-1">
+                    <SelectValue 
+                      placeholder={
+                        fetchingOptions 
+                          ? "Loading..." 
+                          : !formState["Item No."] 
+                            ? "Select Item first" 
+                            : consumptionOptions.length === 0 
+                              ? "No options found" 
+                              : "Select Type"
+                      } 
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">None</SelectItem>
+                    {!formState["Item No."] && (
+                      <div className="text-muted-foreground px-2 py-4 text-center text-[10px] italic">
+                        Please select an item first
                       </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                    )}
+                    {consumptionOptions.map((opt, i) => (
+                      <SelectItem key={i} value={opt.Posting_Group}>
+                        <div className="flex flex-col">
+                          <span className="font-bold">{opt.Posting_Group}</span>
+                          <span className="text-muted-foreground text-[10px]">
+                            {opt.Name}
+                          </span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {formState["Consumption Posting"] && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleChange("Consumption Posting", "");
+                    }}
+                    className="text-muted-foreground hover:text-foreground hover:bg-muted absolute top-1/2 right-11 -translate-y-1/2 rounded-full p-1 transition-colors"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                )}
+              </div>
             </div>
 
             <div className="space-y-1">

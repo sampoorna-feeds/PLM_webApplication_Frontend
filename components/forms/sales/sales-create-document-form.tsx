@@ -1260,6 +1260,18 @@ export function SalesCreateDocumentFormContent({
               type="date"
               value={formData.postingDate}
               onChange={(e) => handleInputChange("postingDate", e.target.value)}
+              min={
+                webUserProfile?.Allow_Posting_From &&
+                webUserProfile.Allow_Posting_From !== "0001-01-01"
+                  ? webUserProfile.Allow_Posting_From.split("T")[0]
+                  : undefined
+              }
+              max={
+                webUserProfile?.Allow_Posting_To &&
+                webUserProfile.Allow_Posting_To !== "0001-01-01"
+                  ? webUserProfile.Allow_Posting_To.split("T")[0]
+                  : undefined
+              }
               className="h-8"
             />
           </ClearableField>
@@ -1276,6 +1288,18 @@ export function SalesCreateDocumentFormContent({
               value={formData.documentDate}
               onChange={(e) =>
                 handleInputChange("documentDate", e.target.value)
+              }
+              min={
+                webUserProfile?.Allow_Posting_From &&
+                webUserProfile.Allow_Posting_From !== "0001-01-01"
+                  ? webUserProfile.Allow_Posting_From.split("T")[0]
+                  : undefined
+              }
+              max={
+                webUserProfile?.Allow_Posting_To &&
+                webUserProfile.Allow_Posting_To !== "0001-01-01"
+                  ? webUserProfile.Allow_Posting_To.split("T")[0]
+                  : undefined
               }
               className="h-8"
             />

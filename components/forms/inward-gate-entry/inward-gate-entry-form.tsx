@@ -26,6 +26,7 @@ import {
   type InwardGateEntryLine,
   type InwardGateEntrySourceType,
 } from "@/lib/api/services/inward-gate-entry.service";
+import { getWebUser, type WebUser } from "@/lib/api/services/web-user.service";
 import { useFormStack } from "@/lib/form-stack/use-form-stack";
 import { cn } from "@/lib/utils";
 import {
@@ -44,6 +45,7 @@ import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { SourceLookupModal } from "./source-lookup-modal";
 import { LineEntryModal } from "./line-entry-modal";
+import { getAuthCredentials } from "@/lib/auth/storage";
 
 interface InwardGateEntryFormProps {
   tabId: string;
@@ -91,6 +93,8 @@ export function InwardGateEntryForm({
     },
   );
 
+  const [webUserProfile, setWebUserProfile] = useState<WebUser | null>(null);
+
   const [lines, setLines] = useState<InwardGateEntryLine[]>([]);
   const [isLoadingLines, setIsLoadingLines] = useState(false);
   const [isPosting, setIsPosting] = useState(false);
@@ -119,6 +123,41 @@ export function InwardGateEntryForm({
       setIsLoadingLines(false);
     }
   }, [initialEntry?.No, initialEntry?.Entry_Type]);
+
+  useEffect(() => {
+    const creds = getAuthCredentials();
+    if (creds?.userID) {
+      getWebUser(creds.userID).then(setWebUserProfile).catch(console.error);
+    }
+  }, []);
+
+  // Update default dates once profile is loaded (only for create mode)
+  useEffect(() => {
+    if (mode === "create" && webUserProfile) {
+      const today = new Date().toISOString().split("T")[0];
+      const from = webUserProfile.Allow_Posting_From?.split("T")[0];
+      const to = webUserProfile.Allow_Posting_To?.split("T")[0];
+      const isAfterFrom = !from || from === "0001-01-01" || today >= from;
+      const isBeforeTo = !to || to === "0001-01-01" || today <= to;
+
+      if (isAfterFrom && isBeforeTo) {
+        setEntry(prev => ({
+          ...prev,
+          LR_RR_Date: today,
+          Posting_Date: today,
+          Document_Date: today
+        }));
+      } else {
+         // If today is out of range, we might want to clear it or set it to empty
+         setEntry(prev => ({
+          ...prev,
+          LR_RR_Date: "",
+          Posting_Date: "",
+          Document_Date: ""
+        }));
+      }
+    }
+  }, [mode, webUserProfile]);
 
   useEffect(() => {
     if (mode === "view" && initialEntry?.No) {
@@ -467,6 +506,8 @@ export function InwardGateEntryForm({
               <DateInput
                 value={entry.Document_Date || ""}
                 onChange={(v) => handleInputChange("Document_Date", v)}
+                min={webUserProfile?.Allow_Posting_From?.split("T")[0]}
+                max={webUserProfile?.Allow_Posting_To?.split("T")[0]}
               />
             </div>
 
@@ -491,6 +532,8 @@ export function InwardGateEntryForm({
               <DateInput
                 value={entry.Posting_Date || ""}
                 onChange={(v) => handleInputChange("Posting_Date", v)}
+                min={webUserProfile?.Allow_Posting_From?.split("T")[0]}
+                max={webUserProfile?.Allow_Posting_To?.split("T")[0]}
               />
             </div>
 
@@ -526,6 +569,8 @@ export function InwardGateEntryForm({
               <DateInput
                 value={entry.LR_RR_Date || ""}
                 onChange={(v) => handleInputChange("LR_RR_Date", v)}
+                min={webUserProfile?.Allow_Posting_From?.split("T")[0]}
+                max={webUserProfile?.Allow_Posting_To?.split("T")[0]}
               />
             </div>
 

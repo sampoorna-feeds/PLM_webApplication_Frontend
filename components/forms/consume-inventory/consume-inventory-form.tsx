@@ -205,17 +205,26 @@ export function ConsumeInventoryForm() {
 
   const handleChange = (field: keyof ConsumeInventoryEntry, value: any) => {
     setFormState((prev) => {
-      const newState = { ...prev, [field]: value };
+      const next = { ...prev, [field]: value };
+
+      // If Entry Type changes, clear incompatible application fields
+      if (field === "Entry Type") {
+        if (value === "Issue") {
+          next["Applies-from Entry"] = undefined;
+        } else if (value === "Return") {
+          next["Applies-to Entry"] = undefined;
+        }
+      }
 
       // Reset dependent fields
       if (field === "Lob Code") {
-        newState["Branch Code"] = "";
-        newState["Location Code"] = "";
+        next["Branch Code"] = "";
+        next["Location Code"] = "";
       } else if (field === "Branch Code") {
-        newState["Location Code"] = "";
+        next["Location Code"] = "";
       }
 
-      return newState;
+      return next;
     });
   };
 
@@ -593,15 +602,19 @@ export function ConsumeInventoryForm() {
                   className="bg-muted/30 h-10 cursor-pointer border-dashed pr-10 font-medium"
                   value={formState["Applies-to Entry"] || ""}
                   placeholder={
-                    formState["Item No."]
-                      ? "Click to select"
-                      : "Select Item first"
+                    !formState["Item No."]
+                      ? "Select Item first"
+                      : formState["Entry Type"] !== "Issue"
+                        ? "Enabled for Issue only"
+                        : "Click to select"
                   }
                   readOnly
                   onClick={() =>
-                    formState["Item No."] && setIsApplyToModalOpen(true)
+                    formState["Item No."] && 
+                    formState["Entry Type"] === "Issue" && 
+                    setIsApplyToModalOpen(true)
                   }
-                  disabled={!formState["Item No."]}
+                  disabled={!formState["Item No."] || formState["Entry Type"] !== "Issue"}
                 />
                 <Button
                   type="button"
@@ -609,9 +622,11 @@ export function ConsumeInventoryForm() {
                   size="icon"
                   className="text-muted-foreground hover:text-primary absolute top-0 right-0 h-10 w-10"
                   onClick={() =>
-                    formState["Item No."] && setIsApplyToModalOpen(true)
+                    formState["Item No."] && 
+                    formState["Entry Type"] === "Issue" && 
+                    setIsApplyToModalOpen(true)
                   }
-                  disabled={!formState["Item No."]}
+                  disabled={!formState["Item No."] || formState["Entry Type"] !== "Issue"}
                 >
                   <Search className="h-4 w-4" />
                 </Button>
@@ -639,15 +654,19 @@ export function ConsumeInventoryForm() {
                   className="bg-muted/30 h-10 cursor-pointer border-dashed pr-10 font-medium"
                   value={formState["Applies-from Entry"] || ""}
                   placeholder={
-                    formState["Item No."]
-                      ? "Click to select"
-                      : "Select Item first"
+                    !formState["Item No."]
+                      ? "Select Item first"
+                      : formState["Entry Type"] !== "Return"
+                        ? "Enabled for Return only"
+                        : "Click to select"
                   }
                   readOnly
                   onClick={() =>
-                    formState["Item No."] && setIsApplyFromModalOpen(true)
+                    formState["Item No."] && 
+                    formState["Entry Type"] === "Return" && 
+                    setIsApplyFromModalOpen(true)
                   }
-                  disabled={!formState["Item No."]}
+                  disabled={!formState["Item No."] || formState["Entry Type"] !== "Return"}
                 />
                 <Button
                   type="button"
@@ -655,9 +674,11 @@ export function ConsumeInventoryForm() {
                   size="icon"
                   className="text-muted-foreground hover:text-primary absolute top-0 right-0 h-10 w-10"
                   onClick={() =>
-                    formState["Item No."] && setIsApplyFromModalOpen(true)
+                    formState["Item No."] && 
+                    formState["Entry Type"] === "Return" && 
+                    setIsApplyFromModalOpen(true)
                   }
-                  disabled={!formState["Item No."]}
+                  disabled={!formState["Item No."] || formState["Entry Type"] !== "Return"}
                 >
                   <Search className="h-4 w-4" />
                 </Button>

@@ -74,7 +74,8 @@ export async function createInwardGateEntryHeader(data: Partial<InwardGateEntryH
 
 export async function updateInwardGateEntryHeader(id: string, data: Partial<InwardGateEntryHeader>): Promise<InwardGateEntryHeader> {
   const encodedCompany = encodeURIComponent(COMPANY);
-  const endpoint = `/InwardGateEntry(id='${id}')?company='${encodedCompany}'`;
+  // Using the identifier in the URL. If it contains '/', it's likely a No. which needs escaping.
+  const endpoint = `/InwardGateEntry(No='${id.replace(/'/g, "''")}')?company='${encodedCompany}'`;
   return apiPatch<InwardGateEntryHeader>(endpoint, data);
 }
 

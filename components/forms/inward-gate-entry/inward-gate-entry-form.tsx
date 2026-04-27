@@ -64,12 +64,13 @@ export function InwardGateEntryForm({ tabId, context }: InwardGateEntryFormProps
   const { tab, markAsSaved, updateTab, closeTab } = useFormStack(tabId);
 
   const fetchLines = useCallback(async () => {
-    const docNo = entry.No;
-    const entryType = entry.Entry_Type || "Inward";
-    if (!docNo) return;
+    // Only fetch if we have a document number and it's not being edited
+    if (!initialEntry?.No) return;
+    
     setIsLoadingLines(true);
     try {
-      const data = await getInwardGateEntryLines(docNo, entryType);
+      const entryType = initialEntry.Entry_Type || "Inward";
+      const data = await getInwardGateEntryLines(initialEntry.No, entryType);
       setLines(data);
     } catch (error) {
       console.error("Error fetching lines:", error);
@@ -77,20 +78,16 @@ export function InwardGateEntryForm({ tabId, context }: InwardGateEntryFormProps
     } finally {
       setIsLoadingLines(false);
     }
-  }, [entry.No, entry.Entry_Type]);
+  }, [initialEntry?.No, initialEntry?.Entry_Type]);
 
   useEffect(() => {
     if (mode === "view" && initialEntry?.No) {
       fetchLines();
-      if (!tab?.isSaved) {
-        markAsSaved();
-      }
+      markAsSaved();
     } else if (mode === "create") {
-      if (tab?.isSaved !== false) {
-        updateTab({ isSaved: false });
-      }
+      updateTab({ isSaved: false });
     }
-  }, [mode, initialEntry?.No, fetchLines, markAsSaved, updateTab, tab?.isSaved]);
+  }, [mode, initialEntry?.No]); // Removed fetchLines and others to avoid loop
 
   const handleInputChange = (field: keyof InwardGateEntryHeader, value: any) => {
     setEntry(prev => {
@@ -127,8 +124,9 @@ export function InwardGateEntryForm({ tabId, context }: InwardGateEntryFormProps
         const onRefetch = context?.refetch as (() => void) | undefined;
         onRefetch?.();
       } else {
-        if (!entry.id) throw new Error("Entry ID is missing");
-        const result = await updateInwardGateEntryHeader(entry.id, entry);
+        const identifier = entry.No;
+        if (!identifier) throw new Error("Document No. is missing");
+        const result = await updateInwardGateEntryHeader(identifier, entry);
         toast.success(`Gate Entry ${result.No} updated successfully`);
         setEntry(result);
         
@@ -199,6 +197,20 @@ export function InwardGateEntryForm({ tabId, context }: InwardGateEntryFormProps
         {mode === "view" ? (
           <>
             <Button 
+              onClick={handleSave} 
+              disabled={isSaving || tab?.isSaved} 
+              size="sm"
+              variant="outline"
+              className="h-8 border-orange-200 bg-orange-50 text-orange-600 hover:bg-orange-100 hover:text-orange-700 disabled:opacity-50"
+            >
+              {isSaving ? (
+                <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Save className="mr-1.5 h-3.5 w-3.5" />
+              )}
+              Update Changes
+            </Button>
+            <Button 
               onClick={handlePost} 
               disabled={isPosting} 
               size="sm"
@@ -243,7 +255,6 @@ export function InwardGateEntryForm({ tabId, context }: InwardGateEntryFormProps
               <Input
                 value={entry.No || ""}
                 onChange={(e) => handleInputChange("No", e.target.value)}
-                disabled={mode === "view"}
                 className="h-8 text-xs"
               />
             </div>
@@ -253,7 +264,6 @@ export function InwardGateEntryForm({ tabId, context }: InwardGateEntryFormProps
               <LocationSelect
                 value={entry.Location_Code || ""}
                 onChange={(v) => handleInputChange("Location_Code", v)}
-                disabled={mode === "view"}
               />
             </div>
 
@@ -262,7 +272,6 @@ export function InwardGateEntryForm({ tabId, context }: InwardGateEntryFormProps
               <Input
                 value={entry.Station_From || ""}
                 onChange={(e) => handleInputChange("Station_From", e.target.value)}
-                disabled={mode === "view"}
                 className="h-8 text-xs"
               />
             </div>
@@ -272,7 +281,6 @@ export function InwardGateEntryForm({ tabId, context }: InwardGateEntryFormProps
               <DateInput
                 value={entry.Document_Date || ""}
                 onChange={(v) => handleInputChange("Document_Date", v)}
-                disabled={mode === "view"}
               />
             </div>
 
@@ -282,7 +290,6 @@ export function InwardGateEntryForm({ tabId, context }: InwardGateEntryFormProps
                 type="time"
                 value={entry.Document_Time || ""}
                 onChange={(e) => handleInputChange("Document_Time", e.target.value)}
-                disabled={mode === "view"}
                 className="h-8 text-xs"
               />
             </div>
@@ -292,7 +299,6 @@ export function InwardGateEntryForm({ tabId, context }: InwardGateEntryFormProps
               <DateInput
                 value={entry.Posting_Date || ""}
                 onChange={(v) => handleInputChange("Posting_Date", v)}
-                disabled={mode === "view"}
               />
             </div>
 
@@ -302,7 +308,6 @@ export function InwardGateEntryForm({ tabId, context }: InwardGateEntryFormProps
                 type="time"
                 value={entry.Posting_Time || ""}
                 onChange={(e) => handleInputChange("Posting_Time", e.target.value)}
-                disabled={mode === "view"}
                 className="h-8 text-xs"
               />
             </div>
@@ -312,7 +317,6 @@ export function InwardGateEntryForm({ tabId, context }: InwardGateEntryFormProps
               <Input
                 value={entry.LR_RR_No || ""}
                 onChange={(e) => handleInputChange("LR_RR_No", e.target.value)}
-                disabled={mode === "view"}
                 className="h-8 text-xs"
               />
             </div>
@@ -322,7 +326,6 @@ export function InwardGateEntryForm({ tabId, context }: InwardGateEntryFormProps
               <DateInput
                 value={entry.LR_RR_Date || ""}
                 onChange={(v) => handleInputChange("LR_RR_Date", v)}
-                disabled={mode === "view"}
               />
             </div>
 
@@ -331,7 +334,6 @@ export function InwardGateEntryForm({ tabId, context }: InwardGateEntryFormProps
               <Input
                 value={entry.Vehicle_No || ""}
                 onChange={(e) => handleInputChange("Vehicle_No", e.target.value.toUpperCase())}
-                disabled={mode === "view"}
                 className="h-8 text-xs font-mono"
               />
             </div>
@@ -341,7 +343,6 @@ export function InwardGateEntryForm({ tabId, context }: InwardGateEntryFormProps
               <Input
                 value={entry.Posting_No_Series || ""}
                 onChange={(e) => handleInputChange("Posting_No_Series", e.target.value)}
-                disabled={mode === "view"}
                 className="h-8 text-xs"
               />
             </div>
@@ -352,7 +353,6 @@ export function InwardGateEntryForm({ tabId, context }: InwardGateEntryFormProps
                 type="number"
                 value={entry.Gross_Weight || 0}
                 onChange={(e) => handleInputChange("Gross_Weight", parseFloat(e.target.value) || 0)}
-                disabled={mode === "view"}
                 className="h-8 text-xs"
               />
             </div>
@@ -363,7 +363,6 @@ export function InwardGateEntryForm({ tabId, context }: InwardGateEntryFormProps
                 type="number"
                 value={entry.Tier_Weight || 0}
                 onChange={(e) => handleInputChange("Tier_Weight", parseFloat(e.target.value) || 0)}
-                disabled={mode === "view"}
                 className="h-8 text-xs"
               />
             </div>
@@ -381,7 +380,6 @@ export function InwardGateEntryForm({ tabId, context }: InwardGateEntryFormProps
                 type="number"
                 value={entry.Per_Bag_Freight_Charges || 0}
                 onChange={(e) => handleInputChange("Per_Bag_Freight_Charges", parseFloat(e.target.value) || 0)}
-                disabled={mode === "view"}
                 className="h-8 text-xs"
               />
             </div>
@@ -392,7 +390,6 @@ export function InwardGateEntryForm({ tabId, context }: InwardGateEntryFormProps
                 type="number"
                 value={entry.Total_Freight_Amount || 0}
                 onChange={(e) => handleInputChange("Total_Freight_Amount", parseFloat(e.target.value) || 0)}
-                disabled={mode === "view"}
                 className="h-8 text-xs"
               />
             </div>
@@ -402,7 +399,6 @@ export function InwardGateEntryForm({ tabId, context }: InwardGateEntryFormProps
               <Input
                 value={entry.Transporter_Name || ""}
                 onChange={(e) => handleInputChange("Transporter_Name", e.target.value)}
-                disabled={mode === "view"}
                 className="h-8 text-xs"
               />
             </div>
@@ -413,7 +409,6 @@ export function InwardGateEntryForm({ tabId, context }: InwardGateEntryFormProps
                 type="number"
                 value={entry.No_of_Bags || 0}
                 onChange={(e) => handleInputChange("No_of_Bags", parseInt(e.target.value) || 0)}
-                disabled={mode === "view"}
                 className="h-8 text-xs"
               />
             </div>
@@ -423,7 +418,6 @@ export function InwardGateEntryForm({ tabId, context }: InwardGateEntryFormProps
               <Input
                 value={entry.Description || ""}
                 onChange={(e) => handleInputChange("Description", e.target.value)}
-                disabled={mode === "view"}
                 className="h-8 text-xs"
               />
             </div>
@@ -433,7 +427,6 @@ export function InwardGateEntryForm({ tabId, context }: InwardGateEntryFormProps
               <Input
                 value={entry.Item_Description || ""}
                 onChange={(e) => handleInputChange("Item_Description", e.target.value)}
-                disabled={mode === "view"}
                 className="h-8 text-xs"
               />
             </div>

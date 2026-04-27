@@ -132,7 +132,7 @@ export function FormStackPanel() {
                   currentTab?.formType === "sales-posted-shipment-detail" ||
                   currentTab?.formType === "sales-posted-invoice-detail" ||
                   currentTab?.formType === "inward-gate-entry"
-                ? "w-screen lg:w-[70vw]"
+                ? "w-screen lg:w-[85vw]"
                 : "w-screen md:w-[65vw] lg:w-[50vw]",
         )}
       >

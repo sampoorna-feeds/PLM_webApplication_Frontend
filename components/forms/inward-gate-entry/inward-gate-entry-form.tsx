@@ -237,7 +237,7 @@ export function InwardGateEntryForm({ tabId, context }: InwardGateEntryFormProps
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
         {/* General Section */}
         <section className="rounded-md border p-4 space-y-4">
-          <div className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+          <div className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
             <div className="space-y-1.5">
               <label className="text-[10px] font-bold tracking-wider uppercase">No.</label>
               <Input
@@ -370,7 +370,7 @@ export function InwardGateEntryForm({ tabId, context }: InwardGateEntryFormProps
 
             <div className="space-y-1.5">
               <label className="text-[10px] font-bold tracking-wider uppercase">Net Weight</label>
-              <div className="h-8 flex items-center px-3 bg-muted/30 rounded border border-dashed text-xs font-mono">
+              <div className="h-8 flex items-center px-3 bg-muted/30 rounded border border-dashed text-xs font-mono text-muted-foreground">
                 {(entry.Net_Weight as number || 0).toFixed(2)}
               </div>
             </div>
@@ -418,7 +418,7 @@ export function InwardGateEntryForm({ tabId, context }: InwardGateEntryFormProps
               />
             </div>
 
-            <div className="sm:col-span-2 md:col-span-3 lg:col-span-2 space-y-1.5">
+            <div className="space-y-1.5">
               <label className="text-[10px] font-bold tracking-wider uppercase">Description</label>
               <Input
                 value={entry.Description || ""}
@@ -428,7 +428,7 @@ export function InwardGateEntryForm({ tabId, context }: InwardGateEntryFormProps
               />
             </div>
 
-            <div className="sm:col-span-2 md:col-span-3 lg:col-span-2 space-y-1.5">
+            <div className="space-y-1.5">
               <label className="text-[10px] font-bold tracking-wider uppercase">Item Description</label>
               <Input
                 value={entry.Item_Description || ""}

@@ -72,7 +72,7 @@ export function SalesDocumentFilterBar({
         <div className="relative max-w-sm min-w-50 flex-1">
           <Search className="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
           <Input
-            placeholder="Search by No, Customer..."
+            placeholder="Search by No, Customer, Ship-to Name..."
             value={localSearch}
             onChange={(e) => setLocalSearch(e.target.value)}
             className="pr-10 pl-10"

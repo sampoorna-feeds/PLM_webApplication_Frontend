@@ -31,6 +31,7 @@ const ORDER_DEFAULT_COLUMNS: ColumnConfig[] = [
   { id: "No", label: "Order No", sortable: true, defaultVisible: true, filterType: "text", width: "w-24" },
   { id: "Sell_to_Customer_No", label: "Customer No", sortable: true, defaultVisible: true, filterType: "text", width: "w-28" },
   { id: "Sell_to_Customer_Name", label: "Customer Name", sortable: true, defaultVisible: true, filterType: "text", width: "w-48" },
+  { id: "Ship_to_Name", label: "Ship-to Name", sortable: true, defaultVisible: true, filterType: "text", width: "w-40" },
   { id: "Order_Date", label: "Order Date", sortable: true, defaultVisible: true, filterType: "date", width: "w-28" },
   { id: "Posting_Date", label: "Posting Date", sortable: true, defaultVisible: true, filterType: "date", width: "w-28" },
   { id: "Document_Date", label: "Document Date", sortable: true, defaultVisible: true, filterType: "date", width: "w-28" },
@@ -41,7 +42,6 @@ const ORDER_DEFAULT_COLUMNS: ColumnConfig[] = [
 
 const ORDER_OPTIONAL_COLUMNS: ColumnConfig[] = [
   { id: "Ship_to_Code", label: "Ship-to Code", sortable: true, defaultVisible: false, filterType: "text", width: "w-28" },
-  { id: "Ship_to_Name", label: "Ship-to Name", sortable: true, defaultVisible: false, filterType: "text", width: "w-40" },
   { id: "Location_Code", label: "Location", sortable: true, defaultVisible: false, filterType: "text", width: "w-24" },
   { id: "Invoice_Type", label: "Invoice Type", sortable: true, defaultVisible: false, filterType: "enum", width: "w-28" },
   { id: "Shortcut_Dimension_1_Code", label: "LOB", sortable: true, defaultVisible: false, filterType: "text", width: "w-20" },
@@ -142,7 +142,7 @@ const COLUMN_CONFIG_REGISTRY: Record<SalesDocColumnType, DocTypeColumnRegistry> 
   order: {
     defaultColumns: ORDER_DEFAULT_COLUMNS,
     optionalColumns: ORDER_OPTIONAL_COLUMNS,
-    storageKey: "salesOrdersVisibleColumns_v2",
+    storageKey: "salesOrdersVisibleColumns_v3",
   },
   invoice: {
     defaultColumns: INVOICE_DEFAULT_COLUMNS,

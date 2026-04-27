@@ -53,9 +53,7 @@ export function useProductionOrders() {
   const [totalCount, setTotalCount] = useState(0);
 
   // Sorting state
-  const [sortColumn, setSortColumn] = useState<string | null>(
-    "Last_Date_Modified",
-  );
+  const [sortColumn, setSortColumn] = useState<string | null>("Due_Date");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
 
   // Filter state
@@ -327,8 +325,8 @@ export function useProductionOrders() {
 
     setColumnFilters(defaultFilters);
     setAdditionalFilters([]); // Clear additional filters
-    // Reset to default sort: Last Modified Desc
-    setSortColumn("Last_Date_Modified");
+    // Reset to default sort: Due Date Desc
+    setSortColumn("Due_Date");
     setSortDirection("desc");
     setCurrentPage(1);
   }, [userBranchCodes]);

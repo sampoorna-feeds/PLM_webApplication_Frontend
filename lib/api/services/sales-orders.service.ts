@@ -104,7 +104,7 @@ export async function searchSalesOrders(
   }
 
   const escaped = searchTerm.replace(/'/g, "''");
-  const fieldsToSearch = ["No", "Sell_to_Customer_No", "Sell_to_Customer_Name"];
+  const fieldsToSearch = ["No", "Sell_to_Customer_No", "Sell_to_Customer_Name", "Ship_to_Name"];
 
   // perform one request per field
   const responses = await Promise.all(

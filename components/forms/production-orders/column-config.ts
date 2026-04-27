@@ -55,10 +55,17 @@ export const DEFAULT_COLUMNS: ColumnConfig[] = [
     filterType: "text",
   },
   {
+    id: "Due_Date",
+    label: "Due Date",
+    sortable: true,
+    defaultVisible: true,
+    filterType: "date",
+  },
+  {
     id: "Last_Date_Modified",
     label: "Last Modified",
     sortable: true,
-    defaultVisible: true,
+    defaultVisible: false,
     filterType: "date",
   },
 ];
@@ -99,13 +106,6 @@ export const OPTIONAL_COLUMNS: ColumnConfig[] = [
     sortable: true,
     defaultVisible: false,
     filterType: "text",
-  },
-  {
-    id: "Due_Date",
-    label: "Due Date",
-    sortable: true,
-    defaultVisible: false,
-    filterType: "date",
   },
   {
     id: "Blocked",
@@ -230,7 +230,7 @@ export function getColumnById(id: string): ColumnConfig | undefined {
 
 // Storage key for persisting column preferences
 export const COLUMN_VISIBILITY_STORAGE_KEY =
-  "productionOrdersVisibleColumns_v2";
+  "productionOrdersVisibleColumns_v3";
 
 // Load visible columns from localStorage
 export function loadVisibleColumns(): string[] {

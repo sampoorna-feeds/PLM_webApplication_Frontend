@@ -8,6 +8,8 @@ import {
   type ColumnConfig,
 } from "./column-config";
 
+import { InwardGateEntryColumnFilter } from "./column-filter";
+
 interface InwardGateEntryTableProps {
   entries: InwardGateEntryHeader[];
   isLoading: boolean;
@@ -15,8 +17,12 @@ interface InwardGateEntryTableProps {
   allColumns: ColumnConfig[];
   sortColumn: string | null;
   sortDirection: SortDirection;
+  pageSize: number;
+  currentPage: number;
+  columnFilters: Record<string, { value: string; valueTo?: string }>;
   onRowClick?: (entry: InwardGateEntryHeader) => void;
   onSort: (column: string) => void;
+  onColumnFilter: (columnId: string, value: string, valueTo?: string) => void;
 }
 
 export function InwardGateEntryTable({
@@ -26,10 +32,15 @@ export function InwardGateEntryTable({
   allColumns,
   sortColumn,
   sortDirection,
+  pageSize,
+  currentPage,
+  columnFilters,
   onRowClick,
   onSort,
+  onColumnFilter,
 }: InwardGateEntryTableProps) {
   const columns = allColumns.filter((col) => visibleColumns.includes(col.id));
+  const startingSerialNo = (currentPage - 1) * pageSize;
 
   return (
     <div className="bg-card flex h-full flex-1 flex-col overflow-hidden rounded-lg border">
@@ -41,51 +52,31 @@ export function InwardGateEntryTable({
                 S.No
               </th>
               {columns.map((column) => (
-                <th
+                <SortableTableHead
                   key={column.id}
-                  className={`text-foreground h-10 px-2 py-3 text-left align-middle text-xs font-bold whitespace-nowrap select-none ${
-                    sortColumn === column.id ? "text-primary" : ""
-                  }`}
-                >
-                  <div className="flex items-center gap-1.5">
-                    <span
-                      className="hover:text-primary cursor-pointer transition-colors"
-                      onClick={() => column.sortable && onSort(column.id)}
-                    >
-                      {column.label}
-                    </span>
-                    {column.sortable && (
-                      <button
-                        type="button"
-                        className="hover:text-primary transition-colors"
-                        onClick={() => onSort(column.id)}
-                      >
-                        {sortColumn === column.id ? (
-                          sortDirection === "asc" ? (
-                            <ArrowUp className="h-3 w-3" />
-                          ) : (
-                            <ArrowDown className="h-3 w-3" />
-                          )
-                        ) : (
-                          <ArrowUpDown className="h-3 w-3 opacity-50" />
-                        )}
-                      </button>
-                    )}
-                  </div>
-                </th>
+                  column={column}
+                  isActive={sortColumn === column.id}
+                  sortDirection={
+                    sortColumn === column.id ? sortDirection : null
+                  }
+                  filterValue={columnFilters[column.id]?.value ?? ""}
+                  filterValueTo={columnFilters[column.id]?.valueTo}
+                  onSort={onSort}
+                  onFilter={onColumnFilter}
+                />
               ))}
             </tr>
           </thead>
           <tbody className="[&_tr:last-child]:border-0">
             {isLoading && (
               <>
-                {Array.from({ length: 10 }).map((_, rowIndex) => (
+                {Array.from({ length: pageSize }).map((_, rowIndex) => (
                   <tr
                     key={`skeleton-${rowIndex}`}
                     className="border-b transition-colors"
                   >
                     <td className="text-muted-foreground p-2 px-3 py-3 text-center align-middle text-xs whitespace-nowrap">
-                      {rowIndex + 1}
+                      {startingSerialNo + rowIndex + 1}
                     </td>
                     {columns.map((column) => (
                       <td
@@ -112,30 +103,117 @@ export function InwardGateEntryTable({
             {!isLoading &&
               entries.length > 0 &&
               entries.map((entry, index) => (
-                <tr
-                  key={entry.id || entry.No || `row-${index}`}
-                  className={`border-b transition-colors ${
-                    onRowClick ? "hover:bg-muted cursor-pointer" : ""
-                  }`}
-                  onClick={() => onRowClick?.(entry)}
-                >
-                  <td className="text-muted-foreground p-2 px-3 py-3 text-center align-middle text-xs whitespace-nowrap">
-                    {index + 1}
-                  </td>
-                  {columns.map((column) => (
-                    <td
-                      key={column.id}
-                      className="p-2 px-3 py-3 align-middle text-xs whitespace-nowrap"
-                    >
-                      {formatValue(entry[column.id], column.id)}
-                    </td>
-                  ))}
-                </tr>
+                <InwardGateEntryRow
+                  key={entry.No || `row-${index}`}
+                  entry={entry}
+                  columns={columns}
+                  serialNo={startingSerialNo + index + 1}
+                  onClick={onRowClick ? () => onRowClick(entry) : undefined}
+                />
               ))}
           </tbody>
         </table>
       </div>
     </div>
+  );
+}
+
+interface SortableTableHeadProps {
+  column: ColumnConfig;
+  isActive: boolean;
+  sortDirection: SortDirection;
+  filterValue: string;
+  filterValueTo?: string;
+  onSort: (column: string) => void;
+  onFilter: (columnId: string, value: string, valueTo?: string) => void;
+}
+
+function SortableTableHead({
+  column,
+  isActive,
+  sortDirection,
+  filterValue,
+  filterValueTo,
+  onSort,
+  onFilter,
+}: SortableTableHeadProps) {
+  const getSortIcon = () => {
+    if (!isActive || !sortDirection) {
+      return <ArrowUpDown className="h-3 w-3 opacity-50" />;
+    }
+    if (sortDirection === "asc") {
+      return <ArrowUp className="h-3 w-3" />;
+    }
+    return <ArrowDown className="h-3 w-3" />;
+  };
+
+  return (
+    <th
+      className={`text-foreground h-10 px-2 py-3 text-left align-middle text-xs font-bold whitespace-nowrap select-none ${
+        isActive ? "text-primary" : ""
+      }`}
+    >
+      <div className="flex items-center gap-1.5">
+        <span
+          className="hover:text-primary cursor-pointer transition-colors"
+          onClick={() => column.sortable && onSort(column.id)}
+        >
+          {column.label}
+        </span>
+        {column.sortable && (
+          <button
+            type="button"
+            className="hover:text-primary transition-colors"
+            onClick={() => onSort(column.id)}
+          >
+            {getSortIcon()}
+          </button>
+        )}
+        {column.filterType && (
+          <InwardGateEntryColumnFilter
+            column={column}
+            value={filterValue}
+            valueTo={filterValueTo}
+            onChange={(value, valueTo) => onFilter(column.id, value, valueTo)}
+          />
+        )}
+      </div>
+    </th>
+  );
+}
+
+interface InwardGateEntryRowProps {
+  entry: InwardGateEntryHeader;
+  columns: ColumnConfig[];
+  serialNo: number;
+  onClick?: () => void;
+}
+
+function InwardGateEntryRow({
+  entry,
+  columns,
+  serialNo,
+  onClick,
+}: InwardGateEntryRowProps) {
+  return (
+    <tr
+      className={`border-b transition-colors ${
+        onClick ? "hover:bg-muted cursor-pointer" : ""
+      }`}
+      onClick={onClick}
+    >
+      <td className="text-muted-foreground p-2 px-3 py-3 text-center align-middle text-xs whitespace-nowrap">
+        {serialNo}
+      </td>
+      {columns.map((column) => (
+        <td
+          key={column.id}
+          className="p-2 px-3 py-3 align-middle text-xs whitespace-nowrap"
+        >
+          {formatValue(entry[column.id as keyof InwardGateEntryHeader], column.id)}
+        </td>
+      ))}
+    </tr>
   );
 }
 

@@ -7,6 +7,7 @@ import { ItemSelect } from "@/components/forms/transfer-orders/item-select";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { DateInput } from "@/components/ui/date-input";
 import {
   Dialog,
@@ -16,6 +17,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -43,8 +50,10 @@ import {
 } from "@/lib/api/services/report-ledger.service";
 import { useAuth } from "@/lib/contexts/auth-context";
 import {
+  Edit2,
   Info,
   Loader2,
+  MoreVertical,
   Package,
   Plus,
   Search,
@@ -61,6 +70,7 @@ export function ConsumeInventoryForm() {
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [entries, setEntries] = useState<ConsumeInventoryEntry[]>([]);
+  const [selectedIndices, setSelectedIndices] = useState<number[]>([]);
   const [isConfirmPostOpen, setIsConfirmPostOpen] = useState(false);
   const [formState, setFormState] = useState<Partial<ConsumeInventoryEntry>>({
     "Posting Date": new Date().toISOString().split("T")[0],
@@ -208,6 +218,9 @@ export function ConsumeInventoryForm() {
   const handleDeleteEntry = (index: number) => {
     const updatedEntries = entries.filter((_, i) => i !== index);
     setEntries(updatedEntries);
+    setSelectedIndices((prev) =>
+      prev.filter((i) => i !== index).map((i) => (i > index ? i - 1 : i)),
+    );
     localStorage.setItem(
       `pending_consumption_entries_${userID}`,
       JSON.stringify(updatedEntries),
@@ -215,9 +228,30 @@ export function ConsumeInventoryForm() {
     toast.success("Entry removed from list");
   };
 
+  const handleEditEntry = (entry: ConsumeInventoryEntry, index: number) => {
+    setFormState({ ...entry });
+    handleDeleteEntry(index);
+    toast.info("Entry loaded into form for editing");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIndices.length === entries.length) {
+      setSelectedIndices([]);
+    } else {
+      setSelectedIndices(entries.map((_, i) => i));
+    }
+  };
+
+  const toggleSelectRow = (index: number) => {
+    setSelectedIndices((prev) =>
+      prev.includes(index) ? prev.filter((i) => i !== index) : [...prev, index],
+    );
+  };
+
   const handlePost = () => {
-    if (entries.length === 0) {
-      toast.error("No entries to post");
+    if (selectedIndices.length === 0) {
+      toast.error("Please select at least one entry to post");
       return;
     }
     setIsConfirmPostOpen(true);
@@ -227,16 +261,24 @@ export function ConsumeInventoryForm() {
     setIsConfirmPostOpen(false);
     setSubmitting(true);
     try {
-      // Bulk insert entries first
-      await bulkInsertConsumeInventoryEntries(entries);
+      const selectedEntries = selectedIndices.map((i) => entries[i]);
+      // Bulk insert selected entries first
+      await bulkInsertConsumeInventoryEntries(selectedEntries);
 
       // Then trigger the post API
       const result = await postConsumeInventory(userID!);
       toast.success(result || "Posted successfully");
 
-      // Clear local storage and state
-      localStorage.removeItem(`pending_consumption_entries_${userID}`);
-      setEntries([]);
+      // Remove posted entries from state and local storage
+      const remainingEntries = entries.filter(
+        (_, i) => !selectedIndices.includes(i),
+      );
+      setEntries(remainingEntries);
+      setSelectedIndices([]);
+      localStorage.setItem(
+        `pending_consumption_entries_${userID}`,
+        JSON.stringify(remainingEntries),
+      );
     } catch (error: any) {
       toast.error(error.message || "Failed to post");
     } finally {
@@ -573,29 +615,52 @@ export function ConsumeInventoryForm() {
                 Pending List
               </CardTitle>
               <p className="text-muted-foreground text-xs font-medium">
-                {entries.length} items ready for posting
+                {selectedIndices.length} of {entries.length} items selected for
+                posting
               </p>
             </div>
           </div>
-          <Button
-            variant="default"
-            size="lg"
-            onClick={handlePost}
-            disabled={submitting || entries.length === 0}
-            className="px-8 font-bold"
-          >
-            {submitting ? (
-              <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-            ) : (
-              <Send className="mr-2 h-5 w-5" />
+          <div className="flex items-center gap-3">
+            {selectedIndices.length > 0 && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setSelectedIndices([])}
+                className="text-xs font-bold"
+              >
+                Clear Selection
+              </Button>
             )}
-            Post Consumption
-          </Button>
+            <Button
+              variant="default"
+              size="lg"
+              onClick={handlePost}
+              disabled={submitting || selectedIndices.length === 0}
+              className="px-8 font-bold"
+            >
+              {submitting ? (
+                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+              ) : (
+                <Send className="mr-2 h-5 w-5" />
+              )}
+              Post Consumption ({selectedIndices.length})
+            </Button>
+          </div>
         </CardHeader>
         <CardContent className="flex-1 overflow-x-auto p-0">
-          <Table className="min-w-[1400px]">
+          <Table className="min-w-[1500px]">
             <TableHeader className="bg-muted/40 sticky top-0 z-10 backdrop-blur-sm">
               <TableRow className="border-b-2 hover:bg-transparent">
+                <TableHead className="w-[50px] py-4 text-center">
+                  <Checkbox
+                    checked={
+                      entries.length > 0 &&
+                      selectedIndices.length === entries.length
+                    }
+                    onCheckedChange={toggleSelectAll}
+                    aria-label="Select all"
+                  />
+                </TableHead>
                 <TableHead className="py-4 text-xs font-bold tracking-wider uppercase">
                   Posting Date
                 </TableHead>
@@ -632,13 +697,15 @@ export function ConsumeInventoryForm() {
                 <TableHead className="py-4 text-xs font-bold tracking-wider uppercase">
                   Applies-from
                 </TableHead>
-                <TableHead className="w-[60px] py-4"></TableHead>
+                <TableHead className="w-[60px] py-4 text-center uppercase">
+                  Actions
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={13} className="h-64 text-center">
+                  <TableCell colSpan={14} className="h-64 text-center">
                     <div className="text-muted-foreground flex flex-col items-center gap-3">
                       <Loader2 className="text-primary/40 h-10 w-10 animate-spin" />
                       <p className="text-sm font-medium">
@@ -649,7 +716,7 @@ export function ConsumeInventoryForm() {
                 </TableRow>
               ) : entries.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={13} className="h-64 text-center">
+                  <TableCell colSpan={14} className="h-64 text-center">
                     <div className="text-muted-foreground/50 flex flex-col items-center gap-4">
                       <Package className="h-16 w-16 opacity-20" />
                       <p className="text-base font-medium italic">
@@ -662,8 +729,19 @@ export function ConsumeInventoryForm() {
                 entries.map((entry, index) => (
                   <TableRow
                     key={index}
-                    className="group hover:bg-primary/[0.03] border-b transition-colors last:border-none"
+                    className={`group border-b transition-colors last:border-none ${
+                      selectedIndices.includes(index)
+                        ? "bg-primary/[0.04]"
+                        : "hover:bg-primary/[0.02]"
+                    }`}
                   >
+                    <TableCell className="text-center">
+                      <Checkbox
+                        checked={selectedIndices.includes(index)}
+                        onCheckedChange={() => toggleSelectRow(index)}
+                        aria-label={`Select row ${index + 1}`}
+                      />
+                    </TableCell>
                     <TableCell className="text-xs font-medium">
                       {entry["Posting Date"]}
                     </TableCell>
@@ -716,15 +794,34 @@ export function ConsumeInventoryForm() {
                     <TableCell className="font-mono text-[11px] text-green-400">
                       {entry["Applies-from Entry"] || "—"}
                     </TableCell>
-                    <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleDeleteEntry(index)}
-                        className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 h-8 w-8 opacity-0 transition-colors group-hover:opacity-100"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                    <TableCell className="text-center">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="text-muted-foreground hover:text-primary h-8 w-8"
+                          >
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-32">
+                          <DropdownMenuItem
+                            onClick={() => handleEditEntry(entry, index)}
+                            className="cursor-pointer"
+                          >
+                            <Edit2 className="mr-2 h-4 w-4" />
+                            <span>Edit</span>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => handleDeleteEntry(index)}
+                            className="text-destructive focus:text-destructive cursor-pointer"
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            <span>Delete</span>
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </TableCell>
                   </TableRow>
                 ))
@@ -744,9 +841,9 @@ export function ConsumeInventoryForm() {
               Confirm Posting
             </DialogTitle>
             <DialogDescription className="py-2 text-sm leading-relaxed">
-              Are you sure you want to post these{" "}
+              Are you sure you want to post the{" "}
               <span className="text-foreground font-bold">
-                {entries.length} items
+                {selectedIndices.length} selected items
               </span>{" "}
               to the inventory? This action will update the inventory ledgers
               and cannot be undone.

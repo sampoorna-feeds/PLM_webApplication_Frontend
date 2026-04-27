@@ -741,7 +741,7 @@ export function PurchaseOrderLineDialog({
               </ClearableField>
             </div>
 
-            {isItemType && (
+            {formState.type !== "" && (
               <div className="space-y-1">
                 <FieldTitle>UOM</FieldTitle>
                 <ClearableField

@@ -41,6 +41,7 @@ import {
 } from "@/components/ui/table";
 import {
   bulkInsertConsumeInventoryEntries,
+  deleteConsumeInventoryEntry,
   getConsumptionPostingSetup,
   getNextDocumentNo,
   postConsumeInventory,
@@ -316,22 +317,38 @@ export function ConsumeInventoryForm() {
       }
 
       // Bulk insert selected entries with their unique Doc Nos
-      await bulkInsertConsumeInventoryEntries(entriesWithDocNo);
+      const createdEntries = await bulkInsertConsumeInventoryEntries(entriesWithDocNo);
 
-      // Then trigger the post API
-      const result = await postConsumeInventory(userID!);
-      toast.success(result || "Posted successfully");
+      try {
+        // Then trigger the post API
+        const result = await postConsumeInventory(userID!);
+        toast.success(result || "Posted successfully");
 
-      // Remove posted entries from state and local storage
-      const remainingEntries = entries.filter(
-        (_, i) => !selectedIndices.includes(i),
-      );
-      setEntries(remainingEntries);
-      setSelectedIndices([]);
-      localStorage.setItem(
-        `pending_consumption_entries_${userID}`,
-        JSON.stringify(remainingEntries),
-      );
+        // Remove posted entries from state and local storage
+        const remainingEntries = entries.filter(
+          (_, i) => !selectedIndices.includes(i),
+        );
+        setEntries(remainingEntries);
+        setSelectedIndices([]);
+        localStorage.setItem(
+          `pending_consumption_entries_${userID}`,
+          JSON.stringify(remainingEntries),
+        );
+      } catch (postError: any) {
+        console.error("Posting failed, rolling back entries...", postError);
+        toast.error(`Posting failed: ${postError.message}. Rolling back...`);
+        
+        // Rollback: Delete the entries we just created
+        for (const entry of createdEntries) {
+          try {
+            await deleteConsumeInventoryEntry(entry);
+          } catch (delError) {
+            console.error(`Failed to delete entry Line_No ${entry.Line_No}:`, delError);
+          }
+        }
+        
+        throw postError; // Re-throw to be caught by outer catch
+      }
     } catch (error: any) {
       toast.error(error.message || "Failed to post");
     } finally {

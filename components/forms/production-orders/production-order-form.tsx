@@ -1047,6 +1047,7 @@ export function ProductionOrderForm({
                 <ProductionOrderPostDialog
                   prodOrderNo={formState.No}
                   userId={userId || ""}
+                  onClose={refreshOrderData}
                 />
               </div>
               {/* QR Code - hidden on xs/sm, visible on md+ */}
@@ -1499,7 +1500,10 @@ export function ProductionOrderForm({
           {/* Components Sheet */}
           <Sheet
             open={isComponentsSheetOpen}
-            onOpenChange={setIsComponentsSheetOpen}
+            onOpenChange={(open) => {
+              setIsComponentsSheetOpen(open);
+              if (!open) refreshOrderData();
+            }}
           >
             <SheetContent
               side="right"

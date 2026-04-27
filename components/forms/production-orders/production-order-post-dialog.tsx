@@ -54,6 +54,7 @@ interface ProductionOrderPostSheetProps {
   prodOrderNo: string;
   prodOrderLineNo?: number;
   userId: string;
+  onClose?: () => void;
 }
 
 type JournalEditableField = "Quantity" | "Output_Quantity";
@@ -72,6 +73,7 @@ export function ProductionOrderPostSheet({
   prodOrderNo,
   prodOrderLineNo = 10000,
   userId,
+  onClose,
 }: ProductionOrderPostSheetProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -390,6 +392,7 @@ export function ProductionOrderPostSheet({
   const handleSheetClose = useCallback(async () => {
     if (!prodOrderNo) {
       setIsOpen(false);
+      onClose?.();
       return;
     }
 
@@ -413,8 +416,9 @@ export function ProductionOrderPostSheet({
       setIsOpen(false);
     } finally {
       setIsClosing(false);
+      onClose?.();
     }
-  }, [prodOrderNo, prodOrderLineNo]);
+  }, [prodOrderNo, prodOrderLineNo, onClose]);
 
   // Create journal entries when sheet opens
   useEffect(() => {

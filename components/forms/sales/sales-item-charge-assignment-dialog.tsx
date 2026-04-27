@@ -37,9 +37,8 @@ import {
 import type {
   ItemChargeAssignment,
   ItemChargeSourceLine,
-  SourceType,
 } from "@/lib/api/services/item-charge-assignment.service";
-import { ItemChargeSelectionDialog } from "@/components/forms/purchase/item-charge-selection-dialog";
+import { SalesItemChargeSelectionDialog } from "./sales-item-charge-selection-dialog";
 import { cn } from "@/lib/utils";
 import {
   Popover,
@@ -1070,11 +1069,11 @@ export function SalesItemChargeAssignmentDialog({
         </DialogContent>
       </Dialog>
 
-      <ItemChargeSelectionDialog
+      <SalesItemChargeSelectionDialog
         open={selectionOpen}
         onOpenChange={setSelectionOpen}
         onAddSelected={handleLinesAdded}
-        type={selectionType as SourceType}
+        type={selectionType}
       />
 
       <AlertDialog

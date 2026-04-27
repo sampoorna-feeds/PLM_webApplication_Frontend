@@ -142,6 +142,11 @@ const formsItems = [
     url: "/consume-inventory",
     icon: Package,
   },
+  {
+    title: "Inward Gate Entry",
+    url: "/inward-gate-entry",
+    icon: Truck,
+  },
 ];
 
 const qcSubItems = [

@@ -74,17 +74,43 @@ export function useFormStack(tabId: string) {
     }
   }, [tab, tabId, contextCloseTab, markAsSaved]);
 
-  return {
-    tab,
-    currentTab,
-    isActive: activeTabId === tabId,
-    markAsSaved,
-    updateFormData,
-    handleSuccess,
-    registerRefresh: (callback: () => void | Promise<void>) => {
+  const updateTab = useCallback(
+    (updates: Partial<FormTab>) => contextUpdateTab(tabId, updates),
+    [tabId, contextUpdateTab],
+  );
+
+  const closeTab = useCallback(() => contextCloseTab(tabId), [tabId, contextCloseTab]);
+
+  const registerRefresh = useCallback(
+    (callback: () => void | Promise<void>) => {
       registerRefreshCallback(tabId, callback);
     },
-    closeTab: () => contextCloseTab(tabId),
-    updateTab: (updates: Partial<FormTab>) => contextUpdateTab(tabId, updates),
-  };
+    [tabId, registerRefreshCallback],
+  );
+
+  return useMemo(
+    () => ({
+      tab,
+      currentTab,
+      isActive: activeTabId === tabId,
+      markAsSaved,
+      updateFormData,
+      handleSuccess,
+      registerRefresh,
+      closeTab,
+      updateTab,
+    }),
+    [
+      tab,
+      currentTab,
+      activeTabId,
+      tabId,
+      markAsSaved,
+      updateFormData,
+      handleSuccess,
+      registerRefresh,
+      closeTab,
+      updateTab,
+    ],
+  );
 }

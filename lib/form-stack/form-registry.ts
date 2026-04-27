@@ -16,6 +16,8 @@ let PurchaseDocumentForm: FormComponent | null = null;
 let TransferOrderDetailForm: FormComponent | null = null;
 let PostedTransferDetailForm: FormComponent | null = null;
 let SalesPostedDocumentDetailForm: FormComponent | null = null;
+let InwardGateEntryForm: FormComponent | null = null;
+
 
 /**
  * Form registry mapping form types to components
@@ -125,6 +127,15 @@ export const formRegistry: Record<
       SalesPostedDocumentDetailForm = m.SalesPostedDocumentDetailForm;
     }
     return { default: SalesPostedDocumentDetailForm! };
+  },
+  "inward-gate-entry": async () => {
+    if (!InwardGateEntryForm) {
+      const formModule = await import(
+        "@/components/forms/inward-gate-entry/inward-gate-entry-form"
+      );
+      InwardGateEntryForm = formModule.InwardGateEntryForm;
+    }
+    return { default: InwardGateEntryForm! };
   },
 };
 

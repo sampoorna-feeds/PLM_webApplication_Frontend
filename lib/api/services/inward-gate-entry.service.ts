@@ -38,14 +38,15 @@ export interface InwardGateEntryHeader {
 
 export interface InwardGateEntryLine {
   id?: string;
-  Document_No: string;
+  Entry_Type: string;
+  Gate_Entry_No: string;
   Line_No: number;
+  Challan_No: string;
+  Challan_Date: string;
   Source_Type: string;
   Source_No: string;
-  Item_No: string;
+  Source_Name: string;
   Description: string;
-  Quantity: number;
-  Unit_of_Measure_Code: string;
   [key: string]: unknown;
 }
 
@@ -56,9 +57,9 @@ export async function getInwardGateEntries(): Promise<InwardGateEntryHeader[]> {
   return response.value || [];
 }
 
-export async function getInwardGateEntryLines(documentNo: string): Promise<InwardGateEntryLine[]> {
+export async function getInwardGateEntryLines(gateEntryNo: string, entryType: string): Promise<InwardGateEntryLine[]> {
   const encodedCompany = encodeURIComponent(COMPANY);
-  const filter = `Document_No eq '${documentNo.replace(/'/g, "''")}'`;
+  const filter = `Gate_Entry_No eq '${gateEntryNo.replace(/'/g, "''")}' and Entry_Type eq '${entryType}'`;
   const query = buildODataQuery({ $filter: filter });
   const endpoint = `/InwardGateEntrySubForm?company='${encodedCompany}'&${query}`;
   const response = await apiGet<ODataResponse<InwardGateEntryLine>>(endpoint);

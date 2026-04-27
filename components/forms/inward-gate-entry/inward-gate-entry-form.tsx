@@ -34,6 +34,7 @@ export function InwardGateEntryForm({ tabId, context }: InwardGateEntryFormProps
   const initialEntry = context?.entry as InwardGateEntryHeader;
   
   const [entry, setEntry] = useState<Partial<InwardGateEntryHeader>>(initialEntry || {
+    Entry_Type: "Inward",
     Document_Date: new Date().toISOString().split("T")[0],
     Document_Time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }),
     Station_From: "",
@@ -64,10 +65,11 @@ export function InwardGateEntryForm({ tabId, context }: InwardGateEntryFormProps
 
   const fetchLines = useCallback(async () => {
     const docNo = entry.No;
+    const entryType = entry.Entry_Type || "Inward";
     if (!docNo) return;
     setIsLoadingLines(true);
     try {
-      const data = await getInwardGateEntryLines(docNo);
+      const data = await getInwardGateEntryLines(docNo, entryType);
       setLines(data);
     } catch (error) {
       console.error("Error fetching lines:", error);
@@ -75,7 +77,7 @@ export function InwardGateEntryForm({ tabId, context }: InwardGateEntryFormProps
     } finally {
       setIsLoadingLines(false);
     }
-  }, [entry.No]);
+  }, [entry.No, entry.Entry_Type]);
 
   useEffect(() => {
     if (mode === "view" && initialEntry?.No) {
@@ -454,35 +456,39 @@ export function InwardGateEntryForm({ tabId, context }: InwardGateEntryFormProps
               <TableHeader className="bg-muted/50">
                 <TableRow className="hover:bg-transparent border-b">
                   <TableHead className="w-12 text-[10px] font-bold uppercase tracking-wider">#</TableHead>
-                  <TableHead className="text-[10px] font-bold uppercase tracking-wider">Item No.</TableHead>
+                  <TableHead className="text-[10px] font-bold uppercase tracking-wider">Challan No.</TableHead>
+                  <TableHead className="text-[10px] font-bold uppercase tracking-wider">Challan Date</TableHead>
+                  <TableHead className="text-[10px] font-bold uppercase tracking-wider">Source Type</TableHead>
+                  <TableHead className="text-[10px] font-bold uppercase tracking-wider">Source No.</TableHead>
+                  <TableHead className="text-[10px] font-bold uppercase tracking-wider">Source Name</TableHead>
                   <TableHead className="text-[10px] font-bold uppercase tracking-wider">Description</TableHead>
-                  <TableHead className="text-right text-[10px] font-bold uppercase tracking-wider">Qty</TableHead>
-                  <TableHead className="text-[10px] font-bold uppercase tracking-wider">UOM</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {isLoadingLines ? (
                   Array.from({ length: 3 }).map((_, i) => (
                     <TableRow key={i}>
-                      {Array.from({ length: 5 }).map((_, j) => (
+                      {Array.from({ length: 7 }).map((_, j) => (
                         <TableCell key={j}><Skeleton className="h-4 w-full" /></TableCell>
                       ))}
                     </TableRow>
                   ))
                 ) : lines.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="h-24 text-center text-muted-foreground italic text-[10px]">
+                    <TableCell colSpan={7} className="h-24 text-center text-muted-foreground italic text-[10px]">
                       {mode === "create" ? "Lines will be auto-filled from source" : "No lines found"}
                     </TableCell>
                   </TableRow>
                 ) : (
                   lines.map((line, index) => (
-                    <TableRow key={line.id || line.Line_No || `line-${index}`} className="hover:bg-muted/30 transition-colors border-b">
-                      <TableCell className="font-mono text-[10px] text-muted-foreground">{line.Line_No || index + 1}</TableCell>
-                      <TableCell className="font-bold text-xs">{line.Item_No}</TableCell>
-                      <TableCell className="text-xs">{line.Description}</TableCell>
-                      <TableCell className="text-right font-bold text-xs">{(line.Quantity as number)?.toLocaleString()}</TableCell>
-                      <TableCell className="text-[10px] uppercase font-medium text-muted-foreground">{line.Unit_of_Measure_Code}</TableCell>
+                    <TableRow key={line.id || line.Line_No || `line-${index}`} className="hover:bg-muted/30 transition-colors border-b text-[11px]">
+                      <TableCell className="font-mono text-muted-foreground">{index + 1}</TableCell>
+                      <TableCell className="font-medium">{line.Challan_No}</TableCell>
+                      <TableCell>{line.Challan_Date ? new Date(line.Challan_Date).toLocaleDateString() : "-"}</TableCell>
+                      <TableCell>{line.Source_Type}</TableCell>
+                      <TableCell className="font-medium">{line.Source_No}</TableCell>
+                      <TableCell>{line.Source_Name}</TableCell>
+                      <TableCell className="text-muted-foreground">{line.Description}</TableCell>
                     </TableRow>
                   ))
                 )}

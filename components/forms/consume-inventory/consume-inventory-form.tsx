@@ -79,7 +79,6 @@ export function ConsumeInventoryForm() {
     ConsumptionPostingSetup[]
   >([]);
   const [fetchingOptions, setFetchingOptions] = useState(false);
-  const [fetchingDocNo, setFetchingDocNo] = useState(false);
   const [formState, setFormState] = useState<Partial<ConsumeInventoryEntry>>({
     "Posting Date": new Date().toISOString().split("T")[0],
     "Entry Type": "Issue",
@@ -137,25 +136,6 @@ export function ConsumeInventoryForm() {
     };
     fetchOptions();
   }, [formState["Item No."]]);
-
-  useEffect(() => {
-    const fetchDocNo = async () => {
-      const date = formState["Posting Date"];
-      if (date) {
-        setFetchingDocNo(true);
-        try {
-          const docNo = await getNextDocumentNo(date);
-          setFormState((prev) => ({ ...prev, "Document No.": docNo }));
-        } catch (error) {
-          console.error("Error fetching document no:", error);
-        } finally {
-          setFetchingDocNo(false);
-        }
-      }
-    };
-    // Fetch only if it's currently empty or on date change
-    fetchDocNo();
-  }, [formState["Posting Date"]]);
 
   useEffect(() => {
     const fetchApplyToEntries = async () => {
@@ -316,8 +296,27 @@ export function ConsumeInventoryForm() {
     setSubmitting(true);
     try {
       const selectedEntries = selectedIndices.map((i) => entries[i]);
-      // Bulk insert selected entries first
-      await bulkInsertConsumeInventoryEntries(selectedEntries);
+      if (selectedEntries.length === 0) return;
+
+      const entriesWithDocNo: ConsumeInventoryEntry[] = [];
+
+      // Fetch unique Doc No for each entry sequentially to ensure number series integrity
+      for (const entry of selectedEntries) {
+        const postingDate = entry["Posting Date"] || new Date().toISOString().split("T")[0];
+        try {
+          const generatedDocNo = await getNextDocumentNo(postingDate);
+          entriesWithDocNo.push({
+            ...entry,
+            "Document No.": generatedDocNo
+          });
+        } catch (error) {
+          console.error(`Error generating Doc No for item ${entry["Item No."]}:`, error);
+          throw new Error(`Failed to generate Document No for ${entry["Item No."]}`);
+        }
+      }
+
+      // Bulk insert selected entries with their unique Doc Nos
+      await bulkInsertConsumeInventoryEntries(entriesWithDocNo);
 
       // Then trigger the post API
       const result = await postConsumeInventory(userID!);
@@ -670,26 +669,6 @@ export function ConsumeInventoryForm() {
                 disabled
                 placeholder="Auto-filled"
               />
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-muted-foreground ml-1 text-[11px] font-bold tracking-wider uppercase">
-                Document No.
-              </label>
-              <div className="relative">
-                <Input
-                  className="h-10 pr-10 font-mono font-medium shadow-sm focus:ring-1"
-                  value={formState["Document No."]}
-                  onChange={(e) => handleChange("Document No.", e.target.value)}
-                  placeholder="e.g. ISSUE/001"
-                  disabled={fetchingDocNo}
-                />
-                {fetchingDocNo && (
-                  <div className="absolute top-1/2 right-3 -translate-y-1/2">
-                    <Loader2 className="text-primary h-4 w-4 animate-spin" />
-                  </div>
-                )}
-              </div>
             </div>
 
             <div className="space-y-1">

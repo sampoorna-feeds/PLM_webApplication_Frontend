@@ -32,7 +32,7 @@ export type SalesChargeSourceType =
   | "Transfer";
 
 const SALES_ENDPOINTS: Record<SalesChargeSourceType, string> = {
-  SalesShipment: "SalesShipmentLine",
+  SalesShipment: "PostedSalesShipmentLine",
   ReturnShipment: "ReturnShipmentLine",
   Transfer: "PostedTransferReceiptLine",
 };

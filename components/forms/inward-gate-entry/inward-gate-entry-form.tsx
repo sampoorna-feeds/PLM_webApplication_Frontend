@@ -36,12 +36,12 @@ export function InwardGateEntryForm({ tabId, context }: InwardGateEntryFormProps
   const [entry, setEntry] = useState<Partial<InwardGateEntryHeader>>(initialEntry || {
     Entry_Type: "Inward",
     Document_Date: new Date().toISOString().split("T")[0],
-    Document_Time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }),
-    Station_From: "",
+    Document_Time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }),
+    Station_From_To: "",
     Description: "",
     Item_Description: "",
     Posting_Date: new Date().toISOString().split("T")[0],
-    Posting_Time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }),
+    Posting_Time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }),
     LR_RR_No: "",
     LR_RR_Date: new Date().toISOString().split("T")[0],
     Vehicle_No: "",
@@ -112,6 +112,12 @@ export function InwardGateEntryForm({ tabId, context }: InwardGateEntryFormProps
       const cleanPayload = Object.entries(entry).reduce((acc, [key, value]) => {
         if (key === "Net_Weight" || key === "Posting_No_Series") return acc;
         if (value === "" || value === undefined || value === null) return acc;
+        
+        // Ensure time fields have :00 if they only have HH:mm
+        if ((key === "Document_Time" || key === "Posting_Time") && typeof value === "string") {
+          if (value.length === 5) value = `${value}:00`;
+        }
+        
         acc[key] = value;
         return acc;
       }, {} as any);
@@ -278,10 +284,10 @@ export function InwardGateEntryForm({ tabId, context }: InwardGateEntryFormProps
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-[10px] font-bold tracking-wider uppercase">Station From</label>
+              <label className="text-[10px] font-bold tracking-wider uppercase">Station From/To</label>
               <Input
-                value={entry.Station_From || ""}
-                onChange={(e) => handleInputChange("Station_From", e.target.value)}
+                value={entry.Station_From_To || ""}
+                onChange={(e) => handleInputChange("Station_From_To", e.target.value)}
                 className="h-8 text-xs"
               />
             </div>

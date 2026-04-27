@@ -25,6 +25,7 @@ export const INWARD_GATE_ENTRY_COLUMNS: ColumnConfig[] = [
   { id: "Location_Code", label: "Location Code", sortable: true, filterType: "text" },
   { id: "Description", label: "Description", sortable: true, filterType: "text" },
   { id: "Item_Description", label: "Item Description", sortable: true, filterType: "text" },
+  { id: "Station_From_To", label: "Station From/To", sortable: true, filterType: "text" },
   { id: "LR_RR_No", label: "LR/RR No.", sortable: true, filterType: "text" },
 ];
 

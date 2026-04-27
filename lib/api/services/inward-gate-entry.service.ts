@@ -12,7 +12,7 @@ export interface InwardGateEntryHeader {
   Entry_Type: string;
   No: string;
   Location_Code: string;
-  Station_From: string;
+  Station_From_To: string;
   Description: string;
   Item_Description: string;
   Document_Date: string;

@@ -1316,6 +1316,74 @@ export function SalesCreateDocumentFormContent({
     </Accordion>
   );
 
+  // ── Ship To / Bill To tables (view + edit mode) ──────────────────────────
+  const renderShipBillCards = () => {
+    if (!orderHeader) return null;
+
+    const h = orderHeader as Record<string, unknown>;
+
+    const fmt = (v: unknown) => {
+      const s = String(v ?? "").trim();
+      return s === "" ? "-" : s;
+    };
+
+    const shipFields = [
+      { label: "Ship-to Code",              value: h.Ship_to_Code },
+      { label: "Ship-to Name",              value: h.Ship_to_Name },
+      { label: "Ship-to Customer",          value: h.Ship_to_Customer },
+      { label: "Ship-to Address",           value: h.Ship_to_Address },
+      { label: "Ship-to Address 2",         value: h.Ship_to_Address_2 },
+      { label: "Ship-to City",              value: h.Ship_to_City },
+      { label: "Ship-to County",            value: h.Ship_to_County },
+      { label: "Ship-to Post Code",         value: h.Ship_to_Post_Code },
+      { label: "Ship-to Country",           value: h.Ship_to_Country_Region_Code },
+      { label: "Ship-to Contact",           value: h.Ship_to_Contact },
+      { label: "Ship-to GST Reg. No.",      value: h.Ship_to_GST_Reg_No },
+      { label: "Ship-to GST Customer Type", value: h.Ship_to_GST_Customer_Type },
+    ];
+
+    const billFields = [
+      { label: "Bill-to Name",       value: h.Bill_to_Name },
+      { label: "Bill-to Address",    value: h.Bill_to_Address },
+      { label: "Bill-to Address 2",  value: h.Bill_to_Address_2 },
+      { label: "Bill-to City",       value: h.Bill_to_City },
+      { label: "Bill-to County",     value: h.Bill_to_County },
+      { label: "Bill-to Post Code",  value: h.Bill_to_Post_Code },
+      { label: "Bill-to Country",    value: h.Bill_to_Country_Region_Code },
+      { label: "Bill-to Contact No.", value: h.Bill_to_Contact_No },
+      { label: "Bill-to Contact",    value: h.Bill_to_Contact },
+    ];
+
+    const renderTable = (title: string, fields: { label: string; value: unknown }[]) => (
+      <div className="flex-1 min-w-0 overflow-hidden rounded-md border">
+        <div className="bg-muted/50 border-b px-3 py-2">
+          <h3 className="text-xs font-bold tracking-wider uppercase">{title}</h3>
+        </div>
+        <Table>
+          <TableBody>
+            {fields.map(({ label, value }) => (
+              <TableRow key={label} className="hover:bg-transparent">
+                <TableCell className="text-muted-foreground w-40 shrink-0 py-1.5 pl-3 pr-2 text-xs font-medium">
+                  {label}
+                </TableCell>
+                <TableCell className="wrap-break-word py-1.5 pl-2 pr-3 text-xs">
+                  {fmt(value)}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+    );
+
+    return (
+      <div className="flex flex-col gap-4 lg:flex-row">
+        {renderTable("Ship To", shipFields)}
+        {renderTable("Bill To", billFields)}
+      </div>
+    );
+  };
+
   // ── Main render ───────────────────────────────────────────────────────────
   const currentDocNo = initialOrderNo || "";
 
@@ -1684,6 +1752,9 @@ export function SalesCreateDocumentFormContent({
                   </div>
                 )}
               </section>
+
+              {/* Ship To / Bill To cards */}
+              {!isCreateMode && renderShipBillCards()}
             </div>
           )}
         </div>

@@ -8,6 +8,14 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DateInput } from "@/components/ui/date-input";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -26,7 +34,6 @@ import {
 } from "@/components/ui/table";
 import {
   bulkInsertConsumeInventoryEntries,
-  getConsumeInventoryEntries,
   postConsumeInventory,
   type ConsumeInventoryEntry,
 } from "@/lib/api/services/consume-inventory.service";
@@ -54,6 +61,7 @@ export function ConsumeInventoryForm() {
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [entries, setEntries] = useState<ConsumeInventoryEntry[]>([]);
+  const [isConfirmPostOpen, setIsConfirmPostOpen] = useState(false);
   const [formState, setFormState] = useState<Partial<ConsumeInventoryEntry>>({
     "Posting Date": new Date().toISOString().split("T")[0],
     "Entry Type": "Issue",
@@ -135,7 +143,9 @@ export function ConsumeInventoryForm() {
 
   const loadEntries = () => {
     if (!userID) return;
-    const stored = localStorage.getItem(`pending_consumption_entries_${userID}`);
+    const stored = localStorage.getItem(
+      `pending_consumption_entries_${userID}`,
+    );
     if (stored) {
       try {
         setEntries(JSON.parse(stored));
@@ -176,10 +186,13 @@ export function ConsumeInventoryForm() {
 
     const newEntry = { ...formState, UserID: userID } as ConsumeInventoryEntry;
     const updatedEntries = [...entries, newEntry];
-    
+
     setEntries(updatedEntries);
-    localStorage.setItem(`pending_consumption_entries_${userID}`, JSON.stringify(updatedEntries));
-    
+    localStorage.setItem(
+      `pending_consumption_entries_${userID}`,
+      JSON.stringify(updatedEntries),
+    );
+
     toast.success("Entry added to pending list");
     setFormState((prev) => ({
       ...prev,
@@ -195,27 +208,32 @@ export function ConsumeInventoryForm() {
   const handleDeleteEntry = (index: number) => {
     const updatedEntries = entries.filter((_, i) => i !== index);
     setEntries(updatedEntries);
-    localStorage.setItem(`pending_consumption_entries_${userID}`, JSON.stringify(updatedEntries));
+    localStorage.setItem(
+      `pending_consumption_entries_${userID}`,
+      JSON.stringify(updatedEntries),
+    );
     toast.success("Entry removed from list");
   };
 
-  const handlePost = async () => {
+  const handlePost = () => {
     if (entries.length === 0) {
       toast.error("No entries to post");
       return;
     }
+    setIsConfirmPostOpen(true);
+  };
 
-    if (!confirm("Are you sure you want to post these entries?")) return;
-
+  const executePost = async () => {
+    setIsConfirmPostOpen(false);
     setSubmitting(true);
     try {
       // Bulk insert entries first
       await bulkInsertConsumeInventoryEntries(entries);
-      
+
       // Then trigger the post API
       const result = await postConsumeInventory(userID!);
       toast.success(result || "Posted successfully");
-      
+
       // Clear local storage and state
       localStorage.removeItem(`pending_consumption_entries_${userID}`);
       setEntries([]);
@@ -356,7 +374,6 @@ export function ConsumeInventoryForm() {
                 }
               />
             </div>
-
 
             <div className="space-y-1">
               <label className="text-muted-foreground ml-1 text-[11px] font-bold tracking-wider uppercase">
@@ -549,7 +566,7 @@ export function ConsumeInventoryForm() {
         <CardHeader className="bg-muted/20 flex flex-row items-center justify-between border-b px-6 py-5">
           <div className="flex items-center gap-3">
             <div className="bg-primary/10 rounded-lg p-2">
-              <Info className="h-5 w-5 text-primary" />
+              <Info className="text-primary h-5 w-5" />
             </div>
             <div>
               <CardTitle className="text-xl font-bold tracking-tight">
@@ -652,14 +669,22 @@ export function ConsumeInventoryForm() {
                     </TableCell>
                     <TableCell>
                       <Badge
-                        variant={entry["Entry Type"] === "Issue" ? "destructive" : "outline"}
+                        variant={
+                          entry["Entry Type"] === "Issue"
+                            ? "destructive"
+                            : "outline"
+                        }
                         className="text-[10px] uppercase"
                       >
                         {entry["Entry Type"]}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-xs font-bold">{entry["Lob Code"]}</TableCell>
-                    <TableCell className="text-xs">{entry["Branch Code"]}</TableCell>
+                    <TableCell className="text-xs font-bold">
+                      {entry["Lob Code"]}
+                    </TableCell>
+                    <TableCell className="text-xs">
+                      {entry["Branch Code"]}
+                    </TableCell>
                     <TableCell>
                       <Badge
                         variant="secondary"
@@ -679,14 +704,16 @@ export function ConsumeInventoryForm() {
                         {entry.Quantity?.toLocaleString()}
                       </span>
                     </TableCell>
-                    <TableCell className="text-[11px]">{entry["Employee Code"] || "—"}</TableCell>
+                    <TableCell className="text-[11px]">
+                      {entry["Employee Code"] || "—"}
+                    </TableCell>
                     <TableCell className="text-muted-foreground text-[11px]">
                       {entry["Assignment Code"] || "—"}
                     </TableCell>
-                    <TableCell className="text-blue-400 font-mono text-[11px]">
+                    <TableCell className="font-mono text-[11px] text-blue-400">
                       {entry["Applies-to Entry"] || "—"}
                     </TableCell>
-                    <TableCell className="text-green-400 font-mono text-[11px]">
+                    <TableCell className="font-mono text-[11px] text-green-400">
                       {entry["Applies-from Entry"] || "—"}
                     </TableCell>
                     <TableCell>
@@ -706,6 +733,48 @@ export function ConsumeInventoryForm() {
           </Table>
         </CardContent>
       </Card>
+
+      <Dialog open={isConfirmPostOpen} onOpenChange={setIsConfirmPostOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <div className="bg-primary/10 mb-4 flex h-12 w-12 items-center justify-center rounded-full">
+              <Send className="text-primary h-6 w-6" />
+            </div>
+            <DialogTitle className="text-xl font-bold">
+              Confirm Posting
+            </DialogTitle>
+            <DialogDescription className="py-2 text-sm leading-relaxed">
+              Are you sure you want to post these{" "}
+              <span className="text-foreground font-bold">
+                {entries.length} items
+              </span>{" "}
+              to the inventory? This action will update the inventory ledgers
+              and cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="mt-6 flex gap-2 sm:justify-end">
+            <Button
+              variant="outline"
+              onClick={() => setIsConfirmPostOpen(false)}
+              className="font-semibold"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={executePost}
+              className="px-8 font-bold"
+              disabled={submitting}
+            >
+              {submitting ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Send className="mr-2 h-4 w-4" />
+              )}
+              Confirm & Post
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

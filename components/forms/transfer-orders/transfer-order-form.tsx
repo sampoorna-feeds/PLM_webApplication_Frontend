@@ -1275,6 +1275,18 @@ export function TransferOrderForm({
                         handleChange("Posting_Date", e.target.value)
                       }
                       disabled={formState.Status === "Released"}
+                      min={
+                        webUserProfile?.Allow_Posting_From &&
+                        webUserProfile.Allow_Posting_From !== "0001-01-01"
+                          ? webUserProfile.Allow_Posting_From.split("T")[0]
+                          : undefined
+                      }
+                      max={
+                        webUserProfile?.Allow_Posting_To &&
+                        webUserProfile.Allow_Posting_To !== "0001-01-01"
+                          ? webUserProfile.Allow_Posting_To.split("T")[0]
+                          : undefined
+                      }
                       className="h-8"
                     />
                   </div>
@@ -1355,15 +1367,26 @@ export function TransferOrderForm({
                 </div>
                 <div className={fieldClass}>
                   <label className={labelClass}>LR/RR Date</label>
-                  <Input
-                    type="date"
+                  <DateInput
                     value={
                       formState.LR_RR_Date
                         ? formState.LR_RR_Date.split("T")[0]
                         : ""
                     }
-                    onChange={(e) => handleChange("LR_RR_Date", e.target.value)}
+                    onChange={(val) => handleChange("LR_RR_Date", val)}
                     disabled={formState.Status === "Released"}
+                    min={
+                      webUserProfile?.Allow_Posting_From &&
+                      webUserProfile.Allow_Posting_From !== "0001-01-01"
+                        ? webUserProfile.Allow_Posting_From.split("T")[0]
+                        : undefined
+                    }
+                    max={
+                      webUserProfile?.Allow_Posting_To &&
+                      webUserProfile.Allow_Posting_To !== "0001-01-01"
+                        ? webUserProfile.Allow_Posting_To.split("T")[0]
+                        : undefined
+                    }
                     className="h-8"
                   />
                 </div>

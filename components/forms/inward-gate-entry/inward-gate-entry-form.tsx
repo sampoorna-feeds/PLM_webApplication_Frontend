@@ -109,16 +109,25 @@ export function InwardGateEntryForm({ tabId, context }: InwardGateEntryFormProps
     setIsSaving(true);
     try {
       // Clean payload: remove empty strings, Net_Weight, and Posting_No_Series
+      // For updates (PATCH), only send modified fields
       const cleanPayload = Object.entries(entry).reduce((acc, [key, value]) => {
-        if (key === "Net_Weight" || key === "Posting_No_Series") return acc;
+        // Exclusions
+        if (key === "Net_Weight" || key === "Posting_No_Series" || key === "@odata.etag" || key === "id") return acc;
         if (value === "" || value === undefined || value === null) return acc;
         
+        // Dirty tracking for updates
+        if (mode !== "create") {
+          const initialValue = initialEntry?.[key as keyof InwardGateEntryHeader];
+          if (value === initialValue) return acc;
+        }
+
         // Ensure time fields have :00 if they only have HH:mm
-        if ((key === "Document_Time" || key === "Posting_Time") && typeof value === "string") {
-          if (value.length === 5) value = `${value}:00`;
+        let processedValue = value;
+        if ((key === "Document_Time" || key === "Posting_Time") && typeof processedValue === "string") {
+          if (processedValue.length === 5) processedValue = `${processedValue}:00`;
         }
         
-        acc[key] = value;
+        acc[key] = processedValue;
         return acc;
       }, {} as any);
 
@@ -139,8 +148,17 @@ export function InwardGateEntryForm({ tabId, context }: InwardGateEntryFormProps
         onRefetch?.();
       } else {
         const identifier = entry.No;
+        const entryType = entry.Entry_Type || "Inward";
         if (!identifier) throw new Error("Document No. is missing");
-        const result = await updateInwardGateEntryHeader(identifier, cleanPayload);
+        
+        // If no fields changed, just mark as saved and return
+        if (Object.keys(cleanPayload).length === 0) {
+          toast.info("No changes to update");
+          markAsSaved();
+          return;
+        }
+
+        const result = await updateInwardGateEntryHeader(identifier, entryType, cleanPayload);
         toast.success(`Gate Entry ${result.No} updated successfully`);
         setEntry(result);
         

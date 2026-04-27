@@ -556,29 +556,8 @@ export function SalesCreateDocumentFormContent({
   // Refresh only lines + stock without triggering the full loading skeleton.
   // Used after add/edit/delete line operations.
   const refreshLines = useCallback(async () => {
-    const docNo = initialOrderNo;
-    if (!docNo) return;
-    try {
-      const lineItems = await ops.fetchLines(docNo);
-      setLines(lineItems);
-
-      const locationCode = orderHeader?.Location_Code;
-      if (locationCode && lineItems.length > 0) {
-        const itemNos = [
-          ...new Set(lineItems.map((l) => String(l.No || ""))),
-        ].filter(Boolean);
-        const stockDate = new Date().toISOString().split("T")[0];
-        try {
-          const stock = await getItemStock(itemNos, locationCode, stockDate);
-          setLineStockMap(stock);
-        } catch {
-          setLineStockMap({});
-        }
-      }
-    } catch {
-      // non-fatal
-    }
-  }, [initialOrderNo, ops, orderHeader?.Location_Code]);
+    await loadDocument();
+  }, [loadDocument]);
 
   useEffect(() => {
     if (!isCreateMode) {

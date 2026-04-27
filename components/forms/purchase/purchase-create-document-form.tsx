@@ -2458,7 +2458,7 @@ export function PurchaseCreateDocumentFormContent({
                             patch,
                           );
                         }
-                        await fetchLines(createdOrderNo);
+                        await refreshHydratedDocument();
                       } catch (err) {
                         setPlaceOrderError(getErrorMessage(err, "Failed to update line."));
                         throw err;
@@ -2598,11 +2598,11 @@ export function PurchaseCreateDocumentFormContent({
           onDelete={async (line) => {
             if (line.Line_No && createdOrderNo) {
               await config.deleteLine(createdOrderNo, line.Line_No);
-              await fetchLines(createdOrderNo);
+              await refreshHydratedDocument();
             }
           }}
           onSave={async () => {
-            if (createdOrderNo) await fetchLines(createdOrderNo);
+            await refreshHydratedDocument();
             setSelectedLine(null);
           }}
         />
@@ -2643,7 +2643,7 @@ export function PurchaseCreateDocumentFormContent({
           locationCode={formData.locationCode || ""}
           documentType={documentType}
           onSave={() => {
-            if (createdOrderNo) fetchLines(createdOrderNo);
+            void refreshHydratedDocument();
           }}
         />
       )}

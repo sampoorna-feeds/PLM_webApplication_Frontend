@@ -34,8 +34,8 @@ export const CalculatorInput = React.forwardRef<
   const evaluateExpression = (val: string) => {
     if (!val) return "";
     
-    // Cleanup: remove spaces, allow only digits, operators and dot
-    const cleaned = val.replace(/\s+/g, "");
+    // Cleanup: normalize "x"/"X" to "*", remove spaces
+    const cleaned = val.replace(/\s+/g, "").replace(/[xX]/g, "*");
     
     // Basic validation: must contain at least one operator to be an expression, 
     // otherwise it's just a number.
@@ -99,7 +99,7 @@ export const CalculatorInput = React.forwardRef<
     
     if (strict) {
       // Only allow math-related characters in strict mode
-      if (/^[0-9\+\-\*\/\.\(\)\s]*$/.test(newVal)) {
+      if (/^[0-9\+\-\*\/\.\(\)\s xX]*$/.test(newVal)) {
         setInputValue(newVal);
         onValueChange?.(newVal);
       }

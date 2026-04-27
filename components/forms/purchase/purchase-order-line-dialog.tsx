@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Loader2, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { CalculatorInput } from "@/components/ui/calculator-input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import {
@@ -800,19 +801,11 @@ export function PurchaseOrderLineDialog({
                     value={formatNumericValue(formState.quantity)}
                     onClear={() => handleNumericChange("quantity", "")}
                   >
-                    <Input
-                      type="text"
-                      inputMode="decimal"
+                    <CalculatorInput
                       value={formatNumericValue(formState.quantity)}
-                      onChange={(e) =>
-                        handleNumericChange("quantity", e.target.value)
-                      }
-                      onWheel={(e) => e.currentTarget.blur()}
+                      onValueChange={(v) => handleNumericChange("quantity", v)}
                       placeholder="0.00"
-                      className={cn(
-                        "h-8 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none",
-                        fieldInputClass,
-                      )}
+                      className={cn("h-8", fieldInputClass)}
                     />
                   </ClearableField>
                 </div>
@@ -832,24 +825,11 @@ export function PurchaseOrderLineDialog({
                           )
                         }
                       >
-                        <Input
-                          type="text"
-                          inputMode="decimal"
-                          value={getQuantityFieldDisplayValue(
-                            quantityColumns.firstPendingKey,
-                          )}
-                          onChange={(e) =>
-                            handleQuantityFieldChange(
-                              quantityColumns.firstPendingKey,
-                              e.target.value,
-                            )
-                          }
-                          onWheel={(e) => e.currentTarget.blur()}
+                        <CalculatorInput
+                          value={getQuantityFieldDisplayValue(quantityColumns.firstPendingKey)}
+                          onValueChange={(v) => handleQuantityFieldChange(quantityColumns.firstPendingKey, v)}
                           placeholder="0.00"
-                          className={cn(
-                            "h-8 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none",
-                            fieldInputClass,
-                          )}
+                          className={cn("h-8", fieldInputClass)}
                         />
                       </ClearableField>
                     </div>
@@ -867,24 +847,11 @@ export function PurchaseOrderLineDialog({
                           )
                         }
                       >
-                        <Input
-                          type="text"
-                          inputMode="decimal"
-                          value={getQuantityFieldDisplayValue(
-                            quantityColumns.secondPendingKey,
-                          )}
-                          onChange={(e) =>
-                            handleQuantityFieldChange(
-                              quantityColumns.secondPendingKey,
-                              e.target.value,
-                            )
-                          }
-                          onWheel={(e) => e.currentTarget.blur()}
+                        <CalculatorInput
+                          value={getQuantityFieldDisplayValue(quantityColumns.secondPendingKey)}
+                          onValueChange={(v) => handleQuantityFieldChange(quantityColumns.secondPendingKey, v)}
                           placeholder="0.00"
-                          className={cn(
-                            "h-8 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none",
-                            fieldInputClass,
-                          )}
+                          className={cn("h-8", fieldInputClass)}
                         />
                       </ClearableField>
                     </div>
@@ -898,19 +865,11 @@ export function PurchaseOrderLineDialog({
                     value={formatNumericValue(formState.unitPrice)}
                     onClear={() => handleNumericChange("unitPrice", "")}
                   >
-                    <Input
-                      type="text"
-                      inputMode="decimal"
+                    <CalculatorInput
                       value={formatNumericValue(formState.unitPrice)}
-                      onChange={(e) =>
-                        handleNumericChange("unitPrice", e.target.value)
-                      }
-                      onWheel={(e) => e.currentTarget.blur()}
+                      onValueChange={(v) => handleNumericChange("unitPrice", v)}
                       placeholder="0.00"
-                      className={cn(
-                        "h-8 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none",
-                        fieldInputClass,
-                      )}
+                      className={cn("h-8", fieldInputClass)}
                     />
                   </ClearableField>
                 </div>
@@ -921,19 +880,11 @@ export function PurchaseOrderLineDialog({
                     value={formatNumericValue(formState.discount)}
                     onClear={() => handleNumericChange("discount", "")}
                   >
-                    <Input
-                      type="text"
-                      inputMode="decimal"
+                    <CalculatorInput
                       value={formatNumericValue(formState.discount)}
-                      onChange={(e) =>
-                        handleNumericChange("discount", e.target.value)
-                      }
-                      onWheel={(e) => e.currentTarget.blur()}
+                      onValueChange={(v) => handleNumericChange("discount", v)}
                       placeholder="0.00"
-                      className={cn(
-                        "h-8 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none",
-                        fieldInputClass,
-                      )}
+                      className={cn("h-8", fieldInputClass)}
                     />
                   </ClearableField>
                 </div>
@@ -987,19 +938,11 @@ export function PurchaseOrderLineDialog({
                         value={formatNumericValue(formState.salvageValue)}
                         onClear={() => handleNumericChange("salvageValue", "")}
                       >
-                        <Input
-                          type="text"
-                          inputMode="decimal"
+                        <CalculatorInput
                           value={formatNumericValue(formState.salvageValue)}
-                          onChange={(e) =>
-                            handleNumericChange("salvageValue", e.target.value)
-                          }
-                          onWheel={(e) => e.currentTarget.blur()}
+                          onValueChange={(v) => handleNumericChange("salvageValue", v)}
                           placeholder="0.00"
-                          className={cn(
-                            "h-8 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none",
-                            fieldInputClass,
-                          )}
+                          className={cn("h-8", fieldInputClass)}
                         />
                       </ClearableField>
                     </div>

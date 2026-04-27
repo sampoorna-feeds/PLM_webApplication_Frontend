@@ -42,6 +42,7 @@ import {
 import {
   bulkInsertConsumeInventoryEntries,
   getConsumptionPostingSetup,
+  getNextDocumentNo,
   postConsumeInventory,
   type ConsumeInventoryEntry,
   type ConsumptionPostingSetup,
@@ -76,6 +77,7 @@ export function ConsumeInventoryForm() {
   const [isConfirmPostOpen, setIsConfirmPostOpen] = useState(false);
   const [consumptionOptions, setConsumptionOptions] = useState<ConsumptionPostingSetup[]>([]);
   const [fetchingOptions, setFetchingOptions] = useState(false);
+  const [fetchingDocNo, setFetchingDocNo] = useState(false);
   const [formState, setFormState] = useState<Partial<ConsumeInventoryEntry>>({
     "Posting Date": new Date().toISOString().split("T")[0],
     "Entry Type": "Issue",
@@ -130,6 +132,25 @@ export function ConsumeInventoryForm() {
     };
     fetchOptions();
   }, [formState["Item No."]]);
+
+  useEffect(() => {
+    const fetchDocNo = async () => {
+      const date = formState["Posting Date"];
+      if (date) {
+        setFetchingDocNo(true);
+        try {
+          const docNo = await getNextDocumentNo(date);
+          setFormState(prev => ({ ...prev, "Document No.": docNo }));
+        } catch (error) {
+          console.error("Error fetching document no:", error);
+        } finally {
+          setFetchingDocNo(false);
+        }
+      }
+    };
+    // Fetch only if it's currently empty or on date change
+    fetchDocNo();
+  }, [formState["Posting Date"]]);
 
   useEffect(() => {
     const fetchApplyToEntries = async () => {
@@ -373,12 +394,20 @@ export function ConsumeInventoryForm() {
               <label className="text-muted-foreground ml-1 text-[11px] font-bold tracking-wider uppercase">
                 Document No.
               </label>
-              <Input
-                className="h-10 font-mono font-medium shadow-sm focus:ring-1"
-                value={formState["Document No."]}
-                onChange={(e) => handleChange("Document No.", e.target.value)}
-                placeholder="e.g. ISSUE/001"
-              />
+              <div className="relative">
+                <Input
+                  className="h-10 pr-10 font-mono font-medium shadow-sm focus:ring-1"
+                  value={formState["Document No."]}
+                  onChange={(e) => handleChange("Document No.", e.target.value)}
+                  placeholder="e.g. ISSUE/001"
+                  disabled={fetchingDocNo}
+                />
+                {fetchingDocNo && (
+                  <div className="absolute top-1/2 right-3 -translate-y-1/2">
+                    <Loader2 className="text-primary h-4 w-4 animate-spin" />
+                  </div>
+                )}
+              </div>
             </div>
             <div className="space-y-1">
               <label className="text-muted-foreground ml-1 text-[11px] font-bold tracking-wider uppercase">

@@ -52,6 +52,19 @@ export async function getConsumptionPostingSetup(itemNo: string): Promise<Consum
   return response.value || [];
 }
 
+export async function getNextDocumentNo(postingDate: string): Promise<string> {
+  const encodedCompany = encodeURIComponent(COMPANY);
+  const endpoint = `/API_CreateNoSeriesForVouchers?company='${encodedCompany}'`;
+  
+  const payload = {
+    seriesCode: "WEBCONSU",
+    postingDate: postingDate
+  };
+  
+  const response = await apiPost<{ value: string }>(endpoint, payload);
+  return response.value;
+}
+
 function transformConsumeEntry(entry: Partial<ConsumeInventoryEntry>): Record<string, unknown> {
   const result: Record<string, unknown> = {
     Journal_Template_Name: "ITEM",

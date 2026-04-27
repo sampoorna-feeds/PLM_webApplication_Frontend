@@ -113,7 +113,7 @@ export function InwardGateEntryTable({
               entries.length > 0 &&
               entries.map((entry, index) => (
                 <tr
-                  key={entry.id || entry["No."] || `row-${index}`}
+                  key={entry.id || entry.No || `row-${index}`}
                   className={`border-b transition-colors ${
                     onRowClick ? "hover:bg-muted cursor-pointer" : ""
                   }`}

@@ -2,7 +2,8 @@ import { apiGet, apiPost } from "../client";
 import { buildODataQuery } from "../endpoints";
 import type { ODataResponse } from "../types";
 
-const COMPANY = process.env.NEXT_PUBLIC_API_COMPANY || "Sampoorna Feeds Pvt. Ltd";
+const COMPANY =
+  process.env.NEXT_PUBLIC_API_COMPANY || "Sampoorna Feeds Pvt. Ltd";
 
 export interface ConsumeInventoryEntry {
   id?: string;
@@ -24,13 +25,14 @@ export interface ConsumeInventoryEntry {
   [key: string]: unknown;
 }
 
-
-export async function getConsumeInventoryEntries(userId: string): Promise<ConsumeInventoryEntry[]> {
+export async function getConsumeInventoryEntries(
+  userId: string,
+): Promise<ConsumeInventoryEntry[]> {
   const encodedCompany = encodeURIComponent(COMPANY);
   const filter = `UserID eq '${userId.replace(/'/g, "''")}'`;
   const query = buildODataQuery({ $filter: filter });
   const endpoint = `/ConsumeInventory?company='${encodedCompany}'&${query}`;
-  
+
   const response = await apiGet<ODataResponse<ConsumeInventoryEntry>>(endpoint);
   return response.value || [];
 }
@@ -41,31 +43,36 @@ export interface ConsumptionPostingSetup {
   Name: string;
 }
 
-export async function getConsumptionPostingSetup(itemNo: string): Promise<ConsumptionPostingSetup[]> {
+export async function getConsumptionPostingSetup(
+  itemNo: string,
+): Promise<ConsumptionPostingSetup[]> {
   if (!itemNo) return [];
   const encodedCompany = encodeURIComponent(COMPANY);
   const filter = `Item_No eq '${itemNo.replace(/'/g, "''")}'`;
   // Using exact format from curl command for reliability
   const endpoint = `/ConsuPostingSetup?company='${encodedCompany}'&$filter=${encodeURIComponent(filter)}`;
-  
-  const response = await apiGet<ODataResponse<ConsumptionPostingSetup>>(endpoint);
+
+  const response =
+    await apiGet<ODataResponse<ConsumptionPostingSetup>>(endpoint);
   return response.value || [];
 }
 
 export async function getNextDocumentNo(postingDate: string): Promise<string> {
   const encodedCompany = encodeURIComponent(COMPANY);
   const endpoint = `/API_CreateNoSeriesForVouchers?company='${encodedCompany}'`;
-  
+
   const payload = {
     seriesCode: "WEBCONSU",
-    postingDate: postingDate
+    postingDate: postingDate,
   };
-  
+
   const response = await apiPost<{ value: string }>(endpoint, payload);
   return response.value;
 }
 
-function transformConsumeEntry(entry: Partial<ConsumeInventoryEntry>): Record<string, unknown> {
+function transformConsumeEntry(
+  entry: Partial<ConsumeInventoryEntry>,
+): Record<string, unknown> {
   const result: Record<string, unknown> = {
     Journal_Template_Name: "ITEM",
     Journal_Batch_Name: "WEBAPP",
@@ -87,21 +94,28 @@ function transformConsumeEntry(entry: Partial<ConsumeInventoryEntry>): Record<st
     ShortcutDimCode8: "",
     Consumption: true,
     Consumption_Posting: entry["Consumption Posting"] || "",
-    userID: (entry.UserID as string || "JOBQUEUE").toUpperCase(),
+    userID: ((entry.UserID as string) || "JOBQUEUE").toUpperCase(),
   };
 
   // Remove any fields that are undefined, null, or empty string (except for required fixed ones)
   return Object.fromEntries(
     Object.entries(result).filter(([key, value]) => {
       // Keep required fixed values even if empty-ish
-      const required = ["Consumption", "Quantity", "Applies_to_Entry", "Applies_from_Entry"];
+      const required = [
+        "Consumption",
+        "Quantity",
+        "Applies_to_Entry",
+        "Applies_from_Entry",
+      ];
       if (required.includes(key)) return true;
       return value !== undefined && value !== null && value !== "";
-    })
+    }),
   );
 }
 
-export async function createConsumeInventoryEntry(data: Partial<ConsumeInventoryEntry>): Promise<ConsumeInventoryEntry> {
+export async function createConsumeInventoryEntry(
+  data: Partial<ConsumeInventoryEntry>,
+): Promise<ConsumeInventoryEntry> {
   const encodedCompany = encodeURIComponent(COMPANY);
   const endpoint = `/ConsumeInventory?company='${encodedCompany}'`;
   const transformedData = transformConsumeEntry(data);
@@ -111,7 +125,9 @@ export async function createConsumeInventoryEntry(data: Partial<ConsumeInventory
 /**
  * Bulk insert entries by calling the create API for each entry.
  */
-export async function bulkInsertConsumeInventoryEntries(entries: Partial<ConsumeInventoryEntry>[]): Promise<void> {
+export async function bulkInsertConsumeInventoryEntries(
+  entries: Partial<ConsumeInventoryEntry>[],
+): Promise<void> {
   for (const entry of entries) {
     await createConsumeInventoryEntry(entry);
   }
@@ -120,6 +136,8 @@ export async function bulkInsertConsumeInventoryEntries(entries: Partial<Consume
 export async function postConsumeInventory(userId: string): Promise<string> {
   const encodedCompany = encodeURIComponent(COMPANY);
   const endpoint = `/API_PostConsumeInventory?company='${encodedCompany}'`;
-  const response = await apiPost<{ value: string }>(endpoint, { userID: userId.toUpperCase() });
+  const response = await apiPost<{ value: string }>(endpoint, {
+    userID: userId.toUpperCase(),
+  });
   return response.value;
 }

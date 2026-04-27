@@ -27,18 +27,13 @@ export const INWARD_GATE_ENTRY_COLUMNS: ColumnConfig[] = [
   { id: "Item_Description", label: "Item Description", sortable: true, filterType: "text" },
   { id: "Station_From_To", label: "Station From/To", sortable: true, filterType: "text" },
   { id: "LR_RR_No", label: "LR/RR No.", sortable: true, filterType: "text" },
+  { id: "Vehicle_No", label: "Vehicle No.", sortable: true, filterType: "text" },
 ];
 
 export const DEFAULT_VISIBLE_COLUMNS = [
   "Entry_Type",
-  "Gross_Weight",
-  "Tier_Weight",
-  "Net_Weight",
-  "Per_Bag_Freight_Charges",
-  "Total_Freight_Amount",
-  "Transporter_Name",
-  "No_of_Bags",
   "No",
+  "Vehicle_No",
   "Document_Date",
   "Document_Time",
   "Location_Code",

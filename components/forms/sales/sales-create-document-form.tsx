@@ -1379,29 +1379,37 @@ export function SalesCreateDocumentFormContent({
     ];
 
     const renderTable = (title: string, fields: { label: string; value: unknown }[]) => (
-      <div className="flex-1 min-w-0 overflow-hidden rounded-md border">
-        <div className="bg-muted/50 border-b px-3 py-2">
-          <h3 className="text-xs font-bold tracking-wider uppercase">{title}</h3>
-        </div>
-        <Table>
-          <TableBody>
-            {fields.map(({ label, value }) => (
-              <TableRow key={label} className="hover:bg-transparent">
-                <TableCell className="text-muted-foreground w-40 shrink-0 py-1.5 pl-3 pr-2 text-xs font-medium">
-                  {label}
-                </TableCell>
-                <TableCell className="wrap-break-word py-1.5 pl-2 pr-3 text-xs">
-                  {fmt(value)}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
+      <Accordion
+        type="single"
+        collapsible
+        className="flex-1 min-w-0 overflow-hidden rounded-md border"
+      >
+        <AccordionItem value="open" className="border-none">
+          <AccordionTrigger className="bg-muted/50 border-b px-3 py-2 hover:no-underline hover:bg-muted/70 [&>svg]:shrink-0">
+            <h3 className="text-xs font-bold tracking-wider uppercase">{title}</h3>
+          </AccordionTrigger>
+          <AccordionContent className="pb-0">
+            <Table>
+              <TableBody>
+                {fields.map(({ label, value }) => (
+                  <TableRow key={label} className="hover:bg-transparent">
+                    <TableCell className="text-muted-foreground w-40 shrink-0 py-1.5 pl-3 pr-2 text-xs font-medium">
+                      {label}
+                    </TableCell>
+                    <TableCell className="wrap-break-word py-1.5 pl-2 pr-3 text-xs">
+                      {fmt(value)}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </AccordionContent>
+        </AccordionItem>
+      </Accordion>
     );
 
     return (
-      <div className="flex flex-col gap-4 lg:flex-row">
+      <div className="flex flex-col gap-4 items-start lg:flex-row">
         {renderTable("Ship To", shipFields)}
         {renderTable("Bill To", billFields)}
       </div>

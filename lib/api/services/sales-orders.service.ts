@@ -397,7 +397,7 @@ export async function searchTransporters(
 ): Promise<Transporter[]> {
   if (!query || query.trim().length < 2) return [];
   const escaped = escapeODataValue(query.trim());
-  const filter = `Transporter eq true and Blocked eq '' and (contains(No,'${escaped}') or contains(Name,'${escaped}'))`;
+  const filter = `Transporter eq true and Blocked eq '' and contains(No,'${escaped}')`;
   const odataQuery = buildODataQuery({
     $select: "No,Name",
     $filter: filter,

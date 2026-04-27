@@ -184,9 +184,7 @@ function buildSourceFilters(
 
   if (searchTerm && searchTerm.trim()) {
     const s = escapeODataValue(searchTerm.trim());
-    clauses.push(
-      `(contains(No,'${s}') or contains(Sell_to_Customer_No,'${s}') or contains(Sell_to_Customer_Name,'${s}'))`,
-    );
+    clauses.push(`contains(No,'${s}')`);
   }
 
   if (filters?.documentNo?.trim()) {

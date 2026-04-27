@@ -96,9 +96,7 @@ export const salesItemChargeAssignmentService = {
     if (extraFilters?.length) filters.push(...extraFilters);
     if (search) {
       const s = search.replace(/'/g, "''");
-      filters.push(
-        `(contains(Document_No,'${s}') or contains(${itemNoField},'${s}'))`,
-      );
+      filters.push(`contains(Document_No,'${s}')`);
     }
 
     const filterStr =

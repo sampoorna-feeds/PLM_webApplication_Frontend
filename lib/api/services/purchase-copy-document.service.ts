@@ -211,7 +211,7 @@ function buildSourceFilters(
   if (searchTerm && searchTerm.trim()) {
     const escapedSearch = escapeODataValue(searchTerm.trim());
     clauses.push(
-      `(contains(No,'${escapedSearch}') or contains(${vendorNoField},'${escapedSearch}') or contains(Buy_from_Vendor_Name,'${escapedSearch}'))`,
+      `contains(No,'${escapedSearch}')`,
     );
   }
 

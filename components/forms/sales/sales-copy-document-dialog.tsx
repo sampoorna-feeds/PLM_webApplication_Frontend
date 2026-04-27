@@ -720,7 +720,7 @@ export function SalesCopyDocumentDialog({
                   setSearchInput(value);
                   setSearchTerm(value);
                 }}
-                placeholder="Search by document no, customer no, or customer name"
+                placeholder="Search by document no"
                 className="h-9 pl-9 text-xs"
               />
             </div>

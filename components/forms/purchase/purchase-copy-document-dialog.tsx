@@ -721,7 +721,7 @@ export function PurchaseCopyDocumentDialog({
                   setSearchInput(value);
                   setSearchTerm(value);
                 }}
-                placeholder="Search by document no, vendor no, or vendor name"
+                placeholder="Search by document no"
                 className="h-9 pl-9 text-xs"
               />
             </div>

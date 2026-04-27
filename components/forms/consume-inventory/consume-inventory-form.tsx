@@ -25,7 +25,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
-  createConsumeInventoryEntry,
+  bulkInsertConsumeInventoryEntries,
   getConsumeInventoryEntries,
   postConsumeInventory,
   type ConsumeInventoryEntry,
@@ -133,17 +133,18 @@ export function ConsumeInventoryForm() {
     fetchApplyFromEntries();
   }, [formState["Item No."]]);
 
-  const loadEntries = async () => {
+  const loadEntries = () => {
     if (!userID) return;
-    setLoading(true);
-    try {
-      const data = await getConsumeInventoryEntries(userID);
-      setEntries(data);
-    } catch (error) {
-      console.error("Error loading entries:", error);
-      toast.error("Failed to load entries");
-    } finally {
-      setLoading(false);
+    const stored = localStorage.getItem(`pending_consumption_entries_${userID}`);
+    if (stored) {
+      try {
+        setEntries(JSON.parse(stored));
+      } catch (err) {
+        console.error("Error loading stored entries:", err);
+        setEntries([]);
+      }
+    } else {
+      setEntries([]);
     }
   };
 
@@ -163,7 +164,7 @@ export function ConsumeInventoryForm() {
     });
   };
 
-  const handleAddEntry = async () => {
+  const handleAddEntry = () => {
     if (
       !formState["Item No."] ||
       !formState["Location Code"] ||
@@ -173,24 +174,29 @@ export function ConsumeInventoryForm() {
       return;
     }
 
-    setSubmitting(true);
-    try {
-      const payload = { ...formState, UserID: userID };
-      await createConsumeInventoryEntry(payload);
-      toast.success("Entry added to pending list");
-      setFormState((prev) => ({
-        ...prev,
-        "Item No.": "",
-        Description: "",
-        Quantity: 0,
-        "Unit of Measure Code": "",
-      }));
-      loadEntries();
-    } catch (error: any) {
-      toast.error(error.message || "Failed to add entry");
-    } finally {
-      setSubmitting(false);
-    }
+    const newEntry = { ...formState, UserID: userID } as ConsumeInventoryEntry;
+    const updatedEntries = [...entries, newEntry];
+    
+    setEntries(updatedEntries);
+    localStorage.setItem(`pending_consumption_entries_${userID}`, JSON.stringify(updatedEntries));
+    
+    toast.success("Entry added to pending list");
+    setFormState((prev) => ({
+      ...prev,
+      "Item No.": "",
+      Description: "",
+      Quantity: 0,
+      "Unit of Measure Code": "",
+      "Applies-to Entry": undefined,
+      "Applies-from Entry": undefined,
+    }));
+  };
+
+  const handleDeleteEntry = (index: number) => {
+    const updatedEntries = entries.filter((_, i) => i !== index);
+    setEntries(updatedEntries);
+    localStorage.setItem(`pending_consumption_entries_${userID}`, JSON.stringify(updatedEntries));
+    toast.success("Entry removed from list");
   };
 
   const handlePost = async () => {
@@ -203,9 +209,16 @@ export function ConsumeInventoryForm() {
 
     setSubmitting(true);
     try {
+      // Bulk insert entries first
+      await bulkInsertConsumeInventoryEntries(entries);
+      
+      // Then trigger the post API
       const result = await postConsumeInventory(userID!);
       toast.success(result || "Posted successfully");
-      loadEntries();
+      
+      // Clear local storage and state
+      localStorage.removeItem(`pending_consumption_entries_${userID}`);
+      setEntries([]);
     } catch (error: any) {
       toast.error(error.message || "Failed to post");
     } finally {
@@ -344,19 +357,6 @@ export function ConsumeInventoryForm() {
               />
             </div>
 
-            <div className="space-y-1">
-              <label className="text-muted-foreground ml-1 text-[11px] font-bold tracking-wider uppercase">
-                Quantity
-              </label>
-              <Input
-                type="number"
-                className="text-primary h-10 font-mono text-lg font-bold shadow-sm focus:ring-1"
-                value={formState.Quantity}
-                onChange={(e) =>
-                  handleChange("Quantity", parseFloat(e.target.value) || 0)
-                }
-              />
-            </div>
 
             <div className="space-y-1">
               <label className="text-muted-foreground ml-1 text-[11px] font-bold tracking-wider uppercase">
@@ -388,6 +388,20 @@ export function ConsumeInventoryForm() {
                 }}
                 className="h-10"
                 locationCode={formState["Location Code"]}
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-muted-foreground ml-1 text-[11px] font-bold tracking-wider uppercase">
+                Quantity
+              </label>
+              <Input
+                type="number"
+                className="text-primary h-10 font-mono text-lg font-bold shadow-sm focus:ring-1"
+                value={formState.Quantity}
+                onChange={(e) =>
+                  handleChange("Quantity", parseFloat(e.target.value) || 0)
+                }
               />
             </div>
 
@@ -534,8 +548,8 @@ export function ConsumeInventoryForm() {
       <Card className="bg-background/40 border-border/50 flex min-h-[500px] flex-1 flex-col overflow-hidden border border-none shadow-2xl backdrop-blur-xl">
         <CardHeader className="bg-muted/20 flex flex-row items-center justify-between border-b px-6 py-5">
           <div className="flex items-center gap-3">
-            <div className="rounded-lg bg-emerald-500/10 p-2">
-              <Info className="h-5 w-5 text-emerald-600" />
+            <div className="bg-primary/10 rounded-lg p-2">
+              <Info className="h-5 w-5 text-primary" />
             </div>
             <div>
               <CardTitle className="text-xl font-bold tracking-tight">
@@ -561,32 +575,53 @@ export function ConsumeInventoryForm() {
             Post Consumption
           </Button>
         </CardHeader>
-        <CardContent className="flex-1 overflow-auto p-0">
-          <Table>
+        <CardContent className="flex-1 overflow-x-auto p-0">
+          <Table className="min-w-[1400px]">
             <TableHeader className="bg-muted/40 sticky top-0 z-10 backdrop-blur-sm">
               <TableRow className="border-b-2 hover:bg-transparent">
-                <TableHead className="w-[140px] py-4 text-xs font-bold tracking-wider uppercase">
+                <TableHead className="py-4 text-xs font-bold tracking-wider uppercase">
                   Posting Date
                 </TableHead>
                 <TableHead className="py-4 text-xs font-bold tracking-wider uppercase">
-                  Document
+                  Type
                 </TableHead>
                 <TableHead className="py-4 text-xs font-bold tracking-wider uppercase">
-                  Item Details
+                  LOB
+                </TableHead>
+                <TableHead className="py-4 text-xs font-bold tracking-wider uppercase">
+                  Branch
                 </TableHead>
                 <TableHead className="py-4 text-xs font-bold tracking-wider uppercase">
                   Location
                 </TableHead>
+                <TableHead className="py-4 text-xs font-bold tracking-wider uppercase">
+                  UOM
+                </TableHead>
+                <TableHead className="py-4 text-xs font-bold tracking-wider uppercase">
+                  Item No.
+                </TableHead>
                 <TableHead className="py-4 text-right text-xs font-bold tracking-wider uppercase">
                   Quantity
                 </TableHead>
-                <TableHead className="w-[80px] py-4"></TableHead>
+                <TableHead className="py-4 text-xs font-bold tracking-wider uppercase">
+                  Employee
+                </TableHead>
+                <TableHead className="py-4 text-xs font-bold tracking-wider uppercase">
+                  Assignment
+                </TableHead>
+                <TableHead className="py-4 text-xs font-bold tracking-wider uppercase">
+                  Applies-to
+                </TableHead>
+                <TableHead className="py-4 text-xs font-bold tracking-wider uppercase">
+                  Applies-from
+                </TableHead>
+                <TableHead className="w-[60px] py-4"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="h-64 text-center">
+                  <TableCell colSpan={13} className="h-64 text-center">
                     <div className="text-muted-foreground flex flex-col items-center gap-3">
                       <Loader2 className="text-primary/40 h-10 w-10 animate-spin" />
                       <p className="text-sm font-medium">
@@ -597,7 +632,7 @@ export function ConsumeInventoryForm() {
                 </TableRow>
               ) : entries.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="h-64 text-center">
+                  <TableCell colSpan={13} className="h-64 text-center">
                     <div className="text-muted-foreground/50 flex flex-col items-center gap-4">
                       <Package className="h-16 w-16 opacity-20" />
                       <p className="text-base font-medium italic">
@@ -612,50 +647,54 @@ export function ConsumeInventoryForm() {
                     key={index}
                     className="group hover:bg-primary/[0.03] border-b transition-colors last:border-none"
                   >
-                    <TableCell className="text-sm font-medium">
+                    <TableCell className="text-xs font-medium">
                       {entry["Posting Date"]}
                     </TableCell>
                     <TableCell>
                       <Badge
-                        variant="outline"
-                        className="bg-background font-mono text-[11px]"
+                        variant={entry["Entry Type"] === "Issue" ? "destructive" : "outline"}
+                        className="text-[10px] uppercase"
                       >
-                        {entry["Document No."] || "N/A"}
+                        {entry["Entry Type"]}
                       </Badge>
                     </TableCell>
-                    <TableCell>
-                      <div className="flex flex-col gap-0.5">
-                        <span className="text-foreground text-sm font-bold">
-                          {entry["Item No."]}
-                        </span>
-                        <span className="text-muted-foreground max-w-[250px] truncate text-xs">
-                          {entry.Description}
-                        </span>
-                      </div>
-                    </TableCell>
+                    <TableCell className="text-xs font-bold">{entry["Lob Code"]}</TableCell>
+                    <TableCell className="text-xs">{entry["Branch Code"]}</TableCell>
                     <TableCell>
                       <Badge
                         variant="secondary"
-                        className="bg-primary/5 text-primary border-none text-[11px]"
+                        className="bg-primary/5 text-primary border-none text-[10px]"
                       >
                         {entry["Location Code"]}
                       </Badge>
                     </TableCell>
+                    <TableCell className="text-muted-foreground text-[10px] font-bold">
+                      {entry["Unit of Measure Code"]}
+                    </TableCell>
+                    <TableCell className="text-sm font-bold">
+                      {entry["Item No."]}
+                    </TableCell>
                     <TableCell className="text-right">
-                      <div className="flex flex-col items-end">
-                        <span className="text-primary font-mono text-base font-black">
-                          {entry.Quantity?.toLocaleString()}
-                        </span>
-                        <span className="text-muted-foreground text-[10px] font-bold uppercase">
-                          {entry["Unit of Measure Code"]}
-                        </span>
-                      </div>
+                      <span className="text-primary font-mono text-base font-black">
+                        {entry.Quantity?.toLocaleString()}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-[11px]">{entry["Employee Code"] || "—"}</TableCell>
+                    <TableCell className="text-muted-foreground text-[11px]">
+                      {entry["Assignment Code"] || "—"}
+                    </TableCell>
+                    <TableCell className="text-blue-400 font-mono text-[11px]">
+                      {entry["Applies-to Entry"] || "—"}
+                    </TableCell>
+                    <TableCell className="text-green-400 font-mono text-[11px]">
+                      {entry["Applies-from Entry"] || "—"}
                     </TableCell>
                     <TableCell>
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 h-9 w-9 opacity-0 transition-colors group-hover:opacity-100"
+                        onClick={() => handleDeleteEntry(index)}
+                        className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 h-8 w-8 opacity-0 transition-colors group-hover:opacity-100"
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>

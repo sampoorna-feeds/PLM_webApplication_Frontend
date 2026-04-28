@@ -723,13 +723,17 @@ export function PurchaseCreateDocumentFormContent({
 
     // Fetch vendor details (GST, PAN)
     if (vendorNo) {
-      const details = await getVendorDetails(vendorNo);
-      if (details) {
-        setFormData((prev) => ({
-          ...prev,
-          vendorGstRegNo: details.GST_Registration_No || "",
-          vendorPanNo: details.P_A_N_No || "",
-        }));
+      try {
+        const details = await getVendorDetails(vendorNo);
+        if (details) {
+          setFormData((prev) => ({
+            ...prev,
+            vendorGstRegNo: details.GST_Registration_No || "",
+            vendorPanNo: details.P_A_N_No || "",
+          }));
+        }
+      } catch (error) {
+        console.error("Failed to fetch vendor details:", error);
       }
     }
   };
@@ -2238,7 +2242,13 @@ export function PurchaseCreateDocumentFormContent({
                 <ApplyVendorEntriesDialog
                   documentNo={createdOrderNo}
                   vendorNo={formData.vendorNo}
-                  onSuccess={refreshHydratedDocument}
+                  onSuccess={async () => {
+                    try {
+                      await refreshHydratedDocument();
+                    } catch (err) {
+                      setPlaceOrderError(getErrorMessage(err, "Failed to refresh document."));
+                    }
+                  }}
                   disabled={isActionLoading}
                 />
               )}
@@ -2602,7 +2612,11 @@ export function PurchaseCreateDocumentFormContent({
             }
           }}
           onSave={async () => {
-            await refreshHydratedDocument();
+            try {
+              await refreshHydratedDocument();
+            } catch (err) {
+              setPlaceOrderError(getErrorMessage(err, "Failed to refresh document."));
+            }
             setSelectedLine(null);
           }}
         />

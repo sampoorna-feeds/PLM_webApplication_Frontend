@@ -68,6 +68,7 @@ import {
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { getWebUser, type WebUser } from "@/lib/api/services/web-user.service";
+import { isPostingDateValid } from "@/lib/utils/posting-date";
 import { LedgerEntryModal } from "./ledger-entry-modal";
 
 export function ConsumeInventoryForm() {
@@ -124,33 +125,6 @@ export function ConsumeInventoryForm() {
     loadEntries();
   }, [userID]);
 
-  // Validation helper for Posting Date
-  const isPostingDateValid = (date?: string) => {
-    if (!date) return false;
-    if (!webUserProfile) return true;
-    
-    const postingDate = new Date(date);
-    const from = webUserProfile.Allow_Posting_From?.split("T")[0];
-    const to = webUserProfile.Allow_Posting_To?.split("T")[0];
-
-    if (from && from !== "0001-01-01") {
-      const fromDate = new Date(from);
-      if (postingDate < fromDate) {
-        toast.error(`Posting Date must be on or after ${fromDate.toLocaleDateString()}`);
-        return false;
-      }
-    }
-
-    if (to && to !== "0001-01-01") {
-      const toDate = new Date(to);
-      if (postingDate > toDate) {
-        toast.error(`Posting Date must be on or before ${toDate.toLocaleDateString()}`);
-        return false;
-      }
-    }
-
-    return true;
-  };
 
 
   useEffect(() => {
@@ -280,7 +254,7 @@ export function ConsumeInventoryForm() {
       return;
     }
 
-    if (!isPostingDateValid(formState["Posting Date"])) return;
+    if (!isPostingDateValid(formState["Posting Date"], webUserProfile)) return;
 
     const newEntry = { ...formState, UserID: userID } as ConsumeInventoryEntry;
     const updatedEntries = [...entries, newEntry];
@@ -358,7 +332,7 @@ export function ConsumeInventoryForm() {
       for (const entry of selectedEntries) {
         const postingDate = entry["Posting Date"] || new Date().toISOString().split("T")[0];
         
-        if (!isPostingDateValid(postingDate)) {
+        if (!isPostingDateValid(postingDate, webUserProfile)) {
           setSubmitting(false);
           return;
         }

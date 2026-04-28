@@ -51,6 +51,11 @@ export function SourceLookupModal({
   const [hasMore, setHasMore] = useState(true);
 
   const observer = useRef<IntersectionObserver | null>(null);
+  const fetchGenRef = useRef(0);
+
+  // Disconnect observer on unmount to prevent memory leak
+  useEffect(() => () => { observer.current?.disconnect(); }, []);
+
   const lastElementRef = useCallback((node: HTMLTableRowElement | null) => {
     if (isLoading || isLoadingMore) return;
     if (observer.current) observer.current.disconnect();
@@ -70,24 +75,26 @@ export function SourceLookupModal({
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  // Reset when search or sourceType changes
+  // Reset and fetch page 1 when search params or open state changes
   useEffect(() => {
     if (isOpen) {
+      fetchGenRef.current++;
+      const gen = fetchGenRef.current;
       setData([]);
       setCurrentPage(1);
       setHasMore(true);
-      fetchData(1, true);
+      fetchData(1, true, gen);
     }
   }, [sourceType, debouncedSearch, branchCode, isOpen]);
 
-  // Fetch next page when currentPage changes (only if > 1)
+  // Fetch next page when currentPage increments (IntersectionObserver trigger)
   useEffect(() => {
     if (isOpen && currentPage > 1) {
-      fetchData(currentPage, false);
+      fetchData(currentPage, false, fetchGenRef.current);
     }
   }, [currentPage, isOpen]);
 
-  async function fetchData(page: number, isNewSearch: boolean) {
+  async function fetchData(page: number, isNewSearch: boolean, gen: number) {
     if (isNewSearch) setIsLoading(true);
     else setIsLoadingMore(true);
 
@@ -107,9 +114,10 @@ export function SourceLookupModal({
       } else if (sourceType === "Transfer Receipt") {
         result = await getTransferOrders(params);
       }
-      
+
+      if (gen !== fetchGenRef.current) return;
+
       if (result) {
-        const newData = isNewSearch ? result.data : [...data, ...result.data];
         if (isNewSearch) {
           setData(result.data);
         } else {
@@ -119,8 +127,10 @@ export function SourceLookupModal({
         setHasMore(result.data.length === pageSize);
       }
     } catch (error) {
+      if (gen !== fetchGenRef.current) return;
       console.error("Error fetching source data:", error);
     } finally {
+      if (gen !== fetchGenRef.current) return;
       setIsLoading(false);
       setIsLoadingMore(false);
     }

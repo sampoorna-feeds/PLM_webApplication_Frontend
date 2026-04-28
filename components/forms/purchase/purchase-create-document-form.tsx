@@ -191,6 +191,7 @@ import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { getWebUser, type WebUser } from "@/lib/api/services/web-user.service";
+import { isPostingDateValid } from "@/lib/utils/posting-date";
 import { DateInput } from "@/components/ui/date-input";
 
 export type PurchaseCreateDocumentType =
@@ -624,33 +625,6 @@ export function PurchaseCreateDocumentFormContent({
     });
   }, [isCreateMode]);
 
-  // Validation helper for Posting Date
-  const isPostingDateValid = (date?: string) => {
-    if (!date) return false;
-    if (!webUserProfile) return true;
-    
-    const postingDate = new Date(date);
-    const from = webUserProfile.Allow_Posting_From?.split("T")[0];
-    const to = webUserProfile.Allow_Posting_To?.split("T")[0];
-
-    if (from && from !== "0001-01-01") {
-      const fromDate = new Date(from);
-      if (postingDate < fromDate) {
-        toast.error(`Posting Date must be on or after ${fromDate.toLocaleDateString()}`);
-        return false;
-      }
-    }
-
-    if (to && to !== "0001-01-01") {
-      const toDate = new Date(to);
-      if (postingDate > toDate) {
-        toast.error(`Posting Date must be on or before ${toDate.toLocaleDateString()}`);
-        return false;
-      }
-    }
-
-    return true;
-  };
 
   // Initialize form data from props and restore persisted header/line state.
   useEffect(() => {
@@ -829,7 +803,7 @@ export function PurchaseCreateDocumentFormContent({
       return;
     }
 
-    if (!isPostingDateValid(formData.postingDate)) return;
+    if (!isPostingDateValid(formData.postingDate, webUserProfile)) return;
 
     setIsCreatingHeader(true);
     try {
@@ -1077,7 +1051,7 @@ export function PurchaseCreateDocumentFormContent({
       return;
     }
 
-    if (!isPostingDateValid(formData.postingDate)) return;
+    if (!isPostingDateValid(formData.postingDate, webUserProfile)) return;
 
     setIsUpdatingHeader(true);
     setPlaceOrderError(null);
@@ -1294,33 +1268,8 @@ export function PurchaseCreateDocumentFormContent({
       return;
     }
 
-    if (!isPostingDateValid(postDetails.postingDate)) return;
+    if (!isPostingDateValid(postDetails.postingDate, webUserProfile)) return;
 
-    if (webUserProfile) {
-      const { Allow_Posting_From, Allow_Posting_To } = webUserProfile;
-      const selectedDate = postDetails.postingDate;
-
-      if (
-        Allow_Posting_From &&
-        Allow_Posting_From !== "0001-01-01" &&
-        selectedDate < Allow_Posting_From.split("T")[0]
-      ) {
-        toast.error(
-          `Posting Date cannot be before ${Allow_Posting_From.split("T")[0]}`,
-        );
-        return;
-      }
-      if (
-        Allow_Posting_To &&
-        Allow_Posting_To !== "0001-01-01" &&
-        selectedDate > Allow_Posting_To.split("T")[0]
-      ) {
-        toast.error(
-          `Posting Date cannot be after ${Allow_Posting_To.split("T")[0]}`,
-        );
-        return;
-      }
-    }
     const isInvoiceOption =
       postOption === "invoice" ||
       postOption === "receive-invoice" ||

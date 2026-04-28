@@ -56,6 +56,7 @@ import { getAuthCredentials } from "@/lib/auth/storage";
 import { useFormStack } from "@/lib/form-stack/use-form-stack";
 import { cn } from "@/lib/utils";
 import { getWebUser, type WebUser } from "@/lib/api/services/web-user.service";
+import { isPostingDateValid } from "@/lib/utils/posting-date";
 import { Download, Eye, Loader2, Plus, Printer, RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -164,33 +165,6 @@ export function TransferOrderForm({
   const [printPromptOpen, setPrintPromptOpen] = useState(false);
   const [lastPostedShipmentNo, setLastPostedShipmentNo] = useState<string | null>(null);
 
-  // Validation helper for Posting Date
-  const isPostingDateValid = (date?: string) => {
-    if (!date) return false;
-    if (!webUserProfile) return true;
-    
-    const postingDate = new Date(date);
-    const from = webUserProfile.Allow_Posting_From?.split("T")[0];
-    const to = webUserProfile.Allow_Posting_To?.split("T")[0];
-
-    if (from && from !== "0001-01-01") {
-      const fromDate = new Date(from);
-      if (postingDate < fromDate) {
-        toast.error(`Posting Date must be on or after ${fromDate.toLocaleDateString()}`);
-        return false;
-      }
-    }
-
-    if (to && to !== "0001-01-01") {
-      const toDate = new Date(to);
-      if (postingDate > toDate) {
-        toast.error(`Posting Date must be on or before ${toDate.toLocaleDateString()}`);
-        return false;
-      }
-    }
-
-    return true;
-  };
 
   // Debug: Monitor locations state changes
   useEffect(() => {
@@ -533,7 +507,7 @@ export function TransferOrderForm({
       return;
     }
 
-    if (!isPostingDateValid(formState.Posting_Date)) return;
+    if (!isPostingDateValid(formState.Posting_Date, webUserProfile)) return;
 
     setIsSubmitting(true);
     try {
@@ -627,7 +601,7 @@ export function TransferOrderForm({
       return;
     }
 
-    if (!isPostingDateValid(formState.Posting_Date)) return;
+    if (!isPostingDateValid(formState.Posting_Date, webUserProfile)) return;
 
     setIsSubmitting(true);
     try {

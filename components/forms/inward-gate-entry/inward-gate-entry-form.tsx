@@ -47,6 +47,7 @@ import { SourceLookupModal } from "./source-lookup-modal";
 import { LineEntryModal } from "./line-entry-modal";
 import { CascadingDimensionSelect } from "@/components/forms/cascading-dimension-select";
 import { getAuthCredentials } from "@/lib/auth/storage";
+import { isPostingDateValid } from "@/lib/utils/posting-date";
 
 interface InwardGateEntryFormProps {
   tabId: string;
@@ -97,6 +98,7 @@ export function InwardGateEntryForm({
   );
 
   const [webUserProfile, setWebUserProfile] = useState<WebUser | null>(null);
+  const [authUserId, setAuthUserId] = useState<string | undefined>(undefined);
 
   const [lines, setLines] = useState<InwardGateEntryLine[]>([]);
   const [isLoadingLines, setIsLoadingLines] = useState(false);
@@ -130,37 +132,11 @@ export function InwardGateEntryForm({
   useEffect(() => {
     const creds = getAuthCredentials();
     if (creds?.userID) {
+      setAuthUserId(creds.userID);
       getWebUser(creds.userID).then(setWebUserProfile).catch(console.error);
     }
   }, []);
 
-  // Validation helper
-  const isPostingDateValid = (date?: string) => {
-    if (!date) return false;
-    if (!webUserProfile) return true;
-    
-    const postingDate = new Date(date);
-    const from = webUserProfile.Allow_Posting_From?.split("T")[0];
-    const to = webUserProfile.Allow_Posting_To?.split("T")[0];
-
-    if (from && from !== "0001-01-01") {
-      const fromDate = new Date(from);
-      if (postingDate < fromDate) {
-        toast.error(`Posting Date must be on or after ${fromDate.toLocaleDateString()}`);
-        return false;
-      }
-    }
-
-    if (to && to !== "0001-01-01") {
-      const toDate = new Date(to);
-      if (postingDate > toDate) {
-        toast.error(`Posting Date must be on or before ${toDate.toLocaleDateString()}`);
-        return false;
-      }
-    }
-
-    return true;
-  };
 
   // Update default dates once profile is loaded (only for create mode)
   useEffect(() => {
@@ -233,7 +209,7 @@ export function InwardGateEntryForm({
   };
 
   async function handleSave() {
-    if (!isPostingDateValid(entry.Posting_Date)) return;
+    if (!isPostingDateValid(entry.Posting_Date, webUserProfile)) return;
 
     setIsSaving(true);
     try {
@@ -330,7 +306,7 @@ export function InwardGateEntryForm({
       return;
     }
 
-    if (!isPostingDateValid(entry.Posting_Date)) return;
+    if (!isPostingDateValid(entry.Posting_Date, webUserProfile)) return;
 
     setIsPosting(true);
     try {
@@ -519,7 +495,7 @@ export function InwardGateEntryForm({
                   handleInputChange("Location_Code", "");
                 }}
                 placeholder="Select LOB"
-                userId={getAuthCredentials()?.userID}
+                userId={authUserId}
                 compactWhenSingle
               />
             </div>
@@ -537,7 +513,7 @@ export function InwardGateEntryForm({
                 }}
                 placeholder="Select Branch"
                 lobValue={entry.Shortcut_Dimension_1_Code}
-                userId={getAuthCredentials()?.userID}
+                userId={authUserId}
                 compactWhenSingle
               />
             </div>

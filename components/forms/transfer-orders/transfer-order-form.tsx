@@ -164,6 +164,34 @@ export function TransferOrderForm({
   const [printPromptOpen, setPrintPromptOpen] = useState(false);
   const [lastPostedShipmentNo, setLastPostedShipmentNo] = useState<string | null>(null);
 
+  // Validation helper for Posting Date
+  const isPostingDateValid = (date?: string) => {
+    if (!date) return false;
+    if (!webUserProfile) return true;
+    
+    const postingDate = new Date(date);
+    const from = webUserProfile.Allow_Posting_From?.split("T")[0];
+    const to = webUserProfile.Allow_Posting_To?.split("T")[0];
+
+    if (from && from !== "0001-01-01") {
+      const fromDate = new Date(from);
+      if (postingDate < fromDate) {
+        toast.error(`Posting Date must be on or after ${fromDate.toLocaleDateString()}`);
+        return false;
+      }
+    }
+
+    if (to && to !== "0001-01-01") {
+      const toDate = new Date(to);
+      if (postingDate > toDate) {
+        toast.error(`Posting Date must be on or before ${toDate.toLocaleDateString()}`);
+        return false;
+      }
+    }
+
+    return true;
+  };
+
   // Debug: Monitor locations state changes
   useEffect(() => {
     console.log(
@@ -505,6 +533,8 @@ export function TransferOrderForm({
       return;
     }
 
+    if (!isPostingDateValid(formState.Posting_Date)) return;
+
     setIsSubmitting(true);
     try {
       // Send all form fields except system/internal ones
@@ -596,6 +626,8 @@ export function TransferOrderForm({
       toast.info("No changes to update");
       return;
     }
+
+    if (!isPostingDateValid(formState.Posting_Date)) return;
 
     setIsSubmitting(true);
     try {

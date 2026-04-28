@@ -368,6 +368,34 @@ export function SalesCreateDocumentFormContent({
     orderDate: today,
     ...(initialFormData as Partial<CreateFormState>),
   });
+
+  // Validation helper for Posting Date
+  const isPostingDateValid = (date?: string) => {
+    if (!date) return false;
+    if (!webUserProfile) return true;
+    
+    const postingDate = new Date(date);
+    const from = webUserProfile.Allow_Posting_From?.split("T")[0];
+    const to = webUserProfile.Allow_Posting_To?.split("T")[0];
+
+    if (from && from !== "0001-01-01") {
+      const fromDate = new Date(from);
+      if (postingDate < fromDate) {
+        toast.error(`Posting Date must be on or after ${fromDate.toLocaleDateString()}`);
+        return false;
+      }
+    }
+
+    if (to && to !== "0001-01-01") {
+      const toDate = new Date(to);
+      if (postingDate > toDate) {
+        toast.error(`Posting Date must be on or before ${toDate.toLocaleDateString()}`);
+        return false;
+      }
+    }
+
+    return true;
+  };
   const [userId, setUserId] = useState<string | undefined>(undefined);
 
   // ── View / edit state ──────────────────────────────────────────────────────
@@ -429,6 +457,11 @@ export function SalesCreateDocumentFormContent({
     tareWeight: "",
     freightValue: "",
   };
+
+
+
+  // Reset Post Details when dialog opens
+
   const [isPostDialogOpen, setIsPostDialogOpen] = useState(false);
   const [postOption, setPostOption] = useState<"1" | "2" | "3" | null>(null);
   const [isPostLoading, setIsPostLoading] = useState(false);
@@ -437,6 +470,18 @@ export function SalesCreateDocumentFormContent({
   const [postDetails, setPostDetails] = useState(postDetailsDefault);
   const [isPostResultOpen, setIsPostResultOpen] = useState(false);
   const [postResultDocs, setPostResultDocs] = useState<{ Invoice?: string; Shipment?: string }>({});
+
+  // Reset Post Details when dialog opens
+  useEffect(() => {
+    if (isPostDetailsOpen) {
+      const today = new Date().toISOString().split("T")[0];
+      setPostDetails(prev => ({
+        ...prev,
+        postingDate: today,
+        lrRrDate: today
+      }));
+    }
+  }, [isPostDetailsOpen]);
 
   // Initialize post details from orderHeader when dialog opens
   useEffect(() => {
@@ -650,6 +695,8 @@ export function SalesCreateDocumentFormContent({
   // ── Create mode: submit ───────────────────────────────────────────────────
   const handleCreateHeader = async () => {
     if (!isHeaderValid()) return;
+    if (!isPostingDateValid(formData.postingDate)) return;
+
     setIsSubmitting(true);
     setActionError(null);
     try {
@@ -669,6 +716,8 @@ export function SalesCreateDocumentFormContent({
   // ── Edit mode: save header ────────────────────────────────────────────────
   const handleUpdateHeader = async () => {
     if (!initialOrderNo) return;
+    if (!isPostingDateValid(formData.postingDate)) return;
+
     setIsSubmitting(true);
     setActionError(null);
     try {

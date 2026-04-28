@@ -45,6 +45,7 @@ import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { SourceLookupModal } from "./source-lookup-modal";
 import { LineEntryModal } from "./line-entry-modal";
+import { CascadingDimensionSelect } from "@/components/forms/cascading-dimension-select";
 import { getAuthCredentials } from "@/lib/auth/storage";
 
 interface InwardGateEntryFormProps {
@@ -90,6 +91,8 @@ export function InwardGateEntryForm({
       Total_Freight_Amount: 0,
       Transporter_Name: "",
       No_of_Bags: 0,
+      Shortcut_Dimension_1_Code: "",
+      Shortcut_Dimension_2_Code: "",
     },
   );
 
@@ -131,37 +134,67 @@ export function InwardGateEntryForm({
     }
   }, []);
 
+  // Validation helper
+  const isPostingDateValid = (date?: string) => {
+    if (!date) return false;
+    if (!webUserProfile) return true;
+    
+    const postingDate = new Date(date);
+    const from = webUserProfile.Allow_Posting_From?.split("T")[0];
+    const to = webUserProfile.Allow_Posting_To?.split("T")[0];
+
+    if (from && from !== "0001-01-01") {
+      const fromDate = new Date(from);
+      if (postingDate < fromDate) {
+        toast.error(`Posting Date must be on or after ${fromDate.toLocaleDateString()}`);
+        return false;
+      }
+    }
+
+    if (to && to !== "0001-01-01") {
+      const toDate = new Date(to);
+      if (postingDate > toDate) {
+        toast.error(`Posting Date must be on or before ${toDate.toLocaleDateString()}`);
+        return false;
+      }
+    }
+
+    return true;
+  };
+
   // Update default dates once profile is loaded (only for create mode)
   useEffect(() => {
     if (mode === "create") {
       const today = new Date().toISOString().split("T")[0];
       
-      // LR/RR Date always defaults to today regardless of profile range
-      setEntry(prev => ({
-        ...prev,
-        LR_RR_Date: today
-      }));
-
-      if (webUserProfile) {
-        const from = webUserProfile.Allow_Posting_From?.split("T")[0];
-        const to = webUserProfile.Allow_Posting_To?.split("T")[0];
-        const isAfterFrom = !from || from === "0001-01-01" || today >= from;
-        const isBeforeTo = !to || to === "0001-01-01" || today <= to;
-
-        if (isAfterFrom && isBeforeTo) {
-          setEntry(prev => ({
-            ...prev,
-            Posting_Date: today,
-            Document_Date: today
-          }));
-        } else {
-          setEntry(prev => ({
-            ...prev,
-            Posting_Date: "",
-            Document_Date: ""
-          }));
+      setEntry(prev => {
+        const updates: Partial<InwardGateEntryHeader> = {};
+        
+        // LR/RR Date always defaults to today regardless of profile range
+        if (!prev.LR_RR_Date || prev.LR_RR_Date === "0001-01-01") {
+          updates.LR_RR_Date = today;
         }
-      }
+
+        // Posting Date defaults to today, but only if it's within the allowed range
+        if (webUserProfile) {
+          const from = webUserProfile.Allow_Posting_From?.split("T")[0];
+          const to = webUserProfile.Allow_Posting_To?.split("T")[0];
+          const isAfterFrom = !from || from === "0001-01-01" || today >= from;
+          const isBeforeTo = !to || to === "0001-01-01" || today <= to;
+
+          if (isAfterFrom && isBeforeTo) {
+            if (!prev.Posting_Date || prev.Posting_Date === "0001-01-01") updates.Posting_Date = today;
+            if (!prev.Document_Date || prev.Document_Date === "0001-01-01") updates.Document_Date = today;
+          }
+        } else {
+          // If no profile yet, still default to today
+          if (!prev.Posting_Date || prev.Posting_Date === "0001-01-01") updates.Posting_Date = today;
+          if (!prev.Document_Date || prev.Document_Date === "0001-01-01") updates.Document_Date = today;
+        }
+
+        if (Object.keys(updates).length > 0) return { ...prev, ...updates };
+        return prev;
+      });
     }
   }, [mode, webUserProfile]);
 
@@ -200,6 +233,8 @@ export function InwardGateEntryForm({
   };
 
   async function handleSave() {
+    if (!isPostingDateValid(entry.Posting_Date)) return;
+
     setIsSaving(true);
     try {
       // Clean payload: remove empty strings, Net_Weight, and Posting_No_Series
@@ -294,6 +329,8 @@ export function InwardGateEntryForm({
       toast.error("Document number is missing");
       return;
     }
+
+    if (!isPostingDateValid(entry.Posting_Date)) return;
 
     setIsPosting(true);
     try {
@@ -469,18 +506,41 @@ export function InwardGateEntryForm({
         {/* General Section */}
         <section className="space-y-4 rounded-md border p-4">
           <div className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8">
-            {mode !== "create" && (
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-bold tracking-wider uppercase">
-                  No.
-                </label>
-                <Input
-                  value={entry.No || ""}
-                  onChange={(e) => handleInputChange("No", e.target.value)}
-                  className="h-8 text-xs"
-                />
-              </div>
-            )}
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-bold tracking-wider uppercase">
+                LOB
+              </label>
+              <CascadingDimensionSelect
+                dimensionType="LOB"
+                value={entry.Shortcut_Dimension_1_Code || ""}
+                onChange={(v) => {
+                  handleInputChange("Shortcut_Dimension_1_Code", v);
+                  handleInputChange("Shortcut_Dimension_2_Code", "");
+                  handleInputChange("Location_Code", "");
+                }}
+                placeholder="Select LOB"
+                userId={getAuthCredentials()?.userID}
+                compactWhenSingle
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-bold tracking-wider uppercase">
+                Branch
+              </label>
+              <CascadingDimensionSelect
+                dimensionType="BRANCH"
+                value={entry.Shortcut_Dimension_2_Code || ""}
+                onChange={(v) => {
+                  handleInputChange("Shortcut_Dimension_2_Code", v);
+                  handleInputChange("Location_Code", "");
+                }}
+                placeholder="Select Branch"
+                lobValue={entry.Shortcut_Dimension_1_Code}
+                userId={getAuthCredentials()?.userID}
+                compactWhenSingle
+              />
+            </div>
 
             <div className="space-y-1.5">
               <label className="text-[10px] font-bold tracking-wider uppercase">
@@ -489,6 +549,7 @@ export function InwardGateEntryForm({
               <LocationSelect
                 value={entry.Location_Code || ""}
                 onChange={(v) => handleInputChange("Location_Code", v)}
+                branchCode={entry.Shortcut_Dimension_2_Code}
               />
             </div>
 
@@ -894,6 +955,7 @@ export function InwardGateEntryForm({
         isOpen={isLookupOpen}
         onClose={() => setIsLookupOpen(false)}
         sourceType={entry.Source_Type as InwardGateEntrySourceType}
+        branchCode={entry.Shortcut_Dimension_2_Code}
         onSelect={(no, data) => {
           handleInputChange("Source_No", no);
           if (

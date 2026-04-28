@@ -541,6 +541,18 @@ export function PurchaseCreateDocumentFormContent({
   const [receiptShipments, setReceiptShipments] = useState<PurchaseReceipt[]>(
     [],
   );
+
+  // Reset Post Details when dialog opens
+  useEffect(() => {
+    if (isPostDetailsOpen) {
+      const today = new Date().toISOString().split("T")[0];
+      setPostDetails(prev => ({
+        ...prev,
+        postingDate: today,
+        documentDate: today
+      }));
+    }
+  }, [isPostDetailsOpen]);
   const [receiptDate, setReceiptDate] = useState("");
   const [isTrackingOpen, setIsTrackingOpen] = useState(false);
   const [trackingLine, setTrackingLine] = useState<PurchaseLine | null>(null);
@@ -603,14 +615,42 @@ export function PurchaseCreateDocumentFormContent({
 
     const today = new Date().toISOString().split("T")[0];
     setFormData((prev) => {
-      const updates: Record<string, string> = {};
-      if (!prev.postingDate) updates.postingDate = today;
-      if (!prev.documentDate) updates.documentDate = today;
-      if (!prev.orderDate) updates.orderDate = today;
+      const updates: Partial<typeof prev> = {};
+      if (!prev.postingDate || prev.postingDate === "0001-01-01") updates.postingDate = today;
+      if (!prev.documentDate || prev.documentDate === "0001-01-01") updates.documentDate = today;
+      if (!prev.orderDate || prev.orderDate === "0001-01-01") updates.orderDate = today;
       if (Object.keys(updates).length === 0) return prev;
       return { ...prev, ...updates };
     });
   }, [isCreateMode]);
+
+  // Validation helper for Posting Date
+  const isPostingDateValid = (date?: string) => {
+    if (!date) return false;
+    if (!webUserProfile) return true;
+    
+    const postingDate = new Date(date);
+    const from = webUserProfile.Allow_Posting_From?.split("T")[0];
+    const to = webUserProfile.Allow_Posting_To?.split("T")[0];
+
+    if (from && from !== "0001-01-01") {
+      const fromDate = new Date(from);
+      if (postingDate < fromDate) {
+        toast.error(`Posting Date must be on or after ${fromDate.toLocaleDateString()}`);
+        return false;
+      }
+    }
+
+    if (to && to !== "0001-01-01") {
+      const toDate = new Date(to);
+      if (postingDate > toDate) {
+        toast.error(`Posting Date must be on or before ${toDate.toLocaleDateString()}`);
+        return false;
+      }
+    }
+
+    return true;
+  };
 
   // Initialize form data from props and restore persisted header/line state.
   useEffect(() => {
@@ -788,6 +828,8 @@ export function PurchaseCreateDocumentFormContent({
     if (!isStep1Valid()) {
       return;
     }
+
+    if (!isPostingDateValid(formData.postingDate)) return;
 
     setIsCreatingHeader(true);
     try {
@@ -1035,6 +1077,8 @@ export function PurchaseCreateDocumentFormContent({
       return;
     }
 
+    if (!isPostingDateValid(formData.postingDate)) return;
+
     setIsUpdatingHeader(true);
     setPlaceOrderError(null);
     try {
@@ -1249,6 +1293,8 @@ export function PurchaseCreateDocumentFormContent({
       toast.error("Document Date is required.");
       return;
     }
+
+    if (!isPostingDateValid(postDetails.postingDate)) return;
 
     if (webUserProfile) {
       const { Allow_Posting_From, Allow_Posting_To } = webUserProfile;

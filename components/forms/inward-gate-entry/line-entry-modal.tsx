@@ -17,9 +17,11 @@ interface LineEntryModalProps {
   onSave: (line: Partial<InwardGateEntryLine>) => Promise<void>;
   initialData?: Partial<InwardGateEntryLine>;
   mode: "add" | "edit";
+  branchCode?: string;
+  locationCode?: string;
 }
 
-export function LineEntryModal({ isOpen, onClose, onSave, initialData, mode }: LineEntryModalProps) {
+export function LineEntryModal({ isOpen, onClose, onSave, initialData, mode, branchCode, locationCode }: LineEntryModalProps) {
   const [formData, setFormData] = useState<Partial<InwardGateEntryLine>>({});
   const [isSaving, setIsSaving] = useState(false);
   const [isLookupOpen, setIsLookupOpen] = useState(false);
@@ -170,6 +172,8 @@ export function LineEntryModal({ isOpen, onClose, onSave, initialData, mode }: L
         onClose={() => setIsLookupOpen(false)}
         onSelect={handleSourceSelect}
         sourceType={formData.Source_Type as any}
+        branchCode={branchCode}
+        locationCode={locationCode}
       />
     </>
   );

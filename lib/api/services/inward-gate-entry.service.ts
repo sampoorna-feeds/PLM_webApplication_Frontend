@@ -117,6 +117,7 @@ export interface GetSourceDocsParams {
   $skip?: number;
   searchTerm?: string;
   branchCode?: string;
+  locationCode?: string;
 }
 
 export interface PaginatedSourceDocsResponse {
@@ -127,16 +128,25 @@ export interface PaginatedSourceDocsResponse {
 async function getPaginatedSourceDocs(
   entity: string,
   searchFields: string[],
-  params: GetSourceDocsParams = {}
+  params: GetSourceDocsParams = {},
+  extraFilter?: string
 ): Promise<PaginatedSourceDocsResponse> {
-  const { $top = 10, $skip = 0, searchTerm, branchCode } = params;
+  const { $top = 10, $skip = 0, searchTerm, branchCode, locationCode } = params;
   const encodedCompany = encodeURIComponent(COMPANY);
 
-  // Build base filter (e.g. Branch)
-  let baseFilter = "";
+  // Build base filter
+  const filterParts: string[] = [];
   if (branchCode) {
-    baseFilter = `Shortcut_Dimension_2_Code eq '${branchCode.replace(/'/g, "''")}'`;
+    filterParts.push(`Shortcut_Dimension_2_Code eq '${branchCode.replace(/'/g, "''")}'`);
   }
+  if (locationCode) {
+    filterParts.push(`Location_Code eq '${locationCode.replace(/'/g, "''")}'`);
+  }
+  if (extraFilter) {
+    filterParts.push(extraFilter);
+  }
+
+  const baseFilter = filterParts.length > 0 ? filterParts.join(" and ") : "";
 
   // Case 1: No search term, standard paginated fetch
   if (!searchTerm || searchTerm.trim() === "") {
@@ -163,7 +173,6 @@ async function getPaginatedSourceDocs(
   
   const results = await Promise.all(
     searchFields.map(async (field) => {
-      // Use multi-case strategy since tolower() is not universally supported/efficient in BC OData
       const filterPart = `(contains(${field},'${s}') or contains(${field},'${sLower}') or contains(${field},'${sUpper}'))`;
       const fullFilter = baseFilter ? `(${baseFilter}) and ${filterPart}` : filterPart;
       
@@ -183,7 +192,6 @@ async function getPaginatedSourceDocs(
     })
   );
 
-  // Merge and de-dupe client-side
   const mergedMap = new Map<string, any>();
   results.flat().forEach((item) => {
     const key = item.No || item["No."] || item.id || JSON.stringify(item);
@@ -206,13 +214,13 @@ async function getPaginatedSourceDocs(
 }
 
 export async function getPurchaseOrders(params?: GetSourceDocsParams): Promise<PaginatedSourceDocsResponse> {
-  return getPaginatedSourceDocs("PurchaseOrder", ["No", "Buy_from_Vendor_No", "Buy_from_Vendor_Name"], params);
+  return getPaginatedSourceDocs("PurchaseOrder", ["No", "Buy_from_Vendor_No", "Buy_from_Vendor_Name"], params, "Status eq 'Released'");
 }
 
 export async function getSalesReturnOrders(params?: GetSourceDocsParams): Promise<PaginatedSourceDocsResponse> {
-  return getPaginatedSourceDocs("SalesReturnOrderHeader", ["No", "Sell_to_Customer_No", "Sell_to_Customer_Name"], params);
+  return getPaginatedSourceDocs("SalesReturnOrderHeader", ["No", "Sell_to_Customer_No", "Sell_to_Customer_Name"], params, "Status eq 'Released'");
 }
 
 export async function getTransferOrders(params?: GetSourceDocsParams): Promise<PaginatedSourceDocsResponse> {
-  return getPaginatedSourceDocs("TransferHeader", ["No", "Transfer_from_Code", "Transfer_from_Name"], params);
+  return getPaginatedSourceDocs("TransferHeader", ["No", "Transfer_from_Code", "Transfer_from_Name", "Transfer_to_Code", "Transfer_to_Name"], params, "Status eq 'Released'");
 }

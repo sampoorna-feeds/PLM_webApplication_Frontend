@@ -453,7 +453,7 @@ export function SalesCreateDocumentFormContent({
               vehicleNumber: (freshHeader.Vehicle_No as string) || "",
               driverPhone: (freshHeader.Driver_Mobile_No as string) || "",
               lrRrNumber: (freshHeader.LR_RR_No as string) || "",
-              lrRrDate: (freshHeader.LR_RR_Date as string)?.split("T")[0] || "",
+              lrRrDate: (freshHeader.LR_RR_Date as string)?.split("T")[0] || today,
               postingDate: freshHeader.Posting_Date || today,
               externalDocumentNo: freshHeader.External_Document_No || "",
               distanceKm: freshHeader.Distance_km ? String(freshHeader.Distance_km) : "",
@@ -2148,18 +2148,6 @@ export function SalesCreateDocumentFormContent({
                           ...p,
                           lrRrDate: val,
                         }))
-                      }
-                      min={
-                        webUserProfile?.Allow_Posting_From &&
-                        webUserProfile.Allow_Posting_From !== "0001-01-01"
-                          ? webUserProfile.Allow_Posting_From.split("T")[0]
-                          : undefined
-                      }
-                      max={
-                        webUserProfile?.Allow_Posting_To &&
-                        webUserProfile.Allow_Posting_To !== "0001-01-01"
-                          ? webUserProfile.Allow_Posting_To.split("T")[0]
-                          : undefined
                       }
                       className="h-9"
                     />

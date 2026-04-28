@@ -110,23 +110,58 @@ export async function postInwardGateEntry(docNo: string): Promise<string> {
 }
 
 // Source Lists
-export async function getPurchaseOrders(): Promise<any[]> {
-  const encodedCompany = encodeURIComponent(COMPANY);
-  const endpoint = `/PurchaseOrder?company='${encodedCompany}'`;
-  const response = await apiGet<ODataResponse<any>>(endpoint);
-  return response.value || [];
+export interface GetSourceDocsParams {
+  $top?: number;
+  $skip?: number;
+  searchTerm?: string;
 }
 
-export async function getSalesReturnOrders(): Promise<any[]> {
-  const encodedCompany = encodeURIComponent(COMPANY);
-  const endpoint = `/SalesReturnOrderHeader?company='${encodedCompany}'`;
-  const response = await apiGet<ODataResponse<any>>(endpoint);
-  return response.value || [];
+export interface PaginatedSourceDocsResponse {
+  data: any[];
+  totalCount: number;
 }
 
-export async function getTransferOrders(): Promise<any[]> {
+async function getPaginatedSourceDocs(
+  entity: string,
+  searchFields: string[],
+  params: GetSourceDocsParams = {}
+): Promise<PaginatedSourceDocsResponse> {
+  const { $top = 10, $skip = 0, searchTerm } = params;
   const encodedCompany = encodeURIComponent(COMPANY);
-  const endpoint = `/TransferHeader?company='${encodedCompany}'`;
+
+  let filter = "";
+  if (searchTerm) {
+    const escaped = searchTerm.replace(/'/g, "''");
+    filter = searchFields
+      .map((field) => `contains(${field},'${escaped}')`)
+      .join(" or ");
+  }
+
+  const query = buildODataQuery({
+    $top,
+    $skip,
+    $filter: filter || undefined,
+    $count: true,
+    $orderby: "No desc",
+  });
+
+  const endpoint = `/${entity}?company='${encodedCompany}'&${query}`;
   const response = await apiGet<ODataResponse<any>>(endpoint);
-  return response.value || [];
+
+  return {
+    data: response.value || [],
+    totalCount: response["@odata.count"] ?? (response.value?.length || 0),
+  };
+}
+
+export async function getPurchaseOrders(params?: GetSourceDocsParams): Promise<PaginatedSourceDocsResponse> {
+  return getPaginatedSourceDocs("PurchaseOrder", ["No", "Buy_from_Vendor_No", "Buy_from_Vendor_Name"], params);
+}
+
+export async function getSalesReturnOrders(params?: GetSourceDocsParams): Promise<PaginatedSourceDocsResponse> {
+  return getPaginatedSourceDocs("SalesReturnOrderHeader", ["No", "Sell_to_Customer_No", "Sell_to_Customer_Name"], params);
+}
+
+export async function getTransferOrders(params?: GetSourceDocsParams): Promise<PaginatedSourceDocsResponse> {
+  return getPaginatedSourceDocs("TransferHeader", ["No", "Transfer_from_Code", "Transfer_from_Name"], params);
 }

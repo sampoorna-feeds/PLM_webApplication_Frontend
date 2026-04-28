@@ -133,28 +133,34 @@ export function InwardGateEntryForm({
 
   // Update default dates once profile is loaded (only for create mode)
   useEffect(() => {
-    if (mode === "create" && webUserProfile) {
+    if (mode === "create") {
       const today = new Date().toISOString().split("T")[0];
-      const from = webUserProfile.Allow_Posting_From?.split("T")[0];
-      const to = webUserProfile.Allow_Posting_To?.split("T")[0];
-      const isAfterFrom = !from || from === "0001-01-01" || today >= from;
-      const isBeforeTo = !to || to === "0001-01-01" || today <= to;
+      
+      // LR/RR Date always defaults to today regardless of profile range
+      setEntry(prev => ({
+        ...prev,
+        LR_RR_Date: today
+      }));
 
-      if (isAfterFrom && isBeforeTo) {
-        setEntry(prev => ({
-          ...prev,
-          LR_RR_Date: today,
-          Posting_Date: today,
-          Document_Date: today
-        }));
-      } else {
-         // If today is out of range, we might want to clear it or set it to empty
-         setEntry(prev => ({
-          ...prev,
-          LR_RR_Date: "",
-          Posting_Date: "",
-          Document_Date: ""
-        }));
+      if (webUserProfile) {
+        const from = webUserProfile.Allow_Posting_From?.split("T")[0];
+        const to = webUserProfile.Allow_Posting_To?.split("T")[0];
+        const isAfterFrom = !from || from === "0001-01-01" || today >= from;
+        const isBeforeTo = !to || to === "0001-01-01" || today <= to;
+
+        if (isAfterFrom && isBeforeTo) {
+          setEntry(prev => ({
+            ...prev,
+            Posting_Date: today,
+            Document_Date: today
+          }));
+        } else {
+          setEntry(prev => ({
+            ...prev,
+            Posting_Date: "",
+            Document_Date: ""
+          }));
+        }
       }
     }
   }, [mode, webUserProfile]);
@@ -569,8 +575,6 @@ export function InwardGateEntryForm({
               <DateInput
                 value={entry.LR_RR_Date || ""}
                 onChange={(v) => handleInputChange("LR_RR_Date", v)}
-                min={webUserProfile?.Allow_Posting_From?.split("T")[0]}
-                max={webUserProfile?.Allow_Posting_To?.split("T")[0]}
               />
             </div>
 

@@ -97,7 +97,7 @@ export function TransferOrderForm({
     Status: "Open",
     Vehicle_No: "",
     LR_RR_No: "",
-    LR_RR_Date: "",
+    LR_RR_Date: new Date().toISOString().split("T")[0],
     Distance_Km: 0,
     Freight_Value: 0,
     Transporter_Code: "",
@@ -1375,18 +1375,6 @@ export function TransferOrderForm({
                     }
                     onChange={(val) => handleChange("LR_RR_Date", val)}
                     disabled={formState.Status === "Released"}
-                    min={
-                      webUserProfile?.Allow_Posting_From &&
-                      webUserProfile.Allow_Posting_From !== "0001-01-01"
-                        ? webUserProfile.Allow_Posting_From.split("T")[0]
-                        : undefined
-                    }
-                    max={
-                      webUserProfile?.Allow_Posting_To &&
-                      webUserProfile.Allow_Posting_To !== "0001-01-01"
-                        ? webUserProfile.Allow_Posting_To.split("T")[0]
-                        : undefined
-                    }
                     className="h-8"
                   />
                 </div>
@@ -1768,18 +1756,6 @@ export function TransferOrderForm({
                         : ""
                     }
                     onChange={(val) => handleChange("LR_RR_Date", val)}
-                    min={
-                      webUserProfile?.Allow_Posting_From &&
-                      webUserProfile.Allow_Posting_From !== "0001-01-01"
-                        ? webUserProfile.Allow_Posting_From.split("T")[0]
-                        : undefined
-                    }
-                    max={
-                      webUserProfile?.Allow_Posting_To &&
-                      webUserProfile.Allow_Posting_To !== "0001-01-01"
-                        ? webUserProfile.Allow_Posting_To.split("T")[0]
-                        : undefined
-                    }
                     className="border-border h-10 focus:border-green-600/50"
                   />
                 </div>

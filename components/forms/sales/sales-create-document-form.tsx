@@ -855,27 +855,29 @@ export function SalesCreateDocumentFormContent({
 
   const handlePostDetailsSubmit = async () => {
     if (!initialOrderNo || !postOption) return;
-    if (isShipOption && !postDetails.transporterName.trim()) {
-      toast.error("Transporter Name is mandatory for Ship options");
-      return;
-    }
-    if (isShipOption) {
-      if (!postDetails.driverPhone.trim()) {
-        toast.error("Driver phone is required for shipping");
+    if (!caps.supportsUnifiedPostForm) {
+      if (isShipOption && !postDetails.transporterName.trim()) {
+        toast.error("Transporter Name is mandatory for Ship options");
         return;
       }
-      const phoneError = validatePhone(postDetails.driverPhone);
-      if (phoneError) {
-        toast.error(phoneError);
-        return;
-      }
-      if (!postDetails.lrRrNumber.trim()) {
-        toast.error("LR/RR Number is required for shipping");
-        return;
-      }
-      if (!postDetails.lrRrDate) {
-        toast.error("LR/RR Date is required for shipping");
-        return;
+      if (isShipOption) {
+        if (!postDetails.driverPhone.trim()) {
+          toast.error("Driver phone is required for shipping");
+          return;
+        }
+        const phoneError = validatePhone(postDetails.driverPhone);
+        if (phoneError) {
+          toast.error(phoneError);
+          return;
+        }
+        if (!postDetails.lrRrNumber.trim()) {
+          toast.error("LR/RR Number is required for shipping");
+          return;
+        }
+        if (!postDetails.lrRrDate) {
+          toast.error("LR/RR Date is required for shipping");
+          return;
+        }
       }
     }
 
@@ -931,7 +933,7 @@ export function SalesCreateDocumentFormContent({
         patchPayload.Transporter_Name = postDetails.transporterName || "";
       }
 
-      if (isShipOption) {
+      if (isShipOption || caps.supportsUnifiedPostForm) {
         patchPayload.Gross_Weight = postDetails.grossWeight
           ? Number(postDetails.grossWeight)
           : 0;
@@ -2078,7 +2080,7 @@ export function SalesCreateDocumentFormContent({
                   <Loader2 className="h-6 w-6 animate-spin text-primary" />
                 </div>
               )}
-              {caps.supportsTransporter && (
+              {(caps.supportsTransporter || caps.supportsUnifiedPostForm) && (
                 <>
                   <div className="space-y-1 text-left">
                     <Label className="text-xs font-semibold">Transporter Code</Label>
@@ -2097,7 +2099,7 @@ export function SalesCreateDocumentFormContent({
                   <div className="space-y-1 text-left">
                     <Label className="text-xs font-semibold">
                       Transporter Name{" "}
-                      {isShipOption && (
+                      {!caps.supportsUnifiedPostForm && isShipOption && (
                         <span className="text-destructive">*</span>
                       )}
                     </Label>
@@ -2130,7 +2132,7 @@ export function SalesCreateDocumentFormContent({
                   <div className="space-y-1">
                     <Label>
                       Driver Phone{" "}
-                      {isShipOption && (
+                      {!caps.supportsUnifiedPostForm && isShipOption && (
                         <span className="text-destructive">*</span>
                       )}
                     </Label>
@@ -2148,7 +2150,7 @@ export function SalesCreateDocumentFormContent({
                   <div className="space-y-1">
                     <Label>
                       LR/RR No.{" "}
-                      {isShipOption && (
+                      {!caps.supportsUnifiedPostForm && isShipOption && (
                         <span className="text-destructive">*</span>
                       )}
                     </Label>
@@ -2166,7 +2168,7 @@ export function SalesCreateDocumentFormContent({
                   <div className="space-y-1">
                     <Label>
                       LR/RR Date{" "}
-                      {isShipOption && (
+                      {!caps.supportsUnifiedPostForm && isShipOption && (
                         <span className="text-destructive">*</span>
                       )}
                     </Label>
@@ -2221,7 +2223,7 @@ export function SalesCreateDocumentFormContent({
                   className="h-9"
                 />
               </div>
-              {documentType === "order" && (
+              {(documentType === "order" || caps.supportsUnifiedPostForm) && (
                 <div className="space-y-1">
                   <Label>Freight Value</Label>
                   <Input
@@ -2239,7 +2241,7 @@ export function SalesCreateDocumentFormContent({
                   />
                 </div>
               )}
-              {caps.supportsTransporter && (
+              {(caps.supportsTransporter || caps.supportsUnifiedPostForm) && (
                 <div className="space-y-1">
                   <Label>Distance (km)</Label>
                   <div className="flex gap-2">
@@ -2270,7 +2272,7 @@ export function SalesCreateDocumentFormContent({
                   </div>
                 </div>
               )}
-              {caps.supportsTransporter && isShipOption && (
+              {(caps.supportsUnifiedPostForm || (caps.supportsTransporter && isShipOption)) && (
                 <>
                   <div className="space-y-1">
                     <Label>Gross Weight</Label>

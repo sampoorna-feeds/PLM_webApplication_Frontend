@@ -43,6 +43,12 @@ export interface SalesDocumentCapabilities {
   supportsCopyDocument: boolean;
   /** Whether Get Posted Line is available (invoice + credit-memo) */
   supportsGetPostedLine: boolean;
+  /**
+   * When true (Invoice, Credit Memo), the post details dialog shows every payload
+   * field in a single unified form — no ship-specific required validation, all
+   * transporter / weight fields visible regardless of post mode.
+   */
+  supportsUnifiedPostForm: boolean;
 }
 
 export interface SalesDocumentConfig {
@@ -83,6 +89,7 @@ const SALES_DOCUMENT_CONFIG: Record<SalesDocumentType, SalesDocumentConfig> = {
       ],
       supportsCopyDocument: false,
       supportsGetPostedLine: false,
+      supportsUnifiedPostForm: false,
     },
   },
   invoice: {
@@ -105,6 +112,7 @@ const SALES_DOCUMENT_CONFIG: Record<SalesDocumentType, SalesDocumentConfig> = {
       postOptions: [{ value: "3", label: "Ship & Invoice" }],
       supportsCopyDocument: true,
       supportsGetPostedLine: true,
+      supportsUnifiedPostForm: true,
     },
   },
   "return-order": {
@@ -130,6 +138,7 @@ const SALES_DOCUMENT_CONFIG: Record<SalesDocumentType, SalesDocumentConfig> = {
       ],
       supportsCopyDocument: true,
       supportsGetPostedLine: false,
+      supportsUnifiedPostForm: false,
     },
   },
   "credit-memo": {
@@ -152,6 +161,7 @@ const SALES_DOCUMENT_CONFIG: Record<SalesDocumentType, SalesDocumentConfig> = {
       postOptions: [{ value: "2", label: "Credit Memo" }],
       supportsCopyDocument: true,
       supportsGetPostedLine: true,
+      supportsUnifiedPostForm: true,
     },
   },
 };

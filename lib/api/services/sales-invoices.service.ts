@@ -295,14 +295,15 @@ export async function orderShiptocodeModify(
 }
 
 /**
- * Delete a sales order line (POST to API_SalesOrderLine with orderNo and lineNo)
+ * Delete a sales invoice line by its OData key.
  */
 export async function deleteSalesOrderLine(
   orderNo: string,
   lineNo: number,
 ): Promise<unknown> {
-  const endpoint = `/API_SalesOrderLine?company='${encodeURIComponent(COMPANY)}'`;
-  return apiPost<unknown>(endpoint, { orderNo, lineNo });
+  const escapedNo = orderNo.replace(/'/g, "''");
+  const endpoint = `/${LINE_ENTITY}(Document_Type='${encodeURIComponent(DOCUMENT_TYPE)}',Document_No='${encodeURIComponent(escapedNo)}',Line_No=${lineNo})?company='${encodeURIComponent(COMPANY)}'`;
+  return apiDelete<unknown>(endpoint);
 }
 
 /**

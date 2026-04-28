@@ -33,6 +33,8 @@ export interface InwardGateEntryHeader {
   Source_Type: InwardGateEntrySourceType;
   Source_No: string;
   Status: string;
+  Shortcut_Dimension_1_Code?: string;
+  Shortcut_Dimension_2_Code?: string;
   [key: string]: unknown;
 }
 

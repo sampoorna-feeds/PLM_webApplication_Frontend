@@ -45,6 +45,7 @@ import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { SourceLookupModal } from "./source-lookup-modal";
 import { LineEntryModal } from "./line-entry-modal";
+import { CascadingDimensionSelect } from "@/components/forms/cascading-dimension-select";
 import { getAuthCredentials } from "@/lib/auth/storage";
 
 interface InwardGateEntryFormProps {
@@ -90,6 +91,8 @@ export function InwardGateEntryForm({
       Total_Freight_Amount: 0,
       Transporter_Name: "",
       No_of_Bags: 0,
+      Shortcut_Dimension_1_Code: "",
+      Shortcut_Dimension_2_Code: "",
     },
   );
 
@@ -469,18 +472,41 @@ export function InwardGateEntryForm({
         {/* General Section */}
         <section className="space-y-4 rounded-md border p-4">
           <div className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8">
-            {mode !== "create" && (
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-bold tracking-wider uppercase">
-                  No.
-                </label>
-                <Input
-                  value={entry.No || ""}
-                  onChange={(e) => handleInputChange("No", e.target.value)}
-                  className="h-8 text-xs"
-                />
-              </div>
-            )}
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-bold tracking-wider uppercase">
+                LOB
+              </label>
+              <CascadingDimensionSelect
+                dimensionType="LOB"
+                value={entry.Shortcut_Dimension_1_Code || ""}
+                onChange={(v) => {
+                  handleInputChange("Shortcut_Dimension_1_Code", v);
+                  handleInputChange("Shortcut_Dimension_2_Code", "");
+                  handleInputChange("Location_Code", "");
+                }}
+                placeholder="Select LOB"
+                userId={getAuthCredentials()?.userID}
+                compactWhenSingle
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-bold tracking-wider uppercase">
+                Branch
+              </label>
+              <CascadingDimensionSelect
+                dimensionType="BRANCH"
+                value={entry.Shortcut_Dimension_2_Code || ""}
+                onChange={(v) => {
+                  handleInputChange("Shortcut_Dimension_2_Code", v);
+                  handleInputChange("Location_Code", "");
+                }}
+                placeholder="Select Branch"
+                lobValue={entry.Shortcut_Dimension_1_Code}
+                userId={getAuthCredentials()?.userID}
+                compactWhenSingle
+              />
+            </div>
 
             <div className="space-y-1.5">
               <label className="text-[10px] font-bold tracking-wider uppercase">
@@ -489,6 +515,7 @@ export function InwardGateEntryForm({
               <LocationSelect
                 value={entry.Location_Code || ""}
                 onChange={(v) => handleInputChange("Location_Code", v)}
+                branchCode={entry.Shortcut_Dimension_2_Code}
               />
             </div>
 

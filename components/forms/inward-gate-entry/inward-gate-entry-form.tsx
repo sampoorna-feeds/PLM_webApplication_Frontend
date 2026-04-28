@@ -948,6 +948,8 @@ export function InwardGateEntryForm({
           onSave={handleSaveLineFromModal}
           initialData={selectedLine || undefined}
           mode={lineModalMode}
+          branchCode={entry.Shortcut_Dimension_2_Code}
+          locationCode={entry.Location_Code}
         />
       </div>
 
@@ -956,6 +958,7 @@ export function InwardGateEntryForm({
         onClose={() => setIsLookupOpen(false)}
         sourceType={entry.Source_Type as InwardGateEntrySourceType}
         branchCode={entry.Shortcut_Dimension_2_Code}
+        locationCode={entry.Location_Code}
         onSelect={(no, data) => {
           handleInputChange("Source_No", no);
           if (

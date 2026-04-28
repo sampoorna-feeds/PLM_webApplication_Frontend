@@ -134,37 +134,67 @@ export function InwardGateEntryForm({
     }
   }, []);
 
+  // Validation helper
+  const isPostingDateValid = (date?: string) => {
+    if (!date) return false;
+    if (!webUserProfile) return true;
+    
+    const postingDate = new Date(date);
+    const from = webUserProfile.Allow_Posting_From?.split("T")[0];
+    const to = webUserProfile.Allow_Posting_To?.split("T")[0];
+
+    if (from && from !== "0001-01-01") {
+      const fromDate = new Date(from);
+      if (postingDate < fromDate) {
+        toast.error(`Posting Date must be on or after ${fromDate.toLocaleDateString()}`);
+        return false;
+      }
+    }
+
+    if (to && to !== "0001-01-01") {
+      const toDate = new Date(to);
+      if (postingDate > toDate) {
+        toast.error(`Posting Date must be on or before ${toDate.toLocaleDateString()}`);
+        return false;
+      }
+    }
+
+    return true;
+  };
+
   // Update default dates once profile is loaded (only for create mode)
   useEffect(() => {
     if (mode === "create") {
       const today = new Date().toISOString().split("T")[0];
       
-      // LR/RR Date always defaults to today regardless of profile range
-      setEntry(prev => ({
-        ...prev,
-        LR_RR_Date: today
-      }));
-
-      if (webUserProfile) {
-        const from = webUserProfile.Allow_Posting_From?.split("T")[0];
-        const to = webUserProfile.Allow_Posting_To?.split("T")[0];
-        const isAfterFrom = !from || from === "0001-01-01" || today >= from;
-        const isBeforeTo = !to || to === "0001-01-01" || today <= to;
-
-        if (isAfterFrom && isBeforeTo) {
-          setEntry(prev => ({
-            ...prev,
-            Posting_Date: today,
-            Document_Date: today
-          }));
-        } else {
-          setEntry(prev => ({
-            ...prev,
-            Posting_Date: "",
-            Document_Date: ""
-          }));
+      setEntry(prev => {
+        const updates: Partial<InwardGateEntryHeader> = {};
+        
+        // LR/RR Date always defaults to today regardless of profile range
+        if (!prev.LR_RR_Date || prev.LR_RR_Date === "0001-01-01") {
+          updates.LR_RR_Date = today;
         }
-      }
+
+        // Posting Date defaults to today, but only if it's within the allowed range
+        if (webUserProfile) {
+          const from = webUserProfile.Allow_Posting_From?.split("T")[0];
+          const to = webUserProfile.Allow_Posting_To?.split("T")[0];
+          const isAfterFrom = !from || from === "0001-01-01" || today >= from;
+          const isBeforeTo = !to || to === "0001-01-01" || today <= to;
+
+          if (isAfterFrom && isBeforeTo) {
+            if (!prev.Posting_Date || prev.Posting_Date === "0001-01-01") updates.Posting_Date = today;
+            if (!prev.Document_Date || prev.Document_Date === "0001-01-01") updates.Document_Date = today;
+          }
+        } else {
+          // If no profile yet, still default to today
+          if (!prev.Posting_Date || prev.Posting_Date === "0001-01-01") updates.Posting_Date = today;
+          if (!prev.Document_Date || prev.Document_Date === "0001-01-01") updates.Document_Date = today;
+        }
+
+        if (Object.keys(updates).length > 0) return { ...prev, ...updates };
+        return prev;
+      });
     }
   }, [mode, webUserProfile]);
 
@@ -203,6 +233,8 @@ export function InwardGateEntryForm({
   };
 
   async function handleSave() {
+    if (!isPostingDateValid(entry.Posting_Date)) return;
+
     setIsSaving(true);
     try {
       // Clean payload: remove empty strings, Net_Weight, and Posting_No_Series
@@ -297,6 +329,8 @@ export function InwardGateEntryForm({
       toast.error("Document number is missing");
       return;
     }
+
+    if (!isPostingDateValid(entry.Posting_Date)) return;
 
     setIsPosting(true);
     try {

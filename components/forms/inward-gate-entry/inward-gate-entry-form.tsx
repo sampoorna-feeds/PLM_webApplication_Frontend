@@ -921,6 +921,7 @@ export function InwardGateEntryForm({
         isOpen={isLookupOpen}
         onClose={() => setIsLookupOpen(false)}
         sourceType={entry.Source_Type as InwardGateEntrySourceType}
+        branchCode={entry.Shortcut_Dimension_2_Code}
         onSelect={(no, data) => {
           handleInputChange("Source_No", no);
           if (

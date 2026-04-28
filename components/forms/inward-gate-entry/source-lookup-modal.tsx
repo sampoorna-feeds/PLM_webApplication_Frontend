@@ -1,6 +1,4 @@
-"use client";
-
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import {
   Dialog,
   DialogContent,
@@ -24,13 +22,13 @@ import {
   type InwardGateEntrySourceType,
 } from "@/lib/api/services/inward-gate-entry.service";
 import { Skeleton } from "@/components/ui/skeleton";
-import { InwardGateEntryPaginationControls } from "./pagination-controls";
 
 interface SourceLookupModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSelect: (sourceNo: string, sourceData: any) => void;
   sourceType: InwardGateEntrySourceType;
+  branchCode?: string;
 }
 
 export function SourceLookupModal({
@@ -38,39 +36,67 @@ export function SourceLookupModal({
   onClose,
   onSelect,
   sourceType,
+  branchCode,
 }: SourceLookupModalProps) {
   const [data, setData] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const pageSize = 100;
   const [totalCount, setTotalCount] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+
+  const observer = useRef<IntersectionObserver | null>(null);
+  const lastElementRef = useCallback((node: HTMLTableRowElement | null) => {
+    if (isLoading || isLoadingMore) return;
+    if (observer.current) observer.current.disconnect();
+    observer.current = new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting && hasMore) {
+        setCurrentPage(prev => prev + 1);
+      }
+    });
+    if (node) observer.current.observe(node);
+  }, [isLoading, isLoadingMore, hasMore]);
 
   // Debounce search
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearch(searchQuery);
-      setCurrentPage(1); // Reset to first page on search
     }, 500);
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
+  // Reset when search or sourceType changes
   useEffect(() => {
     if (isOpen) {
-      fetchData();
+      setData([]);
+      setCurrentPage(1);
+      setHasMore(true);
+      fetchData(1, true);
     }
-  }, [isOpen, sourceType, currentPage, pageSize, debouncedSearch]);
+  }, [sourceType, debouncedSearch, branchCode, isOpen]);
 
-  async function fetchData() {
-    setIsLoading(true);
+  // Fetch next page when currentPage changes (only if > 1)
+  useEffect(() => {
+    if (isOpen && currentPage > 1) {
+      fetchData(currentPage, false);
+    }
+  }, [currentPage, isOpen]);
+
+  async function fetchData(page: number, isNewSearch: boolean) {
+    if (isNewSearch) setIsLoading(true);
+    else setIsLoadingMore(true);
+
     try {
       const params = {
         $top: pageSize,
-        $skip: (currentPage - 1) * pageSize,
+        $skip: (page - 1) * pageSize,
         searchTerm: debouncedSearch || undefined,
+        branchCode: branchCode || undefined,
       };
 
       let result;
@@ -83,18 +109,22 @@ export function SourceLookupModal({
       }
       
       if (result) {
-        setData(result.data);
+        const newData = isNewSearch ? result.data : [...data, ...result.data];
+        if (isNewSearch) {
+          setData(result.data);
+        } else {
+          setData(prev => [...prev, ...result.data]);
+        }
         setTotalCount(result.totalCount);
+        setHasMore(result.data.length === pageSize);
       }
     } catch (error) {
       console.error("Error fetching source data:", error);
     } finally {
       setIsLoading(false);
+      setIsLoadingMore(false);
     }
   }
-
-  const totalPages = Math.ceil(totalCount / pageSize);
-  const hasNextPage = currentPage < totalPages;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -130,8 +160,8 @@ export function SourceLookupModal({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {isLoading ? (
-                Array.from({ length: pageSize }).map((_, i) => (
+              {isLoading && data.length === 0 ? (
+                Array.from({ length: 10 }).map((_, i) => (
                   <TableRow key={i}>
                     {Array.from({ length: 4 }).map((_, j) => (
                       <TableCell key={j}>
@@ -140,7 +170,7 @@ export function SourceLookupModal({
                     ))}
                   </TableRow>
                 ))
-              ) : data.length === 0 ? (
+              ) : data.length === 0 && !isLoading ? (
                 <TableRow>
                   <TableCell
                     colSpan={4}
@@ -150,53 +180,69 @@ export function SourceLookupModal({
                   </TableCell>
                 </TableRow>
               ) : (
-                data.map((item, index) => {
-                  const no = item.No || item["No."];
-                  const name =
-                    item.Buy_from_Vendor_Name ||
-                    item.Sell_to_Customer_Name ||
-                    item.Transfer_from_Name ||
-                    "";
-                  const date =
-                    item.Order_Date ||
-                    item.Posting_Date ||
-                    item["Document Date"] ||
-                    "";
-                  const status = item.Status || "";
+                <>
+                  {data.map((item, index) => {
+                    const no = item.No || item["No."];
+                    const name =
+                      item.Buy_from_Vendor_Name ||
+                      item.Sell_to_Customer_Name ||
+                      item.Transfer_from_Name ||
+                      "";
+                    const date =
+                      item.Order_Date ||
+                      item.Posting_Date ||
+                      item["Document Date"] ||
+                      "";
+                    const status = item.Status || "";
 
-                  return (
-                    <TableRow
-                      key={item.id || no || `source-${index}`}
-                      className="hover:bg-muted cursor-pointer"
-                      onClick={() => onSelect(no, item)}
-                    >
-                      <TableCell className="font-medium">{no}</TableCell>
-                      <TableCell>{name}</TableCell>
-                      <TableCell>
-                        {date ? new Date(date).toLocaleDateString() : "-"}
-                      </TableCell>
-                      <TableCell>{status}</TableCell>
-                    </TableRow>
-                  );
-                })
+                    const isLastElement = index === data.length - 1;
+
+                    return (
+                      <TableRow
+                        key={item.id || no || `source-${index}`}
+                        ref={isLastElement ? lastElementRef : undefined}
+                        className="hover:bg-muted cursor-pointer"
+                        onClick={() => onSelect(no, item)}
+                      >
+                        <TableCell className="font-medium">{no}</TableCell>
+                        <TableCell>{name}</TableCell>
+                        <TableCell>
+                          {date ? new Date(date).toLocaleDateString() : "-"}
+                        </TableCell>
+                        <TableCell>{status}</TableCell>
+                      </TableRow>
+                    );
+                  })}
+                  {isLoadingMore && (
+                    Array.from({ length: 5 }).map((_, i) => (
+                      <TableRow key={`loading-more-${i}`}>
+                        {Array.from({ length: 4 }).map((_, j) => (
+                          <TableCell key={j}>
+                            <Skeleton className="h-4 w-full" />
+                          </TableCell>
+                        ))}
+                      </TableRow>
+                    ))
+                  )}
+                </>
               )}
             </TableBody>
           </Table>
         </div>
 
-        <InwardGateEntryPaginationControls
-          currentPage={currentPage}
-          pageSize={pageSize}
-          totalCount={totalCount}
-          totalPages={totalPages}
-          hasNextPage={hasNextPage}
-          onPageChange={setCurrentPage}
-          onPageSizeChange={(size) => {
-            setPageSize(size);
-            setCurrentPage(1);
-          }}
-        />
+        <div className="text-muted-foreground flex items-center justify-between px-2 py-2 text-[10px] font-medium uppercase tracking-wider">
+          <div>
+            Showing {data.length} of {totalCount} records
+          </div>
+          {isLoadingMore && (
+            <div className="flex items-center gap-2">
+              <Loader2 className="h-3 w-3 animate-spin" />
+              Loading more...
+            </div>
+          )}
+        </div>
       </DialogContent>
     </Dialog>
   );
 }
+

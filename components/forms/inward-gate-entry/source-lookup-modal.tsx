@@ -109,7 +109,6 @@ export function SourceLookupModal({
       }
       
       if (result) {
-        const newData = isNewSearch ? result.data : [...data, ...result.data];
         if (isNewSearch) {
           setData(result.data);
         } else {
@@ -136,7 +135,7 @@ export function SourceLookupModal({
         <div className="relative my-2">
           <Search className="text-muted-foreground absolute top-2.5 left-2.5 h-4 w-4" />
           <Input
-            placeholder="Search by No. or Name..."
+            placeholder={sourceType === "Transfer Receipt" ? "Search by No., Code or Name..." : "Search by No. or Name..."}
             className="pl-8"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -148,13 +147,20 @@ export function SourceLookupModal({
             <TableHeader className="bg-muted sticky top-0 z-10">
               <TableRow>
                 <TableHead>No.</TableHead>
-                <TableHead>
-                  {sourceType === "Purchase Order"
-                    ? "Vendor Name"
-                    : sourceType === "Sales Return Order"
-                      ? "Customer Name"
-                      : "Transfer From"}
-                </TableHead>
+                {sourceType === "Transfer Receipt" ? (
+                  <>
+                    <TableHead>Transfer From Code</TableHead>
+                    <TableHead>Transfer From Name</TableHead>
+                    <TableHead>Transfer To Code</TableHead>
+                    <TableHead>Transfer To Name</TableHead>
+                  </>
+                ) : (
+                  <TableHead>
+                    {sourceType === "Purchase Order"
+                      ? "Vendor Name"
+                      : "Customer Name"}
+                  </TableHead>
+                )}
                 <TableHead>Date</TableHead>
                 <TableHead>Status</TableHead>
               </TableRow>
@@ -163,7 +169,7 @@ export function SourceLookupModal({
               {isLoading && data.length === 0 ? (
                 Array.from({ length: 10 }).map((_, i) => (
                   <TableRow key={i}>
-                    {Array.from({ length: 4 }).map((_, j) => (
+                    {Array.from({ length: sourceType === "Transfer Receipt" ? 7 : 4 }).map((_, j) => (
                       <TableCell key={j}>
                         <Skeleton className="h-4 w-full" />
                       </TableCell>
@@ -173,7 +179,7 @@ export function SourceLookupModal({
               ) : data.length === 0 && !isLoading ? (
                 <TableRow>
                   <TableCell
-                    colSpan={4}
+                    colSpan={sourceType === "Transfer Receipt" ? 7 : 4}
                     className="text-muted-foreground py-10 text-center"
                   >
                     No data found
@@ -205,7 +211,16 @@ export function SourceLookupModal({
                         onClick={() => onSelect(no, item)}
                       >
                         <TableCell className="font-medium">{no}</TableCell>
-                        <TableCell>{name}</TableCell>
+                        {sourceType === "Transfer Receipt" ? (
+                          <>
+                            <TableCell>{item.Transfer_from_Code || "-"}</TableCell>
+                            <TableCell>{item.Transfer_from_Name || "-"}</TableCell>
+                            <TableCell>{item.Transfer_to_Code || "-"}</TableCell>
+                            <TableCell>{item.Transfer_to_Name || "-"}</TableCell>
+                          </>
+                        ) : (
+                          <TableCell>{name}</TableCell>
+                        )}
                         <TableCell>
                           {date ? new Date(date).toLocaleDateString() : "-"}
                         </TableCell>
@@ -216,7 +231,7 @@ export function SourceLookupModal({
                   {isLoadingMore && (
                     Array.from({ length: 5 }).map((_, i) => (
                       <TableRow key={`loading-more-${i}`}>
-                        {Array.from({ length: 4 }).map((_, j) => (
+                        {Array.from({ length: sourceType === "Transfer Receipt" ? 7 : 4 }).map((_, j) => (
                           <TableCell key={j}>
                             <Skeleton className="h-4 w-full" />
                           </TableCell>
@@ -245,4 +260,3 @@ export function SourceLookupModal({
     </Dialog>
   );
 }
-

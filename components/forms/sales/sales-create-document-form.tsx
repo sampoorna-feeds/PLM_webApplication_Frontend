@@ -1870,6 +1870,16 @@ export function SalesCreateDocumentFormContent({
           itemChargeDescription={itemChargeLine.Description ?? ""}
           totalQuantity={itemChargeLine.Quantity ?? 0}
           totalAmount={itemChargeLine.Line_Amount ?? 0}
+          sellToCustomerNo={
+            String(
+              orderHeader?.Sell_to_Customer_No || formData.customerNo || "",
+            ).trim() || undefined
+          }
+          postingDateFrom={
+            String(
+              orderHeader?.Posting_Date || formData.postingDate || "",
+            ).trim() || undefined
+          }
         />
       )}
 

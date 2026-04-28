@@ -141,24 +141,24 @@ export function SourceLookupModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="flex max-h-[90vh] sm:max-w-5xl flex-col">
+      <DialogContent className="max-h-[90vh] min-w-[80vw] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle>Select {sourceType}</DialogTitle>
         </DialogHeader>
 
-        <div className="relative my-2">
-          <Search className="text-muted-foreground absolute top-2.5 left-2.5 h-4 w-4" />
+        <div className="relative mb-4">
+          <Search className="text-muted-foreground absolute top-2.5 left-3 h-4 w-4" />
           <Input
-            placeholder={sourceType === "Transfer Receipt" ? "Search by No., Code or Name..." : "Search by No. or Name..."}
-            className="pl-8"
+            placeholder="Search by No., Code or Name..."
+            className="pl-9"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
 
-        <div className="flex-1 overflow-auto rounded-md border">
+        <div className="flex-1 overflow-auto">
           <Table>
-            <TableHeader className="bg-muted sticky top-0 z-10">
+            <TableHeader className="bg-muted/50 sticky top-0 z-10">
               <TableRow>
                 <TableHead>No.</TableHead>
                 {sourceType === "Transfer Receipt" ? (
@@ -215,7 +215,7 @@ export function SourceLookupModal({
                       item["Document Date"] ||
                       "";
                     const status = item.Status || "";
-                    const location = item.Location_Code || "";
+                    const location = item.Location_Code || item.Transfer_to_Code || "";
 
                     const isLastElement = index === data.length - 1;
 
@@ -229,10 +229,10 @@ export function SourceLookupModal({
                         <TableCell className="font-medium">{no}</TableCell>
                         {sourceType === "Transfer Receipt" ? (
                           <>
-                            <TableCell>{item.Transfer_from_Code || "-"}</TableCell>
-                            <TableCell>{item.Transfer_from_Name || "-"}</TableCell>
-                            <TableCell>{item.Transfer_to_Code || "-"}</TableCell>
-                            <TableCell>{item.Transfer_to_Name || "-"}</TableCell>
+                            <TableCell>{item.Transfer_from_Code}</TableCell>
+                            <TableCell>{item.Transfer_from_Name}</TableCell>
+                            <TableCell>{item.Transfer_to_Code}</TableCell>
+                            <TableCell>{item.Transfer_to_Name}</TableCell>
                           </>
                         ) : (
                           <TableCell>{name}</TableCell>
@@ -246,32 +246,22 @@ export function SourceLookupModal({
                     );
                   })}
                   {isLoadingMore && (
-                    Array.from({ length: 5 }).map((_, i) => (
-                      <TableRow key={`loading-more-${i}`}>
-                        {Array.from({ length: sourceType === "Transfer Receipt" ? 8 : 5 }).map((_, j) => (
-                          <TableCell key={j}>
-                            <Skeleton className="h-4 w-full" />
-                          </TableCell>
-                        ))}
-                      </TableRow>
-                    ))
+                    <TableRow>
+                      <TableCell
+                        colSpan={sourceType === "Transfer Receipt" ? 8 : 5}
+                        className="py-4 text-center"
+                      >
+                        <Loader2 className="mx-auto h-6 w-6 animate-spin" />
+                      </TableCell>
+                    </TableRow>
                   )}
                 </>
               )}
             </TableBody>
           </Table>
         </div>
-
-        <div className="text-muted-foreground flex items-center justify-between px-2 py-2 text-[10px] font-medium uppercase tracking-wider">
-          <div>
-            Showing {data.length} of {totalCount} records
-          </div>
-          {isLoadingMore && (
-            <div className="flex items-center gap-2">
-              <Loader2 className="h-3 w-3 animate-spin" />
-              Loading more...
-            </div>
-          )}
+        <div className="text-muted-foreground border-t px-4 py-2 text-[10px] font-bold tracking-wider uppercase">
+          Showing {data.length} of {totalCount} records
         </div>
       </DialogContent>
     </Dialog>

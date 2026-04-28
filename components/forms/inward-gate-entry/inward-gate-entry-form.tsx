@@ -15,6 +15,14 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import {
   createInwardGateEntryHeader,
   createInwardGateEntryLine,
   deleteInwardGateEntryLine,
@@ -30,16 +38,13 @@ import { getWebUser, type WebUser } from "@/lib/api/services/web-user.service";
 import { useFormStack } from "@/lib/form-stack/use-form-stack";
 import { cn } from "@/lib/utils";
 import {
-  Check,
   CheckCircle,
   FileText,
   Loader2,
   Pencil,
   Plus,
   Save,
-  Search,
   Trash2,
-  X,
 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -108,12 +113,22 @@ export function InwardGateEntryForm({
   const [isLineModalOpen, setIsLineModalOpen] = useState(false);
   const [selectedLine, setSelectedLine] = useState<Partial<InwardGateEntryLine> | null>(null);
   const [lineModalMode, setLineModalMode] = useState<"add" | "edit">("add");
-  const [isSavingLine, setIsSavingLine] = useState<number | null>(null);
+  
+  // Post Dialog State
+  const [isPostDialogOpen, setIsPostDialogOpen] = useState(false);
+  const [postDetails, setPostDetails] = useState({
+    postingDate: new Date().toISOString().split("T")[0],
+    postingTime: new Date().toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: false,
+    }),
+  });
 
   const { tab, markAsSaved, updateTab, closeTab } = useFormStack(tabId);
 
   const fetchLines = useCallback(async () => {
-    // Only fetch if we have a document number and it's not being edited
     if (!initialEntry?.No) return;
 
     setIsLoadingLines(true);
@@ -137,8 +152,6 @@ export function InwardGateEntryForm({
     }
   }, []);
 
-
-  // Update default dates once profile is loaded (only for create mode)
   useEffect(() => {
     if (mode === "create") {
       const today = new Date().toISOString().split("T")[0];
@@ -146,12 +159,10 @@ export function InwardGateEntryForm({
       setEntry(prev => {
         const updates: Partial<InwardGateEntryHeader> = {};
         
-        // LR/RR Date always defaults to today regardless of profile range
         if (!prev.LR_RR_Date || prev.LR_RR_Date === "0001-01-01") {
           updates.LR_RR_Date = today;
         }
 
-        // Posting Date defaults to today, but only if it's within the allowed range
         if (webUserProfile) {
           const from = webUserProfile.Allow_Posting_From?.split("T")[0];
           const to = webUserProfile.Allow_Posting_To?.split("T")[0];
@@ -163,7 +174,6 @@ export function InwardGateEntryForm({
             if (!prev.Document_Date || prev.Document_Date === "0001-01-01") updates.Document_Date = today;
           }
         } else {
-          // If no profile yet, still default to today
           if (!prev.Posting_Date || prev.Posting_Date === "0001-01-01") updates.Posting_Date = today;
           if (!prev.Document_Date || prev.Document_Date === "0001-01-01") updates.Document_Date = today;
         }
@@ -181,7 +191,7 @@ export function InwardGateEntryForm({
     } else if (mode === "create") {
       updateTab({ isSaved: false });
     }
-  }, [mode, initialEntry?.No]); // Removed fetchLines and others to avoid loop
+  }, [mode, initialEntry?.No]);
 
   const handleInputChange = (
     field: keyof InwardGateEntryHeader,
@@ -190,7 +200,6 @@ export function InwardGateEntryForm({
     setEntry((prev) => {
       const next = { ...prev, [field]: value };
 
-      // Calculate Net Weight if Gross or Tier changes
       if (field === "Gross_Weight" || field === "Tier_Weight") {
         const gross =
           field === "Gross_Weight"
@@ -213,10 +222,7 @@ export function InwardGateEntryForm({
 
     setIsSaving(true);
     try {
-      // Clean payload: remove empty strings, Net_Weight, and Posting_No_Series
-      // For updates (PATCH), only send modified fields
       const cleanPayload = Object.entries(entry).reduce((acc, [key, value]) => {
-        // Exclusions
         if (
           key === "Net_Weight" ||
           key === "Posting_No_Series" ||
@@ -226,14 +232,12 @@ export function InwardGateEntryForm({
           return acc;
         if (value === "" || value === undefined || value === null) return acc;
 
-        // Dirty tracking for updates
         if (mode !== "create") {
           const initialValue =
             initialEntry?.[key as keyof InwardGateEntryHeader];
           if (value === initialValue) return acc;
         }
 
-        // Ensure time fields have :00 if they only have HH:mm
         let processedValue = value;
         if (
           (key === "Document_Time" || key === "Posting_Time") &&
@@ -252,14 +256,12 @@ export function InwardGateEntryForm({
         toast.success(`Gate Entry ${result.No} created successfully`);
         setEntry(result);
 
-        // Update tab title and mode
         updateTab({
           title: `Gate Entry: ${result.No}`,
           context: { ...context, entry: result, mode: "view" },
           isSaved: true,
         });
 
-        // Fetch lines if needed
         const onRefetch = context?.refetch as (() => void) | undefined;
         onRefetch?.();
       } else {
@@ -267,7 +269,6 @@ export function InwardGateEntryForm({
         const entryType = entry.Entry_Type || "Inward";
         if (!identifier) throw new Error("Document No. is missing");
 
-        // If no fields changed, just mark as saved and return
         if (Object.keys(cleanPayload).length === 0) {
           toast.info("No changes to update");
           markAsSaved();
@@ -299,22 +300,45 @@ export function InwardGateEntryForm({
     }
   }
 
-  async function handlePost() {
-    const docNo = entry.No;
-    if (!docNo) {
-      toast.error("Document number is missing");
+  const handlePostClick = () => {
+    if (!entry.No) {
+      toast.error("Please save the entry first");
       return;
     }
+    setPostDetails({
+      postingDate: new Date().toISOString().split("T")[0],
+      postingTime: new Date().toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: false,
+      }),
+    });
+    setIsPostDialogOpen(true);
+  };
 
-    if (!isPostingDateValid(entry.Posting_Date, webUserProfile)) return;
+  async function handleConfirmPost() {
+    const docNo = entry.No;
+    if (!docNo) return;
+
+    if (!isPostingDateValid(postDetails.postingDate, webUserProfile)) return;
 
     setIsPosting(true);
     try {
+      // 1. Update the header with the new posting date and time
+      const timeStr = postDetails.postingTime.length === 5 ? `${postDetails.postingTime}:00` : postDetails.postingTime;
+      
+      await updateInwardGateEntryHeader(docNo, entry.Entry_Type || "Inward", {
+        Posting_Date: postDetails.postingDate,
+        Posting_Time: timeStr,
+      });
+
+      // 2. Perform the actual posting
       const result = await postInwardGateEntry(docNo);
       toast.success(result || "Gate entry posted successfully");
 
-      // Update local state to posted if status is returned
       handleInputChange("Status", "Posted");
+      setIsPostDialogOpen(false);
 
       const onRefetch = context?.refetch as (() => void) | undefined;
       onRefetch?.();
@@ -375,7 +399,6 @@ export function InwardGateEntryForm({
 
   const handleDeleteLine = async (line: InwardGateEntryLine) => {
     if (!line["@odata.etag"]) {
-      // Just local remove if not saved to server
       setLines(lines.filter((l) => l.Line_No !== line.Line_No));
       return;
     }
@@ -438,7 +461,7 @@ export function InwardGateEntryForm({
               Update Changes
             </Button>
             <Button
-              onClick={handlePost}
+              onClick={handlePostClick}
               disabled={isPosting}
               size="sm"
               className="h-8 bg-green-600 text-white hover:bg-green-700"
@@ -482,24 +505,7 @@ export function InwardGateEntryForm({
         {/* General Section */}
         <section className="space-y-4 rounded-md border p-4">
           <div className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8">
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-bold tracking-wider uppercase">
-                LOB
-              </label>
-              <CascadingDimensionSelect
-                dimensionType="LOB"
-                value={entry.Shortcut_Dimension_1_Code || ""}
-                onChange={(v) => {
-                  handleInputChange("Shortcut_Dimension_1_Code", v);
-                  handleInputChange("Shortcut_Dimension_2_Code", "");
-                  handleInputChange("Location_Code", "");
-                }}
-                placeholder="Select LOB"
-                userId={authUserId}
-                compactWhenSingle
-              />
-            </div>
-
+            
             <div className="space-y-1.5">
               <label className="text-[10px] font-bold tracking-wider uppercase">
                 Branch
@@ -512,7 +518,6 @@ export function InwardGateEntryForm({
                   handleInputChange("Location_Code", "");
                 }}
                 placeholder="Select Branch"
-                lobValue={entry.Shortcut_Dimension_1_Code}
                 userId={authUserId}
                 compactWhenSingle
               />
@@ -563,32 +568,6 @@ export function InwardGateEntryForm({
                 value={entry.Document_Time || ""}
                 onChange={(e) =>
                   handleInputChange("Document_Time", e.target.value)
-                }
-                className="h-8 text-xs"
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-bold tracking-wider uppercase">
-                Posting Date
-              </label>
-              <DateInput
-                value={entry.Posting_Date || ""}
-                onChange={(v) => handleInputChange("Posting_Date", v)}
-                min={webUserProfile?.Allow_Posting_From?.split("T")[0]}
-                max={webUserProfile?.Allow_Posting_To?.split("T")[0]}
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-bold tracking-wider uppercase">
-                Posting Time
-              </label>
-              <Input
-                type="time"
-                value={entry.Posting_Time || ""}
-                onChange={(e) =>
-                  handleInputChange("Posting_Time", e.target.value)
                 }
                 className="h-8 text-xs"
               />
@@ -952,6 +931,64 @@ export function InwardGateEntryForm({
           setIsLookupOpen(false);
         }}
       />
+
+      {/* Post Entry Dialog */}
+      <Dialog open={isPostDialogOpen} onOpenChange={setIsPostDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle className="text-sm font-bold uppercase tracking-wider">
+              Confirm Post Entry
+            </DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label className="text-right text-[10px] font-bold uppercase tracking-wider">
+                Posting Date
+              </Label>
+              <div className="col-span-3">
+                <DateInput
+                  value={postDetails.postingDate}
+                  onChange={(v) => setPostDetails(prev => ({ ...prev, postingDate: v }))}
+                  min={webUserProfile?.Allow_Posting_From?.split("T")[0]}
+                  max={webUserProfile?.Allow_Posting_To?.split("T")[0]}
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label className="text-right text-[10px] font-bold uppercase tracking-wider">
+                Posting Time
+              </Label>
+              <Input
+                type="time"
+                value={postDetails.postingTime}
+                onChange={(e) => setPostDetails(prev => ({ ...prev, postingTime: e.target.value }))}
+                className="col-span-3 h-8 text-xs"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setIsPostDialogOpen(false)}
+              className="h-8 text-[10px] font-bold uppercase tracking-wider"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleConfirmPost}
+              disabled={isPosting}
+              size="sm"
+              className="h-8 bg-green-600 text-white hover:bg-green-700 text-[10px] font-bold uppercase tracking-wider"
+            >
+              {isPosting ? (
+                <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+              ) : null}
+              Confirm Post
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

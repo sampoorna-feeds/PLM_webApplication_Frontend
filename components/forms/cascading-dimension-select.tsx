@@ -19,6 +19,8 @@ import {
   getLOBsFromUserSetup,
   getBranchesFromUserSetup,
   getLOCsFromUserSetup,
+  getAllBranchesFromUserSetup,
+  getLOCsForBranchFromUserSetup,
   type DimensionValue,
 } from "@/lib/api/services/dimension.service";
 
@@ -89,13 +91,17 @@ export function CascadingDimensionSelect({
           break;
         case "BRANCH":
           if (!lobValue) {
-            result = [];
+            // If no LOB specified, show all branches for the user
+            result = await getAllBranchesFromUserSetup(userId);
           } else {
             result = await getBranchesFromUserSetup(lobValue, userId);
           }
           break;
         case "LOC":
-          if (!lobValue || !branchValue) {
+          if (!lobValue && branchValue) {
+            // If no LOB but branch exists, show LOCs for that branch across all LOBs
+            result = await getLOCsForBranchFromUserSetup(branchValue, userId);
+          } else if (!lobValue || !branchValue) {
             result = [];
           } else {
             result = await getLOCsFromUserSetup(lobValue, branchValue, userId);
@@ -112,12 +118,14 @@ export function CascadingDimensionSelect({
     }
   }, [dimensionType, lobValue, branchValue, userId]);
 
-  // Clear value if parent dependency is not met (but don't reload items here)
+  // Clear value if parent dependency is not met
   useEffect(() => {
-    if (dimensionType === "BRANCH" && !lobValue && value) {
-      onChange("");
-    }
-    if (dimensionType === "LOC" && (!lobValue || !branchValue) && value) {
+    // If it's a BRANCH and we HAVE an LOB, we keep the value. 
+    // If we DON'T have an LOB, we also keep the value (new requirement).
+    // So BRANCH never clears its value based on LOB now.
+    
+    // For LOC, if we don't have a branch, we clear it.
+    if (dimensionType === "LOC" && !branchValue && value) {
       onChange("");
     }
   }, [dimensionType, lobValue, branchValue, value, onChange]);
@@ -214,8 +222,7 @@ export function CascadingDimensionSelect({
   // Check if field should be disabled
   const isFieldDisabled =
     disabled ||
-    (dimensionType === "BRANCH" && !lobValue) ||
-    (dimensionType === "LOC" && (!lobValue || !branchValue));
+    (dimensionType === "LOC" && !branchValue);
 
   // Find selected item display value
   const selectedItem = items.find((item) => item.Code === value);
@@ -284,11 +291,7 @@ export function CascadingDimensionSelect({
           data-field-error={hasError}
         >
           <span className="truncate">
-            {isFieldDisabled && dimensionType === "BRANCH" && !lobValue
-              ? "Select LOB first"
-              : isFieldDisabled &&
-                  dimensionType === "LOC" &&
-                  (!lobValue || !branchValue)
+            {isFieldDisabled && dimensionType === "LOC" && !branchValue
                 ? "Select Branch first"
                 : !isFieldDisabled && items.length === 0 && !isLoading && userId
                   ? `No ${dimensionType} found. Please contact IT.`
@@ -390,9 +393,7 @@ export function CascadingDimensionSelect({
             ) : filteredItems.length === 0 ? (
               <div className="text-muted-foreground p-4 text-center text-sm">
                 {isFieldDisabled
-                  ? dimensionType === "BRANCH"
-                    ? "Select LOB first"
-                    : "Select Branch first"
+                  ? "Select Branch first"
                   : searchQuery.length < MIN_SEARCH_LENGTH && items.length === 0
                     ? `No ${dimensionType} found. Please contact IT.`
                     : searchQuery.length < MIN_SEARCH_LENGTH

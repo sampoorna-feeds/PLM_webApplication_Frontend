@@ -710,16 +710,15 @@ export function PurchaseCreateDocumentFormContent({
   ) => {
     if (isReadOnlyMode) return;
 
-    const newData = {
-      ...formData,
+    setFormData((prev) => ({
+      ...prev,
       vendorNo,
       vendorName: vendor?.Name || "",
-      locationCode: "",
       vendorGstRegNo: "",
       vendorPanNo: "",
       orderAddressCode: "",
-    };
-    setFormData(newData);
+      // locationCode is intentionally preserved — it is not vendor-dependent
+    }));
 
     // Fetch vendor details (GST, PAN)
     if (vendorNo) {
@@ -1437,6 +1436,7 @@ export function PurchaseCreateDocumentFormContent({
                         value={formData.lob}
                         onClear={() => {
                           handleInputChange("lob", "");
+                          handleInputChange("branch", "");
                           handleInputChange("locationCode", "");
                         }}
                       >
@@ -1445,7 +1445,10 @@ export function PurchaseCreateDocumentFormContent({
                           value={formData.lob}
                           onChange={(value) => {
                             handleInputChange("lob", value);
-                            handleInputChange("locationCode", "");
+                            if (value !== formData.lob) {
+                              handleInputChange("branch", "");
+                              handleInputChange("locationCode", "");
+                            }
                           }}
                           placeholder="Select LOB"
                           userId={userId}

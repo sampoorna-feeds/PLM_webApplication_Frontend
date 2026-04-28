@@ -136,7 +136,7 @@ export function SalesPostedDocumentView({
     try {
       const base64 =
         documentType === "posted-invoice"
-          ? await getInvoiceReportPdf(no, customerNo, todayDate, resolvedUserID, printdateTime)
+          ? await getInvoiceReportPdf(no, customerNo, documentPostingDate, resolvedUserID, printdateTime)
           : await getDeliveryReportPdf(no, customerNo, documentPostingDate);
       if (!base64) throw new Error("No PDF content returned");
       const blob = base64ToPdfBlob(base64);

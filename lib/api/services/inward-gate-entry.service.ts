@@ -129,7 +129,8 @@ async function getPaginatedSourceDocs(
   entity: string,
   searchFields: string[],
   params: GetSourceDocsParams = {},
-  extraFilter?: string
+  extraFilter?: string,
+  locationFieldName: string = "Location_Code"
 ): Promise<PaginatedSourceDocsResponse> {
   const { $top = 10, $skip = 0, searchTerm, branchCode, locationCode } = params;
   const encodedCompany = encodeURIComponent(COMPANY);
@@ -140,7 +141,7 @@ async function getPaginatedSourceDocs(
     filterParts.push(`Shortcut_Dimension_2_Code eq '${branchCode.replace(/'/g, "''")}'`);
   }
   if (locationCode) {
-    filterParts.push(`Location_Code eq '${locationCode.replace(/'/g, "''")}'`);
+    filterParts.push(`${locationFieldName} eq '${locationCode.replace(/'/g, "''")}'`);
   }
   if (extraFilter) {
     filterParts.push(extraFilter);
@@ -218,9 +219,11 @@ export async function getPurchaseOrders(params?: GetSourceDocsParams): Promise<P
 }
 
 export async function getSalesReturnOrders(params?: GetSourceDocsParams): Promise<PaginatedSourceDocsResponse> {
-  return getPaginatedSourceDocs("SalesReturnOrderHeader", ["No", "Sell_to_Customer_No", "Sell_to_Customer_Name"], params, "Status eq 'Released'");
+  const { branchCode, locationCode, ...rest } = params || {};
+  return getPaginatedSourceDocs("SalesReturnOrderHeader", ["No", "Sell_to_Customer_No", "Sell_to_Customer_Name"], rest);
 }
 
 export async function getTransferOrders(params?: GetSourceDocsParams): Promise<PaginatedSourceDocsResponse> {
-  return getPaginatedSourceDocs("TransferHeader", ["No", "Transfer_from_Code", "Transfer_from_Name", "Transfer_to_Code", "Transfer_to_Name"], params, "Status eq 'Released'");
+  const { branchCode, locationCode, ...rest } = params || {};
+  return getPaginatedSourceDocs("TransferHeader", ["No", "Transfer_from_Code", "Transfer_from_Name", "Transfer_to_Code", "Transfer_to_Name"], rest);
 }

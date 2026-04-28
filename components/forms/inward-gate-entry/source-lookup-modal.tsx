@@ -24,6 +24,7 @@ import {
   type InwardGateEntrySourceType,
 } from "@/lib/api/services/inward-gate-entry.service";
 import { Skeleton } from "@/components/ui/skeleton";
+import { InwardGateEntryPaginationControls } from "./pagination-controls";
 
 interface SourceLookupModalProps {
   isOpen: boolean;
@@ -41,25 +42,50 @@ export function SourceLookupModal({
   const [data, setData] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [totalCount, setTotalCount] = useState(0);
+
+  // Debounce search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+      setCurrentPage(1); // Reset to first page on search
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   useEffect(() => {
     if (isOpen) {
       fetchData();
     }
-  }, [isOpen, sourceType]);
+  }, [isOpen, sourceType, currentPage, pageSize, debouncedSearch]);
 
   async function fetchData() {
     setIsLoading(true);
     try {
-      let result = [];
+      const params = {
+        $top: pageSize,
+        $skip: (currentPage - 1) * pageSize,
+        searchTerm: debouncedSearch || undefined,
+      };
+
+      let result;
       if (sourceType === "Purchase Order") {
-        result = await getPurchaseOrders();
+        result = await getPurchaseOrders(params);
       } else if (sourceType === "Sales Return Order") {
-        result = await getSalesReturnOrders();
+        result = await getSalesReturnOrders(params);
       } else if (sourceType === "Transfer Receipt") {
-        result = await getTransferOrders();
+        result = await getTransferOrders(params);
       }
-      setData(result);
+      
+      if (result) {
+        setData(result.data);
+        setTotalCount(result.totalCount);
+      }
     } catch (error) {
       console.error("Error fetching source data:", error);
     } finally {
@@ -67,22 +93,12 @@ export function SourceLookupModal({
     }
   }
 
-  const filteredData = data.filter((item) => {
-    const no = item.No || item["No."] || "";
-    const vendor =
-      item.Buy_from_Vendor_Name ||
-      item.Sell_to_Customer_Name ||
-      item.Transfer_from_Name ||
-      "";
-    return (
-      no.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      vendor.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-  });
+  const totalPages = Math.ceil(totalCount / pageSize);
+  const hasNextPage = currentPage < totalPages;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="flex max-h-[85vh] max-w-6xl flex-col">
+      <DialogContent className="flex max-h-[90vh] sm:max-w-5xl flex-col">
         <DialogHeader>
           <DialogTitle>Select {sourceType}</DialogTitle>
         </DialogHeader>
@@ -90,7 +106,7 @@ export function SourceLookupModal({
         <div className="relative my-2">
           <Search className="text-muted-foreground absolute top-2.5 left-2.5 h-4 w-4" />
           <Input
-            placeholder="Search..."
+            placeholder="Search by No. or Name..."
             className="pl-8"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -99,7 +115,7 @@ export function SourceLookupModal({
 
         <div className="flex-1 overflow-auto rounded-md border">
           <Table>
-            <TableHeader className="bg-muted sticky top-0">
+            <TableHeader className="bg-muted sticky top-0 z-10">
               <TableRow>
                 <TableHead>No.</TableHead>
                 <TableHead>
@@ -115,7 +131,7 @@ export function SourceLookupModal({
             </TableHeader>
             <TableBody>
               {isLoading ? (
-                Array.from({ length: 5 }).map((_, i) => (
+                Array.from({ length: pageSize }).map((_, i) => (
                   <TableRow key={i}>
                     {Array.from({ length: 4 }).map((_, j) => (
                       <TableCell key={j}>
@@ -124,7 +140,7 @@ export function SourceLookupModal({
                     ))}
                   </TableRow>
                 ))
-              ) : filteredData.length === 0 ? (
+              ) : data.length === 0 ? (
                 <TableRow>
                   <TableCell
                     colSpan={4}
@@ -134,7 +150,7 @@ export function SourceLookupModal({
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredData.map((item, index) => {
+                data.map((item, index) => {
                   const no = item.No || item["No."];
                   const name =
                     item.Buy_from_Vendor_Name ||
@@ -167,6 +183,19 @@ export function SourceLookupModal({
             </TableBody>
           </Table>
         </div>
+
+        <InwardGateEntryPaginationControls
+          currentPage={currentPage}
+          pageSize={pageSize}
+          totalCount={totalCount}
+          totalPages={totalPages}
+          hasNextPage={hasNextPage}
+          onPageChange={setCurrentPage}
+          onPageSizeChange={(size) => {
+            setPageSize(size);
+            setCurrentPage(1);
+          }}
+        />
       </DialogContent>
     </Dialog>
   );

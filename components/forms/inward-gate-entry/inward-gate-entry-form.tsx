@@ -230,7 +230,7 @@ export function InwardGateEntryForm({
           key === "id"
         )
           return acc;
-        if (value === "" || value === undefined || value === null) return acc;
+        if (value === "" || value === undefined || value === null || value === 0) return acc;
 
         if (mode !== "create") {
           const initialValue =

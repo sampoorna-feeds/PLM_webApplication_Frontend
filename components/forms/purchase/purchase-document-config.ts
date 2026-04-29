@@ -77,7 +77,7 @@ const PURCHASE_DOCUMENT_CONFIG: Record<
     capabilities: {
       supportsPoType: true,
       supportsServiceType: true,
-      supportsInvoiceType: true,
+      supportsInvoiceType: false,
       invoiceTypeOptions: STANDARD_INVOICE_TYPE_OPTIONS,
       supportsVendorInvoiceNo: true,
       supportsVendorCrMemoNo: false,
@@ -102,7 +102,7 @@ const PURCHASE_DOCUMENT_CONFIG: Record<
     capabilities: {
       supportsPoType: false,
       supportsServiceType: false,
-      supportsInvoiceType: true,
+      supportsInvoiceType: false,
       invoiceTypeOptions: INVOICE_INVOICE_TYPE_OPTIONS,
       supportsVendorInvoiceNo: true,
       supportsVendorCrMemoNo: false,

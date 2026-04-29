@@ -1507,34 +1507,6 @@ export function PurchaseCreateDocumentFormContent({
                 <Separator className="mb-3" />
                 <section className="space-y-2">
                   <div className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-                    {capabilities.supportsInvoiceType && (
-                      <div className={fieldClass}>
-                        <label className={labelClass}>Invoice Type</label>
-                        <ClearableField
-                          readOnly={areFieldsReadOnly}
-                          value={formData.invoiceType}
-                          onClear={() => handleInputChange("invoiceType", "")}
-                        >
-                          <Select
-                            value={formData.invoiceType || ""}
-                            onValueChange={(value) =>
-                              handleInputChange("invoiceType", value)
-                            }
-                          >
-                            <SelectTrigger className="h-8 text-xs">
-                              <SelectValue placeholder="Select / None" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {capabilities.invoiceTypeOptions.map((opt) => (
-                                <SelectItem key={opt.value} value={opt.value}>
-                                  {opt.label}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </ClearableField>
-                      </div>
-                    )}
                     <div className={fieldClass}>
                       <label className={labelClass}>Vendor</label>
                       <ClearableField
@@ -1605,10 +1577,39 @@ export function PurchaseCreateDocumentFormContent({
                       )}
                     </div>
                     
+                    {capabilities.supportsInvoiceType && (
+                      <div className={fieldClass}>
+                        <label className={labelClass}>Invoice Type</label>
+                        <ClearableField
+                          readOnly={areFieldsReadOnly}
+                          value={formData.invoiceType}
+                          onClear={() => handleInputChange("invoiceType", "")}
+                        >
+                          <Select
+                            value={formData.invoiceType || ""}
+                            onValueChange={(value) =>
+                              handleInputChange("invoiceType", value)
+                            }
+                          >
+                            <SelectTrigger className="h-8 text-xs">
+                              <SelectValue placeholder="Select / None" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {capabilities.invoiceTypeOptions.map((opt) => (
+                                <SelectItem key={opt.value} value={opt.value}>
+                                  {opt.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </ClearableField>
+                      </div>
+                    )}
+                    
                     {capabilities.supportsAppliesToFields && (
                       <div className={fieldClass}>
                         <label className={labelClass}>
-                          Applies-to Doc. Type
+                          Apply to Doc Type
                         </label>
                         <ClearableField
                           readOnly={areFieldsReadOnly}
@@ -1653,7 +1654,7 @@ export function PurchaseCreateDocumentFormContent({
                     {capabilities.supportsAppliesToFields && (
                       <div className={fieldClass}>
                         <label className={labelClass}>
-                          Applies-to Doc. No.
+                          Applied to Doc No.
                         </label>
                         <ClearableField
                           readOnly={areFieldsReadOnly}

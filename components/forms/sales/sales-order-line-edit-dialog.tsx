@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Loader2, Link2, Trash2 } from "lucide-react";
+import { Loader2, Link2, Trash2, Search, X } from "lucide-react";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -47,6 +47,7 @@ import {
   extractApiError,
   type ApiErrorState,
 } from "@/components/forms/production-orders/api-error-dialog";
+import { ApplyItemEntryModal } from "@/components/forms/shared/apply-item-entry-modal";
 import { cn } from "@/lib/utils";
 import { ClearableField } from "@/components/ui/clearable-field";
 import type { SalesLine } from "@/lib/api/services/sales-orders.service";
@@ -100,6 +101,7 @@ export function SalesOrderLineEditDialog({
   const [applToItemEntry, setApplToItemEntry] = useState<string>("");
   const [ledgerEntries, setLedgerEntries] = useState<ApplyItemLedgerEntry[]>([]);
   const [isLoadingLedger, setIsLoadingLedger] = useState(false);
+  const [isApplyItemEntryOpen, setIsApplyItemEntryOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -550,21 +552,49 @@ export function SalesOrderLineEditDialog({
                 </div>
 
                 {lineType === "Item" && lineLocationCode && (
-                  <div className="space-y-1 overflow-hidden sm:col-span-2">
+                  <div className="space-y-1 sm:col-span-2">
                     <Label className="text-xs">Applies to Item Entry</Label>
-                    <SearchableSelect
-                      value={applToItemEntry}
-                      onValueChange={setApplToItemEntry}
-                      options={ledgerEntries.map((e) => ({
-                        value: String(e.Entry_No),
-                        label: `Entry: ${e.Entry_No} | Doc: ${e.Document_No} | Qty: ${e.Quantity ?? 0} | Rem: ${e.Remaining_Quantity ?? 0}`,
-                      }))}
-                      isLoading={isLoadingLedger}
-                      placeholder={isLoadingLedger ? "Loading entries..." : "Select entry (optional)"}
-                      searchPlaceholder="Search entries..."
-                      allowCustomValue={false}
-                      disabled={isReleased}
-                    />
+                    <div className="group relative">
+                      <Input
+                        readOnly
+                        value={(() => {
+                          if (!applToItemEntry) return "";
+                          const e = ledgerEntries.find((e) => String(e.Entry_No) === applToItemEntry);
+                          return e
+                            ? `#${e.Entry_No} · ${e.Document_No} · Rem: ${e.Remaining_Quantity ?? 0}`
+                            : `Entry #${applToItemEntry}`;
+                        })()}
+                        placeholder={isLoadingLedger ? "Loading entries..." : "Click to select (optional)"}
+                        className="bg-muted/30 h-8 cursor-pointer border-dashed pr-10 font-medium text-xs"
+                        onClick={() => !isLoadingLedger && setIsApplyItemEntryOpen(true)}
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="text-muted-foreground hover:text-primary absolute top-0 right-0 h-8 w-9"
+                        onClick={() => !isLoadingLedger && setIsApplyItemEntryOpen(true)}
+                        disabled={isLoadingLedger}
+                      >
+                        {isLoadingLedger ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <Search className="h-3.5 w-3.5" />
+                        )}
+                      </Button>
+                      {applToItemEntry && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setApplToItemEntry("");
+                          }}
+                          className="text-muted-foreground hover:text-foreground absolute top-1/2 right-9 -translate-y-1/2 p-1 opacity-0 transition-opacity group-hover:opacity-100"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                    </div>
                   </div>
                 )}
               </>
@@ -621,6 +651,16 @@ export function SalesOrderLineEditDialog({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ApplyItemEntryModal
+        isOpen={isApplyItemEntryOpen}
+        onClose={() => setIsApplyItemEntryOpen(false)}
+        entries={ledgerEntries}
+        onSelect={(entry) => setApplToItemEntry(String(entry.Entry_No))}
+        title={`Select Applies-to Item Entry — ${line?.No ?? ""}`}
+        isLoading={isLoadingLedger}
+        selectedEntryNo={applToItemEntry ? Number(applToItemEntry) : undefined}
+      />
 
       <ApiErrorDialog error={apiError} onClose={() => setApiError(null)} />
 

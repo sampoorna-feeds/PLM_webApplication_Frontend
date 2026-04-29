@@ -442,3 +442,20 @@ export async function getAllLOCsFromUserSetup(
   );
   return uniqueLOCs.map((loc) => ({ Code: loc }));
 }
+
+/**
+ * Get unique LOC values from WebUserSetup filtered by Branch only (across all LOBs)
+ * @param branch - Selected Branch value
+ * @param userId - User ID (required)
+ */
+export async function getLOCsForBranchFromUserSetup(
+  branch: string,
+  userId: string,
+): Promise<DimensionValue[]> {
+  const setupData = await getWebUserSetup(userId);
+  const filtered = setupData.filter((item) => item.Branch_Code === branch);
+  const uniqueLOCs = Array.from(
+    new Set(filtered.map((item) => item.LOC_Code).filter(Boolean)),
+  );
+  return uniqueLOCs.map((loc) => ({ Code: loc }));
+}

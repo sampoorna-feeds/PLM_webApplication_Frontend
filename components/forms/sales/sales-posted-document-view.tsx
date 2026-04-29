@@ -126,18 +126,18 @@ export function SalesPostedDocumentView({
       return;
     }
 
-    // postingDate is always today's date per requirement
     const today = new Date();
-    const postingDate = today.toISOString().split("T")[0]; // YYYY-MM-DD
+    const todayDate = today.toISOString().split("T")[0]; // YYYY-MM-DD
     const printdateTime = today.toISOString(); // ISO 8601 datetime
     const resolvedUserID = userID ?? "";
+    const documentPostingDate = String(rawRow.Posting_Date || todayDate).trim();
 
     setLoadingDocNo(no);
     try {
       const base64 =
         documentType === "posted-invoice"
-          ? await getInvoiceReportPdf(no, customerNo, postingDate, resolvedUserID, printdateTime)
-          : await getDeliveryReportPdf(no, customerNo, postingDate);
+          ? await getInvoiceReportPdf(no, customerNo, documentPostingDate, resolvedUserID, printdateTime)
+          : await getDeliveryReportPdf(no, customerNo, documentPostingDate);
       if (!base64) throw new Error("No PDF content returned");
       const blob = base64ToPdfBlob(base64);
       const url = window.URL.createObjectURL(blob);

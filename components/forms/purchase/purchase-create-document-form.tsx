@@ -150,6 +150,7 @@ import { patchPurchaseDocumentLineByKey } from "@/lib/api/services/purchase-docu
 import { updatePurchaseLine } from "@/lib/api/services/purchase-orders.service";
 import {
   createPurchaseOrder,
+  createNoSeriesForPO,
   addPurchaseOrderLineItems,
   addSinglePurchaseOrderLine,
   updateSinglePurchaseOrderLine,
@@ -190,6 +191,7 @@ import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { getWebUser, type WebUser } from "@/lib/api/services/web-user.service";
+import { isPostingDateValid } from "@/lib/utils/posting-date";
 import { DateInput } from "@/components/ui/date-input";
 
 export type PurchaseCreateDocumentType =
@@ -540,6 +542,18 @@ export function PurchaseCreateDocumentFormContent({
   const [receiptShipments, setReceiptShipments] = useState<PurchaseReceipt[]>(
     [],
   );
+
+  // Reset Post Details when dialog opens
+  useEffect(() => {
+    if (isPostDetailsOpen) {
+      const today = new Date().toISOString().split("T")[0];
+      setPostDetails(prev => ({
+        ...prev,
+        postingDate: today,
+        documentDate: today
+      }));
+    }
+  }, [isPostDetailsOpen]);
   const [receiptDate, setReceiptDate] = useState("");
   const [isTrackingOpen, setIsTrackingOpen] = useState(false);
   const [trackingLine, setTrackingLine] = useState<PurchaseLine | null>(null);
@@ -602,15 +616,16 @@ export function PurchaseCreateDocumentFormContent({
 
     const today = new Date().toISOString().split("T")[0];
     setFormData((prev) => {
-      const updates: Record<string, string> = {};
-      if (!prev.postingDate) updates.postingDate = today;
-      if (!prev.documentDate) updates.documentDate = today;
-      if (!prev.orderDate) updates.orderDate = today;
+      const updates: Partial<typeof prev> = {};
+      if (!prev.postingDate || prev.postingDate === "0001-01-01") updates.postingDate = today;
+      if (!prev.documentDate || prev.documentDate === "0001-01-01") updates.documentDate = today;
+      if (!prev.orderDate || prev.orderDate === "0001-01-01") updates.orderDate = today;
       if (Object.keys(updates).length === 0) return prev;
       console.log("useEffect isCreateMode setFormData called");
       return { ...prev, ...updates };
     });
   }, [isCreateMode]);
+
 
   // Initialize form data from props and restore persisted header/line state.
   const hasHydratedInitialData = useRef(false);
@@ -714,26 +729,29 @@ export function PurchaseCreateDocumentFormContent({
   ) => {
     if (isReadOnlyMode) return;
 
-    const newData = {
-      ...formData,
+    setFormData((prev) => ({
+      ...prev,
       vendorNo,
       vendorName: vendor?.Name || "",
-      locationCode: "",
       vendorGstRegNo: "",
       vendorPanNo: "",
       orderAddressCode: "",
-    };
-    setFormData(newData);
+      // locationCode is intentionally preserved — it is not vendor-dependent
+    }));
 
     // Fetch vendor details (GST, PAN)
     if (vendorNo) {
-      const details = await getVendorDetails(vendorNo);
-      if (details) {
-        setFormData((prev) => ({
-          ...prev,
-          vendorGstRegNo: details.GST_Registration_No || "",
-          vendorPanNo: details.P_A_N_No || "",
-        }));
+      try {
+        const details = await getVendorDetails(vendorNo);
+        if (details) {
+          setFormData((prev) => ({
+            ...prev,
+            vendorGstRegNo: details.GST_Registration_No || "",
+            vendorPanNo: details.P_A_N_No || "",
+          }));
+        }
+      } catch (error) {
+        console.error("Failed to fetch vendor details:", error);
       }
     }
   };
@@ -790,9 +808,16 @@ export function PurchaseCreateDocumentFormContent({
       return;
     }
 
+    if (!isPostingDateValid(formData.postingDate, webUserProfile)) return;
+
     setIsCreatingHeader(true);
     try {
-      const orderResponse = await config.createHeader(buildOrderData());
+      const baseData = buildOrderData();
+      if (documentType === "order" && formData.poType === "Service") {
+        const no = await createNoSeriesForPO(formData.orderDate);
+        baseData.no = no;
+      }
+      const orderResponse = await config.createHeader(baseData);
       const orderNo = orderResponse.orderNo || orderResponse.orderId;
 
       if (!orderNo) {
@@ -1031,6 +1056,8 @@ export function PurchaseCreateDocumentFormContent({
       return;
     }
 
+    if (!isPostingDateValid(formData.postingDate, webUserProfile)) return;
+
     setIsUpdatingHeader(true);
     setPlaceOrderError(null);
     try {
@@ -1246,31 +1273,8 @@ export function PurchaseCreateDocumentFormContent({
       return;
     }
 
-    if (webUserProfile) {
-      const { Allow_Posting_From, Allow_Posting_To } = webUserProfile;
-      const selectedDate = postDetails.postingDate;
+    if (!isPostingDateValid(postDetails.postingDate, webUserProfile)) return;
 
-      if (
-        Allow_Posting_From &&
-        Allow_Posting_From !== "0001-01-01" &&
-        selectedDate < Allow_Posting_From.split("T")[0]
-      ) {
-        toast.error(
-          `Posting Date cannot be before ${Allow_Posting_From.split("T")[0]}`,
-        );
-        return;
-      }
-      if (
-        Allow_Posting_To &&
-        Allow_Posting_To !== "0001-01-01" &&
-        selectedDate > Allow_Posting_To.split("T")[0]
-      ) {
-        toast.error(
-          `Posting Date cannot be after ${Allow_Posting_To.split("T")[0]}`,
-        );
-        return;
-      }
-    }
     const isInvoiceOption =
       postOption === "invoice" ||
       postOption === "receive-invoice" ||
@@ -1432,6 +1436,7 @@ export function PurchaseCreateDocumentFormContent({
                         value={formData.lob}
                         onClear={() => {
                           handleInputChange("lob", "");
+                          handleInputChange("branch", "");
                           handleInputChange("locationCode", "");
                         }}
                       >
@@ -1440,7 +1445,10 @@ export function PurchaseCreateDocumentFormContent({
                           value={formData.lob}
                           onChange={(value) => {
                             handleInputChange("lob", value);
-                            handleInputChange("locationCode", "");
+                            if (value !== formData.lob) {
+                              handleInputChange("branch", "");
+                              handleInputChange("locationCode", "");
+                            }
                           }}
                           placeholder="Select LOB"
                           userId={userId}
@@ -1844,8 +1852,8 @@ export function PurchaseCreateDocumentFormContent({
                           onChange={(e) =>
                             handleInputChange("orderDate", e.target.value)
                           }
-                          disabled
-                          className="bg-muted h-8 text-xs"
+                          disabled={formData.poType !== "Service"}
+                          className={cn("h-8 text-xs", formData.poType !== "Service" && "bg-muted")}
                         />
                       </div>
                     )}
@@ -2237,7 +2245,13 @@ export function PurchaseCreateDocumentFormContent({
                 <ApplyVendorEntriesDialog
                   documentNo={createdOrderNo}
                   vendorNo={formData.vendorNo}
-                  onSuccess={refreshHydratedDocument}
+                  onSuccess={async () => {
+                    try {
+                      await refreshHydratedDocument();
+                    } catch (err) {
+                      setPlaceOrderError(getErrorMessage(err, "Failed to refresh document."));
+                    }
+                  }}
                   disabled={isActionLoading}
                 />
               )}
@@ -2457,7 +2471,7 @@ export function PurchaseCreateDocumentFormContent({
                             patch,
                           );
                         }
-                        await fetchLines(createdOrderNo);
+                        await refreshHydratedDocument();
                       } catch (err) {
                         setPlaceOrderError(getErrorMessage(err, "Failed to update line."));
                         throw err;
@@ -2597,11 +2611,15 @@ export function PurchaseCreateDocumentFormContent({
           onDelete={async (line) => {
             if (line.Line_No && createdOrderNo) {
               await config.deleteLine(createdOrderNo, line.Line_No);
-              await fetchLines(createdOrderNo);
+              await refreshHydratedDocument();
             }
           }}
           onSave={async () => {
-            if (createdOrderNo) await fetchLines(createdOrderNo);
+            try {
+              await refreshHydratedDocument();
+            } catch (err) {
+              setPlaceOrderError(getErrorMessage(err, "Failed to refresh document."));
+            }
             setSelectedLine(null);
           }}
         />
@@ -2642,7 +2660,7 @@ export function PurchaseCreateDocumentFormContent({
           locationCode={formData.locationCode || ""}
           documentType={documentType}
           onSave={() => {
-            if (createdOrderNo) fetchLines(createdOrderNo);
+            void refreshHydratedDocument();
           }}
         />
       )}

@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { CalculatorInput } from "@/components/ui/calculator-input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -226,17 +227,10 @@ export function ProductionOrderLineDialog({
               >
                 Quantity
               </Label>
-              <Input
+              <CalculatorInput
                 id="quantity"
-                type="text"
-                inputMode="decimal"
                 value={quantity}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  if (val === "" || /^[0-9]*\.?[0-9]*$/.test(val)) {
-                    setQuantity(val);
-                  }
-                }}
+                onValueChange={(v) => setQuantity(v)}
                 className="col-span-3"
                 placeholder="Enter quantity"
               />

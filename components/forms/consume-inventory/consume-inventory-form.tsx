@@ -67,6 +67,8 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { getWebUser, type WebUser } from "@/lib/api/services/web-user.service";
+import { isPostingDateValid } from "@/lib/utils/posting-date";
 import { LedgerEntryModal } from "./ledger-entry-modal";
 
 export function ConsumeInventoryForm() {
@@ -106,10 +108,24 @@ export function ConsumeInventoryForm() {
   const [loadingApplyFrom, setLoadingApplyFrom] = useState(false);
   const [isApplyToModalOpen, setIsApplyToModalOpen] = useState(false);
   const [isApplyFromModalOpen, setIsApplyFromModalOpen] = useState(false);
+  const [webUserProfile, setWebUserProfile] = useState<WebUser | null>(null);
 
   useEffect(() => {
+    const loadContext = async () => {
+      if (userID) {
+        try {
+          const profile = await getWebUser(userID);
+          setWebUserProfile(profile);
+        } catch (err) {
+          console.error("Error loading web user profile:", err);
+        }
+      }
+    };
+    loadContext();
     loadEntries();
   }, [userID]);
+
+
 
   useEffect(() => {
     const fetchOptions = async () => {
@@ -238,6 +254,8 @@ export function ConsumeInventoryForm() {
       return;
     }
 
+    if (!isPostingDateValid(formState["Posting Date"], webUserProfile)) return;
+
     const newEntry = { ...formState, UserID: userID } as ConsumeInventoryEntry;
     const updatedEntries = [...entries, newEntry];
 
@@ -313,6 +331,12 @@ export function ConsumeInventoryForm() {
       // Fetch unique Doc No for each entry sequentially to ensure number series integrity
       for (const entry of selectedEntries) {
         const postingDate = entry["Posting Date"] || new Date().toISOString().split("T")[0];
+        
+        if (!isPostingDateValid(postingDate, webUserProfile)) {
+          setSubmitting(false);
+          return;
+        }
+
         try {
           const generatedDocNo = await getNextDocumentNo(postingDate);
           entriesWithDocNo.push({

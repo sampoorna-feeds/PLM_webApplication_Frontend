@@ -71,6 +71,8 @@ const ITEM_NO_FIELD_MAP: Record<SalesChargeSourceType, string> = {
   Transfer: "Item_No",
 };
 
+const escapeODataString = (value: string) => value.replace(/'/g, "''");
+
 export const salesItemChargeAssignmentService = {
   async getAssignments(filters: {
     docType: string;
@@ -106,17 +108,41 @@ export const salesItemChargeAssignmentService = {
       skip?: number;
       top?: number;
       extraFilters?: string[];
+      sellToCustomerNo?: string;
+      postingDateFrom?: string;
     } = {},
   ): Promise<PagedResult<ItemChargeSourceLine>> {
-    const { docNo, search, skip = 0, top = 200, extraFilters } = options;
+    const {
+      docNo,
+      search,
+      skip = 0,
+      top = 200,
+      extraFilters,
+      sellToCustomerNo,
+      postingDateFrom,
+    } = options;
     const endpointName = SALES_ENDPOINTS[type];
     const itemNoField = ITEM_NO_FIELD_MAP[type];
     const filters: string[] = [];
 
-    if (docNo) filters.push(`Document_No eq '${docNo}'`);
+    if (docNo) filters.push(`Document_No eq '${escapeODataString(docNo)}'`);
+    if (type === "SalesShipment") {
+      filters.push("Type eq 'Item'");
+      filters.push("Quantity ne 0");
+      filters.push("Job_No eq ''");
+      filters.push("Correction eq false");
+      if (sellToCustomerNo) {
+        filters.push(
+          `Sell_to_Customer_No eq '${escapeODataString(sellToCustomerNo)}'`,
+        );
+      }
+      if (postingDateFrom) {
+        filters.push(`Posting_Date ge ${escapeODataString(postingDateFrom)}`);
+      }
+    }
     if (extraFilters?.length) filters.push(...extraFilters);
     if (search) {
-      const s = search.replace(/'/g, "''");
+      const s = escapeODataString(search);
       filters.push(
         `(contains(Document_No,'${s}') or contains(${itemNoField},'${s}'))`,
       );

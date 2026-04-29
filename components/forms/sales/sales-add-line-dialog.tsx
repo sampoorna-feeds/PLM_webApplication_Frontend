@@ -578,8 +578,8 @@ export function SalesAddLineDialog({
                 </ClearableField>
               </div>
 
-              {/* UOM — Item only */}
-              {form.type === "Item" && (
+              {/* UOM — visible for all non-none types */}
+              {form.type !== "" && (
                 <div className="space-y-1">
                   <FieldTitle>UOM</FieldTitle>
                   <ClearableField

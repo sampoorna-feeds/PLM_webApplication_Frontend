@@ -53,7 +53,7 @@ export function useProductionOrders() {
   const [totalCount, setTotalCount] = useState(0);
 
   // Sorting state
-  const [sortColumn, setSortColumn] = useState<string | null>("Due_Date");
+  const [sortColumn, setSortColumn] = useState<string | null>("No");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
 
   // Filter state

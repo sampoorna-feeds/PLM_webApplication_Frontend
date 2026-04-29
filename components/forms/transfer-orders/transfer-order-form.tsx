@@ -56,6 +56,7 @@ import { getAuthCredentials } from "@/lib/auth/storage";
 import { useFormStack } from "@/lib/form-stack/use-form-stack";
 import { cn } from "@/lib/utils";
 import { getWebUser, type WebUser } from "@/lib/api/services/web-user.service";
+import { isPostingDateValid } from "@/lib/utils/posting-date";
 import { Download, Eye, Loader2, Plus, Printer, RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -97,7 +98,7 @@ export function TransferOrderForm({
     Status: "Open",
     Vehicle_No: "",
     LR_RR_No: "",
-    LR_RR_Date: "",
+    LR_RR_Date: new Date().toISOString().split("T")[0],
     Distance_Km: 0,
     Freight_Value: 0,
     Transporter_Code: "",
@@ -163,6 +164,7 @@ export function TransferOrderForm({
   const [successInfo, setSuccessInfo] = useState({ title: "", message: "" });
   const [printPromptOpen, setPrintPromptOpen] = useState(false);
   const [lastPostedShipmentNo, setLastPostedShipmentNo] = useState<string | null>(null);
+
 
   // Debug: Monitor locations state changes
   useEffect(() => {
@@ -505,6 +507,8 @@ export function TransferOrderForm({
       return;
     }
 
+    if (!isPostingDateValid(formState.Posting_Date, webUserProfile)) return;
+
     setIsSubmitting(true);
     try {
       // Send all form fields except system/internal ones
@@ -596,6 +600,8 @@ export function TransferOrderForm({
       toast.info("No changes to update");
       return;
     }
+
+    if (!isPostingDateValid(formState.Posting_Date, webUserProfile)) return;
 
     setIsSubmitting(true);
     try {
@@ -1375,18 +1381,6 @@ export function TransferOrderForm({
                     }
                     onChange={(val) => handleChange("LR_RR_Date", val)}
                     disabled={formState.Status === "Released"}
-                    min={
-                      webUserProfile?.Allow_Posting_From &&
-                      webUserProfile.Allow_Posting_From !== "0001-01-01"
-                        ? webUserProfile.Allow_Posting_From.split("T")[0]
-                        : undefined
-                    }
-                    max={
-                      webUserProfile?.Allow_Posting_To &&
-                      webUserProfile.Allow_Posting_To !== "0001-01-01"
-                        ? webUserProfile.Allow_Posting_To.split("T")[0]
-                        : undefined
-                    }
                     className="h-8"
                   />
                 </div>
@@ -1768,18 +1762,6 @@ export function TransferOrderForm({
                         : ""
                     }
                     onChange={(val) => handleChange("LR_RR_Date", val)}
-                    min={
-                      webUserProfile?.Allow_Posting_From &&
-                      webUserProfile.Allow_Posting_From !== "0001-01-01"
-                        ? webUserProfile.Allow_Posting_From.split("T")[0]
-                        : undefined
-                    }
-                    max={
-                      webUserProfile?.Allow_Posting_To &&
-                      webUserProfile.Allow_Posting_To !== "0001-01-01"
-                        ? webUserProfile.Allow_Posting_To.split("T")[0]
-                        : undefined
-                    }
                     className="border-border h-10 focus:border-green-600/50"
                   />
                 </div>

@@ -99,6 +99,8 @@ interface SalesItemChargeAssignmentDialogProps {
   itemChargeDescription: string;
   totalQuantity: number;
   totalAmount: number;
+  sellToCustomerNo?: string;
+  postingDateFrom?: string;
 }
 
 export function SalesItemChargeAssignmentDialog({
@@ -111,6 +113,8 @@ export function SalesItemChargeAssignmentDialog({
   itemChargeDescription,
   totalQuantity,
   totalAmount,
+  sellToCustomerNo,
+  postingDateFrom,
 }: SalesItemChargeAssignmentDialogProps) {
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -648,6 +652,8 @@ export function SalesItemChargeAssignmentDialog({
         onOpenChange={setSelectionOpen}
         onAddSelected={handleLinesAdded}
         type={selectionType}
+        sellToCustomerNo={sellToCustomerNo}
+        postingDateFrom={postingDateFrom}
       />
 
       <AlertDialog open={!!deleteConfirmLine} onOpenChange={(o) => !o && setDeleteConfirmLine(null)}>

@@ -33,6 +33,8 @@ export interface InwardGateEntryHeader {
   Source_Type: InwardGateEntrySourceType;
   Source_No: string;
   Status: string;
+  Shortcut_Dimension_1_Code?: string;
+  Shortcut_Dimension_2_Code?: string;
   [key: string]: unknown;
 }
 
@@ -110,23 +112,118 @@ export async function postInwardGateEntry(docNo: string): Promise<string> {
 }
 
 // Source Lists
-export async function getPurchaseOrders(): Promise<any[]> {
-  const encodedCompany = encodeURIComponent(COMPANY);
-  const endpoint = `/PurchaseOrder?company='${encodedCompany}'`;
-  const response = await apiGet<ODataResponse<any>>(endpoint);
-  return response.value || [];
+export interface GetSourceDocsParams {
+  $top?: number;
+  $skip?: number;
+  searchTerm?: string;
+  branchCode?: string;
+  locationCode?: string;
 }
 
-export async function getSalesReturnOrders(): Promise<any[]> {
-  const encodedCompany = encodeURIComponent(COMPANY);
-  const endpoint = `/SalesReturnOrderHeader?company='${encodedCompany}'`;
-  const response = await apiGet<ODataResponse<any>>(endpoint);
-  return response.value || [];
+export interface PaginatedSourceDocsResponse {
+  data: any[];
+  totalCount: number;
 }
 
-export async function getTransferOrders(): Promise<any[]> {
+async function getPaginatedSourceDocs(
+  entity: string,
+  searchFields: string[],
+  params: GetSourceDocsParams = {},
+  extraFilter?: string,
+  locationFieldName: string = "Location_Code"
+): Promise<PaginatedSourceDocsResponse> {
+  const { $top = 10, $skip = 0, searchTerm, branchCode, locationCode } = params;
   const encodedCompany = encodeURIComponent(COMPANY);
-  const endpoint = `/TransferHeader?company='${encodedCompany}'`;
-  const response = await apiGet<ODataResponse<any>>(endpoint);
-  return response.value || [];
+
+  // Build base filter
+  const filterParts: string[] = [];
+  if (branchCode) {
+    filterParts.push(`Shortcut_Dimension_2_Code eq '${branchCode.replace(/'/g, "''")}'`);
+  }
+  if (locationCode) {
+    filterParts.push(`${locationFieldName} eq '${locationCode.replace(/'/g, "''")}'`);
+  }
+  if (extraFilter) {
+    filterParts.push(extraFilter);
+  }
+
+  const baseFilter = filterParts.length > 0 ? filterParts.join(" and ") : "";
+
+  // Case 1: No search term, standard paginated fetch
+  if (!searchTerm || searchTerm.trim() === "") {
+    const query = buildODataQuery({
+      $top,
+      $skip,
+      $filter: baseFilter || undefined,
+      $count: true,
+      $orderby: "No desc",
+    });
+    const endpoint = `/${entity}?company='${encodedCompany}'&${query}`;
+    const response = await apiGet<ODataResponse<any>>(endpoint);
+    return {
+      data: response.value || [],
+      totalCount: response["@odata.count"] ?? (response.value?.length || 0),
+    };
+  }
+
+  // Case 2: Search term provided. 
+  // We perform parallel requests per field, using multi-case OR to bypass server limitations.
+  const s = searchTerm.replace(/'/g, "''");
+  const sLower = s.toLowerCase();
+  const sUpper = s.toUpperCase();
+  
+  const results = await Promise.all(
+    searchFields.map(async (field) => {
+      const filterPart = `(contains(${field},'${s}') or contains(${field},'${sLower}') or contains(${field},'${sUpper}'))`;
+      const fullFilter = baseFilter ? `(${baseFilter}) and ${filterPart}` : filterPart;
+      
+      const query = buildODataQuery({
+        $filter: fullFilter,
+        $top: 500,
+        $count: true,
+      });
+      const endpoint = `/${entity}?company='${encodedCompany}'&${query}`;
+      try {
+        const res = await apiGet<ODataResponse<any>>(endpoint);
+        return res.value || [];
+      } catch (err) {
+        console.error(`Error searching ${entity} on field ${field}:`, err);
+        return [];
+      }
+    })
+  );
+
+  const mergedMap = new Map<string, any>();
+  results.flat().forEach((item) => {
+    const key = item.No || item["No."] || item.id || JSON.stringify(item);
+    mergedMap.set(key, item);
+  });
+
+  const allResults = Array.from(mergedMap.values());
+  allResults.sort((a, b) => {
+    const noA = a.No || a["No."] || "";
+    const noB = b.No || b["No."] || "";
+    return noB.localeCompare(noA);
+  });
+
+  const pagedData = allResults.slice($skip, $skip + $top);
+
+  return {
+    data: pagedData,
+    totalCount: allResults.length,
+  };
+}
+
+export async function getPurchaseOrders(params?: GetSourceDocsParams): Promise<PaginatedSourceDocsResponse> {
+  return getPaginatedSourceDocs("PurchaseOrder", ["No", "Buy_from_Vendor_No", "Buy_from_Vendor_Name"], params, "Status eq 'Released'");
+}
+
+export async function getSalesReturnOrders(params?: GetSourceDocsParams): Promise<PaginatedSourceDocsResponse> {
+  const { branchCode, locationCode, ...rest } = params || {};
+  return getPaginatedSourceDocs("SalesReturnOrderHeader", ["No", "Sell_to_Customer_No", "Sell_to_Customer_Name"], rest);
+}
+
+export async function getTransferOrders(params?: GetSourceDocsParams): Promise<PaginatedSourceDocsResponse> {
+  const { branchCode, locationCode, ...rest } = params || {};
+  return getPaginatedSourceDocs("TransferHeader", ["No", "Transfer_from_Code", "Transfer_from_Name", "Transfer_to_Code", "Transfer_to_Name"], rest);
 }

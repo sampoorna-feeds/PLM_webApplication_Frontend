@@ -160,6 +160,7 @@ import {
 import { getItemsByNos, getItemStock } from "@/lib/api/services/item.service";
 import { getDistance, getLocationPostCode } from "@/lib/api/services/distance.service";
 import { getWebUser, type WebUser } from "@/lib/api/services/web-user.service";
+import { isPostingDateValid } from "@/lib/utils/posting-date";
 import { DateInput } from "@/components/ui/date-input";
 
 // ── Config + utilities ────────────────────────────────────────────────────────
@@ -368,6 +369,7 @@ export function SalesCreateDocumentFormContent({
     orderDate: today,
     ...(initialFormData as Partial<CreateFormState>),
   });
+
   const [userId, setUserId] = useState<string | undefined>(undefined);
 
   // ── View / edit state ──────────────────────────────────────────────────────
@@ -429,6 +431,7 @@ export function SalesCreateDocumentFormContent({
     tareWeight: "",
     freightValue: "",
   };
+
   const [isPostDialogOpen, setIsPostDialogOpen] = useState(false);
   const [postOption, setPostOption] = useState<"1" | "2" | "3" | null>(null);
   const [isPostLoading, setIsPostLoading] = useState(false);
@@ -437,6 +440,18 @@ export function SalesCreateDocumentFormContent({
   const [postDetails, setPostDetails] = useState(postDetailsDefault);
   const [isPostResultOpen, setIsPostResultOpen] = useState(false);
   const [postResultDocs, setPostResultDocs] = useState<{ Invoice?: string; Shipment?: string }>({});
+
+  // Reset Post Details when dialog opens
+  useEffect(() => {
+    if (isPostDetailsOpen) {
+      const today = new Date().toISOString().split("T")[0];
+      setPostDetails(prev => ({
+        ...prev,
+        postingDate: today,
+        lrRrDate: today
+      }));
+    }
+  }, [isPostDetailsOpen]);
 
   // Initialize post details from orderHeader when dialog opens
   useEffect(() => {
@@ -453,7 +468,7 @@ export function SalesCreateDocumentFormContent({
               vehicleNumber: (freshHeader.Vehicle_No as string) || "",
               driverPhone: (freshHeader.Driver_Mobile_No as string) || "",
               lrRrNumber: (freshHeader.LR_RR_No as string) || "",
-              lrRrDate: (freshHeader.LR_RR_Date as string)?.split("T")[0] || "",
+              lrRrDate: (freshHeader.LR_RR_Date as string)?.split("T")[0] || today,
               postingDate: freshHeader.Posting_Date || today,
               externalDocumentNo: freshHeader.External_Document_No || "",
               distanceKm: freshHeader.Distance_km ? String(freshHeader.Distance_km) : "",
@@ -556,29 +571,8 @@ export function SalesCreateDocumentFormContent({
   // Refresh only lines + stock without triggering the full loading skeleton.
   // Used after add/edit/delete line operations.
   const refreshLines = useCallback(async () => {
-    const docNo = initialOrderNo;
-    if (!docNo) return;
-    try {
-      const lineItems = await ops.fetchLines(docNo);
-      setLines(lineItems);
-
-      const locationCode = orderHeader?.Location_Code;
-      if (locationCode && lineItems.length > 0) {
-        const itemNos = [
-          ...new Set(lineItems.map((l) => String(l.No || ""))),
-        ].filter(Boolean);
-        const stockDate = new Date().toISOString().split("T")[0];
-        try {
-          const stock = await getItemStock(itemNos, locationCode, stockDate);
-          setLineStockMap(stock);
-        } catch {
-          setLineStockMap({});
-        }
-      }
-    } catch {
-      // non-fatal
-    }
-  }, [initialOrderNo, ops, orderHeader?.Location_Code]);
+    await loadDocument();
+  }, [loadDocument]);
 
   useEffect(() => {
     if (!isCreateMode) {
@@ -671,6 +665,8 @@ export function SalesCreateDocumentFormContent({
   // ── Create mode: submit ───────────────────────────────────────────────────
   const handleCreateHeader = async () => {
     if (!isHeaderValid()) return;
+    if (!isPostingDateValid(formData.postingDate, webUserProfile)) return;
+
     setIsSubmitting(true);
     setActionError(null);
     try {
@@ -690,6 +686,8 @@ export function SalesCreateDocumentFormContent({
   // ── Edit mode: save header ────────────────────────────────────────────────
   const handleUpdateHeader = async () => {
     if (!initialOrderNo) return;
+    if (!isPostingDateValid(formData.postingDate, webUserProfile)) return;
+
     setIsSubmitting(true);
     setActionError(null);
     try {
@@ -857,27 +855,29 @@ export function SalesCreateDocumentFormContent({
 
   const handlePostDetailsSubmit = async () => {
     if (!initialOrderNo || !postOption) return;
-    if (isShipOption && !postDetails.transporterName.trim()) {
-      toast.error("Transporter Name is mandatory for Ship options");
-      return;
-    }
-    if (isShipOption) {
-      if (!postDetails.driverPhone.trim()) {
-        toast.error("Driver phone is required for shipping");
+    if (!caps.supportsUnifiedPostForm) {
+      if (isShipOption && !postDetails.transporterName.trim()) {
+        toast.error("Transporter Name is mandatory for Ship options");
         return;
       }
-      const phoneError = validatePhone(postDetails.driverPhone);
-      if (phoneError) {
-        toast.error(phoneError);
-        return;
-      }
-      if (!postDetails.lrRrNumber.trim()) {
-        toast.error("LR/RR Number is required for shipping");
-        return;
-      }
-      if (!postDetails.lrRrDate) {
-        toast.error("LR/RR Date is required for shipping");
-        return;
+      if (isShipOption) {
+        if (!postDetails.driverPhone.trim()) {
+          toast.error("Driver phone is required for shipping");
+          return;
+        }
+        const phoneError = validatePhone(postDetails.driverPhone);
+        if (phoneError) {
+          toast.error(phoneError);
+          return;
+        }
+        if (!postDetails.lrRrNumber.trim()) {
+          toast.error("LR/RR Number is required for shipping");
+          return;
+        }
+        if (!postDetails.lrRrDate) {
+          toast.error("LR/RR Date is required for shipping");
+          return;
+        }
       }
     }
 
@@ -933,7 +933,7 @@ export function SalesCreateDocumentFormContent({
         patchPayload.Transporter_Name = postDetails.transporterName || "";
       }
 
-      if (isShipOption) {
+      if (isShipOption || caps.supportsUnifiedPostForm) {
         patchPayload.Gross_Weight = postDetails.grossWeight
           ? Number(postDetails.grossWeight)
           : 0;
@@ -1379,29 +1379,37 @@ export function SalesCreateDocumentFormContent({
     ];
 
     const renderTable = (title: string, fields: { label: string; value: unknown }[]) => (
-      <div className="flex-1 min-w-0 overflow-hidden rounded-md border">
-        <div className="bg-muted/50 border-b px-3 py-2">
-          <h3 className="text-xs font-bold tracking-wider uppercase">{title}</h3>
-        </div>
-        <Table>
-          <TableBody>
-            {fields.map(({ label, value }) => (
-              <TableRow key={label} className="hover:bg-transparent">
-                <TableCell className="text-muted-foreground w-40 shrink-0 py-1.5 pl-3 pr-2 text-xs font-medium">
-                  {label}
-                </TableCell>
-                <TableCell className="wrap-break-word py-1.5 pl-2 pr-3 text-xs">
-                  {fmt(value)}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
+      <Accordion
+        type="single"
+        collapsible
+        className="flex-1 min-w-0 overflow-hidden rounded-md border"
+      >
+        <AccordionItem value="open" className="border-none">
+          <AccordionTrigger className="bg-muted/50 border-b px-3 py-2 hover:no-underline hover:bg-muted/70 [&>svg]:shrink-0">
+            <h3 className="text-xs font-bold tracking-wider uppercase">{title}</h3>
+          </AccordionTrigger>
+          <AccordionContent className="pb-0">
+            <Table>
+              <TableBody>
+                {fields.map(({ label, value }) => (
+                  <TableRow key={label} className="hover:bg-transparent">
+                    <TableCell className="text-muted-foreground w-40 shrink-0 py-1.5 pl-3 pr-2 text-xs font-medium">
+                      {label}
+                    </TableCell>
+                    <TableCell className="wrap-break-word py-1.5 pl-2 pr-3 text-xs">
+                      {fmt(value)}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </AccordionContent>
+        </AccordionItem>
+      </Accordion>
     );
 
     return (
-      <div className="flex flex-col gap-4 lg:flex-row">
+      <div className="flex flex-col gap-4 items-start lg:flex-row">
         {renderTable("Ship To", shipFields)}
         {renderTable("Bill To", billFields)}
       </div>
@@ -1592,9 +1600,6 @@ export function SalesCreateDocumentFormContent({
                         lrRrDate: initialDate,
                       }));
                       setIsPostDetailsOpen(true);
-                    } else if (documentType === "invoice") {
-                      setPostOption("2");
-                      handleDirectInvoicePost();
                     } else {
                       setPostOption(null);
                       setIsPostDialogOpen(true);
@@ -1867,6 +1872,16 @@ export function SalesCreateDocumentFormContent({
           itemChargeDescription={itemChargeLine.Description ?? ""}
           totalQuantity={itemChargeLine.Quantity ?? 0}
           totalAmount={itemChargeLine.Line_Amount ?? 0}
+          sellToCustomerNo={
+            String(
+              orderHeader?.Sell_to_Customer_No || formData.customerNo || "",
+            ).trim() || undefined
+          }
+          postingDateFrom={
+            String(
+              orderHeader?.Posting_Date || formData.postingDate || "",
+            ).trim() || undefined
+          }
         />
       )}
 
@@ -2065,7 +2080,7 @@ export function SalesCreateDocumentFormContent({
                   <Loader2 className="h-6 w-6 animate-spin text-primary" />
                 </div>
               )}
-              {caps.supportsTransporter && (
+              {(caps.supportsTransporter || caps.supportsUnifiedPostForm) && (
                 <>
                   <div className="space-y-1 text-left">
                     <Label className="text-xs font-semibold">Transporter Code</Label>
@@ -2084,7 +2099,7 @@ export function SalesCreateDocumentFormContent({
                   <div className="space-y-1 text-left">
                     <Label className="text-xs font-semibold">
                       Transporter Name{" "}
-                      {isShipOption && (
+                      {!caps.supportsUnifiedPostForm && isShipOption && (
                         <span className="text-destructive">*</span>
                       )}
                     </Label>
@@ -2117,7 +2132,7 @@ export function SalesCreateDocumentFormContent({
                   <div className="space-y-1">
                     <Label>
                       Driver Phone{" "}
-                      {isShipOption && (
+                      {!caps.supportsUnifiedPostForm && isShipOption && (
                         <span className="text-destructive">*</span>
                       )}
                     </Label>
@@ -2135,7 +2150,7 @@ export function SalesCreateDocumentFormContent({
                   <div className="space-y-1">
                     <Label>
                       LR/RR No.{" "}
-                      {isShipOption && (
+                      {!caps.supportsUnifiedPostForm && isShipOption && (
                         <span className="text-destructive">*</span>
                       )}
                     </Label>
@@ -2153,7 +2168,7 @@ export function SalesCreateDocumentFormContent({
                   <div className="space-y-1">
                     <Label>
                       LR/RR Date{" "}
-                      {isShipOption && (
+                      {!caps.supportsUnifiedPostForm && isShipOption && (
                         <span className="text-destructive">*</span>
                       )}
                     </Label>
@@ -2164,18 +2179,6 @@ export function SalesCreateDocumentFormContent({
                           ...p,
                           lrRrDate: val,
                         }))
-                      }
-                      min={
-                        webUserProfile?.Allow_Posting_From &&
-                        webUserProfile.Allow_Posting_From !== "0001-01-01"
-                          ? webUserProfile.Allow_Posting_From.split("T")[0]
-                          : undefined
-                      }
-                      max={
-                        webUserProfile?.Allow_Posting_To &&
-                        webUserProfile.Allow_Posting_To !== "0001-01-01"
-                          ? webUserProfile.Allow_Posting_To.split("T")[0]
-                          : undefined
                       }
                       className="h-9"
                     />
@@ -2220,7 +2223,7 @@ export function SalesCreateDocumentFormContent({
                   className="h-9"
                 />
               </div>
-              {documentType === "order" && (
+              {(documentType === "order" || caps.supportsUnifiedPostForm) && (
                 <div className="space-y-1">
                   <Label>Freight Value</Label>
                   <Input
@@ -2238,7 +2241,7 @@ export function SalesCreateDocumentFormContent({
                   />
                 </div>
               )}
-              {caps.supportsTransporter && (
+              {(caps.supportsTransporter || caps.supportsUnifiedPostForm) && (
                 <div className="space-y-1">
                   <Label>Distance (km)</Label>
                   <div className="flex gap-2">
@@ -2269,7 +2272,7 @@ export function SalesCreateDocumentFormContent({
                   </div>
                 </div>
               )}
-              {caps.supportsTransporter && isShipOption && (
+              {(caps.supportsUnifiedPostForm || (caps.supportsTransporter && isShipOption)) && (
                 <>
                   <div className="space-y-1">
                     <Label>Gross Weight</Label>

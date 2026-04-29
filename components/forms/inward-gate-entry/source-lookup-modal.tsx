@@ -14,7 +14,11 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
-import { Search, Loader2 } from "lucide-react";
+import { Search, Loader2, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { InwardGateEntryColumnFilter } from "./column-filter";
+import type { ColumnConfig } from "./column-config";
 import {
   getPurchaseOrders,
   getSalesReturnOrders,
@@ -45,6 +49,7 @@ export function SourceLookupModal({
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [columnFilters, setColumnFilters] = useState<Record<string, { value: string; valueTo?: string }>>({});
   
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -54,6 +59,38 @@ export function SourceLookupModal({
 
   const observer = useRef<IntersectionObserver | null>(null);
   const fetchGenRef = useRef(0);
+
+  const getColumns = (): ColumnConfig[] => {
+    const baseCols: ColumnConfig[] = [
+      { id: "No", label: "No.", sortable: true, filterType: "text" },
+    ];
+    
+    if (sourceType === "Transfer Receipt") {
+      baseCols.push(
+        { id: "Transfer_from_Code", label: "Transfer From Code", sortable: true, filterType: "text" },
+        { id: "Transfer_from_Name", label: "Transfer From Name", sortable: true, filterType: "text" },
+        { id: "Transfer_to_Code", label: "Transfer To Code", sortable: true, filterType: "text" },
+        { id: "Transfer_to_Name", label: "Transfer To Name", sortable: true, filterType: "text" }
+      );
+    } else {
+      baseCols.push({ 
+        id: sourceType === "Purchase Order" ? "Buy_from_Vendor_Name" : "Sell_to_Customer_Name", 
+        label: sourceType === "Purchase Order" ? "Vendor Name" : "Customer Name", 
+        sortable: true, 
+        filterType: "text" 
+      });
+    }
+
+    baseCols.push(
+      { id: sourceType === "Transfer Receipt" ? "Transfer_to_Code" : "Location_Code", label: "Location", sortable: true, filterType: "text" },
+      { id: sourceType === "Purchase Order" ? "Document_Date" : "Posting_Date", label: "Date", sortable: true, filterType: "date" },
+      { id: "Status", label: "Status", sortable: true, filterType: "text" }
+    );
+    
+    return baseCols;
+  };
+
+  const columns = getColumns();
 
   // Disconnect observer on unmount to prevent memory leak
   useEffect(() => () => { observer.current?.disconnect(); }, []);
@@ -87,7 +124,7 @@ export function SourceLookupModal({
       setHasMore(true);
       fetchData(1, true, gen);
     }
-  }, [sourceType, debouncedSearch, branchCode, locationCode, isOpen]);
+  }, [sourceType, debouncedSearch, branchCode, locationCode, isOpen, columnFilters]);
 
   // Fetch next page when currentPage increments (IntersectionObserver trigger)
   useEffect(() => {
@@ -107,6 +144,7 @@ export function SourceLookupModal({
         searchTerm: debouncedSearch || undefined,
         branchCode: branchCode || undefined,
         locationCode: locationCode || undefined,
+        filters: columnFilters,
       };
 
       let result;
@@ -139,6 +177,8 @@ export function SourceLookupModal({
     }
   }
 
+  const activeFiltersCount = Object.keys(columnFilters).length + (searchQuery ? 1 : 0);
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-h-[90vh] min-w-[80vw] overflow-hidden flex flex-col">
@@ -146,45 +186,69 @@ export function SourceLookupModal({
           <DialogTitle>Select {sourceType}</DialogTitle>
         </DialogHeader>
 
-        <div className="relative mb-4">
-          <Search className="text-muted-foreground absolute top-2.5 left-3 h-4 w-4" />
-          <Input
-            placeholder="Search by No., Code or Name..."
-            className="pl-9"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
+        <div className="flex gap-2 items-center mb-4">
+          <div className="relative flex-1">
+            <Search className="text-muted-foreground absolute top-2.5 left-3 h-4 w-4" />
+            <Input
+              placeholder="Search by No., Code or Name..."
+              className="pl-9"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+          {activeFiltersCount > 0 && (
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={() => {
+                setSearchQuery("");
+                setColumnFilters({});
+              }}
+              className="h-9 gap-1.5 text-[10px] font-bold uppercase text-muted-foreground hover:text-foreground shrink-0"
+            >
+              <X className="h-3 w-3" />
+              Clear Filters
+              <Badge variant="secondary" className="ml-1 h-4 min-w-4 rounded-full px-1 text-[10px]">
+                {activeFiltersCount}
+              </Badge>
+            </Button>
+          )}
         </div>
 
         <div className="flex-1 overflow-auto">
           <Table>
             <TableHeader className="bg-muted/50 sticky top-0 z-10">
               <TableRow>
-                <TableHead>No.</TableHead>
-                {sourceType === "Transfer Receipt" ? (
-                  <>
-                    <TableHead>Transfer From Code</TableHead>
-                    <TableHead>Transfer From Name</TableHead>
-                    <TableHead>Transfer To Code</TableHead>
-                    <TableHead>Transfer To Name</TableHead>
-                  </>
-                ) : (
-                  <TableHead>
-                    {sourceType === "Purchase Order"
-                      ? "Vendor Name"
-                      : "Customer Name"}
+                {columns.map((col) => (
+                  <TableHead key={col.id} className="whitespace-nowrap">
+                    <div className="flex items-center gap-1.5">
+                      {col.label}
+                      <InwardGateEntryColumnFilter
+                        column={col}
+                        value={columnFilters[col.id]?.value ?? ""}
+                        valueTo={columnFilters[col.id]?.valueTo}
+                        onChange={(value, valueTo) => {
+                          setColumnFilters(prev => {
+                            const next = { ...prev };
+                            if (!value && !valueTo) {
+                              delete next[col.id];
+                            } else {
+                              next[col.id] = { value, valueTo };
+                            }
+                            return next;
+                          });
+                        }}
+                      />
+                    </div>
                   </TableHead>
-                )}
-                <TableHead>Location</TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead>Status</TableHead>
+                ))}
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading && data.length === 0 ? (
                 Array.from({ length: 10 }).map((_, i) => (
                   <TableRow key={i}>
-                    {Array.from({ length: sourceType === "Transfer Receipt" ? 8 : 5 }).map((_, j) => (
+                    {Array.from({ length: columns.length }).map((_, j) => (
                       <TableCell key={j}>
                         <Skeleton className="h-4 w-full" />
                       </TableCell>
@@ -194,7 +258,7 @@ export function SourceLookupModal({
               ) : data.length === 0 && !isLoading ? (
                 <TableRow>
                   <TableCell
-                    colSpan={sourceType === "Transfer Receipt" ? 8 : 5}
+                    colSpan={columns.length}
                     className="text-muted-foreground py-10 text-center"
                   >
                     No data found
@@ -248,7 +312,7 @@ export function SourceLookupModal({
                   {isLoadingMore && (
                     <TableRow>
                       <TableCell
-                        colSpan={sourceType === "Transfer Receipt" ? 8 : 5}
+                        colSpan={columns.length}
                         className="py-4 text-center"
                       >
                         <Loader2 className="mx-auto h-6 w-6 animate-spin" />

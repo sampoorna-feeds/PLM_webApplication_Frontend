@@ -118,6 +118,7 @@ export interface GetSourceDocsParams {
   searchTerm?: string;
   branchCode?: string;
   locationCode?: string;
+  filters?: Record<string, { value: string; valueTo?: string }>;
 }
 
 export interface PaginatedSourceDocsResponse {
@@ -149,12 +150,48 @@ async function getPaginatedSourceDocs(
 
   const baseFilter = filterParts.length > 0 ? filterParts.join(" and ") : "";
 
+  // Add column filters
+  const colFilterParts: string[] = [];
+  if (params.filters) {
+    for (const [col, filterObj] of Object.entries(params.filters)) {
+      if (!filterObj.value && !filterObj.valueTo) continue;
+
+      if (col.includes("Date")) {
+        if (filterObj.value && filterObj.valueTo) {
+          colFilterParts.push(`(${col} ge ${filterObj.value} and ${col} le ${filterObj.valueTo})`);
+        } else if (filterObj.value) {
+          colFilterParts.push(`${col} ge ${filterObj.value}`);
+        } else if (filterObj.valueTo) {
+          colFilterParts.push(`${col} le ${filterObj.valueTo}`);
+        }
+      } else if (filterObj.value.includes(":")) {
+        const [op, val] = filterObj.value.split(":");
+        if (["eq", "gt", "lt", "ge", "le"].includes(op) && !isNaN(Number(val))) {
+          colFilterParts.push(`${col} ${op} ${val}`);
+        }
+      } else if (filterObj.value) {
+        const values = filterObj.value.split(",").map(v => v.trim()).filter(Boolean);
+        if (values.length > 0) {
+          const textFilters = values.map(v => {
+            const s = v.replace(/'/g, "''");
+            const sLower = s.toLowerCase();
+            const sUpper = s.toUpperCase();
+            return `(contains(${col},'${s}') or contains(${col},'${sLower}') or contains(${col},'${sUpper}'))`;
+          });
+          colFilterParts.push(`(${textFilters.join(" or ")})`);
+        }
+      }
+    }
+  }
+
+  const finalBaseFilter = [baseFilter, ...colFilterParts].filter(Boolean).join(" and ");
+
   // Case 1: No search term, standard paginated fetch
   if (!searchTerm || searchTerm.trim() === "") {
     const query = buildODataQuery({
       $top,
       $skip,
-      $filter: baseFilter || undefined,
+      $filter: finalBaseFilter || undefined,
       $count: true,
       $orderby: "No desc",
     });
@@ -175,7 +212,7 @@ async function getPaginatedSourceDocs(
   const results = await Promise.all(
     searchFields.map(async (field) => {
       const filterPart = `(contains(${field},'${s}') or contains(${field},'${sLower}') or contains(${field},'${sUpper}'))`;
-      const fullFilter = baseFilter ? `(${baseFilter}) and ${filterPart}` : filterPart;
+      const fullFilter = finalBaseFilter ? `(${finalBaseFilter}) and ${filterPart}` : filterPart;
       
       const query = buildODataQuery({
         $filter: fullFilter,

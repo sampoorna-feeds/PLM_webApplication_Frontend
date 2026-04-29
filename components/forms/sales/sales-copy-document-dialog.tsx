@@ -56,6 +56,7 @@ import {
   X,
 } from "lucide-react";
 import { CascadingDimensionSelect } from "@/components/forms/cascading-dimension-select";
+import { getWebUserSetup } from "@/lib/api/services/dimension.service";
 import {
   SALES_COPY_FROM_DOC_TYPE_OPTIONS,
   fetchSalesSourceDocumentsForCopy,
@@ -323,7 +324,17 @@ export function SalesCopyDocumentDialog({
   const [step, setStep] = useState<1 | 2>(1);
   const [lobCode, setLobCode] = useState(lobValue || "");
   const [branchCode, setBranchCode] = useState(branchValue || "");
+  const [branchName, setBranchName] = useState("");
   const [locationCode, setLocationCode] = useState("");
+
+  useEffect(() => {
+    if (!branchCode || !userId) { setBranchName(""); return; }
+    getWebUserSetup(userId).then((setup) => {
+      const found = setup.find((s) => s.Branch_Code === branchCode);
+      const name = found?.Branch_Name;
+      setBranchName(name && name !== branchCode ? name : "");
+    });
+  }, [branchCode, userId]);
   const [fromDocType, setFromDocType] = useState<SalesCopyFromDocType | "">(
     "",
   );
@@ -644,6 +655,9 @@ export function SalesCopyDocumentDialog({
                 userId={userId}
                 compactWhenSingle
               />
+              {branchName && (
+                <p className="text-muted-foreground text-xs">{branchName}</p>
+              )}
             </div>
 
             <div className="space-y-1.5">

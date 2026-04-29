@@ -319,6 +319,7 @@ export interface WebUserSetup {
   User_Name: string;
   LOB: string;
   Branch_Code: string;
+  Branch_Name: string;
   LOC_Code: string;
 }
 
@@ -341,7 +342,7 @@ export async function getWebUserSetup(userId: string): Promise<WebUserSetup[]> {
   }
 
   const query = buildODataQuery({
-    $select: "User_Name,LOB,Branch_Code,LOC_Code",
+    $select: "User_Name,LOB,Branch_Code,Branch_Name,LOC_Code",
     $filter: `User_name eq '${userId}'`,
   });
   const endpoint = `/WebUserSetup?company='${encodeURIComponent(COMPANY)}'&${query}`;
@@ -390,10 +391,17 @@ export async function getBranchesFromUserSetup(
 ): Promise<DimensionValue[]> {
   const setupData = await getWebUserSetup(userId);
   const filtered = setupData.filter((item) => item.LOB === lob);
-  const uniqueBranches = Array.from(
-    new Set(filtered.map((item) => item.Branch_Code).filter(Boolean)),
-  );
-  return uniqueBranches.map((branch) => ({ Code: branch }));
+  const seen = new Map<string, DimensionValue>();
+  for (const item of filtered) {
+    if (item.Branch_Code && !seen.has(item.Branch_Code)) {
+      const name =
+        item.Branch_Name && item.Branch_Name !== item.Branch_Code
+          ? item.Branch_Name
+          : undefined;
+      seen.set(item.Branch_Code, { Code: item.Branch_Code, Name: name });
+    }
+  }
+  return Array.from(seen.values());
 }
 
 /**
@@ -425,10 +433,17 @@ export async function getAllBranchesFromUserSetup(
   userId: string,
 ): Promise<DimensionValue[]> {
   const setupData = await getWebUserSetup(userId);
-  const uniqueBranches = Array.from(
-    new Set(setupData.map((item) => item.Branch_Code).filter(Boolean)),
-  );
-  return uniqueBranches.map((branch) => ({ Code: branch }));
+  const seen = new Map<string, DimensionValue>();
+  for (const item of setupData) {
+    if (item.Branch_Code && !seen.has(item.Branch_Code)) {
+      const name =
+        item.Branch_Name && item.Branch_Name !== item.Branch_Code
+          ? item.Branch_Name
+          : undefined;
+      seen.set(item.Branch_Code, { Code: item.Branch_Code, Name: name });
+    }
+  }
+  return Array.from(seen.values());
 }
 
 /**

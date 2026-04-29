@@ -73,6 +73,7 @@ export function CascadingDimensionSelect({
   const listRef = useRef<HTMLDivElement | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const itemRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const prevItemsRef = useRef<DimensionValue[]>(items);
 
   // Load items based on dimension type and parent values
   const loadItems = useCallback(async () => {
@@ -138,9 +139,12 @@ export function CascadingDimensionSelect({
     }
   }, [dimensionType, lobValue, branchValue, userId, isOpen]);
 
-  // Auto-select when single option and compactWhenSingle
+  // Auto-select when single option and compactWhenSingle — only fires when items change (new load),
+  // not when value is cleared by the user, preventing an immediate re-select loop.
   useEffect(() => {
-    if (compactWhenSingle && items.length === 1 && !value && items[0]?.Code) {
+    const itemsChanged = prevItemsRef.current !== items;
+    prevItemsRef.current = items;
+    if (itemsChanged && compactWhenSingle && items.length === 1 && !value && items[0]?.Code) {
       onChange(items[0].Code);
       onSelectItem?.(items[0]);
     }

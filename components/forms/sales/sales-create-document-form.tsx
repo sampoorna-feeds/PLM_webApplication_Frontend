@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/select";
 import { CascadingDimensionSelect } from "@/components/forms/cascading-dimension-select";
 import { LocationCodeSelectDialog } from "@/components/forms/location-code-select-dialog";
+import { getWebUserSetup } from "@/lib/api/services/dimension.service";
 import { CustomerSelect, type SalesCustomer } from "./customer-select";
 import { ShipToSelect } from "./shipto-select";
 import { SalesPersonSelect } from "./sales-person-select";
@@ -371,6 +372,16 @@ export function SalesCreateDocumentFormContent({
   });
 
   const [userId, setUserId] = useState<string | undefined>(undefined);
+  const [branchName, setBranchName] = useState<string>("");
+
+  useEffect(() => {
+    if (!formData.branch || !userId) { setBranchName(""); return; }
+    getWebUserSetup(userId).then((setup) => {
+      const found = setup.find((s) => s.Branch_Code === formData.branch);
+      const name = found?.Branch_Name;
+      setBranchName(name && name !== formData.branch ? name : "");
+    });
+  }, [formData.branch, userId]);
 
   // ── View / edit state ──────────────────────────────────────────────────────
   const [orderHeader, setOrderHeader] = useState<SalesOrder | null>(null);
@@ -1114,6 +1125,9 @@ export function SalesCreateDocumentFormContent({
               compactWhenSingle
             />
           </ClearableField>
+          {branchName && (
+            <p className="text-muted-foreground text-xs">{branchName}</p>
+          )}
         </div>
         <div className={fieldClass}>
           <label className={labelClass}>Location Code</label>

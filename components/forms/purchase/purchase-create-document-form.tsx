@@ -607,21 +607,26 @@ export function PurchaseCreateDocumentFormContent({
       if (!prev.documentDate) updates.documentDate = today;
       if (!prev.orderDate) updates.orderDate = today;
       if (Object.keys(updates).length === 0) return prev;
+      console.log("useEffect isCreateMode setFormData called");
       return { ...prev, ...updates };
     });
   }, [isCreateMode]);
 
   // Initialize form data from props and restore persisted header/line state.
+  const hasHydratedInitialData = useRef(false);
   useEffect(() => {
     if (!isCreateMode) return;
+    if (hasHydratedInitialData.current) return;
 
     if (initialFormData && Object.keys(initialFormData).length > 0) {
+      hasHydratedInitialData.current = true;
       const today = new Date().toISOString().split("T")[0];
       setFormData((prev) => {
         const next = { ...prev, ...initialFormData };
         if (!next.postingDate) next.postingDate = today;
         if (!next.documentDate) next.documentDate = today;
         if (!next.orderDate) next.orderDate = today;
+        console.log("useEffect initialFormData setFormData called");
         return next;
       });
       if (Array.isArray(initialFormData.lineItems)) {
@@ -698,9 +703,8 @@ export function PurchaseCreateDocumentFormContent({
   // Simple input change handler
   const handleInputChange = (field: string, value: string) => {
     if (isReadOnlyMode) return;
-
-    const newData = { ...formData, [field]: value };
-    setFormData(newData);
+    console.log("handleInputChange called with", field, value);
+    setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
   // Vendor change handler — also fetches GST / PAN and resets order address

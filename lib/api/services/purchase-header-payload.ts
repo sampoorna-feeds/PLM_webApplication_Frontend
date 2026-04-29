@@ -159,6 +159,7 @@ export function buildPurchaseHeaderPayload(
     Responsibility_Center: source.lob,
     Shortcut_Dimension_1_Code: source.lob || "",
     Shortcut_Dimension_2_Code: source.branch || "",
+    Shortcut_Dimension_3_Code: source.locationCode || "",
     Order_Address_Code: source.orderAddressCode,
   };
 

@@ -124,11 +124,11 @@ export function PostGateEntryDialog({
       await Promise.all(
         selectedRows.map((row) =>
           attachGateEntry({
-            SourceType: row.Source_Type || "Purchase Order",
-            SourceNo: sourceNo,
-            EntryType: row.Entry_Type || "Inward",
-            GateEntryNo: row.Gate_Entry_No,
-            LineNo: row.Line_No,
+            sourceType: row.Source_Type || "Purchase Order",
+            sourceNo: sourceNo,
+            entryType: row.Entry_Type || "Inward",
+            gateEntryNo: row.Gate_Entry_No,
+            lineNo: row.Line_No,
           }),
         ),
       );

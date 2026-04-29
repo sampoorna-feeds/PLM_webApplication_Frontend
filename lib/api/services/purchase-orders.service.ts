@@ -378,11 +378,11 @@ export interface PostGateEntryLine {
 }
 
 export interface AttachGateEntryPayload {
-  SourceType: string;
-  SourceNo: string;
-  EntryType: string;
-  GateEntryNo: string;
-  LineNo: number;
+  sourceType: string;
+  sourceNo: string;
+  entryType: string;
+  gateEntryNo: string;
+  lineNo: number;
 }
 
 /**

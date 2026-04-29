@@ -72,6 +72,7 @@ import {
   LoaderCircleIcon,
   Copy,
   MessageSquare,
+  Printer,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ClearableField } from "@/components/ui/clearable-field";
@@ -552,6 +553,11 @@ export function PurchaseCreateDocumentFormContent({
   const [receiptShipments, setReceiptShipments] = useState<PurchaseReceipt[]>(
     [],
   );
+  const [postResultDocs, setPostResultDocs] = useState<{
+    Voucher?: string;
+    Receipt?: string;
+  }>({});
+  const [isPostResultOpen, setIsPostResultOpen] = useState(false);
 
   // Reset Post Details when dialog opens
   useEffect(() => {
@@ -1299,16 +1305,30 @@ export function PurchaseCreateDocumentFormContent({
         ship: "1",
         "ship-invoice": "3",
       };
-      await postPurchaseOrder(createdOrderNo, optMap[postOption]);
+      const postResponse = await postPurchaseOrder(createdOrderNo, optMap[postOption]);
+      // Parse the response: { Voucher?: string; Receipt?: string } (base64-encoded PDFs)
+      const docs = (() => {
+        try {
+          const obj = postResponse as Record<string, unknown>;
+          return {
+            Voucher: typeof obj?.Voucher === "string" ? obj.Voucher : undefined,
+            Receipt: typeof obj?.Receipt === "string" ? obj.Receipt : undefined,
+          };
+        } catch {
+          return {};
+        }
+      })();
+      setPostResultDocs(docs);
       toast.success(`${config.displayTitle} posted successfully.`);
       setIsPostDetailsOpen(false);
+      setIsPostResultOpen(true);
       try {
         await refreshHydratedDocument();
       } catch {
         // Document may no longer be accessible at this endpoint after posting
         // (e.g. invoices/credit-memos move to posted state) — ignore silently
       }
-      onSuccess(createdOrderNo);
+      // onSuccess is called when the user closes the post-result dialog
     } catch (err) {
       setPlaceOrderError((err as Error).message ?? "Post failed.");
     } finally {
@@ -2961,6 +2981,105 @@ export function PurchaseCreateDocumentFormContent({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Post result dialog */}
+      <Dialog open={isPostResultOpen} onOpenChange={setIsPostResultOpen}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Document Posted</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            {!postResultDocs.Voucher && !postResultDocs.Receipt ? (
+              <p className="text-muted-foreground py-2 text-center text-sm">
+                Document posted successfully, but no documents are available.
+              </p>
+            ) : (
+              <>
+                {postResultDocs.Voucher && (
+                  <div className="flex items-center justify-between rounded-md border p-3">
+                    <span className="text-sm font-medium">Voucher</span>
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          const blob = base64ToPdfBlob(postResultDocs.Voucher!);
+                          const url = window.URL.createObjectURL(blob);
+                          window.open(url, "_blank", "noopener,noreferrer");
+                        }}
+                      >
+                        Open
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          const blob = base64ToPdfBlob(postResultDocs.Voucher!);
+                          const url = window.URL.createObjectURL(blob);
+                          const link = document.createElement("a");
+                          link.href = url;
+                          link.download = "Voucher.pdf";
+                          document.body.appendChild(link);
+                          link.click();
+                          document.body.removeChild(link);
+                          window.URL.revokeObjectURL(url);
+                        }}
+                      >
+                        <Printer className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
+                {postResultDocs.Receipt && (
+                  <div className="flex items-center justify-between rounded-md border p-3">
+                    <span className="text-sm font-medium">Receipt</span>
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          const blob = base64ToPdfBlob(postResultDocs.Receipt!);
+                          const url = window.URL.createObjectURL(blob);
+                          window.open(url, "_blank", "noopener,noreferrer");
+                        }}
+                      >
+                        Open
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          const blob = base64ToPdfBlob(postResultDocs.Receipt!);
+                          const url = window.URL.createObjectURL(blob);
+                          const link = document.createElement("a");
+                          link.href = url;
+                          link.download = "Receipt.pdf";
+                          document.body.appendChild(link);
+                          link.click();
+                          document.body.removeChild(link);
+                          window.URL.revokeObjectURL(url);
+                        }}
+                      >
+                        <Printer className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+          <DialogFooter>
+            <Button
+              onClick={() => {
+                setIsPostResultOpen(false);
+                onSuccess(createdOrderNo);
+              }}
+            >
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

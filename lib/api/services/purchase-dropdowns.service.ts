@@ -33,20 +33,43 @@ export const purchaseDropdownsService = {
     search: string = "",
     top: number = DEFAULT_PAGE_SIZE,
   ): Promise<TermAndCondition[]> {
-    const query = buildODataQuery({
-      $select: "Terms,Conditions",
-      $orderby: "Terms",
-      $top: top,
-      $skip: skip,
-      ...(search.trim()
-        ? {
-            $filter: `contains(Terms,'${escapeODataValue(search.trim())}') or contains(Conditions,'${escapeODataValue(search.trim())}')`,
-          }
-        : {}),
-    });
-    const endpoint = `/TermandCondition?company='${encodeURIComponent(COMPANY)}'&${query}`;
-    const response = await apiGet<ODataResponse<TermAndCondition>>(endpoint);
-    return response.value;
+    if (!search.trim()) {
+      const query = buildODataQuery({
+        $select: "Terms,Conditions",
+        $orderby: "Terms",
+        $top: top,
+        $skip: skip,
+      });
+      const endpoint = `/TermandCondition?company='${encodeURIComponent(COMPANY)}'&${query}`;
+      const response = await apiGet<ODataResponse<TermAndCondition>>(endpoint);
+      return response.value || [];
+    }
+
+    const s = escapeODataValue(search.trim());
+    const sLower = s.toLowerCase();
+    const sUpper = s.toUpperCase();
+    
+    const [res1, res2] = await Promise.all([
+      apiGet<ODataResponse<TermAndCondition>>(`/TermandCondition?company='${encodeURIComponent(COMPANY)}'&${buildODataQuery({
+        $select: "Terms,Conditions",
+        $orderby: "Terms",
+        $top: 100,
+        $skip: 0,
+        $filter: `contains(Terms,'${s}') or contains(Terms,'${sLower}') or contains(Terms,'${sUpper}')`
+      })}`).catch(() => ({ value: [] })),
+      apiGet<ODataResponse<TermAndCondition>>(`/TermandCondition?company='${encodeURIComponent(COMPANY)}'&${buildODataQuery({
+        $select: "Terms,Conditions",
+        $orderby: "Terms",
+        $top: 100,
+        $skip: 0,
+        $filter: `contains(Conditions,'${s}') or contains(Conditions,'${sLower}') or contains(Conditions,'${sUpper}')`
+      })}`).catch(() => ({ value: [] }))
+    ]);
+
+    const combined = [...(res1.value || []), ...(res2.value || [])];
+    const uniqueMap = new Map<string, TermAndCondition>();
+    combined.forEach(item => uniqueMap.set(item.Terms, item));
+    return Array.from(uniqueMap.values()).slice(skip, skip + top);
   },
 
   async getTermsAndConditions(): Promise<TermAndCondition[]> {
@@ -58,18 +81,45 @@ export const purchaseDropdownsService = {
     search: string = "",
     top: number = DEFAULT_PAGE_SIZE,
   ): Promise<MandiMaster[]> {
-    const query = buildODataQuery({
-      $filter: search.trim()
-        ? `Blocked eq false and (contains(Code,'${escapeODataValue(search.trim())}') or contains(Description,'${escapeODataValue(search.trim())}'))`
-        : "Blocked eq false",
-      $select: "Code,Description",
-      $orderby: "Code",
-      $top: top,
-      $skip: skip,
-    });
-    const endpoint = `/MandiMaster?company='${encodeURIComponent(COMPANY)}'&${query}`;
-    const response = await apiGet<ODataResponse<MandiMaster>>(endpoint);
-    return response.value;
+    const baseFilter = "Blocked eq false";
+    if (!search.trim()) {
+      const query = buildODataQuery({
+        $filter: baseFilter,
+        $select: "Code,Description",
+        $orderby: "Code",
+        $top: top,
+        $skip: skip,
+      });
+      const endpoint = `/MandiMaster?company='${encodeURIComponent(COMPANY)}'&${query}`;
+      const response = await apiGet<ODataResponse<MandiMaster>>(endpoint);
+      return response.value || [];
+    }
+
+    const s = escapeODataValue(search.trim());
+    const sLower = s.toLowerCase();
+    const sUpper = s.toUpperCase();
+    
+    const [res1, res2] = await Promise.all([
+      apiGet<ODataResponse<MandiMaster>>(`/MandiMaster?company='${encodeURIComponent(COMPANY)}'&${buildODataQuery({
+        $select: "Code,Description",
+        $orderby: "Code",
+        $top: 100,
+        $skip: 0,
+        $filter: `${baseFilter} and (contains(Code,'${s}') or contains(Code,'${sLower}') or contains(Code,'${sUpper}'))`
+      })}`).catch(() => ({ value: [] })),
+      apiGet<ODataResponse<MandiMaster>>(`/MandiMaster?company='${encodeURIComponent(COMPANY)}'&${buildODataQuery({
+        $select: "Code,Description",
+        $orderby: "Code",
+        $top: 100,
+        $skip: 0,
+        $filter: `${baseFilter} and (contains(Description,'${s}') or contains(Description,'${sLower}') or contains(Description,'${sUpper}'))`
+      })}`).catch(() => ({ value: [] }))
+    ]);
+
+    const combined = [...(res1.value || []), ...(res2.value || [])];
+    const uniqueMap = new Map<string, MandiMaster>();
+    combined.forEach(item => uniqueMap.set(item.Code, item));
+    return Array.from(uniqueMap.values()).slice(skip, skip + top);
   },
 
   async getMandiMasters(): Promise<MandiMaster[]> {
@@ -81,20 +131,43 @@ export const purchaseDropdownsService = {
     search: string = "",
     top: number = DEFAULT_PAGE_SIZE,
   ): Promise<PaymentTerm[]> {
-    const query = buildODataQuery({
-      $select: "Code,Description",
-      $orderby: "Code",
-      $top: top,
-      $skip: skip,
-      ...(search.trim()
-        ? {
-            $filter: `contains(Code,'${escapeODataValue(search.trim())}') or contains(Description,'${escapeODataValue(search.trim())}')`,
-          }
-        : {}),
-    });
-    const endpoint = `/PaymentTerm?company='${encodeURIComponent(COMPANY)}'&${query}`;
-    const response = await apiGet<ODataResponse<PaymentTerm>>(endpoint);
-    return response.value;
+    if (!search.trim()) {
+      const query = buildODataQuery({
+        $select: "Code,Description",
+        $orderby: "Code",
+        $top: top,
+        $skip: skip,
+      });
+      const endpoint = `/PaymentTerm?company='${encodeURIComponent(COMPANY)}'&${query}`;
+      const response = await apiGet<ODataResponse<PaymentTerm>>(endpoint);
+      return response.value || [];
+    }
+
+    const s = escapeODataValue(search.trim());
+    const sLower = s.toLowerCase();
+    const sUpper = s.toUpperCase();
+    
+    const [res1, res2] = await Promise.all([
+      apiGet<ODataResponse<PaymentTerm>>(`/PaymentTerm?company='${encodeURIComponent(COMPANY)}'&${buildODataQuery({
+        $select: "Code,Description",
+        $orderby: "Code",
+        $top: 100,
+        $skip: 0,
+        $filter: `contains(Code,'${s}') or contains(Code,'${sLower}') or contains(Code,'${sUpper}')`
+      })}`).catch(() => ({ value: [] })),
+      apiGet<ODataResponse<PaymentTerm>>(`/PaymentTerm?company='${encodeURIComponent(COMPANY)}'&${buildODataQuery({
+        $select: "Code,Description",
+        $orderby: "Code",
+        $top: 100,
+        $skip: 0,
+        $filter: `contains(Description,'${s}') or contains(Description,'${sLower}') or contains(Description,'${sUpper}')`
+      })}`).catch(() => ({ value: [] }))
+    ]);
+
+    const combined = [...(res1.value || []), ...(res2.value || [])];
+    const uniqueMap = new Map<string, PaymentTerm>();
+    combined.forEach(item => uniqueMap.set(item.Code, item));
+    return Array.from(uniqueMap.values()).slice(skip, skip + top);
   },
 
   async getPaymentTerms(): Promise<PaymentTerm[]> {

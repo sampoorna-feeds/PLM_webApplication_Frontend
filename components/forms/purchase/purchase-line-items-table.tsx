@@ -165,9 +165,6 @@ export function PurchaseLineItemsTable({
         <Table>
           <TableHeader>
             <TableRow className="bg-primary/5 border-primary/20 border-b whitespace-nowrap">
-              <TableHead className="text-primary w-12 text-center text-[10px] font-bold tracking-wider uppercase">
-                Tax
-              </TableHead>
               <TableHead className="text-primary w-16 text-[10px] font-bold tracking-wider uppercase">
                 Line
               </TableHead>
@@ -186,6 +183,18 @@ export function PurchaseLineItemsTable({
               <TableHead className="text-primary w-24 text-right text-[10px] font-bold tracking-wider uppercase">
                 Quantity
               </TableHead>
+              <TableHead className="text-primary w-24 text-right text-[10px] font-bold tracking-wider uppercase">
+                Outstanding Qty
+              </TableHead>
+              <TableHead className="text-primary w-24 text-right text-[10px] font-bold tracking-wider uppercase">
+                Challan Qty
+              </TableHead>
+              <TableHead className="text-primary w-24 text-right text-[10px] font-bold tracking-wider uppercase">
+                Weight Qty
+              </TableHead>
+              <TableHead className="text-primary w-24 text-right text-[10px] font-bold tracking-wider uppercase">
+                Short/Excess
+              </TableHead>
               {showQtyColumns && (
                 <>
                   <TableHead className="text-primary w-24 text-right text-[10px] font-bold tracking-wider uppercase">
@@ -202,18 +211,6 @@ export function PurchaseLineItemsTable({
                   </TableHead>
                 </>
               )}
-              <TableHead className="text-primary w-24 text-right text-[10px] font-bold tracking-wider uppercase">
-                Outstanding Qty
-              </TableHead>
-              <TableHead className="text-primary w-24 text-right text-[10px] font-bold tracking-wider uppercase">
-                Challan Qty
-              </TableHead>
-              <TableHead className="text-primary w-24 text-right text-[10px] font-bold tracking-wider uppercase">
-                Weight Qty
-              </TableHead>
-              <TableHead className="text-primary w-24 text-right text-[10px] font-bold tracking-wider uppercase">
-                Short/Excess
-              </TableHead>
               <TableHead className="text-primary w-32 text-right text-[10px] font-bold tracking-wider uppercase">
                 Unit Price
               </TableHead>
@@ -240,6 +237,9 @@ export function PurchaseLineItemsTable({
                   Bags
                 </TableHead>
               )}
+              <TableHead className="text-primary w-12 text-center text-[10px] font-bold tracking-wider uppercase">
+                Tax
+              </TableHead>
               {onRemove && (
                 <TableHead className="text-primary w-12 text-center text-[10px] font-bold tracking-wider uppercase">
                   Del
@@ -256,18 +256,6 @@ export function PurchaseLineItemsTable({
                 )}
                 onClick={() => onRowClick?.(item)}
               >
-                <TableCell className="text-center">
-                  {item.lineNo && item.lineNo > 0 && documentNo ? (
-                    <div onClick={(e) => e.stopPropagation()}>
-                      <TaxInfoPopover
-                        documentNo={documentNo}
-                        lineNo={item.lineNo}
-                      />
-                    </div>
-                  ) : (
-                    "-"
-                  )}
-                </TableCell>
                 <TableCell className="font-medium">
                   {item.lineNo || "-"}
                 </TableCell>
@@ -279,6 +267,28 @@ export function PurchaseLineItemsTable({
                 <TableCell>{item.uom || "-"}</TableCell>
                 <TableCell className="text-right font-medium">
                   {item.quantity}
+                </TableCell>
+                <TableCell className="text-right">
+                  {item.outstandingQty || "0"}
+                </TableCell>
+                <EditableQtyCell
+                  value={item.challanQty}
+                  isDirty={savingId === item.id}
+                  onChange={() => {}}
+                  onCommit={(next) =>
+                    handleCommitInline(item, "Challan_Qty", next)
+                  }
+                />
+                <EditableQtyCell
+                  value={item.weightQty}
+                  isDirty={savingId === item.id}
+                  onChange={() => {}}
+                  onCommit={(next) =>
+                    handleCommitInline(item, "Weight_Qty", next)
+                  }
+                />
+                <TableCell className="text-right">
+                  {((item.weightQty || 0) - (item.challanQty || 0)).toFixed(3)}
                 </TableCell>
                 {showQtyColumns && (
                   <>
@@ -347,28 +357,6 @@ export function PurchaseLineItemsTable({
                   </>
                 )}
                 <TableCell className="text-right">
-                  {item.outstandingQty || "0"}
-                </TableCell>
-                <EditableQtyCell
-                  value={item.challanQty}
-                  isDirty={savingId === item.id}
-                  onChange={() => {}}
-                  onCommit={(next) =>
-                    handleCommitInline(item, "Challan_Qty", next)
-                  }
-                />
-                <EditableQtyCell
-                  value={item.weightQty}
-                  isDirty={savingId === item.id}
-                  onChange={() => {}}
-                  onCommit={(next) =>
-                    handleCommitInline(item, "Weight_Qty", next)
-                  }
-                />
-                <TableCell className="text-right">
-                  {((item.weightQty || 0) - (item.challanQty || 0)).toFixed(3)}
-                </TableCell>
-                <TableCell className="text-right">
                   {(item.unitPrice || 0).toLocaleString(undefined, {
                     minimumFractionDigits: 2,
                     maximumFractionDigits: 2,
@@ -394,6 +382,18 @@ export function PurchaseLineItemsTable({
                     {item.noOfBags || "-"}
                   </TableCell>
                 )}
+                <TableCell className="text-center">
+                  {item.lineNo && item.lineNo > 0 && documentNo ? (
+                    <div onClick={(e) => e.stopPropagation()}>
+                      <TaxInfoPopover
+                        documentNo={documentNo}
+                        lineNo={item.lineNo}
+                      />
+                    </div>
+                  ) : (
+                    "-"
+                  )}
+                </TableCell>
                 {onRemove && (
                   <TableCell
                     className="w-12 text-center"

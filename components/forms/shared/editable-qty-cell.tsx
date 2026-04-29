@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 interface EditableQtyCellProps {
   value: number | null | undefined;
   onChange: (next: number) => void;
+  onCommit?: (next: number) => void;
   disabled?: boolean;
   isDirty?: boolean;
   className?: string;
@@ -16,12 +17,14 @@ interface EditableQtyCellProps {
 export function EditableQtyCell({
   value,
   onChange,
+  onCommit,
   disabled = false,
   isDirty = false,
   className,
 }: EditableQtyCellProps) {
   const [text, setText] = useState<string>(value == null ? "" : String(value));
   const isFocused = useRef(false);
+
 
   useEffect(() => {
     if (!isFocused.current) {
@@ -57,10 +60,17 @@ export function EditableQtyCell({
         onBlur={(e) => {
           isFocused.current = false;
           const parsed = parseFloat(e.target.value);
-          if (Number.isNaN(parsed)) {
-            setText(value == null ? "" : String(value));
-          } else {
-            setText(String(parsed));
+          const nextValue = Number.isNaN(parsed) ? (value ?? 0) : parsed;
+          
+          setText(nextValue === 0 && value == null ? "" : String(nextValue));
+          
+          if (onCommit && nextValue !== (value ?? 0)) {
+            onCommit(nextValue);
+          }
+        }}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.currentTarget.blur();
           }
         }}
         className={cn(

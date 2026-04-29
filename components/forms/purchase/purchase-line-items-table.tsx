@@ -100,13 +100,7 @@ export function PurchaseLineItemsTable({
       try {
         setSavingId(item.id);
         
-        // Prevent Business Central from auto-filling the other field by explicitly sending both
-        const firstVal = (item[quantityColumns.firstPendingKey as keyof LineItem] as number) || 0;
-        const secondVal = (item[quantityColumns.secondPendingKey as keyof LineItem] as number) || 0;
-        
         const patch: Record<string, number> = {
-          [quantityColumns.firstPendingBcField]: firstVal,
-          [quantityColumns.secondPendingBcField]: secondVal,
           [bcField]: nextValue,
         };
         

@@ -192,4 +192,9 @@ export const salesItemChargeAssignmentService = {
     const endpoint = `/ItemChargeAssignmentSales(${filter})?company='${encodeURIComponent(COMPANY)}'`;
     await apiDelete(endpoint);
   },
+
+  async prepareChargeItemLines(salesDoc: string, lineNo: number): Promise<void> {
+    const endpoint = `/API_GetChargeItemLineSales?company='${encodeURIComponent(COMPANY)}'`;
+    await apiPost(endpoint, { salesDoc, lineNo });
+  },
 };

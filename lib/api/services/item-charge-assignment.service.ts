@@ -206,4 +206,9 @@ export const itemChargeAssignmentService = {
     const endpoint = `/ItemChargeAssignmentPurch(${filter})?company='${encodeURIComponent(COMPANY)}'`;
     await apiDelete(endpoint);
   },
+
+  async prepareChargeItemLines(purchDoc: string, lineNo: number): Promise<void> {
+    const endpoint = `/API_GetChargeItemLinePurchase?company='${encodeURIComponent(COMPANY)}'`;
+    await apiPost(endpoint, { purchDoc, lineNo });
+  },
 };

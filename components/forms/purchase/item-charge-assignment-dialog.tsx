@@ -165,6 +165,7 @@ export function ItemChargeAssignmentDialog({
       setTotalCount(0);
       setSelectedLines(new Set());
       if (scrollContainerRef.current) scrollContainerRef.current.scrollTop = 0;
+      await itemChargeAssignmentService.prepareChargeItemLines(docNo, docLineNo);
       const result = await itemChargeAssignmentService.getAssignments({ docType, docNo, docLineNo, itemChargeNo, skip: 0, top: PAGE_SIZE });
       setLines(result.value);
       setTotalCount(result.count);

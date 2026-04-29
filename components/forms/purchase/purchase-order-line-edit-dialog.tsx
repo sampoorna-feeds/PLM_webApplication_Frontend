@@ -91,6 +91,7 @@ export function PurchaseOrderLineEditDialog({
   const [noOfBags, setNoOfBags] = useState("");
   const [challanQty, setChallanQty] = useState("");
   const [weightQty, setWeightQty] = useState("");
+  const [outstandingQty, setOutstandingQty] = useState("");
   const [gstCredit, setGstCredit] = useState("");
   const [applToItemEntry, setApplToItemEntry] = useState<string>("");
   const [ledgerEntries, setLedgerEntries] = useState<ApplyItemLedgerEntry[]>([]);
@@ -125,6 +126,7 @@ export function PurchaseOrderLineEditDialog({
     setNoOfBags(line.No_of_Bags != null ? String(line.No_of_Bags) : "");
     setChallanQty(line.Challan_Qty != null ? String(line.Challan_Qty) : "");
     setWeightQty(line.Weight_Qty != null ? String(line.Weight_Qty) : "");
+    setOutstandingQty(line.Outstanding_Quantity != null ? String(line.Outstanding_Quantity) : "");
     setGstCredit(line.GST_Credit || "Non-Availment");
     setApplToItemEntry(line.Appl_to_Item_Entry ? String(line.Appl_to_Item_Entry) : "");
   }, [line]);
@@ -457,9 +459,9 @@ export function PurchaseOrderLineEditDialog({
                 </div>
                 <div className="p-2">
                   <p className="text-muted-foreground text-[10px] tracking-wide uppercase">
-                    {quantityColumns.secondCompletedLabel}
+                    Outstanding Qty
                   </p>
-                  <p>{line.Quantity_Invoiced || "0"}</p>
+                  <p className="font-medium">{line.Outstanding_Quantity || "0"}</p>
                 </div>
               </>
             )}
@@ -552,6 +554,18 @@ export function PurchaseOrderLineEditDialog({
                           className={fieldInputClass}
                         />
                       </ClearableField>
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Short/Excess Qty</Label>
+                      <Input
+                        readOnly
+                        value={(() => {
+                          const w = parseFloat(weightQty) || 0;
+                          const c = parseFloat(challanQty) || 0;
+                          return (w - c).toFixed(3);
+                        })()}
+                        className={cn(fieldInputClass, "bg-muted/50")}
+                      />
                     </div>
                   </>
                 )}

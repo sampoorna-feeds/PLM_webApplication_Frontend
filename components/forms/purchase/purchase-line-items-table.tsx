@@ -208,6 +208,18 @@ export function PurchaseLineItemsTable({
                   </TableHead>
                 </>
               )}
+              <TableHead className="text-primary w-24 text-right text-[10px] font-bold tracking-wider uppercase">
+                Outstanding Qty
+              </TableHead>
+              <TableHead className="text-primary w-24 text-right text-[10px] font-bold tracking-wider uppercase">
+                Challan Qty
+              </TableHead>
+              <TableHead className="text-primary w-24 text-right text-[10px] font-bold tracking-wider uppercase">
+                Weight Qty
+              </TableHead>
+              <TableHead className="text-primary w-24 text-right text-[10px] font-bold tracking-wider uppercase">
+                Short/Excess
+              </TableHead>
               <TableHead className="text-primary w-32 text-right text-[10px] font-bold tracking-wider uppercase">
                 Unit Price
               </TableHead>
@@ -340,6 +352,28 @@ export function PurchaseLineItemsTable({
                     </TableCell>
                   </>
                 )}
+                <TableCell className="text-right">
+                  {item.outstandingQty || "0"}
+                </TableCell>
+                <EditableQtyCell
+                  value={item.challanQty}
+                  isDirty={savingId === item.id}
+                  onChange={() => {}}
+                  onCommit={(next) =>
+                    handleCommitInline(item, "Challan_Qty", next)
+                  }
+                />
+                <EditableQtyCell
+                  value={item.weightQty}
+                  isDirty={savingId === item.id}
+                  onChange={() => {}}
+                  onCommit={(next) =>
+                    handleCommitInline(item, "Weight_Qty", next)
+                  }
+                />
+                <TableCell className="text-right">
+                  {((item.weightQty || 0) - (item.challanQty || 0)).toFixed(3)}
+                </TableCell>
                 <TableCell className="text-right">
                   {(item.unitPrice || 0).toLocaleString(undefined, {
                     minimumFractionDigits: 2,

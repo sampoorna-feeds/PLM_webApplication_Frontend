@@ -20,6 +20,7 @@ const COMPANY =
  */
 export async function getWebUser(userName: string): Promise<WebUser | null> {
   const query = buildODataQuery({
+    $select: "User_Name,Full_Name,Status,Allow_Posting_From,Allow_Posting_To,Location_Code",
     $filter: `User_Name eq '${userName}'`,
   });
 

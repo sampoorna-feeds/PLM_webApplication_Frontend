@@ -340,8 +340,10 @@ export async function getWebUserSetup(userId: string): Promise<WebUserSetup[]> {
     return cached.data;
   }
 
-  const filter = `User_name eq '${userId}'`;
-  const query = `$filter=${encodeURIComponent(filter)}`;
+  const query = buildODataQuery({
+    $select: "User_Name,LOB,Branch_Code,LOC_Code",
+    $filter: `User_name eq '${userId}'`,
+  });
   const endpoint = `/WebUserSetup?company='${encodeURIComponent(COMPANY)}'&${query}`;
 
   try {

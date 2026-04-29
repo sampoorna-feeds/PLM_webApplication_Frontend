@@ -227,7 +227,8 @@ export function InwardGateEntryForm({
           key === "Net_Weight" ||
           key === "Posting_No_Series" ||
           key === "@odata.etag" ||
-          key === "id"
+          key === "id" ||
+          key === "Shortcut_Dimension_2_Code"
         )
           return acc;
         if (value === "" || value === undefined || value === null || value === 0) return acc;

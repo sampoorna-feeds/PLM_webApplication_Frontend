@@ -71,3 +71,17 @@ export async function searchPurchasers(
   [...byCode, ...byName].forEach((p) => { if (!map.has(p.Code)) map.set(p.Code, p); });
   return Array.from(map.values()).slice(skip, skip + top);
 }
+
+/**
+ * Get purchasers page (handles both search and simple paging)
+ */
+export async function getPurchasersPage(
+  skip: number,
+  searchQuery: string = "",
+  top: number = 30,
+): Promise<Purchaser[]> {
+  if (!searchQuery) {
+    return await getPurchasers(top, skip);
+  }
+  return await searchPurchasers(searchQuery, top, skip);
+}

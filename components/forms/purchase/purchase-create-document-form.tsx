@@ -40,6 +40,10 @@ import {
   MASTER_DROPDOWN_PAGE_SIZE,
 } from "./purchase-form-options";
 import { PurchaseSearchableSelect } from "./purchase-searchable-select";
+import { TermCodeSelect } from "./term-code-select";
+import { PaymentTermSelect } from "./payment-term-select";
+import { MandiNameSelect } from "./mandi-name-select";
+import { CreditorTypeSelect } from "./creditor-type-select";
 import {
   resolvePurchaseDocumentMode,
   useCreateOnlyPurchaseFormStack,
@@ -180,12 +184,7 @@ import {
 } from "@/lib/api/services/purchase-orders.service";
 import type { PurchaseCopyToDocType } from "@/lib/api/services/purchase-copy-document.service";
 import { getVendorDetails } from "@/lib/api/services/vendor.service";
-import {
-  purchaseDropdownsService,
-  type TermAndCondition,
-  type MandiMaster,
-  type PaymentTerm,
-} from "@/lib/api/services/purchase-dropdowns.service";
+
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
@@ -574,25 +573,7 @@ export function PurchaseCreateDocumentFormContent({
   const [printingMRN] = useState(false);
   // ─────────────────────────────────────────────────────────────────────────
 
-  const [termList, setTermList] = useState<TermAndCondition[]>([]);
-  const [mandiList, setMandiList] = useState<MandiMaster[]>([]);
-  const [paymentTermList, setPaymentTermList] = useState<PaymentTerm[]>([]);
-
-  useEffect(() => {
-    purchaseDropdownsService
-      .getTermsAndConditionsPage(0, "", MASTER_DROPDOWN_PAGE_SIZE)
-      .then(setTermList)
-      .catch((err) => console.error("Error fetching terms:", err));
-    purchaseDropdownsService
-      .getMandiMastersPage(0, "", MASTER_DROPDOWN_PAGE_SIZE)
-      .then(setMandiList)
-      .catch((err) => console.error("Error fetching mandis:", err));
-    purchaseDropdownsService
-      .getPaymentTermsPage(0, "", MASTER_DROPDOWN_PAGE_SIZE)
-      .then(setPaymentTermList)
-      .catch((err) => console.error("Error fetching payment terms:", err));
-
-    const creds = getAuthCredentials();
+  useEffect(() => {    const creds = getAuthCredentials();
     if (creds?.userID) {
       getWebUser(creds.userID).then(setWebUserProfile).catch(console.error);
     }
@@ -1965,13 +1946,12 @@ export function PurchaseCreateDocumentFormContent({
                         value={formData.creditorType}
                         onClear={() => handleInputChange("creditorType", "")}
                       >
-                        <PurchaseSearchableSelect
+                        <CreditorTypeSelect
                           value={formData.creditorType}
                           onChange={(value) =>
                             handleInputChange("creditorType", value)
                           }
-                          options={CREDITOR_TYPE_OPTIONS}
-                          placeholder="Select creditor"
+                          disabled={areFieldsReadOnly}
                         />
                       </ClearableField>
                     </div>
@@ -2009,28 +1989,12 @@ export function PurchaseCreateDocumentFormContent({
                         value={formData.termCode}
                         onClear={() => handleInputChange("termCode", "")}
                       >
-                        <PurchaseSearchableSelect
+                        <TermCodeSelect
                           value={formData.termCode}
                           onChange={(value) =>
                             handleInputChange("termCode", value)
                           }
-                          options={termList.map((t) => ({
-                            value: t.Terms,
-                            label: `${t.Terms} - ${t.Conditions}`,
-                          }))}
-                          placeholder="Select term"
-                          loadMore={async (skip, searchValue) => {
-                            const rows =
-                              await purchaseDropdownsService.getTermsAndConditionsPage(
-                                skip,
-                                searchValue,
-                                MASTER_DROPDOWN_PAGE_SIZE,
-                              );
-                            return rows.map((t) => ({
-                              value: t.Terms,
-                              label: `${t.Terms} - ${t.Conditions}`,
-                            }));
-                          }}
+                          disabled={areFieldsReadOnly}
                         />
                       </ClearableField>
                     </div>
@@ -2041,28 +2005,12 @@ export function PurchaseCreateDocumentFormContent({
                         value={formData.paymentTermCode}
                         onClear={() => handleInputChange("paymentTermCode", "")}
                       >
-                        <PurchaseSearchableSelect
+                        <PaymentTermSelect
                           value={formData.paymentTermCode}
                           onChange={(value) =>
                             handleInputChange("paymentTermCode", value)
                           }
-                          options={paymentTermList.map((p) => ({
-                            value: p.Code,
-                            label: `${p.Code} - ${p.Description}`,
-                          }))}
-                          placeholder="Select pmt term"
-                          loadMore={async (skip, searchValue) => {
-                            const rows =
-                              await purchaseDropdownsService.getPaymentTermsPage(
-                                skip,
-                                searchValue,
-                                MASTER_DROPDOWN_PAGE_SIZE,
-                              );
-                            return rows.map((p) => ({
-                              value: p.Code,
-                              label: `${p.Code} - ${p.Description}`,
-                            }));
-                          }}
+                          disabled={areFieldsReadOnly}
                         />
                       </ClearableField>
                     </div>
@@ -2073,28 +2021,12 @@ export function PurchaseCreateDocumentFormContent({
                         value={formData.mandiName}
                         onClear={() => handleInputChange("mandiName", "")}
                       >
-                        <PurchaseSearchableSelect
+                        <MandiNameSelect
                           value={formData.mandiName}
                           onChange={(value) =>
                             handleInputChange("mandiName", value)
                           }
-                          options={mandiList.map((m) => ({
-                            value: m.Code,
-                            label: `${m.Code} - ${m.Description}`,
-                          }))}
-                          placeholder="Select mandi"
-                          loadMore={async (skip, searchValue) => {
-                            const rows =
-                              await purchaseDropdownsService.getMandiMastersPage(
-                                skip,
-                                searchValue,
-                                MASTER_DROPDOWN_PAGE_SIZE,
-                              );
-                            return rows.map((m) => ({
-                              value: m.Code,
-                              label: `${m.Code} - ${m.Description}`,
-                            }));
-                          }}
+                          disabled={areFieldsReadOnly}
                         />
                       </ClearableField>
                     </div>

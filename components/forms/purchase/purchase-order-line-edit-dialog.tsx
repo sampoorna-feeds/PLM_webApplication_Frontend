@@ -125,7 +125,7 @@ export function PurchaseOrderLineEditDialog({
     setNoOfBags(line.No_of_Bags != null ? String(line.No_of_Bags) : "");
     setChallanQty(line.Challan_Qty != null ? String(line.Challan_Qty) : "");
     setWeightQty(line.Weight_Qty != null ? String(line.Weight_Qty) : "");
-    setGstCredit(line.GST_Credit || "Availment");
+    setGstCredit(line.GST_Credit || "Non-Availment");
     setApplToItemEntry(line.Appl_to_Item_Entry ? String(line.Appl_to_Item_Entry) : "");
   }, [line]);
 
@@ -331,7 +331,7 @@ export function PurchaseOrderLineEditDialog({
         payload.HSN_SAC_Code = hsnSacCode.trim();
       if (tdsSection !== (line.TDS_Section_Code || ""))
         payload.TDS_Section_Code = tdsSection;
-      if (gstCredit !== (line.GST_Credit || "Availment"))
+      if (gstCredit !== (line.GST_Credit || "Non-Availment"))
         payload.GST_Credit = gstCredit;
 
       if ((line.Type || "").trim() === "Fixed Asset") {

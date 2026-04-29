@@ -116,7 +116,7 @@ function getInitialLineState(lineItem?: LineItem | null): Partial<LineItem> {
     noOfBags: lineItem?.noOfBags,
     challanQty: lineItem?.challanQty,
     weightQty: lineItem?.weightQty,
-    gstCredit: lineItem?.gstCredit || "Availment",
+    gstCredit: lineItem?.gstCredit || "Non-Availment",
   };
 }
 
@@ -1026,7 +1026,7 @@ export function PurchaseOrderLineDialog({
                     onClear={() => handleFieldChange("gstCredit", "")}
                   >
                     <Select
-                      value={formState.gstCredit || "Availment"}
+                      value={formState.gstCredit || "Non-Availment"}
                       onValueChange={(value) =>
                         handleFieldChange("gstCredit", value)
                       }

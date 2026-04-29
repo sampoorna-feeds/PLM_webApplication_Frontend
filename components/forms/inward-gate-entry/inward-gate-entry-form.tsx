@@ -554,8 +554,6 @@ export function InwardGateEntryForm({
               <DateInput
                 value={entry.Document_Date || ""}
                 onChange={(v) => handleInputChange("Document_Date", v)}
-                min={webUserProfile?.Allow_Posting_From?.split("T")[0]}
-                max={webUserProfile?.Allow_Posting_To?.split("T")[0]}
               />
             </div>
 

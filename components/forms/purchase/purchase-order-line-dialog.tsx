@@ -60,6 +60,7 @@ import {
   searchItemChargesByField,
   type ItemCharge,
 } from "@/lib/api/services/item-charge.service";
+import { ItemSelect } from "./item-select";
 import { getVendorTDSGroupCodes } from "@/lib/api/services/tds.service";
 import {
   getGstGroupCodes,
@@ -700,24 +701,10 @@ export function PurchaseOrderLineDialog({
                     value={formState.no}
                     onClear={() => handleItemChange("", undefined)}
                   >
-                    <MasterSearchableSelect<Item>
-                      key="master-select-item"
+                    <ItemSelect
                       value={formState.no || ""}
                       onChange={handleItemChange}
-                      placeholder="Select Item"
-                      loadInitial={() => getItems(20, locationCode)}
-                      searchItems={(query) => searchItems(query, locationCode)}
-                      loadMore={(skip, search) =>
-                        getItemsPage(skip, search, 20, locationCode)
-                      }
-                      getDisplayValue={(item) =>
-                        `${item.No} - ${item.Description}`
-                      }
-                      getItemValue={(item) => item.No}
-                      supportsDualSearch={true}
-                      searchByField={(query, field) =>
-                        searchItemsByField(query, field, locationCode)
-                      }
+                      locationCode={locationCode}
                     />
                   </ClearableField>
                 )}

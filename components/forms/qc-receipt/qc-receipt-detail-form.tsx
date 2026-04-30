@@ -9,9 +9,10 @@ import { CalculatorInput } from "@/components/ui/calculator-input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
-import { getDimensionValueName } from "@/lib/api/services/dimension.service";
+import { getDimensionValueName, getAllBranchesFromUserSetup } from "@/lib/api/services/dimension.service";
 import type { QCReceiptHeader, QCReceiptLine } from "@/lib/api/services/qc-receipt.service";
 import { getTransferAllLocationCodes, type TransferLocationCode } from "@/lib/api/services/transfer-orders.service";
+import { getAuthCredentials } from "@/lib/auth/storage";
 import { useFormStackContext } from "@/lib/form-stack/form-stack-context";
 import { Loader2, RotateCcw, Send } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -42,9 +43,17 @@ export function QCReceiptDetailForm({ tabId, context }: QCReceiptDetailFormProps
   const [locations, setLocations] = useState<TransferLocationCode[]>([]);
   const [isLoadingLocations, setIsLoadingLocations] = useState(false);
   const [locationName, setLocationName] = useState("");
+  const [userBranch, setUserBranch] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     if (initialReceipt) setReceipt(initialReceipt);
+    
+    const creds = getAuthCredentials();
+    if (creds?.userID) {
+      getAllBranchesFromUserSetup(creds.userID).then(branches => {
+        if (branches.length > 0) setUserBranch(branches[0].Code);
+      }).catch(console.error);
+    }
   }, [initialReceipt]);
 
   useEffect(() => {
@@ -73,13 +82,12 @@ export function QCReceiptDetailForm({ tabId, context }: QCReceiptDetailFormProps
   }, []);
 
   useEffect(() => {
-    const fetchLocName = async () => {
-      if (receipt?.Location_Code) {
-        const name = await getDimensionValueName("LOC", receipt.Location_Code);
-        setLocationName(name);
-      }
-    };
-    fetchLocName();
+    if (receipt?.Location_Code) {
+      getTransferAllLocationCodes().then(locs => {
+        const match = locs.find(l => l.Code === receipt.Location_Code);
+        if (match) setLocationName(match.Name);
+      }).catch(console.error);
+    }
   }, [receipt?.Location_Code]);
 
   if (!receipt) {
@@ -205,6 +213,7 @@ export function QCReceiptDetailForm({ tabId, context }: QCReceiptDetailFormProps
              <SummaryField label="Vendor No." value={receipt.Buy_from_Vendor_No} />
              <SummaryField label="Vendor Name" value={receipt.Buy_from_Vendor_Name} />
              <SummaryField label="PO No." value={receipt.Purchase_Order_No} />
+             <SummaryField label="Branch" value={receipt.Shortcut_Dimension_2_Code || receipt.Shortcut_Dimension_1_Code || userBranch} />
              <SummaryField label="Item Tracking" value={receipt.Item_Tracking} />
           </SectionContainer>
 
@@ -294,13 +303,14 @@ export function QCReceiptDetailForm({ tabId, context }: QCReceiptDetailFormProps
                 </EditFormField>
 
                <EditFormField label="Store Location Code" isReadOnly={isPosted}>
-                 <LocationSelect
-                   value={receipt.Store_Location_Code || ""}
-                   onChange={(val) => handleFieldCommit("Store_Location_Code", val)}
-                   placeholder="Select Store Location"
-                   disabled={isPosted}
-                   className="h-10"
-                 />
+                  <LocationSelect
+                    value={receipt.Store_Location_Code || ""}
+                    onChange={(val) => handleFieldCommit("Store_Location_Code", val)}
+                    placeholder="Select Store Location"
+                    branchCode={receipt.Shortcut_Dimension_2_Code || receipt.Shortcut_Dimension_1_Code || userBranch}
+                    disabled={isPosted}
+                    className="h-10"
+                  />
                </EditFormField>
 
                <div className="md:col-span-2 lg:col-span-3">

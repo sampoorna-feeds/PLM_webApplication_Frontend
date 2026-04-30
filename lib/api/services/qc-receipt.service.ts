@@ -69,6 +69,8 @@ export interface QCReceiptHeader {
   Total_Accepted_Quantity: number;
   Total_Under_Deviation_Acc_Qty: number;
   Total_Rejected_Quantity: number;
+  Shortcut_Dimension_1_Code?: string;
+  Shortcut_Dimension_2_Code?: string;
   "@odata.etag"?: string;
 }
 

@@ -122,6 +122,7 @@ export function mapPurchaseLineToLineItem(line: PurchaseLine): LineItem {
     noOfBags: toNumberValue(line.No_of_Bags),
     challanQty: toNumberValue(line.Challan_Qty),
     weightQty: toNumberValue(line.Weight_Qty),
+    actualQty: toNumberValue(line.Actual_Qty),
     outstandingQty: toNumberValue(line.Outstanding_Quantity),
     gstCredit: toStringValue(line.GST_Credit),
   };

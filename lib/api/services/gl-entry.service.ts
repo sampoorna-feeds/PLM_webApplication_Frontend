@@ -349,9 +349,7 @@ export function buildGLFilterString(filters: GLEntryFilters): string {
     filters.additionalFilters.forEach((f) => {
       if (!f.value) return;
       const v = f.value.replace(/'/g, "''");
-      if (f.operator === "contains") {
-        filterParts.push(`contains(${f.field},'${v}')`);
-      } else if (f.operator === "startswith") {
+      if (f.operator === "startswith") {
         filterParts.push(`startswith(${f.field},'${v}')`);
       } else if (f.operator === "endswith") {
         filterParts.push(`endswith(${f.field},'${v}')`);

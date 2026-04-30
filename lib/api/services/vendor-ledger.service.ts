@@ -176,10 +176,7 @@ export function buildVendorFilterString(filters: VendorLedgerFilters): string {
   // Add additional structured filters (Dynamic Filter Builder)
   if (filters.additionalFilters && filters.additionalFilters.length > 0) {
     filters.additionalFilters.forEach((f) => {
-      const v = f.value.replace(/'/g, "''");
-      if (f.operator === "contains") {
-        filterParts.push(`contains(${f.field},'${v}')`);
-      } else if (f.operator === "startswith") {
+      const v = f.value.replace(/'/g, "''");if (f.operator === "startswith") {
         filterParts.push(`startswith(${f.field},'${v}')`);
       } else if (f.operator === "endswith") {
         filterParts.push(`endswith(${f.field},'${v}')`);

@@ -92,6 +92,7 @@ export function PurchaseOrderLineEditDialog({
   const [noOfBags, setNoOfBags] = useState("");
   const [challanQty, setChallanQty] = useState("");
   const [weightQty, setWeightQty] = useState("");
+  const [actualQty, setActualQty] = useState("");
   const [outstandingQty, setOutstandingQty] = useState("");
   const [gstCredit, setGstCredit] = useState("");
   const [applToItemEntry, setApplToItemEntry] = useState<string>("");
@@ -128,6 +129,7 @@ export function PurchaseOrderLineEditDialog({
     setNoOfBags(line.No_of_Bags != null ? String(line.No_of_Bags) : "");
     setChallanQty(line.Challan_Qty != null ? String(line.Challan_Qty) : "");
     setWeightQty(line.Weight_Qty != null ? String(line.Weight_Qty) : "");
+    setActualQty(line.Actual_Qty != null ? String(line.Actual_Qty) : "");
     setOutstandingQty(line.Outstanding_Quantity != null ? String(line.Outstanding_Quantity) : "");
     setGstCredit(line.GST_Credit || "Non-Availment");
     setApplToItemEntry(line.Appl_to_Item_Entry ? String(line.Appl_to_Item_Entry) : "");
@@ -366,8 +368,10 @@ export function PurchaseOrderLineEditDialog({
       if ((line.Type || "").trim() === "Item") {
         const cQty = parseFloat(challanQty) || 0;
         const wQty = parseFloat(weightQty) || 0;
+        const aQty = parseFloat(actualQty) || 0;
         if (cQty !== (line.Challan_Qty || 0)) payload.Challan_Qty = cQty;
         if (wQty !== (line.Weight_Qty || 0)) payload.Weight_Qty = wQty;
+        if (aQty !== (line.Actual_Qty || 0)) payload.Actual_Qty = aQty;
       }
 
       const applVal = applToItemEntry ? Number(applToItemEntry) : 0;
@@ -552,6 +556,26 @@ export function PurchaseOrderLineEditDialog({
                           onChange={(e) => {
                             if (isValidNum(e.target.value))
                               setWeightQty(e.target.value);
+                          }}
+                          className={fieldInputClass}
+                        />
+                      </ClearableField>
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="po-line-actual-qty" className="text-xs">
+                        Actual Qty
+                      </Label>
+                      <ClearableField
+                        value={actualQty}
+                        onClear={() => setActualQty("")}
+                      >
+                        <Input
+                          id="po-line-actual-qty"
+                          inputMode="decimal"
+                          value={actualQty}
+                          onChange={(e) => {
+                            if (isValidNum(e.target.value))
+                              setActualQty(e.target.value);
                           }}
                           className={fieldInputClass}
                         />

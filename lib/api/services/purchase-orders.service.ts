@@ -244,6 +244,7 @@ export interface PurchaseLine {
   No_of_Bags?: number;
   Challan_Qty?: number;
   Weight_Qty?: number;
+  Actual_Qty?: number;
   Outstanding_Quantity?: number;
   GST_Credit?: string;
   Appl_to_Item_Entry?: number;

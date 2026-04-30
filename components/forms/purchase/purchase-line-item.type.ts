@@ -33,6 +33,7 @@ export interface LineItem {
   noOfBags?: number;
   challanQty?: number;
   weightQty?: number;
+  actualQty?: number;
   outstandingQty?: number;
   gstCredit?: string;
 }

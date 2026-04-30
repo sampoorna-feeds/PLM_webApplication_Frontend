@@ -193,6 +193,9 @@ export function PurchaseLineItemsTable({
                 Weight Qty
               </TableHead>
               <TableHead className="text-primary w-24 text-right text-[10px] font-bold tracking-wider uppercase">
+                Actual Qty
+              </TableHead>
+              <TableHead className="text-primary w-24 text-right text-[10px] font-bold tracking-wider uppercase">
                 Short/Excess
               </TableHead>
               {showQtyColumns && (
@@ -285,6 +288,14 @@ export function PurchaseLineItemsTable({
                   onChange={() => {}}
                   onCommit={(next) =>
                     handleCommitInline(item, "Weight_Qty", next)
+                  }
+                />
+                <EditableQtyCell
+                  value={item.actualQty}
+                  isDirty={savingId === item.id}
+                  onChange={() => {}}
+                  onCommit={(next) =>
+                    handleCommitInline(item, "Actual_Qty", next)
                   }
                 />
                 <TableCell className="text-right">

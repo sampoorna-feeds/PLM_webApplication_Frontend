@@ -1306,15 +1306,27 @@ export function PurchaseCreateDocumentFormContent({
         "ship-invoice": "3",
       };
       const postResponse = await postPurchaseOrder(createdOrderNo, optMap[postOption]);
-      // Parse the response: { Voucher?: string; Receipt?: string } (base64-encoded PDFs)
+      // Parse the response: it returns a JSON where the `value` field is a base64-encoded string.
+      // Decoding the base64 yields a JSON string of shape { Voucher?: string; Receipt?: string }
       const docs = (() => {
         try {
-          const obj = postResponse as Record<string, unknown>;
+          const responseObj = postResponse as Record<string, unknown>;
+          let obj: Record<string, unknown> = {};
+
+          if (typeof responseObj?.value === "string") {
+            const decodedStr = atob(responseObj.value);
+            obj = JSON.parse(decodedStr);
+          } else {
+            // Fallback just in case the API changes or returns it directly
+            obj = responseObj || {};
+          }
+
           return {
             Voucher: typeof obj?.Voucher === "string" ? obj.Voucher : undefined,
             Receipt: typeof obj?.Receipt === "string" ? obj.Receipt : undefined,
           };
-        } catch {
+        } catch (err) {
+          console.error("Failed to parse PDF response:", err);
           return {};
         }
       })();

@@ -115,29 +115,7 @@ export function BardanaDialog({
           </DialogTitle>
         </DialogHeader>
 
-        {/* Context info */}
-        <div className="bg-muted/40 rounded-md border px-3 py-2 text-xs">
-          <div className="text-muted-foreground">
-            <span className="text-foreground font-medium">Order:</span>{" "}
-            {documentNo}
-          </div>
-          <div className="text-muted-foreground">
-            <span className="text-foreground font-medium">Line No:</span>{" "}
-            {lineNo}
-            {noOfBags != null && noOfBags > 0 && (
-              <span className="ml-3">
-                <span className="text-foreground font-medium">Bags:</span>{" "}
-                {noOfBags}
-              </span>
-            )}
-          </div>
-          {lineDescription && (
-            <div className="text-muted-foreground truncate">
-              <span className="text-foreground font-medium">Item:</span>{" "}
-              {lineDescription}
-            </div>
-          )}
-        </div>
+
 
         <div className="space-y-3">
           {/* Bardana Item */}

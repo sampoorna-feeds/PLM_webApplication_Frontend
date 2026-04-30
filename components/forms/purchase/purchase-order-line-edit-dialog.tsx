@@ -438,49 +438,7 @@ export function PurchaseOrderLineEditDialog({
             </DialogTitle>
           </DialogHeader>
 
-          {/* ── Info strip ── */}
-          <div className="bg-muted/40 grid grid-cols-2 overflow-hidden rounded-md border text-sm sm:grid-cols-3">
-            <div className="border-r border-b p-2">
-              <p className="text-muted-foreground text-[10px] tracking-wide uppercase">
-                Line
-              </p>
-              <p className="font-medium">{line.Line_No}</p>
-            </div>
-            <div className="border-b p-2 sm:border-r">
-              <p className="text-muted-foreground text-[10px] tracking-wide uppercase">
-                Item No
-              </p>
-              <p className="font-medium">{line.No || "—"}</p>
-            </div>
-            <div className="border-r border-b p-2 sm:border-r-0">
-              <p className="text-muted-foreground text-[10px] tracking-wide uppercase">
-                Type
-              </p>
-              <p>{line.Type || "—"}</p>
-            </div>
-            <div className="border-b p-2 sm:border-r sm:border-b-0">
-              <p className="text-muted-foreground text-[10px] tracking-wide uppercase">
-                UOM
-              </p>
-              <p>{line.Unit_of_Measure_Code || line.Unit_of_Measure || "—"}</p>
-            </div>
-            {showQtyColumns && (
-              <>
-                <div className="border-r p-2 sm:border-b-0">
-                  <p className="text-muted-foreground text-[10px] tracking-wide uppercase">
-                    {quantityColumns.firstCompletedLabel}
-                  </p>
-                  <p>{line.Quantity_Received || "0"}</p>
-                </div>
-                <div className="p-2">
-                  <p className="text-muted-foreground text-[10px] tracking-wide uppercase">
-                    Outstanding Qty
-                  </p>
-                  <p className="font-medium">{line.Outstanding_Quantity || "0"}</p>
-                </div>
-              </>
-            )}
-          </div>
+
 
           {/* ── Editable fields ── */}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">

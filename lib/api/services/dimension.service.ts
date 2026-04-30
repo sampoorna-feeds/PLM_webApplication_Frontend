@@ -10,6 +10,13 @@ import type { ODataResponse } from "../types";
 export interface DimensionValue {
   Code: string;
   Name?: string;
+  Email?: string;
+  Mobile_No?: string;
+  Dimension_Value_Type?: string;
+  Totaling?: string;
+  Blocked?: boolean;
+  Map_to_IC_Dimension_Value_Code?: string;
+  Consolidation_Code?: string;
 }
 
 const COMPANY =
@@ -238,7 +245,6 @@ export async function getEmployeesPage(
   }
 
   const query = buildODataQuery({
-    $select: "Code,Name",
     $filter: filter,
     $orderby: "Code",
     $top: 30,
@@ -293,7 +299,6 @@ export async function getAssignmentsPage(
   }
 
   const query = buildODataQuery({
-    $select: "Code,Name",
     $filter: filter,
     $orderby: "Code",
     $top: 30,

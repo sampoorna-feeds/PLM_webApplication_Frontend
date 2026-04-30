@@ -31,6 +31,11 @@ import {
 } from "@/lib/api/services/purchase-orders.service";
 import { getVendorTDSGroupCodes } from "@/lib/api/services/tds.service";
 import {
+  type DimensionValue,
+  getEmployeesPage,
+  getAssignmentsPage,
+} from "@/lib/api/services/dimension.service";
+import {
   SearchableSelect,
   type SearchableSelectOption,
 } from "@/components/ui/searchable-select";
@@ -42,6 +47,7 @@ import {
 } from "@/components/forms/production-orders/api-error-dialog";
 import { BardanaDialog } from "./bardana-dialog";
 import { ApplyItemEntryModal } from "@/components/forms/shared/apply-item-entry-modal";
+import { GenericLookupModal } from "@/components/forms/shared/generic-lookup-modal";
 import { cn } from "@/lib/utils";
 import { ClearableField } from "@/components/ui/clearable-field";
 import {
@@ -95,6 +101,8 @@ export function PurchaseOrderLineEditDialog({
   const [actualQty, setActualQty] = useState("");
   const [outstandingQty, setOutstandingQty] = useState("");
   const [gstCredit, setGstCredit] = useState("");
+  const [shortcutDimCode4, setShortcutDimCode4] = useState("");
+  const [shortcutDimCode5, setShortcutDimCode5] = useState("");
   const [applToItemEntry, setApplToItemEntry] = useState<string>("");
   const [ledgerEntries, setLedgerEntries] = useState<ApplyItemLedgerEntry[]>([]);
   const [isLoadingLedger, setIsLoadingLedger] = useState(false);
@@ -132,6 +140,8 @@ export function PurchaseOrderLineEditDialog({
     setActualQty(line.Actual_Qty != null ? String(line.Actual_Qty) : "");
     setOutstandingQty(line.Outstanding_Quantity != null ? String(line.Outstanding_Quantity) : "");
     setGstCredit(line.GST_Credit || "Non-Availment");
+    setShortcutDimCode4(line.ShortcutDimCode4 || "");
+    setShortcutDimCode5(line.ShortcutDimCode5 || "");
     setApplToItemEntry(line.Appl_to_Item_Entry ? String(line.Appl_to_Item_Entry) : "");
   }, [line]);
 
@@ -339,6 +349,10 @@ export function PurchaseOrderLineEditDialog({
         payload.TDS_Section_Code = tdsSection;
       if (gstCredit !== (line.GST_Credit || "Non-Availment"))
         payload.GST_Credit = gstCredit;
+      if (shortcutDimCode4 !== (line.ShortcutDimCode4 || ""))
+        payload.ShortcutDimCode4 = shortcutDimCode4;
+      if (shortcutDimCode5 !== (line.ShortcutDimCode5 || ""))
+        payload.ShortcutDimCode5 = shortcutDimCode5;
 
       if ((line.Type || "").trim() === "Fixed Asset") {
         if (faPostingType.trim() !== (line.FA_Posting_Type || "").trim()) {
@@ -829,6 +843,71 @@ export function PurchaseOrderLineEditDialog({
                       </SelectContent>
                     </Select>
                   </ClearableField>
+                </div>
+
+                {/* Dimension Row */}
+                <div className="space-y-1 overflow-hidden">
+                  <Label htmlFor="po-line-employee" className="text-xs">
+                    Employee Code
+                  </Label>
+                  <GenericLookupModal<DimensionValue>
+                    value={shortcutDimCode4}
+                    onChange={(val) => setShortcutDimCode4(val)}
+                    fetchData={getEmployeesPage}
+                    columns={[
+                      { id: "Code", label: "Code", width: "100px" },
+                      { id: "Name", label: "Name", width: "150px" },
+                      { id: "Email", label: "Email" },
+                      { id: "Mobile_No", label: "Mobile" },
+                      { id: "Dimension_Value_Type", label: "Type" },
+                      { id: "Totaling", label: "Totaling" },
+                      {
+                        id: "Blocked",
+                        label: "Blocked",
+                        render: (item) => (item.Blocked ? "Yes" : "No"),
+                      },
+                      { id: "Map_to_IC_Dimension_Value_Code", label: "Map to IC" },
+                      { id: "Consolidation_Code", label: "Consolidation Code" },
+                    ]}
+                    title="Select Employee"
+                    placeholder="Select Employee..."
+                    keyExtractor={(item) => item.Code}
+                    displayValueExtractor={(item) =>
+                      item.Name ? `${item.Code} - ${item.Name}` : item.Code
+                    }
+                  />
+                </div>
+
+                <div className="space-y-1 overflow-hidden">
+                  <Label htmlFor="po-line-assignment" className="text-xs">
+                    Assignment Code
+                  </Label>
+                  <GenericLookupModal<DimensionValue>
+                    value={shortcutDimCode5}
+                    onChange={(val) => setShortcutDimCode5(val)}
+                    fetchData={getAssignmentsPage}
+                    columns={[
+                      { id: "Code", label: "Code", width: "100px" },
+                      { id: "Name", label: "Name", width: "150px" },
+                      { id: "Email", label: "Email" },
+                      { id: "Mobile_No", label: "Mobile" },
+                      { id: "Dimension_Value_Type", label: "Type" },
+                      { id: "Totaling", label: "Totaling" },
+                      {
+                        id: "Blocked",
+                        label: "Blocked",
+                        render: (item) => (item.Blocked ? "Yes" : "No"),
+                      },
+                      { id: "Map_to_IC_Dimension_Value_Code", label: "Map to IC" },
+                      { id: "Consolidation_Code", label: "Consolidation Code" },
+                    ]}
+                    title="Select Assignment"
+                    placeholder="Select Assignment..."
+                    keyExtractor={(item) => item.Code}
+                    displayValueExtractor={(item) =>
+                      item.Name ? `${item.Code} - ${item.Name}` : item.Code
+                    }
+                  />
                 </div>
 
                 {(line.Type || "").trim() === "Item" && line.Location_Code && (

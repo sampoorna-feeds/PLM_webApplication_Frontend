@@ -237,6 +237,8 @@ export interface PurchaseLine {
   Shortcut_Dimension_1_Code?: string;
   Shortcut_Dimension_2_Code?: string;
   ShortcutDimCode3?: string;
+  ShortcutDimCode4?: string;
+  ShortcutDimCode5?: string;
   TDS_Group_Code?: string;
   TDS_Section_Code?: string;
   FA_Posting_Type?: string;

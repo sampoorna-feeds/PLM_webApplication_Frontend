@@ -17,6 +17,7 @@ let TransferOrderDetailForm: FormComponent | null = null;
 let PostedTransferDetailForm: FormComponent | null = null;
 let SalesPostedDocumentDetailForm: FormComponent | null = null;
 let InwardGateEntryForm: FormComponent | null = null;
+let OutwardGateEntryForm: FormComponent | null = null;
 
 
 /**
@@ -136,6 +137,15 @@ export const formRegistry: Record<
       InwardGateEntryForm = formModule.InwardGateEntryForm;
     }
     return { default: InwardGateEntryForm! };
+  },
+  "outward-gate-entry": async () => {
+    if (!OutwardGateEntryForm) {
+      const formModule = await import(
+        "@/components/forms/outward-gate-entry/outward-gate-entry-form"
+      );
+      OutwardGateEntryForm = formModule.OutwardGateEntryForm;
+    }
+    return { default: OutwardGateEntryForm! };
   },
 };
 

@@ -131,7 +131,8 @@ export function FormStackPanel() {
                   currentTab?.formType === "qc-receipt-detail" ||
                   currentTab?.formType === "sales-posted-shipment-detail" ||
                   currentTab?.formType === "sales-posted-invoice-detail" ||
-                  currentTab?.formType === "inward-gate-entry"
+                  currentTab?.formType === "inward-gate-entry" ||
+                  currentTab?.formType === "outward-gate-entry"
                 ? "w-screen lg:w-[80vw]"
                 : "w-screen md:w-[65vw] lg:w-[50vw]",
         )}

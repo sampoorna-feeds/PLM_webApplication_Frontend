@@ -142,9 +142,17 @@ const formsItems = [
     url: "/consume-inventory",
     icon: Package,
   },
+];
+
+const gateEntrySubItems = [
   {
     title: "Inward Gate Entry",
     url: "/inward-gate-entry",
+    icon: Truck,
+  },
+  {
+    title: "Outward Gate Entry",
+    url: "/outward-gate-entry",
     icon: Truck,
   },
 ];
@@ -335,6 +343,46 @@ export function AppSidebar({
                   <CollapsibleContent>
                     <SidebarMenuSub>
                       {qcSubItems.map((item) => (
+                        <SidebarMenuSubItem key={item.url}>
+                          <SidebarMenuSubButton
+                            asChild
+                            isActive={pathname === item.url}
+                          >
+                            <Link href={item.url}>
+                              {item.icon && <item.icon />}
+                              <span>{item.title}</span>
+                            </Link>
+                          </SidebarMenuSubButton>
+                        </SidebarMenuSubItem>
+                      ))}
+                    </SidebarMenuSub>
+                  </CollapsibleContent>
+                </Collapsible>
+                <Collapsible
+                  defaultOpen={
+                    pathname?.startsWith("/inward-gate-entry") ||
+                    pathname?.startsWith("/outward-gate-entry")
+                  }
+                  className="group/gate"
+                >
+                  <SidebarMenuItem>
+                    <CollapsibleTrigger asChild>
+                      <SidebarMenuButton
+                        isActive={
+                          pathname?.startsWith("/inward-gate-entry") ||
+                          pathname?.startsWith("/outward-gate-entry")
+                        }
+                        className="w-full"
+                      >
+                        <Truck />
+                        <span>Gate Entry</span>
+                        <ChevronDown className="ml-auto size-4 group-data-[state=closed]/gate:-rotate-90 group-data-[state=open]/gate:rotate-0" />
+                      </SidebarMenuButton>
+                    </CollapsibleTrigger>
+                  </SidebarMenuItem>
+                  <CollapsibleContent>
+                    <SidebarMenuSub>
+                      {gateEntrySubItems.map((item) => (
                         <SidebarMenuSubItem key={item.url}>
                           <SidebarMenuSubButton
                             asChild

@@ -1,14 +1,10 @@
 "use client";
 
-import React, { useState, useCallback } from "react";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+  ApiErrorDialog,
+  extractApiError,
+  type ApiErrorState,
+} from "@/components/forms/production-orders/api-error-dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -20,10 +16,18 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { Loader2, Save, Trash2, X } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
-import { TaxInfoPopover } from "./tax-info-popover";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { cn } from "@/lib/utils";
+import { Trash2 } from "lucide-react";
+import { useCallback, useState } from "react";
 import { EditableQtyCell } from "../shared/editable-qty-cell";
 import type { LineItem } from "./purchase-line-item.type";
 import {
@@ -31,11 +35,7 @@ import {
   type PurchaseLineDocumentType,
   type PurchaseLineQuantityKey,
 } from "./purchase-line-quantity-config";
-import {
-  ApiErrorDialog,
-  extractApiError,
-  type ApiErrorState,
-} from "@/components/forms/production-orders/api-error-dialog";
+import { TaxInfoPopover } from "./tax-info-popover";
 
 function getQuantityDisplayValue(
   item: LineItem,
@@ -99,11 +99,11 @@ export function PurchaseLineItemsTable({
       if (!onInlineUpdate) return;
       try {
         setSavingId(item.id);
-        
+
         const patch: Record<string, number> = {
           [bcField]: nextValue,
         };
-        
+
         await onInlineUpdate(item, patch);
       } catch (error) {
         const { message, code } = extractApiError(error);
@@ -180,6 +180,11 @@ export function PurchaseLineItemsTable({
               <TableHead className="text-primary w-24 text-[10px] font-bold tracking-wider uppercase">
                 UOM
               </TableHead>
+              {showBagsColumn && (
+                <TableHead className="text-primary w-20 text-right text-[10px] font-bold tracking-wider uppercase">
+                  Bags
+                </TableHead>
+              )}
               <TableHead className="text-primary w-24 text-right text-[10px] font-bold tracking-wider uppercase">
                 Quantity
               </TableHead>
@@ -235,11 +240,7 @@ export function PurchaseLineItemsTable({
               <TableHead className="text-primary w-24 text-center text-[10px] font-bold tracking-wider uppercase">
                 Exempt
               </TableHead>
-              {showBagsColumn && (
-                <TableHead className="text-primary w-20 text-right text-[10px] font-bold tracking-wider uppercase">
-                  Bags
-                </TableHead>
-              )}
+
               <TableHead className="text-primary w-12 text-center text-[10px] font-bold tracking-wider uppercase">
                 Tax
               </TableHead>
@@ -268,6 +269,16 @@ export function PurchaseLineItemsTable({
                   {item.description}
                 </TableCell>
                 <TableCell>{item.uom || "-"}</TableCell>
+                {showBagsColumn && (
+                  <EditableQtyCell
+                    value={item.noOfBags}
+                    isDirty={savingId === item.id}
+                    onChange={() => { }}
+                    onCommit={(next) =>
+                      handleCommitInline(item, "No_of_Bags", next)
+                    }
+                  />
+                )}
                 <TableCell className="text-right font-medium">
                   {item.quantity}
                 </TableCell>
@@ -277,7 +288,7 @@ export function PurchaseLineItemsTable({
                 <EditableQtyCell
                   value={item.challanQty}
                   isDirty={savingId === item.id}
-                  onChange={() => {}}
+                  onChange={() => { }}
                   onCommit={(next) =>
                     handleCommitInline(item, "Challan_Qty", next)
                   }
@@ -285,15 +296,15 @@ export function PurchaseLineItemsTable({
                 <EditableQtyCell
                   value={item.weightQty}
                   isDirty={savingId === item.id}
-                  onChange={() => {}}
+                  onChange={() => { }}
                   onCommit={(next) =>
                     handleCommitInline(item, "Weight_Qty", next)
                   }
                 />
                 <EditableQtyCell
-                  value={item.actualQty}
+                  value={(item as any).actualQty}
                   isDirty={savingId === item.id}
-                  onChange={() => {}}
+                  onChange={() => { }}
                   onCommit={(next) =>
                     handleCommitInline(item, "Actual_Qty", next)
                   }
@@ -307,11 +318,11 @@ export function PurchaseLineItemsTable({
                       <EditableQtyCell
                         value={
                           item[
-                            quantityColumns.firstPendingKey as keyof LineItem
+                          quantityColumns.firstPendingKey as keyof LineItem
                           ] as number | undefined
                         }
                         isDirty={savingId === item.id}
-                        onChange={() => {}}
+                        onChange={() => { }}
                         onCommit={(next) =>
                           handleCommitInline(
                             item,
@@ -338,11 +349,11 @@ export function PurchaseLineItemsTable({
                       <EditableQtyCell
                         value={
                           item[
-                            quantityColumns.secondPendingKey as keyof LineItem
+                          quantityColumns.secondPendingKey as keyof LineItem
                           ] as number | undefined
                         }
                         isDirty={savingId === item.id}
-                        onChange={() => {}}
+                        onChange={() => { }}
                         onCommit={(next) =>
                           handleCommitInline(
                             item,
@@ -388,11 +399,7 @@ export function PurchaseLineItemsTable({
                 <TableCell className="text-center">
                   {item.exempted ? "Yes" : "No"}
                 </TableCell>
-                {showBagsColumn && (
-                  <TableCell className="text-right">
-                    {item.noOfBags || "-"}
-                  </TableCell>
-                )}
+
                 <TableCell className="text-center">
                   {item.lineNo && item.lineNo > 0 && documentNo ? (
                     <div onClick={(e) => e.stopPropagation()}>

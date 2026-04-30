@@ -369,14 +369,9 @@ export function PurchaseOrderLineEditDialog({
           payload.Salvage_Value = parsedSalvage;
         }
       }
-      if (canAddBardana) {
-        const bagsVal = noOfBags === "" ? undefined : parseInt(noOfBags, 10);
-        if (
-          !isNaN(bagsVal ?? NaN) &&
-          bagsVal !== (line.No_of_Bags ?? undefined)
-        ) {
-          payload.No_of_Bags = bagsVal;
-        }
+      const bagsVal = noOfBags === "" ? undefined : parseInt(noOfBags, 10);
+      if (!isNaN(bagsVal ?? NaN) && bagsVal !== (line.No_of_Bags ?? undefined)) {
+        payload.No_of_Bags = bagsVal;
       }
 
       if ((line.Type || "").trim() === "Item") {
@@ -531,6 +526,30 @@ export function PurchaseOrderLineEditDialog({
                   </ClearableField>
                 </div>
 
+                {(line.Type || "").trim() === "Item" && (
+                  <div className="space-y-1">
+                    <Label htmlFor="po-line-bags" className="text-xs">
+                      No. of Bags
+                    </Label>
+                    <ClearableField
+                      value={noOfBags}
+                      onClear={() => setNoOfBags("")}
+                    >
+                      <Input
+                        id="po-line-bags"
+                        inputMode="numeric"
+                        placeholder="0"
+                        value={noOfBags}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          if (v === "" || /^[0-9]+$/.test(v)) setNoOfBags(v);
+                        }}
+                        className={fieldInputClass}
+                      />
+                    </ClearableField>
+                  </div>
+                )}
+
 
               </>
             )}
@@ -604,28 +623,7 @@ export function PurchaseOrderLineEditDialog({
                   </>
                 )}
 
-                {canAddBardana && (
-                  <div className="space-y-1">
-                    <Label htmlFor="po-line-bags" className="text-xs">
-                      No. of Bags
-                    </Label>
-                    <ClearableField
-                      value={noOfBags}
-                      onClear={() => setNoOfBags("")}
-                    >
-                      <Input
-                        id="po-line-bags"
-                        inputMode="numeric"
-                        placeholder="0"
-                        value={noOfBags}
-                        onChange={(e) => {
-                          const v = e.target.value;
-                          if (v === "" || /^[0-9]+$/.test(v)) setNoOfBags(v);
-                        }}
-                      />
-                    </ClearableField>
-                  </div>
-                )}
+
 
 
 

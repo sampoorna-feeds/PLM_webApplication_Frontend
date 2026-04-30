@@ -49,12 +49,12 @@ interface ColumnConfig {
 
 const SELECTION_COLUMNS: ColumnConfig[] = [
   { id: "Document_No", label: "Document No.", sortable: true, filterType: "text", width: "160px" },
-  { id: "Line_No", label: "Line No.", sortable: true, width: "90px", align: "center" },
+  { id: "Posting_Date", label: "Posting Date", sortable: true, width: "120px" },
   { id: "Item_No", label: "Item No.", sortable: true, filterType: "text", width: "130px" },
+  { id: "Location_Code", label: "Location Code", sortable: true, filterType: "text", width: "120px" },
   { id: "Description", label: "Description", sortable: true, filterType: "text", width: "250px" },
   { id: "Quantity", label: "Quantity", sortable: true, width: "100px", align: "right" },
   { id: "Unit_of_Measure", label: "UOM", sortable: true, width: "80px", align: "center" },
-  { id: "Posting_Date", label: "Date", sortable: true, width: "120px" },
 ];
 
 const TOTAL_COLS = SELECTION_COLUMNS.length + 1;
@@ -342,12 +342,12 @@ export function SalesItemChargeSelectionDialog({
                           </div>
                         </td>
                         <td className="text-primary px-3 py-2 text-left align-middle text-xs font-medium">{line.Document_No}</td>
-                        <td className="text-muted-foreground px-3 py-2 text-center align-middle text-[10px] tabular-nums">{line.Line_No}</td>
+                        <td className="px-3 py-2 text-left align-middle text-[10px]">{line.Posting_Date || line.Shipment_Date || "—"}</td>
                         <td className="px-3 py-2 text-left align-middle text-xs tabular-nums">{itemNo}</td>
+                        <td className="px-3 py-2 text-left align-middle text-[10px]">{line.Location_Code || "—"}</td>
                         <td className="max-w-64 truncate px-3 py-2 text-left align-middle text-[11px]">{line.Description}</td>
                         <td className="px-3 py-2 text-right align-middle text-[11px] tabular-nums">{line.Quantity.toLocaleString()}</td>
                         <td className="px-3 py-2 text-center align-middle text-[10px]">{line.Unit_of_Measure || "—"}</td>
-                        <td className="px-3 py-2 text-left align-middle text-[10px]">{line.Posting_Date || line.Shipment_Date || "—"}</td>
                       </tr>
                     );
                   })}

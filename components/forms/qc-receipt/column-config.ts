@@ -165,7 +165,6 @@ export const REQUIRED_DETAIL_FIELDS = [
   "Purchase_Order_No",
   "Purchase_Receipt_No",
   "Item_Tracking",
-  "Shortcut_Dimension_1_Code",
   "Shortcut_Dimension_2_Code",
 ];
 

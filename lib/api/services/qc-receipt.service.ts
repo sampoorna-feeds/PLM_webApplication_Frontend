@@ -130,7 +130,7 @@ export async function getQCReceiptsWithCount(
   if ($skip !== undefined) queryParams.$skip = $skip;
 
   const query = buildODataQuery(queryParams as any);
-  const endpoint = `/QCReceiptH?company='${encodeURIComponent(COMPANY)}'&${query}`;
+  const endpoint = `/qcReceiptH?company='${encodeURIComponent(COMPANY)}'&${query}`;
   const response = await apiGet<ODataResponse<QCReceiptHeader>>(endpoint);
 
   return {
@@ -145,7 +145,7 @@ export async function getQCReceiptLines(
   const escaped = receiptNo.replace(/'/g, "''");
   const filter = `No eq '${escaped}'`;
   const query = buildODataQuery({ $filter: filter, $orderby: "Line_No asc" });
-  const endpoint = `/QCreceiptLine?company='${encodeURIComponent(COMPANY)}'&${query}`;
+  const endpoint = `/qcreceiptLine?company='${encodeURIComponent(COMPANY)}'&${query}`;
 
   const response = await apiGet<ODataResponse<QCReceiptLine>>(endpoint);
   return response.value || [];
@@ -195,7 +195,7 @@ export async function getPostedQCReceiptsWithCount(
   if ($skip !== undefined) queryParams.$skip = $skip;
 
   const query = buildODataQuery(queryParams as any);
-  const endpoint = `/QCReceiptPostedH?company='${encodeURIComponent(COMPANY)}'&${query}`;
+  const endpoint = `/qcReceiptPostedH?company='${encodeURIComponent(COMPANY)}'&${query}`;
   const response = await apiGet<ODataResponse<QCReceiptHeader>>(endpoint);
 
   return {
@@ -213,7 +213,7 @@ export async function getPostedQCReceiptLines(
   const escaped = receiptNo.replace(/'/g, "''");
   const filter = `No eq '${escaped}'`;
   const query = buildODataQuery({ $filter: filter, $orderby: "Line_No asc" });
-  const endpoint = `/QCReceiptPostedLine?company='${encodeURIComponent(COMPANY)}'&${query}`;
+  const endpoint = `/qcReceiptPostedLine?company='${encodeURIComponent(COMPANY)}'&${query}`;
 
   const response = await apiGet<ODataResponse<QCReceiptLine>>(endpoint);
   return response.value || [];
@@ -225,9 +225,9 @@ export async function updateQCReceiptLine(
   updatedFields: Partial<QCReceiptLine>,
 ): Promise<QCReceiptLine> {
   const escaped = receiptNo.replace(/'/g, "''");
-  const endpoint = `/QCreceiptLine(No='${escaped}',Line_No=${lineNo})?company='${encodeURIComponent(COMPANY)}'`;
+  const endpoint = `/qcreceiptLine(No='${escaped}',Line_No=${lineNo})?company='${encodeURIComponent(COMPANY)}'`;
 
-  // Filter out read-only or empty fields
+  // Filter out read-only or empty fields and lowercase first letter
   const data = Object.entries(updatedFields).reduce(
     (acc, [key, value]) => {
       if (
@@ -235,7 +235,14 @@ export async function updateQCReceiptLine(
         value !== null &&
         !["No", "Line_No", "@odata.etag"].includes(key)
       ) {
-        acc[key] = value;
+        const lowerKey = key.charAt(0).toLowerCase() + key.slice(1);
+        // Ensure numeric values are sent as numbers
+        const numFields = ["Actual_Value", "Rejected_Qty", "Min_Value", "Max_Value", "Max_Deviation_Allowed"];
+        if (numFields.includes(key) && typeof value === "string") {
+          acc[lowerKey] = parseFloat(value) || 0;
+        } else {
+          acc[lowerKey] = value;
+        }
       }
       return acc;
     },
@@ -253,9 +260,9 @@ export async function updateQCReceiptHeader(
   updatedFields: Partial<QCReceiptHeader>,
 ): Promise<QCReceiptHeader> {
   const escaped = receiptNo.replace(/'/g, "''");
-  const endpoint = `/QCReceiptH('${escaped}')?company='${encodeURIComponent(COMPANY)}'`;
+  const endpoint = `/qcReceiptH('${escaped}')?company='${encodeURIComponent(COMPANY)}'`;
 
-  // Filter out read-only or empty fields
+  // Filter out read-only or empty fields and lowercase first letter
   const data = Object.entries(updatedFields).reduce(
     (acc, [key, value]) => {
       if (
@@ -263,7 +270,20 @@ export async function updateQCReceiptHeader(
         value !== null &&
         !["No", "@odata.etag"].includes(key)
       ) {
-        acc[key] = value;
+        const lowerKey = key.charAt(0).toLowerCase() + key.slice(1);
+        
+        // Ensure numeric values are sent as numbers
+        const numFields = [
+          "Inspection_Quantity", "Sample_Quantity", "Quantity_to_Accept", 
+          "Qty_to_Accept_with_Deviation", "Quantity_to_Reject", "Quantity_to_Rework",
+          "Rabete_Percent", "No_of_Container", "Remaining_Quantity"
+        ];
+        
+        if (numFields.includes(key) && typeof value === "string") {
+          acc[lowerKey] = parseFloat(value) || 0;
+        } else {
+          acc[lowerKey] = value;
+        }
       }
       return acc;
     },

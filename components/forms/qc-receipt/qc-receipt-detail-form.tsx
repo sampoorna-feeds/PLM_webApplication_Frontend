@@ -13,7 +13,7 @@ import { getDimensionValueName } from "@/lib/api/services/dimension.service";
 import type { QCReceiptHeader, QCReceiptLine } from "@/lib/api/services/qc-receipt.service";
 import { getTransferAllLocationCodes, type TransferLocationCode } from "@/lib/api/services/transfer-orders.service";
 import { useFormStackContext } from "@/lib/form-stack/form-stack-context";
-import { Loader2, RotateCcw, Save, Send } from "lucide-react";
+import { Loader2, RotateCcw, Send } from "lucide-react";
 import { useEffect, useState } from "react";
 import { QCReceiptLinesTable } from "./qc-receipt-lines-table";
 import { useQCReceiptLines, useQCReceiptPosting, useQCReceiptUpdate } from "./use-qc-receipts";
@@ -91,23 +91,28 @@ export function QCReceiptDetailForm({ tabId, context }: QCReceiptDetailFormProps
     setReceipt(prev => prev ? ({ ...prev, [field]: value }) : null);
   };
 
-  const handleResetHeader = () => {
-    setReceipt(initialReceipt || null);
-    setEditedFields({});
-  };
-
-  const handleSaveHeader = async () => {
-    if (!receipt || Object.keys(editedFields).length === 0) return;
+  const handleFieldCommit = async (field: keyof QCReceiptHeader, value: any) => {
+    if (!receipt || isPosted) return;
     
-    const result = await updateHeader(receipt.No, receipt["@odata.etag"] || "*", editedFields);
+    // Check if value actually changed
+    const currentValue = (receipt as any)[field];
+    if (currentValue === value) return;
+
+    // Update local state first for immediate feedback
+    setReceipt(prev => prev ? ({ ...prev, [field]: value }) : null);
+    
+    const result = await updateHeader(receipt.No, receipt["@odata.etag"] || "*", { [field]: value });
     if (result) {
       setReceipt(result);
-      setEditedFields({});
-      if (context?.onSuccess) {
-        context.onSuccess();
-      }
+      // Remove this specific field from editedFields
+      setEditedFields(prev => {
+        const next = { ...prev };
+        delete next[field];
+        return next;
+      });
     }
   };
+
 
   const handlePost = async () => {
     if (!receipt) return;
@@ -153,29 +158,6 @@ export function QCReceiptDetailForm({ tabId, context }: QCReceiptDetailFormProps
           </div>
           
           <div className="flex items-center gap-3">
-             {isHeaderDirty && (
-               <>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleResetHeader}
-                  disabled={isHeaderUpdating}
-                  className="gap-2 h-8"
-                >
-                  <RotateCcw className="h-4 w-4" />
-                  Reset
-                </Button>
-                <Button
-                  size="sm"
-                  onClick={handleSaveHeader}
-                  disabled={isHeaderUpdating}
-                  className="gap-2 h-8 bg-primary/10 text-primary hover:bg-primary/20 border-primary/20"
-                >
-                  {isHeaderUpdating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                  Save Header Changes
-                </Button>
-               </>
-             )}
 
              <div className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
                 receipt.Approval_Status === "Approved" ? "bg-green-100 text-green-700" : "bg-orange-100 text-orange-700"
@@ -233,7 +215,7 @@ export function QCReceiptDetailForm({ tabId, context }: QCReceiptDetailFormProps
                >
                  <DateInput 
                    value={receipt.QC_Date} 
-                   onChange={(val) => handleFieldChange("QC_Date", val)}
+                   onChange={(val) => handleFieldCommit("QC_Date", val)}
                    disabled={isPosted}
                  />
                </EditFormField>
@@ -241,7 +223,7 @@ export function QCReceiptDetailForm({ tabId, context }: QCReceiptDetailFormProps
                 <EditFormField label="Inspection QTY" isReadOnly={isPosted}>
                   <CalculatorInput 
                     value={receipt.Inspection_Quantity || ""} 
-                    onCommit={(val) => handleFieldChange("Inspection_Quantity", val)}
+                    onCommit={(val) => handleFieldCommit("Inspection_Quantity", val)}
                     disabled={isPosted}
                   />
                 </EditFormField>
@@ -249,7 +231,7 @@ export function QCReceiptDetailForm({ tabId, context }: QCReceiptDetailFormProps
                 <EditFormField label="Quantity to Accept" isReadOnly={isPosted}>
                   <CalculatorInput 
                     value={receipt.Quantity_to_Accept || ""} 
-                    onCommit={(val) => handleFieldChange("Quantity_to_Accept", val)}
+                    onCommit={(val) => handleFieldCommit("Quantity_to_Accept", val)}
                     disabled={isPosted}
                   />
                 </EditFormField>
@@ -257,7 +239,7 @@ export function QCReceiptDetailForm({ tabId, context }: QCReceiptDetailFormProps
                 <EditFormField label="Qty Accept (Dev.)" isReadOnly={isPosted}>
                   <CalculatorInput 
                     value={receipt.Qty_to_Accept_with_Deviation || ""} 
-                    onCommit={(val) => handleFieldChange("Qty_to_Accept_with_Deviation", val)}
+                    onCommit={(val) => handleFieldCommit("Qty_to_Accept_with_Deviation", val)}
                     disabled={isPosted}
                   />
                 </EditFormField>
@@ -265,7 +247,7 @@ export function QCReceiptDetailForm({ tabId, context }: QCReceiptDetailFormProps
                 <EditFormField label="Quantity to Reject" isReadOnly={isPosted}>
                   <CalculatorInput 
                     value={receipt.Quantity_to_Reject || ""} 
-                    onCommit={(val) => handleFieldChange("Quantity_to_Reject", val)}
+                    onCommit={(val) => handleFieldCommit("Quantity_to_Reject", val)}
                     disabled={isPosted}
                   />
                 </EditFormField>
@@ -275,7 +257,7 @@ export function QCReceiptDetailForm({ tabId, context }: QCReceiptDetailFormProps
                     <Checkbox 
                       id="approve" 
                       checked={receipt.Approve} 
-                      onCheckedChange={(val) => handleFieldChange("Approve", val)}
+                      onCheckedChange={(val) => handleFieldCommit("Approve", val)}
                       disabled={isPosted}
                     />
                     <Label htmlFor="approve" className="text-[11px] uppercase font-semibold text-muted-foreground">Approve</Label>
@@ -285,7 +267,7 @@ export function QCReceiptDetailForm({ tabId, context }: QCReceiptDetailFormProps
                     <Checkbox 
                       id="accepted-with-approval" 
                       checked={receipt.Accepted_With_Approval} 
-                      onCheckedChange={(val) => handleFieldChange("Accepted_With_Approval", val)}
+                      onCheckedChange={(val) => handleFieldCommit("Accepted_With_Approval", val)}
                       disabled={isPosted}
                     />
                     <Label htmlFor="accepted-with-approval" className="text-[11px] uppercase font-semibold text-muted-foreground">Accepted w/ Approval</Label>
@@ -295,7 +277,7 @@ export function QCReceiptDetailForm({ tabId, context }: QCReceiptDetailFormProps
                     <Checkbox 
                       id="create-bardana" 
                       checked={receipt.Create_Bardana} 
-                      onCheckedChange={(val) => handleFieldChange("Create_Bardana", val)}
+                      onCheckedChange={(val) => handleFieldCommit("Create_Bardana", val)}
                       disabled={isPosted}
                     />
                     <Label htmlFor="create-bardana" className="text-[11px] uppercase font-semibold text-muted-foreground">Create Bardana</Label>
@@ -305,7 +287,7 @@ export function QCReceiptDetailForm({ tabId, context }: QCReceiptDetailFormProps
                 <EditFormField label="Rebate %" isReadOnly={isPosted}>
                   <CalculatorInput 
                     value={receipt.Rabete_Percent || ""} 
-                    onCommit={(val) => handleFieldChange("Rabete_Percent", val)}
+                    onCommit={(val) => handleFieldCommit("Rabete_Percent", val)}
                     disabled={isPosted || !receipt.Accepted_With_Approval}
                   />
                 </EditFormField>
@@ -313,7 +295,7 @@ export function QCReceiptDetailForm({ tabId, context }: QCReceiptDetailFormProps
                <EditFormField label="Store Location Code" isReadOnly={isPosted}>
                  <LocationSelect
                    value={receipt.Store_Location_Code || ""}
-                   onChange={(val) => handleFieldChange("Store_Location_Code", val)}
+                   onChange={(val) => handleFieldCommit("Store_Location_Code", val)}
                    placeholder="Select Store Location"
                    disabled={isPosted}
                    className="h-10"
@@ -325,6 +307,7 @@ export function QCReceiptDetailForm({ tabId, context }: QCReceiptDetailFormProps
                    <Textarea 
                      value={receipt.Comment || ""} 
                      onChange={(e) => handleFieldChange("Comment", e.target.value)}
+                     onBlur={(e) => handleFieldCommit("Comment", e.target.value)}
                      disabled={isPosted}
                      className="min-h-[80px]"
                    />

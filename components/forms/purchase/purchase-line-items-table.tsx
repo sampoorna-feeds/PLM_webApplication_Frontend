@@ -182,7 +182,7 @@ export function PurchaseLineItemsTable({
                 UOM
               </TableHead>
               {showBagsColumn && (
-                <TableHead className="text-primary w-20 text-right text-[10px] font-bold tracking-wider uppercase">
+                <TableHead className="text-primary w-24 text-right text-[10px] font-bold tracking-wider uppercase">
                   Bags
                 </TableHead>
               )}

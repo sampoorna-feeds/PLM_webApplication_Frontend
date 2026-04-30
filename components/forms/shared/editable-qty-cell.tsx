@@ -78,7 +78,7 @@ export function EditableQtyCell({
           }
         }}
         className={cn(
-          "h-7 text-right text-xs",
+          "h-7 w-full min-w-[3.5rem] px-2 text-right text-xs",
           isDirty
             ? "border-amber-400 bg-amber-50 dark:border-amber-500 dark:bg-amber-950/30"
             : "border-transparent bg-transparent focus:border-input focus:bg-background",

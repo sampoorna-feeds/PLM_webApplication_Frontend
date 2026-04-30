@@ -140,8 +140,8 @@ export function PurchaseOrderLineEditDialog({
     setActualQty(line.Actual_Qty != null ? String(line.Actual_Qty) : "");
     setOutstandingQty(line.Outstanding_Quantity != null ? String(line.Outstanding_Quantity) : "");
     setGstCredit(line.GST_Credit || "Non-Availment");
-    setShortcutDimCode4(line.ShortcutDimCode4 || "");
-    setShortcutDimCode5(line.ShortcutDimCode5 || "");
+    setShortcutDimCode4(line.ShortcutDimCode4 ? String(line.ShortcutDimCode4) : "");
+    setShortcutDimCode5(line.ShortcutDimCode5 ? String(line.ShortcutDimCode5) : "");
     setApplToItemEntry(line.Appl_to_Item_Entry ? String(line.Appl_to_Item_Entry) : "");
   }, [line]);
 
@@ -531,84 +531,7 @@ export function PurchaseOrderLineEditDialog({
                   </ClearableField>
                 </div>
 
-                {(line.Type || "").trim() === "Item" &&
-                  documentType !== "invoice" &&
-                  documentType !== "credit-memo" && (
-                  <>
-                    <div className="space-y-1">
-                      <Label htmlFor="po-line-challan-qty" className="text-xs">
-                        Challan Qty
-                      </Label>
-                      <ClearableField
-                        value={challanQty}
-                        onClear={() => setChallanQty("")}
-                      >
-                        <Input
-                          id="po-line-challan-qty"
-                          inputMode="decimal"
-                          value={challanQty}
-                          onChange={(e) => {
-                            if (isValidNum(e.target.value))
-                              setChallanQty(e.target.value);
-                          }}
-                          className={fieldInputClass}
-                        />
-                      </ClearableField>
-                    </div>
-                    <div className="space-y-1">
-                      <Label htmlFor="po-line-weight-qty" className="text-xs">
-                        Weight Qty
-                      </Label>
-                      <ClearableField
-                        value={weightQty}
-                        onClear={() => setWeightQty("")}
-                      >
-                        <Input
-                          id="po-line-weight-qty"
-                          inputMode="decimal"
-                          value={weightQty}
-                          onChange={(e) => {
-                            if (isValidNum(e.target.value))
-                              setWeightQty(e.target.value);
-                          }}
-                          className={fieldInputClass}
-                        />
-                      </ClearableField>
-                    </div>
-                    <div className="space-y-1">
-                      <Label htmlFor="po-line-actual-qty" className="text-xs">
-                        Actual Qty
-                      </Label>
-                      <ClearableField
-                        value={actualQty}
-                        onClear={() => setActualQty("")}
-                      >
-                        <Input
-                          id="po-line-actual-qty"
-                          inputMode="decimal"
-                          value={actualQty}
-                          onChange={(e) => {
-                            if (isValidNum(e.target.value))
-                              setActualQty(e.target.value);
-                          }}
-                          className={fieldInputClass}
-                        />
-                      </ClearableField>
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs">Short/Excess Qty</Label>
-                      <Input
-                        readOnly
-                        value={(() => {
-                          const w = parseFloat(weightQty) || 0;
-                          const c = parseFloat(challanQty) || 0;
-                          return (w - c).toFixed(3);
-                        })()}
-                        className={cn(fieldInputClass, "bg-muted/50")}
-                      />
-                    </div>
-                  </>
-                )}
+
               </>
             )}
 
@@ -704,50 +627,7 @@ export function PurchaseOrderLineEditDialog({
                   </div>
                 )}
 
-                {/* Row 2 — qty pending fields (order / return-order only) */}
-                {showQtyColumns && (
-                  <>
-                    <div className="space-y-1">
-                      <Label htmlFor="po-line-qty-receive" className="text-xs">
-                        {quantityColumns.firstPendingLabel}
-                      </Label>
-                      <ClearableField
-                        value={qtyToReceive}
-                        onClear={() => setQtyToReceive("")}
-                      >
-                        <Input
-                          id="po-line-qty-receive"
-                          inputMode="decimal"
-                          value={qtyToReceive}
-                          onChange={(e) => {
-                            if (isValidNum(e.target.value))
-                              setQtyToReceive(e.target.value);
-                          }}
-                        />
-                      </ClearableField>
-                    </div>
 
-                    <div className="space-y-1">
-                      <Label htmlFor="po-line-qty-invoice" className="text-xs">
-                        {quantityColumns.secondPendingLabel}
-                      </Label>
-                      <ClearableField
-                        value={qtyToInvoice}
-                        onClear={() => setQtyToInvoice("")}
-                      >
-                        <Input
-                          id="po-line-qty-invoice"
-                          inputMode="decimal"
-                          value={qtyToInvoice}
-                          onChange={(e) => {
-                            if (isValidNum(e.target.value))
-                              setQtyToInvoice(e.target.value);
-                          }}
-                        />
-                      </ClearableField>
-                    </div>
-                  </>
-                )}
 
                 {/* Row 3 */}
                 <div className="space-y-1 overflow-hidden">
@@ -852,7 +732,7 @@ export function PurchaseOrderLineEditDialog({
                   </Label>
                   <GenericLookupModal<DimensionValue>
                     value={shortcutDimCode4}
-                    onChange={(val) => setShortcutDimCode4(val)}
+                    onChange={(val) => setShortcutDimCode4(String(val))}
                     fetchData={getEmployeesPage}
                     columns={[
                       { id: "Code", label: "Code", width: "100px" },
@@ -864,7 +744,7 @@ export function PurchaseOrderLineEditDialog({
                       {
                         id: "Blocked",
                         label: "Blocked",
-                        render: (item) => (item.Blocked ? "Yes" : "No"),
+                        render: (item: DimensionValue) => (item["Blocked" as keyof DimensionValue] ? "Yes" : "No"),
                       },
                       { id: "Map_to_IC_Dimension_Value_Code", label: "Map to IC" },
                       { id: "Consolidation_Code", label: "Consolidation Code" },
@@ -884,7 +764,7 @@ export function PurchaseOrderLineEditDialog({
                   </Label>
                   <GenericLookupModal<DimensionValue>
                     value={shortcutDimCode5}
-                    onChange={(val) => setShortcutDimCode5(val)}
+                    onChange={(val) => setShortcutDimCode5(String(val))}
                     fetchData={getAssignmentsPage}
                     columns={[
                       { id: "Code", label: "Code", width: "100px" },
@@ -896,7 +776,7 @@ export function PurchaseOrderLineEditDialog({
                       {
                         id: "Blocked",
                         label: "Blocked",
-                        render: (item) => (item.Blocked ? "Yes" : "No"),
+                        render: (item: DimensionValue) => (item["Blocked" as keyof DimensionValue] ? "Yes" : "No"),
                       },
                       { id: "Map_to_IC_Dimension_Value_Code", label: "Map to IC" },
                       { id: "Consolidation_Code", label: "Consolidation Code" },

@@ -797,53 +797,7 @@ export function PurchaseOrderLineDialog({
                   </ClearableField>
                 </div>
 
-                {showQtyColumns && (
-                  <>
-                    <div className="space-y-1">
-                      <FieldTitle>{quantityColumns.firstPendingLabel}</FieldTitle>
-                      <ClearableField
-                        value={getQuantityFieldDisplayValue(
-                          quantityColumns.firstPendingKey,
-                        )}
-                        onClear={() =>
-                          handleQuantityFieldChange(
-                            quantityColumns.firstPendingKey,
-                            "",
-                          )
-                        }
-                      >
-                        <CalculatorInput
-                          value={getQuantityFieldDisplayValue(quantityColumns.firstPendingKey)}
-                          onValueChange={(v) => handleQuantityFieldChange(quantityColumns.firstPendingKey, v)}
-                          placeholder="0.00"
-                          className={cn("h-8", fieldInputClass)}
-                        />
-                      </ClearableField>
-                    </div>
 
-                    <div className="space-y-1">
-                      <FieldTitle>{quantityColumns.secondPendingLabel}</FieldTitle>
-                      <ClearableField
-                        value={getQuantityFieldDisplayValue(
-                          quantityColumns.secondPendingKey,
-                        )}
-                        onClear={() =>
-                          handleQuantityFieldChange(
-                            quantityColumns.secondPendingKey,
-                            "",
-                          )
-                        }
-                      >
-                        <CalculatorInput
-                          value={getQuantityFieldDisplayValue(quantityColumns.secondPendingKey)}
-                          onValueChange={(v) => handleQuantityFieldChange(quantityColumns.secondPendingKey, v)}
-                          placeholder="0.00"
-                          className={cn("h-8", fieldInputClass)}
-                        />
-                      </ClearableField>
-                    </div>
-                  </>
-                )}
 
 
                 <div className="space-y-1">

@@ -344,8 +344,7 @@ export function useInventorySummary() {
               return rowValStr === conditionVal;
             case "ne":
               return rowValStr !== conditionVal;
-            case "contains":
-              return rowValStr.includes(conditionVal);
+
             case "startswith":
               return rowValStr.startsWith(conditionVal);
             case "endswith":
@@ -400,8 +399,7 @@ export function useInventorySummary() {
               return rowValStr === conditionVal;
             case "ne":
               return rowValStr !== conditionVal;
-            case "contains":
-              return rowValStr.includes(conditionVal);
+
             case "startswith":
               return rowValStr.startsWith(conditionVal);
             case "endswith":
@@ -467,8 +465,7 @@ export function useInventorySummary() {
               return rowValStr === conditionVal;
             case "ne":
               return rowValStr !== conditionVal;
-            case "contains":
-              return rowValStr.includes(conditionVal);
+
             case "startswith":
               return rowValStr.startsWith(conditionVal);
             case "endswith":

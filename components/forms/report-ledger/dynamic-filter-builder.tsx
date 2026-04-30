@@ -40,7 +40,7 @@ export function DynamicFilterBuilder({
   const [open, setOpen] = useState(false);
   const [selectedField, setSelectedField] = useState("");
   const [operator, setOperator] =
-    useState<FilterCondition["operator"]>("contains");
+    useState<FilterCondition["operator"]>("eq");
   const [value, setValue] = useState("");
   const [fieldSearch, setFieldSearch] = useState("");
 
@@ -103,7 +103,6 @@ export function DynamicFilterBuilder({
           )}
           {type === "text" && (
             <>
-              <SelectItem value="contains">Contains</SelectItem>
               <SelectItem value="startswith">Starts With</SelectItem>
               <SelectItem value="endswith">Ends With</SelectItem>
             </>
@@ -192,9 +191,7 @@ export function DynamicFilterBuilder({
                         const colDef = AVAILABLE_COLUMNS.find(
                           (c) => c.id === col.id,
                         );
-                        setOperator(
-                          colDef?.filterType === "text" ? "contains" : "eq",
-                        );
+                        setOperator("eq");
                         setValue("");
                         setFieldSearch("");
                       }}

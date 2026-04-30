@@ -20,7 +20,6 @@ export interface FilterCondition {
     | "ge"
     | "lt"
     | "le"
-    | "contains"
     | "startswith"
     | "endswith";
   value: string;

@@ -215,9 +215,6 @@ export function useReportLedger() {
               `${filter.field} ${filter.operator} ${formattedValue}`,
             );
             break;
-          case "contains":
-            filterParts.push(`contains(${filter.field}, '${filter.value}')`);
-            break;
           case "startswith":
             filterParts.push(`startswith(${filter.field}, '${filter.value}')`);
             break;

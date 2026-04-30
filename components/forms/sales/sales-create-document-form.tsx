@@ -437,6 +437,7 @@ export function SalesCreateDocumentFormContent({
     lrRrDate: "",
     postingDate: "",
     externalDocumentNo: "",
+    lineNarration: "",
     distanceKm: "",
     grossWeight: "",
     tareWeight: "",
@@ -482,6 +483,7 @@ export function SalesCreateDocumentFormContent({
               lrRrDate: (freshHeader.LR_RR_Date as string)?.split("T")[0] || today,
               postingDate: freshHeader.Posting_Date || today,
               externalDocumentNo: freshHeader.External_Document_No || "",
+              lineNarration: (freshHeader.Line_Narration1 as string) || "",
               distanceKm: freshHeader.Distance_km ? String(freshHeader.Distance_km) : "",
               grossWeight: freshHeader.Gross_Weight ? String(freshHeader.Gross_Weight) : "",
               tareWeight: freshHeader.Tier_Weight ? String(freshHeader.Tier_Weight) : "",
@@ -935,6 +937,10 @@ export function SalesCreateDocumentFormContent({
           ? Number(postDetails.freightValue)
           : 0,
       };
+
+      if (documentType === "credit-memo" || documentType === "return-order") {
+        patchPayload.Line_Narration1 = postDetails.lineNarration || "";
+      }
 
       if (postDetails.transporterCode) {
         patchPayload.Transporter_Code = postDetails.transporterCode;
@@ -2237,6 +2243,22 @@ export function SalesCreateDocumentFormContent({
                   className="h-9"
                 />
               </div>
+              {(documentType === "credit-memo" || documentType === "return-order") && (
+                <div className="space-y-1">
+                  <Label>Line Narration</Label>
+                  <Input
+                    value={postDetails.lineNarration}
+                    onChange={(e) =>
+                      setPostDetails((p) => ({
+                        ...p,
+                        lineNarration: e.target.value,
+                      }))
+                    }
+                    className="h-9"
+                    placeholder="Enter narration..."
+                  />
+                </div>
+              )}
               {(documentType === "order" || caps.supportsUnifiedPostForm) && (
                 <div className="space-y-1">
                   <Label>Freight Value</Label>

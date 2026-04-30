@@ -1,67 +1,98 @@
-"use client";
+/**
+ * Dimension Value API Service
+ * Handles fetching dimension values (Branch, LOB, LOC) from ERP OData V4 API
+ */
 
-import { apiGet, apiPost, apiPatch, apiDelete } from "../client";
+import { apiGet } from "../client";
 import { buildODataQuery } from "../endpoints";
 import type { ODataResponse } from "../types";
 
-const COMPANY =
-  process.env.NEXT_PUBLIC_API_COMPANY || "Sampoorna Feeds Pvt. Ltd";
-
 export interface DimensionValue {
-  Dimension_Code: string;
   Code: string;
-  Name: string;
+  Name?: string;
+  Email?: string;
+  Mobile_No?: string;
   Dimension_Value_Type?: string;
   Totaling?: string;
   Blocked?: boolean;
   Map_to_IC_Dimension_Value_Code?: string;
   Consolidation_Code?: string;
-  Email?: string;
-  Mobile_No?: string;
-  Address?: string;
-  City?: string;
-  Post_Code?: string;
-  Country_Region_Code?: string;
-  County?: string;
-  Phone_No?: string;
-  LOB_Code?: string;
-  Branch_Code?: string;
-  [key: string]: unknown;
 }
 
-interface UserSetup {
-  User_ID: string;
-  LOB_Code: string;
-  Branch_Code: string;
-  Branch_Name: string;
-  Location_Code: string;
-}
+const COMPANY =
+  process.env.NEXT_PUBLIC_API_COMPANY || "Sampoorna Feeds Pvt. Ltd";
 
-function getBaseFilter(dimensionType: string): string {
-  return `Dimension_Code eq '${dimensionType}'`;
-}
+// Cache for search results
+const searchCache = new Map<string, DimensionValue[]>();
 
-function getSearchFilter(
-  search: string,
-  baseFilter: string,
-  includeName = false,
+/**
+ * Builds the base filter for Dimension Values
+ */
+function getBaseFilter(
+  dimensionCode: "BRANCH" | "LOB" | "LOC" | "EMPLOYEE" | "ASSIGNMENT",
 ): string {
-  const s = search.replace(/'/g, "''");
-  if (includeName) {
-    return `${baseFilter} and (contains(Code, '${s}') or contains(Name, '${s}'))`;
-  }
-  return `${baseFilter} and contains(Code, '${s}')`;
+  return `Dimension_Code eq '${dimensionCode}' and Dimension_Value_Type eq 'Standard'`;
 }
 
 /**
- * Generic search for dimension values
+ * Builds search filter based on query content
+ * BC OData doesn't support OR, so we choose filter based on query type:
+ * - Numeric query → use contains(Code) (search anywhere in Code field)
+ * - Alphanumeric query → use contains(Name) (if Name exists) or contains(Code)
  */
-export async function searchDimensionValues(
-  dimensionType: string,
+function getSearchFilter(
+  query: string,
+  baseFilter: string,
+  hasName: boolean,
+): string {
+  // Check if query contains only digits
+  const isNumeric = /^\d+$/.test(query.trim());
+
+  if (isNumeric) {
+    return `(${baseFilter}) and contains(Code,'${query}')`;
+  } else {
+    if (hasName) {
+      return `(${baseFilter}) and contains(Name,'${query}')`;
+    } else {
+      return `(${baseFilter}) and contains(Code,'${query}')`;
+    }
+  }
+}
+
+/**
+ * Get Branch values
+ * @param search - Optional search query (3+ chars)
+ */
+export async function getBranches(search?: string): Promise<DimensionValue[]> {
+  const baseFilter = getBaseFilter("BRANCH");
+  let filter = baseFilter;
+
+  if (search && search.length >= 3) {
+    filter = getSearchFilter(search, baseFilter, true);
+  }
+
+  const query = buildODataQuery({
+    $select: "Code,Name",
+    $filter: filter,
+    $orderby: "Code",
+    $top: search ? 30 : 20,
+  });
+
+  const endpoint = `/DimensionValue?company='${encodeURIComponent(COMPANY)}'&${query}`;
+  const response = await apiGet<ODataResponse<DimensionValue>>(endpoint);
+  return response.value;
+}
+
+/**
+ * Get paginated Branch values
+ * @param skip - Number of records to skip
+ * @param search - Optional search query
+ */
+export async function getBranchesPage(
   skip: number,
   search?: string,
 ): Promise<DimensionValue[]> {
-  const baseFilter = getBaseFilter(dimensionType);
+  const baseFilter = getBaseFilter("BRANCH");
   let filter = baseFilter;
 
   if (search && search.length >= 3) {
@@ -121,6 +152,27 @@ export async function getLOCs(search?: string): Promise<DimensionValue[]> {
   const endpoint = `/DimensionValue?company='${encodeURIComponent(COMPANY)}'&${query}`;
   const response = await apiGet<ODataResponse<DimensionValue>>(endpoint);
   return response.value;
+}
+
+/**
+ * Look up a single dimension value (Code + Name) by its exact code.
+ * Used to display a friendly name next to a dimension code field after hydration.
+ */
+export async function getDimensionValueName(
+  dimensionCode: "LOB" | "BRANCH" | "LOC" | "EMPLOYEE" | "ASSIGNMENT",
+  code: string,
+): Promise<string> {
+  if (!code) return "";
+  const baseFilter = getBaseFilter(dimensionCode);
+  const filter = `(${baseFilter}) and Code eq '${code.replace(/'/g, "''")}'`;
+  const query = buildODataQuery({ $select: "Code,Name", $filter: filter, $top: 1 });
+  const endpoint = `/DimensionValue?company='${encodeURIComponent(COMPANY)}'&${query}`;
+  try {
+    const response = await apiGet<ODataResponse<DimensionValue>>(endpoint);
+    return response.value?.[0]?.Name ?? "";
+  } catch {
+    return "";
+  }
 }
 
 /**
@@ -205,6 +257,32 @@ export async function getEmployeesPage(
 }
 
 /**
+ * Get Assignment values
+ * @param search - Optional search query (3+ chars)
+ */
+export async function getAssignments(
+  search?: string,
+): Promise<DimensionValue[]> {
+  const baseFilter = getBaseFilter("ASSIGNMENT");
+  let filter = baseFilter;
+
+  if (search && search.length >= 3) {
+    filter = getSearchFilter(search, baseFilter, true);
+  }
+
+  const query = buildODataQuery({
+    $select: "Code,Name",
+    $filter: filter,
+    $orderby: "Code",
+    $top: search ? 30 : 20,
+  });
+
+  const endpoint = `/DimensionValue?company='${encodeURIComponent(COMPANY)}'&${query}`;
+  const response = await apiGet<ODataResponse<DimensionValue>>(endpoint);
+  return response.value;
+}
+
+/**
  * Get paginated Assignment values
  * @param skip - Number of records to skip
  * @param search - Optional search query
@@ -233,79 +311,173 @@ export async function getAssignmentsPage(
 }
 
 /**
- * Get Web User Setup for LOB/Branch filtering
+ * Clear search cache
  */
-export async function getWebUserSetup(userId: string): Promise<UserSetup[]> {
-  const query = buildODataQuery({
-    $filter: `User_ID eq '${userId.replace(/'/g, "''")}'`,
-  });
-
-  const endpoint = `/Webuser?company='${encodeURIComponent(COMPANY)}'&${query}`;
-  const response = await apiGet<ODataResponse<UserSetup>>(endpoint);
-  return response.value;
+export function clearDimensionCache(): void {
+  searchCache.clear();
 }
 
 /**
- * Get LOC values filtered by branch from Webuser setup
+ * WebUserSetup type
+ */
+export interface WebUserSetup {
+  User_Name: string;
+  LOB: string;
+  Branch_Code: string;
+  Branch_Name: string;
+  LOC_Code: string;
+}
+
+// Cache for WebUserSetup data to prevent redundant API calls
+const webUserSetupCache = new Map<
+  string,
+  { data: WebUserSetup[]; timestamp: number }
+>();
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+/**
+ * Get WebUserSetup data for a specific user
+ * @param userId - User ID (required)
+ */
+export async function getWebUserSetup(userId: string): Promise<WebUserSetup[]> {
+  // Check cache first
+  const cached = webUserSetupCache.get(userId);
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+    return cached.data;
+  }
+
+  const query = buildODataQuery({
+    $select: "User_Name,LOB,Branch_Code,Branch_Name,LOC_Code",
+    $filter: `User_name eq '${userId}'`,
+  });
+  const endpoint = `/WebUserSetup?company='${encodeURIComponent(COMPANY)}'&${query}`;
+
+  try {
+    const response = await apiGet<ODataResponse<WebUserSetup>>(endpoint);
+    const data = response.value || [];
+
+    // Cache the result
+    webUserSetupCache.set(userId, { data, timestamp: Date.now() });
+
+    return data;
+  } catch (error: any) {
+    if (error?.status === 404) {
+      console.warn(
+        "WebUserSetup endpoint not found (404). Returning empty setup.",
+      );
+      return [];
+    }
+    throw error;
+  }
+}
+
+/**
+ * Get unique LOB values from WebUserSetup
+ * @param userId - User ID (required)
+ */
+export async function getLOBsFromUserSetup(
+  userId: string,
+): Promise<DimensionValue[]> {
+  const setupData = await getWebUserSetup(userId);
+  const uniqueLOBs = Array.from(
+    new Set(setupData.map((item) => item.LOB).filter(Boolean)),
+  );
+  return uniqueLOBs.map((lob) => ({ Code: lob }));
+}
+
+/**
+ * Get unique Branch values from WebUserSetup filtered by LOB
+ * @param lob - Selected LOB value
+ * @param userId - User ID (required)
+ */
+export async function getBranchesFromUserSetup(
+  lob: string,
+  userId: string,
+): Promise<DimensionValue[]> {
+  const setupData = await getWebUserSetup(userId);
+  const filtered = setupData.filter((item) => item.LOB === lob);
+  const seen = new Map<string, DimensionValue>();
+  for (const item of filtered) {
+    if (item.Branch_Code && !seen.has(item.Branch_Code)) {
+      const name =
+        item.Branch_Name && item.Branch_Name !== item.Branch_Code
+          ? item.Branch_Name
+          : undefined;
+      seen.set(item.Branch_Code, { Code: item.Branch_Code, Name: name });
+    }
+  }
+  return Array.from(seen.values());
+}
+
+/**
+ * Get unique LOC values from WebUserSetup filtered by LOB and Branch
+ * @param lob - Selected LOB value
+ * @param branch - Selected Branch value
+ * @param userId - User ID (required)
  */
 export async function getLOCsFromUserSetup(
+  lob: string,
+  branch: string,
   userId: string,
-  branchCode: string,
 ): Promise<DimensionValue[]> {
-  const setup = await getWebUserSetup(userId);
-  const locs = setup
-    .filter((s) => s.Branch_Code === branchCode)
-    .map((s) => s.Location_Code);
-
-  if (locs.length === 0) return [];
-
-  const filter = `Dimension_Code eq 'LOC' and (${locs
-    .map((code) => `Code eq '${code}'`)
-    .join(" or ")})`;
-
-  const query = buildODataQuery({
-    $select: "Code,Name",
-    $filter: filter,
-    $orderby: "Code",
-  });
-
-  const endpoint = `/DimensionValue?company='${encodeURIComponent(COMPANY)}'&${query}`;
-  const response = await apiGet<ODataResponse<DimensionValue>>(endpoint);
-  return response.value;
+  const setupData = await getWebUserSetup(userId);
+  const filtered = setupData.filter(
+    (item) => item.LOB === lob && item.Branch_Code === branch,
+  );
+  const uniqueLOCs = Array.from(
+    new Set(filtered.map((item) => item.LOC_Code).filter(Boolean)),
+  );
+  return uniqueLOCs.map((loc) => ({ Code: loc }));
 }
 
 /**
- * Get ALL LOC values from Webuser setup (across all branches)
+ * Get all unique Branch values from WebUserSetup for a user (across all LOBs)
+ * @param userId - User ID (required)
+ */
+export async function getAllBranchesFromUserSetup(
+  userId: string,
+): Promise<DimensionValue[]> {
+  const setupData = await getWebUserSetup(userId);
+  const seen = new Map<string, DimensionValue>();
+  for (const item of setupData) {
+    if (item.Branch_Code && !seen.has(item.Branch_Code)) {
+      const name =
+        item.Branch_Name && item.Branch_Name !== item.Branch_Code
+          ? item.Branch_Name
+          : undefined;
+      seen.set(item.Branch_Code, { Code: item.Branch_Code, Name: name });
+    }
+  }
+  return Array.from(seen.values());
+}
+
+/**
+ * Get all unique LOC values from WebUserSetup for a user (across all LOBs and Branches)
+ * @param userId - User ID (required)
  */
 export async function getAllLOCsFromUserSetup(
   userId: string,
 ): Promise<DimensionValue[]> {
-  const setup = await getWebUserSetup(userId);
-  const locs = Array.from(new Set(setup.map((s) => s.Location_Code)));
-
-  if (locs.length === 0) return [];
-
-  const filter = `Dimension_Code eq 'LOC' and (${locs
-    .map((code) => `Code eq '${code}'`)
-    .join(" or ")})`;
-
-  const query = buildODataQuery({
-    $select: "Code,Name",
-    $filter: filter,
-    $orderby: "Code",
-  });
-
-  const endpoint = `/DimensionValue?company='${encodeURIComponent(COMPANY)}'&${query}`;
-  const response = await apiGet<ODataResponse<DimensionValue>>(endpoint);
-  return response.value;
+  const setupData = await getWebUserSetup(userId);
+  const uniqueLOCs = Array.from(
+    new Set(setupData.map((item) => item.LOC_Code).filter(Boolean)),
+  );
+  return uniqueLOCs.map((loc) => ({ Code: loc }));
 }
 
 /**
- * Get LOC values for a specific branch from Webuser setup
+ * Get unique LOC values from WebUserSetup filtered by Branch only (across all LOBs)
+ * @param branch - Selected Branch value
+ * @param userId - User ID (required)
  */
 export async function getLOCsForBranchFromUserSetup(
+  branch: string,
   userId: string,
-  branchCode: string,
 ): Promise<DimensionValue[]> {
-  return getLOCsFromUserSetup(userId, branchCode);
+  const setupData = await getWebUserSetup(userId);
+  const filtered = setupData.filter((item) => item.Branch_Code === branch);
+  const uniqueLOCs = Array.from(
+    new Set(filtered.map((item) => item.LOC_Code).filter(Boolean)),
+  );
+  return uniqueLOCs.map((loc) => ({ Code: loc }));
 }

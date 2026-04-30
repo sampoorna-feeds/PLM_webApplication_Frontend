@@ -163,6 +163,7 @@ export const REQUIRED_DETAIL_FIELDS = [
   "Buy_from_Vendor_No",
   "Buy_from_Vendor_Name",
   "Purchase_Order_No",
+  "Purchase_Receipt_No",
   "Item_Tracking",
 ];
 

@@ -187,6 +187,7 @@ export function QCReceiptDetailForm({ tabId, context }: QCReceiptDetailFormProps
         <div className="flex flex-col gap-4">
           <SectionContainer title="">
              <SummaryField label="No." value={receipt.No} />
+             <SummaryField label="Purchase Receipt No." value={receipt.Purchase_Receipt_No} />
              <SummaryField label="Item No." value={receipt.Item_No} />
              <SummaryField label="Vehicle No." value={receipt.Vehicle_No} />
              <SummaryField label="Item Code" value={receipt.Item_No} />

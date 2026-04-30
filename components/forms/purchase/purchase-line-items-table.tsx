@@ -185,6 +185,9 @@ export function PurchaseLineItemsTable({
                   Bags
                 </TableHead>
               )}
+              <TableHead className="text-primary w-12 text-center text-[10px] font-bold tracking-wider uppercase">
+                Tax
+              </TableHead>
               <TableHead className="text-primary w-24 text-right text-[10px] font-bold tracking-wider uppercase">
                 Quantity
               </TableHead>
@@ -241,9 +244,7 @@ export function PurchaseLineItemsTable({
                 Exempt
               </TableHead>
 
-              <TableHead className="text-primary w-12 text-center text-[10px] font-bold tracking-wider uppercase">
-                Tax
-              </TableHead>
+
               {onRemove && (
                 <TableHead className="text-primary w-12 text-center text-[10px] font-bold tracking-wider uppercase">
                   Del
@@ -279,6 +280,18 @@ export function PurchaseLineItemsTable({
                     }
                   />
                 )}
+                <TableCell className="text-center">
+                  {item.lineNo && item.lineNo > 0 && documentNo ? (
+                    <div onClick={(e) => e.stopPropagation()}>
+                      <TaxInfoPopover
+                        documentNo={documentNo}
+                        lineNo={item.lineNo}
+                      />
+                    </div>
+                  ) : (
+                    "-"
+                  )}
+                </TableCell>
                 <TableCell className="text-right font-medium">
                   {item.quantity}
                 </TableCell>
@@ -400,18 +413,7 @@ export function PurchaseLineItemsTable({
                   {item.exempted ? "Yes" : "No"}
                 </TableCell>
 
-                <TableCell className="text-center">
-                  {item.lineNo && item.lineNo > 0 && documentNo ? (
-                    <div onClick={(e) => e.stopPropagation()}>
-                      <TaxInfoPopover
-                        documentNo={documentNo}
-                        lineNo={item.lineNo}
-                      />
-                    </div>
-                  ) : (
-                    "-"
-                  )}
-                </TableCell>
+
                 {onRemove && (
                   <TableCell
                     className="w-12 text-center"

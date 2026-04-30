@@ -52,7 +52,6 @@ import {
   X,
 } from "lucide-react";
 import { CascadingDimensionSelect } from "@/components/forms/cascading-dimension-select";
-import { getWebUserSetup } from "@/lib/api/services/dimension.service";
 import {
   COPY_FROM_DOC_TYPE_OPTIONS,
   fetchSourceDocumentsForCopy,
@@ -65,6 +64,15 @@ import {
   type PurchaseCopyToDocType,
   type SourceDocumentRow,
 } from "@/lib/api/services/purchase-copy-document.service";
+import {
+  type DimensionValue,
+  getWebUserSetup,
+} from "@/lib/api/services/dimension.service";
+import {
+  getLocationsPage,
+  type LocationItem,
+} from "@/lib/api/services/location.service";
+import { GenericLookupModal } from "@/components/forms/shared/generic-lookup-modal";
 import { cn } from "@/lib/utils";
 
 interface PurchaseCopyDocumentDialogProps {
@@ -666,15 +674,22 @@ export function PurchaseCopyDocumentDialog({
               <label className="text-muted-foreground text-xs font-medium">
                 Location
               </label>
-              <CascadingDimensionSelect
-                dimensionType="LOC"
+              <GenericLookupModal<LocationItem>
                 value={locationCode}
-                onChange={setLocationCode}
-                placeholder="Select Location"
-                lobValue={lobCode}
-                branchValue={branchCode}
-                userId={userId}
-                compactWhenSingle
+                onChange={(val) => setLocationCode(String(val))}
+                fetchData={(skip, search) => getLocationsPage(skip, search, lobCode, branchCode)}
+                columns={[
+                  { id: "Code", label: "Code", width: "120px" },
+                  { id: "Name", label: "Name", width: "250px" },
+                  { id: "Address", label: "Address", width: "300px" },
+                  { id: "City", label: "City", width: "150px" },
+                ]}
+                title="Select Location"
+                placeholder="Select Location..."
+                keyExtractor={(item) => item.Code}
+                displayValueExtractor={(item) =>
+                  item.Name ? `${item.Code} - ${item.Name}` : item.Code
+                }
               />
             </div>
             <div className="space-y-1.5">

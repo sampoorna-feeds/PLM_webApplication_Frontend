@@ -30,6 +30,7 @@ export interface LocationItem {
   Block?: boolean;
   Farmer?: boolean;
   Global_Dimension_1_Code?: string;
+  Global_Dimension_2_Code?: string;
 }
 
 // ── Cache ─────────────────────────────────────────────────────────────────────
@@ -75,6 +76,7 @@ const SELECT_FIELDS = [
   "Block",
   "Farmer",
   "Global_Dimension_1_Code",
+  "Global_Dimension_2_Code",
 ].join(",");
 
 /**
@@ -102,6 +104,43 @@ export async function getLocationsByBranch(
 
   setCache(branchCode, data);
   return data;
+}
+
+/**
+ * Paginated location fetcher with search and dimension filters.
+ */
+export async function getLocationsPage(
+  skip: number,
+  search?: string,
+  lob?: string,
+  branch?: string,
+): Promise<LocationItem[]> {
+  const filters: string[] = [];
+
+  if (lob) {
+    filters.push(`Global_Dimension_1_Code eq '${lob.replace(/'/g, "''")}'`);
+  }
+  if (branch) {
+    filters.push(`Global_Dimension_2_Code eq '${branch.replace(/'/g, "''")}'`);
+  }
+  if (search && search.length >= 3) {
+    const s = search.replace(/'/g, "''");
+    filters.push(
+      `(contains(Code, '${s}') or contains(Name, '${s}') or contains(City, '${s}'))`,
+    );
+  }
+
+  const query = buildODataQuery({
+    $select: SELECT_FIELDS,
+    $filter: filters.length > 0 ? filters.join(" and ") : undefined,
+    $orderby: "Code asc",
+    $top: 30,
+    $skip: skip,
+  });
+
+  const endpoint = `/LocationList?company='${encodeURIComponent(COMPANY)}'&${query}`;
+  const response = await apiGet<ODataResponse<LocationItem>>(endpoint);
+  return response.value ?? [];
 }
 
 /**

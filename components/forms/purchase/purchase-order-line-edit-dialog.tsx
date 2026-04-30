@@ -427,7 +427,7 @@ export function PurchaseOrderLineEditDialog({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-2xl [&>button]:hidden">
+        <DialogContent className="sm:max-w-4xl [&>button]:hidden">
           <DialogHeader className="flex flex-row items-center justify-between border-b pb-4 mb-4">
             <DialogTitle className={hasTracking ? "text-red-600" : ""}>
               Edit Purchase Line
@@ -504,9 +504,9 @@ export function PurchaseOrderLineEditDialog({
 
 
           {/* ── Editable fields ── */}
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {/* Description — always first, always full width */}
-            <div className="space-y-1 sm:col-span-2">
+            <div className="space-y-1 sm:col-span-2 lg:col-span-3">
               <Label htmlFor="po-line-description" className="text-xs">
                 Description
               </Label>
@@ -788,7 +788,7 @@ export function PurchaseOrderLineEditDialog({
                 </div>
 
                 {(line.Type || "").trim() === "Item" && line.Location_Code && (
-                  <div className="space-y-1 sm:col-span-2">
+                  <div className="space-y-1 sm:col-span-2 lg:col-span-3">
                     <Label className="text-xs">Applies to Item Entry</Label>
                     <div className="group relative">
                       <Input

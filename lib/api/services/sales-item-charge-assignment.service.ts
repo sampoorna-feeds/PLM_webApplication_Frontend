@@ -134,7 +134,6 @@ export const salesItemChargeAssignmentService = {
           `Sell_to_Customer_No eq '${escapeODataString(sellToCustomerNo)}'`,
         );
       }
-
     }
     if (extraFilters?.length) filters.push(...extraFilters);
     if (search) {
@@ -189,7 +188,10 @@ export const salesItemChargeAssignmentService = {
     await apiDelete(endpoint);
   },
 
-  async prepareChargeItemLines(salesDoc: string, lineNo: number): Promise<void> {
+  async prepareChargeItemLines(
+    salesDoc: string,
+    lineNo: number,
+  ): Promise<void> {
     const endpoint = `/API_GetChargeItemLineSales?company='${encodeURIComponent(COMPANY)}'`;
     await apiPost(endpoint, { salesDoc, lineNo });
   },

@@ -654,7 +654,6 @@ export function SalesItemChargeAssignmentDialog({
         onAddSelected={handleLinesAdded}
         type={selectionType}
         sellToCustomerNo={sellToCustomerNo}
-        postingDateFrom={postingDateFrom}
       />
 
       <AlertDialog open={!!deleteConfirmLine} onOpenChange={(o) => !o && setDeleteConfirmLine(null)}>

@@ -505,8 +505,8 @@ export function PurchaseOrderLineEditDialog({
 
           {/* ── Editable fields ── */}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {/* Description — always first, always full width */}
-            <div className="space-y-1 sm:col-span-2 lg:col-span-3">
+            {/* Description — always first, takes 2 columns to leave room for Applies to Item Entry */}
+            <div className="space-y-1 sm:col-span-2 lg:col-span-2">
               <Label htmlFor="po-line-description" className="text-xs">
                 Description
               </Label>
@@ -525,6 +525,53 @@ export function PurchaseOrderLineEditDialog({
 
             {(line.Type || "").trim() !== "" && (
               <>
+                {(line.Type || "").trim() === "Item" && line.Location_Code && (
+                  <div className="space-y-1 sm:col-span-1 lg:col-span-1">
+                    <Label className="text-xs">Applies to Item Entry</Label>
+                    <div className="group relative">
+                      <Input
+                        readOnly
+                        value={(() => {
+                          if (!applToItemEntry) return "";
+                          const e = ledgerEntries.find((e) => String(e.Entry_No) === applToItemEntry);
+                          return e
+                            ? `#${e.Entry_No} · ${e.Document_No} · Rem: ${e.Remaining_Quantity ?? 0}`
+                            : `Entry #${applToItemEntry}`;
+                        })()}
+                        placeholder={isLoadingLedger ? "Loading entries..." : "Click to select (optional)"}
+                        className="bg-muted/30 h-8 cursor-pointer border-dashed pr-10 font-medium text-xs"
+                        onClick={() => !isLoadingLedger && setIsApplyItemEntryOpen(true)}
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="text-muted-foreground hover:text-primary absolute top-0 right-0 h-8 w-9"
+                        onClick={() => !isLoadingLedger && setIsApplyItemEntryOpen(true)}
+                        disabled={isLoadingLedger}
+                      >
+                        {isLoadingLedger ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <Search className="h-3.5 w-3.5" />
+                        )}
+                      </Button>
+                      {applToItemEntry && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setApplToItemEntry("");
+                          }}
+                          className="text-muted-foreground hover:text-foreground absolute top-1/2 right-9 -translate-y-1/2 p-1 opacity-0 transition-opacity group-hover:opacity-100"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 {/* Row 1 */}
                 <div className="space-y-1">
                   <Label htmlFor="po-line-qty" className="text-xs">
@@ -787,52 +834,7 @@ export function PurchaseOrderLineEditDialog({
                   />
                 </div>
 
-                {(line.Type || "").trim() === "Item" && line.Location_Code && (
-                  <div className="space-y-1 sm:col-span-2 lg:col-span-3">
-                    <Label className="text-xs">Applies to Item Entry</Label>
-                    <div className="group relative">
-                      <Input
-                        readOnly
-                        value={(() => {
-                          if (!applToItemEntry) return "";
-                          const e = ledgerEntries.find((e) => String(e.Entry_No) === applToItemEntry);
-                          return e
-                            ? `#${e.Entry_No} · ${e.Document_No} · Rem: ${e.Remaining_Quantity ?? 0}`
-                            : `Entry #${applToItemEntry}`;
-                        })()}
-                        placeholder={isLoadingLedger ? "Loading entries..." : "Click to select (optional)"}
-                        className="bg-muted/30 h-8 cursor-pointer border-dashed pr-10 font-medium text-xs"
-                        onClick={() => !isLoadingLedger && setIsApplyItemEntryOpen(true)}
-                      />
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="text-muted-foreground hover:text-primary absolute top-0 right-0 h-8 w-9"
-                        onClick={() => !isLoadingLedger && setIsApplyItemEntryOpen(true)}
-                        disabled={isLoadingLedger}
-                      >
-                        {isLoadingLedger ? (
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        ) : (
-                          <Search className="h-3.5 w-3.5" />
-                        )}
-                      </Button>
-                      {applToItemEntry && (
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setApplToItemEntry("");
-                          }}
-                          className="text-muted-foreground hover:text-foreground absolute top-1/2 right-9 -translate-y-1/2 p-1 opacity-0 transition-opacity group-hover:opacity-100"
-                        >
-                          <X className="h-3.5 w-3.5" />
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                )}
+
 
                 <div className="flex items-center gap-2 pt-5">
                   <Checkbox

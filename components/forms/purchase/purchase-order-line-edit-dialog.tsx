@@ -484,29 +484,7 @@ export function PurchaseOrderLineEditDialog({
                   </ClearableField>
                 </div>
 
-                {(line.Type || "").trim() === "Item" && (
-                  <div className="space-y-1">
-                    <Label htmlFor="po-line-bags" className="text-xs">
-                      No. of Bags
-                    </Label>
-                    <ClearableField
-                      value={noOfBags}
-                      onClear={() => setNoOfBags("")}
-                    >
-                      <Input
-                        id="po-line-bags"
-                        inputMode="numeric"
-                        placeholder="0"
-                        value={noOfBags}
-                        onChange={(e) => {
-                          const v = e.target.value;
-                          if (v === "" || /^[0-9]+$/.test(v)) setNoOfBags(v);
-                        }}
-                        className={fieldInputClass}
-                      />
-                    </ClearableField>
-                  </div>
-                )}
+
 
 
               </>

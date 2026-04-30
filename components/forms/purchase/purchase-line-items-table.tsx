@@ -88,6 +88,7 @@ export function PurchaseLineItemsTable({
   const [itemToRemove, setItemToRemove] = useState<string | null>(null);
   const quantityColumns = getPurchaseLineQuantityConfig(documentType);
   const showQtyColumns = documentType === "order" || documentType === "return-order";
+  const showExtendedQtyColumns = documentType === "order";
   const showBagsColumn = documentType !== "invoice";
   const canInlineEdit = editable && showQtyColumns && !!onInlineUpdate;
 
@@ -191,21 +192,25 @@ export function PurchaseLineItemsTable({
               <TableHead className="text-primary w-24 text-right text-[10px] font-bold tracking-wider uppercase">
                 Quantity
               </TableHead>
-              <TableHead className="text-primary w-24 text-right text-[10px] font-bold tracking-wider uppercase">
-                Outstanding Qty
-              </TableHead>
-              <TableHead className="text-primary w-24 text-right text-[10px] font-bold tracking-wider uppercase">
-                Challan Qty
-              </TableHead>
-              <TableHead className="text-primary w-24 text-right text-[10px] font-bold tracking-wider uppercase">
-                Weight Qty
-              </TableHead>
-              <TableHead className="text-primary w-24 text-right text-[10px] font-bold tracking-wider uppercase">
-                Actual Qty
-              </TableHead>
-              <TableHead className="text-primary w-24 text-right text-[10px] font-bold tracking-wider uppercase">
-                Short/Excess
-              </TableHead>
+              {showExtendedQtyColumns && (
+                <>
+                  <TableHead className="text-primary w-24 text-right text-[10px] font-bold tracking-wider uppercase">
+                    Outstanding Qty
+                  </TableHead>
+                  <TableHead className="text-primary w-24 text-right text-[10px] font-bold tracking-wider uppercase">
+                    Challan Qty
+                  </TableHead>
+                  <TableHead className="text-primary w-24 text-right text-[10px] font-bold tracking-wider uppercase">
+                    Weight Qty
+                  </TableHead>
+                  <TableHead className="text-primary w-24 text-right text-[10px] font-bold tracking-wider uppercase">
+                    Actual Qty
+                  </TableHead>
+                  <TableHead className="text-primary w-24 text-right text-[10px] font-bold tracking-wider uppercase">
+                    Short/Excess
+                  </TableHead>
+                </>
+              )}
               {showQtyColumns && (
                 <>
                   <TableHead className="text-primary w-24 text-right text-[10px] font-bold tracking-wider uppercase">
@@ -295,36 +300,40 @@ export function PurchaseLineItemsTable({
                 <TableCell className="text-right font-medium">
                   {item.quantity}
                 </TableCell>
-                <TableCell className="text-right">
-                  {item.outstandingQty || "0"}
-                </TableCell>
-                <EditableQtyCell
-                  value={item.challanQty}
-                  isDirty={savingId === item.id}
-                  onChange={() => { }}
-                  onCommit={(next) =>
-                    handleCommitInline(item, "Challan_Qty", next)
-                  }
-                />
-                <EditableQtyCell
-                  value={item.weightQty}
-                  isDirty={savingId === item.id}
-                  onChange={() => { }}
-                  onCommit={(next) =>
-                    handleCommitInline(item, "Weight_Qty", next)
-                  }
-                />
-                <EditableQtyCell
-                  value={(item as any).actualQty}
-                  isDirty={savingId === item.id}
-                  onChange={() => { }}
-                  onCommit={(next) =>
-                    handleCommitInline(item, "Actual_Qty", next)
-                  }
-                />
-                <TableCell className="text-right">
-                  {((item.weightQty || 0) - (item.challanQty || 0)).toFixed(3)}
-                </TableCell>
+                {showExtendedQtyColumns && (
+                  <>
+                    <TableCell className="text-right">
+                      {item.outstandingQty || "0"}
+                    </TableCell>
+                    <EditableQtyCell
+                      value={item.challanQty}
+                      isDirty={savingId === item.id}
+                      onChange={() => { }}
+                      onCommit={(next) =>
+                        handleCommitInline(item, "Challan_Qty", next)
+                      }
+                    />
+                    <EditableQtyCell
+                      value={item.weightQty}
+                      isDirty={savingId === item.id}
+                      onChange={() => { }}
+                      onCommit={(next) =>
+                        handleCommitInline(item, "Weight_Qty", next)
+                      }
+                    />
+                    <EditableQtyCell
+                      value={(item as any).actualQty}
+                      isDirty={savingId === item.id}
+                      onChange={() => { }}
+                      onCommit={(next) =>
+                        handleCommitInline(item, "Actual_Qty", next)
+                      }
+                    />
+                    <TableCell className="text-right">
+                      {((item.weightQty || 0) - (item.challanQty || 0)).toFixed(3)}
+                    </TableCell>
+                  </>
+                )}
                 {showQtyColumns && (
                   <>
                     {canInlineEdit ? (

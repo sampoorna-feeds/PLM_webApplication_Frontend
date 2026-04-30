@@ -52,6 +52,7 @@ import {
   X,
 } from "lucide-react";
 import { CascadingDimensionSelect } from "@/components/forms/cascading-dimension-select";
+import { LocationSelect } from "@/components/forms/shared/location-select";
 import { getWebUserSetup } from "@/lib/api/services/dimension.service";
 import {
   COPY_FROM_DOC_TYPE_OPTIONS,
@@ -666,15 +667,11 @@ export function PurchaseCopyDocumentDialog({
               <label className="text-muted-foreground text-xs font-medium">
                 Location
               </label>
-              <CascadingDimensionSelect
-                dimensionType="LOC"
+              <LocationSelect
                 value={locationCode}
-                onChange={setLocationCode}
+                onChange={(val) => setLocationCode(val)}
                 placeholder="Select Location"
-                lobValue={lobCode}
-                branchValue={branchCode}
-                userId={userId}
-                compactWhenSingle
+                branchCode={branchCode}
               />
             </div>
             <div className="space-y-1.5">

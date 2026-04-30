@@ -49,8 +49,12 @@ export function EditableQtyCell({
         type="text"
         inputMode="decimal"
         value={text}
-        onFocus={() => {
+        onFocus={(e) => {
           isFocused.current = true;
+          e.target.select();
+        }}
+        onDoubleClick={(e) => {
+          (e.target as HTMLInputElement).select();
         }}
         onChange={(e) => {
           setText(e.target.value);

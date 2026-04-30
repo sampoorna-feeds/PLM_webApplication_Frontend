@@ -1775,7 +1775,14 @@ export function SalesCreateDocumentFormContent({
                   onInlineUpdate={async (line, patch) => {
                     if (!currentDocNo || line.Line_No == null) return;
                     await ops.updateLine(currentDocNo, line.Line_No, patch);
-                    await refreshLines();
+                    // Optimistically update local lines — no full re-fetch to avoid flicker
+                    setLines((prev) =>
+                      prev.map((l) =>
+                        l.Line_No === line.Line_No
+                          ? { ...l, ...(patch as Partial<SalesLine>) }
+                          : l,
+                      ),
+                    );
                   }}
                 />
 

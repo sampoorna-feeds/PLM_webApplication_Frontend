@@ -109,7 +109,6 @@ export const salesItemChargeAssignmentService = {
       top?: number;
       extraFilters?: string[];
       sellToCustomerNo?: string;
-      postingDateFrom?: string;
     } = {},
   ): Promise<PagedResult<ItemChargeSourceLine>> {
     const {
@@ -119,7 +118,6 @@ export const salesItemChargeAssignmentService = {
       top = 200,
       extraFilters,
       sellToCustomerNo,
-      postingDateFrom,
     } = options;
     const endpointName = SALES_ENDPOINTS[type];
     const itemNoField = ITEM_NO_FIELD_MAP[type];
@@ -136,9 +134,7 @@ export const salesItemChargeAssignmentService = {
           `Sell_to_Customer_No eq '${escapeODataString(sellToCustomerNo)}'`,
         );
       }
-      if (postingDateFrom) {
-        filters.push(`Posting_Date ge ${escapeODataString(postingDateFrom)}`);
-      }
+
     }
     if (extraFilters?.length) filters.push(...extraFilters);
     if (search) {

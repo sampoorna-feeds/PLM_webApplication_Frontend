@@ -72,7 +72,6 @@ interface SalesItemChargeSelectionDialogProps {
   onAddSelected: (lines: ItemChargeSourceLine[]) => Promise<void> | void;
   extraFilters?: string[];
   sellToCustomerNo?: string;
-  postingDateFrom?: string;
 }
 
 export function SalesItemChargeSelectionDialog({
@@ -82,7 +81,6 @@ export function SalesItemChargeSelectionDialog({
   onAddSelected,
   extraFilters,
   sellToCustomerNo,
-  postingDateFrom,
 }: SalesItemChargeSelectionDialogProps) {
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -124,7 +122,6 @@ export function SalesItemChargeSelectionDialog({
         top: PAGE_SIZE,
         extraFilters,
         sellToCustomerNo,
-        postingDateFrom,
       });
       setSourceLines(result.value);
       setTotalCount(result.count);
@@ -145,7 +142,6 @@ export function SalesItemChargeSelectionDialog({
         top: PAGE_SIZE,
         extraFilters,
         sellToCustomerNo,
-        postingDateFrom,
       });
       setSourceLines((prev) => [...prev, ...result.value]);
       setTotalCount(result.count);

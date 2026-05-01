@@ -357,7 +357,7 @@ export function OutwardGateEntryForm({
       });
 
       // 2. Perform the actual posting
-      const result = await postOutwardGateEntry(docNo, option);
+      const result = await postOutwardGateEntry(docNo);
       toast.success(result || "Gate entry posted successfully");
 
       handleInputChange("Status", "Posted");

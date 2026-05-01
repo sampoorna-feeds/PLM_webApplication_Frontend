@@ -39,7 +39,8 @@ import {
   SearchableSelect,
   type SearchableSelectOption,
 } from "@/components/ui/searchable-select";
-import { getItemByNo } from "@/lib/api/services/item.service";
+import { getItemByNo, getItemUnitOfMeasures } from "@/lib/api/services/item.service";
+import { getUOMs, type UOM } from "@/lib/api/services/uom.service";
 import {
   ApiErrorDialog,
   extractApiError,
@@ -109,6 +110,9 @@ export function PurchaseOrderLineEditDialog({
   const [isApplyItemEntryOpen, setIsApplyItemEntryOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [apiError, setApiError] = useState<ApiErrorState | null>(null);
+  const [uom, setUom] = useState("");
+  const [uomOptions, setUomOptions] = useState<{ Code: string }[]>([]);
+  const [loadingUoms, setLoadingUoms] = useState(false);
 
   const fieldInputClass =
     "disabled:opacity-100 disabled:text-foreground font-medium text-xs disabled:pointer-events-none";
@@ -143,6 +147,7 @@ export function PurchaseOrderLineEditDialog({
     setShortcutDimCode4(line.ShortcutDimCode4 ? String(line.ShortcutDimCode4) : "");
     setShortcutDimCode5(line.ShortcutDimCode5 ? String(line.ShortcutDimCode5) : "");
     setApplToItemEntry(line.Appl_to_Item_Entry ? String(line.Appl_to_Item_Entry) : "");
+    setUom(line.Unit_of_Measure_Code || "");
   }, [line]);
 
   const [tdsOptions, setTdsOptions] = useState<SearchableSelectOption[]>([]);
@@ -181,6 +186,36 @@ export function PurchaseOrderLineEditDialog({
       mounted = false;
     };
   }, [open, line?.No]);
+
+  // Load UOM options
+  useEffect(() => {
+    if (!open || !line) return;
+    const type = (line.Type || "").trim();
+    if (type === "") {
+      setUomOptions([]);
+      return;
+    }
+
+    let mounted = true;
+    setLoadingUoms(true);
+
+    if (type === "Item") {
+      getItemUnitOfMeasures(line.No || "")
+        .then((uoms) => {
+          if (mounted) setUomOptions(uoms);
+        })
+        .catch(() => { if (mounted) setUomOptions([]); })
+        .finally(() => { if (mounted) setLoadingUoms(false); });
+    } else {
+      getUOMs()
+        .then((uoms) => {
+          if (mounted) setUomOptions(uoms);
+        })
+        .catch(() => { if (mounted) setUomOptions([]); })
+        .finally(() => { if (mounted) setLoadingUoms(false); });
+    }
+    return () => { mounted = false; };
+  }, [open, line?.Type, line?.No]);
 
   // Load item ledger entries for Apply to Item Entry
   useEffect(() => {
@@ -353,6 +388,8 @@ export function PurchaseOrderLineEditDialog({
         payload.ShortcutDimCode4 = shortcutDimCode4;
       if (shortcutDimCode5 !== (line.ShortcutDimCode5 || ""))
         payload.ShortcutDimCode5 = shortcutDimCode5;
+      if (uom !== (line.Unit_of_Measure_Code || ""))
+        payload.Unit_of_Measure_Code = uom;
 
       if ((line.Type || "").trim() === "Fixed Asset") {
         if (faPostingType.trim() !== (line.FA_Posting_Type || "").trim()) {
@@ -594,9 +631,29 @@ export function PurchaseOrderLineEditDialog({
                   </ClearableField>
                 </div>
 
-
-
-
+                <div className="space-y-1">
+                  <Label htmlFor="po-line-uom" className="text-xs">
+                    UOM
+                  </Label>
+                  <ClearableField value={uom} onClear={() => setUom("")}>
+                    <Select
+                      value={uom}
+                      onValueChange={setUom}
+                      disabled={uomOptions.length === 0}
+                    >
+                      <SelectTrigger id="po-line-uom" className={fieldInputClass}>
+                        <SelectValue placeholder="Select UOM" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {uomOptions.map((opt) => (
+                          <SelectItem key={opt.Code} value={opt.Code}>
+                            {opt.Code}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </ClearableField>
+                </div>
               </>
             )}
 

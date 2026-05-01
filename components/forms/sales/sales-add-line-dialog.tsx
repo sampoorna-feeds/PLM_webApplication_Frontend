@@ -35,6 +35,7 @@ import {
   type Item,
   type ItemUnitOfMeasure,
 } from "@/lib/api/services/item.service";
+import { getUOMs, type UOM } from "@/lib/api/services/uom.service";
 import { SalesItemSelectDialog } from "./sales-item-select-dialog";
 import {
   getGLAccounts,
@@ -137,7 +138,7 @@ export function SalesAddLineDialog({
   addSingleLine,
 }: SalesAddLineDialogProps) {
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
-  const [uomOptions, setUomOptions] = useState<ItemUnitOfMeasure[]>([]);
+  const [uomOptions, setUomOptions] = useState<{ Code: string }[]>([]);
   const [gstOptions, setGstOptions] = useState<SearchableSelectOption[]>([]);
   const [hsnOptions, setHsnOptions] = useState<SearchableSelectOption[]>([]);
   const [loadingOptions, setLoadingOptions] = useState({
@@ -194,23 +195,43 @@ export function SalesAddLineDialog({
       .finally(() => setLoadingOptions((p) => ({ ...p, hsn: false })));
   }, [open, form.gstGroupCode]);
 
-  // Load UOM when Item is selected
+  // Load UOM when Item is selected or Type is not Item
   useEffect(() => {
-    if (!open || form.type !== "Item" || !form.no) {
+    if (!open || form.type === "") {
       setUomOptions([]);
       return;
     }
+
     let mounted = true;
     setLoadingOptions((p) => ({ ...p, uom: true }));
-    getItemUnitOfMeasures(form.no)
-      .then((uoms) => {
-        if (!mounted) return;
-        setUomOptions(uoms);
-        if (!form.uom && uoms.length > 0)
-          setForm((p) => ({ ...p, uom: uoms[0].Code }));
-      })
-      .catch(() => mounted && setUomOptions([]))
-      .finally(() => mounted && setLoadingOptions((p) => ({ ...p, uom: false })));
+
+    if (form.type === "Item") {
+      if (!form.no) {
+        setUomOptions([]);
+        setLoadingOptions((p) => ({ ...p, uom: false }));
+        return;
+      }
+      getItemUnitOfMeasures(form.no)
+        .then((uoms) => {
+          if (!mounted) return;
+          setUomOptions(uoms);
+          if (!form.uom && uoms.length > 0)
+            setForm((p) => ({ ...p, uom: uoms[0].Code }));
+        })
+        .catch(() => mounted && setUomOptions([]))
+        .finally(() => mounted && setLoadingOptions((p) => ({ ...p, uom: false })));
+    } else {
+      // For anything else than Item, fetch global UOMs
+      getUOMs()
+        .then((uoms) => {
+          if (!mounted) return;
+          setUomOptions(uoms);
+          // Don't auto-select if it's already set (e.g. during edit, though this is "Add" dialog)
+        })
+        .catch(() => mounted && setUomOptions([]))
+        .finally(() => mounted && setLoadingOptions((p) => ({ ...p, uom: false })));
+    }
+
     return () => {
       mounted = false;
     };

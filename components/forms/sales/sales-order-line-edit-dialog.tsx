@@ -52,6 +52,8 @@ import { cn } from "@/lib/utils";
 import { ClearableField } from "@/components/ui/clearable-field";
 import type { SalesLine } from "@/lib/api/services/sales-orders.service";
 import type { SalesDocumentType } from "./sales-document-config";
+import { getUOMs, type UOM } from "@/lib/api/services/uom.service";
+import { getItemUnitOfMeasures } from "@/lib/api/services/item.service";
 
 interface SalesOrderLineEditDialogProps {
   open: boolean;
@@ -106,12 +108,14 @@ export function SalesOrderLineEditDialog({
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [apiError, setApiError] = useState<ApiErrorState | null>(null);
-
   const [gstOptions, setGstOptions] = useState<SearchableSelectOption[]>([]);
   const [hsnOptions, setHsnOptions] = useState<SearchableSelectOption[]>([]);
+  const [uom, setUom] = useState("");
+  const [uomOptions, setUomOptions] = useState<{ Code: string }[]>([]);
   const [loadingOptions, setLoadingOptions] = useState({
     gst: false,
     hsn: false,
+    uom: false,
   });
 
   const fieldInputClass =
@@ -141,6 +145,7 @@ export function SalesOrderLineEditDialog({
     setExempted(line.Exempted ?? false);
     setFoc((line as unknown as Record<string, unknown>).FOC === true);
     setApplToItemEntry(line.Appl_to_Item_Entry ? String(line.Appl_to_Item_Entry) : "");
+    setUom(line.Unit_of_Measure_Code || "");
   }, [line]);
 
   // Load item ledger entries for Apply to Item Entry
@@ -160,6 +165,36 @@ export function SalesOrderLineEditDialog({
       .finally(() => { if (mounted) setIsLoadingLedger(false); });
     return () => { mounted = false; };
   }, [open, line?.No, line?.Type, lineLocationCode]);
+
+  // Load UOM options
+  useEffect(() => {
+    if (!open || !line) return;
+    const type = (line.Type || "").trim();
+    if (type === "") {
+      setUomOptions([]);
+      return;
+    }
+
+    let mounted = true;
+    setLoadingOptions((p) => ({ ...p, uom: true }));
+
+    if (type === "Item") {
+      getItemUnitOfMeasures(line.No || "")
+        .then((uoms) => {
+          if (mounted) setUomOptions(uoms);
+        })
+        .catch(() => { if (mounted) setUomOptions([]); })
+        .finally(() => { if (mounted) setLoadingOptions((p) => ({ ...p, uom: false })); });
+    } else {
+      getUOMs()
+        .then((uoms) => {
+          if (mounted) setUomOptions(uoms);
+        })
+        .catch(() => { if (mounted) setUomOptions([]); })
+        .finally(() => { if (mounted) setLoadingOptions((p) => ({ ...p, uom: false })); });
+    }
+    return () => { mounted = false; };
+  }, [open, line?.Type, line?.No]);
 
   // Load GST group codes when dialog opens
   useEffect(() => {
@@ -269,6 +304,8 @@ export function SalesOrderLineEditDialog({
         payload.GST_Group_Code = gstGroupCode.trim();
       if (hsnSacCode.trim() !== (line.HSN_SAC_Code || "").trim())
         payload.HSN_SAC_Code = hsnSacCode.trim();
+      if (uom !== (line.Unit_of_Measure_Code || ""))
+        payload.Unit_of_Measure_Code = uom;
       const applVal = applToItemEntry ? Number(applToItemEntry) : 0;
       if (applVal !== (line.Appl_to_Item_Entry ?? 0)) payload.Appl_to_Item_Entry = applVal;
 
@@ -478,6 +515,30 @@ export function SalesOrderLineEditDialog({
                     </div>
                   </>
                 )}
+
+                <div className="space-y-1">
+                  <Label htmlFor="sl-uom" className="text-xs">
+                    UOM
+                  </Label>
+                  <ClearableField value={uom} onClear={() => setUom("")} disabled={isReleased}>
+                    <Select
+                      value={uom}
+                      onValueChange={setUom}
+                      disabled={isReleased || uomOptions.length === 0}
+                    >
+                      <SelectTrigger id="sl-uom" className={fieldInputClass}>
+                        <SelectValue placeholder="Select UOM" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {uomOptions.map((opt) => (
+                          <SelectItem key={opt.Code} value={opt.Code}>
+                            {opt.Code}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </ClearableField>
+                </div>
 
                 {/* GST / HSN */}
                 <div className="space-y-1 overflow-hidden">

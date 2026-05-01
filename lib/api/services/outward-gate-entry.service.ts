@@ -104,10 +104,10 @@ export async function deleteOutwardGateEntryHeader(id: string): Promise<void> {
   await apiDelete(endpoint);
 }
 
-export async function postOutwardGateEntry(docNo: string, option: string): Promise<string> {
+export async function postOutwardGateEntry(docNo: string): Promise<string> {
   const encodedCompany = encodeURIComponent(COMPANY);
   const endpoint = `/API_PostGateEntry?company='${encodedCompany}'`;
-  const response = await apiPost<{ value: string }>(endpoint, { docNo, option });
+  const response = await apiPost<{ value: string }>(endpoint, { docNo });
   return response.value;
 }
 

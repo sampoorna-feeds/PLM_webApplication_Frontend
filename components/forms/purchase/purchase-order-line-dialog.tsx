@@ -39,6 +39,7 @@ import {
   type Item,
   type ItemUnitOfMeasure,
 } from "@/lib/api/services/item.service";
+import { getUOMs, type UOM } from "@/lib/api/services/uom.service";
 import {
   getGLAccounts,
   searchGLAccounts,
@@ -137,7 +138,7 @@ export function PurchaseOrderLineDialog({
   const [formState, setFormState] = useState<Partial<LineItem>>(
     getInitialLineState(lineItem),
   );
-  const [uomOptions, setUomOptions] = useState<ItemUnitOfMeasure[]>([]);
+  const [uomOptions, setUomOptions] = useState<{ Code: string }[]>([]);
   const [tdsOptions, setTdsOptions] = useState<SearchableSelectOption[]>([]);
   const [gstOptions, setGstOptions] = useState<SearchableSelectOption[]>([]);
   const [hsnOptions, setHsnOptions] = useState<SearchableSelectOption[]>([]);
@@ -266,19 +267,46 @@ export function PurchaseOrderLineDialog({
   }, [isOpen, formState.gstGroupCode]);
 
   useEffect(() => {
-    if (!isOpen || formState.type !== "Item" || !formState.no) return;
+    if (!isOpen || formState.type === "") return;
 
-    getItemUnitOfMeasures(formState.no)
-      .then((uoms) => {
-        setUomOptions(uoms);
-        if (!formState.uom && uoms.length > 0 && !isEdit) {
-          setFormState((prev) => ({ ...prev, uom: uoms[0].Code }));
-        }
-      })
-      .catch((error) => {
-        console.error("Error loading UOM:", error);
+    let mounted = true;
+    setLoadingOptions((p) => ({ ...p, uom: true }));
+
+    if (formState.type === "Item") {
+      if (!formState.no) {
         setUomOptions([]);
-      });
+        setLoadingOptions((p) => ({ ...p, uom: false }));
+        return;
+      }
+      getItemUnitOfMeasures(formState.no)
+        .then((uoms) => {
+          if (!mounted) return;
+          setUomOptions(uoms);
+          if (!formState.uom && uoms.length > 0 && !isEdit) {
+            setFormState((prev) => ({ ...prev, uom: uoms[0].Code }));
+          }
+        })
+        .catch((error) => {
+          console.error("Error loading UOM:", error);
+          if (mounted) setUomOptions([]);
+        })
+        .finally(() => mounted && setLoadingOptions((p) => ({ ...p, uom: false })));
+    } else {
+      getUOMs()
+        .then((uoms) => {
+          if (!mounted) return;
+          setUomOptions(uoms);
+        })
+        .catch((error) => {
+          console.error("Error loading global UOMs:", error);
+          if (mounted) setUomOptions([]);
+        })
+        .finally(() => mounted && setLoadingOptions((p) => ({ ...p, uom: false })));
+    }
+
+    return () => {
+      mounted = false;
+    };
   }, [isOpen, formState.type, formState.no, formState.uom, isEdit]);
 
   const amount = useMemo(() => {

@@ -38,6 +38,8 @@ interface GetPostedLineToReverseDialogProps {
   sourceDocNo: string;
   /** Menu options for the document-type dropdown */
   menuOptions: PstdDocMenuOption[];
+  /** Optional vendor number to filter the posted lines by Buy_from_Vendor_No */
+  vendorNo?: string;
   /** Called after all rows have been successfully submitted */
   onSuccess: () => void;
 }
@@ -47,6 +49,7 @@ export function GetPostedLineToReverseDialog({
   onOpenChange,
   sourceDocNo,
   menuOptions,
+  vendorNo,
   onSuccess,
 }: GetPostedLineToReverseDialogProps) {
   const [selectedOption, setSelectedOption] = useState<PstdDocMenuOption>(
@@ -91,6 +94,7 @@ export function GetPostedLineToReverseDialog({
         search: debouncedSearch || undefined,
         skip: 0,
         top: PAGE_SIZE,
+        vendorNo,
       });
       setRows(result.value);
       setTotalCount(result.count);
@@ -99,7 +103,7 @@ export function GetPostedLineToReverseDialog({
     } finally {
       setLoading(false);
     }
-  }, [open, selectedOption, debouncedSearch]);
+  }, [open, selectedOption, debouncedSearch, vendorNo]);
 
   useEffect(() => {
     fetchInitial();
@@ -123,6 +127,7 @@ export function GetPostedLineToReverseDialog({
         search: debouncedSearch || undefined,
         skip: rows.length,
         top: PAGE_SIZE,
+        vendorNo,
       });
       setRows((prev) => [...prev, ...result.value]);
       setTotalCount(result.count);
@@ -131,7 +136,7 @@ export function GetPostedLineToReverseDialog({
     } finally {
       setLoadingMore(false);
     }
-  }, [canFetchMore, selectedOption.endpoint, debouncedSearch, rows.length]);
+  }, [canFetchMore, selectedOption.endpoint, debouncedSearch, rows.length, vendorNo]);
 
   // Infinite scroll via IntersectionObserver
   useEffect(() => {

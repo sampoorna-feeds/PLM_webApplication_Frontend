@@ -87,11 +87,21 @@ export async function fetchPstdDocLines(
     search?: string;
     skip?: number;
     top?: number;
+    vendorNo?: string;
   } = {},
 ): Promise<PstdDocPagedResult> {
-  const { search, skip = 0, top = 200 } = options;
+  const { search, skip = 0, top = 200, vendorNo } = options;
 
   const filters: string[] = [];
+  
+  // Exclude empty types
+  filters.push("Type ne ''");
+  filters.push("Type ne ' '");
+  
+  if (vendorNo) {
+    filters.push(`Buy_from_Vendor_No eq '${vendorNo.replace(/'/g, "''")}'`);
+  }
+
   if (search) {
     const s = search.replace(/'/g, "''");
     filters.push(

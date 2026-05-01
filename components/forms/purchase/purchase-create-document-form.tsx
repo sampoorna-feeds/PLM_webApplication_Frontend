@@ -2597,6 +2597,7 @@ export function PurchaseCreateDocumentFormContent({
           onOpenChange={setIsGetPostedLineToReverseOpen}
           sourceDocNo={createdOrderNo}
           menuOptions={PURCHASE_MENU_OPTIONS}
+          vendorNo={hydratedHeaderRef.current?.Buy_from_Vendor_No || formData.vendorNo || undefined}
           onSuccess={() => {
             void refreshHydratedDocument();
           }}

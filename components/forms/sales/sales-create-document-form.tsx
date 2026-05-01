@@ -76,7 +76,7 @@ import {
 import { SalesGetPostedLineDialog } from "./sales-get-posted-line-dialog";
 import type { SalesGetPostedLineDocType } from "@/lib/api/services/sales-get-posted-line.service";
 import { GetPostedLineToReverseDialog } from "@/components/forms/shared/get-posted-line-to-reverse-dialog";
-import { PURCHASE_MENU_OPTIONS } from "@/lib/api/services/get-pstd-doc-lines-to-reverse.service";
+import { SALES_MENU_OPTIONS } from "@/lib/api/services/get-pstd-doc-lines-to-reverse.service";
 import { SalesItemTrackingDialog } from "./sales-item-tracking-dialog";
 import { SalesLineItemsTable } from "./sales-line-items-table";
 import { SalesOrderLineEditDialog } from "./sales-order-line-edit-dialog";
@@ -2047,7 +2047,9 @@ export function SalesCreateDocumentFormContent({
           open={isGetPostedLineToReverseOpen}
           onOpenChange={setIsGetPostedLineToReverseOpen}
           sourceDocNo={currentDocNo}
-          menuOptions={PURCHASE_MENU_OPTIONS}
+          menuOptions={SALES_MENU_OPTIONS}
+          module="Sales"
+          customerNo={orderHeader?.Sell_to_Customer_No || formData.customerNo || undefined}
           onSuccess={async () => {
             await refreshLines();
           }}

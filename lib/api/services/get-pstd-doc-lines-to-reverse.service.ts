@@ -31,18 +31,40 @@ export interface PstdDocMenuOption {
 
 /** Options for the Purchase module */
 export const PURCHASE_MENU_OPTIONS: PstdDocMenuOption[] = [
-  { label: "Posted Invoice",          currentMenuType: 1, endpoint: "GetPurchInvoiceLine" },
-  { label: "Posted Receipt",          currentMenuType: 0, endpoint: "GetPurchReceiptLine" },
-  { label: "Posted Return Shipments", currentMenuType: 2, endpoint: "GetPurchReturnShipmentLine" },
-  { label: "Posted Cr. Memos",        currentMenuType: 3, endpoint: "GetPurchCrMemoLine" },
+  {
+    label: "Posted Invoice",
+    currentMenuType: 1,
+    endpoint: "GetPurchInvoiceLine",
+  },
+  {
+    label: "Posted Receipt",
+    currentMenuType: 0,
+    endpoint: "GetPurchReceiptLine",
+  },
+  {
+    label: "Posted Return Shipments",
+    currentMenuType: 2,
+    endpoint: "GetPurchReturnShipmentLine",
+  },
+  {
+    label: "Posted Cr. Memos",
+    currentMenuType: 3,
+    endpoint: "GetPurchCrMemoLine",
+  },
 ];
 
-/** Options for the Sales module (mirrors the purchase set on the sales side) */
+/** Options for the Sales module */
 export const SALES_MENU_OPTIONS: PstdDocMenuOption[] = [
-  { label: "Posted Invoice",          currentMenuType: 1, endpoint: "GetPurchInvoiceLine" },
-  { label: "Posted Receipt",          currentMenuType: 0, endpoint: "GetPurchReceiptLine" },
-  { label: "Posted Return Shipments", currentMenuType: 2, endpoint: "GetPurchReturnShipmentLine" },
-  { label: "Posted Cr. Memos",        currentMenuType: 3, endpoint: "GetPurchCrMemoLine" },
+  {
+    label: "Posted Shipment",
+    currentMenuType: 0,
+    endpoint: "GetPostedSalesHipmentLine",
+  },
+  {
+    label: "Posted Invoice",
+    currentMenuType: 1,
+    endpoint: "GetPostedSalesInvoiceLine",
+  },
 ];
 
 // ─── Row shape returned by the OData list endpoints ─────────────────────────
@@ -64,6 +86,7 @@ export interface PstdDocLineRow {
   Posting_Date?: string;
   Location_Code?: string;
   Buy_from_Vendor_No?: string;
+  Sell_to_Customer_No?: string;
   VenName?: string;
   [key: string]: unknown;
 }
@@ -88,18 +111,23 @@ export async function fetchPstdDocLines(
     skip?: number;
     top?: number;
     vendorNo?: string;
+    customerNo?: string;
   } = {},
 ): Promise<PstdDocPagedResult> {
-  const { search, skip = 0, top = 200, vendorNo } = options;
+  const { search, skip = 0, top = 200, vendorNo, customerNo } = options;
 
   const filters: string[] = [];
-  
+
   // Exclude empty types
   filters.push("Type ne ''");
   filters.push("Type ne ' '");
-  
+
   if (vendorNo) {
     filters.push(`Buy_from_Vendor_No eq '${vendorNo.replace(/'/g, "''")}'`);
+  }
+
+  if (customerNo) {
+    filters.push(`Sell_to_Customer_No eq '${customerNo.replace(/'/g, "''")}'`);
   }
 
   if (search) {
@@ -132,7 +160,10 @@ export async function fetchPstdDocLines(
       count: response["@odata.count"] ?? 0,
     };
   } catch (error) {
-    console.error(`Error fetching ${endpoint}:`, JSON.stringify(error, null, 2));
+    console.error(
+      `Error fetching ${endpoint}:`,
+      JSON.stringify(error, null, 2),
+    );
     throw error as ApiError;
   }
 }
@@ -142,18 +173,24 @@ export async function fetchPstdDocLines(
 /**
  * Call API_GetPstdDocLinesToReverse for a single selected row.
  *
+ * @param module           "Purchase" or "Sales"
  * @param sourceDocNo      Document No. of the current (target) document
  * @param currentMenuType  Integer matching the chosen option in the selector
  * @param copyDocNo        Document_No of the selected source row
  * @param copyDocLine      Line_No of the selected source row
  */
 export async function submitPstdDocLineToReverse(
+  module: "Purchase" | "Sales",
   sourceDocNo: string,
   currentMenuType: number,
   copyDocNo: string,
   copyDocLine: number,
 ): Promise<void> {
-  const endpoint = `/API_GetPstdDocLinesToReverse?company='${encodeURIComponent(COMPANY)}'`;
+  const baseEndpoint =
+    module === "Sales"
+      ? "/API_GetPstdDocLinesToReverseSales"
+      : "/API_GetPstdDocLinesToReverse";
+  const endpoint = `${baseEndpoint}?company='${encodeURIComponent(COMPANY)}'`;
 
   const payload = {
     sourceDocNo,

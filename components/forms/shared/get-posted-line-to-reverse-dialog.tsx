@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { Loader2, Search, X, Check, ChevronDown } from "lucide-react";
 import {
   Dialog,
@@ -28,8 +28,24 @@ import {
 } from "@/lib/api/services/get-pstd-doc-lines-to-reverse.service";
 import { RequestFailedDialog } from "@/components/ui/request-failed-dialog";
 import { getErrorMessage } from "@/lib/errors";
+import {
+  SelectionTableHead,
+  type ColumnConfig,
+  type SortDirection,
+} from "@/components/ui/selection-table-head";
 
 const PAGE_SIZE = 200;
+
+const TABLE_COLUMNS: ColumnConfig[] = [
+  { id: "Document_No", label: "Document No.", sortable: true, filterType: "text", width: "150px" },
+  { id: "Posting_Date", label: "Date", sortable: true, filterType: "text", width: "110px" },
+  { id: "Location_Code", label: "Location", sortable: true, filterType: "text", width: "100px" },
+  { id: "No", label: "No.", sortable: true, filterType: "text", width: "120px" },
+  { id: "Description", label: "Description", sortable: true, filterType: "text", width: "260px" },
+  { id: "Quantity", label: "Quantity", sortable: true, align: "right", width: "90px" },
+  { id: "Unit_of_Measure", label: "UOM", sortable: true, align: "center", width: "80px" },
+  { id: "Amount", label: "Amount", sortable: true, align: "right", width: "110px" },
+];
 
 interface GetPostedLineToReverseDialogProps {
   open: boolean;
@@ -40,6 +56,10 @@ interface GetPostedLineToReverseDialogProps {
   menuOptions: PstdDocMenuOption[];
   /** Optional vendor number to filter the posted lines by Buy_from_Vendor_No */
   vendorNo?: string;
+  /** Optional customer number to filter the posted lines by Sell_to_Customer_No */
+  customerNo?: string;
+  /** Which module this dialog is opened from */
+  module: "Purchase" | "Sales";
   /** Called after all rows have been successfully submitted */
   onSuccess: () => void;
 }
@@ -50,6 +70,8 @@ export function GetPostedLineToReverseDialog({
   sourceDocNo,
   menuOptions,
   vendorNo,
+  customerNo,
+  module,
   onSuccess,
 }: GetPostedLineToReverseDialogProps) {
   const [selectedOption, setSelectedOption] = useState<PstdDocMenuOption>(
@@ -64,6 +86,10 @@ export function GetPostedLineToReverseDialog({
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  const [sortColumn, setSortColumn] = useState<string | null>(null);
+  const [sortDirection, setSortDirection] = useState<SortDirection>(null);
+  const [columnFilters, setColumnFilters] = useState<Record<string, string>>({});
 
   const sentinelRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -95,6 +121,7 @@ export function GetPostedLineToReverseDialog({
         skip: 0,
         top: PAGE_SIZE,
         vendorNo,
+        customerNo,
       });
       setRows(result.value);
       setTotalCount(result.count);
@@ -103,7 +130,7 @@ export function GetPostedLineToReverseDialog({
     } finally {
       setLoading(false);
     }
-  }, [open, selectedOption, debouncedSearch, vendorNo]);
+  }, [open, selectedOption, debouncedSearch, vendorNo, customerNo]);
 
   useEffect(() => {
     fetchInitial();
@@ -128,6 +155,7 @@ export function GetPostedLineToReverseDialog({
         skip: rows.length,
         top: PAGE_SIZE,
         vendorNo,
+        customerNo,
       });
       setRows((prev) => [...prev, ...result.value]);
       setTotalCount(result.count);
@@ -136,7 +164,7 @@ export function GetPostedLineToReverseDialog({
     } finally {
       setLoadingMore(false);
     }
-  }, [canFetchMore, selectedOption.endpoint, debouncedSearch, rows.length, vendorNo]);
+  }, [canFetchMore, selectedOption.endpoint, debouncedSearch, rows.length, vendorNo, customerNo]);
 
   // Infinite scroll via IntersectionObserver
   useEffect(() => {
@@ -183,11 +211,65 @@ export function GetPostedLineToReverseDialog({
     });
   };
 
+  const filteredAndSortedLines = useMemo(() => {
+    let result = rows;
+    
+    // Apply column filters
+    Object.entries(columnFilters).forEach(([colId, filterVal]) => {
+      if (!filterVal) return;
+      result = result.filter((line) => {
+        const value = (line as unknown as Record<string, unknown>)[colId];
+        if (value == null) return false;
+        const sv = String(value).toLowerCase();
+        const fv = filterVal.toLowerCase();
+        if (fv.includes(",")) {
+          return fv.split(",").map((p) => p.trim()).filter(Boolean).some((p) => sv.includes(p));
+        }
+        return sv.includes(fv);
+      });
+    });
+
+    // Apply sorting
+    if (sortColumn && sortDirection) {
+      result = [...result].sort((a, b) => {
+        const valA = (a as unknown as Record<string, unknown>)[sortColumn];
+        const valB = (b as unknown as Record<string, unknown>)[sortColumn];
+        if (valA === valB) return 0;
+        if (valA == null) return 1;
+        if (valB == null) return -1;
+        const cmp = valA < valB ? -1 : 1;
+        return sortDirection === "asc" ? cmp : -cmp;
+      });
+    }
+    
+    return result;
+  }, [rows, columnFilters, sortColumn, sortDirection]);
+
+  const handleSort = (columnId: string) => {
+    if (sortColumn === columnId) {
+      setSortDirection((prev) => (prev === "asc" ? "desc" : null));
+      setSortColumn((prev) => (sortDirection === "desc" ? null : prev));
+    } else {
+      setSortColumn(columnId);
+      setSortDirection("asc");
+    }
+  };
+
+  const handleColumnFilter = (columnId: string, value: string) => {
+    setColumnFilters((prev) => {
+      if (!value) {
+        const { [columnId]: _, ...rest } = prev;
+        return rest;
+      }
+      return { ...prev, [columnId]: value };
+    });
+  };
+
   const toggleSelectAll = () => {
-    if (selectedIds.size === rows.length && rows.length > 0) {
+    if (selectedIds.size === filteredAndSortedLines.length && filteredAndSortedLines.length > 0) {
       setSelectedIds(new Set());
     } else {
-      setSelectedIds(new Set(rows.map(rowId)));
+      setSelectedIds(new Set(filteredAndSortedLines.map(rowId)));
     }
   };
 
@@ -206,6 +288,7 @@ export function GetPostedLineToReverseDialog({
     try {
       for (const row of selected) {
         await submitPstdDocLineToReverse(
+          module,
           sourceDocNo,
           selectedOption.currentMenuType,
           row.Document_No,
@@ -224,7 +307,7 @@ export function GetPostedLineToReverseDialog({
     }
   };
 
-  const allSelected = rows.length > 0 && selectedIds.size === rows.length;
+  const allSelected = filteredAndSortedLines.length > 0 && selectedIds.size === filteredAndSortedLines.length;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -307,26 +390,16 @@ export function GetPostedLineToReverseDialog({
                     />
                   </div>
                 </th>
-                {[
-                  { label: "Document No.", w: "150px" },
-                  { label: "Date", w: "110px" },
-                  { label: "Location", w: "100px" },
-                  { label: "No.", w: "120px" },
-                  { label: "Description", w: "260px" },
-                  { label: "Quantity", w: "90px", right: true },
-                  { label: "UOM", w: "80px", center: true },
-                  { label: "Amount", w: "110px", right: true },
-                ].map((col) => (
-                  <th
-                    key={col.label}
-                    className={cn(
-                      "bg-muted text-foreground h-10 px-3 text-[10px] font-bold tracking-wider uppercase select-none",
-                      col.right ? "text-right" : col.center ? "text-center" : "text-left",
-                    )}
-                    style={{ minWidth: col.w }}
-                  >
-                    {col.label}
-                  </th>
+                {TABLE_COLUMNS.map((col) => (
+                  <SelectionTableHead
+                    key={col.id}
+                    column={col}
+                    isActive={sortColumn === col.id}
+                    sortDirection={sortColumn === col.id ? sortDirection : null}
+                    filterValue={columnFilters[col.id] ?? ""}
+                    onSort={handleSort}
+                    onFilter={handleColumnFilter}
+                  />
                 ))}
               </tr>
             </thead>
@@ -355,7 +428,7 @@ export function GetPostedLineToReverseDialog({
                 </tr>
               ) : (
                 <>
-                  {rows.map((row, idx) => {
+                  {filteredAndSortedLines.map((row: PstdDocLineRow, idx: number) => {
                     const id = rowId(row);
                     const isSelected = selectedIds.has(id);
                     return (
@@ -460,6 +533,11 @@ export function GetPostedLineToReverseDialog({
                   </span>
                 )}{" "}
                 Records
+                {Object.keys(columnFilters).length > 0 && (
+                  <span className="text-primary ml-2">
+                    ({filteredAndSortedLines.length} filtered)
+                  </span>
+                )}
               </>
             )}
           </span>

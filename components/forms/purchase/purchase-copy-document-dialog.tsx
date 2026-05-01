@@ -82,6 +82,9 @@ interface PurchaseCopyDocumentDialogProps {
   userId?: string;
   lobValue?: string;
   branchValue?: string;
+  locationValue?: string;
+  fromDocTypeValue?: PurchaseCopyFromDocType;
+  fromDocNoValue?: string;
 }
 
 const PAGE_SIZE = 25;
@@ -319,6 +322,9 @@ export function PurchaseCopyDocumentDialog({
   userId,
   lobValue,
   branchValue,
+  locationValue,
+  fromDocTypeValue,
+  fromDocNoValue,
 }: PurchaseCopyDocumentDialogProps) {
   const [step, setStep] = useState<1 | 2>(1);
   const [lobCode, setLobCode] = useState(lobValue || "");
@@ -381,8 +387,24 @@ export function PurchaseCopyDocumentDialog({
     } else {
       setLobCode(lobValue || "");
       setBranchCode(branchValue || "");
+      const finalLocation = locationValue || "";
+      setLocationCode(finalLocation);
+      setFromDocType(fromDocTypeValue || "");
+      
+      // If both location and doc type are provided, we can skip Step 1
+      if (finalLocation && fromDocTypeValue) {
+        setStep(2);
+        
+        // If a document number is also provided, we could potentially auto-confirm
+        // but for safety, we'll just set it and let user click confirm, 
+        // OR we can even auto-confirm if requested.
+        // For now, let's just set it.
+        if (fromDocNoValue) {
+          setSelectedDocNo(fromDocNoValue);
+        }
+      }
     }
-  }, [open, lobValue, branchValue]);
+  }, [open, lobValue, branchValue, locationValue, fromDocTypeValue, fromDocNoValue]);
 
   useEffect(() => {
     return () => {
@@ -631,49 +653,55 @@ export function PurchaseCopyDocumentDialog({
         {/* ── Step 1: choose fromDocType ── */}
         {step === 1 && (
           <div className="space-y-4 py-2">
-            <div className="space-y-1.5">
-              <label className="text-muted-foreground text-xs font-medium">
-                LOB
-              </label>
-              <CascadingDimensionSelect
-                dimensionType="LOB"
-                value={lobCode}
-                onChange={handleLobChange}
-                placeholder="Select LOB"
-                userId={userId}
-                compactWhenSingle
-              />
-            </div>
+            {!lobValue && (
+              <div className="space-y-1.5">
+                <label className="text-muted-foreground text-xs font-medium">
+                  LOB
+                </label>
+                <CascadingDimensionSelect
+                  dimensionType="LOB"
+                  value={lobCode}
+                  onChange={handleLobChange}
+                  placeholder="Select LOB"
+                  userId={userId}
+                  compactWhenSingle
+                />
+              </div>
+            )}
 
-            <div className="space-y-1.5">
-              <label className="text-muted-foreground text-xs font-medium">
-                Branch
-              </label>
-              <CascadingDimensionSelect
-                dimensionType="BRANCH"
-                value={branchCode}
-                onChange={handleBranchChange}
-                placeholder="Select Branch"
-                lobValue={lobCode}
-                userId={userId}
-                compactWhenSingle
-              />
-              {branchName && (
-                <p className="text-muted-foreground text-xs">{branchName}</p>
-              )}
-            </div>
+            {!branchValue && (
+              <div className="space-y-1.5">
+                <label className="text-muted-foreground text-xs font-medium">
+                  Branch
+                </label>
+                <CascadingDimensionSelect
+                  dimensionType="BRANCH"
+                  value={branchCode}
+                  onChange={handleBranchChange}
+                  placeholder="Select Branch"
+                  lobValue={lobCode}
+                  userId={userId}
+                  compactWhenSingle
+                />
+                {branchName && (
+                  <p className="text-muted-foreground text-xs">{branchName}</p>
+                )}
+              </div>
+            )}
 
-            <div className="space-y-1.5">
-              <label className="text-muted-foreground text-xs font-medium">
-                Location
-              </label>
-              <LocationSelect
-                value={locationCode}
-                onChange={(val) => setLocationCode(val)}
-                placeholder="Select Location"
-                branchCode={branchCode}
-              />
-            </div>
+            {!locationValue && (
+              <div className="space-y-1.5">
+                <label className="text-muted-foreground text-xs font-medium">
+                  Location
+                </label>
+                <LocationSelect
+                  value={locationCode}
+                  onChange={(val) => setLocationCode(val)}
+                  placeholder="Select Location"
+                  branchCode={branchCode}
+                />
+              </div>
+            )}
             <div className="space-y-1.5">
               <label className="text-muted-foreground text-xs font-medium">
                 Copy from document type

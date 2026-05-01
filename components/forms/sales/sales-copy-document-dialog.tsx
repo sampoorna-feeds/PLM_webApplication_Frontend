@@ -84,6 +84,9 @@ interface SalesCopyDocumentDialogProps {
   userId?: string;
   lobValue?: string;
   branchValue?: string;
+  locationValue?: string;
+  fromDocTypeValue?: SalesCopyFromDocType;
+  fromDocNoValue?: string;
 }
 
 const PAGE_SIZE = 25;
@@ -320,6 +323,9 @@ export function SalesCopyDocumentDialog({
   userId,
   lobValue,
   branchValue,
+  locationValue,
+  fromDocTypeValue,
+  fromDocNoValue,
 }: SalesCopyDocumentDialogProps) {
   const [step, setStep] = useState<1 | 2>(1);
   const [lobCode, setLobCode] = useState(lobValue || "");
@@ -382,8 +388,21 @@ export function SalesCopyDocumentDialog({
     } else {
       setLobCode(lobValue || "");
       setBranchCode(branchValue || "");
+      const finalLocation = locationValue || "";
+      setLocationCode(finalLocation);
+      setFromDocType(fromDocTypeValue || "");
+
+      // If both location and doc type are provided, we can skip Step 1
+      if (finalLocation && fromDocTypeValue) {
+        setStep(2);
+
+        // If a document number is also provided, we could potentially auto-confirm
+        if (fromDocNoValue) {
+          setSelectedDocNo(fromDocNoValue);
+        }
+      }
     }
-  }, [open, lobValue, branchValue]);
+  }, [open, lobValue, branchValue, locationValue, fromDocTypeValue, fromDocNoValue]);
 
   useEffect(() => {
     return () => {
@@ -628,53 +647,59 @@ export function SalesCopyDocumentDialog({
         {/* ── Step 1: choose LOB / Branch / Location + fromDocType ── */}
         {step === 1 && (
           <div className="space-y-4 py-2">
-            <div className="space-y-1.5">
-              <label className="text-muted-foreground text-xs font-medium">
-                LOB
-              </label>
-              <CascadingDimensionSelect
-                dimensionType="LOB"
-                value={lobCode}
-                onChange={handleLobChange}
-                placeholder="Select LOB"
-                userId={userId}
-                compactWhenSingle
-              />
-            </div>
+            {!lobValue && (
+              <div className="space-y-1.5">
+                <label className="text-muted-foreground text-xs font-medium">
+                  LOB
+                </label>
+                <CascadingDimensionSelect
+                  dimensionType="LOB"
+                  value={lobCode}
+                  onChange={handleLobChange}
+                  placeholder="Select LOB"
+                  userId={userId}
+                  compactWhenSingle
+                />
+              </div>
+            )}
 
-            <div className="space-y-1.5">
-              <label className="text-muted-foreground text-xs font-medium">
-                Branch
-              </label>
-              <CascadingDimensionSelect
-                dimensionType="BRANCH"
-                value={branchCode}
-                onChange={handleBranchChange}
-                placeholder="Select Branch"
-                lobValue={lobCode}
-                userId={userId}
-                compactWhenSingle
-              />
-              {branchName && (
-                <p className="text-muted-foreground text-xs">{branchName}</p>
-              )}
-            </div>
+            {!branchValue && (
+              <div className="space-y-1.5">
+                <label className="text-muted-foreground text-xs font-medium">
+                  Branch
+                </label>
+                <CascadingDimensionSelect
+                  dimensionType="BRANCH"
+                  value={branchCode}
+                  onChange={handleBranchChange}
+                  placeholder="Select Branch"
+                  lobValue={lobCode}
+                  userId={userId}
+                  compactWhenSingle
+                />
+                {branchName && (
+                  <p className="text-muted-foreground text-xs">{branchName}</p>
+                )}
+              </div>
+            )}
 
-            <div className="space-y-1.5">
-              <label className="text-muted-foreground text-xs font-medium">
-                Location
-              </label>
-              <CascadingDimensionSelect
-                dimensionType="LOC"
-                value={locationCode}
-                onChange={setLocationCode}
-                placeholder="Select Location"
-                lobValue={lobCode}
-                branchValue={branchCode}
-                userId={userId}
-                compactWhenSingle
-              />
-            </div>
+            {!locationValue && (
+              <div className="space-y-1.5">
+                <label className="text-muted-foreground text-xs font-medium">
+                  Location
+                </label>
+                <CascadingDimensionSelect
+                  dimensionType="LOC"
+                  value={locationCode}
+                  onChange={setLocationCode}
+                  placeholder="Select Location"
+                  lobValue={lobCode}
+                  branchValue={branchCode}
+                  userId={userId}
+                  compactWhenSingle
+                />
+              </div>
+            )}
 
             <div className="space-y-1.5">
               <label className="text-muted-foreground text-xs font-medium">

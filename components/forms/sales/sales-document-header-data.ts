@@ -22,6 +22,8 @@ export interface SalesDocumentHeaderFormState {
   branch: string;
   gstRegistrationNo?: string;
   panNo?: string;
+  copyFromDocType?: string;
+  copyFromDocNo?: string;
 }
 
 export interface SalesDocumentHeaderData {

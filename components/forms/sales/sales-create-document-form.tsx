@@ -69,7 +69,10 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { SearchableSelect } from "@/components/forms/shared/searchable-select";
 import { SalesAddLineDialog } from "./sales-add-line-dialog";
 import { SalesCopyDocumentDialog } from "./sales-copy-document-dialog";
-import type { SalesCopyToDocType } from "@/lib/api/services/sales-copy-document.service";
+import {
+  SALES_COPY_FROM_DOC_TYPE_OPTIONS,
+  type SalesCopyToDocType,
+} from "@/lib/api/services/sales-copy-document.service";
 import { SalesGetPostedLineDialog } from "./sales-get-posted-line-dialog";
 import type { SalesGetPostedLineDocType } from "@/lib/api/services/sales-get-posted-line.service";
 import { SalesItemTrackingDialog } from "./sales-item-tracking-dialog";
@@ -308,6 +311,8 @@ const EMPTY_FORM_STATE: CreateFormState = {
   branch: "",
   gstRegistrationNo: "",
   panNo: "",
+  copyFromDocType: "",
+  copyFromDocNo: "",
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -624,6 +629,15 @@ export function SalesCreateDocumentFormContent({
   // ── Form helpers ──────────────────────────────────────────────────────────
   const handleInputChange = (field: keyof CreateFormState, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleOpenCopyDialog = () => {
+    if (!isCreateMode) return;
+    if (!formData.lob || !formData.branch || !formData.locationCode) {
+      toast.error("Please select LOB, Branch, and Location Code before copying.");
+      return;
+    }
+    setIsCopyDocOpen(true);
   };
 
   const handleCustomerChange = (
@@ -1145,6 +1159,57 @@ export function SalesCreateDocumentFormContent({
             placeholder="Select Location"
           />
         </div>
+
+        {isCreateMode && lines.length === 0 && documentType !== "order" && (
+          <>
+            <div className="col-span-full mt-2">
+              <Separator className="mb-2" />
+              <h4 className="text-[10px] font-bold tracking-wider text-muted-foreground uppercase">
+                Copy Document Data (Optional)
+              </h4>
+            </div>
+            <div className={fieldClass}>
+              <label className={labelClass}>Copy From Type</label>
+              <ClearableField
+                readOnly={areFieldsReadOnly}
+                value={formData.copyFromDocType}
+                onClear={() => {
+                  handleInputChange("copyFromDocType", "");
+                  handleInputChange("copyFromDocNo", "");
+                }}
+              >
+                <Select
+                  value={formData.copyFromDocType}
+                  onValueChange={(v) => {
+                    handleInputChange("copyFromDocType", v);
+                    handleInputChange("copyFromDocNo", "");
+                  }}
+                >
+                  <SelectTrigger className="h-9 text-xs">
+                    <SelectValue placeholder="Select Type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(SALES_COPY_FROM_DOC_TYPE_OPTIONS[config.toDocType as SalesCopyToDocType] || []).map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </ClearableField>
+            </div>
+            <div className={fieldClass}>
+              <label className={labelClass}>Copy From No.</label>
+              <Input
+                value={formData.copyFromDocNo}
+                onChange={(e) => handleInputChange("copyFromDocNo", e.target.value)}
+                placeholder="Optional"
+                className="h-9 text-xs font-mono"
+                disabled={!formData.copyFromDocType}
+              />
+            </div>
+          </>
+        )}
         {caps.supportsInvoiceType && (
           <div className={fieldClass}>
             <label className={labelClass}>Invoice Type</label>
@@ -1587,7 +1652,7 @@ export function SalesCreateDocumentFormContent({
                   variant="outline"
                   size="sm"
                   className="h-8"
-                  onClick={() => setIsCopyDocOpen(true)}
+                  onClick={handleOpenCopyDialog}
                   disabled={isSubmitting || isActionLoading}
                 >
                   Copy Document
@@ -2026,6 +2091,9 @@ export function SalesCreateDocumentFormContent({
           onOpenChange={setIsCopyDocOpen}
           lobValue={formData.lob}
           branchValue={formData.branch}
+          locationValue={formData.locationCode}
+          fromDocTypeValue={formData.copyFromDocType as any}
+          fromDocNoValue={formData.copyFromDocNo}
           userId={userId}
           onCreateHeader={async (locCode, lobCode, branchCode) => {
             if (documentType === "invoice") {

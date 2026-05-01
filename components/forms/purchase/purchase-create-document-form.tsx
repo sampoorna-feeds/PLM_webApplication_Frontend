@@ -184,7 +184,10 @@ import {
   type PurchaseLine,
   type PurchaseOrder,
 } from "@/lib/api/services/purchase-orders.service";
-import type { PurchaseCopyToDocType } from "@/lib/api/services/purchase-copy-document.service";
+import {
+  COPY_FROM_DOC_TYPE_OPTIONS,
+  type PurchaseCopyToDocType,
+} from "@/lib/api/services/purchase-copy-document.service";
 import { getVendorDetails } from "@/lib/api/services/vendor.service";
 
 import { Badge } from "@/components/ui/badge";
@@ -283,6 +286,8 @@ interface PurchaseCreateDocumentFormState {
   qcType: string;
   dueDate: string;
   poExpirationDate: string;
+  copyFromDocType: string;
+  copyFromDocNo: string;
 }
 
 const PURCHASE_CREATE_DOCUMENT_CONFIG: Record<
@@ -485,6 +490,8 @@ export function PurchaseCreateDocumentFormContent({
     qcType: "",
     dueDate: "",
     poExpirationDate: "",
+    copyFromDocType: "",
+    copyFromDocNo: "",
     ...initialFormData,
   });
 
@@ -851,6 +858,11 @@ export function PurchaseCreateDocumentFormContent({
 
   const handleOpenCopyDialog = () => {
     if (!isCreateMode) return;
+
+    if (!formData.lob || !formData.branch || !formData.locationCode) {
+      toast.error("Please select LOB, Branch, and Location Code before copying.");
+      return;
+    }
 
     setPlaceOrderError(null);
     setIsCopyDocOpen(true);
@@ -1517,6 +1529,55 @@ export function PurchaseCreateDocumentFormContent({
                         placeholder="Select Location"
                       />
                     </div>
+
+                    {isCreateMode && !createdOrderNo && lineItems.length === 0 && documentType !== "order" && (
+                      <>
+                        <div className="col-span-full mt-2">
+                          <Separator className="mb-2" />
+                          <h4 className="text-[10px] font-bold tracking-wider text-muted-foreground uppercase">Copy Document Data (Optional)</h4>
+                        </div>
+                        <div className={fieldClass}>
+                          <label className={labelClass}>Copy From Type</label>
+                          <ClearableField
+                            readOnly={areFieldsReadOnly}
+                            value={formData.copyFromDocType}
+                            onClear={() => {
+                              handleInputChange("copyFromDocType", "");
+                              handleInputChange("copyFromDocNo", "");
+                            }}
+                          >
+                            <Select
+                              value={formData.copyFromDocType}
+                              onValueChange={(v) => {
+                                handleInputChange("copyFromDocType", v);
+                                handleInputChange("copyFromDocNo", "");
+                              }}
+                            >
+                              <SelectTrigger className="h-8 text-xs">
+                                <SelectValue placeholder="Select Type" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {(COPY_FROM_DOC_TYPE_OPTIONS[config.toDocType] || []).map((opt) => (
+                                  <SelectItem key={opt.value} value={opt.value}>
+                                    {opt.label}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </ClearableField>
+                        </div>
+                        <div className={fieldClass}>
+                          <label className={labelClass}>Copy From No.</label>
+                          <Input
+                            value={formData.copyFromDocNo}
+                            onChange={(e) => handleInputChange("copyFromDocNo", e.target.value)}
+                            placeholder="Optional"
+                            className="h-8 text-xs font-mono"
+                            disabled={!formData.copyFromDocType}
+                          />
+                        </div>
+                      </>
+                    )}
                   </div>
                 </section>
               </AccordionContent>
@@ -2513,6 +2574,9 @@ export function PurchaseCreateDocumentFormContent({
           userId={userId}
           lobValue={formData.lob}
           branchValue={formData.branch}
+          locationValue={formData.locationCode}
+          fromDocTypeValue={formData.copyFromDocType as any}
+          fromDocNoValue={formData.copyFromDocNo}
           onCreateHeader={async (locCode, lobCode, branchCode) => {
             const resp = await config.createCopyHeader(locCode);
             const returnedNo = resp.orderNo || resp.orderId;

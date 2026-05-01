@@ -464,15 +464,49 @@ export function SalesAddLineDialog({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-2xl">
-          <DialogHeader>
+        <DialogContent showCloseButton={false} className="sm:max-w-3xl max-h-[90vh] flex flex-col">
+          <DialogHeader className="flex-row items-center justify-between border-b pb-3 space-y-0">
             <DialogTitle>Add Line Item</DialogTitle>
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-8 px-3"
+                onClick={() => onOpenChange(false)}
+                disabled={isSaving}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                className="h-8 px-3"
+                onClick={handleSubmit}
+                disabled={isSaving}
+              >
+                {isSaving ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Adding...
+                  </>
+                ) : (
+                  "Add Line"
+                )}
+              </Button>
+            </div>
           </DialogHeader>
 
-          <div className="space-y-4">
-            {/* ── Type + Item selector ── */}
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <div className="space-y-1">
+          <div className="space-y-4 overflow-y-auto flex-1 pr-1 -mr-1 mt-4">
+            {form.description && (
+              <div className="text-sm px-1">
+                <span className="text-muted-foreground font-medium mr-1.5">Description:</span>
+                <span className="text-foreground font-medium">{form.description}</span>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-12">
+              <div className="space-y-1 sm:col-span-2">
                 <FieldTitle>Type</FieldTitle>
                 <ClearableField
                   value={form.type}
@@ -499,124 +533,106 @@ export function SalesAddLineDialog({
               </div>
 
               {form.type !== "" && (
-                <div className="space-y-1">
-                  <FieldTitle>Select Item</FieldTitle>
-                  {form.type === "G/L Account" ? (
-                    <ClearableField
-                      key="sel-gl"
-                      value={form.no}
-                      onClear={() => handleGLChange("", undefined)}
-                    >
-                      <MasterSearchableSelect<GLPostingAccount>
-                        key="ms-gl"
+                <>
+                  <div className="space-y-1 sm:col-span-7">
+                    <FieldTitle>Select Item</FieldTitle>
+                    {form.type === "G/L Account" ? (
+                      <ClearableField
+                        key="sel-gl"
                         value={form.no}
-                        onChange={handleGLChange}
-                        placeholder="Select GL Account"
-                        loadInitial={() => getGLAccounts(20)}
-                        searchItems={searchGLAccounts}
-                        loadMore={(skip, search) =>
-                          getGLAccountsPage(skip, search)
-                        }
-                        getDisplayValue={(item) => `${item.No} - ${item.Name}`}
-                        getItemValue={(item) => item.No}
-                        supportsDualSearch
-                        searchByField={(q, field) =>
-                          searchGLAccountsByField(q, field === "No" ? "No" : "Name")
-                        }
-                      />
-                    </ClearableField>
-                  ) : form.type === "Fixed Asset" ? (
-                    <ClearableField
-                      key="sel-fa"
-                      value={form.no}
-                      onClear={() => handleFixedAssetChange("", undefined)}
-                    >
-                      <MasterSearchableSelect<FixedAsset>
-                        key="ms-fa"
+                        onClear={() => handleGLChange("", undefined)}
+                      >
+                        <MasterSearchableSelect<GLPostingAccount>
+                          key="ms-gl"
+                          value={form.no}
+                          onChange={handleGLChange}
+                          placeholder="Select GL Account"
+                          loadInitial={() => getGLAccounts(20)}
+                          searchItems={searchGLAccounts}
+                          loadMore={(skip, search) =>
+                            getGLAccountsPage(skip, search)
+                          }
+                          getDisplayValue={(item) => `${item.No} - ${item.Name}`}
+                          getItemValue={(item) => item.No}
+                          supportsDualSearch
+                          searchByField={(q, field) =>
+                            searchGLAccountsByField(q, field === "No" ? "No" : "Name")
+                          }
+                        />
+                      </ClearableField>
+                    ) : form.type === "Fixed Asset" ? (
+                      <ClearableField
+                        key="sel-fa"
                         value={form.no}
-                        onChange={handleFixedAssetChange}
-                        placeholder="Select Fixed Asset"
-                        loadInitial={() => getFixedAssets(20)}
-                        searchItems={searchFixedAssets}
-                        loadMore={(skip, search) =>
-                          getFixedAssetsPage(skip, search)
-                        }
-                        getDisplayValue={(a) => `${a.No} - ${a.Description}`}
-                        getItemValue={(a) => a.No}
-                        supportsDualSearch
-                        searchByField={(q, field) =>
-                          searchFixedAssetsByField(
-                            q,
-                            field === "No" ? "No" : "Description",
-                          )
-                        }
-                      />
-                    </ClearableField>
-                  ) : form.type === "Charge (Item)" ? (
-                    <ClearableField
-                      key="sel-charge"
-                      value={form.no}
-                      onClear={() => handleChargeChange("", undefined)}
-                    >
-                      <MasterSearchableSelect<ItemCharge>
-                        key="ms-charge"
+                        onClear={() => handleFixedAssetChange("", undefined)}
+                      >
+                        <MasterSearchableSelect<FixedAsset>
+                          key="ms-fa"
+                          value={form.no}
+                          onChange={handleFixedAssetChange}
+                          placeholder="Select Fixed Asset"
+                          loadInitial={() => getFixedAssets(20)}
+                          searchItems={searchFixedAssets}
+                          loadMore={(skip, search) =>
+                            getFixedAssetsPage(skip, search)
+                          }
+                          getDisplayValue={(a) => `${a.No} - ${a.Description}`}
+                          getItemValue={(a) => a.No}
+                          supportsDualSearch
+                          searchByField={(q, field) =>
+                            searchFixedAssetsByField(
+                              q,
+                              field === "No" ? "No" : "Description",
+                            )
+                          }
+                        />
+                      </ClearableField>
+                    ) : form.type === "Charge (Item)" ? (
+                      <ClearableField
+                        key="sel-charge"
                         value={form.no}
-                        onChange={handleChargeChange}
-                        placeholder="Select Charge Item"
-                        loadInitial={() => getItemCharges(20)}
-                        searchItems={searchItemCharges}
-                        loadMore={(skip, search) =>
-                          getItemChargesPage(skip, search)
-                        }
-                        getDisplayValue={(c) =>
-                          `${c.No} - ${c.Description || ""}`
-                        }
-                        getItemValue={(c) => c.No}
-                        supportsDualSearch
-                        searchByField={(q, field) =>
-                          searchItemChargesByField(
-                            q,
-                            field === "No" ? "No" : "Description",
-                          )
-                        }
+                        onClear={() => handleChargeChange("", undefined)}
+                      >
+                        <MasterSearchableSelect<ItemCharge>
+                          key="ms-charge"
+                          value={form.no}
+                          onChange={handleChargeChange}
+                          placeholder="Select Charge Item"
+                          loadInitial={() => getItemCharges(20)}
+                          searchItems={searchItemCharges}
+                          loadMore={(skip, search) =>
+                            getItemChargesPage(skip, search)
+                          }
+                          getDisplayValue={(c) =>
+                            `${c.No} - ${c.Description || ""}`
+                          }
+                          getItemValue={(c) => c.No}
+                          supportsDualSearch
+                          searchByField={(q, field) =>
+                            searchItemChargesByField(
+                              q,
+                              field === "No" ? "No" : "Description",
+                            )
+                          }
+                        />
+                      </ClearableField>
+                    ) : (
+                      <SalesItemSelectDialog
+                        key="sel-item"
+                        value={form.no}
+                        onChange={handleItemChange}
+                        placeholder="Select Item"
+                        locationCode={locationCode || undefined}
                       />
-                    </ClearableField>
-                  ) : (
-                    <SalesItemSelectDialog
-                      key="sel-item"
-                      value={form.no}
-                      onChange={handleItemChange}
-                      placeholder="Select Item"
-                      locationCode={locationCode || undefined}
-                    />
-                  )}
-                </div>
-              )}
+                    )}
+                  </div>
 
-              {/* Description — full width */}
-              <div className="space-y-1 sm:col-span-2">
-                <FieldTitle>Description</FieldTitle>
-                <ClearableField
-                  value={form.description}
-                  onClear={() => set("description", "")}
-                >
-                  <Input
-                    value={form.description}
-                    onChange={(e) => set("description", e.target.value)}
-                    placeholder="Enter description"
-                    className={cn("h-8", fieldInputClass)}
-                  />
-                </ClearableField>
-              </div>
-
-              {/* UOM — visible for all non-none types */}
-              {form.type !== "" && (
-                <div className="space-y-1">
-                  <FieldTitle>UOM</FieldTitle>
-                  <ClearableField
-                    value={form.uom}
-                    onClear={() => set("uom", "")}
-                  >
+                  <div className="space-y-1 sm:col-span-3">
+                    <FieldTitle>UOM</FieldTitle>
+                    <ClearableField
+                      value={form.uom}
+                      onClear={() => set("uom", "")}
+                    >
                       <AppSearchableSelect
                         value={form.uom}
                         onValueChange={(v) => set("uom", v)}
@@ -625,8 +641,9 @@ export function SalesAddLineDialog({
                         placeholder="Select UOM"
                         searchPlaceholder="Search UOM..."
                       />
-                  </ClearableField>
-                </div>
+                    </ClearableField>
+                  </div>
+                </>
               )}
             </div>
 
@@ -774,8 +791,7 @@ export function SalesAddLineDialog({
                 <h3 className="text-foreground text-xs font-medium">
                   Tax Details
                 </h3>
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  {/* Checkboxes row */}
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                   <div className="flex items-center gap-6 pt-5">
                     <div className="flex items-center gap-2">
                       <Checkbox
@@ -824,8 +840,8 @@ export function SalesAddLineDialog({
                         }}
                         options={gstOptions}
                         isLoading={loadingOptions.gst}
-                        placeholder="Select GST Group…"
-                        searchPlaceholder="Search GST Group…"
+                        placeholder="Select GST Group..."
+                        searchPlaceholder="Search GST Group..."
                       />
                     </ClearableField>
                   </div>
@@ -844,10 +860,10 @@ export function SalesAddLineDialog({
                         isLoading={loadingOptions.hsn}
                         placeholder={
                           form.gstGroupCode
-                            ? "Select HSN/SAC…"
+                            ? "Select HSN/SAC..."
                             : "Select GST Group first"
                         }
-                        searchPlaceholder="Search HSN/SAC…"
+                        searchPlaceholder="Search HSN/SAC..."
                         disabled={!form.gstGroupCode}
                       />
                     </ClearableField>
@@ -857,40 +873,9 @@ export function SalesAddLineDialog({
             )}
 
             {validationError && (
-              <p className="text-destructive text-xs">{validationError}</p>
+              <p className="text-destructive text-xs mt-2">{validationError}</p>
             )}
           </div>
-
-          <DialogFooter className="flex items-center justify-end sm:justify-end">
-            <div className="flex gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="h-8"
-                onClick={() => onOpenChange(false)}
-                disabled={isSaving}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                className="h-8"
-                onClick={handleSubmit}
-                disabled={isSaving}
-              >
-                {isSaving ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Adding…
-                  </>
-                ) : (
-                  "Add Line"
-                )}
-              </Button>
-            </div>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
 

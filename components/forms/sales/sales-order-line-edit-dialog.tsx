@@ -369,9 +369,9 @@ export function SalesOrderLineEditDialog({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-2xl [&>button]:hidden">
-          <DialogHeader>
-            <DialogTitle className={hasTracking ? "text-red-600" : ""}>
+        <DialogContent showCloseButton={false} className="sm:max-w-3xl max-h-[90vh] flex flex-col">
+          <DialogHeader className="flex-row items-center justify-between border-b pb-3 space-y-0">
+            <DialogTitle className={cn("text-base font-semibold", hasTracking ? "text-red-600" : "")}>
               Edit Sales Line
               {hasTracking && (
                 <span className="ml-2 text-sm font-normal text-red-500">
@@ -379,6 +379,50 @@ export function SalesOrderLineEditDialog({
                 </span>
               )}
             </DialogTitle>
+            <div className="flex items-center gap-2">
+              {onDelete && line?.Line_No && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-destructive hover:bg-destructive/10 hover:text-destructive h-8 px-2 mr-2"
+                  onClick={handleDelete}
+                  disabled={isDeleting || isSaving || isReleased}
+                >
+                  {isDeleting ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Trash2 className="h-3.5 w-3.5" />
+                  )}
+                  <span className="ml-2 hidden sm:inline">Delete</span>
+                </Button>
+              )}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-8 px-3"
+                onClick={() => onOpenChange(false)}
+                disabled={isSaving || isDeleting}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                className="h-8 px-3"
+                onClick={handleSave}
+                disabled={isSaving || isDeleting}
+              >
+                {isSaving ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  "Save"
+                )}
+              </Button>
+            </div>
           </DialogHeader>
 
           {/* ── Info strip ── */}
@@ -425,23 +469,15 @@ export function SalesOrderLineEditDialog({
             )}
           </div>
 
-          {/* ── Editable fields ── */}
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            {/* Description — always first, always full width */}
-            <div className="space-y-1 sm:col-span-2">
-              <Label htmlFor="sl-description" className="text-xs">
-                Description
-              </Label>
-              <ClearableField value={description} onClear={() => setDescription("")} disabled={isReleased}>
-                <Input
-                  id="sl-description"
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  className={fieldInputClass}
-                  disabled={isReleased}
-                />
-              </ClearableField>
-            </div>
+          <div className="space-y-4 overflow-y-auto flex-1 pr-1 -mr-1 mt-2">
+            {description && (
+              <div className="text-sm px-1">
+                <span className="text-muted-foreground font-medium mr-1.5">Description:</span>
+                <span className="text-foreground font-medium">{description}</span>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
 
             {lineType !== "" && (
               <>
@@ -546,10 +582,76 @@ export function SalesOrderLineEditDialog({
                     />
                   </ClearableField>
                 </div>
+              </>
+            )}
+          </div>
 
-                {/* GST / HSN */}
-                <div className="space-y-1 overflow-hidden">
-                  <Label className="text-xs">GST Group Code</Label>
+          {showQtyColumns && lineType !== "" && (
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 border-t pt-3">
+              <div className="space-y-1">
+                <Label htmlFor="sl-qty-to-ship" className="text-xs">
+                  {qtyToShipLabel}
+                </Label>
+                <ClearableField value={qtyToShip} onClear={() => setQtyToShip("")}>
+                  <CalculatorInput
+                    id="sl-qty-to-ship"
+                    value={qtyToShip}
+                    onValueChange={(v) => {
+                      if (isValidNum(v)) setQtyToShip(v);
+                    }}
+                    className={fieldInputClass}
+                  />
+                </ClearableField>
+              </div>
+
+              <div className="space-y-1">
+                <Label htmlFor="sl-qty-to-invoice" className="text-xs">
+                  Qty to Invoice
+                </Label>
+                <ClearableField value={qtyToInvoice} onClear={() => setQtyToInvoice("")}>
+                  <CalculatorInput
+                    id="sl-qty-to-invoice"
+                    value={qtyToInvoice}
+                    onValueChange={(v) => {
+                      if (isValidNum(v)) setQtyToInvoice(v);
+                    }}
+                    className={fieldInputClass}
+                  />
+                </ClearableField>
+              </div>
+            </div>
+          )}
+
+          {lineType !== "" && (
+            <div className="space-y-3 border-t pt-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <div className="flex items-center gap-4 pt-5">
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      id="sl-exempted"
+                      checked={exempted}
+                      onCheckedChange={(checked) => setExempted(checked === true)}
+                      disabled={isReleased}
+                    />
+                    <Label htmlFor="sl-exempted" className="cursor-pointer text-xs font-medium">
+                      Exempted
+                    </Label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      id="sl-foc"
+                      checked={foc}
+                      onCheckedChange={(checked) => setFoc(checked === true)}
+                      disabled={isReleased}
+                    />
+                    <Label htmlFor="sl-foc" className="cursor-pointer text-xs font-medium">
+                      FOC
+                    </Label>
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-xs font-medium">GST Group Code</Label>
                   <ClearableField
                     value={gstGroupCode}
                     onClear={() => {
@@ -574,8 +676,8 @@ export function SalesOrderLineEditDialog({
                   </ClearableField>
                 </div>
 
-                <div className="space-y-1 overflow-hidden">
-                  <Label className="text-xs">HSN/SAC Code</Label>
+                <div className="space-y-1">
+                  <Label className="text-xs font-medium">HSN/SAC Code</Label>
                   <ClearableField
                     value={hsnSacCode}
                     onClear={() => setHsnSacCode("")}
@@ -593,130 +695,85 @@ export function SalesOrderLineEditDialog({
                     />
                   </ClearableField>
                 </div>
+              </div>
 
-                <div className="flex items-center gap-3 pt-4">
-                  <div className="flex items-center gap-2">
-                    <Checkbox
-                      id="sl-exempted"
-                      checked={exempted}
-                      onCheckedChange={(checked) => setExempted(checked === true)}
-                      disabled={isReleased}
+              {lineType === "Item" && lineLocationCode && (
+                <div className="space-y-1">
+                  <Label className="text-xs font-medium">Applies to Item Entry</Label>
+                  <div className="group relative">
+                    <Input
+                      readOnly
+                      value={(() => {
+                        if (!applToItemEntry) return "";
+                        const e = ledgerEntries.find((e) => String(e.Entry_No) === applToItemEntry);
+                        return e
+                          ? `#${e.Entry_No} · ${e.Document_No} · Rem: ${e.Remaining_Quantity ?? 0}`
+                          : `Entry #${applToItemEntry}`;
+                      })()}
+                      placeholder={isLoadingLedger ? "Loading entries..." : "Click to select (optional)"}
+                      className="bg-muted/30 h-8 cursor-pointer border-dashed pr-10 font-medium text-xs"
+                      onClick={() => !isLoadingLedger && setIsApplyItemEntryOpen(true)}
                     />
-                    <Label htmlFor="sl-exempted" className="cursor-pointer text-sm">
-                      Exempted
-                    </Label>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Checkbox
-                      id="sl-foc"
-                      checked={foc}
-                      onCheckedChange={(checked) => setFoc(checked === true)}
-                      disabled={isReleased}
-                    />
-                    <Label htmlFor="sl-foc" className="cursor-pointer text-sm">
-                      FOC
-                    </Label>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="text-muted-foreground hover:text-primary absolute top-0 right-0 h-8 w-9"
+                      onClick={() => !isLoadingLedger && setIsApplyItemEntryOpen(true)}
+                      disabled={isLoadingLedger}
+                    >
+                      {isLoadingLedger ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <Search className="h-3.5 w-3.5" />
+                      )}
+                    </Button>
+                    {applToItemEntry && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setApplToItemEntry("");
+                        }}
+                        className="text-muted-foreground hover:text-foreground absolute top-1/2 right-9 -translate-y-1/2 p-1 opacity-0 transition-opacity group-hover:opacity-100"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    )}
                   </div>
                 </div>
+              )}
 
-                {lineType === "Item" && lineLocationCode && (
-                  <div className="space-y-1 sm:col-span-2">
-                    <Label className="text-xs">Applies to Item Entry</Label>
-                    <div className="group relative">
-                      <Input
-                        readOnly
-                        value={(() => {
-                          if (!applToItemEntry) return "";
-                          const e = ledgerEntries.find((e) => String(e.Entry_No) === applToItemEntry);
-                          return e
-                            ? `#${e.Entry_No} · ${e.Document_No} · Rem: ${e.Remaining_Quantity ?? 0}`
-                            : `Entry #${applToItemEntry}`;
-                        })()}
-                        placeholder={isLoadingLedger ? "Loading entries..." : "Click to select (optional)"}
-                        className="bg-muted/30 h-8 cursor-pointer border-dashed pr-10 font-medium text-xs"
-                        onClick={() => !isLoadingLedger && setIsApplyItemEntryOpen(true)}
-                      />
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="text-muted-foreground hover:text-primary absolute top-0 right-0 h-8 w-9"
-                        onClick={() => !isLoadingLedger && setIsApplyItemEntryOpen(true)}
-                        disabled={isLoadingLedger}
-                      >
-                        {isLoadingLedger ? (
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        ) : (
-                          <Search className="h-3.5 w-3.5" />
-                        )}
-                      </Button>
-                      {applToItemEntry && (
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setApplToItemEntry("");
-                          }}
-                          className="text-muted-foreground hover:text-foreground absolute top-1/2 right-9 -translate-y-1/2 p-1 opacity-0 transition-opacity group-hover:opacity-100"
-                        >
-                          <X className="h-3.5 w-3.5" />
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </>
-            )}
-          </div>
-
-          <DialogFooter className="mt-2 gap-2">
-            <div className="mr-auto flex items-center gap-2">
               {lineType === "Charge (Item)" && line?.Line_No && (
-                <Button
-                  variant="outline"
-                  onClick={() => onOpenItemCharge?.(line)}
-                >
-                  <Link2 className="mr-2 h-4 w-4" />
-                  Item Charge Assignment
-                </Button>
+                <div className="pt-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8"
+                    onClick={() => onOpenItemCharge?.(line)}
+                  >
+                    <Link2 className="mr-2 h-4 w-4" />
+                    Item Charge Assignment
+                  </Button>
+                </div>
               )}
-              {onDelete && line?.Line_No && (
-                <Button
-                  variant="outline"
-                  className={cn(
-                    "border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive",
-                  )}
-                  onClick={handleDelete}
-                  disabled={isDeleting || isSaving || isReleased}
-                >
-                  {isDeleting ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <Trash2 className="mr-2 h-4 w-4" />
-                  )}
-                  Delete
-                </Button>
-              )}
+              
               {hasTracking && onAssignTracking && (
-                <Button
-                  variant="outline"
-                  className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
-                  onClick={() => onAssignTracking(line)}
-                >
-                  Item Tracking
-                </Button>
+                <div className="pt-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+                    onClick={() => onAssignTracking(line)}
+                  >
+                    Item Tracking
+                  </Button>
+                </div>
               )}
             </div>
-            <Button variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleSave} disabled={isSaving || isDeleting}>
-              {(isSaving || isDeleting) && (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              )}
-              Save
-            </Button>
-          </DialogFooter>
+          )}
+
+          </div>
         </DialogContent>
       </Dialog>
 

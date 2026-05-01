@@ -138,7 +138,7 @@ export function SalesAddLineDialog({
   addSingleLine,
 }: SalesAddLineDialogProps) {
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
-  const [uomOptions, setUomOptions] = useState<{ Code: string }[]>([]);
+  const [uomOptions, setUomOptions] = useState<SearchableSelectOption[]>([]);
   const [gstOptions, setGstOptions] = useState<SearchableSelectOption[]>([]);
   const [hsnOptions, setHsnOptions] = useState<SearchableSelectOption[]>([]);
   const [loadingOptions, setLoadingOptions] = useState({
@@ -214,7 +214,12 @@ export function SalesAddLineDialog({
       getItemUnitOfMeasures(form.no)
         .then((uoms) => {
           if (!mounted) return;
-          setUomOptions(uoms);
+          setUomOptions(
+            uoms.map((u) => ({
+              value: u.Code,
+              label: u.Code,
+            })),
+          );
           if (!form.uom && uoms.length > 0)
             setForm((p) => ({ ...p, uom: uoms[0].Code }));
         })
@@ -225,7 +230,12 @@ export function SalesAddLineDialog({
       getUOMs()
         .then((uoms) => {
           if (!mounted) return;
-          setUomOptions(uoms);
+          setUomOptions(
+            uoms.map((u) => ({
+              value: u.Code,
+              label: `${u.Code} - ${u.Description}`,
+            })),
+          );
           // Don't auto-select if it's already set (e.g. during edit, though this is "Add" dialog)
         })
         .catch(() => mounted && setUomOptions([]))
@@ -607,29 +617,14 @@ export function SalesAddLineDialog({
                     value={form.uom}
                     onClear={() => set("uom", "")}
                   >
-                    {loadingOptions.uom ? (
-                      <div className="flex h-8 items-center gap-2 text-xs">
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        Loading…
-                      </div>
-                    ) : (
-                      <Select
+                      <AppSearchableSelect
                         value={form.uom}
                         onValueChange={(v) => set("uom", v)}
-                        disabled={uomOptions.length === 0}
-                      >
-                        <SelectTrigger className={cn("h-8", fieldInputClass)}>
-                          <SelectValue placeholder="Select UOM" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {uomOptions.map((u) => (
-                            <SelectItem key={u.Code} value={u.Code}>
-                              {u.Code}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    )}
+                        options={uomOptions}
+                        isLoading={loadingOptions.uom}
+                        placeholder="Select UOM"
+                        searchPlaceholder="Search UOM..."
+                      />
                   </ClearableField>
                 </div>
               )}

@@ -47,6 +47,8 @@ export function ItemChargeMultiSelectDialog({
     new Set(),
   );
   const [searchTerm, setSearchTerm] = useState("");
+  const [dateFilter, setDateFilter] = useState("");
+  const [locationFilter, setLocationFilter] = useState("");
   const [isAssigning, setIsAssigning] = useState(false);
 
   const fetchData = useCallback(async () => {
@@ -120,7 +122,7 @@ export function ItemChargeMultiSelectDialog({
       const lineIndices = Array.from(selectedLines);
 
       for (const lineIdx of lineIndices) {
-        const line = mrnLines[lineIdx];
+        const line = filteredMrnLines[lineIdx];
         for (const itemChargeNo of chargeNos) {
           await assignItemCharge({
             mRNNo: mrnNo,
@@ -140,6 +142,15 @@ export function ItemChargeMultiSelectDialog({
       setIsAssigning(false);
     }
   };
+
+  const filteredMrnLines = mrnLines.filter((line) => {
+    const date = (line.Posting_Date || line.Shipment_Date || "").toLowerCase();
+    const loc = (line.Location_Code || "").toLowerCase();
+    return (
+      date.includes(dateFilter.toLowerCase()) &&
+      loc.includes(locationFilter.toLowerCase())
+    );
+  });
 
   const filteredCharges = charges.filter(
     (c) =>
@@ -169,13 +180,34 @@ export function ItemChargeMultiSelectDialog({
                     <TableHead className="w-12 text-center">
                       <Checkbox
                         checked={
-                          mrnLines.length > 0 &&
-                          selectedLines.size === mrnLines.length
+                          filteredMrnLines.length > 0 &&
+                          selectedLines.size === filteredMrnLines.length
                         }
                         onCheckedChange={toggleSelectAllLines}
                       />
                     </TableHead>
-                    <TableHead className="w-24">Line No.</TableHead>
+                    <TableHead className="w-28 p-1">
+                      <div className="flex flex-col gap-1">
+                        <span className="px-1 text-[10px] uppercase font-bold text-muted-foreground">Date</span>
+                        <Input
+                          placeholder="Filter..."
+                          className="h-6 px-2 text-[10px]"
+                          value={dateFilter}
+                          onChange={(e) => setDateFilter(e.target.value)}
+                        />
+                      </div>
+                    </TableHead>
+                    <TableHead className="w-24 p-1">
+                      <div className="flex flex-col gap-1">
+                        <span className="px-1 text-[10px] uppercase font-bold text-muted-foreground">Location</span>
+                        <Input
+                          placeholder="Filter..."
+                          className="h-6 px-2 text-[10px]"
+                          value={locationFilter}
+                          onChange={(e) => setLocationFilter(e.target.value)}
+                        />
+                      </div>
+                    </TableHead>
                     <TableHead className="w-40">Item No.</TableHead>
                     <TableHead>Description</TableHead>
                     <TableHead className="w-24 text-right">Qty</TableHead>
@@ -189,7 +221,7 @@ export function ItemChargeMultiSelectDialog({
                       </TableCell>
                     </TableRow>
                   ) : (
-                    mrnLines.map((line, idx) => (
+                    filteredMrnLines.map((line, idx) => (
                       <TableRow
                         key={idx}
                         className="hover:bg-muted/10 cursor-pointer"
@@ -204,8 +236,11 @@ export function ItemChargeMultiSelectDialog({
                             onCheckedChange={() => toggleSelectLine(idx)}
                           />
                         </TableCell>
-                        <TableCell className="text-xs font-medium">
-                          {line.Line_No}
+                        <TableCell className="text-xs tabular-nums">
+                          {line.Posting_Date || line.Shipment_Date || "—"}
+                        </TableCell>
+                        <TableCell className="text-xs">
+                          {line.Location_Code || "—"}
                         </TableCell>
                         <TableCell className="font-mono text-xs">
                           {line.No}
@@ -213,8 +248,8 @@ export function ItemChargeMultiSelectDialog({
                         <TableCell className="text-xs">
                           {line.Description}
                         </TableCell>
-                        <TableCell className="text-right text-xs">
-                          {line.Quantity}
+                        <TableCell className="text-right text-xs tabular-nums">
+                          {line.Quantity.toLocaleString()}
                         </TableCell>
                       </TableRow>
                     ))

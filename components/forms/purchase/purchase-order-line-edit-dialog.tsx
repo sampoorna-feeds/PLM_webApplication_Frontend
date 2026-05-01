@@ -111,7 +111,7 @@ export function PurchaseOrderLineEditDialog({
   const [isSaving, setIsSaving] = useState(false);
   const [apiError, setApiError] = useState<ApiErrorState | null>(null);
   const [uom, setUom] = useState("");
-  const [uomOptions, setUomOptions] = useState<{ Code: string }[]>([]);
+  const [uomOptions, setUomOptions] = useState<SearchableSelectOption[]>([]);
   const [loadingUoms, setLoadingUoms] = useState(false);
 
   const fieldInputClass =
@@ -202,14 +202,28 @@ export function PurchaseOrderLineEditDialog({
     if (type === "Item") {
       getItemUnitOfMeasures(line.No || "")
         .then((uoms) => {
-          if (mounted) setUomOptions(uoms);
+          if (mounted) {
+            setUomOptions(
+              uoms.map((u) => ({
+                value: u.Code,
+                label: u.Code,
+              })),
+            );
+          }
         })
         .catch(() => { if (mounted) setUomOptions([]); })
         .finally(() => { if (mounted) setLoadingUoms(false); });
     } else {
       getUOMs()
         .then((uoms) => {
-          if (mounted) setUomOptions(uoms);
+          if (mounted) {
+            setUomOptions(
+              uoms.map((u) => ({
+                value: u.Code,
+                label: `${u.Code} - ${u.Description}`,
+              })),
+            );
+          }
         })
         .catch(() => { if (mounted) setUomOptions([]); })
         .finally(() => { if (mounted) setLoadingUoms(false); });
@@ -636,22 +650,14 @@ export function PurchaseOrderLineEditDialog({
                     UOM
                   </Label>
                   <ClearableField value={uom} onClear={() => setUom("")}>
-                    <Select
+                    <SearchableSelect
                       value={uom}
                       onValueChange={setUom}
-                      disabled={uomOptions.length === 0}
-                    >
-                      <SelectTrigger id="po-line-uom" className={fieldInputClass}>
-                        <SelectValue placeholder="Select UOM" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {uomOptions.map((opt) => (
-                          <SelectItem key={opt.Code} value={opt.Code}>
-                            {opt.Code}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      options={uomOptions}
+                      isLoading={loadingUoms}
+                      placeholder="Select UOM"
+                      searchPlaceholder="Search UOM..."
+                    />
                   </ClearableField>
                 </div>
               </>

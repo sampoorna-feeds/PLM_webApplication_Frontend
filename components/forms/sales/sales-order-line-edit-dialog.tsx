@@ -111,7 +111,7 @@ export function SalesOrderLineEditDialog({
   const [gstOptions, setGstOptions] = useState<SearchableSelectOption[]>([]);
   const [hsnOptions, setHsnOptions] = useState<SearchableSelectOption[]>([]);
   const [uom, setUom] = useState("");
-  const [uomOptions, setUomOptions] = useState<{ Code: string }[]>([]);
+  const [uomOptions, setUomOptions] = useState<SearchableSelectOption[]>([]);
   const [loadingOptions, setLoadingOptions] = useState({
     gst: false,
     hsn: false,
@@ -181,14 +181,28 @@ export function SalesOrderLineEditDialog({
     if (type === "Item") {
       getItemUnitOfMeasures(line.No || "")
         .then((uoms) => {
-          if (mounted) setUomOptions(uoms);
+          if (mounted) {
+            setUomOptions(
+              uoms.map((u) => ({
+                value: u.Code,
+                label: u.Code,
+              })),
+            );
+          }
         })
         .catch(() => { if (mounted) setUomOptions([]); })
         .finally(() => { if (mounted) setLoadingOptions((p) => ({ ...p, uom: false })); });
     } else {
       getUOMs()
         .then((uoms) => {
-          if (mounted) setUomOptions(uoms);
+          if (mounted) {
+            setUomOptions(
+              uoms.map((u) => ({
+                value: u.Code,
+                label: `${u.Code} - ${u.Description}`,
+              })),
+            );
+          }
         })
         .catch(() => { if (mounted) setUomOptions([]); })
         .finally(() => { if (mounted) setLoadingOptions((p) => ({ ...p, uom: false })); });
@@ -521,22 +535,15 @@ export function SalesOrderLineEditDialog({
                     UOM
                   </Label>
                   <ClearableField value={uom} onClear={() => setUom("")} disabled={isReleased}>
-                    <Select
+                    <SearchableSelect
                       value={uom}
                       onValueChange={setUom}
-                      disabled={isReleased || uomOptions.length === 0}
-                    >
-                      <SelectTrigger id="sl-uom" className={fieldInputClass}>
-                        <SelectValue placeholder="Select UOM" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {uomOptions.map((opt) => (
-                          <SelectItem key={opt.Code} value={opt.Code}>
-                            {opt.Code}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      options={uomOptions}
+                      isLoading={loadingOptions.uom}
+                      placeholder="Select UOM"
+                      searchPlaceholder="Search UOM..."
+                      disabled={isReleased}
+                    />
                   </ClearableField>
                 </div>
 

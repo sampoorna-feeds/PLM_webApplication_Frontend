@@ -138,7 +138,7 @@ export function PurchaseOrderLineDialog({
   const [formState, setFormState] = useState<Partial<LineItem>>(
     getInitialLineState(lineItem),
   );
-  const [uomOptions, setUomOptions] = useState<{ Code: string }[]>([]);
+  const [uomOptions, setUomOptions] = useState<SearchableSelectOption[]>([]);
   const [tdsOptions, setTdsOptions] = useState<SearchableSelectOption[]>([]);
   const [gstOptions, setGstOptions] = useState<SearchableSelectOption[]>([]);
   const [hsnOptions, setHsnOptions] = useState<SearchableSelectOption[]>([]);
@@ -146,6 +146,7 @@ export function PurchaseOrderLineDialog({
     tds: false,
     gst: false,
     hsn: false,
+    uom: false,
   });
   const [canAddBardana, setCanAddBardana] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
@@ -281,7 +282,12 @@ export function PurchaseOrderLineDialog({
       getItemUnitOfMeasures(formState.no)
         .then((uoms) => {
           if (!mounted) return;
-          setUomOptions(uoms);
+          setUomOptions(
+            uoms.map((u) => ({
+              value: u.Code,
+              label: u.Code,
+            })),
+          );
           if (!formState.uom && uoms.length > 0 && !isEdit) {
             setFormState((prev) => ({ ...prev, uom: uoms[0].Code }));
           }
@@ -295,7 +301,12 @@ export function PurchaseOrderLineDialog({
       getUOMs()
         .then((uoms) => {
           if (!mounted) return;
-          setUomOptions(uoms);
+          setUomOptions(
+            uoms.map((u) => ({
+              value: u.Code,
+              label: `${u.Code} - ${u.Description}`,
+            })),
+          );
         })
         .catch((error) => {
           console.error("Error loading global UOMs:", error);
@@ -764,22 +775,14 @@ export function PurchaseOrderLineDialog({
                   value={formState.uom}
                   onClear={() => handleFieldChange("uom", "")}
                 >
-                  <Select
+                  <AppSearchableSelect
                     value={formState.uom || ""}
                     onValueChange={(value) => handleFieldChange("uom", value)}
-                    disabled={uomOptions.length === 0}
-                  >
-                    <SelectTrigger className={cn("h-8", fieldInputClass)}>
-                      <SelectValue placeholder="Select UOM" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {uomOptions.map((uom) => (
-                        <SelectItem key={uom.Code} value={uom.Code}>
-                          {uom.Code}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    options={uomOptions}
+                    isLoading={loadingOptions.uom}
+                    placeholder="Select UOM"
+                    searchPlaceholder="Search UOM..."
+                  />
                 </ClearableField>
               </div>
             )}

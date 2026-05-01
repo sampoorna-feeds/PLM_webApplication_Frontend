@@ -55,20 +55,20 @@ const SELECTION_COLUMNS: ColumnConfig[] = [
     filterType: "text",
     width: "160px",
   },
-  { id: "Posting_Date", label: "Posting Date", sortable: true, width: "120px" },
+  { id: "Posting_Date", label: "Date", sortable: true, filterType: "text", width: "120px" },
+  {
+    id: "Location_Code",
+    label: "Location",
+    sortable: true,
+    filterType: "text",
+    width: "120px",
+  },
   {
     id: "Item_No",
     label: "Item No.",
     sortable: true,
     filterType: "text",
     width: "130px",
-  },
-  {
-    id: "Location_Code",
-    label: "Location Code",
-    sortable: true,
-    filterType: "text",
-    width: "120px",
   },
   {
     id: "Description",
@@ -227,6 +227,8 @@ export function SalesItemChargeSelectionDialog({
         let value = (line as unknown as Record<string, unknown>)[colId];
         if (colId === "Item_No" && value === undefined)
           value = line.No || line.Item_No;
+        if (colId === "Posting_Date" && value === undefined)
+          value = line.Posting_Date || line.Shipment_Date;
         if (value == null) return false;
         const sv = String(value).toLowerCase();
         const fv = filterVal.toLowerCase();
@@ -470,14 +472,14 @@ export function SalesItemChargeSelectionDialog({
                         <td className="text-primary px-3 py-2 text-left align-middle text-xs font-medium">
                           {line.Document_No}
                         </td>
-                        <td className="px-3 py-2 text-left align-middle text-[10px]">
+                        <td className="px-3 py-2 text-left align-middle text-[10px] tabular-nums">
                           {line.Posting_Date || line.Shipment_Date || "—"}
+                        </td>
+                        <td className="px-3 py-2 text-left align-middle text-[10px] tabular-nums">
+                          {line.Location_Code || "—"}
                         </td>
                         <td className="px-3 py-2 text-left align-middle text-xs tabular-nums">
                           {itemNo}
-                        </td>
-                        <td className="px-3 py-2 text-left align-middle text-[10px]">
-                          {line.Location_Code || "—"}
                         </td>
                         <td className="max-w-64 truncate px-3 py-2 text-left align-middle text-[11px]">
                           {line.Description}

@@ -197,17 +197,31 @@ export function InwardGateEntryForm({
     field: keyof InwardGateEntryHeader,
     value: any,
   ) => {
+    // Prevent negative values for numerical fields
+    let processedValue = value;
+    const numericalFields: (keyof InwardGateEntryHeader)[] = [
+      "Gross_Weight",
+      "Tier_Weight",
+      "Per_Bag_Freight_Charges",
+      "Total_Freight_Amount",
+      "No_of_Bags",
+    ];
+
+    if (numericalFields.includes(field)) {
+      processedValue = Math.max(0, parseFloat(value) || 0);
+    }
+
     setEntry((prev) => {
-      const next = { ...prev, [field]: value };
+      const next = { ...prev, [field]: processedValue };
 
       if (field === "Gross_Weight" || field === "Tier_Weight") {
         const gross =
           field === "Gross_Weight"
-            ? parseFloat(value) || 0
+            ? (processedValue as number)
             : prev.Gross_Weight || 0;
         const tier =
           field === "Tier_Weight"
-            ? parseFloat(value) || 0
+            ? (processedValue as number)
             : prev.Tier_Weight || 0;
         next.Net_Weight = Math.max(0, gross - tier);
       }
@@ -606,20 +620,7 @@ export function InwardGateEntryForm({
               />
             </div>
 
-            {mode !== "create" && (
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-bold tracking-wider uppercase">
-                  Posting No. Series
-                </label>
-                <Input
-                  value={entry.Posting_No_Series || ""}
-                  onChange={(e) =>
-                    handleInputChange("Posting_No_Series", e.target.value)
-                  }
-                  className="h-8 text-xs"
-                />
-              </div>
-            )}
+
 
             <div className="space-y-1.5">
               <label className="text-[10px] font-bold tracking-wider uppercase">
@@ -627,11 +628,13 @@ export function InwardGateEntryForm({
               </label>
               <Input
                 type="number"
+                min={0}
+                onFocus={(e) => e.target.select()}
                 value={entry.Gross_Weight || 0}
                 onChange={(e) =>
                   handleInputChange(
                     "Gross_Weight",
-                    parseFloat(e.target.value) || 0,
+                    e.target.value,
                   )
                 }
                 className="h-8 text-xs"
@@ -644,11 +647,13 @@ export function InwardGateEntryForm({
               </label>
               <Input
                 type="number"
+                min={0}
+                onFocus={(e) => e.target.select()}
                 value={entry.Tier_Weight || 0}
                 onChange={(e) =>
                   handleInputChange(
                     "Tier_Weight",
-                    parseFloat(e.target.value) || 0,
+                    e.target.value,
                   )
                 }
                 className="h-8 text-xs"
@@ -670,11 +675,13 @@ export function InwardGateEntryForm({
               </label>
               <Input
                 type="number"
+                min={0}
+                onFocus={(e) => e.target.select()}
                 value={entry.Per_Bag_Freight_Charges || 0}
                 onChange={(e) =>
                   handleInputChange(
                     "Per_Bag_Freight_Charges",
-                    parseFloat(e.target.value) || 0,
+                    e.target.value,
                   )
                 }
                 className="h-8 text-xs"
@@ -687,11 +694,13 @@ export function InwardGateEntryForm({
               </label>
               <Input
                 type="number"
+                min={0}
+                onFocus={(e) => e.target.select()}
                 value={entry.Total_Freight_Amount || 0}
                 onChange={(e) =>
                   handleInputChange(
                     "Total_Freight_Amount",
-                    parseFloat(e.target.value) || 0,
+                    e.target.value,
                   )
                 }
                 className="h-8 text-xs"
@@ -717,9 +726,11 @@ export function InwardGateEntryForm({
               </label>
               <Input
                 type="number"
+                min={0}
+                onFocus={(e) => e.target.select()}
                 value={entry.No_of_Bags || 0}
                 onChange={(e) =>
-                  handleInputChange("No_of_Bags", parseInt(e.target.value) || 0)
+                  handleInputChange("No_of_Bags", e.target.value)
                 }
                 className="h-8 text-xs"
               />

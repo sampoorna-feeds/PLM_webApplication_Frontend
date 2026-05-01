@@ -165,15 +165,20 @@ export function GenericLookupModal<T>({
         onClick={() => setOpen(true)}
         disabled={disabled}
         className={cn(
-          "h-8 w-full justify-between px-3 text-left font-normal border-border/50",
+          "h-8 w-full justify-between px-2.5 text-left font-normal border-border/50 hover:border-border transition-all hover:bg-muted/30",
           !value && "text-muted-foreground",
           hasError && "border-destructive/50 ring-destructive/20",
           className
         )}
       >
-        <span className="truncate max-w-[92%]">
-          {displayLabel || placeholder}
-        </span>
+        <div className="flex items-center gap-2 truncate max-w-[92%]">
+          <div className={cn("shrink-0 transition-opacity", !value && "opacity-50")}>
+            {icon}
+          </div>
+          <span className="truncate">
+            {displayLabel || placeholder}
+          </span>
+        </div>
         <div className="flex items-center gap-1 shrink-0">
           {value && !disabled && (
             <div
@@ -202,14 +207,14 @@ export function GenericLookupModal<T>({
 
       <Dialog open={open} onOpenChange={handleOpenChange}>
         <DialogContent
-          className="flex h-[88vh] flex-col gap-0 p-0"
-          style={{ width: "min(1160px, 92vw)", maxWidth: "none" }}
+          className="flex h-[70vh] flex-col gap-0 p-0"
+          style={{ width: "min(600px, 95vw)", maxWidth: "none" }}
           aria-describedby="generic-lookup-modal-description"
         >
           <div id="generic-lookup-modal-description" className="sr-only">
             Select an option from the list. Use the search field to filter options.
           </div>
-          <DialogHeader className="shrink-0 border-b px-5 py-3.5">
+          <DialogHeader className="shrink-0 border-b px-4 py-2.5">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2.5">
                 {icon}
@@ -225,7 +230,7 @@ export function GenericLookupModal<T>({
             </div>
           </DialogHeader>
 
-          <div className="bg-muted/30 shrink-0 border-b px-5 py-2.5">
+          <div className="bg-muted/30 shrink-0 border-b px-4 py-2">
             <div className="flex items-center gap-2">
               <div className="relative flex-1">
                 <Search className="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
@@ -233,7 +238,7 @@ export function GenericLookupModal<T>({
                   placeholder="Search..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="bg-background h-9 pl-9 pr-9 text-sm focus-visible:ring-1"
+                  className="bg-background h-8 pl-9 pr-9 text-sm focus-visible:ring-1"
                   autoFocus
                 />
                 {searchQuery && (

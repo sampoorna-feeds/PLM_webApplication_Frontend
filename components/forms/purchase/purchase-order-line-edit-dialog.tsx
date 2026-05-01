@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Loader2, Package, Trash2, Link2, Search, X } from "lucide-react";
+import { Loader2, Package, Trash2, Link2, Search, X, User, Briefcase } from "lucide-react";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -115,7 +115,7 @@ export function PurchaseOrderLineEditDialog({
   const [loadingUoms, setLoadingUoms] = useState(false);
 
   const fieldInputClass =
-    "disabled:opacity-100 disabled:text-foreground font-medium text-xs disabled:pointer-events-none";
+    "h-8 disabled:opacity-100 disabled:text-foreground font-medium text-xs disabled:pointer-events-none";
   const [canAddBardana, setCanAddBardana] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isBardanaOpen, setIsBardanaOpen] = useState(false);
@@ -478,7 +478,7 @@ export function PurchaseOrderLineEditDialog({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-4xl [&>button]:hidden">
+        <DialogContent className="sm:max-w-3xl [&>button]:hidden">
           <DialogHeader className="flex flex-row items-center justify-between border-b pb-4 mb-4">
             <DialogTitle className={hasTracking ? "text-red-600" : ""}>
               Edit Purchase Line
@@ -555,7 +555,7 @@ export function PurchaseOrderLineEditDialog({
 
 
           {/* ── Editable fields ── */}
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
             {/* Description — always first, takes 2 columns to leave room for Applies to Item Entry */}
             <div className="space-y-1 sm:col-span-2 lg:col-span-2">
               <Label htmlFor="po-line-description" className="text-xs">
@@ -657,6 +657,7 @@ export function PurchaseOrderLineEditDialog({
                       isLoading={loadingUoms}
                       placeholder="Select UOM"
                       searchPlaceholder="Search UOM..."
+                      className={fieldInputClass}
                     />
                   </ClearableField>
                 </div>
@@ -759,6 +760,7 @@ export function PurchaseOrderLineEditDialog({
                       placeholder="Select GST Group..."
                       searchPlaceholder="Search GST Groups..."
                       allowCustomValue={true}
+                      className={fieldInputClass}
                     />
                   </ClearableField>
                 </div>
@@ -785,6 +787,7 @@ export function PurchaseOrderLineEditDialog({
                       searchPlaceholder="Search HSN/SAC Codes..."
                       disabled={!gstGroupCode}
                       allowCustomValue={true}
+                      className={fieldInputClass}
                     />
                   </ClearableField>
                 </div>
@@ -806,6 +809,7 @@ export function PurchaseOrderLineEditDialog({
                       placeholder="Select TDS Section..."
                       searchPlaceholder="Search TDS Section..."
                       allowCustomValue={true}
+                      className={fieldInputClass}
                     />
                   </ClearableField>
                 </div>
@@ -844,18 +848,8 @@ export function PurchaseOrderLineEditDialog({
                     columns={[
                       { id: "Code", label: "Code", width: "100px" },
                       { id: "Name", label: "Name", width: "150px" },
-                      { id: "Email", label: "Email" },
-                      { id: "Mobile_No", label: "Mobile" },
-                      { id: "Dimension_Value_Type", label: "Type" },
-                      { id: "Totaling", label: "Totaling" },
-                      {
-                        id: "Blocked",
-                        label: "Blocked",
-                        render: (item: DimensionValue) => (item["Blocked" as keyof DimensionValue] ? "Yes" : "No"),
-                      },
-                      { id: "Map_to_IC_Dimension_Value_Code", label: "Map to IC" },
-                      { id: "Consolidation_Code", label: "Consolidation Code" },
                     ]}
+                    icon={<User className="h-3.5 w-3.5" />}
                     title="Select Employee"
                     placeholder="Select Employee..."
                     keyExtractor={(item) => item.Code}
@@ -876,18 +870,8 @@ export function PurchaseOrderLineEditDialog({
                     columns={[
                       { id: "Code", label: "Code", width: "100px" },
                       { id: "Name", label: "Name", width: "150px" },
-                      { id: "Email", label: "Email" },
-                      { id: "Mobile_No", label: "Mobile" },
-                      { id: "Dimension_Value_Type", label: "Type" },
-                      { id: "Totaling", label: "Totaling" },
-                      {
-                        id: "Blocked",
-                        label: "Blocked",
-                        render: (item: DimensionValue) => (item["Blocked" as keyof DimensionValue] ? "Yes" : "No"),
-                      },
-                      { id: "Map_to_IC_Dimension_Value_Code", label: "Map to IC" },
-                      { id: "Consolidation_Code", label: "Consolidation Code" },
                     ]}
+                    icon={<Briefcase className="h-3.5 w-3.5" />}
                     title="Select Assignment"
                     placeholder="Select Assignment..."
                     keyExtractor={(item) => item.Code}

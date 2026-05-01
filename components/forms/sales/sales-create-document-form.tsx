@@ -1189,7 +1189,7 @@ export function SalesCreateDocumentFormContent({
                     <SelectValue placeholder="Select Type" />
                   </SelectTrigger>
                   <SelectContent>
-                    {(SALES_COPY_FROM_DOC_TYPE_OPTIONS[config.toDocType as SalesCopyToDocType] || []).map((opt) => (
+                    {(SALES_COPY_FROM_DOC_TYPE_OPTIONS[config.documentLabel as SalesCopyToDocType] || []).map((opt) => (
                       <SelectItem key={opt.value} value={opt.value}>
                         {opt.label}
                       </SelectItem>

@@ -47,6 +47,7 @@ export interface PurchaseDocumentCapabilities {
   supportsQcType: boolean;
   supportsRateBasis: boolean;
   supportsGetPostedLine: boolean;
+  supportsGetPostedLineToReverse: boolean;
 }
 
 export interface PurchaseDocumentConfig {
@@ -88,6 +89,7 @@ const PURCHASE_DOCUMENT_CONFIG: Record<
       supportsQcType: true,
       supportsRateBasis: true,
       supportsGetPostedLine: false,
+      supportsGetPostedLineToReverse: false,
     },
   },
   invoice: {
@@ -113,6 +115,7 @@ const PURCHASE_DOCUMENT_CONFIG: Record<
       supportsQcType: false,
       supportsRateBasis: false,
       supportsGetPostedLine: true,
+      supportsGetPostedLineToReverse: false,
     },
   },
   "return-order": {
@@ -138,6 +141,7 @@ const PURCHASE_DOCUMENT_CONFIG: Record<
       supportsQcType: false,
       supportsRateBasis: true,
       supportsGetPostedLine: false,
+      supportsGetPostedLineToReverse: true,
     },
   },
   "credit-memo": {
@@ -163,6 +167,7 @@ const PURCHASE_DOCUMENT_CONFIG: Record<
       supportsQcType: true,
       supportsRateBasis: true,
       supportsGetPostedLine: true,
+      supportsGetPostedLineToReverse: true,
     },
   },
 };

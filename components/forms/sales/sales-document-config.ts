@@ -43,6 +43,8 @@ export interface SalesDocumentCapabilities {
   supportsCopyDocument: boolean;
   /** Whether Get Posted Line is available (invoice + credit-memo) */
   supportsGetPostedLine: boolean;
+  /** Whether Get Posted Line To Reverse is available (return-order + credit-memo) */
+  supportsGetPostedLineToReverse: boolean;
   /**
    * When true (Invoice, Credit Memo), the post details dialog shows every payload
    * field in a single unified form — no ship-specific required validation, all
@@ -89,6 +91,7 @@ const SALES_DOCUMENT_CONFIG: Record<SalesDocumentType, SalesDocumentConfig> = {
       ],
       supportsCopyDocument: false,
       supportsGetPostedLine: false,
+      supportsGetPostedLineToReverse: false,
       supportsUnifiedPostForm: false,
     },
   },
@@ -112,6 +115,7 @@ const SALES_DOCUMENT_CONFIG: Record<SalesDocumentType, SalesDocumentConfig> = {
       postOptions: [{ value: "3", label: "Ship & Invoice" }],
       supportsCopyDocument: true,
       supportsGetPostedLine: true,
+      supportsGetPostedLineToReverse: false,
       supportsUnifiedPostForm: true,
     },
   },
@@ -138,6 +142,7 @@ const SALES_DOCUMENT_CONFIG: Record<SalesDocumentType, SalesDocumentConfig> = {
       ],
       supportsCopyDocument: true,
       supportsGetPostedLine: false,
+      supportsGetPostedLineToReverse: true,
       supportsUnifiedPostForm: false,
     },
   },
@@ -161,6 +166,7 @@ const SALES_DOCUMENT_CONFIG: Record<SalesDocumentType, SalesDocumentConfig> = {
       postOptions: [{ value: "2", label: "Credit Memo" }],
       supportsCopyDocument: true,
       supportsGetPostedLine: true,
+      supportsGetPostedLineToReverse: true,
       supportsUnifiedPostForm: true,
     },
   },

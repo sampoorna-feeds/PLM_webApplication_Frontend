@@ -75,6 +75,8 @@ import {
 } from "@/lib/api/services/sales-copy-document.service";
 import { SalesGetPostedLineDialog } from "./sales-get-posted-line-dialog";
 import type { SalesGetPostedLineDocType } from "@/lib/api/services/sales-get-posted-line.service";
+import { GetPostedLineToReverseDialog } from "@/components/forms/shared/get-posted-line-to-reverse-dialog";
+import { PURCHASE_MENU_OPTIONS } from "@/lib/api/services/get-pstd-doc-lines-to-reverse.service";
 import { SalesItemTrackingDialog } from "./sales-item-tracking-dialog";
 import { SalesLineItemsTable } from "./sales-line-items-table";
 import { SalesOrderLineEditDialog } from "./sales-order-line-edit-dialog";
@@ -432,6 +434,7 @@ export function SalesCreateDocumentFormContent({
 
   // ── Get posted line dialog state ──────────────────────────────────────────
   const [isGetPostedLineOpen, setIsGetPostedLineOpen] = useState(false);
+  const [isGetPostedLineToReverseOpen, setIsGetPostedLineToReverseOpen] = useState(false);
 
   const postDetailsDefault = {
     transporterCode: "",
@@ -1695,6 +1698,18 @@ export function SalesCreateDocumentFormContent({
                   Post
                 </Button>
               )}
+              {isViewMode && caps.supportsGetPostedLineToReverse && currentDocNo && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-8"
+                  onClick={() => setIsGetPostedLineToReverseOpen(true)}
+                  disabled={isActionLoading}
+                >
+                  Get Posted Line To Reverse
+                </Button>
+              )}
               {(documentType === "order" || documentType === "credit-memo") && isViewMode && isReleased && (
                 <Button
                   type="button"
@@ -2070,6 +2085,19 @@ export function SalesCreateDocumentFormContent({
           sellToCustomerNo={orderHeader?.Sell_to_Customer_No}
           billToCustomerNo={orderHeader?.Bill_to_Customer_No}
           currencyCode={orderHeader?.Currency_Code}
+          onSuccess={async () => {
+            await refreshLines();
+          }}
+        />
+      )}
+
+      {/* Get Posted Line To Reverse dialog */}
+      {caps.supportsGetPostedLineToReverse && currentDocNo && (
+        <GetPostedLineToReverseDialog
+          open={isGetPostedLineToReverseOpen}
+          onOpenChange={setIsGetPostedLineToReverseOpen}
+          sourceDocNo={currentDocNo}
+          menuOptions={PURCHASE_MENU_OPTIONS}
           onSuccess={async () => {
             await refreshLines();
           }}

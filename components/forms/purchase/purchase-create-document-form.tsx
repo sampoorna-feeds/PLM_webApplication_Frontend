@@ -116,6 +116,8 @@ import {
 import { Label } from "@/components/ui/label";
 import { PurchaseCopyDocumentDialog } from "./purchase-copy-document-dialog";
 import { PurchaseGetPostedLineDialog } from "./purchase-get-posted-line-dialog";
+import { GetPostedLineToReverseDialog } from "@/components/forms/shared/get-posted-line-to-reverse-dialog";
+import { PURCHASE_MENU_OPTIONS } from "@/lib/api/services/get-pstd-doc-lines-to-reverse.service";
 import {
   createPurchaseCreditMemo,
   createPurchaseCreditMemoCopyHeader,
@@ -582,6 +584,7 @@ export function PurchaseCreateDocumentFormContent({
   const [trackingLine, setTrackingLine] = useState<PurchaseLine | null>(null);
   const [isItemChargeOpen, setIsItemChargeOpen] = useState(false);
   const [isGetPostedLineOpen, setIsGetPostedLineOpen] = useState(false);
+  const [isGetPostedLineToReverseOpen, setIsGetPostedLineToReverseOpen] = useState(false);
   const [selectedItemChargeLine, setSelectedItemChargeLine] =
     useState<PurchaseLine | null>(null);
   const [confirmDialog, setConfirmDialog] = useState({
@@ -2306,6 +2309,19 @@ export function PurchaseCreateDocumentFormContent({
                   Post
                 </Button>
               )}
+              {isViewMode && capabilities.supportsGetPostedLineToReverse && createdOrderNo && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-8"
+                  onClick={() => setIsGetPostedLineToReverseOpen(true)}
+                  disabled={isActionLoading}
+                >
+                  <FileText className="mr-1.5 h-3.5 w-3.5" />
+                  Get Posted Line To Reverse
+                </Button>
+              )}
               {isViewMode && documentType === "order" && createdOrderNo && (
                 <Button
                   type="button"
@@ -2616,6 +2632,19 @@ export function PurchaseCreateDocumentFormContent({
             hydratedHeaderRef.current?.Pay_to_Vendor_No || undefined
           }
           currencyCode={hydratedHeaderRef.current?.Currency_Code || undefined}
+          onSuccess={() => {
+            void refreshHydratedDocument();
+          }}
+        />
+      )}
+
+      {/* ── Get Posted Line To Reverse Dialog ─────────────────────────────── */}
+      {capabilities.supportsGetPostedLineToReverse && createdOrderNo && (
+        <GetPostedLineToReverseDialog
+          open={isGetPostedLineToReverseOpen}
+          onOpenChange={setIsGetPostedLineToReverseOpen}
+          sourceDocNo={createdOrderNo}
+          menuOptions={PURCHASE_MENU_OPTIONS}
           onSuccess={() => {
             void refreshHydratedDocument();
           }}

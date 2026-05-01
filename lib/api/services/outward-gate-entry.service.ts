@@ -251,11 +251,11 @@ async function getPaginatedSourceDocs(
 }
 
 export async function getPostedPurchaseReturnShipments(params?: GetSourceDocsParams): Promise<PaginatedSourceDocsResponse> {
-  return getPaginatedSourceDocs("PostedPurchaseReturnShipment", ["No", "Buy_from_Vendor_No", "Buy_from_Vendor_Name"], params);
+  return getPaginatedSourceDocs("PostedPurchaseRetrunShipment", ["No", "Buy_from_Vendor_No", "Buy_from_Vendor_Name"], params);
 }
 
 export async function getTransferShipments(params?: GetSourceDocsParams): Promise<PaginatedSourceDocsResponse> {
-  return getPaginatedSourceDocs("PostedTransferShipment", ["No", "Transfer_from_Code", "Transfer_from_Name", "Transfer_to_Code", "Transfer_to_Name"], params);
+  return getPaginatedSourceDocs("PostedTransferShipment", ["No", "Transfer_from_Code", "Transfer_from_Name", "Transfer_to_Code", "Transfer_to_Name"], params, undefined, "Transfer_from_Code");
 }
 
 export async function getSalesShipments(params?: GetSourceDocsParams): Promise<PaginatedSourceDocsResponse> {

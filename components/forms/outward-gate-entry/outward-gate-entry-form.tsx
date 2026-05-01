@@ -541,7 +541,7 @@ export function OutwardGateEntryForm({
       <div className="flex-1 space-y-4 overflow-y-auto px-4 py-4">
         {/* General Section */}
         <section className="space-y-4 rounded-md border p-4">
-          <div className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8">
+          <div className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-9">
             
             <div className="space-y-1.5">
               <label className="text-[10px] font-bold tracking-wider uppercase">

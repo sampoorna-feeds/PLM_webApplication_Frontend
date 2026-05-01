@@ -1533,54 +1533,6 @@ export function PurchaseCreateDocumentFormContent({
                       />
                     </div>
 
-                    {isCreateMode && !createdOrderNo && lineItems.length === 0 && documentType !== "order" && (
-                      <>
-                        <div className="col-span-full mt-2">
-                          <Separator className="mb-2" />
-                          <h4 className="text-[10px] font-bold tracking-wider text-muted-foreground uppercase">Copy Document Data (Optional)</h4>
-                        </div>
-                        <div className={fieldClass}>
-                          <label className={labelClass}>Copy From Type</label>
-                          <ClearableField
-                            readOnly={areFieldsReadOnly}
-                            value={formData.copyFromDocType}
-                            onClear={() => {
-                              handleInputChange("copyFromDocType", "");
-                              handleInputChange("copyFromDocNo", "");
-                            }}
-                          >
-                            <Select
-                              value={formData.copyFromDocType}
-                              onValueChange={(v) => {
-                                handleInputChange("copyFromDocType", v);
-                                handleInputChange("copyFromDocNo", "");
-                              }}
-                            >
-                              <SelectTrigger className="h-8 text-xs">
-                                <SelectValue placeholder="Select Type" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {(COPY_FROM_DOC_TYPE_OPTIONS[config.toDocType] || []).map((opt) => (
-                                  <SelectItem key={opt.value} value={opt.value}>
-                                    {opt.label}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </ClearableField>
-                        </div>
-                        <div className={fieldClass}>
-                          <label className={labelClass}>Copy From No.</label>
-                          <Input
-                            value={formData.copyFromDocNo}
-                            onChange={(e) => handleInputChange("copyFromDocNo", e.target.value)}
-                            placeholder="Optional"
-                            className="h-8 text-xs font-mono"
-                            disabled={!formData.copyFromDocType}
-                          />
-                        </div>
-                      </>
-                    )}
                   </div>
                 </section>
               </AccordionContent>

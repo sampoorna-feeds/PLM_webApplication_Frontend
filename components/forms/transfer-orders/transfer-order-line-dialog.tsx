@@ -231,139 +231,152 @@ export function TransferOrderLineDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
-        <DialogHeader>
+      <DialogContent showCloseButton={false} className="sm:max-w-3xl max-h-[90vh] flex flex-col">
+        <DialogHeader className="flex-row items-center justify-between border-b pb-3 space-y-0">
           <DialogTitle>{isEdit ? "Edit Line Item" : "Add Line Item"}</DialogTitle>
-        </DialogHeader>
-
-        <div className="grid grid-cols-2 gap-4 py-4">
-          <div className="space-y-1">
-            <FieldTitle>Item No. <span className="text-red-500">*</span></FieldTitle>
-            <ItemSelect
-              value={formData.Item_No || ""}
-              onChange={(v, item) => {
-                if (item) {
-                  setFormData(prev => ({
-                    ...prev,
-                    Item_No: item.No,
-                    Description: item.Description,
-                    Unit_of_Measure_Code: item.Base_Unit_of_Measure,
-                  }));
-                  handleItemChange(item.No);
-                } else {
-                  setFormData(prev => ({
-                    ...prev,
-                    Item_No: "",
-                    Description: "",
-                    Unit_of_Measure_Code: "",
-                  }));
-                }
-              }}
-              locationCode={locationCode}
-              placeholder="Select Item"
-              disabled={isEdit}
-            />
-          </div>
-
-          <div className="space-y-2 col-span-2">
-            <FieldTitle>Description</FieldTitle>
-            <Input
-              value={formData.Description || ""}
-              onChange={(e) => handleChange("Description", e.target.value)}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <FieldTitle required>Quantity</FieldTitle>
-            <CalculatorInput
-              value={formData.Quantity || ""}
-              onValueChange={(v) => handleChange("Quantity", v)}
-              placeholder="0.00"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <FieldTitle>UOM</FieldTitle>
-            <Input
-              value={formData.Unit_of_Measure_Code || ""}
-              readOnly
-              className="bg-muted"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <FieldTitle>Transfer Price</FieldTitle>
-            <CalculatorInput
-              value={formData.Transfer_Price || ""}
-              onValueChange={(v) => handleChange("Transfer_Price", v)}
-              placeholder="0.00"
-            />
-          </div>
-          <div className="space-y-2">
-            <FieldTitle>Amount</FieldTitle>
-            <Input
-              type="number"
-              value={formData.Amount}
-              readOnly
-              className="bg-muted font-bold"
-            />
-          </div>
-          {(ledgerEntries.length > 0 || (isEdit && formData.Appl_to_Item_Entry)) && (
-            <div className="space-y-2">
-              <FieldTitle>Appl.-to Item Entry</FieldTitle>
-              <SearchableSelect
-                options={ledgerEntries.map(e => ({
-                  value: String(e.Entry_No),
-                  label: `${e.Entry_No} (Rem: ${e.Remaining_Quantity}) - ${e.Lot_No || "No Lot"}`,
-                }))}
-                value={formData.Appl_to_Item_Entry ? String(formData.Appl_to_Item_Entry) : ""}
-                onValueChange={(v) => handleChange("Appl_to_Item_Entry", Number(v))}
-                isLoading={isLoadingLedgerEntries}
-                placeholder="Select Entry No."
-              />
-            </div>
-          )}
-
-          <div className="space-y-2">
-            <FieldTitle>GST Credit</FieldTitle>
-            <SearchableSelect
-              options={[
-                { value: "Availment", label: "Availment" },
-                { value: "Non-Availment", label: "Non-Availment" },
-              ]}
-              value={formData.GST_Credit || "Availment"}
-              onValueChange={(v) => handleChange("GST_Credit", v)}
-              placeholder="Select GST Credit"
-              allowCustomValue={true}
-            />
-          </div>
-
-        </div>
-
-        <DialogFooter className="flex justify-between items-center sm:justify-between w-full">
-          <div className="flex-1 flex justify-start">
+          <div className="flex items-center gap-2">
             {isEdit && canAddBardana && (
               <Button
-                variant="outline"
+                variant="ghost"
                 type="button"
-                className="flex items-center gap-2 border-primary/40 text-primary hover:bg-primary/5 h-9"
+                size="sm"
+                className="flex items-center gap-2 text-primary hover:bg-primary/5 h-8 px-2 mr-2"
                 onClick={() => setIsBardanaOpen(true)}
               >
                 <Package className="h-4 w-4" />
-                Add Bardana
+                <span className="hidden sm:inline">Add Bardana</span>
               </Button>
             )}
-          </div>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={() => onOpenChange(false)}>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 px-3"
+              onClick={() => onOpenChange(false)}
+              disabled={isSubmitting}
+            >
               Cancel
             </Button>
-            <Button onClick={handleSubmit} disabled={isSubmitting}>
+            <Button
+              size="sm"
+              className="h-8 px-3"
+              onClick={handleSubmit}
+              disabled={isSubmitting}
+            >
               {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {isEdit ? "Update Line" : "Add Line"}
             </Button>
           </div>
-        </DialogFooter>
+        </DialogHeader>
+
+        <div className="space-y-4 overflow-y-auto flex-1 pr-1 -mr-1 mt-4">
+          {formData.Description && (
+            <div className="text-sm px-1">
+              <span className="text-muted-foreground font-medium mr-1.5">Description:</span>
+              <span className="text-foreground font-medium">{formData.Description}</span>
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-12">
+            <div className="space-y-1 sm:col-span-6">
+              <FieldTitle>Item No. <span className="text-red-500">*</span></FieldTitle>
+              <ItemSelect
+                value={formData.Item_No || ""}
+                onChange={(v, item) => {
+                  if (item) {
+                    setFormData(prev => ({
+                      ...prev,
+                      Item_No: item.No,
+                      Description: item.Description,
+                      Unit_of_Measure_Code: item.Base_Unit_of_Measure,
+                    }));
+                    handleItemChange(item.No);
+                  } else {
+                    setFormData(prev => ({
+                      ...prev,
+                      Item_No: "",
+                      Description: "",
+                      Unit_of_Measure_Code: "",
+                    }));
+                  }
+                }}
+                locationCode={locationCode}
+                placeholder="Select Item"
+                disabled={isEdit}
+              />
+            </div>
+
+            <div className="space-y-1 sm:col-span-3">
+              <FieldTitle required>Quantity</FieldTitle>
+              <CalculatorInput
+                value={formData.Quantity || ""}
+                onValueChange={(v) => handleChange("Quantity", v)}
+                placeholder="0.00"
+                className="h-8"
+              />
+            </div>
+
+            <div className="space-y-1 sm:col-span-3">
+              <FieldTitle>UOM</FieldTitle>
+              <Input
+                value={formData.Unit_of_Measure_Code || ""}
+                readOnly
+                className="bg-muted h-8 text-xs font-medium"
+              />
+            </div>
+
+            <div className="space-y-1 sm:col-span-4">
+              <FieldTitle>Transfer Price</FieldTitle>
+              <CalculatorInput
+                value={formData.Transfer_Price || ""}
+                onValueChange={(v) => handleChange("Transfer_Price", v)}
+                placeholder="0.00"
+                className="h-8"
+              />
+            </div>
+
+            <div className="space-y-1 sm:col-span-4">
+              <FieldTitle>Amount</FieldTitle>
+              <Input
+                type="number"
+                value={formData.Amount}
+                readOnly
+                className="bg-muted font-bold h-8 text-xs"
+              />
+            </div>
+
+            <div className="space-y-1 sm:col-span-4">
+              <FieldTitle>GST Credit</FieldTitle>
+              <SearchableSelect
+                options={[
+                  { value: "Availment", label: "Availment" },
+                  { value: "Non-Availment", label: "Non-Availment" },
+                ]}
+                value={formData.GST_Credit || "Availment"}
+                onValueChange={(v) => handleChange("GST_Credit", v)}
+                placeholder="Select GST Credit"
+                allowCustomValue={true}
+              />
+            </div>
+
+            {(ledgerEntries.length > 0 || (isEdit && formData.Appl_to_Item_Entry)) && (
+              <div className="space-y-1 sm:col-span-12">
+                <FieldTitle>Appl.-to Item Entry</FieldTitle>
+                <SearchableSelect
+                  options={ledgerEntries.map(e => ({
+                    value: String(e.Entry_No),
+                    label: `${e.Entry_No} (Rem: ${e.Remaining_Quantity}) - ${e.Lot_No || "No Lot"}`,
+                  }))}
+                  value={formData.Appl_to_Item_Entry ? String(formData.Appl_to_Item_Entry) : ""}
+                  onValueChange={(v) => handleChange("Appl_to_Item_Entry", Number(v))}
+                  isLoading={isLoadingLedgerEntries}
+                  placeholder="Select Entry No."
+                />
+              </div>
+            )}
+          </div>
+        </div>
+
+
       </DialogContent>
 
       {isBardanaOpen && (

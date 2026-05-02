@@ -294,10 +294,10 @@ export async function addBardanaLine(
   itemNo: string,
   uom: string,
   quantity: number,
-): Promise<void> {
+): Promise<any> {
   const endpoint = `/QCPurchaseBardanaList?company='${encodeURIComponent(COMPANY)}'`;
   try {
-    await apiPost(endpoint, {
+    const response = await apiPost<any>(endpoint, {
       Document_Type: "Order",
       Document_No: documentNo,
       Document_Line_No: documentLineNo,
@@ -305,6 +305,7 @@ export async function addBardanaLine(
       UOM: uom,
       Quantity: quantity,
     });
+    return response;
   } catch (error) {
     console.error("Error adding bardana line:", error);
     throw error as ApiError;

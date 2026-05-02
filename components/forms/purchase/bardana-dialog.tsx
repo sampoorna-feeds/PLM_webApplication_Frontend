@@ -51,6 +51,7 @@ export function BardanaDialog({
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [addedLine, setAddedLine] = useState<any | null>(null);
 
   // Reset state when dialog opens
   useEffect(() => {
@@ -61,6 +62,7 @@ export function BardanaDialog({
       setIsSaving(false);
       setError(null);
       setSuccess(false);
+      setAddedLine(null);
     }
   }, [isOpen, noOfBags]);
 
@@ -92,7 +94,14 @@ export function BardanaDialog({
     setIsSaving(true);
     setError(null);
     try {
-      await addBardanaLine(documentNo, lineNo, selectedItem.No, uom, qty);
+      const response = await addBardanaLine(
+        documentNo,
+        lineNo,
+        selectedItem.No,
+        uom,
+        qty,
+      );
+      setAddedLine(response);
       setSuccess(true);
     } catch (err) {
       const msg =
@@ -176,9 +185,55 @@ export function BardanaDialog({
           {error && <p className="text-destructive text-xs">{error}</p>}
 
           {success && (
-            <p className="text-xs font-medium text-green-600">
-              ✓ Bardana line added successfully.
-            </p>
+            <div className="space-y-2 rounded-md border border-green-200 bg-green-50 p-3">
+              <p className="text-xs font-semibold text-green-700">
+                ✓ Bardana line added successfully.
+              </p>
+              {addedLine && (
+                <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-[11px]">
+                  <div>
+                    <span className="text-muted-foreground block font-medium">
+                      Document No
+                    </span>
+                    <span className="font-semibold">{addedLine.Document_No}</span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground block font-medium">
+                      Item No
+                    </span>
+                    <span className="font-semibold">{addedLine.Item_No}</span>
+                  </div>
+                  <div className="col-span-2">
+                    <span className="text-muted-foreground block font-medium">
+                      Description
+                    </span>
+                    <span className="font-semibold">{addedLine.Description}</span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground block font-medium">
+                      Quantity
+                    </span>
+                    <span className="font-semibold">
+                      {addedLine.Quantity} {addedLine.UOM}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground block font-medium">
+                      Weight Per
+                    </span>
+                    <span className="font-semibold">{addedLine.Weight_Per}</span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground block font-medium">
+                      Total Weight
+                    </span>
+                    <span className="font-semibold">
+                      {addedLine.Total_Weight}
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
           )}
         </div>
 

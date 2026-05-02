@@ -7,7 +7,7 @@
  */
 
 import React, { useCallback, useEffect, useState } from "react";
-import { Loader2, Package } from "lucide-react";
+import { Loader2, Package, Trash2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -221,16 +221,20 @@ export function BardanaDialog({
                   ✓ Bardana line added successfully.
                 </p>
                 <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-7 px-2 text-[10px] text-red-600 hover:bg-red-50 hover:text-red-700"
+                  variant="outline"
+                  size="icon"
+                  className="w-fit  px-2 py-1 border-red-100 text-red-500 hover:bg-red-50 hover:text-red-600"
                   onClick={handleDelete}
                   disabled={isDeleting}
+                  title="Delete added line"
                 >
                   {isDeleting ? (
-                    <Loader2 className="h-3 w-3 animate-spin" />
+                    <Loader2 className="size-4 animate-spin" />
                   ) : (
-                    "Delete Line"
+                    <div className="flex items-center gap-1 justify-center">
+                    <Trash2 className="size-4" />
+                    <p>Delete</p>
+                    </div>
                   )}
                 </Button>
               </div>

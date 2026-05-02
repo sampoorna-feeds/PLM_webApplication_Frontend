@@ -42,7 +42,7 @@ interface ColumnConfig {
   id: string;
   label: string;
   sortable?: boolean;
-  filterType?: "text" | "number";
+  filterType?: "text" | "number" | "date";
   align?: "left" | "right" | "center";
   width?: string;
 }
@@ -393,9 +393,9 @@ interface SelectionTableHeadProps {
   column: ColumnConfig;
   isActive: boolean;
   sortDirection: SortDirection;
-  filterValue: string;
+  filterValue: { value: string; valueTo?: string };
   onSort: (id: string) => void;
-  onFilter: (id: string, value: string) => void;
+  onFilter: (id: string, value: string, valueTo?: string) => void;
 }
 
 function SelectionTableHead({ column, isActive, sortDirection, filterValue, onSort, onFilter }: SelectionTableHeadProps) {
@@ -413,7 +413,7 @@ function SelectionTableHead({ column, isActive, sortDirection, filterValue, onSo
           </button>
         )}
         {column.filterType && (
-          <SelectionColumnFilter column={column} value={filterValue} onChange={(v) => onFilter(column.id, v)} />
+          <SelectionColumnFilter column={column} value={filterValue.value} valueTo={filterValue.valueTo} onChange={(v, vt) => onFilter(column.id, v, vt)} />
         )}
       </div>
     </th>
@@ -423,14 +423,22 @@ function SelectionTableHead({ column, isActive, sortDirection, filterValue, onSo
 interface SelectionColumnFilterProps {
   column: ColumnConfig;
   value: string;
-  onChange: (value: string) => void;
+  valueTo?: string;
+  onChange: (value: string, valueTo?: string) => void;
 }
 
-function SelectionColumnFilter({ column, value, onChange }: SelectionColumnFilterProps) {
+function SelectionColumnFilter({ column, value, valueTo, onChange }: SelectionColumnFilterProps) {
   const [open, setOpen] = useState(false);
   const [local, setLocal] = useState(value);
-  useEffect(() => { setLocal(value); }, [value]);
-  const hasFilter = !!value;
+  const [localTo, setLocalTo] = useState(valueTo || "");
+
+  useEffect(() => {
+    setLocal(value);
+    setLocalTo(valueTo || "");
+  }, [value, valueTo]);
+
+  const hasFilter = !!value || !!valueTo;
+
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
@@ -438,14 +446,38 @@ function SelectionColumnFilter({ column, value, onChange }: SelectionColumnFilte
           <Filter className={cn("h-3 w-3", hasFilter && "fill-current")} />
         </button>
       </PopoverTrigger>
-      <PopoverContent className="w-48 p-3" align="start" onClick={(e) => e.stopPropagation()}>
-        <div className="space-y-2">
-          <Label className="text-xs">Filter {column.label}</Label>
-          <Input placeholder="Search..." value={local} onChange={(e) => setLocal(e.target.value)} className="h-7 text-xs" onKeyDown={(e) => { if (e.key === "Enter") { onChange(local); setOpen(false); } }} />
+      <PopoverContent className="w-56 p-3" align="start" onClick={(e) => e.stopPropagation()}>
+        <div className="space-y-3">
+          <Label className="text-xs font-medium">Filter {column.label}</Label>
+          
+          {column.filterType === "date" ? (
+            <div className="space-y-2">
+              <div className="space-y-1">
+                <Label className="text-[10px] text-muted-foreground">From</Label>
+                <Input type="date" value={local} onChange={(e) => setLocal(e.target.value)} className="h-7 text-xs" />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-[10px] text-muted-foreground">To</Label>
+                <Input type="date" value={localTo} onChange={(e) => setLocalTo(e.target.value)} className="h-7 text-xs" />
+              </div>
+            </div>
+          ) : (
+            <Input 
+              placeholder="Search..." 
+              value={local} 
+              onChange={(e) => setLocal(e.target.value)} 
+              className="h-7 text-xs" 
+              onKeyDown={(e) => { if (e.key === "Enter") { onChange(local, localTo); setOpen(false); } }} 
+            />
+          )}
         </div>
-        <div className="mt-2 flex gap-2">
-          <Button size="sm" className="h-7 flex-1 text-xs" onClick={() => { onChange(local); setOpen(false); }}>Apply</Button>
-          {hasFilter && <Button size="sm" variant="outline" className="h-7 px-2" onClick={() => { setLocal(""); onChange(""); setOpen(false); }}><X className="h-3 w-3" /></Button>}
+        <div className="mt-3 flex gap-2">
+          <Button size="sm" className="h-7 flex-1 text-xs" onClick={() => { onChange(local, localTo); setOpen(false); }}>Apply</Button>
+          {hasFilter && (
+            <Button size="sm" variant="outline" className="h-7 px-2" onClick={() => { setLocal(""); setLocalTo(""); onChange("", ""); setOpen(false); }}>
+              <X className="h-3 w-3" />
+            </Button>
+          )}
         </div>
       </PopoverContent>
     </Popover>

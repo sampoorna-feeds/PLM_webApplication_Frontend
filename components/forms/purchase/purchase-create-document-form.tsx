@@ -320,9 +320,9 @@ const PURCHASE_CREATE_DOCUMENT_CONFIG: Record<
     deleteHeader: deletePurchaseInvoiceHeader,
     deleteLine: deleteSinglePurchaseInvoiceLine,
     statusActions: {
-      open: [],
-      pending: [],
-      released: [],
+      open: ["Send For Approval"],
+      pending: ["Cancel Approval"],
+      released: ["Post", "Reopen"],
     },
     fetchHeader: getPurchaseInvoiceByNo,
     fetchLines: getPurchaseInvoiceLines,
@@ -351,9 +351,9 @@ const PURCHASE_CREATE_DOCUMENT_CONFIG: Record<
     deleteHeader: deletePurchaseReturnOrderHeader,
     deleteLine: deleteSinglePurchaseReturnOrderLine,
     statusActions: {
-      open: [],
-      pending: [],
-      released: [],
+      open: ["Send For Approval"],
+      pending: ["Cancel Approval"],
+      released: ["Post", "Reopen"],
     },
     fetchHeader: getPurchaseReturnOrderByNo,
     fetchLines: getPurchaseReturnOrderLines,
@@ -381,9 +381,9 @@ const PURCHASE_CREATE_DOCUMENT_CONFIG: Record<
     deleteHeader: deletePurchaseCreditMemoHeader,
     deleteLine: deleteSinglePurchaseCreditMemoLine,
     statusActions: {
-      open: [],
-      pending: [],
-      released: [],
+      open: ["Send For Approval"],
+      pending: ["Cancel Approval"],
+      released: ["Post", "Reopen"],
     },
     fetchHeader: getPurchaseCreditMemoByNo,
     fetchLines: getPurchaseCreditMemoLines,
@@ -3076,7 +3076,13 @@ export function PurchaseCreateDocumentFormContent({
               <>
                 {postResultDocs.Voucher && (
                   <div className="flex items-center justify-between rounded-md border p-3">
-                    <span className="text-sm font-medium">Voucher</span>
+                    <span className="text-sm font-medium">
+                      {documentType === "invoice"
+                        ? "Posted Invoice"
+                        : documentType === "credit-memo" || documentType === "return-order"
+                          ? "Posted Credit Memo"
+                          : "Voucher"}
+                    </span>
                     <div className="flex gap-2">
                       <Button
                         size="sm"
@@ -3097,7 +3103,7 @@ export function PurchaseCreateDocumentFormContent({
                           const url = window.URL.createObjectURL(blob);
                           const link = document.createElement("a");
                           link.href = url;
-                          link.download = "Voucher.pdf";
+                          link.download = `${documentType === "invoice" ? "Posted_Invoice" : "Voucher"}.pdf`;
                           document.body.appendChild(link);
                           link.click();
                           document.body.removeChild(link);
@@ -3111,7 +3117,11 @@ export function PurchaseCreateDocumentFormContent({
                 )}
                 {postResultDocs.Receipt && (
                   <div className="flex items-center justify-between rounded-md border p-3">
-                    <span className="text-sm font-medium">Receipt</span>
+                    <span className="text-sm font-medium">
+                      {documentType === "return-order"
+                        ? "Return Shipment"
+                        : "Receipt"}
+                    </span>
                     <div className="flex gap-2">
                       <Button
                         size="sm"
@@ -3132,7 +3142,7 @@ export function PurchaseCreateDocumentFormContent({
                           const url = window.URL.createObjectURL(blob);
                           const link = document.createElement("a");
                           link.href = url;
-                          link.download = "Receipt.pdf";
+                          link.download = `${documentType === "return-order" ? "Return_Shipment" : "Receipt"}.pdf`;
                           document.body.appendChild(link);
                           link.click();
                           document.body.removeChild(link);

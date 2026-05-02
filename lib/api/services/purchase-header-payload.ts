@@ -46,6 +46,7 @@ export interface PurchaseHeaderPayloadSource {
   appliesToDocType?: string;
   appliesToDocNo?: string;
   poExpirationDate?: string;
+  vehicleNo?: string;
 }
 
 export interface BuildPurchaseHeaderPayloadOptions {
@@ -161,6 +162,7 @@ export function buildPurchaseHeaderPayload(
     Shortcut_Dimension_2_Code: source.branch || "",
     Shortcut_Dimension_3_Code: source.locationCode || "",
     Order_Address_Code: source.orderAddressCode,
+    Vehicle_No: source.vehicleNo,
   };
 
   // Invoice + Order + Credit Memo only (not Return Order)

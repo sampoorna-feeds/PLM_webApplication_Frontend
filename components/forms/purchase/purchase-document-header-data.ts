@@ -25,6 +25,7 @@ export interface PurchaseCommonHeaderFormData {
   creditorType: string;
   qcType: string;
   dueDate: string;
+  vehicleNo: string;
 }
 
 export function buildPurchaseCommonHeaderData(
@@ -57,5 +58,6 @@ export function buildPurchaseCommonHeaderData(
     creditorType: formData.creditorType,
     qcType: formData.qcType === "_none" ? "" : formData.qcType,
     dueDate: formData.dueDate,
+    vehicleNo: formData.vehicleNo,
   };
 }

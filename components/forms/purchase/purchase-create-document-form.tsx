@@ -290,6 +290,7 @@ interface PurchaseCreateDocumentFormState {
   poExpirationDate: string;
   copyFromDocType: string;
   copyFromDocNo: string;
+  vehicleNo: string;
 }
 
 const PURCHASE_CREATE_DOCUMENT_CONFIG: Record<
@@ -494,6 +495,7 @@ export function PurchaseCreateDocumentFormContent({
     poExpirationDate: "",
     copyFromDocType: "",
     copyFromDocNo: "",
+    vehicleNo: "",
     ...initialFormData,
   });
 
@@ -572,13 +574,17 @@ export function PurchaseCreateDocumentFormContent({
   useEffect(() => {
     if (isPostDetailsOpen) {
       const today = new Date().toISOString().split("T")[0];
-      setPostDetails(prev => ({
+      setPostDetails((prev) => ({
         ...prev,
-        postingDate: today,
-        documentDate: today
+        postingDate: formData.postingDate || today,
+        documentDate: formData.documentDate || today,
+        vehicleNo: formData.vehicleNo || "",
+        vendorInvoiceNo: formData.vendorInvoiceNo || "",
+        vendorCrMemoNo: formData.vendorCrMemoNo || "",
+        dueDateCalculation: formData.dueDateCalculation || "Posting Date",
       }));
     }
-  }, [isPostDetailsOpen]);
+  }, [isPostDetailsOpen, formData]);
   const [receiptDate, setReceiptDate] = useState("");
   const [isTrackingOpen, setIsTrackingOpen] = useState(false);
   const [trackingLine, setTrackingLine] = useState<PurchaseLine | null>(null);
@@ -1938,6 +1944,22 @@ export function PurchaseCreateDocumentFormContent({
                           value={formData.dueDate}
                           onChange={(e) =>
                             handleInputChange("dueDate", e.target.value)
+                          }
+                          className="h-9 text-sm shadow-none"
+                        />
+                      </ClearableField>
+                    </div>
+                    <div className={fieldClass}>
+                      <label className={labelClass}>Vehicle No</label>
+                      <ClearableField
+                        readOnly={areFieldsReadOnly}
+                        value={formData.vehicleNo}
+                        onClear={() => handleInputChange("vehicleNo", "")}
+                      >
+                        <Input
+                          value={formData.vehicleNo}
+                          onChange={(e) =>
+                            handleInputChange("vehicleNo", e.target.value)
                           }
                           className="h-9 text-sm shadow-none"
                         />

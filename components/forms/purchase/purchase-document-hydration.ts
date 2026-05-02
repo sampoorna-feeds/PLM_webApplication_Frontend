@@ -67,6 +67,7 @@ export function mapPurchaseHeaderToFormData(
       const v = toStringValue(rawHeader["PO_Expiration_Date"]);
       return v === "0001-01-01" ? "" : v;
     })(),
+    vehicleNo: toStringValue(header.Vehicle_No),
   };
 }
 

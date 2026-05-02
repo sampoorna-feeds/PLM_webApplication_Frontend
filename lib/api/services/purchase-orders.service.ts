@@ -6,7 +6,7 @@
 import { apiGet, apiPost, apiPatch, apiDelete } from "../client";
 import { buildODataQuery } from "../endpoints";
 import type { ODataResponse } from "../types";
-import { stripNullish } from "./purchase-header-payload";
+import { stripNullish, toUpperCaseValues } from "./purchase-header-payload";
 
 const COMPANY =
   process.env.NEXT_PUBLIC_API_COMPANY || "Sampoorna Feeds Pvt. Ltd";
@@ -525,7 +525,7 @@ export async function patchPurchaseOrderHeader(
 ): Promise<unknown> {
   const escapedNo = orderNo.replace(/'/g, "''");
   const endpoint = `/PurchaseOrder(Document_Type='Order',No='${encodeURIComponent(escapedNo)}')?company='${encodeURIComponent(COMPANY)}'`;
-  const payload = stripNullish(body);
+  const payload = toUpperCaseValues(stripNullish(body), ["Document_Type", "Type"]);
   return apiPatch<unknown>(endpoint, payload);
 }
 
@@ -557,7 +557,8 @@ export async function addPurchaseLine(
   line: AddPurchaseLinePayload,
 ): Promise<unknown> {
   const endpoint = `/PurchaseLine?company='${encodeURIComponent(COMPANY)}'`;
-  return apiPost<unknown>(endpoint, line);
+  const payload = toUpperCaseValues(line, ["Document_Type", "Type"]);
+  return apiPost<unknown>(endpoint, payload);
 }
 
 /**
@@ -570,7 +571,7 @@ export async function updatePurchaseLine(
 ): Promise<unknown> {
   const escapedNo = documentNo.replace(/'/g, "''");
   const endpoint = `/PurchaseLine(Document_Type='Order',Document_No='${encodeURIComponent(escapedNo)}',Line_No=${lineNo})?company='${encodeURIComponent(COMPANY)}'`;
-  const payload = stripNullish(body);
+  const payload = toUpperCaseValues(stripNullish(body), ["Document_Type", "Type"]);
   return apiPatch<unknown>(endpoint, payload);
 }
 
@@ -673,7 +674,7 @@ export async function assignPurchaseItemTracking(
     newManufacuringdate: "0001-01-01",
     reservationStatus: 2,
   };
-  return apiPost<unknown>(endpoint, payload);
+  return apiPost<unknown>(endpoint, toUpperCaseValues(payload));
 }
 
 function escapeODataString(value: string): string {

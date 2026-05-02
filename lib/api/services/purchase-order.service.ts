@@ -5,7 +5,7 @@
 
 import { apiPost, apiPatch, apiDelete } from "../client";
 import type { ApiError } from "../client";
-import { buildPurchaseHeaderPayload } from "./purchase-header-payload";
+import { buildPurchaseHeaderPayload, toUpperCaseValues } from "./purchase-header-payload";
 import {
   buildCreatePurchaseLinePayload,
   buildUpdatePurchaseLinePayload,
@@ -275,8 +275,8 @@ export async function uploadPurchaseAttachment(
   const endpoint = `/API_InitiateUploadFilePurchase?company='${encodeURIComponent(COMPANY)}'`;
   try {
     await apiPost(endpoint, {
-      recNo: orderNo,
-      fileName,
+      recNo: orderNo.toUpperCase(),
+      fileName: fileName.toUpperCase(),
       fileEncodedTextDialog: fileBase64,
     });
   } catch (error) {
@@ -299,10 +299,10 @@ export async function addBardanaLine(
   try {
     const response = await apiPost<any>(endpoint, {
       Document_Type: "Order",
-      Document_No: documentNo,
+      Document_No: documentNo.toUpperCase(),
       Document_Line_No: documentLineNo,
-      Item_No: itemNo,
-      UOM: uom,
+      Item_No: itemNo.toUpperCase(),
+      UOM: uom.toUpperCase(),
       Quantity: quantity,
     });
     return response;

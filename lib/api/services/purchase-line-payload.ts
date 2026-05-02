@@ -1,4 +1,7 @@
-import type { PurchaseDocumentHeaderType } from "./purchase-header-payload";
+import {
+  type PurchaseDocumentHeaderType,
+  toUpperCaseValues,
+} from "./purchase-header-payload";
 
 export interface PurchaseLinePayloadSource {
   type?: string;
@@ -58,7 +61,7 @@ export function buildCreatePurchaseLinePayload(
     payload.No_of_Bags = lineItem.noOfBags;
   if (lineItem.gstCredit) payload.GST_Credit = lineItem.gstCredit;
 
-  return payload;
+  return toUpperCaseValues(payload, ["Document_Type", "Type"]);
 }
 
 export function buildUpdatePurchaseLinePayload(
@@ -89,5 +92,5 @@ export function buildUpdatePurchaseLinePayload(
     payload.No_of_Bags = lineItem.noOfBags;
   if (lineItem.gstCredit !== undefined) payload.GST_Credit = lineItem.gstCredit;
 
-  return payload;
+  return toUpperCaseValues(payload, ["Document_Type", "Type"]);
 }

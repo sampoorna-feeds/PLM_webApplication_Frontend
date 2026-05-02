@@ -142,6 +142,23 @@ export function stripNullish(
   );
 }
 
+/**
+ * Converts all string values in an object to uppercase, excluding specific keys.
+ */
+export function toUpperCaseValues<T extends object>(
+  obj: T,
+  excludeKeys: string[] = [],
+): T {
+  const result = { ...obj } as any;
+  for (const key of Object.keys(result)) {
+    const value = result[key];
+    if (typeof value === "string" && !excludeKeys.includes(key)) {
+      result[key] = value.toUpperCase();
+    }
+  }
+  return result;
+}
+
 export function buildPurchaseHeaderPayload(
   source: PurchaseHeaderPayloadSource,
   options: BuildPurchaseHeaderPayloadOptions = {},
@@ -271,5 +288,5 @@ export function buildPurchaseHeaderPayload(
     }
   }
 
-  return result;
+  return toUpperCaseValues(result, ["Document_Type"]);
 }

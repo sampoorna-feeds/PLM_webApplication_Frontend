@@ -21,6 +21,7 @@ import type {
   PagedResult,
   PostItemChargeAssignmentPayload,
   SuggestAssignmentPayload,
+  ColumnFilters,
 } from "./item-charge-assignment.service";
 
 export interface SalesItemChargeAssignment {
@@ -109,6 +110,7 @@ export const salesItemChargeAssignmentService = {
       top?: number;
       extraFilters?: string[];
       sellToCustomerNo?: string;
+      columnFilters?: ColumnFilters;
     } = {},
   ): Promise<PagedResult<ItemChargeSourceLine>> {
     const {
@@ -118,6 +120,7 @@ export const salesItemChargeAssignmentService = {
       top = 200,
       extraFilters,
       sellToCustomerNo,
+      columnFilters,
     } = options;
     const endpointName = SALES_ENDPOINTS[type];
     const itemNoField = ITEM_NO_FIELD_MAP[type];
@@ -141,6 +144,32 @@ export const salesItemChargeAssignmentService = {
       filters.push(
         `(contains(Document_No,'${s}') or contains(${itemNoField},'${s}'))`,
       );
+    }
+
+    // Column Filters
+    if (columnFilters) {
+      Object.entries(columnFilters).forEach(([colId, filter]) => {
+        if (!filter.value && !filter.valueTo) return;
+
+        let field = colId;
+        if (colId === "Item_No") field = itemNoField;
+        
+        // Handle Date fields
+        if (colId === "Posting_Date" && (type === "SalesShipment" || type === "Transfer")) {
+           // PostedSalesShipmentLine might use Posting_Date or Shipment_Date. 
+           // In ItemChargeSourceLine it was Shipment_Date for GetShipmentLine.
+           // Let's stick to the mapped interface.
+           if (type === "SalesShipment") field = "Posting_Date";
+        }
+
+        if (filter.valueTo || colId === "Posting_Date") {
+          if (filter.value) filters.push(`${field} ge ${filter.value}`);
+          if (filter.valueTo) filters.push(`${field} le ${filter.valueTo}`);
+        } else {
+          const s = escapeODataString(filter.value);
+          filters.push(`contains(${field},'${s}')`);
+        }
+      });
     }
 
     const filterStr =

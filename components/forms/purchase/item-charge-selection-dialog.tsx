@@ -36,15 +36,20 @@ import { Label } from "@/components/ui/label";
 
 const PAGE_SIZE = 200;
 
-import {
-  SelectionTableHead,
-  type ColumnConfig,
-  type SortDirection,
-} from "@/components/ui/selection-table-head";
+type SortDirection = "asc" | "desc" | null;
+
+interface ColumnConfig {
+  id: string;
+  label: string;
+  sortable?: boolean;
+  filterType?: "text" | "number";
+  align?: "left" | "right" | "center";
+  width?: string;
+}
 
 const SELECTION_COLUMNS: ColumnConfig[] = [
   { id: "Document_No", label: "Document No.", sortable: true, filterType: "text", width: "160px" },
-  { id: "Posting_Date", label: "Date", sortable: true, filterType: "text", width: "120px" },
+  { id: "Posting_Date", label: "Date", sortable: true, filterType: "date", width: "120px" },
   { id: "Location_Code", label: "Location", sortable: true, filterType: "text", width: "100px" },
   { id: "Item_No", label: "Item No.", sortable: true, filterType: "text", width: "130px" },
   { id: "Description", label: "Description", sortable: true, filterType: "text", width: "250px" },
@@ -83,7 +88,7 @@ export function ItemChargeSelectionDialog({
 
   const [sortColumn, setSortColumn] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>(null);
-  const [columnFilters, setColumnFilters] = useState<Record<string, string>>({});
+  const [columnFilters, setColumnFilters] = useState<Record<string, { value: string; valueTo?: string }>>({});
 
   // Drag-select
   const isDraggingRef = useRef(false);
@@ -105,7 +110,13 @@ export function ItemChargeSelectionDialog({
       setTotalCount(0);
       setSelectedIds(new Set());
       if (scrollContainerRef.current) scrollContainerRef.current.scrollTop = 0;
-      const result = await itemChargeAssignmentService.getSourceLines(type, { search: debouncedSearchQuery || undefined, skip: 0, top: PAGE_SIZE, extraFilters });
+      const result = await itemChargeAssignmentService.getSourceLines(type, { 
+        search: debouncedSearchQuery || undefined, 
+        skip: 0, 
+        top: PAGE_SIZE, 
+        extraFilters,
+        columnFilters 
+      });
       setSourceLines(result.value);
       setTotalCount(result.count);
     } catch (error) {
@@ -113,13 +124,19 @@ export function ItemChargeSelectionDialog({
     } finally {
       setLoading(false);
     }
-  }, [type, debouncedSearchQuery, extraFilters]);
+  }, [type, debouncedSearchQuery, extraFilters, columnFilters]);
 
   const fetchMore = useCallback(async () => {
     if (!canFetchMore) return;
     try {
       setLoadingMore(true);
-      const result = await itemChargeAssignmentService.getSourceLines(type, { search: debouncedSearchQuery || undefined, skip: sourceLines.length, top: PAGE_SIZE, extraFilters });
+      const result = await itemChargeAssignmentService.getSourceLines(type, { 
+        search: debouncedSearchQuery || undefined, 
+        skip: sourceLines.length, 
+        top: PAGE_SIZE, 
+        extraFilters,
+        columnFilters
+      });
       setSourceLines((prev) => [...prev, ...result.value]);
       setTotalCount(result.count);
     } catch (error) {
@@ -127,7 +144,7 @@ export function ItemChargeSelectionDialog({
     } finally {
       setLoadingMore(false);
     }
-  }, [canFetchMore, type, debouncedSearchQuery, sourceLines.length, extraFilters]);
+  }, [canFetchMore, type, debouncedSearchQuery, sourceLines.length, extraFilters, columnFilters]);
 
   useEffect(() => { if (open) fetchInitial(); }, [open, debouncedSearchQuery, fetchInitial]);
 
@@ -141,19 +158,7 @@ export function ItemChargeSelectionDialog({
 
   const filteredAndSortedLines = useMemo(() => {
     let result = sourceLines;
-    Object.entries(columnFilters).forEach(([colId, filterVal]) => {
-      if (!filterVal) return;
-      result = result.filter((line) => {
-        let value = (line as unknown as Record<string, unknown>)[colId];
-        if (colId === "Item_No" && value === undefined) value = line.No || line.Item_No;
-        if (colId === "Posting_Date" && value === undefined) value = line.Posting_Date || line.Shipment_Date;
-        if (value == null) return false;
-        const sv = String(value).toLowerCase();
-        const fv = filterVal.toLowerCase();
-        if (fv.includes(",")) return fv.split(",").map((p) => p.trim()).filter(Boolean).some((p) => sv.includes(p));
-        return sv.includes(fv);
-      });
-    });
+    // Filtering is now handled by API
     if (sortColumn && sortDirection) {
       result = [...result].sort((a, b) => {
         let valA = (a as unknown as Record<string, unknown>)[sortColumn];
@@ -168,7 +173,7 @@ export function ItemChargeSelectionDialog({
       });
     }
     return result;
-  }, [sourceLines, columnFilters, sortColumn, sortDirection]);
+  }, [sourceLines, sortColumn, sortDirection]);
 
   const lineId = (line: ItemChargeSourceLine) => `${line.Document_No}-${line.Line_No}`;
 
@@ -211,8 +216,14 @@ export function ItemChargeSelectionDialog({
     } else { setSortColumn(columnId); setSortDirection("asc"); }
   };
 
-  const handleColumnFilter = (columnId: string, value: string) => {
-    setColumnFilters((prev) => { if (!value) { const { [columnId]: _, ...rest } = prev; return rest; } return { ...prev, [columnId]: value }; });
+  const handleColumnFilter = (columnId: string, value: string, valueTo?: string) => {
+    setColumnFilters((prev) => {
+      if (!value && !valueTo) {
+        const { [columnId]: _, ...rest } = prev;
+        return rest;
+      }
+      return { ...prev, [columnId]: { value, valueTo } };
+    });
   };
 
   const handleAdd = async () => {
@@ -373,5 +384,70 @@ export function ItemChargeSelectionDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+// ── Table head helpers ──────────────────────────────────────────────────────
+
+interface SelectionTableHeadProps {
+  column: ColumnConfig;
+  isActive: boolean;
+  sortDirection: SortDirection;
+  filterValue: string;
+  onSort: (id: string) => void;
+  onFilter: (id: string, value: string) => void;
+}
+
+function SelectionTableHead({ column, isActive, sortDirection, filterValue, onSort, onFilter }: SelectionTableHeadProps) {
+  const SortIcon = !isActive || !sortDirection ? ArrowUpDown : sortDirection === "asc" ? ArrowUp : ArrowDown;
+  return (
+    <th
+      className={cn("bg-muted text-foreground h-10 px-3 text-left align-middle text-[10px] font-bold tracking-wider whitespace-nowrap uppercase select-none", column.align === "right" && "text-right", column.align === "center" && "text-center")}
+      style={{ minWidth: column.width }}
+    >
+      <div className={cn("flex items-center gap-1", column.align === "right" ? "justify-end" : column.align === "center" ? "justify-center" : "")}>
+        <span className="cursor-pointer hover:opacity-70 transition-opacity" onClick={() => column.sortable && onSort(column.id)}>{column.label}</span>
+        {column.sortable && (
+          <button type="button" className="hover:opacity-70 transition-opacity" onClick={() => onSort(column.id)}>
+            <SortIcon className={cn("h-3 w-3", !isActive && "opacity-30")} />
+          </button>
+        )}
+        {column.filterType && (
+          <SelectionColumnFilter column={column} value={filterValue} onChange={(v) => onFilter(column.id, v)} />
+        )}
+      </div>
+    </th>
+  );
+}
+
+interface SelectionColumnFilterProps {
+  column: ColumnConfig;
+  value: string;
+  onChange: (value: string) => void;
+}
+
+function SelectionColumnFilter({ column, value, onChange }: SelectionColumnFilterProps) {
+  const [open, setOpen] = useState(false);
+  const [local, setLocal] = useState(value);
+  useEffect(() => { setLocal(value); }, [value]);
+  const hasFilter = !!value;
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button type="button" className={cn("rounded p-0.5 transition-colors", hasFilter ? "text-primary" : "text-primary/30 hover:text-primary/60")} onClick={(e) => e.stopPropagation()}>
+          <Filter className={cn("h-3 w-3", hasFilter && "fill-current")} />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="w-48 p-3" align="start" onClick={(e) => e.stopPropagation()}>
+        <div className="space-y-2">
+          <Label className="text-xs">Filter {column.label}</Label>
+          <Input placeholder="Search..." value={local} onChange={(e) => setLocal(e.target.value)} className="h-7 text-xs" onKeyDown={(e) => { if (e.key === "Enter") { onChange(local); setOpen(false); } }} />
+        </div>
+        <div className="mt-2 flex gap-2">
+          <Button size="sm" className="h-7 flex-1 text-xs" onClick={() => { onChange(local); setOpen(false); }}>Apply</Button>
+          {hasFilter && <Button size="sm" variant="outline" className="h-7 px-2" onClick={() => { setLocal(""); onChange(""); setOpen(false); }}><X className="h-3 w-3" /></Button>}
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 }

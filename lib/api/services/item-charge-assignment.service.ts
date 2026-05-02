@@ -105,6 +105,13 @@ export interface PagedResult<T> {
   count: number;
 }
 
+export interface ColumnFilterValue {
+  value: string;
+  valueTo?: string;
+}
+
+export type ColumnFilters = Record<string, ColumnFilterValue>;
+
 export const itemChargeAssignmentService = {
   async getAssignments(filters: {
     docType: string;
@@ -140,15 +147,16 @@ export const itemChargeAssignmentService = {
       skip?: number;
       top?: number;
       extraFilters?: string[];
+      columnFilters?: ColumnFilters;
     } = {},
   ): Promise<PagedResult<ItemChargeSourceLine>> {
-    const { docNo, search, skip = 0, top = 200, extraFilters } = options;
+    const { docNo, search, skip = 0, top = 200, extraFilters, columnFilters } = options;
     const endpointName = ENDPOINTS[type];
     const itemNoField = ITEM_NO_FIELD_MAP[type];
     const filters: string[] = [];
 
     if (docNo) {
-      filters.push(`Document_No eq '${docNo}'`);
+      filters.push(`Document_No eq '${docNo.replace(/'/g, "''")}'`);
     }
 
     if (extraFilters?.length) {
@@ -161,6 +169,37 @@ export const itemChargeAssignmentService = {
       filters.push(
         `(contains(Document_No,'${s}') or contains(${itemNoField},'${s}'))`,
       );
+    }
+
+    // Column Filters
+    if (columnFilters) {
+      Object.entries(columnFilters).forEach(([colId, filter]) => {
+        if (!filter.value && !filter.valueTo) return;
+
+        let field = colId;
+        // Map Item_No to the correct field for this endpoint if needed
+        if (colId === "Item_No") field = itemNoField;
+        
+        // Handle Date fields which might use different names
+        if (colId === "Posting_Date" && type === "GetShipmentLine") {
+          field = "Shipment_Date";
+        }
+
+        if (filter.valueTo || colId === "Posting_Date") {
+          // Date range or explicit range
+          if (filter.value) filters.push(`${field} ge ${filter.value}`);
+          if (filter.valueTo) filters.push(`${field} le ${filter.valueTo}`);
+        } else {
+          const s = filter.value.replace(/'/g, "''");
+          if (colId === "Location_Code" || colId === "Document_No") {
+             // Exact match for codes usually better, but user might want partial. 
+             // Let's use contains for general searchability as per existing pattern.
+             filters.push(`contains(${field},'${s}')`);
+          } else {
+             filters.push(`contains(${field},'${s}')`);
+          }
+        }
+      });
     }
 
     const filterStr =

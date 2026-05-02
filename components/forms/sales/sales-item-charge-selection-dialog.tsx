@@ -42,7 +42,7 @@ interface ColumnConfig {
   id: string;
   label: string;
   sortable?: boolean;
-  filterType?: "text" | "number";
+  filterType?: "text" | "number" | "date";
   align?: "left" | "right" | "center";
   width?: string;
 }
@@ -55,7 +55,7 @@ const SELECTION_COLUMNS: ColumnConfig[] = [
     filterType: "text",
     width: "160px",
   },
-  { id: "Posting_Date", label: "Date", sortable: true, filterType: "text", width: "120px" },
+  { id: "Posting_Date", label: "Date", sortable: true, filterType: "date", width: "120px" },
   {
     id: "Location_Code",
     label: "Location",
@@ -132,7 +132,7 @@ export function SalesItemChargeSelectionDialog({
 
   const [sortColumn, setSortColumn] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>(null);
-  const [columnFilters, setColumnFilters] = useState<Record<string, string>>(
+  const [columnFilters, setColumnFilters] = useState<Record<string, { value: string; valueTo?: string }>>(
     {},
   );
 
@@ -162,6 +162,7 @@ export function SalesItemChargeSelectionDialog({
           top: PAGE_SIZE,
           extraFilters,
           sellToCustomerNo,
+          columnFilters,
         },
       );
       setSourceLines(result.value);
@@ -171,7 +172,7 @@ export function SalesItemChargeSelectionDialog({
     } finally {
       setLoading(false);
     }
-  }, [type, debouncedSearchQuery, extraFilters]);
+  }, [type, debouncedSearchQuery, extraFilters, sellToCustomerNo, columnFilters]);
 
   const fetchMore = useCallback(async () => {
     if (!canFetchMore) return;
@@ -185,6 +186,7 @@ export function SalesItemChargeSelectionDialog({
           top: PAGE_SIZE,
           extraFilters,
           sellToCustomerNo,
+          columnFilters,
         },
       );
       setSourceLines((prev) => [...prev, ...result.value]);
@@ -200,6 +202,8 @@ export function SalesItemChargeSelectionDialog({
     debouncedSearchQuery,
     sourceLines.length,
     extraFilters,
+    sellToCustomerNo,
+    columnFilters,
   ]);
 
   useEffect(() => {
@@ -221,26 +225,7 @@ export function SalesItemChargeSelectionDialog({
 
   const filteredAndSortedLines = useMemo(() => {
     let result = sourceLines;
-    Object.entries(columnFilters).forEach(([colId, filterVal]) => {
-      if (!filterVal) return;
-      result = result.filter((line) => {
-        let value = (line as unknown as Record<string, unknown>)[colId];
-        if (colId === "Item_No" && value === undefined)
-          value = line.No || line.Item_No;
-        if (colId === "Posting_Date" && value === undefined)
-          value = line.Posting_Date || line.Shipment_Date;
-        if (value == null) return false;
-        const sv = String(value).toLowerCase();
-        const fv = filterVal.toLowerCase();
-        if (fv.includes(","))
-          return fv
-            .split(",")
-            .map((p) => p.trim())
-            .filter(Boolean)
-            .some((p) => sv.includes(p));
-        return sv.includes(fv);
-      });
-    });
+    // Filtering is now handled by API
     if (sortColumn && sortDirection) {
       result = [...result].sort((a, b) => {
         let valA = (a as unknown as Record<string, unknown>)[sortColumn];
@@ -261,7 +246,7 @@ export function SalesItemChargeSelectionDialog({
       });
     }
     return result;
-  }, [sourceLines, columnFilters, sortColumn, sortDirection]);
+  }, [sourceLines, sortColumn, sortDirection]);
 
   const lineId = (line: ItemChargeSourceLine) =>
     `${line.Document_No}-${line.Line_No}`;
@@ -328,13 +313,13 @@ export function SalesItemChargeSelectionDialog({
     }
   };
 
-  const handleColumnFilter = (columnId: string, value: string) => {
+  const handleColumnFilter = (columnId: string, value: string, valueTo?: string) => {
     setColumnFilters((prev) => {
-      if (!value) {
+      if (!value && !valueTo) {
         const { [columnId]: _, ...rest } = prev;
         return rest;
       }
-      return { ...prev, [columnId]: value };
+      return { ...prev, [columnId]: { value, valueTo } };
     });
   };
 
@@ -586,9 +571,9 @@ interface SelectionTableHeadProps {
   column: ColumnConfig;
   isActive: boolean;
   sortDirection: SortDirection;
-  filterValue: string;
+  filterValue: { value: string; valueTo?: string };
   onSort: (id: string) => void;
-  onFilter: (id: string, value: string) => void;
+  onFilter: (id: string, value: string, valueTo?: string) => void;
 }
 
 function SelectionTableHead({
@@ -642,8 +627,9 @@ function SelectionTableHead({
         {column.filterType && (
           <SelectionColumnFilter
             column={column}
-            value={filterValue}
-            onChange={(v) => onFilter(column.id, v)}
+            value={filterValue.value}
+            valueTo={filterValue.valueTo}
+            onChange={(v, vt) => onFilter(column.id, v, vt)}
           />
         )}
       </div>
@@ -654,20 +640,27 @@ function SelectionTableHead({
 interface SelectionColumnFilterProps {
   column: ColumnConfig;
   value: string;
-  onChange: (value: string) => void;
+  valueTo?: string;
+  onChange: (value: string, valueTo?: string) => void;
 }
 
 function SelectionColumnFilter({
   column,
   value,
+  valueTo,
   onChange,
 }: SelectionColumnFilterProps) {
   const [open, setOpen] = useState(false);
   const [local, setLocal] = useState(value);
+  const [localTo, setLocalTo] = useState(valueTo || "");
+
   useEffect(() => {
     setLocal(value);
-  }, [value]);
-  const hasFilter = !!value;
+    setLocalTo(valueTo || "");
+  }, [value, valueTo]);
+
+  const hasFilter = !!value || !!valueTo;
+
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
@@ -685,31 +678,55 @@ function SelectionColumnFilter({
         </button>
       </PopoverTrigger>
       <PopoverContent
-        className="w-48 p-3"
+        className="w-56 p-3"
         align="start"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="space-y-2">
-          <Label className="text-xs">Filter {column.label}</Label>
-          <Input
-            placeholder="Search..."
-            value={local}
-            onChange={(e) => setLocal(e.target.value)}
-            className="h-7 text-xs"
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                onChange(local);
-                setOpen(false);
-              }
-            }}
-          />
+        <div className="space-y-3">
+          <Label className="text-xs font-medium">Filter {column.label}</Label>
+
+          {column.filterType === "date" ? (
+            <div className="space-y-2">
+              <div className="space-y-1">
+                <Label className="text-[10px] text-muted-foreground">From</Label>
+                <Input
+                  type="date"
+                  value={local}
+                  onChange={(e) => setLocal(e.target.value)}
+                  className="h-7 text-xs"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-[10px] text-muted-foreground">To</Label>
+                <Input
+                  type="date"
+                  value={localTo}
+                  onChange={(e) => setLocalTo(e.target.value)}
+                  className="h-7 text-xs"
+                />
+              </div>
+            </div>
+          ) : (
+            <Input
+              placeholder="Search..."
+              value={local}
+              onChange={(e) => setLocal(e.target.value)}
+              className="h-7 text-xs"
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  onChange(local, localTo);
+                  setOpen(false);
+                }
+              }}
+            />
+          )}
         </div>
-        <div className="mt-2 flex gap-2">
+        <div className="mt-3 flex gap-2">
           <Button
             size="sm"
             className="h-7 flex-1 text-xs"
             onClick={() => {
-              onChange(local);
+              onChange(local, localTo);
               setOpen(false);
             }}
           >
@@ -722,7 +739,8 @@ function SelectionColumnFilter({
               className="h-7 px-2"
               onClick={() => {
                 setLocal("");
-                onChange("");
+                setLocalTo("");
+                onChange("", "");
                 setOpen(false);
               }}
             >

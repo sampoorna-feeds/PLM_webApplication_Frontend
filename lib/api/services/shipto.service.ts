@@ -109,7 +109,7 @@ export async function getShipToAddresses(
 
   const filter = `Customer_No eq '${customerNo.replace(/'/g, "''")}'`;
   const query = buildODataQuery({
-    $select: "Code,Name,Location_Code",
+    $select: "Code,Name,Location_Code,Address,City",
     $filter: filter,
     $orderby: "Code",
   });

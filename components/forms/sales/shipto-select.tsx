@@ -12,15 +12,20 @@ import {
   CheckIcon,
   Plus,
   Pencil,
+  Search,
+  X,
+  MapPin,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   getShipToAddresses,
   type ShipToAddress,
@@ -55,6 +60,7 @@ export function ShipToSelect({
   const [items, setItems] = useState<ShipToAddress[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
   const onChangeRef = useRef(onChange);
 
   // Get FormStack context to access openTab
@@ -202,123 +208,202 @@ export function ShipToSelect({
     ? `${selectedItem.Code} - ${selectedItem.Name}`
     : value || "";
 
-  return (
-    <Popover open={isOpen} onOpenChange={setIsOpen}>
-      <PopoverTrigger asChild>
-        <Button
-          variant="outline"
-          role="combobox"
-          disabled={disabled || !customerNo}
-          className={cn(
-            "h-9 w-full justify-between text-sm font-normal shadow-sm",
-            !value && "text-muted-foreground",
-            className,
-            errorClass,
+  // Filter items based on search term
+  const filteredItems = items.filter((item) => {
+    const search = searchTerm.toLowerCase();
+    return (
+      item.Code.toLowerCase().includes(search) ||
+      item.Name.toLowerCase().includes(search) ||
+      (item.Address && item.Address.toLowerCase().includes(search)) ||
+      (item.City && item.City.toLowerCase().includes(search))
+    );
+  });
+
+  const handleSelect = (item: ShipToAddress) => {
+    onChange(item.Code, item);
+    setIsOpen(false);
+  };
+
+   return (
+    <>
+      <Button
+        type="button"
+        variant="outline"
+        role="combobox"
+        disabled={disabled || !customerNo}
+        onClick={() => !disabled && customerNo && setIsOpen(true)}
+        className={cn(
+          "h-9 w-full justify-between text-sm font-normal shadow-sm",
+          !value && "text-muted-foreground",
+          className,
+          errorClass,
+        )}
+        data-field-error={hasError}
+      >
+        <span className="flex min-w-0 items-center gap-1.5 truncate">
+          {value && (
+            <MapPin className="text-muted-foreground h-3.5 w-3.5 shrink-0" />
           )}
-          data-field-error={hasError}
-        >
           <span className="truncate">
             {!customerNo
               ? "Select customer first"
               : displayValue || placeholder}
           </span>
-          <ChevronDownIcon className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent
-        className="flex max-h-[var(--radix-popover-content-available-height,80vh)] min-h-0 w-[var(--radix-popover-trigger-width)] max-w-[calc(100vw-2rem)] min-w-[320px] flex-col overflow-hidden p-0"
-        align="start"
-        collisionPadding={8}
-        onOpenAutoFocus={(e) => {
-          // Prevent auto-focus from scrolling
-          e.preventDefault();
-        }}
-        onCloseAutoFocus={(e) => {
-          // Prevent auto-focus from scrolling
-          e.preventDefault();
-        }}
-      >
-        {/* Header with Add New button */}
-        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-          {customerNo && formStackContext && (
-            <div className="flex flex-shrink-0 items-center justify-between border-b p-2">
-              <span className="text-sm font-medium">Ship-To Addresses</span>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleAddNew}
-                className="h-7 px-2 text-xs"
-              >
-                <Plus className="mr-1 h-3 w-3" />
-                Add New
-              </Button>
-            </div>
-          )}
-          <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto">
-            {isLoading ? (
-              <div className="flex items-center justify-center p-4">
-                <Loader2 className="h-4 w-4 animate-spin" />
-              </div>
-            ) : items.length === 0 ? (
-              <div className="text-muted-foreground p-4 text-center text-sm">
-                {!customerNo
-                  ? "Select a customer first"
-                  : "No ship-to addresses found"}
-              </div>
-            ) : (
-              <>
-                {items.map((item) => (
-                  <div
-                    key={item.Code}
-                    className={cn(
-                      "group hover:bg-muted/50 relative flex cursor-default items-start rounded-sm px-2 py-2 text-sm outline-none select-none",
-                      value === item.Code && "bg-muted",
-                    )}
+        </span>
+        <ChevronDownIcon className="ml-2 h-4 w-4 shrink-0 opacity-40" />
+      </Button>
+
+      <Dialog open={isOpen} onOpenChange={setIsOpen}>
+        <DialogContent
+          className="flex h-[80vh] flex-col gap-0 p-0"
+          style={{ width: "min(1000px, 92vw)", maxWidth: "none" }}
+        >
+          {/* Header */}
+          <DialogHeader className="shrink-0 border-b px-5 py-3.5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <MapPin className="text-muted-foreground h-4 w-4" />
+                <DialogTitle className="text-[15px] font-semibold">
+                  Select Ship-To Address
+                </DialogTitle>
+                {!isLoading && items.length > 0 && (
+                  <Badge
+                    variant="secondary"
+                    className="h-5 rounded-sm px-1.5 text-[10px] font-bold tabular-nums"
                   >
-                    <div
-                      className="flex flex-1 items-start"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        onChange(item.Code, item);
-                        setIsOpen(false);
-                      }}
-                    >
-                      <CheckIcon
-                        className={cn(
-                          "mt-0.5 mr-2 h-4 w-4 shrink-0",
-                          value === item.Code ? "opacity-100" : "opacity-0",
-                        )}
-                      />
-                      <div className="min-w-0 flex-1">
-                        <div className="text-foreground font-medium break-words">
-                          {item.Code} - {item.Name}
-                        </div>
-                        {item.Location_Code && (
-                          <div className="text-muted-foreground mt-0.5 text-xs break-words">
-                            Location: {item.Location_Code}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    {formStackContext && (
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        className="h-6 w-6 opacity-0 transition-opacity group-hover:opacity-100"
-                        onClick={(e) => handleEdit(item, e)}
-                        title="Edit ship-to address"
-                      >
-                        <Pencil className="h-3 w-3" />
-                      </Button>
-                    )}
-                  </div>
-                ))}
-              </>
-            )}
+                    {items.length}
+                  </Badge>
+                )}
+              </div>
+              {formStackContext && customerNo && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleAddNew}
+                  className="h-8 px-2 text-xs"
+                >
+                  <Plus className="mr-1 h-3.5 w-3.5" />
+                  Add New
+                </Button>
+              )}
+            </div>
+          </DialogHeader>
+
+          {/* Search Bar */}
+          <div className="bg-muted/30 shrink-0 border-b px-5 py-2.5">
+            <div className="relative flex-1">
+              <Search className="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
+              <Input
+                placeholder="Search by Code, Name, Address or City…"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="border-border/60 bg-background h-9 rounded-md pr-9 pl-9 text-sm shadow-none focus-visible:ring-1"
+                autoFocus
+              />
+              {searchTerm && (
+                <button
+                  type="button"
+                  onClick={() => setSearchTerm("")}
+                  className="text-muted-foreground hover:text-foreground absolute top-1/2 right-3 -translate-y-1/2 transition-colors"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </div>
           </div>
-        </div>
-      </PopoverContent>
-    </Popover>
+
+          {/* Table Content */}
+          <div className="min-h-0 flex-1 overflow-auto">
+            <table className="w-full border-collapse text-sm">
+              <thead className="sticky top-0 z-10 bg-muted">
+                <tr>
+                  <th className="w-10 border-b px-3 py-2.5" />
+                  <th className="border-b px-3 py-2.5 text-left font-medium text-muted-foreground">Code</th>
+                  <th className="border-b px-3 py-2.5 text-left font-medium text-muted-foreground">Name</th>
+                  <th className="border-b px-3 py-2.5 text-left font-medium text-muted-foreground">Address</th>
+                  <th className="border-b px-3 py-2.5 text-left font-medium text-muted-foreground">City</th>
+                  {formStackContext && <th className="w-10 border-b px-3 py-2.5" />}
+                </tr>
+              </thead>
+              <tbody>
+                {isLoading ? (
+                  <tr>
+                    <td colSpan={6} className="py-20 text-center">
+                      <div className="flex flex-col items-center gap-2">
+                        <Loader2 className="text-muted-foreground h-6 w-6 animate-spin" />
+                        <p className="text-muted-foreground text-xs">Loading addresses…</p>
+                      </div>
+                    </td>
+                  </tr>
+                ) : filteredItems.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="py-20 text-center">
+                      <div className="flex flex-col items-center gap-2">
+                        <MapPin className="text-muted-foreground/40 h-8 w-8" />
+                        <p className="text-muted-foreground text-sm font-medium">
+                          {searchTerm ? `No addresses match "${searchTerm}"` : "No ship-to addresses found"}
+                        </p>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  filteredItems.map((item, idx) => {
+                    const isSelected = value === item.Code;
+                    return (
+                      <tr
+                        key={item.Code}
+                        onClick={() => handleSelect(item)}
+                        className={cn(
+                          "group cursor-pointer border-b transition-colors",
+                          idx % 2 === 0 ? "bg-background" : "bg-muted/20",
+                          "hover:bg-primary/5",
+                          isSelected && "bg-primary/5"
+                        )}
+                      >
+                        <td className="w-10 px-3 py-2.5 text-center">
+                          {isSelected && <CheckIcon className="text-primary mx-auto h-3.5 w-3.5" />}
+                        </td>
+                        <td className={cn("px-3 py-2.5 font-mono text-xs font-semibold whitespace-nowrap", isSelected ? "text-primary" : "text-foreground")}>
+                          {item.Code}
+                        </td>
+                        <td className="px-3 py-2.5 text-sm font-medium text-foreground/90">
+                          {item.Name}
+                        </td>
+                        <td className="px-3 py-2.5 text-xs text-muted-foreground">
+                          {item.Address || <span className="opacity-30">—</span>}
+                        </td>
+                        <td className="px-3 py-2.5 text-xs text-muted-foreground">
+                          {item.City || <span className="opacity-30">—</span>}
+                        </td>
+                        {formStackContext && (
+                          <td className="w-10 px-3 py-2.5 text-center">
+                            <Button
+                              variant="ghost"
+                              size="icon-sm"
+                              className="h-6 w-6 opacity-0 transition-opacity group-hover:opacity-100"
+                              onClick={(e) => handleEdit(item, e)}
+                              title="Edit ship-to address"
+                            >
+                              <Pencil className="h-3 w-3" />
+                            </Button>
+                          </td>
+                        )}
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Footer / Status Bar */}
+          <div className="bg-muted/20 flex shrink-0 items-center justify-between border-t px-5 py-2 text-[11px] text-muted-foreground">
+            <span>
+              Showing <b>{filteredItems.length}</b> of <b>{items.length}</b> addresses
+            </span>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

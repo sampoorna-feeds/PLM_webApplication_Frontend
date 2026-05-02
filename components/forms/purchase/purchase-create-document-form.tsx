@@ -1377,8 +1377,8 @@ export function PurchaseCreateDocumentFormContent({
         : [];
 
   // Step 1: Order Information
-  const fieldClass = "min-w-0 space-y-1";
-  const labelClass = "text-muted-foreground block text-xs font-medium";
+  const fieldClass = "min-w-0 space-y-1.5";
+  const labelClass = "text-foreground/70 block text-[14px] font-semibold leading-none mb-1.5 ml-0.5";
   const renderStep1 = () => {
     const defaultAccordionValue =
       isCreateMode || isEditMode
@@ -1398,7 +1398,7 @@ export function PurchaseCreateDocumentFormContent({
           >
             <AccordionItem value="general" className="border-none">
               <AccordionTrigger className="py-0 hover:no-underline [&>svg]:size-4">
-                <h3 className="px-2 py-1 text-left text-[10px] font-bold tracking-wider uppercase">
+                <h3 className="px-2 py-1 text-left text-xs font-bold tracking-wider uppercase text-foreground/90">
                   General
                 </h3>
               </AccordionTrigger>
@@ -1425,7 +1425,7 @@ export function PurchaseCreateDocumentFormContent({
                               handleInputChange("poType", value)
                             }
                           >
-                            <SelectTrigger className="h-8 text-xs">
+                            <SelectTrigger className="h-9 text-sm shadow-none">
                               <SelectValue placeholder="Select" />
                             </SelectTrigger>
                             <SelectContent>
@@ -1454,7 +1454,7 @@ export function PurchaseCreateDocumentFormContent({
                                 )
                               }
                             >
-                              <SelectTrigger className="h-8 text-xs">
+                              <SelectTrigger className="h-9 text-sm shadow-none">
                                 <SelectValue placeholder="Select" />
                               </SelectTrigger>
                               <SelectContent>
@@ -1519,7 +1519,9 @@ export function PurchaseCreateDocumentFormContent({
                         />
                       </ClearableField>
                       {branchName && (
-                        <p className="text-muted-foreground text-xs">{branchName}</p>
+                        <p className="text-muted-foreground/90 mt-0.5 pl-1 text-[11px] font-medium leading-tight italic">
+                          {branchName}
+                        </p>
                       )}
                     </div>
                     <div className={fieldClass}>
@@ -1542,7 +1544,7 @@ export function PurchaseCreateDocumentFormContent({
 
             <AccordionItem value="tax-information" className="border-none">
               <AccordionTrigger className="py-0 hover:no-underline [&>svg]:size-4">
-                <h3 className="px-2 py-1 text-left text-[10px] font-bold tracking-wider uppercase">
+                <h3 className="px-2 py-1 text-left text-xs font-bold tracking-wider uppercase text-foreground/90">
                   Tax Information
                 </h3>
               </AccordionTrigger>
@@ -1569,7 +1571,7 @@ export function PurchaseCreateDocumentFormContent({
                         />
                       </ClearableField>
                       {formData.vendorName && (
-                        <p className="mt-0.5 truncate pl-1 text-[9px] font-medium text-green-600">
+                        <p className="text-primary mt-0.5 truncate pl-1 text-[11px] font-semibold leading-tight italic">
                           {formData.vendorName}
                         </p>
                       )}
@@ -1579,7 +1581,7 @@ export function PurchaseCreateDocumentFormContent({
                       <Input
                         value={formData.vendorGstRegNo}
                         disabled
-                        className="bg-muted h-8 text-xs"
+                        className="bg-muted/50 h-9 text-sm shadow-none"
                         placeholder="Auto"
                         readOnly
                       />
@@ -1589,7 +1591,7 @@ export function PurchaseCreateDocumentFormContent({
                       <Input
                         value={formData.vendorPanNo}
                         disabled
-                        className="bg-muted h-8 text-xs"
+                        className="bg-muted/50 h-9 text-sm shadow-none"
                         placeholder="Auto"
                         readOnly
                       />
@@ -1602,7 +1604,7 @@ export function PurchaseCreateDocumentFormContent({
                         <Input
                           value={formData[config.primaryVendorRefField]}
                           readOnly
-                          className="bg-muted h-8 text-xs"
+                          className="bg-muted/50 h-9 text-sm shadow-none"
                         />
                       ) : config.primaryVendorRefField === "vendorCrMemoNo" ? (
                         <Input
@@ -1611,7 +1613,7 @@ export function PurchaseCreateDocumentFormContent({
                             handleInputChange(config.primaryVendorRefField, e.target.value)
                           }
                           placeholder="Optional"
-                          className="h-8 text-xs"
+                          className="h-9 text-sm shadow-none"
                         />
                       ) : (
                         <Input
@@ -1620,7 +1622,7 @@ export function PurchaseCreateDocumentFormContent({
                             handleInputChange(config.primaryVendorRefField, e.target.value)
                           }
                           placeholder="Optional"
-                          className="h-8 text-xs"
+                          className="h-9 text-sm shadow-none"
                         />
                       )}
                     </div>
@@ -1639,7 +1641,7 @@ export function PurchaseCreateDocumentFormContent({
                               handleInputChange("invoiceType", value)
                             }
                           >
-                            <SelectTrigger className="h-8 text-xs">
+                            <SelectTrigger className="h-9 text-sm shadow-none">
                               <SelectValue placeholder="Select / None" />
                             </SelectTrigger>
                             <SelectContent>
@@ -1679,7 +1681,7 @@ export function PurchaseCreateDocumentFormContent({
                               )
                             }
                           >
-                            <SelectTrigger className="h-8 text-xs">
+                            <SelectTrigger className="h-9 text-sm shadow-none">
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
@@ -1776,11 +1778,9 @@ export function PurchaseCreateDocumentFormContent({
                           }
                         />
                       </ClearableField>
-                      {formData.brokerName && (
-                        <p className="mt-0.5 truncate pl-1 text-[9px] font-medium text-green-600">
+                        <p className="text-primary mt-0.5 truncate pl-1 text-[11px] font-semibold leading-tight italic">
                           {formData.brokerName}
                         </p>
-                      )}
                     </div>
                     <div className={fieldClass}>
                       <label className={labelClass}>Brokerage Rate</label>
@@ -1799,7 +1799,7 @@ export function PurchaseCreateDocumentFormContent({
                               handleInputChange("brokerageRate", val);
                             }
                           }}
-                          className="h-8 text-xs"
+                          className="h-9 text-sm shadow-none"
                           placeholder="0.00"
                         />
                       </ClearableField>
@@ -1813,7 +1813,7 @@ export function PurchaseCreateDocumentFormContent({
 
             <AccordionItem value="vendor-statistics" className="border-none">
               <AccordionTrigger className="py-0 hover:no-underline [&>svg]:size-4">
-                <h3 className="px-2 py-1 text-left text-[10px] font-bold tracking-wider uppercase">
+                <h3 className="px-2 py-1 text-left text-xs font-bold tracking-wider uppercase text-foreground/90">
                   Vendor Statistics
                 </h3>
               </AccordionTrigger>
@@ -1847,11 +1847,9 @@ export function PurchaseCreateDocumentFormContent({
                           placeholder="Select Purchaser"
                         />
                       </ClearableField>
-                      {formData.purchasePersonName && (
-                        <p className="mt-0.5 truncate pl-1 text-[9px] font-medium text-green-600">
+                        <p className="text-primary mt-0.5 truncate pl-1 text-[11px] font-semibold leading-tight italic">
                           {formData.purchasePersonName}
                         </p>
-                      )}
                     </div>
                     <div className={fieldClass}>
                       <label className={labelClass}>Posting Date</label>
@@ -1866,7 +1864,7 @@ export function PurchaseCreateDocumentFormContent({
                           onChange={(e) =>
                             handleInputChange("postingDate", e.target.value)
                           }
-                          className="h-8 text-xs"
+                          className="h-9 text-sm shadow-none"
                         />
                       </ClearableField>
                     </div>
@@ -1883,7 +1881,7 @@ export function PurchaseCreateDocumentFormContent({
                           onChange={(e) =>
                             handleInputChange("documentDate", e.target.value)
                           }
-                          className="h-8 text-xs"
+                          className="h-9 text-sm shadow-none"
                         />
                       </ClearableField>
                     </div>
@@ -1897,7 +1895,7 @@ export function PurchaseCreateDocumentFormContent({
                             handleInputChange("orderDate", e.target.value)
                           }
                           disabled={formData.poType !== "Service"}
-                          className={cn("h-8 text-xs", formData.poType !== "Service" && "bg-muted")}
+                          className={cn("h-9 text-sm shadow-none", formData.poType !== "Service" && "bg-muted/50")}
                         />
                       </div>
                     )}
@@ -1923,7 +1921,7 @@ export function PurchaseCreateDocumentFormContent({
                               )
                             }
                             disabled={!isOpenStatus || areFieldsReadOnly}
-                            className="h-8 text-xs"
+                            className="h-9 text-sm shadow-none"
                           />
                         </ClearableField>
                       </div>
@@ -1941,7 +1939,7 @@ export function PurchaseCreateDocumentFormContent({
                           onChange={(e) =>
                             handleInputChange("dueDate", e.target.value)
                           }
-                          className="h-8 text-xs"
+                          className="h-9 text-sm shadow-none"
                         />
                       </ClearableField>
                     </div>
@@ -1960,7 +1958,7 @@ export function PurchaseCreateDocumentFormContent({
                             handleInputChange("dueDateCalculation", value)
                           }
                         >
-                          <SelectTrigger className="h-8 text-xs">
+                          <SelectTrigger className="h-9 text-sm shadow-none">
                             <SelectValue placeholder="Select" />
                           </SelectTrigger>
                           <SelectContent>
@@ -1988,7 +1986,7 @@ export function PurchaseCreateDocumentFormContent({
                               handleInputChange("rateBasis", value)
                             }
                           >
-                            <SelectTrigger className="h-8 text-xs">
+                            <SelectTrigger className="h-9 text-sm shadow-none">
                               <SelectValue placeholder="Select" />
                             </SelectTrigger>
                             <SelectContent>
@@ -2032,7 +2030,7 @@ export function PurchaseCreateDocumentFormContent({
                               handleInputChange("qcType", value)
                             }
                           >
-                            <SelectTrigger className="h-8 text-xs">
+                            <SelectTrigger className="h-9 text-sm shadow-none">
                               <SelectValue placeholder="Select" />
                             </SelectTrigger>
                             <SelectContent>

@@ -166,92 +166,90 @@ export function PurchaseLineItemsTable({
         <Table>
           <TableHeader>
             <TableRow className="bg-primary/5 border-primary/20 border-b whitespace-nowrap">
-              <TableHead className="text-primary w-16 text-[10px] font-bold tracking-wider uppercase">
+              <TableHead className="text-primary w-16 text-[11px] font-bold tracking-wider uppercase">
                 Line
               </TableHead>
-              <TableHead className="text-primary w-24 text-[10px] font-bold tracking-wider uppercase">
+              <TableHead className="text-primary w-24 text-[11px] font-bold tracking-wider uppercase">
                 Type
               </TableHead>
-              <TableHead className="text-primary w-32 text-[10px] font-bold tracking-wider uppercase">
+              <TableHead className="text-primary w-32 text-[11px] font-bold tracking-wider uppercase">
                 No
               </TableHead>
-              <TableHead className="text-primary min-w-50 text-[10px] font-bold tracking-wider uppercase">
+              <TableHead className="text-primary min-w-50 text-[11px] font-bold tracking-wider uppercase">
                 Description
               </TableHead>
-              <TableHead className="text-primary w-24 text-[10px] font-bold tracking-wider uppercase">
+              <TableHead className="text-primary w-24 text-[11px] font-bold tracking-wider uppercase">
                 UOM
               </TableHead>
               {showBagsColumn && (
-                <TableHead className="text-primary w-24 text-right text-[10px] font-bold tracking-wider uppercase">
+                <TableHead className="text-primary w-24 text-right text-[11px] font-bold tracking-wider uppercase">
                   Bags
                 </TableHead>
               )}
-              <TableHead className="text-primary w-12 text-center text-[10px] font-bold tracking-wider uppercase">
+              <TableHead className="text-primary w-12 text-center text-[11px] font-bold tracking-wider uppercase">
                 Tax
               </TableHead>
-              <TableHead className="text-primary w-24 text-right text-[10px] font-bold tracking-wider uppercase">
+              <TableHead className="text-primary w-24 text-right text-[11px] font-bold tracking-wider uppercase">
                 Quantity
               </TableHead>
               {showExtendedQtyColumns && (
                 <>
-                  <TableHead className="text-primary w-24 text-right text-[10px] font-bold tracking-wider uppercase">
+                  <TableHead className="text-primary w-24 text-right text-[11px] font-bold tracking-wider uppercase">
                     Outstanding Qty
                   </TableHead>
-                  <TableHead className="text-primary w-24 text-right text-[10px] font-bold tracking-wider uppercase">
+                  <TableHead className="text-primary w-24 text-right text-[11px] font-bold tracking-wider uppercase">
                     Challan Qty
                   </TableHead>
-                  <TableHead className="text-primary w-24 text-right text-[10px] font-bold tracking-wider uppercase">
+                  <TableHead className="text-primary w-24 text-right text-[11px] font-bold tracking-wider uppercase">
                     Weight Qty
                   </TableHead>
-                  <TableHead className="text-primary w-24 text-right text-[10px] font-bold tracking-wider uppercase">
+                  <TableHead className="text-primary w-24 text-right text-[11px] font-bold tracking-wider uppercase">
                     Actual Qty
                   </TableHead>
-                  <TableHead className="text-primary w-24 text-right text-[10px] font-bold tracking-wider uppercase">
+                  <TableHead className="text-primary w-24 text-right text-[11px] font-bold tracking-wider uppercase">
                     Short/Excess
                   </TableHead>
                 </>
               )}
               {showQtyColumns && (
                 <>
-                  <TableHead className="text-primary w-24 text-right text-[10px] font-bold tracking-wider uppercase">
+                  <TableHead className="text-primary w-24 text-right text-[11px] font-bold tracking-wider uppercase">
                     {quantityColumns.firstPendingLabel}
                   </TableHead>
-                  <TableHead className="text-primary w-24 text-right text-[10px] font-bold tracking-wider uppercase">
+                  <TableHead className="text-primary w-24 text-right text-[11px] font-bold tracking-wider uppercase">
                     {quantityColumns.firstCompletedLabel}
                   </TableHead>
-                  <TableHead className="text-primary w-24 text-right text-[10px] font-bold tracking-wider uppercase">
+                  <TableHead className="text-primary w-24 text-right text-[11px] font-bold tracking-wider uppercase">
                     {quantityColumns.secondPendingLabel}
                   </TableHead>
-                  <TableHead className="text-primary w-24 text-right text-[10px] font-bold tracking-wider uppercase">
+                  <TableHead className="text-primary w-24 text-right text-[11px] font-bold tracking-wider uppercase">
                     {quantityColumns.secondCompletedLabel}
                   </TableHead>
                 </>
               )}
-              <TableHead className="text-primary w-32 text-right text-[10px] font-bold tracking-wider uppercase">
+              <TableHead className="text-primary w-32 text-right text-[11px] font-bold tracking-wider uppercase">
                 Unit Price
               </TableHead>
-              <TableHead className="text-primary w-24 text-right text-[10px] font-bold tracking-wider uppercase">
+              <TableHead className="text-primary w-24 text-right text-[11px] font-bold tracking-wider uppercase">
                 Disc %
               </TableHead>
-              <TableHead className="text-primary w-32 text-right text-[10px] font-bold tracking-wider uppercase">
+              <TableHead className="text-primary w-32 text-right text-[11px] font-bold tracking-wider uppercase">
                 Amount
               </TableHead>
-              <TableHead className="text-primary w-32 text-[10px] font-bold tracking-wider uppercase">
+              <TableHead className="text-primary w-32 text-[11px] font-bold tracking-wider uppercase">
                 GST Group
               </TableHead>
-              <TableHead className="text-primary w-32 text-[10px] font-bold tracking-wider uppercase">
+              <TableHead className="text-primary w-32 text-[11px] font-bold tracking-wider uppercase">
                 HSN/SAC
               </TableHead>
-              <TableHead className="text-primary w-32 text-[10px] font-bold tracking-wider uppercase">
+              <TableHead className="text-primary w-32 text-[11px] font-bold tracking-wider uppercase">
                 GST Credit
               </TableHead>
-              <TableHead className="text-primary w-24 text-center text-[10px] font-bold tracking-wider uppercase">
+              <TableHead className="text-primary w-24 text-center text-[11px] font-bold tracking-wider uppercase">
                 Exempt
               </TableHead>
-
-
               {onRemove && (
-                <TableHead className="text-primary w-12 text-center text-[10px] font-bold tracking-wider uppercase">
+                <TableHead className="text-primary w-12 text-center text-[11px] font-bold tracking-wider uppercase">
                   Del
                 </TableHead>
               )}

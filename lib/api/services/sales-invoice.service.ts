@@ -4,6 +4,7 @@
  */
 
 import { apiPost, apiPatch } from "../client";
+import { toUpperCaseValues } from "./payload-utils";
 import type { ApiError } from "../client";
 import type { SalesDocumentHeaderData } from "@/components/forms/sales/sales-document-header-data";
 
@@ -71,7 +72,10 @@ export async function createSalesInvoice(
       Shortcut_Dimension_1_Code: data.lob || "",
       Shortcut_Dimension_2_Code: data.branch || "",
     };
-    const response = await apiPost<CreateSalesDocumentApiResponse>(endpoint, payload);
+    const response = await apiPost<CreateSalesDocumentApiResponse>(
+      endpoint,
+      toUpperCaseValues(payload, ["Document_Type", "Type"]),
+    );
     if (!response) return { orderId: "", orderNo: "" };
     const orderNo = response.No ?? response.orderNo ?? "";
     return { orderId: response.orderId ?? orderNo, orderNo };
@@ -94,7 +98,10 @@ export async function createSalesInvoiceCopyHeader(
       Shortcut_Dimension_2_Code: branchCode,
       Shortcut_Dimension_3_Code: locationCode,
     };
-    const response = await apiPost<CreateSalesDocumentApiResponse>(endpoint, payload);
+    const response = await apiPost<CreateSalesDocumentApiResponse>(
+      endpoint,
+      toUpperCaseValues(payload, ["Document_Type", "Type"]),
+    );
     if (!response) return { orderId: "", orderNo: "" };
     const orderNo = response.No ?? response.orderNo ?? "";
     return { orderId: response.orderId ?? orderNo, orderNo };
@@ -123,7 +130,7 @@ export async function addSalesInvoiceLineItems(
       linePayload.ShortcutDimCode3 = locationCode;
     }
     if (item.uom) linePayload.Unit_of_Measure_Code = item.uom;
-    await apiPost(endpoint, linePayload);
+    await apiPost(endpoint, toUpperCaseValues(linePayload, ["Document_Type", "Type"]));
   }
 }
 
@@ -155,7 +162,7 @@ export async function addSingleSalesInvoiceLine(
   if (line.faPostingType) payload.FA_Posting_Type = line.faPostingType;
   const result = await apiPost<{ Line_No: number; [key: string]: unknown }>(
     endpoint,
-    payload,
+    toUpperCaseValues(payload, ["Document_Type", "Type"]),
   );
   return result ?? { Line_No: 0 };
 }
@@ -171,7 +178,7 @@ export async function updateSingleSalesInvoiceLine(
   const payload = stripNullish(body as Record<string, unknown>);
   const result = await apiPatch<{ Line_No: number; [key: string]: unknown }>(
     endpoint,
-    payload,
+    toUpperCaseValues(payload, ["Document_Type", "Type"]),
   );
   return result ?? { Line_No: lineNo };
 }

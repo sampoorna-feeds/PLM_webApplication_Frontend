@@ -15,10 +15,10 @@ import {
   buildPurchaseHeaderPayload,
   stripEmptyValues,
   stripNullish,
-  toUpperCaseValues,
   type PurchaseDocumentHeaderType,
   type RequiredPurchaseHeaderField,
 } from "./purchase-header-payload";
+import { toUpperCaseValues } from "./payload-utils";
 import {
   buildCreatePurchaseLinePayload,
   buildUpdatePurchaseLinePayload,

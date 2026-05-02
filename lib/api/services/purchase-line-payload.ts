@@ -1,7 +1,5 @@
-import {
-  type PurchaseDocumentHeaderType,
-  toUpperCaseValues,
-} from "./purchase-header-payload";
+import { type PurchaseDocumentHeaderType } from "./purchase-header-payload";
+import { toUpperCaseValues } from "./payload-utils";
 
 export interface PurchaseLinePayloadSource {
   type?: string;

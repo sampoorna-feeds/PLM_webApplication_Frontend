@@ -6,7 +6,8 @@
 import { apiGet, apiPost, apiPatch, apiDelete } from "../client";
 import { buildODataQuery } from "../endpoints";
 import type { ODataResponse } from "../types";
-import { stripNullish, toUpperCaseValues } from "./purchase-header-payload";
+import { stripNullish } from "./purchase-header-payload";
+import { toUpperCaseValues } from "./payload-utils";
 
 const COMPANY =
   process.env.NEXT_PUBLIC_API_COMPANY || "Sampoorna Feeds Pvt. Ltd";

@@ -5,7 +5,8 @@
 
 import { apiPost, apiPatch, apiDelete } from "../client";
 import type { ApiError } from "../client";
-import { buildPurchaseHeaderPayload, toUpperCaseValues } from "./purchase-header-payload";
+import { buildPurchaseHeaderPayload } from "./purchase-header-payload";
+import { toUpperCaseValues } from "./payload-utils";
 import {
   buildCreatePurchaseLinePayload,
   buildUpdatePurchaseLinePayload,

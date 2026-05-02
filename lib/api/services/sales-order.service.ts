@@ -5,6 +5,7 @@
  */
 
 import { apiPost, apiPatch } from "../client";
+import { toUpperCaseValues } from "./payload-utils";
 import type { ApiError } from "../client";
 import type { SalesDocumentHeaderData } from "@/components/forms/sales/sales-document-header-data";
 
@@ -80,7 +81,7 @@ export async function createSalesOrder(
 
     const response = await apiPost<CreateSalesOrderApiResponse>(
       endpoint,
-      payload,
+      toUpperCaseValues(payload, ["Document_Type"]),
     );
 
     if (!response) return { orderId: "", orderNo: "" };
@@ -111,7 +112,7 @@ export async function addSalesOrderLineItems(
       linePayload.ShortcutDimCode3 = locationCode;
     }
     if (item.uom) linePayload.Unit_of_Measure_Code = item.uom;
-    await apiPost(endpoint, linePayload);
+    await apiPost(endpoint, toUpperCaseValues(linePayload, ["Document_Type", "Type"]));
   }
 }
 
@@ -144,7 +145,7 @@ export async function addSingleSalesOrderLine(
   if (line.faPostingType) payload.FA_Posting_Type = line.faPostingType;
   const result = await apiPost<{ Line_No: number; [key: string]: unknown }>(
     endpoint,
-    payload,
+    toUpperCaseValues(payload, ["Document_Type", "Type"]),
   );
   return result ?? { Line_No: 0 };
 }
@@ -160,7 +161,7 @@ export async function updateSingleSalesOrderLine(
   const payload = stripNullish(body);
   const result = await apiPatch<{ Line_No: number; [key: string]: unknown }>(
     endpoint,
-    payload,
+    toUpperCaseValues(payload, ["Document_Type", "Type"]),
   );
   return result ?? { Line_No: lineNo };
 }

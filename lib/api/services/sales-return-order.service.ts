@@ -4,6 +4,7 @@
  */
 
 import { apiPost, apiPatch } from "../client";
+import { toUpperCaseValues } from "./payload-utils";
 import type { ApiError } from "../client";
 import type { SalesDocumentHeaderData } from "@/components/forms/sales/sales-document-header-data";
 
@@ -71,7 +72,10 @@ export async function createSalesReturnOrder(
       Shortcut_Dimension_1_Code: data.lob || "",
       Shortcut_Dimension_2_Code: data.branch || "",
     };
-    const response = await apiPost<CreateSalesDocumentApiResponse>(endpoint, payload);
+    const response = await apiPost<CreateSalesDocumentApiResponse>(
+      endpoint,
+      toUpperCaseValues(payload, ["Document_Type", "Type"]),
+    );
     if (!response) return { orderId: "", orderNo: "" };
     const orderNo = response.No ?? response.orderNo ?? "";
     return { orderId: response.orderId ?? orderNo, orderNo };
@@ -94,7 +98,10 @@ export async function createSalesReturnOrderCopyHeader(
       Shortcut_Dimension_2_Code: branchCode,
       Shortcut_Dimension_3_Code: locationCode,
     };
-    const response = await apiPost<CreateSalesDocumentApiResponse>(endpoint, payload);
+    const response = await apiPost<CreateSalesDocumentApiResponse>(
+      endpoint,
+      toUpperCaseValues(payload, ["Document_Type", "Type"]),
+    );
     if (!response) return { orderId: "", orderNo: "" };
     const orderNo = response.No ?? response.orderNo ?? "";
     return { orderId: response.orderId ?? orderNo, orderNo };
@@ -112,12 +119,12 @@ export async function addSalesReturnOrderLineItems(
   if (!documentNo || lineItems.length === 0) return;
   const endpoint = `/${LINE_ENTITY}?company='${encodeURIComponent(COMPANY)}'`;
   for (const item of lineItems) {
-    const linePayload: Record<string, unknown> = {
+    const linePayload: Record<string, unknown> = toUpperCaseValues({
       Document_No: documentNo,
       Type: item.type,
       No: item.no,
       Quantity: item.quantity,
-    };
+    }, ["Document_Type", "Type"]);
     if (locationCode) {
       linePayload.Location_Code = locationCode;
       linePayload.ShortcutDimCode3 = locationCode;
@@ -155,7 +162,7 @@ export async function addSingleSalesReturnOrderLine(
   if (line.faPostingType) payload.FA_Posting_Type = line.faPostingType;
   const result = await apiPost<{ Line_No: number; [key: string]: unknown }>(
     endpoint,
-    payload,
+    toUpperCaseValues(payload, ["Document_Type", "Type"]),
   );
   return result ?? { Line_No: 0 };
 }
@@ -171,7 +178,7 @@ export async function updateSingleSalesReturnOrderLine(
   const payload = stripNullish(body as Record<string, unknown>);
   const result = await apiPatch<{ Line_No: number; [key: string]: unknown }>(
     endpoint,
-    payload,
+    toUpperCaseValues(payload, ["Document_Type", "Type"]),
   );
   return result ?? { Line_No: lineNo };
 }

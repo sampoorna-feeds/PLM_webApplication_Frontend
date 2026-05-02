@@ -25,7 +25,10 @@ import {
   searchBardanaItems,
   type Item,
 } from "@/lib/api/services/item.service";
-import { addBardanaLine } from "@/lib/api/services/purchase-order.service";
+import {
+  addBardanaLine,
+  deleteBardanaLine,
+} from "@/lib/api/services/purchase-order.service";
 
 interface BardanaDialogProps {
   isOpen: boolean;
@@ -52,6 +55,7 @@ export function BardanaDialog({
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [addedLine, setAddedLine] = useState<any | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Reset state when dialog opens
   useEffect(() => {
@@ -63,6 +67,7 @@ export function BardanaDialog({
       setError(null);
       setSuccess(false);
       setAddedLine(null);
+      setIsDeleting(false);
     }
   }, [isOpen, noOfBags]);
 
@@ -111,6 +116,31 @@ export function BardanaDialog({
       setError(msg);
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!addedLine) return;
+
+    setIsDeleting(true);
+    setError(null);
+    try {
+      await deleteBardanaLine(
+        addedLine.Document_No,
+        addedLine.Document_Line_No,
+        addedLine.Line_No,
+      );
+      setSuccess(false);
+      setAddedLine(null);
+      setError(null);
+    } catch (err) {
+      const msg =
+        err && typeof (err as any).message === "string"
+          ? (err as any).message
+          : "Failed to delete bardana line.";
+      setError(msg);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -186,9 +216,24 @@ export function BardanaDialog({
 
           {success && (
             <div className="space-y-2 rounded-md border border-green-200 bg-green-50 p-3">
-              <p className="text-xs font-semibold text-green-700">
-                ✓ Bardana line added successfully.
-              </p>
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-semibold text-green-700">
+                  ✓ Bardana line added successfully.
+                </p>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 px-2 text-[10px] text-red-600 hover:bg-red-50 hover:text-red-700"
+                  onClick={handleDelete}
+                  disabled={isDeleting}
+                >
+                  {isDeleting ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : (
+                    "Delete Line"
+                  )}
+                </Button>
+              </div>
               {addedLine && (
                 <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-[11px]">
                   <div>

@@ -3,7 +3,7 @@
  * Handles creating purchase orders and adding line items
  */
 
-import { apiPost, apiPatch } from "../client";
+import { apiPost, apiPatch, apiDelete } from "../client";
 import type { ApiError } from "../client";
 import { buildPurchaseHeaderPayload } from "./purchase-header-payload";
 import {
@@ -308,6 +308,25 @@ export async function addBardanaLine(
     return response;
   } catch (error) {
     console.error("Error adding bardana line:", error);
+    throw error as ApiError;
+  }
+}
+
+/**
+ * Delete a bardana line.
+ */
+export async function deleteBardanaLine(
+  documentNo: string,
+  documentLineNo: number,
+  lineNo: number,
+): Promise<void> {
+  const escapedNo = documentNo.replace(/'/g, "''");
+  const endpoint = `/QCPurchaseBardanaList(Document_Type='Order',Document_No='${encodeURIComponent(escapedNo)}',Document_Line_No=${documentLineNo},Line_No=${lineNo})?company='${encodeURIComponent(COMPANY)}'`;
+
+  try {
+    await apiDelete(endpoint);
+  } catch (error) {
+    console.error("Error deleting bardana line:", error);
     throw error as ApiError;
   }
 }

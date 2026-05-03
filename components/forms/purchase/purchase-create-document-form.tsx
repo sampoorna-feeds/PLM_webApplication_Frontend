@@ -43,6 +43,7 @@ import {
 import { PurchaseSearchableSelect } from "./purchase-searchable-select";
 import { TermCodeSelect } from "./term-code-select";
 import { PaymentTermSelect } from "./payment-term-select";
+import { PaymentMethodSelect } from "./payment-method-select";
 import { MandiNameSelect } from "./mandi-name-select";
 import { CreditorTypeSelect } from "./creditor-type-select";
 import {
@@ -232,12 +233,12 @@ interface PurchaseCreateDocumentConfig {
     documentNo: string,
     lineItem: PurchaseOrderLineItem,
     locationCode: string,
-  ) => Promise<{ Line_No: number; [key: string]: unknown }>;
+  ) => Promise<{ Line_No: number;[key: string]: unknown }>;
   updateSingleLine: (
     documentNo: string,
     lineNo: number,
     lineItem: Partial<PurchaseOrderLineItem>,
-  ) => Promise<{ Line_No: number; [key: string]: unknown }>;
+  ) => Promise<{ Line_No: number;[key: string]: unknown }>;
   updateHeader: (
     documentNo: string,
     body: Record<string, unknown>,
@@ -291,6 +292,7 @@ interface PurchaseCreateDocumentFormState {
   copyFromDocType: string;
   copyFromDocNo: string;
   vehicleNo: string;
+  paymentMethodCode: string;
 }
 
 const PURCHASE_CREATE_DOCUMENT_CONFIG: Record<
@@ -496,6 +498,7 @@ export function PurchaseCreateDocumentFormContent({
     copyFromDocType: "",
     copyFromDocNo: "",
     vehicleNo: "",
+    paymentMethodCode: "",
     ...initialFormData,
   });
 
@@ -597,7 +600,7 @@ export function PurchaseCreateDocumentFormContent({
     open: false,
     title: "",
     description: "",
-    action: async () => {},
+    action: async () => { },
     actionLabel: "",
     cancelLabel: "",
     variant: "default" as "default" | "destructive",
@@ -606,7 +609,8 @@ export function PurchaseCreateDocumentFormContent({
   const [printingMRN] = useState(false);
   // ─────────────────────────────────────────────────────────────────────────
 
-  useEffect(() => {    const creds = getAuthCredentials();
+  useEffect(() => {
+    const creds = getAuthCredentials();
     if (creds?.userID) {
       getWebUser(creds.userID).then(setWebUserProfile).catch(console.error);
     }
@@ -912,8 +916,8 @@ export function PurchaseCreateDocumentFormContent({
     if (isCreateMode) {
       const updated = selectedLineItem
         ? lineItems.map((item) =>
-            item.id === selectedLineItem.id ? lineItem : item,
-          )
+          item.id === selectedLineItem.id ? lineItem : item,
+        )
         : [...lineItems, lineItem];
 
       setLineItems(updated);
@@ -1017,9 +1021,11 @@ export function PurchaseCreateDocumentFormContent({
       includeRateBasis:
         documentType === "order" || documentType === "invoice",
       includeTermsCode: documentType === "order",
-      includeDueDateCalculation: documentType !== "return-order",
+      includeDueDateCalculation:
+        documentType !== "return-order" && documentType !== "credit-memo",
       includeDueDate: documentType !== "return-order",
       includePoExpirationDate: documentType === "order",
+      original: hydratedHeaderRef.current || undefined,
     });
   };
 
@@ -1314,11 +1320,32 @@ export function PurchaseCreateDocumentFormContent({
         patchPayload.Vendor_Invoice_No = postDetails.vendorInvoiceNo || "";
       }
       if (isInvoiceOption) {
-        patchPayload.Due_Date_calculation =
-          postDetails.dueDateCalculation || "Posting Date";
+        if (documentType !== "return-order" && documentType !== "credit-memo") {
+          patchPayload.Due_Date_calculation =
+            postDetails.dueDateCalculation || "Posting Date";
+        }
         patchPayload.Line_Narration1 = postDetails.lineNarration || "";
       }
-      await config.updateHeader(createdOrderNo, patchPayload);
+      // Filter to only fields that have actually changed compared to the original document on the server
+      const filteredPayload = Object.entries(patchPayload).reduce(
+        (acc, [key, value]) => {
+          const originalValue = (hydratedHeaderRef.current as any)?.[key];
+
+          // Normalize values for comparison (treating null/undefined/empty string as equivalent)
+          const normalize = (v: any) =>
+            v === null || v === undefined ? "" : String(v).trim();
+
+          if (normalize(value) !== normalize(originalValue)) {
+            acc[key] = value;
+          }
+          return acc;
+        },
+        {} as Record<string, unknown>,
+      );
+
+      if (Object.keys(filteredPayload).length > 0) {
+        await config.updateHeader(createdOrderNo, filteredPayload);
+      }
       const optMap: Record<string, "1" | "2" | "3"> = {
         receive: "1",
         invoice: "2",
@@ -1632,7 +1659,7 @@ export function PurchaseCreateDocumentFormContent({
                         />
                       )}
                     </div>
-                    
+
                     {capabilities.supportsInvoiceType && (
                       <div className={fieldClass}>
                         <label className={labelClass}>Invoice Type</label>
@@ -1661,7 +1688,7 @@ export function PurchaseCreateDocumentFormContent({
                         </ClearableField>
                       </div>
                     )}
-                    
+
                     {capabilities.supportsAppliesToFields && (
                       <div className={fieldClass}>
                         <label className={labelClass}>
@@ -1784,9 +1811,9 @@ export function PurchaseCreateDocumentFormContent({
                           }
                         />
                       </ClearableField>
-                        <p className="text-primary mt-0.5 truncate pl-1 text-[11px] font-semibold leading-tight italic">
-                          {formData.brokerName}
-                        </p>
+                      <p className="text-primary mt-0.5 truncate pl-1 text-[11px] font-semibold leading-tight italic">
+                        {formData.brokerName}
+                      </p>
                     </div>
                     <div className={fieldClass}>
                       <label className={labelClass}>Brokerage Rate</label>
@@ -1853,9 +1880,9 @@ export function PurchaseCreateDocumentFormContent({
                           placeholder="Select Purchaser"
                         />
                       </ClearableField>
-                        <p className="text-primary mt-0.5 truncate pl-1 text-[11px] font-semibold leading-tight italic">
-                          {formData.purchasePersonName}
-                        </p>
+                      <p className="text-primary mt-0.5 truncate pl-1 text-[11px] font-semibold leading-tight italic">
+                        {formData.purchasePersonName}
+                      </p>
                     </div>
                     <div className={fieldClass}>
                       <label className={labelClass}>Posting Date</label>
@@ -1965,35 +1992,38 @@ export function PurchaseCreateDocumentFormContent({
                         />
                       </ClearableField>
                     </div>
-                    <div className={fieldClass}>
-                      <label className={labelClass}>Due Date Calc</label>
-                      <ClearableField
-                        readOnly={areFieldsReadOnly}
-                        value={formData.dueDateCalculation}
-                        onClear={() =>
-                          handleInputChange("dueDateCalculation", "")
-                        }
-                      >
-                        <Select
-                          value={formData.dueDateCalculation}
-                          onValueChange={(value) =>
-                            handleInputChange("dueDateCalculation", value)
-                          }
-                        >
-                          <SelectTrigger className="h-9 text-sm shadow-none">
-                            <SelectValue placeholder="Select" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="Posting Date">
-                              Posting Date
-                            </SelectItem>
-                            <SelectItem value="Document Date">
-                              Document Date
-                            </SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </ClearableField>
-                    </div>
+                    {documentType !== "return-order" &&
+                      documentType !== "credit-memo" && (
+                        <div className={fieldClass}>
+                          <label className={labelClass}>Due Date Calc</label>
+                          <ClearableField
+                            readOnly={areFieldsReadOnly}
+                            value={formData.dueDateCalculation}
+                            onClear={() =>
+                              handleInputChange("dueDateCalculation", "")
+                            }
+                          >
+                            <Select
+                              value={formData.dueDateCalculation}
+                              onValueChange={(value) =>
+                                handleInputChange("dueDateCalculation", value)
+                              }
+                            >
+                              <SelectTrigger className="h-9 text-sm shadow-none">
+                                <SelectValue placeholder="Select" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="Posting Date">
+                                  Posting Date
+                                </SelectItem>
+                                <SelectItem value="Document Date">
+                                  Document Date
+                                </SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </ClearableField>
+                        </div>
+                      )}
                     {capabilities.supportsRateBasis && (
                       <div className={fieldClass}>
                         <label className={labelClass}>Rate Basis</label>
@@ -2098,6 +2128,22 @@ export function PurchaseCreateDocumentFormContent({
                       </ClearableField>
                     </div>
                     <div className={fieldClass}>
+                      <label className={labelClass}>Payment Method Code</label>
+                      <ClearableField
+                        readOnly={areFieldsReadOnly}
+                        value={formData.paymentMethodCode}
+                        onClear={() => handleInputChange("paymentMethodCode", "")}
+                      >
+                        <PaymentMethodSelect
+                          value={formData.paymentMethodCode}
+                          onChange={(value) =>
+                            handleInputChange("paymentMethodCode", value)
+                          }
+                          disabled={areFieldsReadOnly}
+                        />
+                      </ClearableField>
+                    </div>
+                    <div className={fieldClass}>
                       <label className={labelClass}>Mandi Name</label>
                       <ClearableField
                         readOnly={areFieldsReadOnly}
@@ -2184,11 +2230,11 @@ export function PurchaseCreateDocumentFormContent({
                     className={cn(
                       "h-6 px-3 text-[10px] font-bold tracking-wider uppercase",
                       documentStatus === "Released" &&
-                        "border-green-200 bg-green-500/10 text-green-600",
+                      "border-green-200 bg-green-500/10 text-green-600",
                       documentStatus === "Pending Approval" &&
-                        "border-yellow-200 bg-yellow-500/10 text-yellow-600",
+                      "border-yellow-200 bg-yellow-500/10 text-yellow-600",
                       documentStatus === "Open" &&
-                        "border-blue-200 bg-blue-500/10 text-blue-600",
+                      "border-blue-200 bg-blue-500/10 text-blue-600",
                     )}
                   >
                     {documentStatus}
@@ -2491,9 +2537,9 @@ export function PurchaseCreateDocumentFormContent({
                         } else {
                           await patchPurchaseDocumentLineByKey(
                             documentType as
-                              | "invoice"
-                              | "return-order"
-                              | "credit-memo",
+                            | "invoice"
+                            | "return-order"
+                            | "credit-memo",
                             createdOrderNo,
                             lineItem.lineNo,
                             patch,
@@ -2646,12 +2692,12 @@ export function PurchaseCreateDocumentFormContent({
           updateLine={
             documentType !== "order"
               ? (docNo, lineNo, payload) =>
-                  patchPurchaseDocumentLineByKey(
-                    documentType as "invoice" | "return-order" | "credit-memo",
-                    docNo,
-                    lineNo,
-                    payload,
-                  )
+                patchPurchaseDocumentLineByKey(
+                  documentType as "invoice" | "return-order" | "credit-memo",
+                  docNo,
+                  lineNo,
+                  payload,
+                )
               : undefined
           }
           onDelete={async (line) => {
@@ -2823,13 +2869,13 @@ export function PurchaseCreateDocumentFormContent({
                 }
                 min={
                   webUserProfile?.Allow_Posting_From &&
-                  webUserProfile.Allow_Posting_From !== "0001-01-01"
+                    webUserProfile.Allow_Posting_From !== "0001-01-01"
                     ? webUserProfile.Allow_Posting_From.split("T")[0]
                     : undefined
                 }
                 max={
                   webUserProfile?.Allow_Posting_To &&
-                  webUserProfile.Allow_Posting_To !== "0001-01-01"
+                    webUserProfile.Allow_Posting_To !== "0001-01-01"
                     ? webUserProfile.Allow_Posting_To.split("T")[0]
                     : undefined
                 }
@@ -2875,13 +2921,13 @@ export function PurchaseCreateDocumentFormContent({
             )}
             {(documentType === "credit-memo" || documentType === "return-order") && (
               <div className="space-y-1">
-                <Label className="text-xs font-semibold">Vendor Credit Memo No.</Label>
+                <Label className="text-xs font-semibold">Vendor Credit Memo No. *</Label>
                 <Input
                   value={postDetails.vendorCrMemoNo}
                   onChange={(e) =>
                     setPostDetails((p) => ({ ...p, vendorCrMemoNo: e.target.value }))
                   }
-                  placeholder="Optional"
+                  placeholder="Mandatory"
                   className="h-8"
                 />
               </div>
@@ -2891,45 +2937,54 @@ export function PurchaseCreateDocumentFormContent({
               postOption === "ship-invoice" ||
               documentType === "invoice" ||
               documentType === "credit-memo") && (
-              <>
-                <div className="space-y-1">
-                  <Label className="text-xs font-semibold">
-                    Due Date Calculation
-                  </Label>
-                  <Select
-                    value={postDetails.dueDateCalculation}
-                    onValueChange={(v) =>
-                      setPostDetails((p) => ({ ...p, dueDateCalculation: v }))
-                    }
-                  >
-                    <SelectTrigger className="h-8">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Posting Date">Posting Date</SelectItem>
-                      <SelectItem value="Document Date">
-                        Document Date
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1 sm:col-span-2">
-                  <Label className="text-xs font-semibold">
-                    Line Narration
-                  </Label>
-                  <Input
-                    value={postDetails.lineNarration}
-                    onChange={(e) =>
-                      setPostDetails((p) => ({
-                        ...p,
-                        lineNarration: e.target.value,
-                      }))
-                    }
-                    className="h-8"
-                  />
-                </div>
-              </>
-            )}
+                <>
+                  {documentType !== "return-order" &&
+                    documentType !== "credit-memo" && (
+                      <div className="space-y-1">
+                        <Label className="text-xs font-semibold">
+                          Due Date Calculation
+                        </Label>
+                        <Select
+                          value={postDetails.dueDateCalculation}
+                          onValueChange={(v) =>
+                            setPostDetails((p) => ({
+                              ...p,
+                              dueDateCalculation: v,
+                            }))
+                          }
+                        >
+                          <SelectTrigger className="h-8">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Posting Date">
+                              Posting Date
+                            </SelectItem>
+                            <SelectItem value="Document Date">
+                              Document Date
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+                  <div className="space-y-1 sm:col-span-2">
+                    <Label className="text-xs font-semibold">
+                      Line Narration *
+                    </Label>
+                    <Input
+                      value={postDetails.lineNarration}
+                      onChange={(e) =>
+                        setPostDetails((p) => ({
+                          ...p,
+                          lineNarration: e.target.value,
+                        }))
+                      }
+                      placeholder="Mandatory"
+                      className="h-8"
+                    />
+                  </div>
+                </>
+              )}
           </div>
           <DialogFooter>
             <Button
@@ -2939,7 +2994,16 @@ export function PurchaseCreateDocumentFormContent({
             >
               Cancel
             </Button>
-            <Button onClick={handlePostDetailsSubmit} disabled={isPostLoading}>
+            <Button
+              onClick={handlePostDetailsSubmit}
+              disabled={
+                isPostLoading ||
+                !postDetails.postingDate ||
+                !postDetails.documentDate ||
+                ((documentType === "credit-memo" || documentType === "return-order") && !postDetails.vendorCrMemoNo?.trim()) ||
+                ((postOption === "invoice" || postOption === "receive-invoice" || postOption === "ship-invoice" || documentType === "invoice" || documentType === "credit-memo") && !postDetails.lineNarration?.trim())
+              }
+            >
               {isPostLoading ? (
                 <>
                   <LoaderCircleIcon className="mr-1.5 h-3.5 w-3.5 animate-spin" />

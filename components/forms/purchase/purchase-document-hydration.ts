@@ -68,6 +68,7 @@ export function mapPurchaseHeaderToFormData(
       return v === "0001-01-01" ? "" : v;
     })(),
     vehicleNo: toStringValue(header.Vehicle_No),
+    paymentMethodCode: toStringValue(header.Payment_Method_Code),
   };
 }
 

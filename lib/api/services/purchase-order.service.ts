@@ -50,6 +50,7 @@ export interface PurchaseOrderData {
   appliesToDocNo?: string;
   vendorAuthorizationNo?: string;
   no?: string;
+  paymentMethodCode?: string;
 }
 
 export interface PurchaseOrderLineItem {

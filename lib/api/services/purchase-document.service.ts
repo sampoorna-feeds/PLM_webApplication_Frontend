@@ -111,7 +111,7 @@ const PURCHASE_DOCUMENT_ADAPTER_CONFIG: Record<
     includeQcType: true,
     includeOrderDate: false,
     includeRateBasis: false,
-    includeDueDateCalculation: true,
+    includeDueDateCalculation: false,
     includeDueDate: true,
     includeAppliesToFields: true,
   },

@@ -49,6 +49,7 @@ export interface PurchaseHeaderPayloadSource {
   appliesToDocNo?: string;
   poExpirationDate?: string;
   vehicleNo?: string;
+  paymentMethodCode?: string;
 }
 
 export interface BuildPurchaseHeaderPayloadOptions {
@@ -76,6 +77,8 @@ export interface BuildPurchaseHeaderPayloadOptions {
   includePoExpirationDate?: boolean;
   stripEmpty?: boolean;
   requiredFields?: RequiredPurchaseHeaderField[];
+  /** Optional original data from BC (hydrated header). If provided, payload will only include changed fields. */
+  original?: Record<string, unknown>;
 }
 
 
@@ -143,6 +146,26 @@ export function stripNullish(
     {} as Record<string, unknown>,
   );
 }
+ 
+/** Helper to compare values for diffing, treating null/undefined/empty string as equivalent. */
+function isSameValue(v1: unknown, v2: unknown): boolean {
+  if (v1 === v2) return true;
+ 
+  const isV1Empty =
+    v1 === null || v1 === undefined || (typeof v1 === "string" && v1.trim() === "");
+  const isV2Empty =
+    v2 === null || v2 === undefined || (typeof v2 === "string" && v2.trim() === "");
+ 
+  if (isV1Empty && isV2Empty) return true;
+  if (isV1Empty || isV2Empty) return false;
+ 
+  // Handle number comparison
+  if (typeof v1 === "number" || typeof v2 === "number") {
+    return Number(v1) === Number(v2);
+  }
+ 
+  return String(v1).trim() === String(v2).trim();
+}
 
 
 export function buildPurchaseHeaderPayload(
@@ -166,6 +189,7 @@ export function buildPurchaseHeaderPayload(
     Shortcut_Dimension_3_Code: source.locationCode || "",
     Order_Address_Code: source.orderAddressCode,
     Vehicle_No: source.vehicleNo,
+    Payment_Method_Code: source.paymentMethodCode,
   };
 
   // Invoice + Order + Credit Memo only (not Return Order)
@@ -274,5 +298,19 @@ export function buildPurchaseHeaderPayload(
     }
   }
 
-  return toUpperCaseValues(result, ["Document_Type"]);
+  // If original data is provided, only include fields that have changed.
+  if (options.original) {
+    const original = options.original;
+    return Object.entries(result).reduce(
+      (acc, [key, value]) => {
+        if (!isSameValue(value, original[key])) {
+          acc[key] = value;
+        }
+        return acc;
+      },
+      {} as Record<string, unknown>,
+    );
+  }
+
+  return result;
 }

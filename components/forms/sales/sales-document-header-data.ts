@@ -83,3 +83,96 @@ export function buildSalesHeaderPatchPayload(
 
   return payload;
 }
+
+export interface SalesPostDetails {
+  transporterCode: string;
+  transporterName: string;
+  vehicleNumber: string;
+  driverPhone: string;
+  lrRrNumber: string;
+  lrRrDate: string;
+  postingDate: string;
+  externalDocumentNo: string;
+  lineNarration: string;
+  distanceKm: string;
+  grossWeight: string;
+  tareWeight: string;
+  freightValue: string;
+}
+
+/**
+ * Builds a minimal PATCH payload for the posting dialog by comparing current 
+ * post details against the original document header.
+ */
+export function buildSalesPostPatchPayload(
+  original: Record<string, any> | null,
+  current: SalesPostDetails,
+  isCreditOrReturn: boolean,
+): Record<string, unknown> {
+  const patch: Record<string, unknown> = {};
+  if (!original) return patch;
+
+  const compareString = (bcField: string, val: string) => {
+    const orig = (original[bcField] as string) || "";
+    if (val.trim() !== orig.trim()) {
+      patch[bcField] = val.trim();
+    }
+  };
+
+  const compareNumber = (bcField: string, val: string) => {
+    const orig = Number(original[bcField]) || 0;
+    const cur = Number(val) || 0;
+    if (cur !== orig) {
+      patch[bcField] = cur;
+    }
+  };
+
+  const compareDate = (bcField: string, val: string) => {
+    const origRaw = original[bcField] as string | undefined;
+    const orig = origRaw?.split("T")[0] || "";
+    const cur = val || "";
+    if (cur !== orig && cur !== "") {
+      patch[bcField] = cur;
+    }
+  };
+
+  compareString("Vehicle_No", current.vehicleNumber);
+  compareDate("Posting_Date", current.postingDate);
+  compareString("External_Document_No", current.externalDocumentNo);
+
+  if (isCreditOrReturn) {
+    compareString("Line_Narration", current.lineNarration);
+  }
+
+  // Fields to remove for Credit Memo / Return Order
+  if (!isCreditOrReturn) {
+    compareString("LR_RR_No", current.lrRrNumber);
+    compareDate("LR_RR_Date", current.lrRrDate);
+    compareNumber("Distance_km", current.distanceKm);
+    compareString("Driver_Mobile_No", current.driverPhone);
+    compareNumber("Freight_Value", current.freightValue);
+    compareNumber("Gross_Weight", current.grossWeight);
+    compareNumber("Tier_Weight", current.tareWeight);
+
+    // Transporter logic (only for non-credit/return)
+    const origTransCode = (original.Transporter_Code as string) || "";
+    const origTransName = (original.Transporter_Name as string) || "";
+
+    if (current.transporterCode) {
+      if (current.transporterCode !== origTransCode) {
+        patch.Transporter_Code = current.transporterCode;
+        patch.Transporter_Name = "";
+      }
+    } else if (current.transporterName) {
+      if (current.transporterName !== origTransName || origTransCode !== "") {
+        patch.Transporter_Code = "";
+        patch.Transporter_Name = current.transporterName;
+      }
+    } else if (origTransCode !== "" || origTransName !== "") {
+      patch.Transporter_Code = "";
+      patch.Transporter_Name = "";
+    }
+  }
+
+  return patch;
+}

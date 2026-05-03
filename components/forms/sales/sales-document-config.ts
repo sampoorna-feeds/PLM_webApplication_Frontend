@@ -137,8 +137,9 @@ const SALES_DOCUMENT_CONFIG: Record<SalesDocumentType, SalesDocumentConfig> = {
       supportsDeliveryReport: false,
       supportsPost: true,
       postOptions: [
-        { value: "1", label: "Return" },
-        { value: "3", label: "Return & Credit Memo" },
+        { value: "1", label: "Receive" },
+        { value: "2", label: "Invoice" },
+        { value: "3", label: "Receive and Invoice" },
       ],
       supportsCopyDocument: true,
       supportsGetPostedLine: false,

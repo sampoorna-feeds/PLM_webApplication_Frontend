@@ -178,7 +178,9 @@ import {
 import {
   buildSalesCommonHeaderData,
   buildSalesHeaderPatchPayload,
+  buildSalesPostPatchPayload,
   type SalesDocumentHeaderFormState,
+  type SalesPostDetails,
 } from "./sales-document-header-data";
 import { mapSalesHeaderToFormData } from "./sales-document-hydration";
 import type { SalesDocumentFormMode } from "./sales-form-stack";
@@ -879,13 +881,15 @@ export function SalesCreateDocumentFormContent({
   };
 
   const isShipOption = postOption === "1" || postOption === "3";
+  const isCreditOrReturn = documentType === "credit-memo" || documentType === "return-order";
+
   const netWeight =
     (parseFloat(postDetails.grossWeight) || 0) -
     (parseFloat(postDetails.tareWeight) || 0);
 
   const handlePostDetailsSubmit = async () => {
     if (!initialOrderNo || !postOption) return;
-    if (!caps.supportsUnifiedPostForm) {
+    if (!caps.supportsUnifiedPostForm && !isCreditOrReturn) {
       if (isShipOption && !postDetails.transporterName.trim()) {
         toast.error("Transporter Name is mandatory for Ship options");
         return;
@@ -940,42 +944,15 @@ export function SalesCreateDocumentFormContent({
 
     setIsPostLoading(true);
     try {
-      const patchPayload: Record<string, unknown> = {
-        Vehicle_No: postDetails.vehicleNumber || "",
-        Driver_Mobile_No: postDetails.driverPhone || "",
-        LR_RR_No: postDetails.lrRrNumber || "",
-        LR_RR_Date: postDetails.lrRrDate || "",
-        Posting_Date: postDetails.postingDate || "",
-        External_Document_No: postDetails.externalDocumentNo || "",
-        Distance_km: postDetails.distanceKm
-          ? Number(postDetails.distanceKm)
-          : 0,
-        Freight_Value: postDetails.freightValue
-          ? Number(postDetails.freightValue)
-          : 0,
-      };
+      const patchPayload = buildSalesPostPatchPayload(
+        orderHeader,
+        postDetails as SalesPostDetails,
+        isCreditOrReturn
+      );
 
-      if (documentType === "credit-memo" || documentType === "return-order") {
-        patchPayload.Line_Narration1 = postDetails.lineNarration || "";
+      if (Object.keys(patchPayload).length > 0) {
+        await ops.patchHeader(initialOrderNo, patchPayload);
       }
-
-      if (postDetails.transporterCode) {
-        patchPayload.Transporter_Code = postDetails.transporterCode;
-        patchPayload.Transporter_Name = "";
-      } else {
-        patchPayload.Transporter_Code = "";
-        patchPayload.Transporter_Name = postDetails.transporterName || "";
-      }
-
-      if (isShipOption || caps.supportsUnifiedPostForm) {
-        patchPayload.Gross_Weight = postDetails.grossWeight
-          ? Number(postDetails.grossWeight)
-          : 0;
-        patchPayload.Tier_Weight = postDetails.tareWeight
-          ? Number(postDetails.tareWeight)
-          : 0;
-      }
-      await ops.patchHeader(initialOrderNo, patchPayload);
       const postResponse = await ops.post(initialOrderNo, postOption);
       const docs = parsePostResult(postResponse);
       setPostResultDocs(docs);
@@ -2155,7 +2132,7 @@ export function SalesCreateDocumentFormContent({
                   <Loader2 className="h-6 w-6 animate-spin text-primary" />
                 </div>
               )}
-              {(caps.supportsTransporter || caps.supportsUnifiedPostForm) && (
+              {(caps.supportsTransporter || caps.supportsUnifiedPostForm) && !isCreditOrReturn && (
                 <>
                   <div className="space-y-1 text-left">
                     <Label className="text-xs font-semibold">Transporter Code</Label>
@@ -2191,75 +2168,81 @@ export function SalesCreateDocumentFormContent({
                       placeholder="Enter Name"
                     />
                   </div>
-                  <div className="space-y-1">
-                    <Label>Vehicle No.</Label>
-                    <Input
-                      value={postDetails.vehicleNumber}
-                      onChange={(e) =>
-                        setPostDetails((p) => ({
-                          ...p,
-                          vehicleNumber: e.target.value,
-                        }))
-                      }
-                      className="h-9"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label>
-                      Driver Phone{" "}
-                      {!caps.supportsUnifiedPostForm && isShipOption && (
-                        <span className="text-destructive">*</span>
-                      )}
-                    </Label>
-                    <Input
-                      value={postDetails.driverPhone}
-                      onChange={(e) =>
-                        setPostDetails((p) => ({
-                          ...p,
-                          driverPhone: e.target.value,
-                        }))
-                      }
-                      className="h-9"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label>
-                      LR/RR No.{" "}
-                      {!caps.supportsUnifiedPostForm && isShipOption && (
-                        <span className="text-destructive">*</span>
-                      )}
-                    </Label>
-                    <Input
-                      value={postDetails.lrRrNumber}
-                      onChange={(e) =>
-                        setPostDetails((p) => ({
-                          ...p,
-                          lrRrNumber: e.target.value,
-                        }))
-                      }
-                      className="h-9"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label>
-                      LR/RR Date{" "}
-                      {!caps.supportsUnifiedPostForm && isShipOption && (
-                        <span className="text-destructive">*</span>
-                      )}
-                    </Label>
-                    <DateInput
-                      value={postDetails.lrRrDate}
-                      onChange={(val) =>
-                        setPostDetails((p) => ({
-                          ...p,
-                          lrRrDate: val,
-                        }))
-                      }
-                      className="h-9"
-                    />
-                  </div>
                 </>
               )}
+              <div className="space-y-1">
+                <Label>Vehicle No.</Label>
+                <Input
+                  value={postDetails.vehicleNumber}
+                  onChange={(e) =>
+                    setPostDetails((p) => ({
+                      ...p,
+                      vehicleNumber: e.target.value,
+                    }))
+                  }
+                  className="h-9"
+                />
+              </div>
+                  {!isCreditOrReturn && (
+                    <div className="space-y-1">
+                      <Label>
+                        Driver Phone{" "}
+                        {!caps.supportsUnifiedPostForm && isShipOption && (
+                          <span className="text-destructive">*</span>
+                        )}
+                      </Label>
+                      <Input
+                        value={postDetails.driverPhone}
+                        onChange={(e) =>
+                          setPostDetails((p) => ({
+                            ...p,
+                            driverPhone: e.target.value,
+                          }))
+                        }
+                        className="h-9"
+                      />
+                    </div>
+                  )}
+                  {!isCreditOrReturn && (
+                    <>
+                      <div className="space-y-1">
+                        <Label>
+                          LR/RR No.{" "}
+                          {!caps.supportsUnifiedPostForm && isShipOption && (
+                            <span className="text-destructive">*</span>
+                          )}
+                        </Label>
+                        <Input
+                          value={postDetails.lrRrNumber}
+                          onChange={(e) =>
+                            setPostDetails((p) => ({
+                              ...p,
+                              lrRrNumber: e.target.value,
+                            }))
+                          }
+                          className="h-9"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label>
+                          LR/RR Date{" "}
+                          {!caps.supportsUnifiedPostForm && isShipOption && (
+                            <span className="text-destructive">*</span>
+                          )}
+                        </Label>
+                        <DateInput
+                          value={postDetails.lrRrDate}
+                          onChange={(val) =>
+                            setPostDetails((p) => ({
+                              ...p,
+                              lrRrDate: val,
+                            }))
+                          }
+                          className="h-9"
+                        />
+                      </div>
+                    </>
+                  )}
               <div className="space-y-1 text-left">
                 <Label className="text-xs font-semibold uppercase tracking-wider">Posting Date</Label>
                 <DateInput
@@ -2314,7 +2297,7 @@ export function SalesCreateDocumentFormContent({
                   />
                 </div>
               )}
-              {(documentType === "order" || caps.supportsUnifiedPostForm) && (
+              {(documentType === "order" || (caps.supportsUnifiedPostForm && !isCreditOrReturn)) && (
                 <div className="space-y-1">
                   <Label>Freight Value</Label>
                   <Input
@@ -2332,7 +2315,7 @@ export function SalesCreateDocumentFormContent({
                   />
                 </div>
               )}
-              {(caps.supportsTransporter || caps.supportsUnifiedPostForm) && (
+              {(caps.supportsTransporter || caps.supportsUnifiedPostForm) && !isCreditOrReturn && (
                 <div className="space-y-1">
                   <Label>Distance (km)</Label>
                   <div className="flex gap-2">
@@ -2363,7 +2346,7 @@ export function SalesCreateDocumentFormContent({
                   </div>
                 </div>
               )}
-              {(caps.supportsUnifiedPostForm || (caps.supportsTransporter && isShipOption)) && (
+              {((caps.supportsUnifiedPostForm && !isCreditOrReturn) || (caps.supportsTransporter && isShipOption)) && (
                 <>
                   <div className="space-y-1">
                     <Label>Gross Weight</Label>

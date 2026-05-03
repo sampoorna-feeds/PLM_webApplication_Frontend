@@ -328,7 +328,7 @@ export function PurchaseLineItemsTable({
                       }
                     />
                     <TableCell className="text-right">
-                      {((item.weightQty || 0) - (item.challanQty || 0)).toFixed(3)}
+                      {((item.weightQty || 0) - (item.challanQty || 0))}
                     </TableCell>
                   </>
                 )}
@@ -399,19 +399,13 @@ export function PurchaseLineItemsTable({
                   </>
                 )}
                 <TableCell className="text-right">
-                  {(item.unitPrice || 0).toLocaleString(undefined, {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2,
-                  })}
+                  {item.unitPrice || 0}
                 </TableCell>
                 <TableCell className="text-right">
                   {item.discount > 0 ? `${item.discount}%` : "-"}
                 </TableCell>
                 <TableCell className="text-right font-bold">
-                  {(item.amount || 0).toLocaleString(undefined, {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2,
-                  })}
+                  {item.amount || 0}
                 </TableCell>
                 <TableCell>{item.gstGroupCode || "-"}</TableCell>
                 <TableCell>{item.hsnSacCode || "-"}</TableCell>

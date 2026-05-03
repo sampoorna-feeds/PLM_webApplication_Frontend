@@ -344,7 +344,7 @@ export function ItemChargeSelectionDialog({
                         <td className="px-3 py-2 text-left align-middle text-[10px] tabular-nums">{line.Location_Code || "—"}</td>
                         <td className="px-3 py-2 text-left align-middle text-xs tabular-nums">{itemNo}</td>
                         <td className="max-w-64 truncate px-3 py-2 text-left align-middle text-[11px]">{line.Description}</td>
-                        <td className="px-3 py-2 text-right align-middle text-[11px] tabular-nums">{line.Quantity.toLocaleString()}</td>
+                        <td className="px-3 py-2 text-right align-middle text-[11px] tabular-nums">{line.Quantity}</td>
                         <td className="px-3 py-2 text-center align-middle text-[10px]">{line.Unit_of_Measure || "—"}</td>
                       </tr>
                     );

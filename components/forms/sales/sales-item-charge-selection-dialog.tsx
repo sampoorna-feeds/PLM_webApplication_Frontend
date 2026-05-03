@@ -470,7 +470,7 @@ export function SalesItemChargeSelectionDialog({
                           {line.Description}
                         </td>
                         <td className="px-3 py-2 text-right align-middle text-[11px] tabular-nums">
-                          {line.Quantity.toLocaleString()}
+                          {line.Quantity}
                         </td>
                         <td className="px-3 py-2 text-center align-middle text-[10px]">
                           {line.Unit_of_Measure || "—"}

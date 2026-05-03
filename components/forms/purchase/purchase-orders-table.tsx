@@ -223,7 +223,7 @@ function PurchaseOrderRow({
 
     // Format numbers (amount)
     if (columnId === "Amt_to_Vendor" && typeof value === "number") {
-      return value.toLocaleString();
+      return String(value);
     }
 
     return String(value);

@@ -34,12 +34,9 @@ import {
 import type { SalesLine } from "@/lib/api/services/sales-orders.service";
 import type { SalesDocumentType } from "./sales-document-config";
 
-function formatAmount(val: number | undefined | null): string {
-  if (val == null) return "-";
-  return val.toLocaleString("en-IN", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
+function formatAmount(amount: number | undefined): string {
+  if (amount === undefined || amount === null) return "-";
+  return String(amount);
 }
 
 interface SalesLineItemsTableProps {
@@ -248,7 +245,6 @@ export function SalesLineItemsTable({
                   )}
                   onClick={() => onRowClick?.(line)}
                 >
-                  {/* Tax popover */}
                   <TableCell
                     className="text-center"
                     onClick={(e) => e.stopPropagation()}
@@ -275,14 +271,13 @@ export function SalesLineItemsTable({
                     {line.Unit_of_Measure_Code || line.Unit_of_Measure || "-"}
                   </TableCell>
                   <TableCell className="text-xs">
-                    {stockVal != null ? stockVal.toLocaleString() : "-"}
+                    {stockVal ?? "-"}
                   </TableCell>
                   <TableCell className="text-right text-xs">
                     {line.Quantity ?? "-"}
                   </TableCell>
                   {showQtyColumns && qtyConfig && (
                     <>
-                      {/* Qty to Ship */}
                       {canInlineEdit && line.Line_No != null ? (
                         <EditableQtyCell
                           value={
@@ -303,7 +298,6 @@ export function SalesLineItemsTable({
                           ] as number | undefined) ?? "-"}
                         </TableCell>
                       )}
-                      {/* Qty to Invoice */}
                       {canInlineEdit && line.Line_No != null ? (
                         <EditableQtyCell
                           value={
@@ -324,13 +318,11 @@ export function SalesLineItemsTable({
                           ] as number | undefined) ?? "-"}
                         </TableCell>
                       )}
-                      {/* Qty Shipped */}
                       <TableCell className="text-right text-xs">
                         {((line as unknown as Record<string, unknown>)[
                           qtyConfig.firstCompletedBcField
                         ] as number | undefined) ?? "-"}
                       </TableCell>
-                      {/* Qty Invoiced */}
                       <TableCell className="text-right text-xs">
                         {((line as unknown as Record<string, unknown>)[
                           qtyConfig.secondCompletedBcField

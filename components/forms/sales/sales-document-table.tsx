@@ -236,7 +236,7 @@ function SalesDocumentRow({
     }
 
     if (columnId === "Amt_to_Customer" && typeof value === "number") {
-      return value.toLocaleString();
+      return String(value);
     }
 
     return String(value);

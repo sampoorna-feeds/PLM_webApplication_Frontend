@@ -211,7 +211,7 @@ export function PurchaseItemTrackingDialog({
     }
     if (quantityValue > availableForAssignment) {
       toast.error(
-        `Quantity exceeds available amount. Available: ${availableForAssignment.toLocaleString()} (Remaining: ${remainingQuantity.toLocaleString()}, Already Assigned: ${assignedQuantity.toLocaleString()})`,
+        `Quantity exceeds available amount. Available: ${availableForAssignment} (Remaining: ${remainingQuantity}, Already Assigned: ${assignedQuantity})`,
       );
       return;
     }
@@ -371,7 +371,7 @@ export function PurchaseItemTrackingDialog({
                               </div>
                             </TableCell>
                             <TableCell className="py-2 text-right">
-                              {(lot.RemainingQty || 0).toLocaleString()}
+                              {(lot.RemainingQty || 0)}
                             </TableCell>
                           </TableRow>
                         ))}
@@ -461,13 +461,13 @@ export function PurchaseItemTrackingDialog({
                       <p className="flex justify-between">
                         <span>Total Remaining:</span>
                         <span className="font-medium">
-                          {remainingQuantity.toLocaleString()}
+                          {remainingQuantity}
                         </span>
                       </p>
                       <p className="flex justify-between">
                         <span>Already Assigned:</span>
                         <span className="font-medium">
-                          {assignedQuantity.toLocaleString()}
+                          {assignedQuantity}
                         </span>
                       </p>
                       <p className="flex justify-between border-t pt-0.5">
@@ -481,7 +481,7 @@ export function PurchaseItemTrackingDialog({
                               : "font-semibold text-red-600 dark:text-red-400"
                           }
                         >
-                          {availableForAssignment.toLocaleString()}
+                          {availableForAssignment}
                         </span>
                       </p>
                     </div>
@@ -556,10 +556,10 @@ export function PurchaseItemTrackingDialog({
                               {l.Location_Code || "-"}
                             </TableCell>
                             <TableCell className="py-2 text-right">
-                              {l.Quantity_Base?.toLocaleString() ?? "-"}
+                              {l.Quantity_Base ?? "-"}
                             </TableCell>
                             <TableCell className="py-2 text-right">
-                              {l.Qty_to_Handl_Base?.toLocaleString() ?? "-"}
+                              {l.Qty_to_Handl_Base ?? "-"}
                             </TableCell>
                             <TableCell className="py-2">
                               {l.Expiration_Date

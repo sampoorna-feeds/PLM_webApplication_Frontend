@@ -2316,17 +2316,7 @@ export function PurchaseCreateDocumentFormContent({
                   disabled={isActionLoading}
                 />
               )}
-              {isViewMode && documentType !== "order" && createdOrderNo && (
-                <Button
-                  type="button"
-                  size="sm"
-                  className="h-8"
-                  onClick={() => handleStatusAction("Post")}
-                  disabled={isActionLoading}
-                >
-                  Post
-                </Button>
-              )}
+
               {isViewMode && capabilities.supportsGetPostedLineToReverse && createdOrderNo && (
                 <Button
                   type="button"

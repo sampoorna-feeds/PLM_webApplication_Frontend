@@ -13,7 +13,7 @@ import {
 } from "@/lib/api/services/qc-receipt.service";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/lib/contexts/auth-context";
-import { getAllLOCsFromUserSetup } from "@/lib/api/services/dimension.service";
+import { getAllBranchesFromUserSetup } from "@/lib/api/services/dimension.service";
 import { toast } from "sonner";
 import {
   ALL_COLUMNS,
@@ -46,16 +46,7 @@ export function useQCReceipts(initialFilters?: {
   const [dateFilter, setDateFilter] = useState<{
     fromDate: string;
     toDate: string;
-  } | null>(
-    initialFilters?.skipDateFilter
-      ? {
-          fromDate: new Date(new Date().setDate(new Date().getDate() - 30))
-            .toISOString()
-            .split("T")[0],
-          toDate: new Date().toISOString().split("T")[0],
-        }
-      : null,
-  );
+  } | null>(null);
 
   const [visibleColumns, setVisibleColumns] = useState<string[]>(() =>
     typeof window !== "undefined"
@@ -69,25 +60,25 @@ export function useQCReceipts(initialFilters?: {
   const statusFilter = initialFilters?.statusFilter;
 
   const { userID } = useAuth();
-  const [authLocations, setAuthLocations] = useState<string[]>([]);
+  const [authBranches, setAuthBranches] = useState<string[]>([]);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
 
-  // Load user's authorized locations
+  // Load user's authorized branches
   useEffect(() => {
-    const loadAuthLocations = async () => {
+    const loadAuthBranches = async () => {
       if (!userID) return;
       setIsAuthLoading(true);
       try {
-        const setup = await getAllLOCsFromUserSetup(userID);
-        const locations = setup.map((s) => s.Code).filter(Boolean);
-        setAuthLocations(locations);
+        const setup = await getAllBranchesFromUserSetup(userID);
+        const branches = setup.map((s) => s.Code).filter(Boolean);
+        setAuthBranches(branches);
       } catch (error) {
-        console.error("Error loading user authorized locations:", error);
+        console.error("Error loading user authorized branches:", error);
       } finally {
         setIsAuthLoading(false);
       }
     };
-    loadAuthLocations();
+    loadAuthBranches();
   }, [userID]);
 
   const totalPages = useMemo(
@@ -101,7 +92,7 @@ export function useQCReceipts(initialFilters?: {
   }, [sortColumn, sortDirection]);
 
   const fetchReceipts = useCallback(async () => {
-    if (!dateFilter || (userID && isAuthLoading)) return;
+    if (userID && isAuthLoading) return;
 
     setIsLoading(true);
 
@@ -109,9 +100,9 @@ export function useQCReceipts(initialFilters?: {
       const filterParts: string[] = [];
 
       // Date filter
-      if (dateFilter.fromDate)
+      if (dateFilter?.fromDate)
         filterParts.push(`QC_Date ge ${dateFilter.fromDate}`);
-      if (dateFilter.toDate)
+      if (dateFilter?.toDate)
         filterParts.push(`QC_Date le ${dateFilter.toDate}`);
 
       // Status filter from tabs
@@ -133,14 +124,14 @@ export function useQCReceipts(initialFilters?: {
         filterParts.push(colFilterStr);
       }
 
-      // Authorized locations filter
-      if (authLocations.length > 0) {
-        const locFilter = authLocations
-          .map((loc) => `Location_Code eq '${loc}'`)
+      // Authorized branches filter
+      if (authBranches.length > 0) {
+        const branchFilter = authBranches
+          .map((branch) => `Shortcut_Dimension_2_Code eq '${branch}'`)
           .join(" or ");
-        filterParts.push(`(${locFilter})`);
+        filterParts.push(`(${branchFilter})`);
       } else if (!isAuthLoading) {
-        // If user has no locations assigned and loading finished, they see nothing
+        // If user has no branches assigned and loading finished, they see nothing
         filterParts.push("No eq 'NONE'");
       }
 
@@ -193,7 +184,7 @@ export function useQCReceipts(initialFilters?: {
     statusFilter,
     dateFilter,
     initialFilters?.isPosted,
-    authLocations,
+    authBranches,
     isAuthLoading,
     userID,
   ]);

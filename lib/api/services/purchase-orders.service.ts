@@ -381,6 +381,18 @@ export interface PostGateEntryLine {
   [key: string]: unknown;
 }
 
+export interface AttachedGateEntry {
+  Entry_Type: string;
+  Source_Type: string;
+  Source_No: string;
+  Gate_Entry_No: string;
+  Line_No: number;
+  Source_Name?: string;
+  Challan_No?: string;
+  Challan_Date?: string;
+  [key: string]: unknown;
+}
+
 export interface AttachGateEntryPayload {
   sourceType: string;
   sourceNo: string;
@@ -418,7 +430,7 @@ export async function getPostGateEntryLineList(
 ): Promise<PostGateEntryLine[]> {
   const escapedSourceNo = sourceNo.replace(/'/g, "''");
   const escapedEntryType = entryType.replace(/'/g, "''");
-  const filter = `Entry_Type eq '${escapedEntryType}' and Source_No eq '${escapedSourceNo}'`;
+  const filter = `Entry_Type eq '${escapedEntryType}' and Source_No eq '${escapedSourceNo}' and Status eq 'Open'`;
   const query = buildODataQuery({
     $filter: filter,
     $orderby: "Line_No asc",
@@ -427,6 +439,46 @@ export async function getPostGateEntryLineList(
   const response = await apiGet<ODataResponse<PostGateEntryLine>>(endpoint);
   return response.value || [];
 }
+
+/**
+ * Get already attached gate entry lines for a source document.
+ */
+export async function getAttachedGateEntries(
+  sourceNo: string,
+  entryType: string = "Inward",
+  sourceType: string = "Purchase Order",
+): Promise<AttachedGateEntry[]> {
+  const escapedSourceNo = sourceNo.replace(/'/g, "''");
+  const escapedEntryType = entryType.replace(/'/g, "''");
+  const escapedSourceType = sourceType.replace(/'/g, "''");
+
+  const filter = `Source_Type eq '${escapedSourceType}' and Source_No eq '${escapedSourceNo}' and Entry_Type eq '${escapedEntryType}'`;
+  const query = buildODataQuery({ $filter: filter });
+  const endpoint = `/AttachedgateEntry?company='${encodeURIComponent(COMPANY)}'&${query}`;
+  const response = await apiGet<ODataResponse<AttachedGateEntry>>(endpoint);
+  return response.value || [];
+}
+
+/**
+ * Delete an attached gate entry line.
+ */
+export async function deleteAttachedGateEntry(params: {
+  entryType: string;
+  sourceType: string;
+  sourceNo: string;
+  gateEntryNo: string;
+  lineNo: number;
+}): Promise<unknown> {
+  const { entryType, sourceType, sourceNo, gateEntryNo, lineNo } = params;
+  const escapedEntryType = entryType.replace(/'/g, "''");
+  const escapedSourceType = sourceType.replace(/'/g, "''");
+  const escapedSourceNo = sourceNo.replace(/'/g, "''");
+  const escapedGateEntryNo = gateEntryNo.replace(/'/g, "''");
+
+  const endpoint = `/AttachedgateEntry(Entry_Type='${encodeURIComponent(escapedEntryType)}',Source_Type='${encodeURIComponent(escapedSourceType)}',Source_No='${encodeURIComponent(escapedSourceNo)}',Gate_Entry_No='${encodeURIComponent(escapedGateEntryNo)}',Line_No=${lineNo})?company='${encodeURIComponent(COMPANY)}'`;
+  return apiDelete<unknown>(endpoint);
+}
+
 
 /**
  * Attach a gate entry line to its source document.

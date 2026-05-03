@@ -84,6 +84,8 @@ export function GetPostedLineToReverseDialog({
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [isAllSelected, setIsAllSelected] = useState(false);
+  const [batchProgress, setBatchProgress] = useState<{ current: number; total: number; passed: number; failed: number } | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -114,6 +116,7 @@ export function GetPostedLineToReverseDialog({
     setRows([]);
     setTotalCount(0);
     setSelectedIds(new Set());
+    setIsAllSelected(false);
     if (scrollRef.current) scrollRef.current.scrollTop = 0;
     try {
       const result = await fetchPstdDocLines(selectedOption.endpoint, {
@@ -142,6 +145,7 @@ export function GetPostedLineToReverseDialog({
       setSearchQuery("");
       setDebouncedSearch("");
       setSelectedIds(new Set());
+      setIsAllSelected(false);
       setSelectedOption(menuOptions[0]);
     }
   }, [open, menuOptions]);
@@ -194,26 +198,40 @@ export function GetPostedLineToReverseDialog({
     if ((e.target as HTMLElement).closest("input,button")) return;
     e.preventDefault();
     isDraggingRef.current = true;
-    dragSelectingRef.current = !selectedIds.has(id);
+    const isSelecting = !selectedIds.has(id);
+    dragSelectingRef.current = isSelecting;
     setSelectedIds((prev) => {
       const next = new Set(prev);
-      dragSelectingRef.current ? next.add(id) : next.delete(id);
+      if (isSelecting) {
+        next.add(id);
+        if (next.size === totalCount) setIsAllSelected(true);
+      } else {
+        next.delete(id);
+        setIsAllSelected(false);
+      }
       return next;
     });
   };
 
   const handleRowMouseEnter = (id: string) => {
     if (!isDraggingRef.current || dragSelectingRef.current === null) return;
+    const isSelecting = dragSelectingRef.current;
     setSelectedIds((prev) => {
       const next = new Set(prev);
-      dragSelectingRef.current ? next.add(id) : next.delete(id);
+      if (isSelecting) {
+        next.add(id);
+        if (next.size === totalCount) setIsAllSelected(true);
+      } else {
+        next.delete(id);
+        setIsAllSelected(false);
+      }
       return next;
     });
   };
 
   const filteredAndSortedLines = useMemo(() => {
     let result = rows;
-    
+
     // Apply column filters
     Object.entries(columnFilters).forEach(([colId, filterVal]) => {
       if (!filterVal) return;
@@ -241,7 +259,7 @@ export function GetPostedLineToReverseDialog({
         return sortDirection === "asc" ? cmp : -cmp;
       });
     }
-    
+
     return result;
   }, [rows, columnFilters, sortColumn, sortDirection]);
 
@@ -266,48 +284,99 @@ export function GetPostedLineToReverseDialog({
   };
 
   const toggleSelectAll = () => {
-    if (selectedIds.size === filteredAndSortedLines.length && filteredAndSortedLines.length > 0) {
+    if (isAllSelected || (selectedIds.size === totalCount && totalCount > 0)) {
+      setIsAllSelected(false);
       setSelectedIds(new Set());
     } else {
-      setSelectedIds(new Set(filteredAndSortedLines.map(rowId)));
+      if (totalCount > rows.length) {
+        setIsAllSelected(true);
+        setSelectedIds(new Set(rows.map(rowId)));
+      } else {
+        setIsAllSelected(false);
+        setSelectedIds(new Set(rows.map(rowId)));
+      }
     }
   };
 
   const toggleRow = (id: string) => {
     setSelectedIds((prev) => {
       const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
+      if (next.has(id)) {
+        next.delete(id);
+        setIsAllSelected(false);
+      } else {
+        next.add(id);
+        if (next.size === totalCount) setIsAllSelected(true);
+      }
       return next;
     });
   };
 
   const handleDone = async () => {
-    const selected = rows.filter((r) => selectedIds.has(rowId(r)));
+    let selected: PstdDocLineRow[] = [];
+
+    if (isAllSelected && totalCount > rows.length) {
+      setIsSubmitting(true);
+      try {
+        const result = await fetchPstdDocLines(selectedOption.endpoint, {
+          search: debouncedSearch || undefined,
+          skip: 0,
+          top: totalCount,
+          vendorNo,
+          customerNo,
+        });
+        selected = result.value;
+      } catch (err) {
+        setErrorMsg(getErrorMessage(err, "Failed to fetch all lines."));
+        setIsSubmitting(false);
+        return;
+      }
+    } else {
+      selected = rows.filter((r) => selectedIds.has(rowId(r)));
+    }
+
     if (selected.length === 0) return;
     setIsSubmitting(true);
     try {
-      for (const row of selected) {
-        await submitPstdDocLineToReverse(
-          module,
-          sourceDocNo,
-          selectedOption.currentMenuType,
-          row.Document_No,
-          row.Line_No,
+      let passed = 0;
+      let failed = 0;
+      const BATCH_SIZE = 5;
+      setBatchProgress({ current: 0, total: selected.length, passed: 0, failed: 0 });
+
+      for (let i = 0; i < selected.length; i += BATCH_SIZE) {
+        const batch = selected.slice(i, i + BATCH_SIZE);
+        const results = await Promise.allSettled(
+          batch.map((row) =>
+            submitPstdDocLineToReverse(
+              module,
+              sourceDocNo,
+              selectedOption.currentMenuType,
+              row.Document_No,
+              row.Line_No,
+            ),
+          ),
         );
+        results.forEach((r) => {
+          if (r.status === "fulfilled") passed++;
+          else failed++;
+        });
+        setBatchProgress({ current: Math.min(i + BATCH_SIZE, selected.length), total: selected.length, passed, failed });
       }
-      toast.success(
-        `${selected.length} line${selected.length > 1 ? "s" : ""} copied successfully`,
-      );
+
+      if (failed === 0) {
+        toast.success(`${passed} line${passed > 1 ? "s" : ""} copied successfully`);
+      } else {
+        toast.warning(`Reversal completed: ${passed} success, ${failed} failed`);
+      }
       onSuccess();
       onOpenChange(false);
     } catch (err) {
       setErrorMsg(getErrorMessage(err, "Failed to copy lines."));
     } finally {
       setIsSubmitting(false);
+      setBatchProgress(null);
     }
   };
-
-  const allSelected = filteredAndSortedLines.length > 0 && selectedIds.size === filteredAndSortedLines.length;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -338,7 +407,7 @@ export function GetPostedLineToReverseDialog({
                     className={cn(
                       "text-xs",
                       opt.currentMenuType === selectedOption.currentMenuType &&
-                        "bg-accent font-medium",
+                      "bg-accent font-medium",
                     )}
                     onSelect={() => setSelectedOption(opt)}
                   >
@@ -384,7 +453,10 @@ export function GetPostedLineToReverseDialog({
                       #
                     </span>
                     <Checkbox
-                      checked={allSelected}
+                      checked={
+                        isAllSelected ||
+                        (totalCount > 0 && selectedIds.size === totalCount)
+                      }
                       onCheckedChange={toggleSelectAll}
                       className="rounded shadow-none"
                     />
@@ -482,9 +554,9 @@ export function GetPostedLineToReverseDialog({
                         <td className="px-3 py-2 text-right text-[11px] tabular-nums">
                           {row.Amount != null
                             ? row.Amount.toLocaleString(undefined, {
-                                minimumFractionDigits: 2,
-                                maximumFractionDigits: 2,
-                              })
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2,
+                            })
                             : "—"}
                         </td>
                       </tr>
@@ -521,29 +593,41 @@ export function GetPostedLineToReverseDialog({
 
         {/* ── Status bar ── */}
         <div className="flex shrink-0 items-center justify-between border-t px-4 py-1.5">
-          <span className="text-muted-foreground text-[10px] font-bold tracking-wider uppercase">
-            {loading ? (
-              "Loading…"
-            ) : (
-              <>
-                {rows.length.toLocaleString()}
-                {totalCount > 0 && (
-                  <span className="text-foreground/50 ml-1">
-                    / {totalCount.toLocaleString()} total
-                  </span>
-                )}{" "}
-                Records
-                {Object.keys(columnFilters).length > 0 && (
-                  <span className="text-primary ml-2">
-                    ({filteredAndSortedLines.length} filtered)
-                  </span>
-                )}
-              </>
+          <div className="flex items-center gap-3">
+            <span className="text-muted-foreground text-[10px] font-bold tracking-wider uppercase">
+              {batchProgress ? (
+                <span className="text-primary animate-pulse">
+                  Reversing {batchProgress.current} / {batchProgress.total} ({batchProgress.passed} ✅, {batchProgress.failed} ❌)
+                </span>
+              ) : isSubmitting ? (
+                "Submitting..."
+              ) : (
+                <>
+                  {rows.length.toLocaleString()}
+                  {totalCount > 0 && (
+                    <span className="text-foreground/50 ml-1">
+                      / {totalCount.toLocaleString()} total
+                    </span>
+                  )}{" "}
+                  Records
+                  {Object.keys(columnFilters).length > 0 && (
+                    <span className="text-primary ml-2">
+                      ({filteredAndSortedLines.length} filtered)
+                    </span>
+                  )}
+                </>
+              )}
+            </span>
+            {isSubmitting && rows.length > 0 && !batchProgress && (
+              <div className="flex items-center gap-1.5">
+                <Loader2 className="text-primary h-3 w-3 animate-spin" />
+                <span className="text-muted-foreground text-[10px]">Processing...</span>
+              </div>
             )}
-          </span>
-          {selectedIds.size > 0 && (
+          </div>
+          {(selectedIds.size > 0 || isAllSelected) && (
             <span className="text-primary text-[10px] font-bold">
-              {selectedIds.size} selected
+              {isAllSelected ? totalCount.toLocaleString() : selectedIds.size.toLocaleString()} selected
             </span>
           )}
         </div>
@@ -559,17 +643,17 @@ export function GetPostedLineToReverseDialog({
           </Button>
           <Button
             onClick={handleDone}
-            disabled={selectedIds.size === 0 || isSubmitting}
+            disabled={(selectedIds.size === 0 && !isAllSelected) || isSubmitting}
           >
             {isSubmitting ? (
               <>
                 <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-                Copying…
+                {batchProgress ? `Copying (${batchProgress.current}/${batchProgress.total})...` : "Copying..."}
               </>
             ) : (
               <>
                 <Check className="mr-1.5 h-3.5 w-3.5" />
-                Done ({selectedIds.size})
+                Done ({isAllSelected ? totalCount.toLocaleString() : selectedIds.size.toLocaleString()})
               </>
             )}
           </Button>

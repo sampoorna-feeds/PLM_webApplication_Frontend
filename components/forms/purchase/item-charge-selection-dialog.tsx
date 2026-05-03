@@ -65,6 +65,7 @@ interface ItemChargeSelectionDialogProps {
   type: SourceType;
   onAddSelected: (lines: ItemChargeSourceLine[]) => Promise<void> | void;
   extraFilters?: string[];
+  batchProgress?: { current: number; total: number; passed: number; failed: number } | null;
 }
 
 export function ItemChargeSelectionDialog({
@@ -73,6 +74,7 @@ export function ItemChargeSelectionDialog({
   type,
   onAddSelected,
   extraFilters,
+  batchProgress,
 }: ItemChargeSelectionDialogProps) {
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -81,6 +83,7 @@ export function ItemChargeSelectionDialog({
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [isAllSelected, setIsAllSelected] = useState(false);
   const [isAdding, setIsAdding] = useState(false);
 
   const sentinelRef = useRef<HTMLDivElement>(null);
@@ -109,6 +112,7 @@ export function ItemChargeSelectionDialog({
       setSourceLines([]);
       setTotalCount(0);
       setSelectedIds(new Set());
+      setIsAllSelected(false);
       if (scrollContainerRef.current) scrollContainerRef.current.scrollTop = 0;
       const result = await itemChargeAssignmentService.getSourceLines(type, { 
         search: debouncedSearchQuery || undefined, 
@@ -178,15 +182,32 @@ export function ItemChargeSelectionDialog({
   const lineId = (line: ItemChargeSourceLine) => `${line.Document_No}-${line.Line_No}`;
 
   const toggleSelectAll = () => {
-    if (selectedIds.size === filteredAndSortedLines.length && filteredAndSortedLines.length > 0) {
+    if (isAllSelected || (selectedIds.size === totalCount && totalCount > 0)) {
+      setIsAllSelected(false);
       setSelectedIds(new Set());
     } else {
-      setSelectedIds(new Set(filteredAndSortedLines.map(lineId)));
+      if (totalCount > sourceLines.length) {
+        setIsAllSelected(true);
+        setSelectedIds(new Set(sourceLines.map(lineId)));
+      } else {
+        setIsAllSelected(false);
+        setSelectedIds(new Set(sourceLines.map(lineId)));
+      }
     }
   };
 
   const toggleSelectLine = (id: string) => {
-    setSelectedIds((prev) => { const next = new Set(prev); if (next.has(id)) next.delete(id); else next.add(id); return next; });
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+        setIsAllSelected(false);
+      } else {
+        next.add(id);
+        if (next.size === totalCount) setIsAllSelected(true);
+      }
+      return next;
+    });
   };
 
   // Drag-select
@@ -194,13 +215,35 @@ export function ItemChargeSelectionDialog({
     if ((e.target as HTMLElement).closest("input, button")) return;
     e.preventDefault();
     isDraggingRef.current = true;
-    dragSelectingRef.current = !selectedIds.has(id);
-    setSelectedIds((prev) => { const next = new Set(prev); if (dragSelectingRef.current) next.add(id); else next.delete(id); return next; });
+    const isSelecting = !selectedIds.has(id);
+    dragSelectingRef.current = isSelecting;
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (isSelecting) {
+        next.add(id);
+        if (next.size === totalCount) setIsAllSelected(true);
+      } else {
+        next.delete(id);
+        setIsAllSelected(false);
+      }
+      return next;
+    });
   };
 
   const handleRowMouseEnter = (id: string) => {
     if (!isDraggingRef.current || dragSelectingRef.current === null) return;
-    setSelectedIds((prev) => { const next = new Set(prev); if (dragSelectingRef.current) next.add(id); else next.delete(id); return next; });
+    const isSelecting = dragSelectingRef.current;
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (isSelecting) {
+        next.add(id);
+        if (next.size === totalCount) setIsAllSelected(true);
+      } else {
+        next.delete(id);
+        setIsAllSelected(false);
+      }
+      return next;
+    });
   };
 
   useEffect(() => {
@@ -229,7 +272,21 @@ export function ItemChargeSelectionDialog({
   const handleAdd = async () => {
     try {
       setIsAdding(true);
-      const selected = sourceLines.filter((line) => selectedIds.has(lineId(line)));
+      let selected: ItemChargeSourceLine[] = [];
+
+      if (isAllSelected && totalCount > sourceLines.length) {
+        const result = await itemChargeAssignmentService.getSourceLines(type, {
+          search: debouncedSearchQuery || undefined,
+          skip: 0,
+          top: totalCount,
+          extraFilters,
+          columnFilters,
+        });
+        selected = result.value;
+      } else {
+        selected = sourceLines.filter((line) => selectedIds.has(lineId(line)));
+      }
+
       await onAddSelected(selected);
       onOpenChange(false);
     } catch (error) {
@@ -279,7 +336,7 @@ export function ItemChargeSelectionDialog({
                   <div className="flex items-center justify-center gap-1.5">
                     <span className="text-foreground w-5 text-[9px] font-bold tracking-wider uppercase">#</span>
                     <Checkbox
-                      checked={filteredAndSortedLines.length > 0 && selectedIds.size === filteredAndSortedLines.length}
+                      checked={isAllSelected || (totalCount > 0 && selectedIds.size === totalCount)}
                       onCheckedChange={toggleSelectAll}
                       className="rounded shadow-none"
                     />
@@ -373,13 +430,27 @@ export function ItemChargeSelectionDialog({
               <>{sourceLines.length.toLocaleString()}{totalCount > 0 && <span className="text-foreground/50 ml-1">/ {totalCount.toLocaleString()} total</span>} Records{Object.keys(columnFilters).length > 0 && <span className="text-primary ml-2">({filteredAndSortedLines.length} filtered)</span>}</>
             )}
           </span>
-          {selectedIds.size > 0 && <span className="text-primary text-[10px] font-bold">{selectedIds.size} selected</span>}
+          {(selectedIds.size > 0 || isAllSelected) && (
+            <span className="text-primary text-[10px] font-bold">
+              {isAllSelected ? totalCount.toLocaleString() : selectedIds.size.toLocaleString()} selected
+            </span>
+          )}
         </div>
 
         <DialogFooter className="border-t px-4 py-2 gap-2 shrink-0">
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isAdding}>Cancel</Button>
-          <Button onClick={handleAdd} disabled={selectedIds.size === 0 || isAdding}>
-            {isAdding ? <><Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />Adding...</> : <><Check className="mr-1.5 h-3.5 w-3.5" />Add {selectedIds.size} Selected</>}
+          <Button onClick={handleAdd} disabled={(selectedIds.size === 0 && !isAllSelected) || isAdding}>
+            {isAdding ? (
+              <>
+                <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                {batchProgress ? `Adding (${batchProgress.current}/${batchProgress.total})...` : "Adding..."}
+              </>
+            ) : (
+              <>
+                <Check className="mr-1.5 h-3.5 w-3.5" />
+                Add {isAllSelected ? totalCount.toLocaleString() : selectedIds.size.toLocaleString()} Selected
+              </>
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>

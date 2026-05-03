@@ -108,6 +108,7 @@ interface SalesItemChargeSelectionDialogProps {
   onAddSelected: (lines: ItemChargeSourceLine[]) => Promise<void> | void;
   extraFilters?: string[];
   sellToCustomerNo?: string;
+  batchProgress?: { current: number; total: number; passed: number; failed: number } | null;
 }
 
 export function SalesItemChargeSelectionDialog({
@@ -117,6 +118,7 @@ export function SalesItemChargeSelectionDialog({
   onAddSelected,
   extraFilters,
   sellToCustomerNo,
+  batchProgress,
 }: SalesItemChargeSelectionDialogProps) {
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -125,6 +127,7 @@ export function SalesItemChargeSelectionDialog({
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [isAllSelected, setIsAllSelected] = useState(false);
   const [isAdding, setIsAdding] = useState(false);
 
   const sentinelRef = useRef<HTMLDivElement>(null);
@@ -153,6 +156,7 @@ export function SalesItemChargeSelectionDialog({
       setSourceLines([]);
       setTotalCount(0);
       setSelectedIds(new Set());
+      setIsAllSelected(false);
       if (scrollContainerRef.current) scrollContainerRef.current.scrollTop = 0;
       const result = await salesItemChargeAssignmentService.getSourceLines(
         type,
@@ -252,21 +256,30 @@ export function SalesItemChargeSelectionDialog({
     `${line.Document_No}-${line.Line_No}`;
 
   const toggleSelectAll = () => {
-    if (
-      selectedIds.size === filteredAndSortedLines.length &&
-      filteredAndSortedLines.length > 0
-    ) {
+    if (isAllSelected || (selectedIds.size === totalCount && totalCount > 0)) {
+      setIsAllSelected(false);
       setSelectedIds(new Set());
     } else {
-      setSelectedIds(new Set(filteredAndSortedLines.map(lineId)));
+      if (totalCount > sourceLines.length) {
+        setIsAllSelected(true);
+        setSelectedIds(new Set(sourceLines.map(lineId)));
+      } else {
+        setIsAllSelected(false);
+        setSelectedIds(new Set(sourceLines.map(lineId)));
+      }
     }
   };
 
   const toggleSelectLine = (id: string) => {
     setSelectedIds((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+      if (next.has(id)) {
+        next.delete(id);
+        setIsAllSelected(false);
+      } else {
+        next.add(id);
+        if (next.size === totalCount) setIsAllSelected(true);
+      }
       return next;
     });
   };
@@ -275,21 +288,33 @@ export function SalesItemChargeSelectionDialog({
     if ((e.target as HTMLElement).closest("input, button")) return;
     e.preventDefault();
     isDraggingRef.current = true;
-    dragSelectingRef.current = !selectedIds.has(id);
+    const isSelecting = !selectedIds.has(id);
+    dragSelectingRef.current = isSelecting;
     setSelectedIds((prev) => {
       const next = new Set(prev);
-      if (dragSelectingRef.current) next.add(id);
-      else next.delete(id);
+      if (isSelecting) {
+        next.add(id);
+        if (next.size === totalCount) setIsAllSelected(true);
+      } else {
+        next.delete(id);
+        setIsAllSelected(false);
+      }
       return next;
     });
   };
 
   const handleRowMouseEnter = (id: string) => {
     if (!isDraggingRef.current || dragSelectingRef.current === null) return;
+    const isSelecting = dragSelectingRef.current;
     setSelectedIds((prev) => {
       const next = new Set(prev);
-      if (dragSelectingRef.current) next.add(id);
-      else next.delete(id);
+      if (isSelecting) {
+        next.add(id);
+        if (next.size === totalCount) setIsAllSelected(true);
+      } else {
+        next.delete(id);
+        setIsAllSelected(false);
+      }
       return next;
     });
   };
@@ -326,9 +351,26 @@ export function SalesItemChargeSelectionDialog({
   const handleAdd = async () => {
     try {
       setIsAdding(true);
-      const selected = sourceLines.filter((line) =>
-        selectedIds.has(lineId(line)),
-      );
+      let selected: ItemChargeSourceLine[] = [];
+
+      if (isAllSelected && totalCount > sourceLines.length) {
+        const result = await salesItemChargeAssignmentService.getSourceLines(
+          type,
+          {
+            search: debouncedSearchQuery || undefined,
+            skip: 0,
+            top: totalCount,
+            extraFilters,
+            sellToCustomerNo,
+            columnFilters,
+          },
+        );
+        selected = result.value;
+      } else {
+        selected = sourceLines.filter((line) =>
+          selectedIds.has(lineId(line)),
+        );
+      }
       await onAddSelected(selected);
       onOpenChange(false);
     } catch (error) {
@@ -379,8 +421,8 @@ export function SalesItemChargeSelectionDialog({
                     </span>
                     <Checkbox
                       checked={
-                        filteredAndSortedLines.length > 0 &&
-                        selectedIds.size === filteredAndSortedLines.length
+                        isAllSelected ||
+                        (totalCount > 0 && selectedIds.size === totalCount)
                       }
                       onCheckedChange={toggleSelectAll}
                       className="rounded shadow-none"
@@ -528,9 +570,12 @@ export function SalesItemChargeSelectionDialog({
               </>
             )}
           </span>
-          {selectedIds.size > 0 && (
+          {(selectedIds.size > 0 || isAllSelected) && (
             <span className="text-primary text-[10px] font-bold">
-              {selectedIds.size} selected
+              {isAllSelected
+                ? totalCount.toLocaleString()
+                : selectedIds.size.toLocaleString()}{" "}
+              selected
             </span>
           )}
         </div>
@@ -545,17 +590,17 @@ export function SalesItemChargeSelectionDialog({
           </Button>
           <Button
             onClick={handleAdd}
-            disabled={selectedIds.size === 0 || isAdding}
+            disabled={(selectedIds.size === 0 && !isAllSelected) || isAdding}
           >
             {isAdding ? (
               <>
                 <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-                Adding...
+                {batchProgress ? `Adding (${batchProgress.current}/${batchProgress.total})...` : "Adding..."}
               </>
             ) : (
               <>
                 <Check className="mr-1.5 h-3.5 w-3.5" />
-                Add {selectedIds.size} Selected
+                Add {isAllSelected ? totalCount.toLocaleString() : selectedIds.size.toLocaleString()} Selected
               </>
             )}
           </Button>

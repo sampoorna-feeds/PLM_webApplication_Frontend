@@ -123,6 +123,8 @@ export function SalesItemChargeAssignmentDialog({
   const [lines, setLines] = useState<SalesItemChargeAssignment[]>([]);
   const [totalCount, setTotalCount] = useState<number>(0);
   const [selectedLines, setSelectedLines] = useState<Set<string>>(new Set());
+  const [isAllSelected, setIsAllSelected] = useState(false);
+  const [batchProgress, setBatchProgress] = useState<{ current: number; total: number; passed: number; failed: number } | null>(null);
 
   const sentinelRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -169,6 +171,7 @@ export function SalesItemChargeAssignmentDialog({
       setLines([]);
       setTotalCount(0);
       setSelectedLines(new Set());
+      setIsAllSelected(false);
       if (scrollContainerRef.current) scrollContainerRef.current.scrollTop = 0;
       await salesItemChargeAssignmentService.prepareChargeItemLines(docNo, docLineNo);
       const result = await salesItemChargeAssignmentService.getAssignments({ docType, docNo, docLineNo, itemChargeNo, skip: 0, top: PAGE_SIZE });
@@ -212,26 +215,43 @@ export function SalesItemChargeAssignmentDialog({
 
   const handleLinesAdded = async (sourceLines: ItemChargeSourceLine[]) => {
     setLoading(true);
+    let passed = 0;
+    let failed = 0;
+    setBatchProgress({ current: 0, total: sourceLines.length, passed: 0, failed: 0 });
     try {
       const apiGetType = salesItemChargeAssignmentService.getApiGetType(selectionType);
-      await Promise.all(
-        sourceLines.map((sl) =>
-          salesItemChargeAssignmentService.postAssignment({
-            sourceDoc: docNo,
-            sourceLine: docLineNo,
-            getType: apiGetType,
-            chargeDocNo: sl.Document_No,
-            chargeLineNo: sl.Line_No,
-          }),
-        ),
-      );
-      toast.success(`Successfully added ${sourceLines.length} assignments`);
+      const BATCH_SIZE = 25;
+      for (let i = 0; i < sourceLines.length; i += BATCH_SIZE) {
+        const batch = sourceLines.slice(i, i + BATCH_SIZE);
+        const results = await Promise.allSettled(
+          batch.map((sl) =>
+            salesItemChargeAssignmentService.postAssignment({
+              sourceDoc: docNo,
+              sourceLine: docLineNo,
+              getType: apiGetType,
+              chargeDocNo: sl.Document_No,
+              chargeLineNo: sl.Line_No,
+            }),
+          ),
+        );
+        results.forEach((r) => {
+          if (r.status === "fulfilled") passed++;
+          else failed++;
+        });
+        setBatchProgress({ current: Math.min(i + BATCH_SIZE, sourceLines.length), total: sourceLines.length, passed, failed });
+      }
+
+      if (failed === 0) {
+        toast.success(`Successfully added ${passed} assignments`);
+      } else {
+        toast.warning(`Finished adding: ${passed} successful, ${failed} failed`);
+      }
       await fetchInitial();
     } catch (error) {
-      showError("Assignment Failed", "Failed to sync some assignments with the server.", error);
-      await fetchInitial();
+      showError("Assignment Failed", "An unexpected error occurred during batch addition.", error);
     } finally {
       setLoading(false);
+      setBatchProgress(null);
     }
   };
 
@@ -318,16 +338,33 @@ export function SalesItemChargeAssignmentDialog({
   const lineKey = (l: SalesItemChargeAssignment) => `${l.Applies_to_Doc_No_}-${l.Line_No}`;
 
   const toggleSelectAll = () => {
-    if (selectedLines.size === filteredAndSortedLines.length && filteredAndSortedLines.length > 0) {
+    if (isAllSelected || (selectedLines.size === totalCount && totalCount > 0)) {
+      setIsAllSelected(false);
       setSelectedLines(new Set());
     } else {
-      setSelectedLines(new Set(filteredAndSortedLines.map(lineKey)));
+      if (totalCount > lines.length) {
+        setIsAllSelected(true);
+        setSelectedLines(new Set(lines.map(lineKey)));
+      } else {
+        setIsAllSelected(false);
+        setSelectedLines(new Set(lines.map(lineKey)));
+      }
     }
   };
 
   const toggleSelectLine = (line: SalesItemChargeAssignment) => {
     const key = lineKey(line);
-    setSelectedLines((prev) => { const next = new Set(prev); if (next.has(key)) next.delete(key); else next.add(key); return next; });
+    setSelectedLines((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) {
+        next.delete(key);
+        setIsAllSelected(false);
+      } else {
+        next.add(key);
+        if (next.size === totalCount) setIsAllSelected(true);
+      }
+      return next;
+    });
   };
 
   const handleRowMouseDown = (line: SalesItemChargeAssignment, e: React.MouseEvent) => {
@@ -335,14 +372,36 @@ export function SalesItemChargeAssignmentDialog({
     e.preventDefault();
     isDraggingRef.current = true;
     const key = lineKey(line);
-    dragSelectingRef.current = !selectedLines.has(key);
-    setSelectedLines((prev) => { const next = new Set(prev); if (dragSelectingRef.current) next.add(key); else next.delete(key); return next; });
+    const isSelecting = !selectedLines.has(key);
+    dragSelectingRef.current = isSelecting;
+    setSelectedLines((prev) => {
+      const next = new Set(prev);
+      if (isSelecting) {
+        next.add(key);
+        if (next.size === totalCount) setIsAllSelected(true);
+      } else {
+        next.delete(key);
+        setIsAllSelected(false);
+      }
+      return next;
+    });
   };
 
   const handleRowMouseEnter = (line: SalesItemChargeAssignment) => {
     if (!isDraggingRef.current || dragSelectingRef.current === null) return;
     const key = lineKey(line);
-    setSelectedLines((prev) => { const next = new Set(prev); if (dragSelectingRef.current) next.add(key); else next.delete(key); return next; });
+    const isSelecting = dragSelectingRef.current;
+    setSelectedLines((prev) => {
+      const next = new Set(prev);
+      if (isSelecting) {
+        next.add(key);
+        if (next.size === totalCount) setIsAllSelected(true);
+      } else {
+        next.delete(key);
+        setIsAllSelected(false);
+      }
+      return next;
+    });
   };
 
   useEffect(() => {
@@ -387,20 +446,73 @@ export function SalesItemChargeAssignmentDialog({
   };
 
   const handleDeleteSelected = async () => {
-    const toDelete = lines.filter((l) => selectedLines.has(lineKey(l)));
+    let toDelete: SalesItemChargeAssignment[] = [];
+
+    if (isAllSelected && totalCount > lines.length) {
+      setLoading(true);
+      try {
+        const result = await salesItemChargeAssignmentService.getAssignments({
+          docType,
+          docNo,
+          docLineNo,
+          itemChargeNo,
+          skip: 0,
+          top: totalCount,
+        });
+        toDelete = result.value;
+      } catch (error) {
+        showError("Fetch Failed", "Failed to fetch all assignments for deletion.", error);
+        setLoading(false);
+        return;
+      }
+    } else {
+      toDelete = lines.filter((l) => selectedLines.has(lineKey(l)));
+    }
+
     if (toDelete.length === 0) return;
+    let passed = 0;
+    let failed = 0;
+    const successfullyDeletedKeys = new Set<string>();
+    setBatchProgress({ current: 0, total: toDelete.length, passed: 0, failed: 0 });
+
     try {
       setLoading(true);
-      await Promise.all(toDelete.map((l) => salesItemChargeAssignmentService.deleteAssignment(l)));
-      const deletedKeys = new Set(toDelete.map(lineKey));
-      setLines((prev) => prev.filter((l) => !deletedKeys.has(lineKey(l))));
-      setTotalCount((prev) => Math.max(0, prev - toDelete.length));
-      setSelectedLines(new Set());
-      toast.success(`${toDelete.length} assignment${toDelete.length > 1 ? "s" : ""} deleted`);
+      const BATCH_SIZE = 25;
+      for (let i = 0; i < toDelete.length; i += BATCH_SIZE) {
+        const batch = toDelete.slice(i, i + BATCH_SIZE);
+        const results = await Promise.allSettled(
+          batch.map((l) => salesItemChargeAssignmentService.deleteAssignment(l)),
+        );
+        results.forEach((r, idx) => {
+          if (r.status === "fulfilled") {
+            passed++;
+            successfullyDeletedKeys.add(lineKey(batch[idx]));
+          } else {
+            failed++;
+          }
+        });
+        setBatchProgress({ current: Math.min(i + BATCH_SIZE, toDelete.length), total: toDelete.length, passed, failed });
+      }
+
+      setLines((prev) => prev.filter((l) => !successfullyDeletedKeys.has(lineKey(l))));
+      setTotalCount((prev) => Math.max(0, prev - passed));
+      setSelectedLines((prev) => {
+        const next = new Set(prev);
+        successfullyDeletedKeys.forEach((k) => next.delete(k));
+        return next;
+      });
+      setIsAllSelected(false);
+
+      if (failed === 0) {
+        toast.success(`${passed} assignment${passed > 1 ? "s" : ""} deleted`);
+      } else {
+        toast.warning(`Batch delete finished: ${passed} success, ${failed} failed`);
+      }
     } catch (error) {
-      showError("Deletion Failed", "Failed to delete some assignments.", error);
+      showError("Deletion Failed", "An unexpected error occurred during batch deletion.", error);
     } finally {
       setLoading(false);
+      setBatchProgress(null);
       setDeleteConfirmBulk(false);
     }
   };
@@ -480,7 +592,7 @@ export function SalesItemChargeAssignmentDialog({
                           <div className="flex items-center justify-center gap-1.5">
                             <span className="text-foreground w-5 text-[9px] font-bold tracking-wider uppercase">#</span>
                             <Checkbox
-                              checked={filteredAndSortedLines.length > 0 && selectedLines.size === filteredAndSortedLines.length}
+                              checked={isAllSelected || (totalCount > 0 && selectedLines.size === totalCount)}
                               onCheckedChange={toggleSelectAll}
                               className="rounded shadow-none"
                             />
@@ -585,23 +697,44 @@ export function SalesItemChargeAssignmentDialog({
                 <div className="border-t px-4 py-2 flex items-center justify-between shrink-0">
                   <div className="flex items-center gap-3">
                     <span className="text-muted-foreground text-[10px] font-bold tracking-wider uppercase">
-                      {loading ? "Loading..." : (
-                        <>{lines.length.toLocaleString()}{totalCount > 0 && <span className="text-foreground/50 ml-1">/ {totalCount.toLocaleString()} total</span>} Records{(searchQuery || Object.keys(columnFilters).length > 0) && <span className="text-primary ml-2">({filteredAndSortedLines.length} filtered)</span>}</>
+                      {batchProgress ? (
+                        <span className="text-primary animate-pulse">
+                          Processing {batchProgress.current} / {batchProgress.total} ({batchProgress.passed} ✅, {batchProgress.failed} ❌)
+                        </span>
+                      ) : loading ? (
+                        "Loading..."
+                      ) : (
+                        <>
+                          {lines.length.toLocaleString()}
+                          {totalCount > 0 && <span className="text-foreground/50 ml-1">/ {totalCount.toLocaleString()} total</span>} Records
+                          {(searchQuery || Object.keys(columnFilters).length > 0) && (
+                            <span className="text-primary ml-2">({filteredAndSortedLines.length} filtered)</span>
+                          )}
+                        </>
                       )}
                     </span>
-                    {loading && lines.length > 0 && <><Loader2 className="text-primary h-3 w-3 animate-spin" /><span className="text-muted-foreground text-[10px]">Refreshing...</span></>}
+                    {loading && lines.length > 0 && !batchProgress && (
+                      <div className="flex items-center gap-1.5">
+                        <Loader2 className="text-primary h-3 w-3 animate-spin" />
+                        <span className="text-muted-foreground text-[10px]">Refreshing...</span>
+                      </div>
+                    )}
                   </div>
                   <div className="flex items-center gap-2">
-                    {selectedLines.size > 0 && <span className="text-primary text-[10px] font-bold">{selectedLines.size} selected</span>}
+                    {(selectedLines.size > 0 || isAllSelected) && (
+                      <span className="text-primary text-[10px] font-bold">
+                        {isAllSelected ? totalCount.toLocaleString() : selectedLines.size.toLocaleString()} selected
+                      </span>
+                    )}
                     <Button
                       variant="outline"
                       size="sm"
                       className="h-8 border-destructive/40 px-3 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive disabled:opacity-40"
                       onClick={() => setDeleteConfirmBulk(true)}
-                      disabled={selectedLines.size === 0 || loading}
+                      disabled={(selectedLines.size === 0 && !isAllSelected) || loading}
                     >
                       <Trash2 className="mr-1.5 h-3.5 w-3.5" />
-                      {selectedLines.size > 0 ? `Delete ${selectedLines.size} Selected` : "Delete Selected"}
+                      {selectedLines.size > 0 || isAllSelected ? `Delete ${isAllSelected ? totalCount.toLocaleString() : selectedLines.size.toLocaleString()} Selected` : "Delete Selected"}
                     </Button>
                   </div>
                 </div>
@@ -654,6 +787,7 @@ export function SalesItemChargeAssignmentDialog({
         onAddSelected={handleLinesAdded}
         type={selectionType}
         sellToCustomerNo={sellToCustomerNo}
+        batchProgress={batchProgress}
       />
 
       <AlertDialog open={!!deleteConfirmLine} onOpenChange={(o) => !o && setDeleteConfirmLine(null)}>
@@ -684,9 +818,9 @@ export function SalesItemChargeAssignmentDialog({
       <AlertDialog open={deleteConfirmBulk} onOpenChange={(o) => !o && setDeleteConfirmBulk(false)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete {selectedLines.size} Assignments</AlertDialogTitle>
+            <AlertDialogTitle>Delete {isAllSelected ? totalCount.toLocaleString() : selectedLines.size.toLocaleString()} Assignments</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently delete all {selectedLines.size} selected assignment{selectedLines.size > 1 ? "s" : ""}. This cannot be undone.
+              This will permanently delete all {isAllSelected ? totalCount.toLocaleString() : selectedLines.size.toLocaleString()} selected assignment{isAllSelected || selectedLines.size > 1 ? "s" : ""}. This cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -696,7 +830,12 @@ export function SalesItemChargeAssignmentDialog({
               disabled={loading}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Deleting...</> : `Delete ${selectedLines.size}`}
+              {loading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  {batchProgress ? `Deleting (${batchProgress.current}/${batchProgress.total})...` : "Deleting..."}
+                </>
+              ) : `Delete ${isAllSelected ? totalCount.toLocaleString() : selectedLines.size.toLocaleString()}`}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -115,6 +115,7 @@ export async function fetchPstdDocLines(
     sortColumn?: string | null;
     sortDirection?: "asc" | "desc" | null;
     columnFilters?: Record<string, string>;
+    _isInternal?: boolean;
   } = {},
 ): Promise<PstdDocPagedResult> {
   const { search, skip = 0, top = 200, vendorNo, customerNo, sortColumn, sortDirection, columnFilters } = options;
@@ -133,11 +134,48 @@ export async function fetchPstdDocLines(
     filters.push(`Sell_to_Customer_No eq '${customerNo.replace(/'/g, "''")}'`);
   }
 
-  if (search) {
-    const s = search.replace(/'/g, "''");
-    filters.push(
-      `(contains(Document_No,'${s}') or contains(Description,'${s}'))`,
+  if (search && !options._isInternal) {
+    const searchFields = ["Document_No", "Description", "No"];
+    
+    const responses = await Promise.all(
+      searchFields.map((field) =>
+        fetchPstdDocLines(endpoint, {
+          ...options,
+          search: undefined,
+          _isInternal: true,
+          columnFilters: {
+            ...columnFilters,
+            [field]: search,
+          },
+        })
+      )
     );
+
+    // Merge and de-duplicate
+    const map = new Map<string, PstdDocLineRow>();
+    responses.forEach((res) => {
+      res.value.forEach((row) => {
+        map.set(`${row.Document_No}-${row.Line_No}`, row);
+      });
+    });
+
+    const allResults = Array.from(map.values());
+
+    // Apply sorting client-side
+    if (sortColumn && sortDirection) {
+      allResults.sort((a, b) => {
+        const valA = (a as any)[sortColumn] ?? "";
+        const valB = (b as any)[sortColumn] ?? "";
+        if (valA < valB) return sortDirection === "asc" ? -1 : 1;
+        if (valA > valB) return sortDirection === "asc" ? 1 : -1;
+        return 0;
+      });
+    }
+
+    return {
+      value: allResults.slice(skip, skip + top),
+      count: allResults.length,
+    };
   }
 
   if (columnFilters) {

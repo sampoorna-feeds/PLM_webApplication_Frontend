@@ -62,6 +62,7 @@ export interface PurchaseOrder {
   Buy_from_City?: string;
   Pay_to_Vendor_No?: string;
   Currency_Code?: string;
+  GST_Vendor_Type?: string;
   "@odata.etag"?: string;
   [key: string]: unknown;
 }
@@ -250,6 +251,8 @@ export interface PurchaseLine {
   Actual_Qty?: number;
   Outstanding_Quantity?: number;
   GST_Credit?: string;
+  GST_Assessable_Value?: number;
+  Custom_Duty_Amount?: number;
   Appl_to_Item_Entry?: number;
   [key: string]: unknown;
 }

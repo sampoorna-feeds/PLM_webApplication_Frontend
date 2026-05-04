@@ -17,6 +17,8 @@ export interface PurchaseLinePayloadSource {
   exempted?: boolean;
   noOfBags?: number;
   gstCredit?: string;
+  gstAssessableValue?: number;
+  customDutyAmount?: number;
 }
 
 export function buildCreatePurchaseLinePayload(
@@ -58,6 +60,10 @@ export function buildCreatePurchaseLinePayload(
   if (lineItem.noOfBags !== undefined && lineItem.noOfBags !== null && lineItem.noOfBags !== 0)
     payload.No_of_Bags = lineItem.noOfBags;
   if (lineItem.gstCredit) payload.GST_Credit = lineItem.gstCredit;
+  if (lineItem.gstAssessableValue !== undefined && lineItem.gstAssessableValue !== null && lineItem.gstAssessableValue !== 0)
+    payload.GST_Assessable_Value = lineItem.gstAssessableValue;
+  if (lineItem.customDutyAmount !== undefined && lineItem.customDutyAmount !== null && lineItem.customDutyAmount !== 0)
+    payload.Custom_Duty_Amount = lineItem.customDutyAmount;
 
   return toUpperCaseValues(payload, ["Document_Type", "Type"]);
 }
@@ -89,6 +95,10 @@ export function buildUpdatePurchaseLinePayload(
   if (lineItem.noOfBags !== undefined && lineItem.noOfBags !== null)
     payload.No_of_Bags = lineItem.noOfBags;
   if (lineItem.gstCredit !== undefined) payload.GST_Credit = lineItem.gstCredit;
+  if (lineItem.gstAssessableValue !== undefined && lineItem.gstAssessableValue !== null)
+    payload.GST_Assessable_Value = lineItem.gstAssessableValue;
+  if (lineItem.customDutyAmount !== undefined && lineItem.customDutyAmount !== null)
+    payload.Custom_Duty_Amount = lineItem.customDutyAmount;
 
   return toUpperCaseValues(payload, ["Document_Type", "Type"]);
 }

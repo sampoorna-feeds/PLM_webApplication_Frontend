@@ -36,4 +36,6 @@ export interface LineItem {
   actualQty?: number;
   outstandingQty?: number;
   gstCredit?: string;
+  gstAssessableValue?: number;
+  customDutyAmount?: number;
 }

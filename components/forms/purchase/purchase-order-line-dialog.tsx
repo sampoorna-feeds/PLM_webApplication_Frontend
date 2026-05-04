@@ -86,6 +86,7 @@ interface PurchaseOrderLineDialogProps {
   onSave: (lineItem: LineItem) => void | Promise<void>;
   onRemove?: (lineItem: LineItem) => void | Promise<void>;
   isSaving?: boolean;
+  gstVendorType?: string;
 }
 
 function createLineItemId() {
@@ -95,7 +96,7 @@ function createLineItemId() {
 function getInitialLineState(lineItem?: LineItem | null): Partial<LineItem> {
   return {
     lineNo: lineItem?.lineNo,
-    type: lineItem?.type || "Item",
+    type: lineItem?.type ?? "Item",
     no: lineItem?.no || "",
     description: lineItem?.description || "",
     uom: lineItem?.uom || "",
@@ -119,6 +120,8 @@ function getInitialLineState(lineItem?: LineItem | null): Partial<LineItem> {
     challanQty: lineItem?.challanQty,
     weightQty: lineItem?.weightQty,
     gstCredit: lineItem?.gstCredit || "Non-Availment",
+    gstAssessableValue: lineItem?.gstAssessableValue || 0,
+    customDutyAmount: lineItem?.customDutyAmount || 0,
   };
 }
 
@@ -132,6 +135,7 @@ export function PurchaseOrderLineDialog({
   onSave,
   onRemove,
   isSaving = false,
+  gstVendorType,
 }: PurchaseOrderLineDialogProps) {
   const [isRemoving, setIsRemoving] = useState(false);
   const isEdit = !!lineItem;
@@ -456,7 +460,7 @@ export function PurchaseOrderLineDialog({
         console.error("Error loading item card details:", error);
         setCanAddBardana(false);
       });
-  }, []);
+  }, [documentType]);
 
   const handleSubmit = useCallback(() => {
     setValidationError(null);
@@ -509,6 +513,8 @@ export function PurchaseOrderLineDialog({
       challanQty: isItemType ? Number(formState.challanQty) || 0 : undefined,
       weightQty: isItemType ? Number(formState.weightQty) || 0 : undefined,
       gstCredit: formState.gstCredit,
+      gstAssessableValue: Number(formState.gstAssessableValue) || 0,
+      customDutyAmount: Number(formState.customDutyAmount) || 0,
     };
 
     const normalizedLineItemRecord = normalizedLineItem as unknown as Record<
@@ -531,7 +537,15 @@ export function PurchaseOrderLineDialog({
       Number.isFinite(secondPendingQuantity) ? secondPendingQuantity : 0;
 
     onSave(normalizedLineItem);
-  }, [amount, formState, lineItem, onSave, quantityColumns]);
+  }, [
+    amount,
+    formState,
+    lineItem,
+    onSave,
+    quantityColumns,
+    isItemType,
+    canAddBardana,
+  ]);
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -1056,6 +1070,48 @@ export function PurchaseOrderLineDialog({
                         </SelectItem>
                       </SelectContent>
                     </Select>
+                  </ClearableField>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {formState.type !== "" && gstVendorType === "Import" && (
+            <div className="space-y-2 border-t pt-2">
+              <h3 className="text-foreground text-xs font-medium">
+                Import Details
+              </h3>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
+                <div className="space-y-1">
+                  <FieldTitle>GST Assessable Value</FieldTitle>
+                  <ClearableField
+                    value={formatNumericValue(formState.gstAssessableValue)}
+                    onClear={() => handleNumericChange("gstAssessableValue", "")}
+                  >
+                    <CalculatorInput
+                      value={formatNumericValue(formState.gstAssessableValue)}
+                      onValueChange={(v) =>
+                        handleNumericChange("gstAssessableValue", v)
+                      }
+                      placeholder="0.00"
+                      className={cn("h-8", fieldInputClass)}
+                    />
+                  </ClearableField>
+                </div>
+                <div className="space-y-1">
+                  <FieldTitle>Custom Duty Amount</FieldTitle>
+                  <ClearableField
+                    value={formatNumericValue(formState.customDutyAmount)}
+                    onClear={() => handleNumericChange("customDutyAmount", "")}
+                  >
+                    <CalculatorInput
+                      value={formatNumericValue(formState.customDutyAmount)}
+                      onValueChange={(v) =>
+                        handleNumericChange("customDutyAmount", v)
+                      }
+                      placeholder="0.00"
+                      className={cn("h-8", fieldInputClass)}
+                    />
                   </ClearableField>
                 </div>
               </div>

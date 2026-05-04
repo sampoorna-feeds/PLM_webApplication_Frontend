@@ -71,6 +71,8 @@ export interface PurchaseOrderLineItem {
   salvageValue?: number;
   noOfBags?: number;
   gstCredit?: string;
+  gstAssessableValue?: number;
+  customDutyAmount?: number;
 }
 
 export interface CreatePurchaseOrderResponse {

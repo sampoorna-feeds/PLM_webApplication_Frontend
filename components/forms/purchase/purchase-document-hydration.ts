@@ -69,6 +69,7 @@ export function mapPurchaseHeaderToFormData(
     })(),
     vehicleNo: toStringValue(header.Vehicle_No),
     paymentMethodCode: toStringValue(header.Payment_Method_Code),
+    gstVendorType: toStringValue(header.GST_Vendor_Type || rawHeader["GST_Vendor_Type"] || header.GST_vendor_Type),
   };
 }
 
@@ -127,5 +128,7 @@ export function mapPurchaseLineToLineItem(line: PurchaseLine): LineItem {
     actualQty: toNumberValue(line.Actual_Qty),
     outstandingQty: toNumberValue(line.Outstanding_Quantity),
     gstCredit: toStringValue(line.GST_Credit),
+    gstAssessableValue: toNumberValue(line.GST_Assessable_Value),
+    customDutyAmount: toNumberValue(line.Custom_Duty_Amount),
   };
 }

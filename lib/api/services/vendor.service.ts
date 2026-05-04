@@ -102,7 +102,7 @@ export interface Vendor {
   Vendor_Location?: string;
   Commissioner_x0027_s_Permission_No?: string;
   Govt_Undertaking?: boolean;
-  GST_vendor_Type?: string;
+  GST_Vendor_Type?: string;
   Associated_Enterprises?: boolean;
   Aggregate_Turnover?: string;
   ARN_No?: string;
@@ -457,7 +457,7 @@ export async function getVendorDetails(
 ): Promise<VendorDetail | null> {
   try {
     const escapedNo = escapeODataValue(vendorNo);
-    const endpoint = `/VendorCard(No='${escapedNo}')?company='${encodeURIComponent(COMPANY)}'&$select=No,Name,GST_Registration_No,P_A_N_No`;
+    const endpoint = `/VendorCard(No='${escapedNo}')?company='${encodeURIComponent(COMPANY)}'&$select=No,Name,GST_Registration_No,P_A_N_No,GST_Vendor_Type`;
     const response = await apiGet<VendorDetail>(endpoint);
     return response;
   } catch (error) {

@@ -293,6 +293,7 @@ interface PurchaseCreateDocumentFormState {
   copyFromDocNo: string;
   vehicleNo: string;
   paymentMethodCode: string;
+  gstVendorType: string;
 }
 
 const PURCHASE_CREATE_DOCUMENT_CONFIG: Record<
@@ -499,6 +500,7 @@ export function PurchaseCreateDocumentFormContent({
     copyFromDocNo: "",
     vehicleNo: "",
     paymentMethodCode: "",
+    gstVendorType: "",
     ...initialFormData,
   });
 
@@ -766,6 +768,7 @@ export function PurchaseCreateDocumentFormContent({
             ...prev,
             vendorGstRegNo: details.GST_Registration_No || "",
             vendorPanNo: details.P_A_N_No || "",
+            gstVendorType: details.GST_Vendor_Type || details.GST_vendor_Type || "",
           }));
         }
       } catch (error) {
@@ -2590,6 +2593,7 @@ export function PurchaseCreateDocumentFormContent({
           documentType={documentType}
           vendorNo={formData.vendorNo}
           locationCode={formData.locationCode || ""}
+          gstVendorType={formData.gstVendorType}
           onSave={handleLineItemSave}
           onRemove={(line) => handleRemoveLineItem(line.id)}
           isSaving={isSavingLine}

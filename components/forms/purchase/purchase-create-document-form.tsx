@@ -322,7 +322,7 @@ const PURCHASE_CREATE_DOCUMENT_CONFIG: Record<
     deleteHeader: deletePurchaseInvoiceHeader,
     deleteLine: deleteSinglePurchaseInvoiceLine,
     statusActions: {
-      open: ["Send For Approval"],
+      open: ["Post"],
       pending: ["Cancel Approval"],
       released: ["Post", "Reopen"],
     },
@@ -383,7 +383,7 @@ const PURCHASE_CREATE_DOCUMENT_CONFIG: Record<
     deleteHeader: deletePurchaseCreditMemoHeader,
     deleteLine: deleteSinglePurchaseCreditMemoLine,
     statusActions: {
-      open: ["Send For Approval"],
+      open: ["Post"],
       pending: ["Cancel Approval"],
       released: ["Post", "Reopen"],
     },

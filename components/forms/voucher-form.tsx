@@ -17,6 +17,7 @@ import { cn } from "@/lib/utils";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DateInput } from "@/components/ui/date-input";
 import {
   Select,
   SelectContent,
@@ -2242,11 +2243,10 @@ export function VoucherForm() {
                     hasError("postingDate") ? "postingDate-error" : undefined
                   }
                 >
-                  <Input
+                  <DateInput
                     ref={postingDateRef}
-                    type="date"
                     value={formData.postingDate}
-                    onChange={(e) => updateField("postingDate", e.target.value)}
+                    onChange={(val) => updateField("postingDate", val)}
                     className={control}
                   />
                 </InputWithTooltip>
@@ -2264,11 +2264,10 @@ export function VoucherForm() {
                     hasError("documentDate") ? "documentDate-error" : undefined
                   }
                 >
-                  <Input
-                    type="date"
+                  <DateInput
                     value={formData.documentDate}
-                    onChange={(e) =>
-                      updateField("documentDate", e.target.value)
+                    onChange={(val) =>
+                      updateField("documentDate", val)
                     }
                     className={control}
                   />

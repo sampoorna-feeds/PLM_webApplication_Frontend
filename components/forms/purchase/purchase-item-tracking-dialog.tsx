@@ -29,6 +29,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { DateInput } from "@/components/ui/date-input";
 import {
   Table,
   TableBody,
@@ -431,11 +432,10 @@ export function PurchaseItemTrackingDialog({
                     <Label htmlFor="expirationDate" className="text-sm">
                       Expiration Date
                     </Label>
-                    <Input
+                    <DateInput
                       id="expirationDate"
-                      type="date"
                       value={expirationDate}
-                      onChange={(e) => setExpirationDate(e.target.value)}
+                      onChange={(val) => setExpirationDate(val)}
                       className={fieldInputClass}
                     />
                   </div>

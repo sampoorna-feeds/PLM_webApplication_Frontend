@@ -1263,10 +1263,9 @@ export function SalesCreateDocumentFormContent({
             value={formData.postingDate}
             onClear={() => handleInputChange("postingDate", "")}
           >
-            <Input
-              type="date"
+            <DateInput
               value={formData.postingDate}
-              onChange={(e) => handleInputChange("postingDate", e.target.value)}
+              onChange={(val) => handleInputChange("postingDate", val)}
               min={
                 webUserProfile?.Allow_Posting_From &&
                 webUserProfile.Allow_Posting_From !== "0001-01-01"
@@ -1290,11 +1289,10 @@ export function SalesCreateDocumentFormContent({
             value={formData.documentDate}
             onClear={() => handleInputChange("documentDate", "")}
           >
-            <Input
-              type="date"
+            <DateInput
               value={formData.documentDate}
-              onChange={(e) =>
-                handleInputChange("documentDate", e.target.value)
+              onChange={(val) =>
+                handleInputChange("documentDate", val)
               }
               min={
                 webUserProfile?.Allow_Posting_From &&
@@ -1315,12 +1313,11 @@ export function SalesCreateDocumentFormContent({
         {caps.supportsOrderDate && (
           <div className={fieldClass}>
             <label className={labelClass}>Order Date</label>
-            <Input
-              type="date"
+            <DateInput
               value={formData.orderDate}
-              onChange={(e) => handleInputChange("orderDate", e.target.value)}
+              onChange={(val) => handleInputChange("orderDate", val)}
               disabled
-              className="bg-muted h-8"
+              className="h-8"
             />
           </div>
         )}
@@ -2408,10 +2405,9 @@ export function SalesCreateDocumentFormContent({
             </DialogHeader>
             <div className="space-y-4 py-2">
               <div className="flex gap-2">
-                <Input
-                  type="date"
+                <DateInput
                   value={challanDate}
-                  onChange={(e) => setChallanDate(e.target.value)}
+                  onChange={(val) => setChallanDate(val)}
                   className="h-9 flex-1"
                 />
                 <Button

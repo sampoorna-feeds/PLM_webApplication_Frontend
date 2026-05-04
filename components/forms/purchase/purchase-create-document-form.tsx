@@ -1891,13 +1891,22 @@ export function PurchaseCreateDocumentFormContent({
                         value={formData.postingDate}
                         onClear={() => handleInputChange("postingDate", "")}
                       >
-                        <Input
-                          type="date"
+                        <DateInput
                           value={formData.postingDate}
-                          onChange={(e) =>
-                            handleInputChange("postingDate", e.target.value)
+                          onChange={(val) => handleInputChange("postingDate", val)}
+                          min={
+                            webUserProfile?.Allow_Posting_From &&
+                            webUserProfile.Allow_Posting_From !== "0001-01-01"
+                              ? webUserProfile.Allow_Posting_From.split("T")[0]
+                              : undefined
                           }
-                          className="h-9 text-sm shadow-none"
+                          max={
+                            webUserProfile?.Allow_Posting_To &&
+                            webUserProfile.Allow_Posting_To !== "0001-01-01"
+                              ? webUserProfile.Allow_Posting_To.split("T")[0]
+                              : undefined
+                          }
+                          className="h-8"
                         />
                       </ClearableField>
                     </div>
@@ -1908,27 +1917,21 @@ export function PurchaseCreateDocumentFormContent({
                         value={formData.documentDate}
                         onClear={() => handleInputChange("documentDate", "")}
                       >
-                        <Input
-                          type="date"
+                        <DateInput
                           value={formData.documentDate}
-                          onChange={(e) =>
-                            handleInputChange("documentDate", e.target.value)
-                          }
-                          className="h-9 text-sm shadow-none"
+                          onChange={(val) => handleInputChange("documentDate", val)}
+                          className="h-8"
                         />
                       </ClearableField>
                     </div>
                     {capabilities.supportsOrderDate && (
                       <div className={fieldClass}>
                         <label className={labelClass}>Order Date</label>
-                        <Input
-                          type="date"
+                        <DateInput
                           value={formData.orderDate}
-                          onChange={(e) =>
-                            handleInputChange("orderDate", e.target.value)
-                          }
+                          onChange={(val) => handleInputChange("orderDate", val)}
                           disabled={formData.poType !== "Service"}
-                          className={cn("h-9 text-sm shadow-none", formData.poType !== "Service" && "bg-muted/50")}
+                          className={cn("h-8", formData.poType !== "Service" && "bg-muted/50")}
                         />
                       </div>
                     )}
@@ -1944,17 +1947,16 @@ export function PurchaseCreateDocumentFormContent({
                             handleInputChange("poExpirationDate", "")
                           }
                         >
-                          <Input
-                            type="date"
+                          <DateInput
                             value={formData.poExpirationDate}
-                            onChange={(e) =>
+                            onChange={(val) =>
                               handleInputChange(
                                 "poExpirationDate",
-                                e.target.value,
+                                val,
                               )
                             }
                             disabled={!isOpenStatus || areFieldsReadOnly}
-                            className="h-9 text-sm shadow-none"
+                            className="h-8"
                           />
                         </ClearableField>
                       </div>
@@ -1966,13 +1968,10 @@ export function PurchaseCreateDocumentFormContent({
                         value={formData.dueDate}
                         onClear={() => handleInputChange("dueDate", "")}
                       >
-                        <Input
-                          type="date"
+                        <DateInput
                           value={formData.dueDate}
-                          onChange={(e) =>
-                            handleInputChange("dueDate", e.target.value)
-                          }
-                          className="h-9 text-sm shadow-none"
+                          onChange={(val) => handleInputChange("dueDate", val)}
+                          className="h-8"
                         />
                       </ClearableField>
                     </div>
@@ -2874,13 +2873,12 @@ export function PurchaseCreateDocumentFormContent({
             </div>
             <div className="space-y-1">
               <Label className="text-xs font-semibold">Document Date *</Label>
-              <Input
-                type="date"
+              <DateInput
                 value={postDetails.documentDate}
-                onChange={(e) =>
+                onChange={(val) =>
                   setPostDetails((p) => ({
                     ...p,
-                    documentDate: e.target.value,
+                    documentDate: val,
                   }))
                 }
                 className="h-8"

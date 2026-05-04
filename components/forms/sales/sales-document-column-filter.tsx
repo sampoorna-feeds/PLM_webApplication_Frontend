@@ -18,6 +18,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { ColumnConfig } from "./column-config";
+import { DateInput } from "@/components/ui/date-input";
 
 const STATUS_OPTIONS = [
   { value: "", label: "All" },
@@ -140,6 +141,7 @@ export function SalesDocumentColumnFilter({
         );
       }
 
+
       case "date":
         return (
           <div className="space-y-3">
@@ -147,19 +149,17 @@ export function SalesDocumentColumnFilter({
             <div className="space-y-2">
               <div>
                 <Label className="text-muted-foreground text-xs">From</Label>
-                <Input
-                  type="date"
+                <DateInput
                   value={localValue}
-                  onChange={(e) => setLocalValue(e.target.value)}
+                  onChange={(val) => setLocalValue(val)}
                   className="h-8 text-sm"
                 />
               </div>
               <div>
                 <Label className="text-muted-foreground text-xs">To</Label>
-                <Input
-                  type="date"
+                <DateInput
                   value={localValueTo}
-                  onChange={(e) => setLocalValueTo(e.target.value)}
+                  onChange={(val) => setLocalValueTo(val)}
                   className="h-8 text-sm"
                 />
               </div>

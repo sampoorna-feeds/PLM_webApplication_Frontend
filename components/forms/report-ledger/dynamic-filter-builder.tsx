@@ -5,6 +5,8 @@ import { Plus, X, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { DateInput } from "@/components/ui/date-input";
+import { formatDate } from "@/lib/utils/date";
 import {
   Popover,
   PopoverContent,
@@ -127,15 +129,18 @@ export function DynamicFilterBuilder({
         </Select>
       );
     }
+    if (selectedCol.filterType === "date") {
+      return (
+        <DateInput
+          value={value}
+          onChange={setValue}
+          className="h-9"
+        />
+      );
+    }
     return (
       <Input
-        type={
-          selectedCol.filterType === "number"
-            ? "number"
-            : selectedCol.filterType === "date"
-              ? "date"
-              : "text"
-        }
+        type={selectedCol.filterType === "number" ? "number" : "text"}
         placeholder="Value"
         value={value}
         onChange={(e) => setValue(e.target.value)}
@@ -240,7 +245,9 @@ export function DynamicFilterBuilder({
               >
                 <span className="font-medium">{colLabel}</span>
                 <span className="text-muted-foreground">{f.operator}</span>
-                <span className="font-semibold">{f.value}</span>
+                <span className="font-semibold">
+                  {f.type === "date" ? formatDate(f.value) : f.value}
+                </span>
                 <button
                   onClick={() => onRemoveFilter(i)}
                   className="hover:bg-muted ml-1 rounded-full p-0.5"

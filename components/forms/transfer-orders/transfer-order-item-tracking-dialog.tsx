@@ -23,6 +23,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { DateInput } from "@/components/ui/date-input";
 import {
   Table,
   TableBody,
@@ -404,10 +405,9 @@ export function TransferOrderItemTrackingDialog({
                   </div>
                   <div className="space-y-1.5">
                     <Label className="text-xs font-semibold text-muted-foreground">Expiration Date</Label>
-                    <Input
-                      type="date"
+                    <DateInput
                       value={expirationDate}
-                      onChange={(e) => setExpirationDate(e.target.value)}
+                      onChange={(val) => setExpirationDate(val)}
                       className="h-10 text-sm focus:border-red-500/50 transition-colors"
                     />
                   </div>

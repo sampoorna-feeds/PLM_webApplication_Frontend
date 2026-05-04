@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/select";
 import type { ColumnConfig } from "./column-config";
 import { STATUS_OPTIONS, INVOICE_TYPE_OPTIONS } from "./filter-constants";
+import { DateInput } from "@/components/ui/date-input";
 
 interface TransferOrderColumnFilterProps {
   column: ColumnConfig;
@@ -132,19 +133,17 @@ export function TransferOrderColumnFilter({
             <div className="space-y-2">
               <div>
                 <Label className="text-muted-foreground text-xs">From</Label>
-                <Input
-                  type="date"
+                <DateInput
                   value={localValue}
-                  onChange={(e) => setLocalValue(e.target.value)}
+                  onChange={(val) => setLocalValue(val)}
                   className="h-8 text-sm"
                 />
               </div>
               <div>
                 <Label className="text-muted-foreground text-xs">To</Label>
-                <Input
-                  type="date"
+                <DateInput
                   value={localValueTo}
-                  onChange={(e) => setLocalValueTo(e.target.value)}
+                  onChange={(val) => setLocalValueTo(val)}
                   className="h-8 text-sm"
                 />
               </div>

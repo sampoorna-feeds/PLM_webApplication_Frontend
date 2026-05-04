@@ -33,6 +33,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Label } from "@/components/ui/label";
+import { DateInput } from "@/components/ui/date-input";
 
 const PAGE_SIZE = 200;
 
@@ -715,19 +716,17 @@ function SelectionColumnFilter({
             <div className="space-y-2">
               <div className="space-y-1">
                 <Label className="text-[10px] text-muted-foreground">From</Label>
-                <Input
-                  type="date"
+                <DateInput
                   value={local}
-                  onChange={(e) => setLocal(e.target.value)}
+                  onChange={(val) => setLocal(val)}
                   className="h-7 text-xs"
                 />
               </div>
               <div className="space-y-1">
                 <Label className="text-[10px] text-muted-foreground">To</Label>
-                <Input
-                  type="date"
+                <DateInput
                   value={localTo}
-                  onChange={(e) => setLocalTo(e.target.value)}
+                  onChange={(val) => setLocalTo(val)}
                   className="h-7 text-xs"
                 />
               </div>

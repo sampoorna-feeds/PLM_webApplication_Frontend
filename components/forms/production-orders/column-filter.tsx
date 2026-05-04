@@ -19,6 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { ColumnConfig, FilterType } from "./column-config";
+import { DateInput } from "@/components/ui/date-input";
 import {
   STATUS_OPTIONS,
   SOURCE_TYPE_OPTIONS,
@@ -250,19 +251,17 @@ export function ColumnFilter({
             <div className="space-y-2">
               <div>
                 <Label className="text-muted-foreground text-xs">From</Label>
-                <Input
-                  type="date"
+                <DateInput
                   value={localValue}
-                  onChange={(e) => setLocalValue(e.target.value)}
+                  onChange={(val) => setLocalValue(val)}
                   className="h-8 text-sm"
                 />
               </div>
               <div>
                 <Label className="text-muted-foreground text-xs">To</Label>
-                <Input
-                  type="date"
+                <DateInput
                   value={localValueTo}
-                  onChange={(e) => setLocalValueTo(e.target.value)}
+                  onChange={(val) => setLocalValueTo(val)}
                   className="h-8 text-sm"
                 />
               </div>

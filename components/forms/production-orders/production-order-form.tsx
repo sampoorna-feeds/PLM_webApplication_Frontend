@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DateInput } from "@/components/ui/date-input";
 import { FieldTitle } from "@/components/ui/field";
 import {
   DropdownMenu,
@@ -1345,10 +1346,9 @@ export function ProductionOrderForm({
                 className="bg-muted"
               />
             ) : (
-              <Input
-                type="date"
+              <DateInput
                 value={formState.Due_Date}
-                onChange={(e) => handleChange("Due_Date", e.target.value)}
+                onChange={(val) => handleChange("Due_Date", val)}
               />
             )}
           </div>
@@ -1603,10 +1603,9 @@ export function ProductionOrderForm({
           <div className="py-4">
             <label className="text-sm font-medium">
               Finished Date
-              <Input
-                type="date"
+              <DateInput
                 value={finishedDate}
-                onChange={(e) => setFinishedDate(e.target.value)}
+                onChange={(val) => setFinishedDate(val)}
                 className="mt-1.5"
               />
             </label>

@@ -67,6 +67,7 @@ import {
   type SourceDocumentRow,
 } from "@/lib/api/services/purchase-copy-document.service";
 import { cn } from "@/lib/utils";
+import { DateInput } from "@/components/ui/date-input";
 
 interface PurchaseCopyDocumentDialogProps {
   open: boolean;
@@ -262,19 +263,17 @@ function CopyDocDateFilter({
           <div className="space-y-2">
             <div>
               <Label className="text-muted-foreground text-xs">From</Label>
-              <Input
-                type="date"
+              <DateInput
                 value={localFrom}
-                onChange={(e) => setLocalFrom(e.target.value)}
+                onChange={(val) => setLocalFrom(val)}
                 className="h-8 text-sm"
               />
             </div>
             <div>
               <Label className="text-muted-foreground text-xs">To</Label>
-              <Input
-                type="date"
+              <DateInput
                 value={localTo}
-                onChange={(e) => setLocalTo(e.target.value)}
+                onChange={(val) => setLocalTo(val)}
                 className="h-8 text-sm"
               />
             </div>

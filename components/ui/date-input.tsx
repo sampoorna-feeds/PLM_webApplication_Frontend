@@ -25,17 +25,21 @@ interface DateInputProps {
  * - DDMMYYYY (e.g., 17022026)
  * - Also supports native date picker on click
  */
-export function DateInput({
-  value,
-  onChange,
-  placeholder = "DD/MM/YYYY",
-  disabled = false,
-  className,
-  id,
-  min,
-  max,
-  required = false,
-}: DateInputProps) {
+export const DateInput = React.forwardRef<HTMLInputElement, DateInputProps>(
+  (
+    {
+      value,
+      onChange,
+      placeholder = "DD/MM/YYYY",
+      disabled = false,
+      className,
+      id,
+      min,
+      max,
+      required = false,
+    },
+    ref
+  ) => {
   const [displayValue, setDisplayValue] = React.useState("");
   const nativeInputRef = React.useRef<HTMLInputElement>(null);
 
@@ -139,6 +143,7 @@ export function DateInput({
   return (
     <div className="relative">
       <Input
+        ref={ref}
         id={id}
         type="text"
         value={displayValue}
@@ -172,4 +177,6 @@ export function DateInput({
       />
     </div>
   );
-}
+});
+
+DateInput.displayName = "DateInput";

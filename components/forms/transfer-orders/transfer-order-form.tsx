@@ -1271,15 +1271,14 @@ export function TransferOrderForm({
                   </div>
                   <div className={fieldClass}>
                     <label className={labelClass}>Posting Date</label>
-                    <Input
-                      type="date"
+                    <DateInput
                       value={
                         formState.Posting_Date
                           ? formState.Posting_Date.split("T")[0]
                           : ""
                       }
-                      onChange={(e) =>
-                        handleChange("Posting_Date", e.target.value)
+                      onChange={(val) =>
+                        handleChange("Posting_Date", val)
                       }
                       disabled={formState.Status === "Released"}
                       min={

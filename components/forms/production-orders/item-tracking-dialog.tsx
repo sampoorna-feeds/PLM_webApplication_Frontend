@@ -23,6 +23,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { DateInput } from "@/components/ui/date-input";
 import {
   assignItemTracking,
   getItemAvailabilityByLot,
@@ -593,12 +594,11 @@ export function ItemTrackingDialog({
                       <Label htmlFor="expirationDate" className="text-sm">
                         Expiration Date
                       </Label>
-                      <Input
-                        id="expirationDate"
-                        type="date"
-                        value={expirationDate}
-                        onChange={(e) => setExpirationDate(e.target.value)}
-                      />
+                    <DateInput
+                      id="expirationDate"
+                      value={expirationDate}
+                      onChange={(val) => setExpirationDate(val)}
+                    />
                     </div>
                     <div className="space-y-1.5">
                       <Label htmlFor="quantity" className="text-sm">

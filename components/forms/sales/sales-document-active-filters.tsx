@@ -3,6 +3,7 @@
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { ColumnConfig } from "./column-config";
+import { formatDate } from "@/lib/utils/date";
 
 interface SalesDocumentActiveFiltersProps {
   searchQuery: string;
@@ -52,11 +53,11 @@ export function SalesDocumentActiveFilters({
 
     if (column.filterType === "date") {
       if (filter.value && filter.valueTo) {
-        displayValue = `${filter.value} to ${filter.valueTo}`;
+        displayValue = `${formatDate(filter.value)} to ${formatDate(filter.valueTo)}`;
       } else if (filter.value) {
-        displayValue = `from ${filter.value}`;
+        displayValue = `from ${formatDate(filter.value)}`;
       } else if (filter.valueTo) {
-        displayValue = `to ${filter.valueTo}`;
+        displayValue = `to ${formatDate(filter.valueTo)}`;
       }
     }
 

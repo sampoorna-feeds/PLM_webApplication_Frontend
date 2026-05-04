@@ -6,6 +6,7 @@ import { SourceNoSelect } from "./source-no-select";
 import { FieldTitle } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { DateInput } from "@/components/ui/date-input";
 import {
   Select,
   SelectContent,
@@ -503,6 +504,12 @@ function FormField({
             <p className="text-muted-foreground mt-1 text-xs">{helpText}</p>
           )}
         </div>
+      ) : type === "date" ? (
+        <DateInput
+          value={value as string}
+          onChange={onChange}
+          className="h-9 text-sm"
+        />
       ) : (
         <Input
           type={inputType}

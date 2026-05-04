@@ -11,6 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { DateInput } from "@/components/ui/date-input";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { formatDate } from "@/lib/utils/date";
@@ -102,10 +103,9 @@ function CommentForm({
             <CalendarDays className="h-3 w-3" />
             Date
           </Label>
-          <Input
-            type="date"
+          <DateInput
             value={date}
-            onChange={(e) => setDate(e.target.value)}
+            onChange={(val) => setDate(val)}
             className="h-8 text-sm"
           />
         </div>

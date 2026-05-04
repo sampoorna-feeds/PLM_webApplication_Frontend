@@ -1035,7 +1035,7 @@ export function PurchaseOrderLineEditDialog({
                             <TableHead className="h-8 text-xs font-bold uppercase py-0 text-right">Qty</TableHead>
                             <TableHead className="h-8 text-xs font-bold uppercase py-0 text-right">W. Per</TableHead>
                             <TableHead className="h-8 text-xs font-bold uppercase py-0 text-right">Total W.</TableHead>
-                            <TableHead className="h-8 w-[40px] py-0"></TableHead>
+                            <TableHead className="h-8 text-xs font-bold uppercase py-0 text-right">Actions</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>

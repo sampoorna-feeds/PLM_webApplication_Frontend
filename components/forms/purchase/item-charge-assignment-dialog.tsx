@@ -131,6 +131,14 @@ export function ItemChargeAssignmentDialog({
   const [sortColumn, setSortColumn] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>(null);
   const [columnFilters, setColumnFilters] = useState<Record<string, { value: string }>>({});
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   const [selectionOpen, setSelectionOpen] = useState(false);
   const [selectionType, setSelectionType] = useState<SourceType>("Receipt");
@@ -169,7 +177,18 @@ export function ItemChargeAssignmentDialog({
       setIsAllSelected(false);
       if (scrollContainerRef.current) scrollContainerRef.current.scrollTop = 0;
       await itemChargeAssignmentService.prepareChargeItemLines(docNo, docLineNo);
-      const result = await itemChargeAssignmentService.getAssignments({ docType, docNo, docLineNo, itemChargeNo, skip: 0, top: PAGE_SIZE });
+      const result = await itemChargeAssignmentService.getAssignments({
+        docType,
+        docNo,
+        docLineNo,
+        itemChargeNo,
+        skip: 0,
+        top: PAGE_SIZE,
+        sortColumn,
+        sortDirection,
+        columnFilters,
+        search: debouncedSearchQuery,
+      });
       setLines(result.value);
       setTotalCount(result.count);
     } catch (error) {
@@ -177,13 +196,24 @@ export function ItemChargeAssignmentDialog({
     } finally {
       setLoading(false);
     }
-  }, [docType, docNo, docLineNo, itemChargeNo]);
+  }, [docType, docNo, docLineNo, itemChargeNo, sortColumn, sortDirection, columnFilters, debouncedSearchQuery]);
 
   const fetchMore = useCallback(async () => {
     if (!canFetchMore) return;
     try {
       setLoadingMore(true);
-      const result = await itemChargeAssignmentService.getAssignments({ docType, docNo, docLineNo, itemChargeNo, skip: lines.length, top: PAGE_SIZE });
+      const result = await itemChargeAssignmentService.getAssignments({
+        docType,
+        docNo,
+        docLineNo,
+        itemChargeNo,
+        skip: lines.length,
+        top: PAGE_SIZE,
+        sortColumn,
+        sortDirection,
+        columnFilters,
+        search: debouncedSearchQuery,
+      });
       setLines((prev) => [...prev, ...result.value]);
       setTotalCount(result.count);
     } catch {
@@ -191,7 +221,7 @@ export function ItemChargeAssignmentDialog({
     } finally {
       setLoadingMore(false);
     }
-  }, [canFetchMore, docType, docNo, docLineNo, itemChargeNo, lines.length]);
+  }, [canFetchMore, docType, docNo, docLineNo, itemChargeNo, lines.length, sortColumn, sortDirection, columnFilters, debouncedSearchQuery]);
 
   useEffect(() => { if (open) fetchInitial(); }, [open, fetchInitial]);
 
@@ -266,34 +296,6 @@ export function ItemChargeAssignmentDialog({
     if (lines.length === 0) return;
     if (lines.length === 1) { handleSuggest("Equally"); } else { setIsSuggestDialogOpen(true); }
   };
-
-  const filteredAndSortedLines = useMemo(() => {
-    let result = lines;
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase();
-      result = result.filter((l) => l.Applies_toDocNo.toLowerCase().includes(q) || l.Description.toLowerCase().includes(q) || l.ItemNo.toLowerCase().includes(q) || l.Applies_toDocType.toLowerCase().includes(q));
-    }
-    Object.entries(columnFilters).forEach(([columnId, filter]) => {
-      if (!filter.value) return;
-      result = result.filter((line) => {
-        const value = (line as unknown as Record<string, unknown>)[columnId];
-        if (value === null || value === undefined) return false;
-        return String(value).toLowerCase().includes(filter.value.toLowerCase());
-      });
-    });
-    if (sortColumn && sortDirection) {
-      result = [...result].sort((a, b) => {
-        const valA = (a as unknown as Record<string, unknown>)[sortColumn];
-        const valB = (b as unknown as Record<string, unknown>)[sortColumn];
-        if (valA === valB) return 0;
-        if (valA == null) return 1;
-        if (valB == null) return -1;
-        const cmp = valA < valB ? -1 : 1;
-        return sortDirection === "asc" ? cmp : -cmp;
-      });
-    }
-    return result;
-  }, [lines, searchQuery, columnFilters, sortColumn, sortDirection]);
 
   const totals = useMemo(() => {
     const toAssignQty = lines.reduce((s, l) => s + (Number(l.QtytoAssign) || 0), 0);
@@ -574,7 +576,7 @@ export function ItemChargeAssignmentDialog({
                       </tr>
                     </thead>
                     <tbody ref={tbodyRef}>
-                      {filteredAndSortedLines.length === 0 && !loading ? (
+                      {lines.length === 0 && !loading ? (
                         <tr>
                           <td colSpan={TOTAL_COLS} className="text-muted-foreground h-40 text-center text-xs italic">
                             {searchQuery ? "No assignments match your search." : "No assignments yet. Use the buttons above to add lines."}
@@ -582,7 +584,7 @@ export function ItemChargeAssignmentDialog({
                         </tr>
                       ) : (
                         <>
-                          {filteredAndSortedLines.map((line, idx) => {
+                          {lines.map((line, idx) => {
                             const key = lineKey(line);
                             const isSelected = selectedLines.has(key);
                             return (
@@ -673,7 +675,7 @@ export function ItemChargeAssignmentDialog({
                           {lines.length.toLocaleString()}
                           {totalCount > 0 && <span className="text-foreground/50 ml-1">/ {totalCount.toLocaleString()} total</span>} Records
                           {(searchQuery || Object.keys(columnFilters).length > 0) && (
-                            <span className="text-primary ml-2">({filteredAndSortedLines.length} filtered)</span>
+                            <span className="text-primary ml-2">({lines.length} filtered)</span>
                           )}
                         </>
                       )}

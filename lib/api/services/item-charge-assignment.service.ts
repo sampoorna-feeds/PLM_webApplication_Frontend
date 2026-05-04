@@ -120,13 +120,39 @@ export const itemChargeAssignmentService = {
     itemChargeNo: string;
     skip?: number;
     top?: number;
+    sortColumn?: string | null;
+    sortDirection?: "asc" | "desc" | null;
+    columnFilters?: ColumnFilters;
+    search?: string;
   }): Promise<PagedResult<ItemChargeAssignment>> {
-    const { skip = 0, top = 200 } = filters;
-    const filter = `Document_Type eq '${filters.docType}' and Document_No eq '${filters.docNo}' and Document_Line_No eq ${filters.docLineNo} and ItemChargeNo eq '${filters.itemChargeNo}'`;
+    const { skip = 0, top = 200, sortColumn, sortDirection, columnFilters, search } = filters;
+    const filterParts = [`Document_Type eq '${filters.docType}'`, `Document_No eq '${filters.docNo}'`, `Document_Line_No eq ${filters.docLineNo}`, `ItemChargeNo eq '${filters.itemChargeNo}'`];
+
+    if (search) {
+      const s = search.replace(/'/g, "''");
+      filterParts.push(`(contains(Applies_toDocNo,'${s}') or contains(Description,'${s}') or contains(ItemNo,'${s}') or contains(Applies_toDocType,'${s}'))`);
+    }
+
+    if (columnFilters) {
+      Object.entries(columnFilters).forEach(([colId, filter]) => {
+        if (!filter.value && !filter.valueTo) return;
+        const s = filter.value.replace(/'/g, "''");
+        filterParts.push(`contains(${colId},'${s}')`);
+      });
+    }
+
+    const filterStr = filterParts.join(" and ");
+
+    let orderStr = "";
+    if (sortColumn && sortDirection) {
+      orderStr = `&$orderby=${sortColumn} ${sortDirection}`;
+    }
+
     const endpoint =
       `/ItemChargeAssignmentPurch?company='${encodeURIComponent(COMPANY)}'` +
       `&$count=true` +
-      `&$filter=${encodeURIComponent(filter)}` +
+      `&$filter=${encodeURIComponent(filterStr)}` +
+      orderStr +
       `&$top=${top}` +
       `&$skip=${skip}`;
     const response = await apiGet<{
@@ -148,9 +174,11 @@ export const itemChargeAssignmentService = {
       top?: number;
       extraFilters?: string[];
       columnFilters?: ColumnFilters;
+      sortColumn?: string | null;
+      sortDirection?: "asc" | "desc" | null;
     } = {},
   ): Promise<PagedResult<ItemChargeSourceLine>> {
-    const { docNo, search, skip = 0, top = 200, extraFilters, columnFilters } = options;
+    const { docNo, search, skip = 0, top = 200, extraFilters, columnFilters, sortColumn, sortDirection } = options;
     const endpointName = ENDPOINTS[type];
     const itemNoField = ITEM_NO_FIELD_MAP[type];
     const filters: string[] = [];
@@ -207,10 +235,22 @@ export const itemChargeAssignmentService = {
         ? `&$filter=${encodeURIComponent(filters.join(" and "))}`
         : "";
 
+    let orderStr = "";
+    if (sortColumn && sortDirection) {
+      // Map sort column to endpoint field
+      let field = sortColumn;
+      if (sortColumn === "Item_No") field = itemNoField;
+      if (sortColumn === "Posting_Date" && type === "GetShipmentLine") {
+        field = "Shipment_Date";
+      }
+      orderStr = `&$orderby=${field} ${sortDirection}`;
+    }
+
     const endpoint =
       `/${endpointName}?company='${encodeURIComponent(COMPANY)}'` +
       `&$count=true` +
       `${filterStr}` +
+      orderStr +
       `&$top=${top}` +
       `&$skip=${skip}`;
 

@@ -52,12 +52,113 @@ export interface OutwardGateEntryLine {
   [key: string]: unknown;
 }
 
+export interface GetOutwardGateEntriesParams {
+  $select?: string;
+  $filter?: string;
+  $orderby?: string;
+  $top?: number;
+  $skip?: number;
+  $count?: boolean;
+}
+
+export interface SearchOutwardGateEntriesParams extends GetOutwardGateEntriesParams {
+  searchTerm?: string;
+}
+
+export interface PaginatedOutwardGateEntriesResponse {
+  entries: OutwardGateEntryHeader[];
+  totalCount: number;
+}
+
 export async function getOutwardGateEntries(): Promise<OutwardGateEntryHeader[]> {
   const encodedCompany = encodeURIComponent(COMPANY);
   const endpoint = `/OutwardgateentryH?company='${encodedCompany}'`;
   const response = await apiGet<ODataResponse<OutwardGateEntryHeader>>(endpoint);
   return response.value || [];
 }
+
+/**
+ * Get outward gate entries with pagination and optional count
+ */
+export async function getOutwardGateEntriesWithCount(
+  params: GetOutwardGateEntriesParams = {},
+): Promise<PaginatedOutwardGateEntriesResponse> {
+  const {
+    $select,
+    $filter,
+    $orderby = "No desc",
+    $top = 20,
+    $skip,
+  } = params;
+
+  const queryParams: Record<string, unknown> = {
+    $top,
+    $count: true,
+  };
+
+  if ($select) queryParams.$select = $select;
+  if ($filter) queryParams.$filter = $filter;
+  if ($orderby) queryParams.$orderby = $orderby;
+  if ($skip !== undefined) queryParams.$skip = $skip;
+
+  const query = buildODataQuery(queryParams as any);
+  const endpoint = `/OutwardgateentryH?company='${encodeURIComponent(COMPANY)}'&${query}`;
+  const response = await apiGet<ODataResponse<OutwardGateEntryHeader>>(endpoint);
+
+  return {
+    entries: response.value || [],
+    totalCount: response["@odata.count"] ?? 0,
+  };
+}
+
+/**
+ * Search outward gate entries across multiple fields
+ */
+export async function searchOutwardGateEntries(
+  params: SearchOutwardGateEntriesParams = {},
+): Promise<PaginatedOutwardGateEntriesResponse> {
+  const { searchTerm, $top, $skip, ...rest } = params;
+  if (!searchTerm || searchTerm.trim() === "") {
+    return getOutwardGateEntriesWithCount(rest as GetOutwardGateEntriesParams);
+  }
+
+  const escaped = searchTerm.replace(/'/g, "''");
+  // Fields to search: No, Transporter_Name, Vehicle_No, Description
+  const fieldsToSearch = ["No", "Transporter_Name", "Vehicle_No", "Description"];
+
+  const responses = await Promise.all(
+    fieldsToSearch.map((field) => {
+      const filterPart = `contains(${field},'${escaped}')`;
+      const filter = rest.$filter
+        ? `${rest.$filter} and ${filterPart}`
+        : filterPart;
+      return getOutwardGateEntriesWithCount({ ...rest, $filter: filter });
+    }),
+  );
+
+  const map: Record<string, OutwardGateEntryHeader> = {};
+  responses.forEach((res) => {
+    res.entries.forEach((entry) => {
+      if (entry.No) map[entry.No] = entry;
+    });
+  });
+
+  const allEntries = Object.values(map);
+  // Sort by No desc as default
+  allEntries.sort((a, b) => (b.No || "").localeCompare(a.No || ""));
+
+  const total = allEntries.length;
+
+  let paged = allEntries;
+  if ($skip !== undefined || $top !== undefined) {
+    const start = $skip || 0;
+    const end = $top != null ? start + $top : undefined;
+    paged = allEntries.slice(start, end);
+  }
+
+  return { entries: paged, totalCount: total };
+}
+
 
 export async function getOutwardGateEntryLines(gateEntryNo: string, entryType: string): Promise<OutwardGateEntryLine[]> {
   const encodedCompany = encodeURIComponent(COMPANY);

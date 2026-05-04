@@ -125,6 +125,9 @@ export function GetPostedLineToReverseDialog({
         top: PAGE_SIZE,
         vendorNo,
         customerNo,
+        sortColumn,
+        sortDirection,
+        columnFilters,
       });
       setRows(result.value);
       setTotalCount(result.count);
@@ -133,7 +136,7 @@ export function GetPostedLineToReverseDialog({
     } finally {
       setLoading(false);
     }
-  }, [open, selectedOption, debouncedSearch, vendorNo, customerNo]);
+  }, [open, selectedOption, debouncedSearch, vendorNo, customerNo, sortColumn, sortDirection, columnFilters]);
 
   useEffect(() => {
     fetchInitial();
@@ -160,6 +163,9 @@ export function GetPostedLineToReverseDialog({
         top: PAGE_SIZE,
         vendorNo,
         customerNo,
+        sortColumn,
+        sortDirection,
+        columnFilters,
       });
       setRows((prev) => [...prev, ...result.value]);
       setTotalCount(result.count);
@@ -168,7 +174,7 @@ export function GetPostedLineToReverseDialog({
     } finally {
       setLoadingMore(false);
     }
-  }, [canFetchMore, selectedOption.endpoint, debouncedSearch, rows.length, vendorNo, customerNo]);
+  }, [canFetchMore, selectedOption.endpoint, debouncedSearch, rows.length, vendorNo, customerNo, sortColumn, sortDirection, columnFilters]);
 
   // Infinite scroll via IntersectionObserver
   useEffect(() => {
@@ -228,40 +234,6 @@ export function GetPostedLineToReverseDialog({
       return next;
     });
   };
-
-  const filteredAndSortedLines = useMemo(() => {
-    let result = rows;
-
-    // Apply column filters
-    Object.entries(columnFilters).forEach(([colId, filterVal]) => {
-      if (!filterVal) return;
-      result = result.filter((line) => {
-        const value = (line as unknown as Record<string, unknown>)[colId];
-        if (value == null) return false;
-        const sv = String(value).toLowerCase();
-        const fv = filterVal.toLowerCase();
-        if (fv.includes(",")) {
-          return fv.split(",").map((p) => p.trim()).filter(Boolean).some((p) => sv.includes(p));
-        }
-        return sv.includes(fv);
-      });
-    });
-
-    // Apply sorting
-    if (sortColumn && sortDirection) {
-      result = [...result].sort((a, b) => {
-        const valA = (a as unknown as Record<string, unknown>)[sortColumn];
-        const valB = (b as unknown as Record<string, unknown>)[sortColumn];
-        if (valA === valB) return 0;
-        if (valA == null) return 1;
-        if (valB == null) return -1;
-        const cmp = valA < valB ? -1 : 1;
-        return sortDirection === "asc" ? cmp : -cmp;
-      });
-    }
-
-    return result;
-  }, [rows, columnFilters, sortColumn, sortDirection]);
 
   const handleSort = (columnId: string) => {
     if (sortColumn === columnId) {
@@ -489,7 +461,7 @@ export function GetPostedLineToReverseDialog({
                 </tr>
               ) : rows.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="h-60 text-center">
+                  <td colSpan={10} className="h-60 text-center">
                     <div className="flex flex-col items-center gap-2 opacity-50">
                       <Search className="text-muted-foreground h-8 w-8" />
                       <p className="text-muted-foreground text-sm italic">
@@ -500,7 +472,7 @@ export function GetPostedLineToReverseDialog({
                 </tr>
               ) : (
                 <>
-                  {filteredAndSortedLines.map((row: PstdDocLineRow, idx: number) => {
+                  {rows.map((row: PstdDocLineRow, idx: number) => {
                     const id = rowId(row);
                     const isSelected = selectedIds.has(id);
                     return (
@@ -599,8 +571,8 @@ export function GetPostedLineToReverseDialog({
                 <span className="text-primary animate-pulse">
                   Reversing {batchProgress.current} / {batchProgress.total} ({batchProgress.passed} ✅, {batchProgress.failed} ❌)
                 </span>
-              ) : isSubmitting ? (
-                "Submitting..."
+              ) : loading ? (
+                "Loading..."
               ) : (
                 <>
                   {rows.length.toLocaleString()}
@@ -612,7 +584,7 @@ export function GetPostedLineToReverseDialog({
                   Records
                   {Object.keys(columnFilters).length > 0 && (
                     <span className="text-primary ml-2">
-                      ({filteredAndSortedLines.length} filtered)
+                      ({rows.length} filtered)
                     </span>
                   )}
                 </>

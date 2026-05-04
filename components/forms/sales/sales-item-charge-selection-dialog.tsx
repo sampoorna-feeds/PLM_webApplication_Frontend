@@ -167,6 +167,8 @@ export function SalesItemChargeSelectionDialog({
           extraFilters,
           sellToCustomerNo,
           columnFilters,
+          sortColumn,
+          sortDirection,
         },
       );
       setSourceLines(result.value);
@@ -176,7 +178,7 @@ export function SalesItemChargeSelectionDialog({
     } finally {
       setLoading(false);
     }
-  }, [type, debouncedSearchQuery, extraFilters, sellToCustomerNo, columnFilters]);
+  }, [type, debouncedSearchQuery, extraFilters, sellToCustomerNo, columnFilters, sortColumn, sortDirection]);
 
   const fetchMore = useCallback(async () => {
     if (!canFetchMore) return;
@@ -191,6 +193,8 @@ export function SalesItemChargeSelectionDialog({
           extraFilters,
           sellToCustomerNo,
           columnFilters,
+          sortColumn,
+          sortDirection,
         },
       );
       setSourceLines((prev) => [...prev, ...result.value]);
@@ -208,11 +212,13 @@ export function SalesItemChargeSelectionDialog({
     extraFilters,
     sellToCustomerNo,
     columnFilters,
+    sortColumn,
+    sortDirection,
   ]);
 
   useEffect(() => {
     if (open) fetchInitial();
-  }, [open, debouncedSearchQuery, fetchInitial]);
+  }, [open, fetchInitial]);
 
   useEffect(() => {
     const sentinel = sentinelRef.current;
@@ -226,31 +232,6 @@ export function SalesItemChargeSelectionDialog({
     observer.observe(sentinel);
     return () => observer.disconnect();
   }, [fetchMore]);
-
-  const filteredAndSortedLines = useMemo(() => {
-    let result = sourceLines;
-    // Filtering is now handled by API
-    if (sortColumn && sortDirection) {
-      result = [...result].sort((a, b) => {
-        let valA = (a as unknown as Record<string, unknown>)[sortColumn];
-        let valB = (b as unknown as Record<string, unknown>)[sortColumn];
-        if (sortColumn === "Item_No") {
-          valA = a.No || a.Item_No || "";
-          valB = b.No || b.Item_No || "";
-        }
-        if (sortColumn === "Posting_Date") {
-          valA = valA ?? a.Shipment_Date;
-          valB = valB ?? b.Shipment_Date;
-        }
-        if (valA === valB) return 0;
-        if (valA == null) return 1;
-        if (valB == null) return -1;
-        const cmp = valA < valB ? -1 : 1;
-        return sortDirection === "asc" ? cmp : -cmp;
-      });
-    }
-    return result;
-  }, [sourceLines, sortColumn, sortDirection]);
 
   const lineId = (line: ItemChargeSourceLine) =>
     `${line.Document_No}-${line.Line_No}`;
@@ -454,7 +435,7 @@ export function SalesItemChargeSelectionDialog({
                     </div>
                   </td>
                 </tr>
-              ) : filteredAndSortedLines.length === 0 ? (
+              ) : sourceLines.length === 0 ? (
                 <tr>
                   <td colSpan={TOTAL_COLS} className="h-60 text-center">
                     <div className="flex flex-col items-center gap-2 opacity-50">
@@ -467,7 +448,7 @@ export function SalesItemChargeSelectionDialog({
                 </tr>
               ) : (
                 <>
-                  {filteredAndSortedLines.map((line, idx) => {
+                  {sourceLines.map((line, idx) => {
                     const id = lineId(line);
                     const isSelected = selectedIds.has(id);
                     const itemNo = line.No || line.Item_No || "";
@@ -564,7 +545,7 @@ export function SalesItemChargeSelectionDialog({
                 Records
                 {Object.keys(columnFilters).length > 0 && (
                   <span className="text-primary ml-2">
-                    ({filteredAndSortedLines.length} filtered)
+                    ({sourceLines.length} filtered)
                   </span>
                 )}
               </>

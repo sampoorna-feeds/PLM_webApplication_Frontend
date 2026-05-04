@@ -31,8 +31,9 @@ export function PostedTransferView({ type }: PostedTransferViewProps) {
   const [authLocations, setAuthLocations] = useState<string[]>([]);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
   
-  // New filtering/sorting states
+  // Filtering/sorting states
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [columnFilters, setColumnFilters] = useState<Record<string, { value: string; valueTo?: string }>>({});
   const [sortColumn, setSortColumn] = useState<string | null>("No");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
@@ -45,6 +46,15 @@ export function PostedTransferView({ type }: PostedTransferViewProps) {
   const [visibleColumns, setVisibleColumns] = useState<string[]>(() => 
     typeof window !== "undefined" ? loadVisibleColumns() : getDefaultVisibleColumns()
   );
+
+  // Debounce search query
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+      setCurrentPage(1);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   // Fetch authorized locations for the current user
   useEffect(() => {
@@ -77,12 +87,7 @@ export function PostedTransferView({ type }: PostedTransferViewProps) {
       if (filters.fromLocation) parts.push(`Transfer_from_Code eq '${filters.fromLocation}'`);
       if (filters.toLocation) parts.push(`Transfer_to_Code eq '${filters.toLocation}'`);
       
-      // Column Filters (Server-side supported ones)
-      const allowedServerFilters = ["No", "Posting_Date", "Transfer_from_Code", "Transfer_to_Code", "Vehicle_No"];
-      if (type === "shipment") {
-        allowedServerFilters.push("E_Way_Bill_No");
-      }
-      
+      // Column Filters
       Object.entries(columnFilters).forEach(([colId, f]) => {
         const { value, valueTo } = f;
         if (!value && !valueTo) return;
@@ -90,15 +95,18 @@ export function PostedTransferView({ type }: PostedTransferViewProps) {
         if (colId === "Posting_Date") {
            if (value) parts.push(`Posting_Date ge ${value}`);
            if (valueTo) parts.push(`Posting_Date le ${valueTo}`);
-        } else if (allowedServerFilters.includes(colId)) {
-          parts.push(`contains(${colId},'${value.replace(/'/g, "''")}')`);
+        } else {
+          const config = POSTED_TRANSFER_COLUMNS.find(c => c.id === colId);
+          if (config?.filterType === "text" || config?.filterType === "select") {
+            const escaped = value.replace(/'/g, "''");
+            parts.push(`contains(${colId},'${escaped}')`);
+          } else if (config?.filterType === "number" && !isNaN(Number(value))) {
+            parts.push(`${colId} eq ${value}`);
+          }
         }
       });
 
       // Mandatory Branch/Location Access Filter
-      // BC OData doesn't support OR across distinct fields (e.g., Transfer_from_Code and Transfer_to_Code).
-      // We filter by the primary location field based on the view type: 
-      // Shipments are outbound (from), Receipts are inbound (to).
       if (authLocations.length > 0) {
         const mainField = type === "shipment" ? "Transfer_from_Code" : "Transfer_to_Code";
         const branchFilter = authLocations.map(loc => 
@@ -106,21 +114,22 @@ export function PostedTransferView({ type }: PostedTransferViewProps) {
         ).join(" or ");
         parts.push(`(${branchFilter})`);
       } else if (!isAuthLoading) {
-        // If user has no branches assigned and loading finished, they see nothing
-        // (unless we want to allow super-admins to see all, but usually there's at least one setup)
-        // For now, if setup exists but is empty, restrict to non-existent to show empty
         parts.push("No eq 'NONE'");
       }
 
       const filter = parts.join(" and ");
-      const orderby = sortColumn && sortDirection && ["No", "Posting_Date", "Transfer_from_Code", "Transfer_to_Code", "Vehicle_No", "E_Way_Bill_No"].includes(sortColumn) 
+      const orderby = sortColumn && sortDirection 
         ? `${sortColumn} ${sortDirection}` 
         : "No desc";
         
-      const top = pageSize;
-      const skip = (currentPage - 1) * pageSize;
+      const params = { 
+        $filter: filter || undefined, 
+        $orderby: orderby, 
+        $top: pageSize, 
+        $skip: (currentPage - 1) * pageSize, 
+        searchTerm: debouncedSearchQuery || undefined 
+      };
 
-      const params = { $filter: filter, $orderby: orderby, $top: top, $skip: skip, searchTerm: searchQuery };
       const result = type === "shipment" 
         ? await searchPostedTransferShipments(params)
         : await searchTransferReceiptsExtended(params);
@@ -135,14 +144,13 @@ export function PostedTransferView({ type }: PostedTransferViewProps) {
     } finally {
       setIsLoading(false);
     }
-  }, [type, filters, searchQuery, columnFilters, sortColumn, sortDirection, pageSize, currentPage, authLocations, isAuthLoading, userID]);
+  }, [type, filters, debouncedSearchQuery, columnFilters, sortColumn, sortDirection, pageSize, currentPage, authLocations, isAuthLoading, userID]);
 
   useEffect(() => {
     fetchData();
   }, [fetchData]);
 
   useEffect(() => {
-    // Cleanup URLs on unmount
     return () => {
       Object.values(reportPdfUrls).forEach(url => window.URL.revokeObjectURL(url));
     };
@@ -232,7 +240,6 @@ export function PostedTransferView({ type }: PostedTransferViewProps) {
       link.click();
       document.body.removeChild(link);
       
-      // Cleanup
       setTimeout(() => {
         window.URL.revokeObjectURL(blobUrl);
       }, 5000);
@@ -252,6 +259,7 @@ export function PostedTransferView({ type }: PostedTransferViewProps) {
       setSortColumn(column);
       setSortDirection("asc");
     }
+    setCurrentPage(1);
   };
 
   const handleColumnFilter = (columnId: string, value: string, valueTo?: string) => {
@@ -259,7 +267,7 @@ export function PostedTransferView({ type }: PostedTransferViewProps) {
       ...prev,
       [columnId]: { value, valueTo }
     }));
-    setCurrentPage(1); // Reset to first page on filter change
+    setCurrentPage(1);
   };
 
   const handleColumnToggle = (columnId: string) => {
@@ -286,7 +294,6 @@ export function PostedTransferView({ type }: PostedTransferViewProps) {
 
   const hasActiveFilters = searchQuery !== "" || Object.values(columnFilters).some(f => f.value || f.valueTo);
 
-  // Pagination calculations
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
   const hasNextPage = currentPage < totalPages;
 
@@ -333,12 +340,10 @@ export function PostedTransferView({ type }: PostedTransferViewProps) {
       
       <TableFilterBar 
         searchQuery={searchQuery}
-        onSearch={(q) => {
-          setSearchQuery(q);
-          setCurrentPage(1);
-        }}
+        onSearch={(q) => setSearchQuery(q)}
         onClearFilters={() => {
           setSearchQuery("");
+          setDebouncedSearchQuery("");
           setColumnFilters({});
           setCurrentPage(1);
         }}

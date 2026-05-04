@@ -112,9 +112,12 @@ export async function fetchPstdDocLines(
     top?: number;
     vendorNo?: string;
     customerNo?: string;
+    sortColumn?: string | null;
+    sortDirection?: "asc" | "desc" | null;
+    columnFilters?: Record<string, string>;
   } = {},
 ): Promise<PstdDocPagedResult> {
-  const { search, skip = 0, top = 200, vendorNo, customerNo } = options;
+  const { search, skip = 0, top = 200, vendorNo, customerNo, sortColumn, sortDirection, columnFilters } = options;
 
   const filters: string[] = [];
 
@@ -137,15 +140,29 @@ export async function fetchPstdDocLines(
     );
   }
 
+  if (columnFilters) {
+    Object.entries(columnFilters).forEach(([colId, filterVal]) => {
+      if (!filterVal) return;
+      const s = filterVal.replace(/'/g, "''");
+      filters.push(`contains(${colId},'${s}')`);
+    });
+  }
+
   const filterStr =
     filters.length > 0
       ? `&$filter=${encodeURIComponent(filters.join(" and "))}`
       : "";
 
+  let orderStr = "";
+  if (sortColumn && sortDirection) {
+    orderStr = `&$orderby=${sortColumn} ${sortDirection}`;
+  }
+
   const url =
     `/${endpoint}?company='${encodeURIComponent(COMPANY)}'` +
     `&$count=true` +
     `${filterStr}` +
+    orderStr +
     `&$top=${top}` +
     `&$skip=${skip}`;
 

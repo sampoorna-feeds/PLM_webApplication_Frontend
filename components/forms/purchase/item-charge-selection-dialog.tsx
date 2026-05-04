@@ -119,7 +119,9 @@ export function ItemChargeSelectionDialog({
         skip: 0, 
         top: PAGE_SIZE, 
         extraFilters,
-        columnFilters 
+        columnFilters,
+        sortColumn,
+        sortDirection 
       });
       setSourceLines(result.value);
       setTotalCount(result.count);
@@ -128,7 +130,7 @@ export function ItemChargeSelectionDialog({
     } finally {
       setLoading(false);
     }
-  }, [type, debouncedSearchQuery, extraFilters, columnFilters]);
+  }, [type, debouncedSearchQuery, extraFilters, columnFilters, sortColumn, sortDirection]);
 
   const fetchMore = useCallback(async () => {
     if (!canFetchMore) return;
@@ -139,7 +141,9 @@ export function ItemChargeSelectionDialog({
         skip: sourceLines.length, 
         top: PAGE_SIZE, 
         extraFilters,
-        columnFilters
+        columnFilters,
+        sortColumn,
+        sortDirection
       });
       setSourceLines((prev) => [...prev, ...result.value]);
       setTotalCount(result.count);
@@ -148,9 +152,9 @@ export function ItemChargeSelectionDialog({
     } finally {
       setLoadingMore(false);
     }
-  }, [canFetchMore, type, debouncedSearchQuery, sourceLines.length, extraFilters, columnFilters]);
+  }, [canFetchMore, type, debouncedSearchQuery, sourceLines.length, extraFilters, columnFilters, sortColumn, sortDirection]);
 
-  useEffect(() => { if (open) fetchInitial(); }, [open, debouncedSearchQuery, fetchInitial]);
+  useEffect(() => { if (open) fetchInitial(); }, [open, fetchInitial]);
 
   useEffect(() => {
     const sentinel = sentinelRef.current;
@@ -159,25 +163,6 @@ export function ItemChargeSelectionDialog({
     observer.observe(sentinel);
     return () => observer.disconnect();
   }, [fetchMore]);
-
-  const filteredAndSortedLines = useMemo(() => {
-    let result = sourceLines;
-    // Filtering is now handled by API
-    if (sortColumn && sortDirection) {
-      result = [...result].sort((a, b) => {
-        let valA = (a as unknown as Record<string, unknown>)[sortColumn];
-        let valB = (b as unknown as Record<string, unknown>)[sortColumn];
-        if (sortColumn === "Item_No") { valA = a.No || a.Item_No || ""; valB = b.No || b.Item_No || ""; }
-        if (sortColumn === "Posting_Date") { valA = valA ?? a.Shipment_Date; valB = valB ?? b.Shipment_Date; }
-        if (valA === valB) return 0;
-        if (valA == null) return 1;
-        if (valB == null) return -1;
-        const cmp = valA < valB ? -1 : 1;
-        return sortDirection === "asc" ? cmp : -cmp;
-      });
-    }
-    return result;
-  }, [sourceLines, sortColumn, sortDirection]);
 
   const lineId = (line: ItemChargeSourceLine) => `${line.Document_No}-${line.Line_No}`;
 
@@ -365,7 +350,7 @@ export function ItemChargeSelectionDialog({
                     </div>
                   </td>
                 </tr>
-              ) : filteredAndSortedLines.length === 0 ? (
+              ) : sourceLines.length === 0 ? (
                 <tr>
                   <td colSpan={TOTAL_COLS} className="h-60 text-center">
                     <div className="flex flex-col items-center gap-2 opacity-50">
@@ -376,7 +361,7 @@ export function ItemChargeSelectionDialog({
                 </tr>
               ) : (
                 <>
-                  {filteredAndSortedLines.map((line, idx) => {
+                  {sourceLines.map((line, idx) => {
                     const id = lineId(line);
                     const isSelected = selectedIds.has(id);
                     const itemNo = line.No || line.Item_No || "";
@@ -427,7 +412,7 @@ export function ItemChargeSelectionDialog({
         <div className="border-t px-4 py-1.5 flex items-center justify-between shrink-0">
           <span className="text-muted-foreground text-[10px] font-bold tracking-wider uppercase">
             {loading ? "Loading..." : (
-              <>{sourceLines.length.toLocaleString()}{totalCount > 0 && <span className="text-foreground/50 ml-1">/ {totalCount.toLocaleString()} total</span>} Records{Object.keys(columnFilters).length > 0 && <span className="text-primary ml-2">({filteredAndSortedLines.length} filtered)</span>}</>
+              <>{sourceLines.length.toLocaleString()}{totalCount > 0 && <span className="text-foreground/50 ml-1">/ {totalCount.toLocaleString()} total</span>} Records{Object.keys(columnFilters).length > 0 && <span className="text-primary ml-2">({sourceLines.length} filtered)</span>}</>
             )}
           </span>
           {(selectedIds.size > 0 || isAllSelected) && (

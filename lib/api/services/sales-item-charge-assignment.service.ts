@@ -82,13 +82,39 @@ export const salesItemChargeAssignmentService = {
     itemChargeNo: string;
     skip?: number;
     top?: number;
+    sortColumn?: string | null;
+    sortDirection?: "asc" | "desc" | null;
+    columnFilters?: ColumnFilters;
+    search?: string;
   }): Promise<PagedResult<SalesItemChargeAssignment>> {
-    const { skip = 0, top = 200 } = filters;
-    const filter = `Document_Type eq '${filters.docType}' and Document_No eq '${filters.docNo}' and Document_Line_No eq ${filters.docLineNo} and ItemChargeNo eq '${filters.itemChargeNo}'`;
+    const { skip = 0, top = 200, sortColumn, sortDirection, columnFilters, search } = filters;
+    const filterParts = [`Document_Type eq '${filters.docType}'`, `Document_No eq '${filters.docNo}'`, `Document_Line_No eq ${filters.docLineNo}`, `ItemChargeNo eq '${filters.itemChargeNo}'`];
+
+    if (search) {
+      const s = escapeODataString(search);
+      filterParts.push(`(contains(Applies_to_Doc_No_,'${s}') or contains(Description,'${s}') or contains(Item_No_,'${s}') or contains(Applies_to_Doc_Type,'${s}'))`);
+    }
+
+    if (columnFilters) {
+      Object.entries(columnFilters).forEach(([colId, filter]) => {
+        if (!filter.value && !filter.valueTo) return;
+        const s = escapeODataString(filter.value);
+        filterParts.push(`contains(${colId},'${s}')`);
+      });
+    }
+
+    const filterStr = filterParts.join(" and ");
+
+    let orderStr = "";
+    if (sortColumn && sortDirection) {
+      orderStr = `&$orderby=${sortColumn} ${sortDirection}`;
+    }
+
     const endpoint =
       `/ItemChargeAssignmentSales?company='${encodeURIComponent(COMPANY)}'` +
       `&$count=true` +
-      `&$filter=${encodeURIComponent(filter)}` +
+      `&$filter=${encodeURIComponent(filterStr)}` +
+      orderStr +
       `&$top=${top}` +
       `&$skip=${skip}`;
     const response = await apiGet<{
@@ -111,6 +137,8 @@ export const salesItemChargeAssignmentService = {
       extraFilters?: string[];
       sellToCustomerNo?: string;
       columnFilters?: ColumnFilters;
+      sortColumn?: string | null;
+      sortDirection?: "asc" | "desc" | null;
     } = {},
   ): Promise<PagedResult<ItemChargeSourceLine>> {
     const {
@@ -121,6 +149,8 @@ export const salesItemChargeAssignmentService = {
       extraFilters,
       sellToCustomerNo,
       columnFilters,
+      sortColumn,
+      sortDirection,
     } = options;
     const endpointName = SALES_ENDPOINTS[type];
     const itemNoField = ITEM_NO_FIELD_MAP[type];
@@ -177,10 +207,21 @@ export const salesItemChargeAssignmentService = {
         ? `&$filter=${encodeURIComponent(filters.join(" and "))}`
         : "";
 
+    let orderStr = "";
+    if (sortColumn && sortDirection) {
+      let field = sortColumn;
+      if (sortColumn === "Item_No") field = itemNoField;
+      if (sortColumn === "Posting_Date" && type === "SalesShipment") {
+        field = "Posting_Date";
+      }
+      orderStr = `&$orderby=${field} ${sortDirection}`;
+    }
+
     const endpoint =
       `/${endpointName}?company='${encodeURIComponent(COMPANY)}'` +
       `&$count=true` +
       `${filterStr}` +
+      orderStr +
       `&$top=${top}` +
       `&$skip=${skip}`;
 

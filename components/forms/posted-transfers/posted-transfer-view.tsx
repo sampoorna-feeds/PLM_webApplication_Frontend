@@ -97,7 +97,7 @@ export function PostedTransferView({ type }: PostedTransferViewProps) {
            if (valueTo) parts.push(`Posting_Date le ${valueTo}`);
         } else {
           const config = POSTED_TRANSFER_COLUMNS.find(c => c.id === colId);
-          if (config?.filterType === "text" || config?.filterType === "select") {
+          if (config?.filterType === "text" || config?.filterType === "enum") {
             const escaped = value.replace(/'/g, "''");
             parts.push(`contains(${colId},'${escaped}')`);
           } else if (config?.filterType === "number" && !isNaN(Number(value))) {

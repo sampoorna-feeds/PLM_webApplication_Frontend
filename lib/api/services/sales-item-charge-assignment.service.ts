@@ -139,6 +139,7 @@ export const salesItemChargeAssignmentService = {
       columnFilters?: ColumnFilters;
       sortColumn?: string | null;
       sortDirection?: "asc" | "desc" | null;
+      _isInternal?: boolean;
     } = {},
   ): Promise<PagedResult<ItemChargeSourceLine>> {
     const {
@@ -151,11 +152,54 @@ export const salesItemChargeAssignmentService = {
       columnFilters,
       sortColumn,
       sortDirection,
+      _isInternal,
     } = options;
     const endpointName = SALES_ENDPOINTS[type];
     const itemNoField = ITEM_NO_FIELD_MAP[type];
-    const filters: string[] = [];
+    if (search && !_isInternal) {
+      const s = escapeODataString(search);
+      const searchFields = ["Document_No", itemNoField];
 
+      const responses = await Promise.all(
+        searchFields.map((field) =>
+          this.getSourceLines(type, {
+            ...options,
+            search: undefined,
+            _isInternal: true,
+            extraFilters: [
+              ...(extraFilters || []),
+              `contains(${field},'${s}')`,
+            ],
+          }),
+        ),
+      );
+
+      const map = new Map<string, ItemChargeSourceLine>();
+      responses.forEach((res) => {
+        res.value.forEach((line) => {
+          map.set(`${line.Document_No}-${line.Line_No}`, line);
+        });
+      });
+
+      const allResults = Array.from(map.values());
+
+      if (sortColumn && sortDirection) {
+        allResults.sort((a, b) => {
+          const valA = (a as any)[sortColumn] ?? "";
+          const valB = (b as any)[sortColumn] ?? "";
+          if (valA < valB) return sortDirection === "asc" ? -1 : 1;
+          if (valA > valB) return sortDirection === "asc" ? 1 : -1;
+          return 0;
+        });
+      }
+
+      return {
+        value: allResults.slice(skip, skip + top),
+        count: allResults.length,
+      };
+    }
+
+    const filters: string[] = [];
     if (docNo) filters.push(`Document_No eq '${escapeODataString(docNo)}'`);
     if (type === "SalesShipment") {
       filters.push("Type eq 'Item'");
@@ -171,9 +215,7 @@ export const salesItemChargeAssignmentService = {
     if (extraFilters?.length) filters.push(...extraFilters);
     if (search) {
       const s = escapeODataString(search);
-      filters.push(
-        `(contains(Document_No,'${s}') or contains(${itemNoField},'${s}'))`,
-      );
+      filters.push(`contains(Document_No,'${s}')`);
     }
 
     // Column Filters

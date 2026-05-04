@@ -176,11 +176,69 @@ export const itemChargeAssignmentService = {
       columnFilters?: ColumnFilters;
       sortColumn?: string | null;
       sortDirection?: "asc" | "desc" | null;
+      _isInternal?: boolean;
     } = {},
   ): Promise<PagedResult<ItemChargeSourceLine>> {
-    const { docNo, search, skip = 0, top = 200, extraFilters, columnFilters, sortColumn, sortDirection } = options;
+    const {
+      docNo,
+      search,
+      skip = 0,
+      top = 200,
+      extraFilters,
+      columnFilters,
+      sortColumn,
+      sortDirection,
+      _isInternal,
+    } = options;
     const endpointName = ENDPOINTS[type];
     const itemNoField = ITEM_NO_FIELD_MAP[type];
+    // Handle search by splitting into multiple requests if the server doesn't support OR.
+    // This is a common workaround for BC OData V4 limitations.
+    if (search && !_isInternal) {
+      const s = search.replace(/'/g, "''");
+      const searchFields = ["Document_No", itemNoField];
+
+      const responses = await Promise.all(
+        searchFields.map((field) =>
+          this.getSourceLines(type, {
+            ...options,
+            search: undefined,
+            _isInternal: true,
+            extraFilters: [
+              ...(extraFilters || []),
+              `contains(${field},'${s}')`,
+            ],
+          }),
+        ),
+      );
+
+      // Merge results and de-duplicate by Document_No + Line_No
+      const map = new Map<string, ItemChargeSourceLine>();
+      responses.forEach((res) => {
+        res.value.forEach((line) => {
+          map.set(`${line.Document_No}-${line.Line_No}`, line);
+        });
+      });
+
+      const allResults = Array.from(map.values());
+
+      // If we have a sort, apply it client-side to the merged set
+      if (sortColumn && sortDirection) {
+        allResults.sort((a, b) => {
+          const valA = (a as any)[sortColumn] ?? "";
+          const valB = (b as any)[sortColumn] ?? "";
+          if (valA < valB) return sortDirection === "asc" ? -1 : 1;
+          if (valA > valB) return sortDirection === "asc" ? 1 : -1;
+          return 0;
+        });
+      }
+
+      return {
+        value: allResults.slice(skip, skip + top),
+        count: allResults.length,
+      };
+    }
+
     const filters: string[] = [];
 
     if (docNo) {
@@ -192,11 +250,8 @@ export const itemChargeAssignmentService = {
     }
 
     if (search) {
-      const s = search.replace(/'/g, "''"); // Escape single quotes for OData
-      // Only search fields that exist on this specific endpoint.
-      filters.push(
-        `(contains(Document_No,'${s}') or contains(${itemNoField},'${s}'))`,
-      );
+      const s = search.replace(/'/g, "''");
+      filters.push(`contains(Document_No,'${s}')`);
     }
 
     // Column Filters

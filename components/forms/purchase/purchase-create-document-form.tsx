@@ -353,8 +353,8 @@ const PURCHASE_CREATE_DOCUMENT_CONFIG: Record<
     deleteHeader: deletePurchaseReturnOrderHeader,
     deleteLine: deleteSinglePurchaseReturnOrderLine,
     statusActions: {
-      open: ["Send For Approval"],
-      pending: ["Cancel Approval"],
+      open: ["Post"],
+      pending: [],
       released: ["Post", "Reopen"],
     },
     fetchHeader: getPurchaseReturnOrderByNo,
@@ -894,16 +894,24 @@ export function PurchaseCreateDocumentFormContent({
     setIsLineDialogOpen(true);
   };
 
-  const handleEditLineItem = (lineItem: LineItem) => {
+  const handleEditLineItem = async (lineItem: LineItem) => {
     // If this line is persisted on the server (has a lineNo), open the
     // richer PurchaseLineEditDialog. Otherwise use the standard dialog.
     if (lineItem.lineNo && createdOrderNo) {
-      const serverLine = purchaseLines.find(
-        (l) => l.Line_No === lineItem.lineNo,
-      );
-      if (serverLine) {
-        setSelectedLine(serverLine);
-        return;
+      setIsActionLoading(true);
+      try {
+        const lines = await config.fetchLines(createdOrderNo);
+        setPurchaseLines(lines);
+        const serverLine = lines.find((l) => l.Line_No === lineItem.lineNo);
+        if (serverLine) {
+          setSelectedLine(serverLine);
+          return;
+        }
+      } catch (error) {
+        console.error("Failed to fetch fresh line data:", error);
+        toast.error("Failed to fetch latest line data from server.");
+      } finally {
+        setIsActionLoading(false);
       }
     }
     setSelectedLineItem(lineItem);
@@ -1049,6 +1057,7 @@ export function PurchaseCreateDocumentFormContent({
     hydratedHeaderRef.current = header;
     setFormData((prev) => ({ ...prev, ...mappedFormData }));
     setLineItems(mappedLineItems);
+    setPurchaseLines(lines);
     setDocumentStatus(status);
     if (!createdOrderNo && docNo) setCreatedOrderNo(docNo);
 

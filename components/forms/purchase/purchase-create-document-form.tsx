@@ -475,6 +475,7 @@ export function PurchaseCreateDocumentFormContent({
     vendorAuthorizationNo: "",
     appliesToDocType: "",
     appliesToDocNo: "",
+    appliesToID: "",
     invoiceType: "",
     lob: "",
     branch: "",
@@ -1486,7 +1487,7 @@ export function PurchaseCreateDocumentFormContent({
   const renderStep1 = () => {
     const defaultAccordionValue =
       isCreateMode || isEditMode
-        ? ["general", "tax-information", "vendor-statistics"]
+        ? ["general", "tax-information", "vendor-statistics", "application-detail"]
         : ["general"];
     const areFieldsReadOnly =
       isViewMode || (isCreateMode && Boolean(createdOrderNo));
@@ -1760,75 +1761,6 @@ export function PurchaseCreateDocumentFormContent({
                       </div>
                     )}
 
-                    {capabilities.supportsAppliesToFields && (
-                      <div className={fieldClass}>
-                        <label className={labelClass}>
-                          Apply to Doc Type
-                        </label>
-                        <ClearableField
-                          readOnly={areFieldsReadOnly}
-                          value={formData.appliesToDocType}
-                          onClear={() =>
-                            handleInputChange("appliesToDocType", "")
-                          }
-                        >
-                          <Select
-                            value={
-                              formData.appliesToDocType.trim() === ""
-                                ? "_none"
-                                : formData.appliesToDocType
-                            }
-                            onValueChange={(val) =>
-                              handleInputChange(
-                                "appliesToDocType",
-                                val === "_none" ? "" : val,
-                              )
-                            }
-                          >
-                            <SelectTrigger className="h-9 text-sm shadow-none">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="_none">None</SelectItem>
-                              <SelectItem value="Payment">Payment</SelectItem>
-                              <SelectItem value="Invoice">Invoice</SelectItem>
-                              <SelectItem value="Credit Memo">
-                                Credit Memo
-                              </SelectItem>
-                              <SelectItem value="Finance Charge Memo">
-                                Finance Charge Memo
-                              </SelectItem>
-                              <SelectItem value="Reminder">Reminder</SelectItem>
-                              <SelectItem value="Refund">Refund</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </ClearableField>
-                      </div>
-                    )}
-                    {capabilities.supportsAppliesToFields && (
-                      <div className={fieldClass}>
-                        <label className={labelClass}>
-                          Applied to Doc No.
-                        </label>
-                        <ClearableField
-                          readOnly={areFieldsReadOnly}
-                          value={formData.appliesToDocNo}
-                          onClear={() =>
-                            handleInputChange("appliesToDocNo", "")
-                          }
-                        >
-                          <VendorLedgerEntrySelect
-                            vendorNo={formData.vendorNo}
-                            value={formData.appliesToDocNo}
-                            onChange={(val) =>
-                              handleInputChange("appliesToDocNo", val)
-                            }
-                            disabled={areFieldsReadOnly || !formData.vendorNo}
-                            placeholder="Select doc no."
-                          />
-                        </ClearableField>
-                      </div>
-                    )}
                     <div
                       className={`${fieldClass} ${config.orderAddressGridClass}`}
                     >
@@ -2233,6 +2165,90 @@ export function PurchaseCreateDocumentFormContent({
                 </section>
               </AccordionContent>
             </AccordionItem>
+            <Separator />
+
+            {capabilities.supportsAppliesToFields && (
+              <AccordionItem value="application-detail" className="border-none">
+                <AccordionTrigger className="py-0 hover:no-underline [&>svg]:size-4">
+                  <h3 className="px-2 py-1 text-left text-xs font-bold tracking-wider uppercase text-foreground/90">
+                    Application Detail
+                  </h3>
+                </AccordionTrigger>
+                <AccordionContent
+                  className={cn(
+                    "pb-2",
+                    areFieldsReadOnly && "pointer-events-none opacity-70",
+                  )}
+                >
+                  <Separator className="mb-3" />
+                  <section className="space-y-2">
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+                      <div className={fieldClass}>
+                        <label className={labelClass}>Applies to Doc Type</label>
+                        <ClearableField
+                          readOnly={areFieldsReadOnly}
+                          value={formData.appliesToDocType}
+                          onClear={() => handleInputChange("appliesToDocType", "")}
+                        >
+                          <Select
+                            value={
+                              formData.appliesToDocType.trim() === ""
+                                ? "_none"
+                                : formData.appliesToDocType
+                            }
+                            onValueChange={(val) =>
+                              handleInputChange(
+                                "appliesToDocType",
+                                val === "_none" ? "" : val,
+                              )
+                            }
+                          >
+                            <SelectTrigger className="h-9 text-sm shadow-none">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="_none">None</SelectItem>
+                              <SelectItem value="Payment">Payment</SelectItem>
+                              <SelectItem value="Invoice">Invoice</SelectItem>
+                              <SelectItem value="Credit Memo">Credit Memo</SelectItem>
+                              <SelectItem value="Finance Charge Memo">Finance Charge Memo</SelectItem>
+                              <SelectItem value="Reminder">Reminder</SelectItem>
+                              <SelectItem value="Refund">Refund</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </ClearableField>
+                      </div>
+                      <div className={fieldClass}>
+                        <label className={labelClass}>Applies to Doc No</label>
+                        <ClearableField
+                          readOnly={areFieldsReadOnly}
+                          value={formData.appliesToDocNo}
+                          onClear={() => handleInputChange("appliesToDocNo", "")}
+                        >
+                          <VendorLedgerEntrySelect
+                            vendorNo={formData.vendorNo}
+                            value={formData.appliesToDocNo}
+                            onChange={(val) => handleInputChange("appliesToDocNo", val)}
+                            disabled={areFieldsReadOnly || !formData.vendorNo}
+                            placeholder="Select doc no."
+                          />
+                        </ClearableField>
+                      </div>
+                      <div className={fieldClass}>
+                        <label className={labelClass}>Applies to ID</label>
+                        <Input
+                          value={formData.appliesToID || ""}
+                          onChange={(e) => handleInputChange("appliesToID", e.target.value)}
+                          disabled={areFieldsReadOnly}
+                          className="h-9 text-sm shadow-none"
+                          placeholder="ID"
+                        />
+                      </div>
+                    </div>
+                  </section>
+                </AccordionContent>
+              </AccordionItem>
+            )}
           </Accordion>
         </div>
       </div>

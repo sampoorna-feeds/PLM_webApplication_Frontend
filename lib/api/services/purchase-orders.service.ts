@@ -63,6 +63,9 @@ export interface PurchaseOrder {
   Pay_to_Vendor_No?: string;
   Currency_Code?: string;
   GST_Vendor_Type?: string;
+  Applies_to_Doc_Type?: string;
+  Applies_to_Doc_No?: string;
+  Applies_to_ID?: string;
   "@odata.etag"?: string;
   [key: string]: unknown;
 }

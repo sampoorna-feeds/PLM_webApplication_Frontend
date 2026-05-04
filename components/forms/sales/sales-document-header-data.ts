@@ -22,6 +22,9 @@ export interface SalesDocumentHeaderFormState {
   branch: string;
   gstRegistrationNo?: string;
   panNo?: string;
+  appliesToDocType?: string;
+  appliesToDocNo?: string;
+  appliesToID?: string;
   copyFromDocType?: string;
   copyFromDocNo?: string;
 }
@@ -39,6 +42,9 @@ export interface SalesDocumentHeaderData {
   invoiceType?: string;
   lob?: string;
   branch?: string;
+  Applies_to_Doc_Type?: string;
+  Applies_to_Doc_No?: string;
+  Applies_to_ID?: string;
 }
 
 export function buildSalesCommonHeaderData(
@@ -57,6 +63,9 @@ export function buildSalesCommonHeaderData(
     invoiceType: formData.invoiceType || "Bill of Supply",
     lob: formData.lob || "",
     branch: formData.branch || "",
+    Applies_to_Doc_Type: formData.appliesToDocType || "",
+    Applies_to_Doc_No: formData.appliesToDocNo || "",
+    Applies_to_ID: formData.appliesToID || "",
   };
 }
 
@@ -81,6 +90,9 @@ export function buildSalesHeaderPatchPayload(
       Invoice_Type: formData.invoiceType || "",
       Shortcut_Dimension_1_Code: formData.lob || "",
       Shortcut_Dimension_2_Code: formData.branch || "",
+      Applies_to_Doc_Type: formData.appliesToDocType || "",
+      Applies_to_Doc_No: formData.appliesToDocNo || "",
+      Applies_to_ID: formData.appliesToID || "",
     };
 
     if (supportsOrderDate) {
@@ -117,6 +129,9 @@ export function buildSalesHeaderPatchPayload(
   compareString("Invoice_Type", formData.invoiceType || "");
   compareString("Shortcut_Dimension_1_Code", formData.lob || "");
   compareString("Shortcut_Dimension_2_Code", formData.branch || "");
+  compareString("Applies_to_Doc_Type", formData.appliesToDocType || "");
+  compareString("Applies_to_Doc_No", formData.appliesToDocNo || "");
+  compareString("Applies_to_ID", formData.appliesToID || "");
 
   if (supportsOrderDate) {
     compareDate("Order_Date", formData.orderDate || formData.postingDate);

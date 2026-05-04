@@ -15,7 +15,8 @@ export type RequiredPurchaseHeaderField =
   | "Vendor_Cr_Memo_No"
   | "Vendor_Authorization_No"
   | "Applies_to_Doc_Type"
-  | "Applies_to_Doc_No";
+  | "Applies_to_Doc_No"
+  | "Applies_to_ID";
 
 export interface PurchaseHeaderPayloadSource {
   vendorNo?: string;
@@ -47,6 +48,7 @@ export interface PurchaseHeaderPayloadSource {
   vendorAuthorizationNo?: string;
   appliesToDocType?: string;
   appliesToDocNo?: string;
+  appliesToID?: string;
   poExpirationDate?: string;
   vehicleNo?: string;
   paymentMethodCode?: string;
@@ -110,7 +112,11 @@ function getRequiredFieldValue(
     return source.appliesToDocType || "Invoice";
   }
 
-  return source.appliesToDocNo || "";
+  if (field === "Applies_to_Doc_No") {
+    return source.appliesToDocNo || "";
+  }
+
+  return source.appliesToID || "";
 }
 
 export function stripEmptyValues(
@@ -264,14 +270,16 @@ export function buildPurchaseHeaderPayload(
   if (options.includeAppliesToFields) {
     if (options.stripEmpty) {
       // POST: only include if a doc no is specified (avoid sending empty applies-to)
-      if (source.appliesToDocNo) {
+      if (source.appliesToDocNo || source.appliesToID) {
         payload.Applies_to_Doc_Type = source.appliesToDocType || "Invoice";
-        payload.Applies_to_Doc_No = source.appliesToDocNo;
+        payload.Applies_to_Doc_No = source.appliesToDocNo || "";
+        payload.Applies_to_ID = source.appliesToID || "";
       }
     } else {
       // PATCH: always include so the user can clear the value
       payload.Applies_to_Doc_Type = source.appliesToDocType || "";
       payload.Applies_to_Doc_No = source.appliesToDocNo || "";
+      payload.Applies_to_ID = source.appliesToID || "";
     }
   }
 

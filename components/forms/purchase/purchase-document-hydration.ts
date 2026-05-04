@@ -39,6 +39,7 @@ export function mapPurchaseHeaderToFormData(
     appliesToDocType:
       toStringValue(rawHeader["Applies_to_Doc_Type"]).trim(),
     appliesToDocNo: toStringValue(rawHeader["Applies_to_Doc_No"]),
+    appliesToID: toStringValue(rawHeader["Applies_to_ID"]),
     invoiceType: toStringValue(header.Invoice_Type),
     lob: toStringValue(header.Shortcut_Dimension_1_Code),
     branch: toStringValue(header.Shortcut_Dimension_2_Code),

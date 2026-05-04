@@ -31,6 +31,9 @@ export interface SalesOrder {
   Shortcut_Dimension_2_Code?: string;
   Shortcut_Dimension_3_Code?: string;
   Salesperson_Code?: string;
+  Applies_to_Doc_Type?: string;
+  Applies_to_Doc_No?: string;
+  Applies_to_ID?: string;
   "@odata.etag"?: string;
   [key: string]: unknown;
 }

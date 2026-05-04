@@ -51,6 +51,8 @@ export interface SalesDocumentCapabilities {
    * transporter / weight fields visible regardless of post mode.
    */
   supportsUnifiedPostForm: boolean;
+  /** Whether "Application Detail" section (Applies-to fields) is supported */
+  supportsAppliesToFields: boolean;
 }
 
 export interface SalesDocumentConfig {
@@ -93,6 +95,7 @@ const SALES_DOCUMENT_CONFIG: Record<SalesDocumentType, SalesDocumentConfig> = {
       supportsGetPostedLine: false,
       supportsGetPostedLineToReverse: false,
       supportsUnifiedPostForm: false,
+      supportsAppliesToFields: false,
     },
   },
   invoice: {
@@ -117,6 +120,7 @@ const SALES_DOCUMENT_CONFIG: Record<SalesDocumentType, SalesDocumentConfig> = {
       supportsGetPostedLine: true,
       supportsGetPostedLineToReverse: false,
       supportsUnifiedPostForm: true,
+      supportsAppliesToFields: true,
     },
   },
   "return-order": {
@@ -145,6 +149,7 @@ const SALES_DOCUMENT_CONFIG: Record<SalesDocumentType, SalesDocumentConfig> = {
       supportsGetPostedLine: false,
       supportsGetPostedLineToReverse: true,
       supportsUnifiedPostForm: false,
+      supportsAppliesToFields: true,
     },
   },
   "credit-memo": {
@@ -169,6 +174,7 @@ const SALES_DOCUMENT_CONFIG: Record<SalesDocumentType, SalesDocumentConfig> = {
       supportsGetPostedLine: true,
       supportsGetPostedLineToReverse: true,
       supportsUnifiedPostForm: true,
+      supportsAppliesToFields: true,
     },
   },
 };

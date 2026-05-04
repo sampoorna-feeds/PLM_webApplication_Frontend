@@ -318,6 +318,9 @@ const EMPTY_FORM_STATE: CreateFormState = {
   panNo: "",
   copyFromDocType: "",
   copyFromDocNo: "",
+  appliesToDocType: "",
+  appliesToDocNo: "",
+  appliesToID: "",
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -1377,6 +1380,76 @@ export function SalesCreateDocumentFormContent({
           </div>
         </AccordionContent>
       </AccordionItem>
+
+      {/* ── Application Detail ── */}
+      {caps.supportsAppliesToFields && (
+        <AccordionItem value="application-detail" className="border-none">
+          <AccordionTrigger className="py-0 hover:no-underline [&>svg]:size-4">
+            <h3 className="px-2 py-1 text-left text-xs font-bold tracking-wider uppercase">
+              Application Detail
+            </h3>
+          </AccordionTrigger>
+          <AccordionContent
+            className={cn(
+              "pb-2",
+              areFieldsReadOnly && "pointer-events-none opacity-70",
+            )}
+          >
+            <Separator className="mb-3" />
+            <div className="grid grid-cols-2 gap-x-4 gap-y-4 sm:grid-cols-3 lg:grid-cols-6">
+              <div className={fieldClass}>
+                <label className={labelClass}>Applies to Doc Type</label>
+                <ClearableField
+                  readOnly={isGeneralReadOnly}
+                  value={formData.appliesToDocType}
+                  onClear={() => handleInputChange("appliesToDocType", "")}
+                >
+                  <Select
+                    disabled={isGeneralReadOnly}
+                    value={formData.appliesToDocType || "__none__"}
+                    onValueChange={(v) =>
+                      handleInputChange("appliesToDocType", v === "__none__" ? "" : v)
+                    }
+                  >
+                    <SelectTrigger className="h-9">
+                      <SelectValue placeholder="Select" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">None</SelectItem>
+                      <SelectItem value="Payment">Payment</SelectItem>
+                      <SelectItem value="Invoice">Invoice</SelectItem>
+                      <SelectItem value="Credit Memo">Credit Memo</SelectItem>
+                      <SelectItem value="Finance Charge Memo">Finance Charge Memo</SelectItem>
+                      <SelectItem value="Reminder">Reminder</SelectItem>
+                      <SelectItem value="Refund">Refund</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </ClearableField>
+              </div>
+              <div className={fieldClass}>
+                <label className={labelClass}>Applies to Doc No</label>
+                <Input
+                  value={formData.appliesToDocNo || ""}
+                  onChange={(e) => handleInputChange("appliesToDocNo", e.target.value)}
+                  disabled={isGeneralReadOnly}
+                  className="h-9"
+                  placeholder="Doc No."
+                />
+              </div>
+              <div className={fieldClass}>
+                <label className={labelClass}>Applies to ID</label>
+                <Input
+                  value={formData.appliesToID || ""}
+                  onChange={(e) => handleInputChange("appliesToID", e.target.value)}
+                  disabled={isGeneralReadOnly}
+                  className="h-9"
+                  placeholder="ID"
+                />
+              </div>
+            </div>
+          </AccordionContent>
+        </AccordionItem>
+      )}
     </Accordion>
   );
 

@@ -718,6 +718,7 @@ export function SalesCreateDocumentFormContent({
       const patch = buildSalesHeaderPatchPayload(
         formData,
         caps.supportsOrderDate,
+        orderHeader,
       );
       await ops.patchHeader(initialOrderNo, patch);
       toast.success("Header updated");
@@ -1045,6 +1046,9 @@ export function SalesCreateDocumentFormContent({
   const isPending = orderHeader?.Status === "Pending Approval";
   const isReleased = orderHeader?.Status === "Released";
   const areFieldsReadOnly = isViewMode;
+  const isGeneralReadOnly = isViewMode || isReleased;
+  const isInvoiceTypeReadOnly =
+    isViewMode || (isReleased && documentType !== "order");
 
   // ── Render helpers ─────────────────────────────────────────────────────────
   const fieldClass = "min-w-0 space-y-1.5";
@@ -1074,7 +1078,7 @@ export function SalesCreateDocumentFormContent({
         <div className={fieldClass}>
           <label className={labelClass}>LOB</label>
           <ClearableField
-            readOnly={areFieldsReadOnly}
+            readOnly={isGeneralReadOnly}
             value={formData.lob}
             onClear={() => {
               handleInputChange("lob", "");
@@ -1091,13 +1095,14 @@ export function SalesCreateDocumentFormContent({
               placeholder="Select LOB"
               userId={userId}
               compactWhenSingle
+              disabled={isGeneralReadOnly}
             />
           </ClearableField>
         </div>
         <div className={fieldClass}>
           <label className={labelClass}>Branch</label>
           <ClearableField
-            readOnly={areFieldsReadOnly}
+            readOnly={isGeneralReadOnly}
             value={formData.branch}
             onClear={() => {
               handleInputChange("branch", "");
@@ -1115,6 +1120,7 @@ export function SalesCreateDocumentFormContent({
               lobValue={formData.lob}
               userId={userId}
               compactWhenSingle
+              disabled={isGeneralReadOnly}
             />
           </ClearableField>
           {branchName && (
@@ -1127,7 +1133,7 @@ export function SalesCreateDocumentFormContent({
             value={formData.locationCode}
             onChange={(v) => handleInputChange("locationCode", v)}
             branchCode={formData.branch}
-            disabled={areFieldsReadOnly}
+            disabled={isGeneralReadOnly}
             placeholder="Select Location"
           />
         </div>
@@ -1136,11 +1142,12 @@ export function SalesCreateDocumentFormContent({
           <div className={fieldClass}>
             <label className={labelClass}>Invoice Type</label>
             <ClearableField
-              readOnly={areFieldsReadOnly}
+              readOnly={isInvoiceTypeReadOnly}
               value={formData.invoiceType}
               onClear={() => handleInputChange("invoiceType", "")}
             >
               <Select
+                disabled={isInvoiceTypeReadOnly}
                 value={formData.invoiceType.trim() || "__none__"}
                 onValueChange={(v) =>
                   handleInputChange("invoiceType", v === "__none__" ? "" : v)
@@ -1167,7 +1174,7 @@ export function SalesCreateDocumentFormContent({
         <div className={fieldClass}>
           <label className={labelClass}>Customer</label>
           <ClearableField
-            readOnly={areFieldsReadOnly}
+            readOnly={isGeneralReadOnly}
             value={formData.customerNo}
             onClear={() => handleCustomerChange("", undefined)}
           >
@@ -1175,6 +1182,7 @@ export function SalesCreateDocumentFormContent({
               value={formData.customerNo}
               onChange={handleCustomerChange}
               placeholder="Select"
+              disabled={isGeneralReadOnly}
             />
           </ClearableField>
           {formData.customerName && (
@@ -1186,7 +1194,7 @@ export function SalesCreateDocumentFormContent({
         <div className={fieldClass}>
           <label className={labelClass}>Sales Person</label>
           <ClearableField
-            readOnly={areFieldsReadOnly}
+            readOnly={isGeneralReadOnly}
             value={formData.salesPersonCode}
             onClear={() =>
               setFormData((p) => ({
@@ -1206,6 +1214,7 @@ export function SalesCreateDocumentFormContent({
                 }))
               }
               placeholder="Select"
+              disabled={isGeneralReadOnly}
             />
           </ClearableField>
           {formData.salesPersonName && (
@@ -1217,7 +1226,7 @@ export function SalesCreateDocumentFormContent({
         <div className={fieldClass}>
           <label className={labelClass}>Ship To</label>
           <ClearableField
-            readOnly={areFieldsReadOnly}
+            readOnly={isGeneralReadOnly}
             value={formData.shipToCode}
             onClear={() => handleShipToChange("", undefined)}
           >
@@ -1228,6 +1237,7 @@ export function SalesCreateDocumentFormContent({
               placeholder="Select (optional)"
               tabId=""
               loc={formData.locationCode}
+              disabled={isGeneralReadOnly}
             />
           </ClearableField>
           {(formData as unknown as Record<string, string>).shipToName && (
@@ -1255,11 +1265,10 @@ export function SalesCreateDocumentFormContent({
             readOnly
           />
         </div>
-      {/* Dates | External Doc No. */}
         <div className={fieldClass}>
           <label className={labelClass}>Posting Date</label>
           <ClearableField
-            readOnly={areFieldsReadOnly}
+            readOnly={isGeneralReadOnly}
             value={formData.postingDate}
             onClear={() => handleInputChange("postingDate", "")}
           >
@@ -1269,23 +1278,24 @@ export function SalesCreateDocumentFormContent({
               min={
                 webUserProfile?.Allow_Posting_From &&
                 webUserProfile.Allow_Posting_From !== "0001-01-01"
-                  ? webUserProfile.Allow_Posting_From.split("T")[0]
-                  : undefined
+              ? webUserProfile.Allow_Posting_From.split("T")[0]
+              : undefined
               }
               max={
                 webUserProfile?.Allow_Posting_To &&
                 webUserProfile.Allow_Posting_To !== "0001-01-01"
-                  ? webUserProfile.Allow_Posting_To.split("T")[0]
-                  : undefined
+              ? webUserProfile.Allow_Posting_To.split("T")[0]
+              : undefined
               }
               className="h-8"
+              disabled={isGeneralReadOnly}
             />
           </ClearableField>
         </div>
         <div className={fieldClass}>
           <label className={labelClass}>Document Date</label>
           <ClearableField
-            readOnly={areFieldsReadOnly}
+            readOnly={isGeneralReadOnly}
             value={formData.documentDate}
             onClear={() => handleInputChange("documentDate", "")}
           >
@@ -1297,16 +1307,17 @@ export function SalesCreateDocumentFormContent({
               min={
                 webUserProfile?.Allow_Posting_From &&
                 webUserProfile.Allow_Posting_From !== "0001-01-01"
-                  ? webUserProfile.Allow_Posting_From.split("T")[0]
-                  : undefined
+              ? webUserProfile.Allow_Posting_From.split("T")[0]
+              : undefined
               }
               max={
                 webUserProfile?.Allow_Posting_To &&
                 webUserProfile.Allow_Posting_To !== "0001-01-01"
-                  ? webUserProfile.Allow_Posting_To.split("T")[0]
-                  : undefined
+              ? webUserProfile.Allow_Posting_To.split("T")[0]
+              : undefined
               }
               className="h-8"
+              disabled={isGeneralReadOnly}
             />
           </ClearableField>
         </div>
@@ -1324,7 +1335,7 @@ export function SalesCreateDocumentFormContent({
         <div className={fieldClass}>
           <label className={labelClass}>External Doc No.</label>
           <ClearableField
-            readOnly={areFieldsReadOnly}
+            readOnly={isGeneralReadOnly}
             value={formData.externalDocumentNo}
             onClear={() => handleInputChange("externalDocumentNo", "")}
           >
@@ -1335,6 +1346,7 @@ export function SalesCreateDocumentFormContent({
               }
               placeholder="Optional"
               className="h-8"
+              disabled={isGeneralReadOnly}
             />
           </ClearableField>
         </div>
@@ -1485,7 +1497,7 @@ export function SalesCreateDocumentFormContent({
               )}
 
               {/* View mode buttons */}
-              {isViewMode && !isPending && !isReleased && (
+              {isViewMode && !isPending && (!isReleased || documentType === "order") && (
                 <Button
                   type="button"
                   variant="outline"

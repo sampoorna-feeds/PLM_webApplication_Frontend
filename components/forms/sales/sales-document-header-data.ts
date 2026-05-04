@@ -60,28 +60,69 @@ export function buildSalesCommonHeaderData(
   };
 }
 
-/** Builds a PATCH payload from form state — only includes non-empty values. */
+/** 
+ * Builds a PATCH payload from form state.
+ * If 'original' is provided, it returns only the changed fields (diff).
+ * Otherwise, it returns the full payload.
+ */
 export function buildSalesHeaderPatchPayload(
   formData: SalesDocumentHeaderFormState,
   supportsOrderDate: boolean,
+  original?: Record<string, any> | null,
 ): Record<string, unknown> {
-  const payload: Record<string, unknown> = {
-    Ship_to_Code: formData.shipToCode || "",
-    Salesperson_Code: formData.salesPersonCode || "",
-    Location_Code: formData.locationCode || "",
-    Posting_Date: formData.postingDate,
-    Document_Date: formData.documentDate,
-    External_Document_No: formData.externalDocumentNo || "",
-    Invoice_Type: formData.invoiceType || "",
-    Shortcut_Dimension_1_Code: formData.lob || "",
-    Shortcut_Dimension_2_Code: formData.branch || "",
-  };
+  if (!original) {
+    const payload: Record<string, unknown> = {
+      Ship_to_Code: formData.shipToCode || "",
+      Salesperson_Code: formData.salesPersonCode || "",
+      Location_Code: formData.locationCode || "",
+      Posting_Date: formData.postingDate,
+      Document_Date: formData.documentDate,
+      External_Document_No: formData.externalDocumentNo || "",
+      Invoice_Type: formData.invoiceType || "",
+      Shortcut_Dimension_1_Code: formData.lob || "",
+      Shortcut_Dimension_2_Code: formData.branch || "",
+    };
 
-  if (supportsOrderDate) {
-    payload.Order_Date = formData.orderDate || formData.postingDate;
+    if (supportsOrderDate) {
+      payload.Order_Date = formData.orderDate || formData.postingDate;
+    }
+
+    return payload;
   }
 
-  return payload;
+  const patch: Record<string, unknown> = {};
+
+  const compareString = (bcField: string, val: string) => {
+    const orig = (original[bcField] as string) || "";
+    if (val.trim() !== orig.trim()) {
+      patch[bcField] = val.trim();
+    }
+  };
+
+  const compareDate = (bcField: string, val: string) => {
+    const origRaw = original[bcField] as string | undefined;
+    const orig = origRaw?.split("T")[0] || "";
+    const cur = val || "";
+    if (cur !== orig && cur !== "") {
+      patch[bcField] = cur;
+    }
+  };
+
+  compareString("Ship_to_Code", formData.shipToCode || "");
+  compareString("Salesperson_Code", formData.salesPersonCode || "");
+  compareString("Location_Code", formData.locationCode || "");
+  compareDate("Posting_Date", formData.postingDate);
+  compareDate("Document_Date", formData.documentDate);
+  compareString("External_Document_No", formData.externalDocumentNo || "");
+  compareString("Invoice_Type", formData.invoiceType || "");
+  compareString("Shortcut_Dimension_1_Code", formData.lob || "");
+  compareString("Shortcut_Dimension_2_Code", formData.branch || "");
+
+  if (supportsOrderDate) {
+    compareDate("Order_Date", formData.orderDate || formData.postingDate);
+  }
+
+  return patch;
 }
 
 export interface SalesPostDetails {

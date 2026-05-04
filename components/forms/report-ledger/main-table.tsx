@@ -16,13 +16,13 @@ export default function ReportLedgerMainTable() {
         setTotalCount(totalCount);
       })
       .catch((error) => {
-        console.error("Error fetching report ledger entries:", error);
+        console.error("Error fetching Item Ledger entries:", error);
       });
   }, []);
 
   return (
     <div>
-      <h2>Report Ledger Main Table</h2>
+      <h2>Item Ledger Main Table</h2>
       <span>{totalCount}</span>
       <pre>{JSON.stringify(entries, null, 2)}</pre>{" "}
     </div>

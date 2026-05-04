@@ -1,5 +1,5 @@
 /**
- * Type definitions for Report Ledger components
+ * Type definitions for Item Ledger components
  */
 
 export type PageSize = 10 | 20 | 30 | 40 | 50 | 200;
@@ -14,14 +14,14 @@ export interface DateRange {
 export interface FilterCondition {
   field: string;
   operator:
-    | "eq"
-    | "ne"
-    | "gt"
-    | "ge"
-    | "lt"
-    | "le"
-    | "startswith"
-    | "endswith";
+  | "eq"
+  | "ne"
+  | "gt"
+  | "ge"
+  | "lt"
+  | "le"
+  | "startswith"
+  | "endswith";
   value: string;
   type: "text" | "number" | "boolean" | "date" | "enum";
 }

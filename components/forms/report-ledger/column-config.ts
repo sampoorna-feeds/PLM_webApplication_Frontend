@@ -1,5 +1,5 @@
 /**
- * Column Configuration for Report Ledger (Item Ledger Entries) Table
+ * Column Configuration for Item Ledger (Item Ledger Entries) Table
  * Defines all available columns, their metadata, and default visibility
  */
 

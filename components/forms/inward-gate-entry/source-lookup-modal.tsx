@@ -73,16 +73,18 @@ export function SourceLookupModal({
         { id: "Transfer_to_Name", label: "Transfer To Name", sortable: true, filterType: "text" }
       );
     } else {
-      baseCols.push({ 
-        id: sourceType === "Purchase Order" ? "Buy_from_Vendor_Name" : "Sell_to_Customer_Name", 
-        label: sourceType === "Purchase Order" ? "Vendor Name" : "Customer Name", 
-        sortable: true, 
-        filterType: "text" 
-      });
+      baseCols.push(
+        { 
+          id: sourceType === "Purchase Order" ? "Buy_from_Vendor_Name" : "Sell_to_Customer_Name", 
+          label: sourceType === "Purchase Order" ? "Vendor Name" : "Customer Name", 
+          sortable: true, 
+          filterType: "text" 
+        },
+        { id: "Location_Code", label: "Location", sortable: true, filterType: "text" }
+      );
     }
 
     baseCols.push(
-      { id: sourceType === "Transfer Receipt" ? "Transfer_to_Code" : "Location_Code", label: "Location", sortable: true, filterType: "text" },
       { id: sourceType === "Purchase Order" ? "Document_Date" : "Posting_Date", label: "Date", sortable: true, filterType: "date" },
       { id: "Status", label: "Status", sortable: true, filterType: "text" }
     );
@@ -301,7 +303,7 @@ export function SourceLookupModal({
                         ) : (
                           <TableCell>{name}</TableCell>
                         )}
-                        <TableCell>{location}</TableCell>
+                        {sourceType !== "Transfer Receipt" && <TableCell>{location}</TableCell>}
                         <TableCell>
                           {date ? new Date(date).toLocaleDateString() : "-"}
                         </TableCell>

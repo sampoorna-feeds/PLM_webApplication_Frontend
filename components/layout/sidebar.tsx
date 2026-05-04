@@ -110,7 +110,7 @@ const ledgerSubItems = [
     icon: BookOpenCheck,
   },
   {
-    title: "Report Ledger",
+    title: "Item Ledger",
     url: "/ledger/report-ledger",
     icon: BookOpenCheck,
   },

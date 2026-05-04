@@ -1,6 +1,6 @@
 /**
- * Report Ledger API Service
- * Handles fetching report ledger entries from ERP OData V4 API
+ * Item Ledger API Service
+ * Handles fetching Item Ledger entries from ERP OData V4 API
  */
 
 import { apiGet, apiPost, apiPatch, apiDelete, apiRequest } from "../client";

@@ -541,7 +541,7 @@ export function OutwardGateEntryForm({
       <div className="flex-1 space-y-4 overflow-y-auto px-4 py-4">
         {/* General Section */}
         <section className="space-y-4 rounded-md border p-4">
-          <div className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-9">
+          <div className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-6">
             
             <div className="space-y-1.5">
               <label className="text-[10px] font-bold tracking-wider uppercase">
@@ -573,7 +573,7 @@ export function OutwardGateEntryForm({
 
             <div className="space-y-1.5">
               <label className="text-[10px] font-bold tracking-wider uppercase">
-                Station From/To
+                Station To
               </label>
               <Input
                 value={entry.Station_From_To || ""}
@@ -800,12 +800,11 @@ export function OutwardGateEntryForm({
             </div>
             {(mode !== "view" || (entry.Status !== "Posted")) && (
                 <Button
-                  variant="outline"
                   size="sm"
                   onClick={handleAddLine}
-                  className="h-7 gap-1.5 border-dashed text-[10px] font-bold tracking-wider uppercase"
+                  className="h-8 gap-1.5 bg-green-600 text-white hover:bg-green-700 text-[10px] font-bold tracking-wider uppercase px-4 shadow-sm transition-all active:scale-95"
                 >
-                  <Plus className="h-3 w-3" />
+                  <Plus className="h-3.5 w-3.5" />
                   Add Line
                 </Button>
               )}

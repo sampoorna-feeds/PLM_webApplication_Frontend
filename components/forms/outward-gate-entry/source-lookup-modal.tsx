@@ -73,16 +73,18 @@ export function SourceLookupModal({
         { id: "Transfer_to_Name", label: "Transfer To Name", sortable: true, filterType: "text" }
       );
     } else {
-      baseCols.push({ 
-        id: sourceType === "Posted Purchase Return Shipment" ? "Buy_from_Vendor_Name" : "Sell_to_Customer_Name", 
-        label: sourceType === "Posted Purchase Return Shipment" ? "Vendor Name" : "Customer Name", 
-        sortable: true, 
-        filterType: "text" 
-      });
+      baseCols.push(
+        { 
+          id: sourceType === "Posted Purchase Return Shipment" ? "Buy_from_Vendor_Name" : "Sell_to_Customer_Name", 
+          label: sourceType === "Posted Purchase Return Shipment" ? "Vendor Name" : "Customer Name", 
+          sortable: true, 
+          filterType: "text" 
+        },
+        { id: "Location_Code", label: "Location", sortable: true, filterType: "text" }
+      );
     }
 
     baseCols.push(
-      { id: sourceType === "Transfer Shipment" ? "Transfer_to_Code" : "Location_Code", label: "Location", sortable: true, filterType: "text" },
       { id: "Posting_Date", label: "Date", sortable: true, filterType: "date" },
     );
     
@@ -300,7 +302,7 @@ export function SourceLookupModal({
                         ) : (
                           <TableCell>{name}</TableCell>
                         )}
-                        <TableCell>{location}</TableCell>
+                        {sourceType !== "Transfer Shipment" && <TableCell>{location}</TableCell>}
                         <TableCell>
                           {date ? new Date(date).toLocaleDateString() : "-"}
                         </TableCell>

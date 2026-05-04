@@ -114,7 +114,7 @@ export default function ProtectedLayout({
     if (pathname === "/ledger/report-ledger") {
       return [
         { label: "Ledger", href: "#" },
-        { label: "Report Ledger", href: null },
+        { label: "Item Ledger", href: null },
       ];
     }
     if (pathname === "/ledger/vendor-ledger") {

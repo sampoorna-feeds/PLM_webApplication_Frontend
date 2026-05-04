@@ -53,7 +53,7 @@ export function LineEntryModal({ isOpen, onClose, onSave, initialData, mode, bra
     const name =
       item.Buy_from_Vendor_Name ||
       item.Sell_to_Customer_Name ||
-      item.Transfer_from_Name ||
+      (formData.Source_Type === "Transfer Shipment" ? item.Transfer_to_Name : item.Transfer_from_Name) ||
       "";
     
     setFormData((prev) => ({

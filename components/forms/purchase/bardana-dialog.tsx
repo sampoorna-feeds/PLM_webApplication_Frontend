@@ -38,6 +38,7 @@ interface BardanaDialogProps {
   noOfBags?: number;
   /** Line description for context display */
   lineDescription?: string;
+  onSuccess?: () => void;
 }
 
 export function BardanaDialog({
@@ -47,6 +48,7 @@ export function BardanaDialog({
   lineNo,
   noOfBags,
   lineDescription,
+  onSuccess,
 }: BardanaDialogProps) {
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
   const [uom, setUom] = useState("");
@@ -108,6 +110,7 @@ export function BardanaDialog({
       );
       setAddedLine(response);
       setSuccess(true);
+      onSuccess?.();
     } catch (err) {
       const msg =
         err && typeof (err as any).message === "string"
@@ -133,6 +136,7 @@ export function BardanaDialog({
       setSuccess(false);
       setAddedLine(null);
       setError(null);
+      onSuccess?.();
     } catch (err) {
       const msg =
         err && typeof (err as any).message === "string"

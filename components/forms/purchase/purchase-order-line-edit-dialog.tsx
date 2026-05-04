@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Loader2, Package, Trash2, Link2, Search, X, User, Briefcase } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -55,6 +55,11 @@ import {
   getPurchaseLineQuantityConfig,
   type PurchaseLineDocumentType,
 } from "./purchase-line-quantity-config";
+import {
+  getBardanaLines,
+  deleteBardanaLine,
+  type BardanaLine,
+} from "@/lib/api/services/purchase-order.service";
 interface PurchaseOrderLineEditDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -117,6 +122,9 @@ export function PurchaseOrderLineEditDialog({
   const [uom, setUom] = useState("");
   const [uomOptions, setUomOptions] = useState<SearchableSelectOption[]>([]);
   const [loadingUoms, setLoadingUoms] = useState(false);
+  const [existingBardanas, setExistingBardanas] = useState<BardanaLine[]>([]);
+  const [isLoadingBardanas, setIsLoadingBardanas] = useState(false);
+  const [isDeletingBardana, setIsDeletingBardana] = useState<number | null>(null);
 
   const fieldInputClass =
     "h-8 disabled:opacity-100 disabled:text-foreground font-medium text-xs disabled:pointer-events-none";
@@ -341,6 +349,44 @@ export function PurchaseOrderLineEditDialog({
       mounted = false;
     };
   }, [open, gstGroupCode]);
+
+  const fetchExistingBardanas = useCallback(async () => {
+    if (!open || !line?.Line_No || !orderNo) return;
+    setIsLoadingBardanas(true);
+    try {
+      const lines = await getBardanaLines(orderNo, line.Line_No);
+      setExistingBardanas(lines);
+    } catch (error) {
+      console.error("Failed to fetch existing bardanas:", error);
+    } finally {
+      setIsLoadingBardanas(false);
+    }
+  }, [open, line?.Line_No, orderNo]);
+
+  useEffect(() => {
+    if (open && canAddBardana) {
+      fetchExistingBardanas();
+    } else {
+      setExistingBardanas([]);
+    }
+  }, [open, canAddBardana, fetchExistingBardanas]);
+
+  const handleDeleteBardana = async (bardanaLineNo: number) => {
+    if (!orderNo || !line?.Line_No) return;
+    if (!confirm("Are you sure you want to delete this bardana?")) return;
+
+    setIsDeletingBardana(bardanaLineNo);
+    try {
+      await deleteBardanaLine(orderNo, line.Line_No, bardanaLineNo);
+      toast.success("Bardana deleted successfully");
+      fetchExistingBardanas();
+    } catch (error) {
+      const { message } = extractApiError(error);
+      toast.error(`Failed to delete bardana: ${message}`);
+    } finally {
+      setIsDeletingBardana(null);
+    }
+  };
 
   const isValidNum = (v: string) => v === "" || /^[0-9]*\.?[0-9]*$/.test(v);
 
@@ -960,6 +1006,50 @@ export function PurchaseOrderLineEditDialog({
                     Exempted
                   </Label>
                 </div>
+
+                {canAddBardana && existingBardanas.length > 0 && (
+                  <div className="sm:col-span-2 lg:col-span-4 mt-2">
+                    <div className="flex items-center justify-between mb-2 border-b pb-1">
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                        <Package className="h-3 w-3" />
+                        Existing Bardana Details
+                      </h4>
+                      {isLoadingBardanas && (
+                        <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
+                      )}
+                    </div>
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                      {existingBardanas.map((b) => (
+                        <div
+                          key={b.Line_No}
+                          className="bg-muted/30 flex items-center justify-between rounded-md border px-2 py-1.5 transition-colors hover:bg-muted/50"
+                        >
+                          <div className="flex flex-col min-w-0">
+                            <span className="truncate text-[10px] font-bold text-foreground">
+                              {b.Description || b.Item_No}
+                            </span>
+                            <span className="text-[10px] text-muted-foreground tabular-nums">
+                              {b.Quantity} {b.UOM}
+                            </span>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                            onClick={() => handleDeleteBardana(b.Line_No)}
+                            disabled={isDeletingBardana === b.Line_No}
+                          >
+                            {isDeletingBardana === b.Line_No ? (
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                            ) : (
+                              <Trash2 className="h-3 w-3" />
+                            )}
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </>
             )}
           </div>
@@ -986,6 +1076,7 @@ export function PurchaseOrderLineEditDialog({
           lineNo={line.Line_No!}
           noOfBags={parseInt(noOfBags, 10) || line.No_of_Bags}
           lineDescription={description || line.Description}
+          onSuccess={fetchExistingBardanas}
         />
       )}
     </>

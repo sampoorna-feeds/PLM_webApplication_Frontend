@@ -3,7 +3,8 @@
  * Handles creating purchase orders and adding line items
  */
 
-import { apiPost, apiPatch, apiDelete } from "../client";
+import { apiGet, apiPost, apiPatch, apiDelete } from "../client";
+import type { ODataResponse } from "../types";
 import type { ApiError } from "../client";
 import { buildPurchaseHeaderPayload } from "./purchase-header-payload";
 import { toUpperCaseValues } from "./payload-utils";
@@ -331,6 +332,35 @@ export async function deleteBardanaLine(
     await apiDelete(endpoint);
   } catch (error) {
     console.error("Error deleting bardana line:", error);
+    throw error as ApiError;
+  }
+}
+
+export interface BardanaLine {
+  Document_No: string;
+  Document_Line_No: number;
+  Line_No: number;
+  Item_No: string;
+  Description?: string;
+  UOM: string;
+  Quantity: number;
+}
+
+/**
+ * Get existing bardana lines for a purchase order line.
+ */
+export async function getBardanaLines(
+  documentNo: string,
+  documentLineNo: number,
+): Promise<BardanaLine[]> {
+  const filter = `(Document_Type eq 'Order') and (Document_No eq '${documentNo.toUpperCase()}') and (Document_Line_No eq ${documentLineNo})`;
+  const endpoint = `/QCPurchaseBardanaList?company='${encodeURIComponent(COMPANY)}'&$filter=${encodeURIComponent(filter)}`;
+
+  try {
+    const response = await apiGet<ODataResponse<BardanaLine>>(endpoint);
+    return response.value;
+  } catch (error) {
+    console.error("Error fetching bardana lines:", error);
     throw error as ApiError;
   }
 }

@@ -183,7 +183,7 @@ export function SourceLookupModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-h-[90vh] min-w-[80vw] overflow-hidden flex flex-col">
+      <DialogContent className="max-h-[90vh] sm:max-w-[95vw] w-fit overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle>Select {sourceType}</DialogTitle>
         </DialogHeader>
@@ -222,7 +222,7 @@ export function SourceLookupModal({
             <TableHeader className="bg-muted/50 sticky top-0 z-10">
               <TableRow>
                 {columns.map((col) => (
-                  <TableHead key={col.id} className="whitespace-nowrap">
+                  <TableHead key={col.id} className="whitespace-nowrap px-1 py-1.5 h-9 text-xs">
                     <div className="flex items-center gap-1.5">
                       {col.label}
                       <InwardGateEntryColumnFilter
@@ -292,22 +292,22 @@ export function SourceLookupModal({
                         className="hover:bg-muted cursor-pointer"
                         onClick={() => onSelect(no, item)}
                       >
-                        <TableCell className="font-medium">{no}</TableCell>
+                        <TableCell className="px-1 py-1.5 text-xs font-medium">{no}</TableCell>
                         {sourceType === "Transfer Receipt" ? (
                           <>
-                            <TableCell>{item.Transfer_from_Code}</TableCell>
-                            <TableCell>{item.Transfer_from_Name}</TableCell>
-                            <TableCell>{item.Transfer_to_Code}</TableCell>
-                            <TableCell>{item.Transfer_to_Name}</TableCell>
+                            <TableCell className="px-1 py-1.5 text-xs">{item.Transfer_from_Code}</TableCell>
+                            <TableCell className="px-1 py-1.5 text-xs">{item.Transfer_from_Name}</TableCell>
+                            <TableCell className="px-1 py-1.5 text-xs">{item.Transfer_to_Code}</TableCell>
+                            <TableCell className="px-1 py-1.5 text-xs">{item.Transfer_to_Name}</TableCell>
                           </>
                         ) : (
-                          <TableCell>{name}</TableCell>
+                          <TableCell className="px-1 py-1.5 text-xs">{name}</TableCell>
                         )}
-                        {sourceType !== "Transfer Receipt" && <TableCell>{location}</TableCell>}
-                        <TableCell>
+                        {sourceType !== "Transfer Receipt" && <TableCell className="px-1 py-1.5 text-xs">{location}</TableCell>}
+                        <TableCell className="px-1 py-1.5 text-xs">
                           {date ? new Date(date).toLocaleDateString() : "-"}
                         </TableCell>
-                        <TableCell>{status}</TableCell>
+                        <TableCell className="px-1 py-1.5 text-xs">{status}</TableCell>
                       </TableRow>
                     );
                   })}

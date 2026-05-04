@@ -355,7 +355,7 @@ export async function getBardanaLines(
   documentNo: string,
   documentLineNo: number,
 ): Promise<BardanaLine[]> {
-  const filter = `(Document_Type eq 'Order') and (Document_No eq '${documentNo.toUpperCase()}') and (Document_Line_No eq ${documentLineNo})`;
+  const filter = `(Document_Type eq 'Order') and (Document_No eq '${documentNo.toUpperCase()}') and (Document_Line_No eq ${documentLineNo}) and (Posted_Document_No eq '')`;
   const endpoint = `/QCPurchaseBardanaList?company='${encodeURIComponent(COMPANY)}'&$filter=${encodeURIComponent(filter)}`;
 
   try {

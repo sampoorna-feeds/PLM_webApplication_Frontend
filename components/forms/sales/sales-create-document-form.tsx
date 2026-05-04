@@ -453,7 +453,7 @@ export function SalesCreateDocumentFormContent({
   const [isPostDetailsOpen, setIsPostDetailsOpen] = useState(false);
   const [postDetails, setPostDetails] = useState(postDetailsDefault);
   const [isPostResultOpen, setIsPostResultOpen] = useState(false);
-  const [postResultDocs, setPostResultDocs] = useState<{ Invoice?: string; Shipment?: string }>({});
+  const [postResultDocs, setPostResultDocs] = useState<{ Invoice?: string; Shipment?: string; CreditMemo?: string }>({});
 
   // Reset Post Details when dialog opens
   useEffect(() => {
@@ -958,12 +958,12 @@ export function SalesCreateDocumentFormContent({
     }
   };
 
-  const parsePostResult = (response: unknown): { Invoice?: string; Shipment?: string } => {
+  const parsePostResult = (response: unknown): { Invoice?: string; Shipment?: string; CreditMemo?: string } => {
     try {
       const value = (response as Record<string, unknown>)?.value;
       if (!value || typeof value !== "string") return {};
       const jsonStr = atob(value.replace(/\s/g, ""));
-      return JSON.parse(jsonStr) as { Invoice?: string; Shipment?: string };
+      return JSON.parse(jsonStr) as { Invoice?: string; Shipment?: string; CreditMemo?: string };
     } catch {
       return {};
     }
@@ -2525,23 +2525,28 @@ export function SalesCreateDocumentFormContent({
             <DialogTitle>Document Posted</DialogTitle>
           </DialogHeader>
           <div className="space-y-3 py-2">
-            {!postResultDocs.Invoice && !postResultDocs.Shipment ? (
+            {!postResultDocs.Invoice && !postResultDocs.Shipment && !postResultDocs.CreditMemo ? (
               <p className="text-muted-foreground py-2 text-center text-sm">
                 Document posted successfully, but no documents are available.
               </p>
             ) : (
               <>
-                {postResultDocs.Invoice && (
+                {(postResultDocs.Invoice || postResultDocs.CreditMemo) && (
                   <div className="flex items-center justify-between rounded-md border p-3">
-                    <span className="text-sm font-medium">Invoice</span>
+                    <span className="text-sm font-medium">
+                      {documentType === "credit-memo" ? "Credit Memo" : "Invoice"}
+                    </span>
                     <div className="flex gap-2">
                       <Button
                         size="sm"
                         variant="outline"
                         onClick={() => {
-                          const blob = base64ToPdfBlob(postResultDocs.Invoice!);
-                          const url = window.URL.createObjectURL(blob);
-                          window.open(url, "_blank", "noopener,noreferrer");
+                          const data = postResultDocs.CreditMemo || postResultDocs.Invoice;
+                          if (data) {
+                            const blob = base64ToPdfBlob(data);
+                            const url = window.URL.createObjectURL(blob);
+                            window.open(url, "_blank", "noopener,noreferrer");
+                          }
                         }}
                       >
                         Open
@@ -2551,14 +2556,14 @@ export function SalesCreateDocumentFormContent({
                         variant="outline"
                         onClick={() => {
                           const blob = base64ToPdfBlob(postResultDocs.Invoice!);
-                          const url = window.URL.createObjectURL(blob);
-                          const link = document.createElement("a");
-                          link.href = url;
+                            const url = window.URL.createObjectURL(blob);
+                            const link = document.createElement("a");
+                            link.href = url;
                           link.download = "Invoice.pdf";
-                          document.body.appendChild(link);
-                          link.click();
-                          document.body.removeChild(link);
-                          window.URL.revokeObjectURL(url);
+                            document.body.appendChild(link);
+                            link.click();
+                            document.body.removeChild(link);
+                            window.URL.revokeObjectURL(url);
                         }}
                       >
                         <Printer className="h-4 w-4" />

@@ -1010,70 +1010,67 @@ export function PurchaseOrderLineEditDialog({
                 {canAddBardana && existingBardanas.length > 0 && (
                   <div className="sm:col-span-2 lg:col-span-4 mt-2">
                     <div className="flex items-center justify-between mb-2 border-b pb-1">
-                      <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                        <Package className="h-3 w-3" />
+                      <h4 className="mt-5 font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5 text-md">
+                        <Package className="size-5" />
                         Existing Bardana Details
                       </h4>
                       {isLoadingBardanas && (
                         <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
                       )}
                     </div>
-                    <div className="grid grid-cols-1 gap-2">
+                    <div className="grid grid-cols-1 gap-1">
                       {existingBardanas.map((b) => (
                         <div
                           key={b.Line_No}
-                          className="bg-muted/30 relative flex flex-col rounded-md border p-3 transition-colors hover:bg-muted/50"
+                          className="bg-muted/30 group flex items-center gap-3 rounded-md border px-3 py-1.5 transition-colors hover:bg-muted/50"
                         >
-                          <div className="flex items-start justify-between gap-4">
-                            <div className="flex flex-col min-w-0">
-                              <span className="text-[10px] font-bold text-primary uppercase tracking-tight">
+                          <div className="flex flex-1 items-center gap-4 min-w-0">
+                            <div className="flex flex-col shrink-0">
+                              <span className="text-primary uppercase leading-none">
                                 {b.Item_No}
                               </span>
-                              <span className="truncate text-xs font-semibold text-foreground">
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <span className="truncatetext-foreground block">
                                 {b.Description}
                               </span>
                             </div>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-7 w-7 text-muted-foreground hover:text-destructive shrink-0"
-                              onClick={() => handleDeleteBardana(b.Line_No)}
-                              disabled={isDeletingBardana === b.Line_No}
-                            >
-                              {isDeletingBardana === b.Line_No ? (
-                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                              ) : (
-                                <Trash2 className="h-3.5 w-3.5" />
-                              )}
-                            </Button>
+                            
+                            <div className="flex items-center gap-4 shrink-0 pr-2 border-r mr-2">
+                              <div className="flex flex-col items-end">
+                                <span className="text-xs font-medium text-muted-foreground uppercase leading-none mb-0.5">Qty</span>
+                                <span className="tabular-nums">
+                                  {b.Quantity} {b.UOM}
+                                </span>
+                              </div>
+                              <div className="flex flex-col items-end">
+                                <span className="text-xs font-medium text-muted-foreground uppercase leading-none mb-0.5">W. Per</span>
+                                <span className="tabular-nums">
+                                  {b.Weight_Per ?? 0}
+                                </span>
+                              </div>
+                              <div className="flex flex-col items-end">
+                                <span className="text-xs font-medium text-muted-foreground uppercase leading-none mb-0.5">Total W.</span>
+                                <span className="tabular-nums text-green-600">
+                                  {b.Total_Weight ?? 0}
+                                </span>
+                              </div>
+                            </div>
                           </div>
 
-                          <div className="mt-2 grid grid-cols-2 gap-4 border-t pt-2 sm:grid-cols-4">
-                            <div className="flex flex-col">
-                              <span className="text-[9px] font-medium text-muted-foreground uppercase">Quantity</span>
-                              <span className="text-xs font-bold tabular-nums">
-                                {b.Quantity} {b.UOM}
-                              </span>
-                            </div>
-                            <div className="flex flex-col">
-                              <span className="text-[9px] font-medium text-muted-foreground uppercase">Weight Per</span>
-                              <span className="text-xs font-bold tabular-nums">
-                                {b.Weight_Per ?? 0}
-                              </span>
-                            </div>
-                            <div className="flex flex-col">
-                              <span className="text-[9px] font-medium text-muted-foreground uppercase">Total Weight</span>
-                              <span className="text-xs font-bold tabular-nums text-green-600">
-                                {b.Total_Weight ?? 0}
-                              </span>
-                            </div>
-                            <div className="flex flex-col">
-                              <span className="text-[9px] font-medium text-muted-foreground uppercase">Line No</span>
-                              <span className="text-xs font-bold tabular-nums text-muted-foreground">
-                                #{b.Line_No}
-                              </span>
-                            </div>
-                          </div>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6 text-muted-foreground hover:text-destructive shrink-0 group-hover:opacity-100 transition-opacity"
+                            onClick={() => handleDeleteBardana(b.Line_No)}
+                            disabled={isDeletingBardana === b.Line_No}
+                          >
+                            {isDeletingBardana === b.Line_No ? (
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                            ) : (
+                              <Trash2 className="h-3 w-3" />
+                            )}
+                          </Button>
                         </div>
                       ))}
                     </div>

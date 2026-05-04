@@ -55,7 +55,15 @@ export function QCReceiptView({ statusFilter, isPosted, skipDateFilter }: QCRece
     setDateFilter(filters);
   };
 
-
+  if (!dateFilter && !skipDateFilter) {
+    return (
+      <QCFilterForm
+        title={isPosted ? "Posted QC Receipts" : "QC Receipts"}
+        description="Select a date range to view quality control receipts"
+        onApply={handleApplyFilters}
+      />
+    );
+  }
 
   return (
     <div className="flex h-full flex-col gap-2">
@@ -70,6 +78,7 @@ export function QCReceiptView({ statusFilter, isPosted, skipDateFilter }: QCRece
         onResetColumns={onResetColumns}
         onShowAllColumns={onShowAllColumns}
         onRefresh={refetch}
+        onDateFilterChange={() => setDateFilter(null)}
       />
 
       {/* Active Filters Chips */}

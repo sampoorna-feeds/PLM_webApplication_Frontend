@@ -58,6 +58,7 @@ export function useQCReceipts(initialFilters?: {
   const [isFetchingMore, setIsFetchingMore] = useState(false);
 
   const statusFilter = initialFilters?.statusFilter;
+  const skipDateFilter = initialFilters?.skipDateFilter;
 
   const { userID } = useAuth();
   const [authBranches, setAuthBranches] = useState<string[]>([]);
@@ -93,6 +94,11 @@ export function useQCReceipts(initialFilters?: {
 
   const fetchReceipts = useCallback(async () => {
     if (userID && isAuthLoading) return;
+
+    if (!skipDateFilter && !dateFilter) {
+      setIsLoading(false);
+      return;
+    }
 
     setIsLoading(true);
 

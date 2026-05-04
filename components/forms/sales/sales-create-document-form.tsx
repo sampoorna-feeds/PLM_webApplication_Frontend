@@ -959,6 +959,30 @@ export function SalesCreateDocumentFormContent({
     }
   };
 
+  const handleSaveDetails = async () => {
+    if (!initialOrderNo) return;
+    setIsPostLoading(true);
+    try {
+      const patchPayload = buildSalesPostPatchPayload(
+        orderHeader,
+        postDetails as SalesPostDetails,
+        isCreditOrReturn
+      );
+
+      if (Object.keys(patchPayload).length > 0) {
+        await ops.patchHeader(initialOrderNo, patchPayload);
+        toast.success("Details saved successfully.");
+        loadDocument();
+      } else {
+        toast.info("No changes to save.");
+      }
+    } catch (err) {
+      toast.error(getErrorMessage(err, "Failed to save details."));
+    } finally {
+      setIsPostLoading(false);
+    }
+  };
+
   const parsePostResult = (response: unknown): { Invoice?: string; Shipment?: string; CreditMemo?: string } => {
     try {
       const value = (response as Record<string, unknown>)?.value;
@@ -2393,6 +2417,16 @@ export function SalesCreateDocumentFormContent({
                 disabled={isPostLoading}
               >
                 Back
+              </Button>
+              <Button
+                variant="secondary"
+                onClick={handleSaveDetails}
+                disabled={isPostLoading}
+              >
+                {isPostLoading && (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                )}
+                Save
               </Button>
               <Button
                 onClick={handlePostDetailsSubmit}

@@ -389,6 +389,30 @@ export function OutwardGateEntryForm({
     }
   }
 
+  async function handleSaveDetails() {
+    const docNo = entry.No;
+    if (!docNo) return;
+
+    setIsPosting(true);
+    try {
+      const timeStr = postDetails.postingTime.length === 5 ? `${postDetails.postingTime}:00` : postDetails.postingTime;
+      
+      await updateOutwardGateEntryHeader(docNo, entry.Entry_Type || "Outward", {
+        Posting_Date: postDetails.postingDate,
+        Posting_Time: timeStr,
+      });
+
+      toast.success("Details saved successfully");
+      const onRefetch = context?.refetch as (() => void) | undefined;
+      onRefetch?.();
+    } catch (error: any) {
+      console.error("Error saving gate entry details:", error);
+      toast.error(error.message || "Failed to save details");
+    } finally {
+      setIsPosting(false);
+    }
+  }
+
 
   const handleAddLine = () => {
     const nextLineNo = lines.length > 0 ? Math.max(...lines.map(l => l.Line_No)) + 10000 : 10000;
@@ -918,9 +942,13 @@ export function OutwardGateEntryForm({
               />
             </div>
           </div>
-          <DialogFooter>
+          <DialogFooter className="gap-2">
             <Button variant="outline" size="sm" onClick={() => setIsPostDialogOpen(false)}>
               Cancel
+            </Button>
+            <Button variant="secondary" size="sm" onClick={handleSaveDetails} disabled={isPosting}>
+              {isPosting && <Loader2 className="mr-2 h-3 w-3 animate-spin" />}
+              Save
             </Button>
             <Button size="sm" onClick={handleConfirmPost} disabled={isPosting}>
               {isPosting && <Loader2 className="mr-2 h-3 w-3 animate-spin" />}

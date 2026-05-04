@@ -812,6 +812,52 @@ export function TransferOrderForm({
     }
   };
 
+  const handleSaveDetails = async () => {
+    if (!formState.No) return;
+
+    setIsSubmitting(true);
+    try {
+      const allowedToUpdate = [
+        "Transporter_Code",
+        "Transporter_Name",
+        "External_Document_No",
+        "Posting_Date",
+        "Vehicle_No",
+        "LR_RR_No",
+        "LR_RR_Date",
+        "Distance_Km",
+        "Freight_Value",
+        "Mode_of_Transport",
+      ];
+
+      const diff: Partial<TransferOrder> = {};
+      allowedToUpdate.forEach((k) => {
+        const key = k as keyof TransferOrder;
+        if (formState[key] !== originalState[key]) {
+          (diff as any)[key] =
+            formState[key] || (typeof formState[key] === "number" ? 0 : "");
+        }
+      });
+
+      if (diff.Transporter_Code) {
+        delete diff.Transporter_Name;
+      }
+
+      if (Object.keys(diff).length > 0) {
+        await patchTransferOrder(formState.No, diff);
+        toast.success("Details saved successfully.");
+        fetchOrderData(formState.No);
+      } else {
+        toast.info("No changes to save.");
+      }
+    } catch (error: any) {
+      console.error("Error saving transfer order details:", error);
+      toast.error(error.message || "Failed to save details");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const handleReopen = async () => {
     if (!formState.No) return;
 
@@ -1903,13 +1949,27 @@ export function TransferOrderForm({
 
           <DialogFooter className="gap-3">
             {postStep === 2 && (
-              <Button
-                variant="outline"
-                onClick={() => setPostStep(1)}
-                className="h-10 rounded-lg px-8"
-              >
-                Back
-              </Button>
+              <>
+                <Button
+                  variant="outline"
+                  onClick={() => setPostStep(1)}
+                  className="h-10 rounded-lg px-8"
+                >
+                  Back
+                </Button>
+                <Button
+                  variant="secondary"
+                  onClick={handleSaveDetails}
+                  disabled={isSubmitting}
+                  className="h-10 rounded-lg px-8"
+                >
+                  {isSubmitting ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    "Save"
+                  )}
+                </Button>
+              </>
             )}
             <Button
               variant="outline"

@@ -1407,6 +1407,65 @@ export function PurchaseCreateDocumentFormContent({
       setIsPostLoading(false);
     }
   };
+
+  const handleSaveDetails = async () => {
+    if (!createdOrderNo) return;
+    setIsPostLoading(true);
+    try {
+      const isInvoiceOption =
+        postOption === "invoice" ||
+        postOption === "receive-invoice" ||
+        postOption === "ship-invoice" ||
+        documentType === "invoice" ||
+        documentType === "credit-memo";
+
+      const patchPayload: Record<string, unknown> = {
+        Posting_Date: postDetails.postingDate,
+        Document_Date: postDetails.documentDate,
+        Vehicle_No: postDetails.vehicleNo || "",
+      };
+      if (documentType === "credit-memo" || documentType === "return-order") {
+        patchPayload.Vendor_Cr_Memo_No = postDetails.vendorCrMemoNo || "";
+      } else {
+        patchPayload.Vendor_Invoice_No = postDetails.vendorInvoiceNo || "";
+      }
+      if (isInvoiceOption) {
+        if (documentType !== "return-order" && documentType !== "credit-memo") {
+          patchPayload.Due_Date_calculation =
+            postDetails.dueDateCalculation || "Posting Date";
+        }
+        patchPayload.Line_Narration1 = postDetails.lineNarration || "";
+      }
+      // Filter to only fields that have actually changed compared to the original document on the server
+      const filteredPayload = Object.entries(patchPayload).reduce(
+        (acc, [key, value]) => {
+          const originalValue = (hydratedHeaderRef.current as any)?.[key];
+
+          // Normalize values for comparison (treating null/undefined/empty string as equivalent)
+          const normalize = (v: any) =>
+            v === null || v === undefined ? "" : String(v).trim();
+
+          if (normalize(value) !== normalize(originalValue)) {
+            acc[key] = value;
+          }
+          return acc;
+        },
+        {} as Record<string, unknown>,
+      );
+
+      if (Object.keys(filteredPayload).length > 0) {
+        await config.updateHeader(createdOrderNo, filteredPayload);
+        toast.success("Details saved successfully.");
+        await refreshHydratedDocument();
+      } else {
+        toast.info("No changes to save.");
+      }
+    } catch (err) {
+      toast.error((err as Error).message ?? "Save failed.");
+    } finally {
+      setIsPostLoading(false);
+    }
+  };
   // ────────────────────────────────────────────────────────────────────────
 
   // Status helpers (used in action bar and renderStep1)
@@ -2995,6 +3054,20 @@ export function PurchaseCreateDocumentFormContent({
               disabled={isPostLoading}
             >
               Cancel
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={handleSaveDetails}
+              disabled={isPostLoading}
+            >
+              {isPostLoading ? (
+                <>
+                  <LoaderCircleIcon className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                "Save"
+              )}
             </Button>
             <Button
               onClick={handlePostDetailsSubmit}

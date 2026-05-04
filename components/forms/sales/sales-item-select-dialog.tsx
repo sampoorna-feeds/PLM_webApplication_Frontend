@@ -361,7 +361,7 @@ export function SalesItemSelectDialog({
                       </td>
                       <td className="px-3 py-2 text-xs">{item.Description}</td>
                       <td className="px-3 py-2 text-xs tabular-nums">
-                        {item.Unit_Price != null && item.Unit_Price > 0
+                        {item.Unit_Price != null
                           ? item.Unit_Price.toLocaleString("en-IN", {
                               minimumFractionDigits: 2,
                               maximumFractionDigits: 2,

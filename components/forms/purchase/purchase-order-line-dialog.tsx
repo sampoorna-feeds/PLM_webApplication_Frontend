@@ -363,7 +363,7 @@ export function PurchaseOrderLineDialog({
 
   const handleNumericChange = useCallback(
     (field: keyof LineItem, value: string) => {
-      if (value === "" || /^\d*\.?\d*$/.test(value)) {
+      if (value === "" || /^-?\d*\.?\d*$/.test(value)) {
         handleFieldChange(field, value as any);
       }
     },

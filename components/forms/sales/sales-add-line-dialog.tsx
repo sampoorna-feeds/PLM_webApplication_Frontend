@@ -266,8 +266,8 @@ export function SalesAddLineDialog({
         const mrp = Number(price.MRP ?? 0);
         setForm((p) => ({
           ...p,
-          ...(up > 0 ? { unitPrice: String(up) } : {}),
-          ...(mrp > 0 ? { mrp: String(mrp) } : {}),
+          unitPrice: up != null ? String(up) : p.unitPrice,
+          mrp: mrp != null ? String(mrp) : p.mrp,
         }));
       })
       .catch(() => {});
@@ -330,7 +330,7 @@ export function SalesAddLineDialog({
         no: item.No,
         description: item.Description,
         uom: item.Sales_Unit_of_Measure || p.uom,
-        unitPrice: up > 0 ? String(up) : p.unitPrice,
+        unitPrice: up != null ? String(up) : p.unitPrice,
       }));
       // Load full card for GST/exempted
       getItemByNo(item.No)
@@ -440,7 +440,7 @@ export function SalesAddLineDialog({
         description: form.description.trim(),
         uom: form.uom || undefined,
         quantity: parseFloat(form.quantity) || 0,
-        unitPrice: parseFloat(form.unitPrice) || undefined,
+        unitPrice: form.unitPrice === "" ? undefined : parseFloat(form.unitPrice),
         mrp: documentType === "order" && form.mrp ? parseFloat(form.mrp) || undefined : undefined,
         discount: parseFloat(form.discount) || undefined,
         exempted: form.exempted || undefined,
@@ -718,7 +718,7 @@ export function SalesAddLineDialog({
                     <FieldTitle>Amount</FieldTitle>
                     <Input
                       type="text"
-                      value={amount > 0 ? amount.toFixed(2) : ""}
+                      value={form.unitPrice !== "" ? amount.toFixed(2) : ""}
                       disabled
                       readOnly
                       className={cn("bg-muted h-8 font-medium", fieldInputClass)}

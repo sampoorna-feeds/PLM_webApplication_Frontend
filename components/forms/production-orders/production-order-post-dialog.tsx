@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { CalculatorInput } from "@/components/ui/calculator-input";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -583,15 +584,13 @@ export function ProductionOrderPostSheet({
                             className="p-1"
                             onClick={(event) => event.stopPropagation()}
                           >
-                            <Input
-                              type="text"
-                              inputMode="decimal"
+                            <CalculatorInput
                               value={quantityInputValue}
-                              onChange={(event) =>
+                              onValueChange={(val) =>
                                 handleEditableValueChange(
                                   entry,
                                   "Quantity",
-                                  event.target.value,
+                                  val,
                                 )
                               }
                               disabled={isLineBusy}
@@ -606,15 +605,13 @@ export function ProductionOrderPostSheet({
                             className="p-1"
                             onClick={(event) => event.stopPropagation()}
                           >
-                            <Input
-                              type="text"
-                              inputMode="decimal"
+                            <CalculatorInput
                               value={outputQtyInputValue}
-                              onChange={(event) =>
+                              onValueChange={(val) =>
                                 handleEditableValueChange(
                                   entry,
                                   "Output_Quantity",
-                                  event.target.value,
+                                  val,
                                 )
                               }
                               disabled={isLineBusy}

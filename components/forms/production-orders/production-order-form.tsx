@@ -55,6 +55,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { SearchableSelect } from "@/components/ui/searchable-select";
+import { CalculatorInput } from "@/components/ui/calculator-input";
 import { SourceNoSelect } from "./source-no-select";
 import { useFormStack } from "@/lib/form-stack/use-form-stack";
 import { getAuthCredentials } from "@/lib/auth/storage";
@@ -1321,17 +1322,9 @@ export function ProductionOrderForm({
                 className="bg-muted"
               />
             ) : (
-              <Input
-                type="text"
-                inputMode="decimal"
+              <CalculatorInput
                 value={formState.Quantity}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  // Allow empty, digits and one decimal point
-                  if (val === "" || /^[0-9]*\.?[0-9]*$/.test(val)) {
-                    handleChange("Quantity", val);
-                  }
-                }}
+                onValueChange={(val) => handleChange("Quantity", val)}
                 placeholder="Enter quantity"
               />
             )}

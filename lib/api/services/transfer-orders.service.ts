@@ -34,7 +34,7 @@ export interface TransferOrder {
   External_Document_No?: string;
   In_Transit_Code?: string;
   Status?: string;
-  Assigned_User_ID?: string;
+  SFPL_User_ID?: string;
   Direct_Transfer?: boolean;
   Shortcut_Dimension_1_Code?: string;
   Shortcut_Dimension_2_Code?: string;
@@ -146,7 +146,7 @@ export async function searchTransferOrders(
   const s = searchTerm.replace(/'/g, "''");
   const sLower = s.toLowerCase();
   const sUpper = s.toUpperCase();
-  
+
   const fieldsToSearch = [
     "No",
     "Transfer_from_Code",
@@ -603,12 +603,12 @@ export async function assignTransferItemTracking(
   params: AssignTransferItemTrackingParams,
 ): Promise<unknown> {
   const endpoint = `/API_TrackingAssign?company='${encodeURIComponent(COMPANY)}'`;
-  
+
   // By default, shipment (isReceipt=false) uses negative quantity
   // and receipt (isReceipt=true) uses positive quantity?
   // User says "sent in minus" for previous one.
   // Actually, shipment side in Nav/BC usually subtracts, receipt side adds.
-  
+
   let qty = params.useExactQuantity ? params.quantity : -Math.abs(params.quantity);
   const subType = params.sourceSubType !== undefined ? params.sourceSubType : (params.isReceipt ? 1 : 0);
 
@@ -845,7 +845,7 @@ export async function getTransferLocationCodes(
     const s = search.replace(/'/g, "''");
     const sLower = s.toLowerCase();
     const sUpper = s.toUpperCase();
-    
+
     const [resultsByCode, resultsByName] = await Promise.all([
       (async () => {
         const filter = [
@@ -907,7 +907,7 @@ export async function getTransferAllLocationCodes(
     $orderby: "Code",
     $top: 1000,
   };
-  
+
   const commonParts: string[] = [];
   if (codes && codes.length > 0) {
     const codeFilter = codes
@@ -919,7 +919,7 @@ export async function getTransferAllLocationCodes(
   const fetchBatch = async (searchFilter?: string) => {
     const parts = [...commonParts];
     if (searchFilter) parts.push(searchFilter);
-    
+
     const query = buildODataQuery({
       ...queryParams,
       $filter: parts.length > 0 ? parts.join(" and ") : undefined,
@@ -1151,6 +1151,17 @@ export async function getTransferShipmentReport(shipmentNo: string): Promise<str
   if (typeof response === "string") return response;
   return response?.value || "";
 }
+
+/**
+ * Get transfer receipt report PDF as base64
+ */
+export async function getTransferReceiptReport(receiptNo: string): Promise<string> {
+  const endpoint = `/API_GetTransferReceiptReport?company='${encodeURIComponent(COMPANY)}'`;
+  const payload = { receiptNo };
+  const response = await apiPost<{ value: string } | string>(endpoint, payload);
+  if (typeof response === "string") return response;
+  return response?.value || "";
+}
 /**
  * Get download record link for E-way Bill or E-Invoice
  */
@@ -1160,11 +1171,11 @@ export async function getDownloadRecordLink(params: { documentType: string; docu
   try {
     const response = await apiPost<{ value: string } | string>(endpoint, params);
     let url = typeof response === "string" ? response : response?.value || "";
-    
+
     if (url && !url.startsWith("http://") && !url.startsWith("https://") && !url.startsWith("/")) {
       url = `https://${url}`;
     }
-    
+
     return url;
   } catch (error) {
     console.error("Error fetching record link:", error);
@@ -1248,7 +1259,7 @@ export async function getTransferLocationsForDialog(params: {
   const fetchBatch = async (searchFilter?: string) => {
     const allFilters = [...baseFilters];
     if (searchFilter) allFilters.push(searchFilter);
-    
+
     const query = buildODataQuery({
       $select: "Code,Name,City,Address,Post_Code",
       $filter: allFilters.length > 0 ? allFilters.join(" and ") : undefined,
@@ -1311,11 +1322,11 @@ export async function getTransferItemsForDialog(params: {
   customFilter?: string;
 }): Promise<{ value: TransferItem[]; count: number }> {
   const baseFilters: string[] = ["Blocked eq false"];
-  
+
   if (params.customFilter) {
     baseFilters.push(params.customFilter);
   }
-  
+
   if (params.filters) {
     Object.entries(params.filters).forEach(([col, val]) => {
       if (val) baseFilters.push(`contains(tolower(${col}),'${val.replace(/'/g, "''").toLowerCase()}')`);
@@ -1334,7 +1345,7 @@ export async function getTransferItemsForDialog(params: {
     const allFilters = [...baseFilters];
     if (searchFilter) allFilters.push(searchFilter);
     const finalFilters = [...allFilters, ...extraFilters];
-    
+
     const query = buildODataQuery({
       $select: "No,Description,Base_Unit_of_Measure,Net_Change",
       $filter: finalFilters.length > 0 ? finalFilters.join(" and ") : undefined,
@@ -1372,7 +1383,7 @@ export async function getTransferItemsForDialog(params: {
     merged.sort((a, b) => {
       const valA = a[col];
       const valB = b[col];
-      
+
       if (typeof valA === "number" && typeof valB === "number") {
         return (valA - valB) * dir;
       }

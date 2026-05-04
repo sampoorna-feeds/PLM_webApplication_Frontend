@@ -25,6 +25,13 @@ export const DEFAULT_COLUMNS: ColumnConfig[] = [
     filterType: "text",
   },
   {
+    id: "Purchase_Receipt_No",
+    label: "Purchase Receipt No.",
+    sortable: true,
+    defaultVisible: true,
+    filterType: "text",
+  },
+  {
     id: "Item_No",
     label: "Item No.",
     sortable: true,

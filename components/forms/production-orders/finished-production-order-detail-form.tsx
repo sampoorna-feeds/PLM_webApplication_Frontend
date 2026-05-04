@@ -64,7 +64,7 @@ const FIELD_LABELS: Record<string, string> = {
   BOM_Version_No: "BOM Version No",
   Batch_Size: "Batch Size",
   Variant_Code: "Variant Code",
-  Assigned_User_ID: "Assigned User ID",
+  SFPL_User_ID: "Assigned User ID",
   Last_Date_Modified: "Last Date Modified",
   Starting_Time: "Starting Time",
   Starting_Date: "Starting Date",
@@ -94,7 +94,7 @@ const FIELD_GROUPS: { title: string; fields: string[] }[] = [
       "Description_2",
       "Search_Description",
       "Supervisor_Name",
-      "Assigned_User_ID",
+      "SFPL_User_ID",
     ],
   },
   {

@@ -40,7 +40,7 @@ export interface ProductionOrder {
   BOM_Version_No?: string;
   Batch_Size?: string;
   Variant_Code?: string;
-  Assigned_User_ID?: string;
+  SFPL_User_ID?: string;
   Last_Date_Modified?: string;
   Starting_Time?: string;
   Starting_Date?: string;

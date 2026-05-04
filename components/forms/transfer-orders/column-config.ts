@@ -115,8 +115,8 @@ export const OPTIONAL_COLUMNS: ColumnConfig[] = [
     filterType: "date",
   },
   {
-    id: "Assigned_User_ID",
-    label: "Assigned User",
+    id: "SFPL_User_ID",
+    label: "SFPL User ID",
     sortable: true,
     defaultVisible: false,
     filterType: "text",

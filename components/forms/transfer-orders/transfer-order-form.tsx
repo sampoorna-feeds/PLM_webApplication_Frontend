@@ -40,6 +40,7 @@ import {
   getTransferAllLocationCodes,
   getTransferOrderByNo,
   getTransferOrderLines,
+  getTransferReceiptReport,
   getTransferShipmentReport,
   patchTransferOrder,
   postTransferOrder,
@@ -105,7 +106,7 @@ export function TransferOrderForm({
     Transporter_Code: "",
     Transporter_Name: "",
     Mode_of_Transport: "",
-    Assigned_User_ID: "",
+    SFPL_User_ID: "",
     Direct_Transfer: false,
     Shortcut_Dimension_1_Code: "", // LOB
     Shortcut_Dimension_2_Code: "", // Branch Code
@@ -165,6 +166,7 @@ export function TransferOrderForm({
   const [successInfo, setSuccessInfo] = useState({ title: "", message: "" });
   const [printPromptOpen, setPrintPromptOpen] = useState(false);
   const [lastPostedShipmentNo, setLastPostedShipmentNo] = useState<string | null>(null);
+  const [lastPostedReceiptNo, setLastPostedReceiptNo] = useState<string | null>(null);
 
 
   // Debug: Monitor locations state changes
@@ -189,7 +191,7 @@ export function TransferOrderForm({
         if (!isViewMode) {
           setFormState((prev) => ({
             ...prev,
-            Assigned_User_ID: credentials.userID,
+            SFPL_User_ID: credentials.userID,
           }));
         }
 
@@ -577,7 +579,7 @@ export function TransferOrderForm({
       "Shortcut_Dimension_1_Code",
       "Shortcut_Dimension_2_Code",
       "In_Transit_Code",
-      "Assigned_User_ID",
+      "SFPL_User_ID",
       "Shipment_Date",
       "Receipt_Date",
       "Shipping_Advice",
@@ -760,14 +762,35 @@ export function TransferOrderForm({
           const shipments = await getPostedTransferShipmentsByOrder(formState.No);
           if (shipments && shipments.length > 0) {
             // Sort by number descending or just take the first one (usually latest)
-            const latestShipment = shipments.sort((a,b) => b.No.localeCompare(a.No))[0];
+            const latestShipment = shipments.sort((a, b) => b.No.localeCompare(a.No))[0];
             setLastPostedShipmentNo(latestShipment.No);
+            setLastPostedReceiptNo(null);
+            setReportType("shipment");
             setPrintPromptOpen(true);
             setIsPostDialogOpen(false);
             return; // Skip standard success dialog if we're showing print prompt
           }
         } catch (shipmentErr) {
           console.error("Error fetching shipment for print prompt:", shipmentErr);
+        }
+      }
+
+      // Handle print prompt if receipt was posted
+      if (postSelection === "receive") {
+        try {
+          const receipts = await getPostedTransferReceiptsByOrder(formState.No);
+          if (receipts && receipts.length > 0) {
+            // Sort by number descending or just take the first one (usually latest)
+            const latestReceipt = receipts.sort((a, b) => b.No.localeCompare(a.No))[0];
+            setLastPostedReceiptNo(latestReceipt.No);
+            setLastPostedShipmentNo(null);
+            setReportType("receipt");
+            setPrintPromptOpen(true);
+            setIsPostDialogOpen(false);
+            return; // Skip standard success dialog if we're showing print prompt
+          }
+        } catch (receiptErr) {
+          console.error("Error fetching receipt for print prompt:", receiptErr);
         }
       }
 
@@ -868,38 +891,43 @@ export function TransferOrderForm({
     return new Blob([new Uint8Array(byteNumbers)], { type: "application/pdf" });
   };
 
-  const getReportPdfUrl = async (shipmentNo: string) => {
-    if (reportPdfUrls[shipmentNo]) return reportPdfUrls[shipmentNo];
+  const getReportPdfUrl = async (docNo: string, type?: "shipment" | "receipt") => {
+    if (reportPdfUrls[docNo]) return reportPdfUrls[docNo];
 
-    setActiveReportDocNo(shipmentNo);
+    const activeType = type || reportType;
+    setActiveReportDocNo(docNo);
     try {
-      const base64Data = await getTransferShipmentReport(shipmentNo);
+      const base64Data = activeType === "receipt"
+        ? await getTransferReceiptReport(docNo)
+        : await getTransferShipmentReport(docNo);
+
       if (!base64Data) throw new Error("No PDF content returned.");
 
       const blob = base64ToPdfBlob(base64Data);
       const url = window.URL.createObjectURL(blob);
-      setReportPdfUrls((prev) => ({ ...prev, [shipmentNo]: url }));
+      setReportPdfUrls((prev) => ({ ...prev, [docNo]: url }));
       return url;
     } finally {
       setActiveReportDocNo(null);
     }
   };
 
-  const handlePreviewReport = async (shipmentNo: string) => {
+  const handlePreviewReport = async (docNo: string, type?: "shipment" | "receipt") => {
     try {
-      const url = await getReportPdfUrl(shipmentNo);
+      const url = await getReportPdfUrl(docNo, type);
       window.open(url, "_blank", "noopener,noreferrer");
     } catch (err: any) {
       toast.error(err.message || "Failed to preview report");
     }
   };
 
-  const handleDownloadReport = async (shipmentNo: string) => {
+  const handleDownloadReport = async (docNo: string, type?: "shipment" | "receipt") => {
     try {
-      const url = await getReportPdfUrl(shipmentNo);
+      const activeType = type || reportType;
+      const url = await getReportPdfUrl(docNo, activeType);
       const link = document.createElement("a");
       link.href = url;
-      link.download = `Shipment_Report_${shipmentNo}.pdf`;
+      link.download = `${activeType === "receipt" ? "Receipt" : "Shipment"}_Report_${docNo}.pdf`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -960,9 +988,9 @@ export function TransferOrderForm({
     setPostStep(2);
   };
 
-  const handlePrintReport = async (shipmentNo: string) => {
+  const handlePrintReport = async (docNo: string, type?: "shipment" | "receipt") => {
     try {
-      const url = await getReportPdfUrl(shipmentNo);
+      const url = await getReportPdfUrl(docNo, type);
       const iframe = document.createElement("iframe");
       iframe.style.display = "none";
       iframe.src = url;
@@ -1283,13 +1311,13 @@ export function TransferOrderForm({
                       disabled={formState.Status === "Released"}
                       min={
                         webUserProfile?.Allow_Posting_From &&
-                        webUserProfile.Allow_Posting_From !== "0001-01-01"
+                          webUserProfile.Allow_Posting_From !== "0001-01-01"
                           ? webUserProfile.Allow_Posting_From.split("T")[0]
                           : undefined
                       }
                       max={
                         webUserProfile?.Allow_Posting_To &&
-                        webUserProfile.Allow_Posting_To !== "0001-01-01"
+                          webUserProfile.Allow_Posting_To !== "0001-01-01"
                           ? webUserProfile.Allow_Posting_To.split("T")[0]
                           : undefined
                       }
@@ -1702,13 +1730,13 @@ export function TransferOrderForm({
                     onChange={(val) => handleChange("Posting_Date", val)}
                     min={
                       webUserProfile?.Allow_Posting_From &&
-                      webUserProfile.Allow_Posting_From !== "0001-01-01"
+                        webUserProfile.Allow_Posting_From !== "0001-01-01"
                         ? webUserProfile.Allow_Posting_From.split("T")[0]
                         : undefined
                     }
                     max={
                       webUserProfile?.Allow_Posting_To &&
-                      webUserProfile.Allow_Posting_To !== "0001-01-01"
+                        webUserProfile.Allow_Posting_To !== "0001-01-01"
                         ? webUserProfile.Allow_Posting_To.split("T")[0]
                         : undefined
                     }
@@ -1757,7 +1785,7 @@ export function TransferOrderForm({
                   <DateInput
                     value={
                       formState.LR_RR_Date &&
-                      formState.LR_RR_Date !== "0001-01-01"
+                        formState.LR_RR_Date !== "0001-01-01"
                         ? formState.LR_RR_Date.split("T")[0]
                         : ""
                     }
@@ -2092,7 +2120,7 @@ export function TransferOrderForm({
         }}
       />
 
-      {/* Print Shipment Prompt */}
+      {/* Print Shipment/Receipt Prompt */}
       <Dialog open={printPromptOpen} onOpenChange={setPrintPromptOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
@@ -2101,9 +2129,9 @@ export function TransferOrderForm({
               Transfer Order Posted
             </DialogTitle>
             <DialogDescription className="py-4">
-              Transfer Order <strong>{formState.No}</strong> has been posted successfully and shipment <strong>{lastPostedShipmentNo}</strong> has been created.
+              Transfer Order <strong>{formState.No}</strong> has been posted successfully and {lastPostedShipmentNo ? "shipment" : "receipt"} <strong>{lastPostedShipmentNo || lastPostedReceiptNo}</strong> has been created.
               <br /><br />
-              Would you like to print the transfer shipment document now?
+              Would you like to print the transfer {lastPostedShipmentNo ? "shipment" : "receipt"} document now?
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="flex gap-2 sm:justify-between">
@@ -2116,12 +2144,14 @@ export function TransferOrderForm({
             </Button>
             <Button
               onClick={() => {
-                if (lastPostedShipmentNo) {
-                  handlePreviewReport(lastPostedShipmentNo);
+                const docNo = lastPostedShipmentNo || lastPostedReceiptNo;
+                const type = lastPostedShipmentNo ? "shipment" : "receipt";
+                if (docNo) {
+                  handlePreviewReport(docNo, type);
                   setPrintPromptOpen(false);
                 }
               }}
-              disabled={!lastPostedShipmentNo}
+              disabled={!lastPostedShipmentNo && !lastPostedReceiptNo}
               className="flex-1 gap-2"
             >
               <Printer className="h-4 w-4" />

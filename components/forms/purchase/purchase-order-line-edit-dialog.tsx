@@ -68,6 +68,7 @@ interface PurchaseOrderLineEditDialogProps {
   onAssignTracking?: (line: PurchaseLine) => void;
   onOpenItemCharge?: (line: PurchaseLine) => void;
   updateLine?: (documentNo: string, lineNo: number, payload: Record<string, unknown>) => Promise<unknown>;
+  gstVendorType?: string;
 }
 
 export function PurchaseOrderLineEditDialog({
@@ -83,6 +84,7 @@ export function PurchaseOrderLineEditDialog({
   onAssignTracking,
   onOpenItemCharge,
   updateLine,
+  gstVendorType,
 }: PurchaseOrderLineEditDialogProps) {
   const [quantity, setQuantity] = useState("");
   const [qtyReceived, setQtyReceived] = useState("");
@@ -102,6 +104,8 @@ export function PurchaseOrderLineEditDialog({
   const [actualQty, setActualQty] = useState("");
   const [outstandingQty, setOutstandingQty] = useState("");
   const [gstCredit, setGstCredit] = useState("");
+  const [gstAssessableValue, setGstAssessableValue] = useState("");
+  const [customDutyAmount, setCustomDutyAmount] = useState("");
   const [shortcutDimCode4, setShortcutDimCode4] = useState("");
   const [shortcutDimCode5, setShortcutDimCode5] = useState("");
   const [applToItemEntry, setApplToItemEntry] = useState<string>("");
@@ -147,6 +151,8 @@ export function PurchaseOrderLineEditDialog({
     setShortcutDimCode4(line.ShortcutDimCode4 ? String(line.ShortcutDimCode4) : "");
     setShortcutDimCode5(line.ShortcutDimCode5 ? String(line.ShortcutDimCode5) : "");
     setApplToItemEntry(line.Appl_to_Item_Entry ? String(line.Appl_to_Item_Entry) : "");
+    setGstAssessableValue(line.GST_Assessable_Value != null ? String(line.GST_Assessable_Value) : "");
+    setCustomDutyAmount(line.Custom_Duty_Amount != null ? String(line.Custom_Duty_Amount) : "");
     setUom(line.Unit_of_Measure_Code || "");
   }, [line]);
 
@@ -404,6 +410,18 @@ export function PurchaseOrderLineEditDialog({
         payload.ShortcutDimCode5 = shortcutDimCode5;
       if (uom !== (line.Unit_of_Measure_Code || ""))
         payload.Unit_of_Measure_Code = uom;
+
+      if (gstVendorType === "Import") {
+        const assessableVal = gstAssessableValue === "" ? undefined : parseFloat(gstAssessableValue);
+        const dutyVal = customDutyAmount === "" ? undefined : parseFloat(customDutyAmount);
+
+        if (assessableVal !== undefined && !isNaN(assessableVal) && assessableVal !== (line.GST_Assessable_Value ?? undefined)) {
+          payload.GST_Assessable_Value = assessableVal;
+        }
+        if (dutyVal !== undefined && !isNaN(dutyVal) && dutyVal !== (line.Custom_Duty_Amount ?? undefined)) {
+          payload.Custom_Duty_Amount = dutyVal;
+        }
+      }
 
       if ((line.Type || "").trim() === "Fixed Asset") {
         if (faPostingType.trim() !== (line.FA_Posting_Type || "").trim()) {
@@ -880,6 +898,52 @@ export function PurchaseOrderLineEditDialog({
                     }
                   />
                 </div>
+
+                {gstVendorType === "Import" && (
+                  <>
+                    <div className="space-y-1 overflow-hidden">
+                      <Label htmlFor="po-line-gst-assessable-value" className="text-xs">
+                        GST Assessable Value
+                      </Label>
+                      <ClearableField
+                        value={gstAssessableValue}
+                        onClear={() => setGstAssessableValue("")}
+                      >
+                        <Input
+                          id="po-line-gst-assessable-value"
+                          inputMode="decimal"
+                          value={gstAssessableValue}
+                          onChange={(e) => {
+                            if (isValidNum(e.target.value)) setGstAssessableValue(e.target.value);
+                          }}
+                          placeholder="0.00"
+                          className={fieldInputClass}
+                        />
+                      </ClearableField>
+                    </div>
+
+                    <div className="space-y-1 overflow-hidden">
+                      <Label htmlFor="po-line-custom-duty-amount" className="text-xs">
+                        Custom Duty Amount
+                      </Label>
+                      <ClearableField
+                        value={customDutyAmount}
+                        onClear={() => setCustomDutyAmount("")}
+                      >
+                        <Input
+                          id="po-line-custom-duty-amount"
+                          inputMode="decimal"
+                          value={customDutyAmount}
+                          onChange={(e) => {
+                            if (isValidNum(e.target.value)) setCustomDutyAmount(e.target.value);
+                          }}
+                          placeholder="0.00"
+                          className={fieldInputClass}
+                        />
+                      </ClearableField>
+                    </div>
+                  </>
+                )}
 
 
 

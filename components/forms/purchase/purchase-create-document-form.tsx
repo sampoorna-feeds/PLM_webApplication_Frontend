@@ -2682,6 +2682,7 @@ export function PurchaseCreateDocumentFormContent({
           documentType={documentType}
           orderNo={createdOrderNo}
           vendorNo={formData.vendorNo}
+          gstVendorType={formData.gstVendorType}
           hasTracking={selectedLine.Type === "Item"}
           onAssignTracking={(line) => {
             setTrackingLine(line);

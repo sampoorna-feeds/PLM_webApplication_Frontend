@@ -2982,13 +2982,15 @@ export function PurchaseCreateDocumentFormContent({
             )}
             {(documentType === "credit-memo" || documentType === "return-order") && (
               <div className="space-y-1">
-                <Label className="text-xs font-semibold">Vendor Credit Memo No. *</Label>
+                <Label className="text-xs font-semibold">
+                  Vendor Credit Memo No. {postOption === "ship" ? "" : "*"}
+                </Label>
                 <Input
                   value={postDetails.vendorCrMemoNo}
                   onChange={(e) =>
                     setPostDetails((p) => ({ ...p, vendorCrMemoNo: e.target.value }))
                   }
-                  placeholder="Mandatory"
+                  placeholder={postOption === "ship" ? "Optional" : "Mandatory"}
                   className="h-8"
                 />
               </div>
@@ -3075,7 +3077,7 @@ export function PurchaseCreateDocumentFormContent({
                 isPostLoading ||
                 !postDetails.postingDate ||
                 !postDetails.documentDate ||
-                ((documentType === "credit-memo" || documentType === "return-order") && !postDetails.vendorCrMemoNo?.trim()) ||
+                ((documentType === "credit-memo" || (documentType === "return-order" && postOption !== "ship")) && !postDetails.vendorCrMemoNo?.trim()) ||
                 ((postOption === "invoice" || postOption === "receive-invoice" || postOption === "ship-invoice" || documentType === "invoice" || documentType === "credit-memo") && !postDetails.lineNarration?.trim())
               }
             >

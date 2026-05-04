@@ -344,6 +344,8 @@ export interface BardanaLine {
   Description?: string;
   UOM: string;
   Quantity: number;
+  Weight_Per?: number;
+  Total_Weight?: number;
 }
 
 /**

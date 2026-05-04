@@ -10,6 +10,7 @@ import {
 } from "@/lib/api/services/transfer-orders.service";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
+import { formatDate } from "@/lib/utils/date";
 
 export interface TransferOrderDetailFormProps {
   tabId?: string;
@@ -221,13 +222,3 @@ function SummaryField({ label, value }: { label: string; value: any }) {
   );
 }
 
-function formatDate(dateStr?: string) {
-  if (!dateStr || dateStr === "0001-01-01") return "-";
-  try {
-    const d = new Date(dateStr);
-    if (isNaN(d.getTime())) return dateStr;
-    return d.toLocaleDateString();
-  } catch {
-    return dateStr;
-  }
-}

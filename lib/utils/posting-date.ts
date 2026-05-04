@@ -1,5 +1,6 @@
 import { toast } from "sonner";
 import type { WebUser } from "@/lib/api/services/web-user.service";
+import { formatDate } from "@/lib/utils/date";
 
 export function isPostingDateValid(
   date: string | undefined,
@@ -15,7 +16,7 @@ export function isPostingDateValid(
   if (from && from !== "0001-01-01") {
     const fromDate = new Date(from);
     if (postingDate < fromDate) {
-      toast.error(`Posting Date must be on or after ${fromDate.toLocaleDateString()}`);
+      toast.error(`Posting Date must be on or after ${formatDate(fromDate)}`);
       return false;
     }
   }
@@ -23,7 +24,7 @@ export function isPostingDateValid(
   if (to && to !== "0001-01-01") {
     const toDate = new Date(to);
     if (postingDate > toDate) {
-      toast.error(`Posting Date must be on or before ${toDate.toLocaleDateString()}`);
+      toast.error(`Posting Date must be on or before ${formatDate(toDate)}`);
       return false;
     }
   }

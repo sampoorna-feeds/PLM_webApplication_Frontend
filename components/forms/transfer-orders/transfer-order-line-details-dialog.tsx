@@ -30,6 +30,7 @@ import {
   TransferOrderItemTrackingDialog
 } from "./transfer-order-item-tracking-dialog";
 import { TransferBardanaDialog } from "./transfer-bardana-dialog";
+import { formatDate } from "@/lib/utils/date";
 
 
 
@@ -338,7 +339,7 @@ export function TransferOrderLineDetailsDialog({
                 <SearchableSelect
                   options={ledgerEntries.map((e) => ({
                     value: e.Entry_No.toString(),
-                    label: `Entry: ${e.Entry_No} | Date: ${e.Posting_Date ? new Date(e.Posting_Date).toLocaleDateString() : "N/A"} | Doc: ${e.Document_No} | Qty: ${e.Quantity} | Rem: ${e.Remaining_Quantity}`,
+                    label: `Entry: ${e.Entry_No} | Date: ${e.Posting_Date ? formatDate(e.Posting_Date) : "N/A"} | Doc: ${e.Document_No} | Qty: ${e.Quantity} | Rem: ${e.Remaining_Quantity}`,
                   }))}
                   value={formData.Appl_to_Item_Entry?.toString() || ""}
                   onValueChange={(v) => handleChange("Appl_to_Item_Entry", v)}
@@ -366,7 +367,7 @@ export function TransferOrderLineDetailsDialog({
                         <>
                           {detailItem("Document No.", selectedEntry.Document_No)}
                           {detailItem("Item No.", selectedEntry.Item_No)}
-                          {detailItem("Posting Date", selectedEntry.Posting_Date ? new Date(selectedEntry.Posting_Date).toLocaleDateString() : "N/A")}
+                          {detailItem("Posting Date", selectedEntry.Posting_Date ? formatDate(selectedEntry.Posting_Date) : "N/A")}
                           {detailItem("Quantity", selectedEntry.Quantity)}
                           {detailItem("Remaining Qty", selectedEntry.Remaining_Quantity)}
                           {detailItem("Vehicle No.", selectedEntry.Vehicle_No, true)}

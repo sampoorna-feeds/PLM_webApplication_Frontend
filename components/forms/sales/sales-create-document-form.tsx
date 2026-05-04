@@ -186,6 +186,7 @@ import { mapSalesHeaderToFormData } from "./sales-document-hydration";
 import type { SalesDocumentFormMode } from "./sales-form-stack";
 import { validatePhone } from "@/lib/validations/shipto.validation";
 import type { SalesDocumentHeaderData } from "./sales-document-header-data";
+import { formatDate } from "@/lib/utils/date";
 
 // ── Per-document-type config object ──────────────────────────────────────────
 
@@ -321,15 +322,6 @@ const EMPTY_FORM_STATE: CreateFormState = {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function formatDate(val: string | undefined): string {
-  if (!val || val === "0001-01-01") return "-";
-  try {
-    const d = new Date(val);
-    return isNaN(d.getTime()) ? val : d.toLocaleDateString();
-  } catch {
-    return val;
-  }
-}
 
 function formatAmount(val: number | undefined): string {
   if (val == null) return "-";

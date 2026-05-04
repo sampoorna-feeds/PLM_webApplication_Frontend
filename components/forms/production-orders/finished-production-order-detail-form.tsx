@@ -19,6 +19,7 @@ import { ProductionOrderQRDialog } from "./production-order-qr-dialog";
 import { ProductionOrderWorkOrderDialog } from "./production-order-work-order-dialog";
 import { ProductionOrderLinesTable } from "./production-order-lines-table";
 import { Button } from "@/components/ui/button";
+import { formatDate } from "@/lib/utils/date";
 
 interface FinishedProductionOrderDetailFormProps {
   tabId: string;
@@ -26,15 +27,6 @@ interface FinishedProductionOrderDetailFormProps {
   context?: Record<string, unknown>;
 }
 
-function formatDate(val: string | undefined): string {
-  if (!val || val === "0001-01-01") return "-";
-  try {
-    const d = new Date(val);
-    return isNaN(d.getTime()) ? val : d.toLocaleDateString();
-  } catch {
-    return val;
-  }
-}
 
 function formatValue(val: unknown): string {
   if (val === null || val === undefined || val === "") return "-";

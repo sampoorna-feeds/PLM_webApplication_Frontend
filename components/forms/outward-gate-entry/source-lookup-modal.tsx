@@ -26,6 +26,7 @@ import {
   type OutwardGateEntrySourceType,
 } from "@/lib/api/services/outward-gate-entry.service";
 import { Skeleton } from "@/components/ui/skeleton";
+import { formatDate } from "@/lib/utils/date";
 
 interface SourceLookupModalProps {
   isOpen: boolean;
@@ -304,7 +305,7 @@ export function SourceLookupModal({
                         )}
                         {sourceType !== "Transfer Shipment" && <TableCell className="px-1 py-1.5 text-xs">{location}</TableCell>}
                         <TableCell className="px-1 py-1.5 text-xs">
-                          {date ? new Date(date).toLocaleDateString() : "-"}
+                          {date ? formatDate(date) : "-"}
                         </TableCell>
                         <TableCell className="px-1 py-1.5 text-xs">{status}</TableCell>
                       </TableRow>

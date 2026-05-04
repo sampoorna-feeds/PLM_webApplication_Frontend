@@ -53,6 +53,7 @@ import { LineEntryModal } from "./line-entry-modal";
 import { CascadingDimensionSelect } from "@/components/forms/cascading-dimension-select";
 import { getAuthCredentials } from "@/lib/auth/storage";
 import { isPostingDateValid } from "@/lib/utils/posting-date";
+import { formatDate } from "@/lib/utils/date";
 
 interface OutwardGateEntryFormProps {
   tabId: string;
@@ -860,7 +861,7 @@ export function OutwardGateEntryForm({
                       </TableCell>
                       <TableCell className="text-xs font-medium">{line.Challan_No}</TableCell>
                       <TableCell className="text-xs">
-                        {line.Challan_Date ? new Date(line.Challan_Date).toLocaleDateString() : "-"}
+                        {line.Challan_Date ? formatDate(line.Challan_Date) : "-"}
                       </TableCell>
                       <TableCell className="text-xs">{line.Source_Type}</TableCell>
                       <TableCell className="text-xs">{line.Source_No}</TableCell>

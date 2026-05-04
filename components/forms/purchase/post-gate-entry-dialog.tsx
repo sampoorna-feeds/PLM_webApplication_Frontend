@@ -32,6 +32,7 @@ import {
   type PostGateEntryLine,
 } from "@/lib/api/services/purchase-orders.service";
 import type { ApiError } from "@/lib/api/client";
+import { formatDate } from "@/lib/utils/date";
 
 interface PostGateEntryDialogProps {
   sourceNo: string;
@@ -42,15 +43,6 @@ function rowId(row: PostGateEntryLine): string {
   return `${row.Gate_Entry_No}::${row.Line_No}`;
 }
 
-function formatDate(val?: string): string {
-  if (!val || val === "0001-01-01") return "-";
-  try {
-    const parsed = new Date(val);
-    return Number.isNaN(parsed.getTime()) ? val : parsed.toLocaleDateString();
-  } catch {
-    return val;
-  }
-}
 
 export function PostGateEntryDialog({
   sourceNo,

@@ -53,6 +53,7 @@ import { LineEntryModal } from "./line-entry-modal";
 import { CascadingDimensionSelect } from "@/components/forms/cascading-dimension-select";
 import { getAuthCredentials } from "@/lib/auth/storage";
 import { isPostingDateValid } from "@/lib/utils/posting-date";
+import { formatDate } from "@/lib/utils/date";
 
 interface InwardGateEntryFormProps {
   tabId: string;
@@ -856,7 +857,7 @@ export function InwardGateEntryForm({
                         </TableCell>
                         <TableCell>
                           {line.Challan_Date ? (
-                            new Date(line.Challan_Date).toLocaleDateString()
+                            formatDate(line.Challan_Date)
                           ) : (
                             "-"
                           )}

@@ -18,6 +18,7 @@ import { Loader2, RotateCcw, Send } from "lucide-react";
 import { useEffect, useState } from "react";
 import { QCReceiptLinesTable } from "./qc-receipt-lines-table";
 import { useQCReceiptLines, useQCReceiptPosting, useQCReceiptUpdate } from "./use-qc-receipts";
+import { formatDate } from "@/lib/utils/date";
 
 interface QCReceiptDetailFormProps {
   tabId: string;
@@ -402,13 +403,3 @@ function SummaryField({ label, value }: { label: string; value: any }) {
   );
 }
 
-function formatDate(dateStr?: string) {
-  if (!dateStr || dateStr === "0001-01-01") return "-";
-  try {
-    const d = new Date(dateStr);
-    if (isNaN(d.getTime())) return dateStr;
-    return d.toLocaleDateString();
-  } catch {
-    return dateStr;
-  }
-}

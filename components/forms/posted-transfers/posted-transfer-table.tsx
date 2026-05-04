@@ -6,6 +6,7 @@ import { Eye, Loader2, ArrowUp, ArrowDown, ArrowUpDown, Download, Printer } from
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { POSTED_TRANSFER_COLUMNS, type SortDirection } from "./column-config";
 import { ColumnFilter } from "./column-filter";
+import { formatDate } from "@/lib/utils/date";
 
 interface PostedTransferTableProps {
   data: any[];
@@ -243,7 +244,7 @@ function formatValue(value: any, columnId: string) {
   if (columnId === "Posting_Date" && typeof value === "string" && value !== "0001-01-01") {
     try {
       const date = new Date(value);
-      if (!isNaN(date.getTime())) return date.toLocaleDateString();
+      if (!isNaN(date.getTime())) return formatDate(date);
     } catch { /* ignore */ }
   }
   

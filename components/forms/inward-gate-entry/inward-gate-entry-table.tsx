@@ -9,6 +9,7 @@ import {
 } from "./column-config";
 
 import { InwardGateEntryColumnFilter } from "./column-filter";
+import { formatDate } from "@/lib/utils/date";
 
 interface InwardGateEntryTableProps {
   entries: InwardGateEntryHeader[];
@@ -233,7 +234,7 @@ function formatValue(value: any, columnId: string): string {
     try {
       const date = new Date(value);
       if (!isNaN(date.getTime())) {
-        return date.toLocaleDateString();
+        return formatDate(date);
       }
     } catch {
       // ignore

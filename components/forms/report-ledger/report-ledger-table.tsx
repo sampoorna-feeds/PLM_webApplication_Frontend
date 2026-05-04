@@ -12,6 +12,7 @@ import {
 } from "./column-config";
 import { ColumnFilter } from "./column-filter";
 import type { ReportLedgerFilters } from "./types";
+import { formatDate } from "@/lib/utils/date";
 
 interface ReportLedgerTableProps {
   entries: ItemLedgerEntry[];
@@ -370,7 +371,7 @@ function formatCellValue(value: unknown, column: ColumnConfig): string {
       if (typeof value === "string") {
         try {
           const date = new Date(value);
-          return date.toLocaleDateString("en-IN");
+          return formatDate(date);
         } catch {
           return value;
         }

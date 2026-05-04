@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Loader2 } from "lucide-react";
 import type { SummaryRow, SummaryGroup } from "./use-inventory-summary";
+import { formatDate } from "@/lib/utils/date";
 
 interface InventorySummaryTableProps {
   allRows: SummaryRow[];
@@ -28,11 +29,7 @@ function fmtDateHeader(dateStr: string): string {
   if (!dateStr) return "";
   try {
     const d = new Date(dateStr);
-    return `As of ${d.toLocaleDateString("en-IN", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "2-digit",
-    })}`;
+    return `As of ${formatDate(d)}`;
   } catch {
     return dateStr;
   }

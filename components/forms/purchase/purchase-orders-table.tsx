@@ -8,6 +8,7 @@ import {
   type ColumnConfig,
 } from "./column-config";
 import { PurchaseOrderColumnFilter } from "./column-filter";
+import { formatDate } from "@/lib/utils/date";
 
 interface PurchaseOrdersTableProps {
   orders: PurchaseOrder[];
@@ -214,7 +215,7 @@ function PurchaseOrderRow({
       try {
         const date = new Date(value);
         if (!isNaN(date.getTime())) {
-          return date.toLocaleDateString();
+          return formatDate(date);
         }
       } catch {
         // ignore

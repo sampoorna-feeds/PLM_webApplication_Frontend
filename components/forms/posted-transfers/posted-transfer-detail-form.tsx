@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ChevronDown, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { formatDate } from "@/lib/utils/date";
 
 export interface PostedTransferDetailFormProps {
   tabId: string;
@@ -319,13 +320,3 @@ function SummaryField({ label, value }: { label: string; value: any }) {
   );
 }
 
-function formatDate(dateStr?: string) {
-  if (!dateStr || dateStr === "0001-01-01") return "-";
-  try {
-    const d = new Date(dateStr);
-    if (isNaN(d.getTime())) return dateStr;
-    return d.toLocaleDateString();
-  } catch {
-    return dateStr;
-  }
-}

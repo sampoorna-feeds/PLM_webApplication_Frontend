@@ -9,6 +9,7 @@ import {
   type ColumnConfig,
 } from "./column-config";
 import { QCReceiptColumnFilter } from "./column-filter";
+import { formatDate } from "@/lib/utils/date";
 
 interface QCReceiptsTableProps {
   receipts: QCReceiptHeader[];
@@ -214,7 +215,7 @@ function QCReceiptRow({
       try {
         const date = new Date(value);
         if (!isNaN(date.getTime())) {
-          return date.toLocaleDateString();
+          return formatDate(date);
         }
       } catch {
         // ignore

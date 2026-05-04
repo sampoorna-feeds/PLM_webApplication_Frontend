@@ -9,6 +9,7 @@ import {
   type ColumnConfig,
 } from "./column-config";
 import { TransferOrderColumnFilter } from "./column-filter";
+import { formatDate } from "@/lib/utils/date";
 
 interface TransferOrdersTableProps {
   orders: TransferOrder[];
@@ -213,7 +214,7 @@ function TransferOrderRow({
       try {
         const date = new Date(value);
         if (!isNaN(date.getTime())) {
-          return date.toLocaleDateString();
+          return formatDate(date);
         }
       } catch {
         // ignore

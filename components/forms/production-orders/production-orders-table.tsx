@@ -9,6 +9,7 @@ import {
   type ColumnConfig,
 } from "./column-config";
 import { ColumnFilter } from "./column-filter";
+import { formatDate } from "@/lib/utils/date";
 
 interface ProductionOrdersTableProps {
   orders: ProductionOrder[];
@@ -232,7 +233,7 @@ function ProductionOrderRow({
       try {
         const date = new Date(value);
         if (!isNaN(date.getTime())) {
-          return date.toLocaleDateString();
+          return formatDate(date);
         }
       } catch {
         // Return as-is if parsing fails

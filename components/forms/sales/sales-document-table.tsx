@@ -6,6 +6,7 @@ import type { SalesOrder } from "@/lib/api/services/sales-orders.service";
 import { Skeleton } from "@/components/ui/skeleton";
 import { type SortDirection, type ColumnConfig } from "./column-config";
 import { SalesDocumentColumnFilter } from "./sales-document-column-filter";
+import { formatDate } from "@/lib/utils/date";
 
 interface SalesDocumentTableProps {
   orders: SalesOrder[];
@@ -228,7 +229,7 @@ function SalesDocumentRow({
       try {
         const date = new Date(value);
         if (!isNaN(date.getTime())) {
-          return date.toLocaleDateString();
+          return formatDate(date);
         }
       } catch {
         // ignore

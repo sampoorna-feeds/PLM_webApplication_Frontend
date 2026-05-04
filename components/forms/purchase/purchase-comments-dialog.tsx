@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
+import { formatDate } from "@/lib/utils/date";
 import {
   getPurchaseComments,
   createPurchaseComment,
@@ -33,18 +34,6 @@ function today(): string {
   return new Date().toISOString().split("T")[0];
 }
 
-function formatDate(dateStr: string): string {
-  if (!dateStr) return "";
-  try {
-    return new Date(dateStr).toLocaleDateString("en-IN", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-    });
-  } catch {
-    return dateStr;
-  }
-}
 
 // ── Inline form used for both Add and Edit ─────────────────────────────────
 interface CommentFormProps {

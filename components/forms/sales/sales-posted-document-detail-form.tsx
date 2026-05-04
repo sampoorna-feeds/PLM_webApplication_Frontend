@@ -50,6 +50,7 @@ import { toast } from "sonner";
 import type { SalesPostedDocumentType } from "./sales-posted-document-config";
 import { RequestFailedDialog } from "@/components/ui/request-failed-dialog";
 import { getErrorMessage } from "@/lib/errors";
+import { formatDate } from "@/lib/utils/date";
 
 type Header = PostedSalesShipment | PostedSalesInvoiceHeader;
 type Line = PostedSalesShipmentLine | PostedSalesInvoiceLine;
@@ -77,7 +78,7 @@ function fmtDate(d?: string) {
   try {
     const date = new Date(d);
     if (isNaN(date.getTime())) return d;
-    return date.toLocaleDateString();
+    return formatDate(date);
   } catch {
     return d;
   }

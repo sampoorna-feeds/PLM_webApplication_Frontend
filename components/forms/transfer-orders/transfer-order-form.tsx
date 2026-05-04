@@ -63,6 +63,7 @@ import { toast } from "sonner";
 import { TransferOrderLineDetailsDialog } from "./transfer-order-line-details-dialog";
 import { TransferOrderLineDialog } from "./transfer-order-line-dialog";
 import { TransferOrderLinesTable } from "./transfer-order-lines-table";
+import { formatDate } from "@/lib/utils/date";
 
 interface TransferOrderFormProps {
   tabId: string;
@@ -683,7 +684,7 @@ export function TransferOrderForm({
         const fromDate = new Date(webUserProfile.Allow_Posting_From);
         if (postingDate < fromDate) {
           toast.error(
-            `Posting Date must be after ${new Date(webUserProfile.Allow_Posting_From).toLocaleDateString()}`,
+            `Posting Date must be after ${formatDate(webUserProfile.Allow_Posting_From)}`,
           );
           return;
         }
@@ -695,7 +696,7 @@ export function TransferOrderForm({
         const toDate = new Date(webUserProfile.Allow_Posting_To);
         if (postingDate > toDate) {
           toast.error(
-            `Posting Date must be before ${new Date(webUserProfile.Allow_Posting_To).toLocaleDateString()}`,
+            `Posting Date must be before ${formatDate(webUserProfile.Allow_Posting_To)}`,
           );
           return;
         }
@@ -1980,7 +1981,7 @@ export function TransferOrderForm({
                         </TableCell>
                         <TableCell className="text-muted-foreground text-xs whitespace-nowrap">
                           {s.Posting_Date
-                            ? new Date(s.Posting_Date).toLocaleDateString()
+                            ? formatDate(s.Posting_Date)
                             : "-"}
                         </TableCell>
                         <TableCell className="text-muted-foreground text-xs whitespace-nowrap">

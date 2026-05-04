@@ -22,6 +22,14 @@ import {
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
   updatePurchaseLine,
   getGstGroupCodes,
   getHsnSacCodes,
@@ -1018,61 +1026,53 @@ export function PurchaseOrderLineEditDialog({
                         <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
                       )}
                     </div>
-                    <div className="grid grid-cols-1 gap-1">
-                      {existingBardanas.map((b) => (
-                        <div
-                          key={b.Line_No}
-                          className="bg-muted/30 group flex items-center gap-3 rounded-md border px-3 py-1.5 transition-colors hover:bg-muted/50"
-                        >
-                          <div className="flex flex-1 items-center gap-4 min-w-0">
-                            <div className="flex flex-col shrink-0">
-                              <span className="text-primary uppercase leading-none">
-                                {b.Item_No}
-                              </span>
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <span className="truncatetext-foreground block">
+                    <div className="rounded-md border overflow-hidden">
+                      <Table>
+                        <TableHeader className="bg-muted/50">
+                          <TableRow className="hover:bg-transparent">
+                            <TableHead className="h-8 text-xs font-bold uppercase py-0">Code</TableHead>
+                            <TableHead className="h-8 text-xs font-bold uppercase py-0">Description</TableHead>
+                            <TableHead className="h-8 text-xs font-bold uppercase py-0 text-right">Qty</TableHead>
+                            <TableHead className="h-8 text-xs font-bold uppercase py-0 text-right">W. Per</TableHead>
+                            <TableHead className="h-8 text-xs font-bold uppercase py-0 text-right">Total W.</TableHead>
+                            <TableHead className="h-8 w-[40px] py-0"></TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {existingBardanas.map((b) => (
+                            <TableRow key={b.Line_No} className="h-9">
+                              <TableCell className="py-1 font-medium text-primary text-xs">{b.Item_No}</TableCell>
+                              <TableCell className="py-1 text-xs truncate max-w-[200px]" title={b.Description}>
                                 {b.Description}
-                              </span>
-                            </div>
-                            
-                            <div className="flex items-center gap-4 shrink-0 pr-2 border-r mr-2">
-                              <div className="flex flex-col items-end">
-                                <span className="text-xs font-medium text-muted-foreground uppercase leading-none mb-0.5">Qty</span>
-                                <span className="tabular-nums">
-                                  {b.Quantity} {b.UOM}
-                                </span>
-                              </div>
-                              <div className="flex flex-col items-end">
-                                <span className="text-xs font-medium text-muted-foreground uppercase leading-none mb-0.5">W. Per</span>
-                                <span className="tabular-nums">
-                                  {b.Weight_Per ?? 0}
-                                </span>
-                              </div>
-                              <div className="flex flex-col items-end">
-                                <span className="text-xs font-medium text-muted-foreground uppercase leading-none mb-0.5">Total W.</span>
-                                <span className="tabular-nums text-green-600">
-                                  {b.Total_Weight ?? 0}
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-6 w-6 text-muted-foreground hover:text-destructive shrink-0 group-hover:opacity-100 transition-opacity"
-                            onClick={() => handleDeleteBardana(b.Line_No)}
-                            disabled={isDeletingBardana === b.Line_No}
-                          >
-                            {isDeletingBardana === b.Line_No ? (
-                              <Loader2 className="h-3 w-3 animate-spin" />
-                            ) : (
-                              <Trash2 className="h-3 w-3" />
-                            )}
-                          </Button>
-                        </div>
-                      ))}
+                              </TableCell>
+                              <TableCell className="py-1 text-right tabular-nums text-xs">
+                                {b.Quantity} <span className="text-[10px] text-muted-foreground uppercase">{b.UOM}</span>
+                              </TableCell>
+                              <TableCell className="py-1 text-right tabular-nums text-xs">
+                                {b.Weight_Per ?? 0}
+                              </TableCell>
+                              <TableCell className="py-1 text-right tabular-nums text-xs text-green-600 font-semibold">
+                                {b.Total_Weight ?? 0}
+                              </TableCell>
+                              <TableCell className="py-1 text-right">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                                  onClick={() => handleDeleteBardana(b.Line_No)}
+                                  disabled={isDeletingBardana === b.Line_No}
+                                >
+                                  {isDeletingBardana === b.Line_No ? (
+                                    <Loader2 className="h-3 w-3 animate-spin" />
+                                  ) : (
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  )}
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
                     </div>
                   </div>
                 )}

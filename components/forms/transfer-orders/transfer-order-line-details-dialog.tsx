@@ -379,6 +379,7 @@ export function TransferOrderLineDetailsDialog({
                 value={formData.Qty_to_Ship?.toString() || "0"}
                 onValueChange={(v) => handleChange("Qty_to_Ship", v)}
                 className="h-9 focus:border-red-500/50 transition-colors font-bold"
+                onFocus={(e) => e.target.select()}
               />
             </div>
 
@@ -390,6 +391,7 @@ export function TransferOrderLineDetailsDialog({
                 value={formData.Qty_to_Receive?.toString() || "0"}
                 onValueChange={(v) => handleChange("Qty_to_Receive", v)}
                 className="h-9 focus:border-red-500/50 transition-colors font-bold"
+                onFocus={(e) => e.target.select()}
               />
             </div>
 

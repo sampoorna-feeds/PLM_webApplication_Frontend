@@ -202,6 +202,7 @@ export function TransferOrderLinesTable({
                         isUpdating && "opacity-50 cursor-wait"
                       )}
                       autoFocus
+                      onFocus={(e) => e.target.select()}
                       onBlur={() => setEditingCell(null)}
                     />
                   </div>
@@ -247,6 +248,7 @@ export function TransferOrderLinesTable({
                         isUpdating && "opacity-50 cursor-wait"
                       )}
                       autoFocus
+                      onFocus={(e) => e.target.select()}
                       onBlur={() => setEditingCell(null)}
                     />
                   </div>

@@ -325,6 +325,7 @@ export function TransferOrderLineDialog({
                 onValueChange={(v) => handleChange("Quantity", v)}
                 placeholder="0.00"
                 className="h-8"
+                onFocus={(e) => e.target.select()}
               />
             </div>
 
@@ -359,6 +360,7 @@ export function TransferOrderLineDialog({
                 onValueChange={(v) => handleChange("Transfer_Price", v)}
                 placeholder="0.00"
                 className="h-8"
+                onFocus={(e) => e.target.select()}
               />
             </div>
 

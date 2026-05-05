@@ -201,9 +201,9 @@ export function TransferOrderLineDetailsDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-background border-border flex max-h-[90vh] max-w-4xl flex-col overflow-hidden rounded-2xl p-0">
+      <DialogContent showCloseButton={false} className="bg-background border-border flex max-h-[90vh] w-full sm:max-w-[800px] flex-col overflow-hidden rounded-2xl p-0">
         <div className="flex-1 space-y-6 overflow-y-auto p-6">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between border-b pb-4 -mx-6 px-6 mb-4">
             <h2
               className={cn(
                 "text-base font-semibold transition-colors duration-300",
@@ -211,18 +211,59 @@ export function TransferOrderLineDetailsDialog({
               )}
             >
               Transfer Line Details
-              {isLoadingTracking ? (
-                <span className="text-muted-foreground ml-2 animate-pulse text-xs font-normal">
-                  (Checking tracking...)
-                </span>
-              ) : (
-                hasTracking && (
-                  <span className="animate-in fade-in slide-in-from-left-2 ml-2 duration-500">
-                    (Has Tracking)
-                  </span>
-                )
-              )}
             </h2>
+
+            <div className="flex items-center gap-2">
+              {canAddBardana && (
+                <div className="flex items-center gap-2 mr-4 border-r pr-4 border-border">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-primary border-border hover:bg-primary/5 flex h-8 items-center justify-center gap-2 rounded-lg px-4 text-xs font-bold"
+                    onClick={() => setIsBardanaOpen(true)}
+                    disabled={isPostingBardana}
+                  >
+                    <Package className="h-3 w-3" />
+                    Add Bardana
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="border-border flex h-8 items-center justify-center gap-2 rounded-lg px-4 text-xs font-bold text-green-600 hover:bg-green-500/10"
+                    onClick={handlePostBardana}
+                    disabled={isPostingBardana}
+                  >
+                    {isPostingBardana ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                      <Package className="h-3 w-3" />
+                    )}
+                    Post Bardana
+                  </Button>
+                </div>
+              )}
+              
+              <Button
+                onClick={handleSave}
+                disabled={isSubmitting}
+                size="sm"
+                className="h-8 rounded-lg bg-green-600 px-6 text-xs text-white hover:bg-green-700 font-bold"
+              >
+                {isSubmitting && (
+                  <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                )}
+                Save
+              </Button>
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onOpenChange(false)}
+                className="h-8 rounded-lg px-6 text-xs font-bold"
+              >
+                Cancel
+              </Button>
+            </div>
           </div>
 
           {/* Read-only Info Section */}
@@ -466,28 +507,8 @@ export function TransferOrderLineDetailsDialog({
             )}
           </div>
 
-          <div className="flex justify-end gap-3 pt-2">
-            <Button
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              className="h-9 rounded-lg px-8 text-sm"
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleSave}
-              disabled={isSubmitting}
-              className="h-9 rounded-lg bg-green-600 px-8 text-sm text-white hover:bg-green-700"
-            >
-              {isSubmitting && (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              )}
-              Save
-            </Button>
-          </div>
-
-          <div className="border-border flex flex-wrap gap-3 border-t pt-2">
-            {hasTracking && (
+          {hasTracking && (
+            <div className="border-border flex flex-wrap gap-3 border-t pt-4">
               <Button
                 variant="outline"
                 className="border-border h-10 flex-1 rounded-xl text-sm font-bold text-red-500 hover:bg-red-500/10 hover:text-red-500"
@@ -495,34 +516,8 @@ export function TransferOrderLineDetailsDialog({
               >
                 Item Tracking
               </Button>
-            )}
-            {canAddBardana && (
-              <div className="flex flex-1 gap-2">
-                <Button
-                  variant="outline"
-                  className="text-primary border-border hover:bg-primary/5 flex h-10 flex-1 items-center justify-center gap-2 rounded-xl text-sm font-bold"
-                  onClick={() => setIsBardanaOpen(true)}
-                  disabled={isPostingBardana}
-                >
-                  <Package className="h-4 w-4" />
-                  Add Bardana
-                </Button>
-                <Button
-                  variant="outline"
-                  className="border-border flex h-10 flex-1 items-center justify-center gap-2 rounded-xl text-sm font-bold text-green-600 hover:bg-green-500/10"
-                  onClick={handlePostBardana}
-                  disabled={isPostingBardana}
-                >
-                  {isPostingBardana ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Package className="h-4 w-4" />
-                  )}
-                  Post Bardana
-                </Button>
-              </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       </DialogContent>
 

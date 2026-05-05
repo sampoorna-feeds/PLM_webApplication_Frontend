@@ -111,7 +111,6 @@ export function TransferOrderLinesTable({
             <TableHead>GST Group Code</TableHead>
             <TableHead>HSN/SAC Code</TableHead>
             <TableHead>GST Credit</TableHead>
-            <TableHead className="w-20 text-right pr-4 sticky right-0 bg-muted">Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -305,37 +304,6 @@ export function TransferOrderLinesTable({
               </TableCell>
               <TableCell>
                 {line.GST_Credit || "-"}
-              </TableCell>
-              <TableCell className="text-right pr-4 sticky right-0 bg-background/80 backdrop-blur-sm shadow-[-10px_0_10px_-5px_rgba(0,0,0,0.1)]">
-                <div className="flex justify-end gap-1">
-                  {!isReadOnly && (
-                    <>
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onEdit?.(line);
-                        }}
-                        title="Edit Item"
-                      >
-                        <Package className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onDelete?.(line);
-                        }}
-                        title="Delete Line"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    </>
-                  )}
-                </div>
               </TableCell>
             </TableRow>
           );

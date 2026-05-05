@@ -344,7 +344,34 @@ export function TransferOrderLineDetailsDialog({
               />
             </div>
 
-            <div className="space-y-1.5 md:col-span-4">
+            <div className="flex flex-col justify-center space-y-1.5 md:col-span-2">
+              <label className="text-muted-foreground text-[10px] uppercase tracking-wider font-bold">
+                Exempted
+              </label>
+              <div className="flex h-9 items-center">
+                <div
+                  className={cn(
+                    "flex h-4 w-4 cursor-pointer items-center justify-center rounded border transition-colors",
+                    formData.Exempted
+                      ? "border-green-600 bg-green-600"
+                      : "bg-muted border-input",
+                  )}
+                  onClick={() => handleChange("Exempted", !formData.Exempted)}
+                >
+                  {formData.Exempted && (
+                    <div className="text-[8px] text-white">✔</div>
+                  )}
+                </div>
+                <label
+                  className="text-muted-foreground ml-2 cursor-pointer text-[10px] font-bold"
+                  onClick={() => handleChange("Exempted", !formData.Exempted)}
+                >
+                  YES
+                </label>
+              </div>
+            </div>
+
+            <div className="space-y-1.5 md:col-span-3">
               <label className="text-muted-foreground text-[10px] uppercase tracking-wider font-bold">
                 Qty. to Ship
               </label>
@@ -355,7 +382,7 @@ export function TransferOrderLineDetailsDialog({
               />
             </div>
 
-            <div className="space-y-1.5 md:col-span-4">
+            <div className="space-y-1.5 md:col-span-3">
               <label className="text-muted-foreground text-[10px] uppercase tracking-wider font-bold">
                 Qty. to Receive
               </label>
@@ -396,28 +423,6 @@ export function TransferOrderLineDetailsDialog({
                 </div>
               </div>
             )}
-
-            <div className="flex items-center space-x-3 md:col-span-12 pt-2">
-              <div
-                className={cn(
-                  "flex h-4 w-4 cursor-pointer items-center justify-center rounded border transition-colors",
-                  formData.Exempted
-                    ? "border-green-600 bg-green-600"
-                    : "bg-muted border-input",
-                )}
-                onClick={() => handleChange("Exempted", !formData.Exempted)}
-              >
-                {formData.Exempted && (
-                  <div className="text-[8px] text-white">✔</div>
-                )}
-              </div>
-              <label
-                className="text-muted-foreground cursor-pointer text-xs font-medium"
-                onClick={() => handleChange("Exempted", !formData.Exempted)}
-              >
-                Exempted
-              </label>
-            </div>
 
                 <Dialog
                   open={isLedgerModalOpen}

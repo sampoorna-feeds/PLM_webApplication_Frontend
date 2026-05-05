@@ -4,8 +4,8 @@
  */
 
 import { apiGet, apiPost, apiPatch, apiDelete } from "../client";
-import type { ODataResponse } from "../types";
 import type { ApiError } from "../client";
+import type { ODataResponse } from "../types";
 import { buildPurchaseHeaderPayload } from "./purchase-header-payload";
 import { toUpperCaseValues } from "./payload-utils";
 import {
@@ -49,7 +49,6 @@ export interface PurchaseOrderData {
   vendorCrMemoNo?: string;
   appliesToDocType?: string;
   appliesToDocNo?: string;
-  appliesToID?: string;
   vendorAuthorizationNo?: string;
   no?: string;
   paymentMethodCode?: string;
@@ -269,6 +268,14 @@ export async function deleteSinglePurchaseOrderLine(
   }
 }
 
+export interface BardanaLine {
+  Line_No: number;
+  Item_No: string;
+  UOM: string;
+  Quantity: number;
+  [key: string]: any;
+}
+
 /**
  * Upload a PDF attachment to an existing purchase order.
  * The file must be base64-encoded.
@@ -337,31 +344,21 @@ export async function deleteBardanaLine(
   }
 }
 
-export interface BardanaLine {
-  Document_No: string;
-  Document_Line_No: number;
-  Line_No: number;
-  Item_No: string;
-  Description?: string;
-  UOM: string;
-  Quantity: number;
-  Weight_Per?: number;
-  Total_Weight?: number;
-}
-
 /**
- * Get existing bardana lines for a purchase order line.
+ * Get bardana lines for a purchase order line item.
  */
 export async function getBardanaLines(
   documentNo: string,
   documentLineNo: number,
 ): Promise<BardanaLine[]> {
-  const filter = `(Document_Type eq 'Order') and (Document_No eq '${documentNo.toUpperCase()}') and (Document_Line_No eq ${documentLineNo}) and (Posted_Document_No eq '')`;
-  const endpoint = `/QCPurchaseBardanaList?company='${encodeURIComponent(COMPANY)}'&$filter=${encodeURIComponent(filter)}`;
+  const escapedNo = documentNo.replace(/'/g, "''");
+  const filter = `Document_Type eq 'Order' and Document_No eq '${escapedNo}' and Document_Line_No eq ${documentLineNo}`;
+  const query = `?company='${encodeURIComponent(COMPANY)}'&$filter=${encodeURIComponent(filter)}`;
+  const endpoint = `/QCPurchaseBardanaList${query}`;
 
   try {
     const response = await apiGet<ODataResponse<BardanaLine>>(endpoint);
-    return response.value;
+    return response.value || [];
   } catch (error) {
     console.error("Error fetching bardana lines:", error);
     throw error as ApiError;

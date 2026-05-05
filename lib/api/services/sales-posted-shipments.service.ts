@@ -124,8 +124,7 @@ export async function getPostedShipmentLines(
   documentNo: string,
 ): Promise<PostedSalesShipmentLine[]> {
   const filter = `Document_No eq '${documentNo.replace(/'/g, "''")}'`;
-  const select = "Document_No,Line_No,Type,No,Description,Quantity,Qty_Invoiced,Unit_of_Measure_Code,Unit_of_Measure,Unit_Price,Line_Amount,Line_Discount_Percent,GST_Group_Code,HSN_SAC_Code,Location_Code";
-  const query = buildODataQuery({ $filter: filter, $orderby: "Line_No asc", $select: select });
+  const query = buildODataQuery({ $filter: filter, $orderby: "Line_No asc" });
   const endpoint = `/PostedSalesShptSubform?company='${encodeURIComponent(COMPANY)}'&${query}`;
   const response = await apiGet<ODataResponse<PostedSalesShipmentLine>>(endpoint);
   return response.value || [];

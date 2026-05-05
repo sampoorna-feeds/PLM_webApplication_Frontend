@@ -148,9 +148,8 @@ export async function searchSalesOrders(
 export async function getSalesOrderByNo(
   orderNo: string,
 ): Promise<SalesOrder | null> {
-  const select = "No,Sell_to_Customer_No,Sell_to_Customer_Name,Bill_to_Customer_No,Ship_to_Code,Ship_to_Name,Order_Date,Posting_Date,Document_Date,External_Document_No,Status,Amt_to_Customer,Location_Code,Invoice_Type,Currency_Code,Shortcut_Dimension_1_Code,Shortcut_Dimension_2_Code,Shortcut_Dimension_3_Code,Salesperson_Code,Customer_Price_Group,Applies_to_Doc_Type,Applies_to_Doc_No,Applies_to_ID";
   const filter = `No eq '${orderNo.replace(/'/g, "''")}'`;
-  const query = buildODataQuery({ $filter: filter, $select: select });
+  const query = buildODataQuery({ $filter: filter });
   const endpoint = `/SalesOrder?company='${encodeURIComponent(COMPANY)}'&${query}`;
   const response = await apiGet<ODataResponse<SalesOrder>>(endpoint);
   const value = response.value;
@@ -197,8 +196,7 @@ export async function getSalesOrderLines(
 ): Promise<SalesLine[]> {
   const escaped = documentNo.replace(/'/g, "''");
   const filter = `Document_No eq '${escaped}'`;
-  const select = "Document_Type,Document_No,Line_No,Type,No,Description,Description_2,Quantity,Qty_to_Ship,Quantity_Shipped,Qty_to_Invoice,Quantity_Invoiced,Unit_of_Measure_Code,Unit_of_Measure,Unit_Price,Line_Amount,Line_Discount_Amount,Line_Discount_Percent,Amt_to_Customer,GST_Group_Code,HSN_SAC_Code,FOC,Exempted,Location_Code,Shortcut_Dimension_1_Code,Shortcut_Dimension_2_Code,ShortcutDimCode3,Appl_to_Item_Entry";
-  const query = buildODataQuery({ $filter: filter, $orderby: "Line_No asc", $select: select });
+  const query = buildODataQuery({ $filter: filter, $orderby: "Line_No asc" });
   const endpoint = `/SalesLine?company='${encodeURIComponent(COMPANY)}'&${query}`;
   const response = await apiGet<ODataResponse<SalesLine>>(endpoint);
   return response.value || [];
@@ -300,8 +298,7 @@ export async function getSalesShipmentsByOrder(
     // expect yyyy-mm-dd format
     filter += ` and Posting_Date eq ${escapeODataValue(postingDate)}`;
   }
-  const select = "No,Order_No,Sell_to_Customer_No,Sell_to_Customer_Name,Transporter_Code,LR_RR_No,Vehicle_No,LR_RR_Date,Posting_Date,Salesperson_Code";
-  const query = buildODataQuery({ $filter: filter, $select: select });
+  const query = buildODataQuery({ $filter: filter });
   // API uses SalesShipment_ entity set
   const endpoint = `/SalesShipment_?company='${encodeURIComponent(COMPANY)}'&${query}`;
   const response = await apiGet<ODataResponse<SalesShipment>>(endpoint);
@@ -602,8 +599,7 @@ export async function getSalesItemTrackingLines(
     "Source_Type eq 37",
     `Source_Subtype eq '${sourceSubType}'`,
   ].join(" and ");
-  const select = "Entry_No,Positive,Source_Type,Source_Subtype,Source_ID,Source_Batch_Name,Source_Prod_Order_Line,Source_Ref_No_,Item_No,Location_Code,Lot_No,Expiration_Date,Quantity_Base,Qty_to_Handl_Base";
-  const query = buildODataQuery({ $filter: filter, $select: select });
+  const query = buildODataQuery({ $filter: filter });
   const endpoint = `/ItemTrackingLine?company='${encodeURIComponent(COMPANY)}'&${query}`;
   const response = await apiGet<ODataResponse<SalesItemTrackingLine>>(endpoint);
   return response.value || [];

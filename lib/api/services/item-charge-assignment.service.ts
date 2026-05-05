@@ -148,11 +148,9 @@ export const itemChargeAssignmentService = {
       orderStr = `&$orderby=${sortColumn} ${sortDirection}`;
     }
 
-    const select = "Document_Type,Document_No,Document_Line_No,Line_No,ItemChargeNo,Applies_toDocType,Applies_toDocNo,Applies_toDocLineNo,ItemNo,Description,QtytoAssign,QtytoHandle,QtyAssigned,AmounttoAssign,AmounttoHandle,GrossWeight,UnitVolume,QtyToReceiveBase,QtyReceivedBase,QtyToShipBase,QtyShippedBase";
     const endpoint =
       `/ItemChargeAssignmentPurch?company='${encodeURIComponent(COMPANY)}'` +
       `&$count=true` +
-      `&$select=${select}` +
       `&$filter=${encodeURIComponent(filterStr)}` +
       orderStr +
       `&$top=${top}` +
@@ -303,16 +301,9 @@ export const itemChargeAssignmentService = {
       orderStr = `&$orderby=${field} ${sortDirection}`;
     }
 
-    const selectFields = ["Document_No", "Line_No", itemNoField, "Description", "Quantity", "Unit_of_Measure", "Location_Code"];
-    if (type === "GetShipmentLine") selectFields.push("Shipment_Date");
-    else selectFields.push("Posting_Date");
-    
-    if (type === "Receipt") selectFields.push("Buy_from_Vendor_No");
-
     const endpoint =
       `/${endpointName}?company='${encodeURIComponent(COMPANY)}'` +
       `&$count=true` +
-      `&$select=${selectFields.join(",")}` +
       `${filterStr}` +
       orderStr +
       `&$top=${top}` +

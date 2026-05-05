@@ -352,7 +352,7 @@ export async function getBardanaLines(
   documentLineNo: number,
 ): Promise<BardanaLine[]> {
   const escapedNo = documentNo.replace(/'/g, "''");
-  const filter = `Document_Type eq 'Order' and Document_No eq '${escapedNo}' and Document_Line_No eq ${documentLineNo}`;
+  const filter = `Document_Type eq 'Order' and Document_No eq '${escapedNo}' and Document_Line_No eq ${documentLineNo} and Posted_Document_No eq ''`;
   const query = `?company='${encodeURIComponent(COMPANY)}'&$filter=${encodeURIComponent(filter)}`;
   const endpoint = `/QCPurchaseBardanaList${query}`;
 

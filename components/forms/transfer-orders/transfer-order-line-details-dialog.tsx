@@ -9,6 +9,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { CalculatorInput } from "@/components/ui/calculator-input";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import {
   Table,
@@ -342,6 +343,28 @@ export function TransferOrderLineDetailsDialog({
                 isLoading={isLoadingLine}
                 allowCustomValue={true}
                 className="h-9 transition-all focus:ring-1 focus:ring-red-500/50"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-muted-foreground text-xs font-medium">
+                Qty. to Ship
+              </label>
+              <CalculatorInput
+                value={formData.Qty_to_Ship?.toString() || "0"}
+                onValueChange={(v) => handleChange("Qty_to_Ship", v)}
+                className="h-9 focus:border-red-500/50 transition-colors"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-muted-foreground text-xs font-medium">
+                Qty. to Receive
+              </label>
+              <CalculatorInput
+                value={formData.Qty_to_Receive?.toString() || "0"}
+                onValueChange={(v) => handleChange("Qty_to_Receive", v)}
+                className="h-9 focus:border-red-500/50 transition-colors"
               />
             </div>
 

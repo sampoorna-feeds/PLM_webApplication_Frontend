@@ -46,6 +46,7 @@ import {
   postTransferOrder,
   releaseTransferOrder,
   reopenTransferOrder,
+  updateTransferLine,
   type PostedTransferShipment,
   type TransferLine,
   type TransferLocationCode,
@@ -1617,6 +1618,17 @@ export function TransferOrderForm({
               onRowClick={(line) => {
                 setSelectedLine(line);
                 setIsDetailsDialogOpen(true);
+              }}
+              onUpdateLine={async (line, updates) => {
+                try {
+                  await updateTransferLine(line.Document_No, line.Line_No, updates);
+                  toast.success("Line updated successfully");
+                  // Fetch data without showing full screen loader for smoother experience
+                  fetchOrderData(line.Document_No, false);
+                } catch (err: any) {
+                  toast.error(err.message || "Failed to update line");
+                  throw err;
+                }
               }}
               isReadOnly={formState.Status === "Released"}
             />

@@ -1,9 +1,10 @@
 "use client";
 
-import { Loader2, Pencil, Trash2 } from "lucide-react";
+import { Check, Loader2, Package, Pencil, Trash2, X } from "lucide-react";
 import type { TransferLine } from "@/lib/api/services/transfer-orders.service";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { getItemsByNos } from "@/lib/api/services/item.service";
+import { CalculatorInput } from "@/components/ui/calculator-input";
 import {
   Table,
   TableBody,
@@ -21,6 +22,7 @@ interface TransferOrderLinesTableProps {
   onEdit?: (line: TransferLine) => void;
   onDelete?: (line: TransferLine) => void;
   onRowClick?: (line: TransferLine) => void;
+  onUpdateLine?: (line: TransferLine, updates: Partial<TransferLine>) => Promise<void>;
   isReadOnly?: boolean;
 }
 
@@ -30,10 +32,18 @@ export function TransferOrderLinesTable({
   onEdit,
   onDelete,
   onRowClick,
+  onUpdateLine,
   isReadOnly = false,
 }: TransferOrderLinesTableProps) {
   const [itemTrackingMap, setItemTrackingMap] = useState<Record<string, boolean>>({});
   const [isLoadingTracking, setIsLoadingTracking] = useState(false);
+  const [editingCell, setEditingCell] = useState<{
+    lineNo: number;
+    field: "Qty_to_Ship" | "Qty_to_Receive";
+  } | null>(null);
+  const [editValue, setEditValue] = useState<string>("");
+  const [isUpdating, setIsUpdating] = useState(false);
+  const inputRef = useRef<HTMLDivElement>(null);
 
   const fetchTrackingMap = useCallback(async () => {
     const itemNos = [...new Set(lines.map((l) => l.Item_No).filter(Boolean) as string[])];
@@ -95,13 +105,13 @@ export function TransferOrderLinesTable({
             <TableHead className="text-right">Transfer Price</TableHead>
             <TableHead className="text-right">Amount</TableHead>
             <TableHead className="text-right">Qty. to Ship</TableHead>
-            <TableHead className="text-right">Quantity Shipped</TableHead>
             <TableHead className="text-right">Qty. to Receive</TableHead>
+            <TableHead className="text-right">Quantity Shipped</TableHead>
             <TableHead className="text-right">Quantity Received</TableHead>
             <TableHead>GST Group Code</TableHead>
             <TableHead>HSN/SAC Code</TableHead>
             <TableHead>GST Credit</TableHead>
-            {!isReadOnly && <TableHead className="w-20 text-right pr-4 sticky right-0 bg-muted">Actions</TableHead>}
+            <TableHead className="w-20 text-right pr-4 sticky right-0 bg-muted">Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -137,14 +147,152 @@ export function TransferOrderLinesTable({
               <TableCell className="text-right font-bold text-primary">
                 {line.Amount != null ? line.Amount.toLocaleString(undefined, { minimumFractionDigits: 2 }) : "0.00"}
               </TableCell>
-              <TableCell className="text-right">
-                {line.Qty_to_Ship?.toLocaleString() ?? "0"}
+              <TableCell 
+                className={cn(
+                  "text-right transition-all duration-200",
+                  editingCell?.lineNo === line.Line_No && editingCell?.field === "Qty_to_Ship" 
+                    ? "p-0 min-w-[120px]" 
+                    : "hover:bg-primary/5 cursor-text font-medium"
+                )}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setEditingCell({ lineNo: line.Line_No, field: "Qty_to_Ship" });
+                  const val = line.Qty_to_Ship;
+                  setEditValue(val === 0 ? "" : val?.toString() || "");
+                }}
+              >
+                {editingCell?.lineNo === line.Line_No && editingCell?.field === "Qty_to_Ship" ? (
+                  <div 
+                    className="flex items-center gap-1 p-1 animate-in fade-in zoom-in duration-200" 
+                    onClick={(e) => e.stopPropagation()}
+                    onKeyDown={async (e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        setIsUpdating(true);
+                        try {
+                          await onUpdateLine?.(line, { Qty_to_Ship: Number(editValue) });
+                          setEditingCell(null);
+                        } finally {
+                          setIsUpdating(false);
+                        }
+                      } else if (e.key === "Escape") {
+                        setEditingCell(null);
+                      }
+                    }}
+                  >
+                    <CalculatorInput
+                      value={editValue}
+                      onValueChange={setEditValue}
+                      className="h-8 text-right font-bold focus-visible:ring-1"
+                      autoFocus
+                    />
+                    <div className="flex flex-col gap-0.5">
+                      <Button 
+                        size="icon-xs" 
+                        variant="ghost" 
+                        className="h-4 w-4 text-green-600 hover:bg-green-50"
+                        disabled={isUpdating}
+                        onClick={async () => {
+                          setIsUpdating(true);
+                          try {
+                            await onUpdateLine?.(line, { Qty_to_Ship: Number(editValue) });
+                            setEditingCell(null);
+                          } finally {
+                            setIsUpdating(false);
+                          }
+                        }}
+                      >
+                        {isUpdating ? <Loader2 className="h-2 w-2 animate-spin" /> : <Check className="h-2 w-2" />}
+                      </Button>
+                      <Button 
+                        size="icon-xs" 
+                        variant="ghost" 
+                        className="h-4 w-4 text-muted-foreground"
+                        onClick={() => setEditingCell(null)}
+                      >
+                        <X className="h-2 w-2" />
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  line.Qty_to_Ship?.toLocaleString() ?? "0"
+                )}
               </TableCell>
+
+              <TableCell 
+                className={cn(
+                  "text-right transition-all duration-200",
+                  editingCell?.lineNo === line.Line_No && editingCell?.field === "Qty_to_Receive" 
+                    ? "p-0 min-w-[120px]" 
+                    : "hover:bg-primary/5 cursor-text font-medium"
+                )}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setEditingCell({ lineNo: line.Line_No, field: "Qty_to_Receive" });
+                  const val = line.Qty_to_Receive;
+                  setEditValue(val === 0 ? "" : val?.toString() || "");
+                }}
+              >
+                {editingCell?.lineNo === line.Line_No && editingCell?.field === "Qty_to_Receive" ? (
+                  <div 
+                    className="flex items-center gap-1 p-1 animate-in fade-in zoom-in duration-200" 
+                    onClick={(e) => e.stopPropagation()}
+                    onKeyDown={async (e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        setIsUpdating(true);
+                        try {
+                          await onUpdateLine?.(line, { Qty_to_Receive: Number(editValue) });
+                          setEditingCell(null);
+                        } finally {
+                          setIsUpdating(false);
+                        }
+                      } else if (e.key === "Escape") {
+                        setEditingCell(null);
+                      }
+                    }}
+                  >
+                    <CalculatorInput
+                      value={editValue}
+                      onValueChange={setEditValue}
+                      className="h-8 text-right font-bold focus-visible:ring-1"
+                      autoFocus
+                    />
+                    <div className="flex flex-col gap-0.5">
+                      <Button 
+                        size="icon-xs" 
+                        variant="ghost" 
+                        className="h-4 w-4 text-green-600 hover:bg-green-50"
+                        disabled={isUpdating}
+                        onClick={async () => {
+                          setIsUpdating(true);
+                          try {
+                            await onUpdateLine?.(line, { Qty_to_Receive: Number(editValue) });
+                            setEditingCell(null);
+                          } finally {
+                            setIsUpdating(false);
+                          }
+                        }}
+                      >
+                        {isUpdating ? <Loader2 className="h-2 w-2 animate-spin" /> : <Check className="h-2 w-2" />}
+                      </Button>
+                      <Button 
+                        size="icon-xs" 
+                        variant="ghost" 
+                        className="h-4 w-4 text-muted-foreground"
+                        onClick={() => setEditingCell(null)}
+                      >
+                        <X className="h-2 w-2" />
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  line.Qty_to_Receive?.toLocaleString() ?? "0"
+                )}
+              </TableCell>
+
               <TableCell className="text-right">
                 {line.Quantity_Shipped?.toLocaleString() ?? "0"}
-              </TableCell>
-              <TableCell className="text-right">
-                {line.Qty_to_Receive?.toLocaleString() ?? "0"}
               </TableCell>
               <TableCell className="text-right">
                 {line.Quantity_Received?.toLocaleString() ?? "0"}
@@ -158,36 +306,37 @@ export function TransferOrderLinesTable({
               <TableCell>
                 {line.GST_Credit || "-"}
               </TableCell>
-              {!isReadOnly && (
-                <TableCell className="text-right pr-4 sticky right-0 bg-background/80 backdrop-blur-sm">
-                  <div className="flex justify-end gap-1">
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onEdit?.(line);
-                      }}
-                      title="Edit Line"
-                    >
-                      <Pencil className="h-3 w-3" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onDelete?.(line);
-                      }}
-                      title="Delete Line"
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </Button>
-
-                  </div>
-                </TableCell>
-              )}
+              <TableCell className="text-right pr-4 sticky right-0 bg-background/80 backdrop-blur-sm shadow-[-10px_0_10px_-5px_rgba(0,0,0,0.1)]">
+                <div className="flex justify-end gap-1">
+                  {!isReadOnly && (
+                    <>
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onEdit?.(line);
+                        }}
+                        title="Edit Item"
+                      >
+                        <Package className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onDelete?.(line);
+                        }}
+                        title="Delete Line"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </>
+                  )}
+                </div>
+              </TableCell>
             </TableRow>
           );
         })}

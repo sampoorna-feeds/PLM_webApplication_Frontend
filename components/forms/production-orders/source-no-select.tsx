@@ -67,7 +67,7 @@ interface ColumnConfig {
   align?: "left" | "right";
 }
 
-const PAGE_SIZE = 30;
+const PAGE_SIZE = 15;
 const DEBOUNCE_MS = 350;
 
 function getSourceColumns(sourceType: string): {
@@ -475,10 +475,10 @@ export function SourceNoSelect({
 
       <Dialog open={open} onOpenChange={handleOpenChange}>
         <DialogContent
-          className="flex h-[88vh] flex-col gap-0 p-0"
-          style={{ width: "min(1160px, 92vw)", maxWidth: "none" }}
+          className="flex h-[45vh] flex-col gap-0 p-0"
+          style={{ width: "min(640px, 92vw)", maxWidth: "none" }}
         >
-          <DialogHeader className="shrink-0 border-b px-5 py-3.5">
+          <DialogHeader className="shrink-0 border-b px-5 py-2.5">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2.5">
                 <DialogTitle className="text-[15px] font-semibold">
@@ -509,7 +509,7 @@ export function SourceNoSelect({
             </div>
           </DialogHeader>
 
-          <div className="bg-muted/30 shrink-0 border-b px-5 py-2.5">
+          <div className="bg-muted/30 shrink-0 border-b px-5 py-1.5">
             <div className="flex items-center gap-2">
               <div className="relative flex-1">
                 <Search className="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
@@ -638,7 +638,7 @@ export function SourceNoSelect({
                               : undefined
                           }
                         >
-                          <td className="w-10 px-3 py-2.5 text-center">
+                          <td className="w-10 px-3 py-1.5 text-center">
                             {isSelected && (
                               <Check className="text-primary mx-auto h-3.5 w-3.5" />
                             )}
@@ -652,7 +652,7 @@ export function SourceNoSelect({
                                 <td
                                   key={col.id}
                                   className={cn(
-                                    "px-3 py-2.5 font-mono text-xs font-semibold whitespace-nowrap",
+                                    "px-3 py-1.5 font-mono text-xs font-semibold whitespace-nowrap",
                                     isSelected
                                       ? "text-primary"
                                       : "text-foreground",
@@ -667,7 +667,7 @@ export function SourceNoSelect({
                               <td
                                 key={col.id}
                                 className={cn(
-                                  "px-3 py-2.5 text-xs whitespace-nowrap",
+                                  "px-3 py-1.5 text-xs whitespace-nowrap",
                                   col.align === "right" && "text-right",
                                   isSelected
                                     ? "text-foreground/80 font-medium"

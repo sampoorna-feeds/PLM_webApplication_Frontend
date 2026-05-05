@@ -585,9 +585,7 @@ export async function getSourcesForDialog(opts: {
   if (opts.filters) {
     Object.entries(opts.filters).forEach(([col, val]) => {
       if (!val) return;
-      baseFilterParts.push(
-        `contains(${col},'${val.replace(/'/g, "''").trim()}')`,
-      );
+      baseFilterParts.push(`${col} eq '${val.replace(/'/g, "''").trim()}'`);
     });
   }
 

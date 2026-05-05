@@ -267,22 +267,31 @@ export function TransferOrderLineDetailsDialog({
             </div>
           </div>
 
-          {/* Read-only Info Section */}
-          <div className="flex items-center">
-            <span className={infoLabelClass}>Available Qty</span>
-            <span
-              className={cn(
-                infoValueClass,
-                availableQty !== null && availableQty <= 0 && "text-red-500",
-                isLoadingStock && "animate-pulse",
-              )}
-            >
-              {isLoadingStock ? "..." : (availableQty?.toLocaleString() ?? "-")}
-            </span>
+          {/* Header Info Section */}
+          <div className="flex flex-wrap items-center gap-x-8 gap-y-2 rounded-xl bg-muted/30 p-4 border border-border/50">
+            <div className="flex items-center gap-2">
+              <span className="text-muted-foreground text-[10px] uppercase tracking-wider font-bold">Available Qty</span>
+              <span
+                className={cn(
+                  "text-sm font-black text-foreground",
+                  availableQty !== null && availableQty <= 0 && "text-red-500",
+                  isLoadingStock && "animate-pulse",
+                )}
+              >
+                {isLoadingStock ? "..." : (availableQty?.toLocaleString() ?? "-")}
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2 flex-1 min-w-[200px]">
+              <span className="text-muted-foreground text-[10px] uppercase tracking-wider font-bold">Description</span>
+              <span className="text-sm font-black text-foreground line-clamp-1">
+                {formData.Description || "-"}
+              </span>
+            </div>
           </div>
 
           {!locationCode && hasTracking && (
-            <div className="animate-in fade-in zoom-in mb-4 rounded-lg border border-red-500/20 bg-red-500/10 p-3 text-center text-xs font-medium text-red-500 duration-300">
+            <div className="animate-in fade-in zoom-in rounded-lg border border-red-500/20 bg-red-500/10 p-3 text-center text-xs font-medium text-red-500 duration-300">
               Note: Select a source location in the header to manage item
               tracking correctly.
             </div>
@@ -290,43 +299,32 @@ export function TransferOrderLineDetailsDialog({
 
           <div className="bg-border h-px w-full" />
 
-          {/* Editable Fields Section - 2-column Grid */}
-          <div className="grid grid-cols-1 gap-x-6 gap-y-4 md:grid-cols-2">
-            <div className="space-y-1.5 md:col-span-2">
-              <label className="text-muted-foreground text-xs font-medium">
-                Description
-              </label>
-              <Input
-                value={formData.Description || ""}
-                onChange={(e) => handleChange("Description", e.target.value)}
-                className="h-9 text-sm transition-colors focus:border-red-500/50"
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-muted-foreground text-xs font-medium">
+          {/* Editable Fields Section - 3-column Grid */}
+          <div className="grid grid-cols-1 gap-x-4 gap-y-4 md:grid-cols-12">
+            <div className="space-y-1.5 md:col-span-4">
+              <label className="text-muted-foreground text-[10px] uppercase tracking-wider font-bold">
                 GST Group Code
               </label>
               <Input
                 value={formData.GST_Group_Code || ""}
                 readOnly
-                className="bg-muted/50 text-muted-foreground h-9 text-sm"
+                className="bg-muted/50 text-muted-foreground h-9 text-xs font-bold"
               />
             </div>
 
-            <div className="space-y-1.5">
-              <label className="text-muted-foreground text-xs font-medium">
+            <div className="space-y-1.5 md:col-span-4">
+              <label className="text-muted-foreground text-[10px] uppercase tracking-wider font-bold">
                 HSN/SAC Code
               </label>
               <Input
                 value={formData.HSN_SAC_Code || ""}
                 readOnly
-                className="bg-muted/50 text-muted-foreground h-9 text-sm"
+                className="bg-muted/50 text-muted-foreground h-9 text-xs font-bold"
               />
             </div>
 
-            <div className="space-y-1.5">
-              <label className="text-muted-foreground flex items-center justify-between text-xs font-medium">
+            <div className="space-y-1.5 md:col-span-4">
+              <label className="text-muted-foreground flex items-center justify-between text-[10px] uppercase tracking-wider font-bold">
                 GST Credit
                 {isLoadingLine && (
                   <Loader2 className="text-muted-foreground h-3 w-3 animate-spin" />
@@ -346,31 +344,31 @@ export function TransferOrderLineDetailsDialog({
               />
             </div>
 
-            <div className="space-y-1.5">
-              <label className="text-muted-foreground text-xs font-medium">
+            <div className="space-y-1.5 md:col-span-4">
+              <label className="text-muted-foreground text-[10px] uppercase tracking-wider font-bold">
                 Qty. to Ship
               </label>
               <CalculatorInput
                 value={formData.Qty_to_Ship?.toString() || "0"}
                 onValueChange={(v) => handleChange("Qty_to_Ship", v)}
-                className="h-9 focus:border-red-500/50 transition-colors"
+                className="h-9 focus:border-red-500/50 transition-colors font-bold"
               />
             </div>
 
-            <div className="space-y-1.5">
-              <label className="text-muted-foreground text-xs font-medium">
+            <div className="space-y-1.5 md:col-span-4">
+              <label className="text-muted-foreground text-[10px] uppercase tracking-wider font-bold">
                 Qty. to Receive
               </label>
               <CalculatorInput
                 value={formData.Qty_to_Receive?.toString() || "0"}
                 onValueChange={(v) => handleChange("Qty_to_Receive", v)}
-                className="h-9 focus:border-red-500/50 transition-colors"
+                className="h-9 focus:border-red-500/50 transition-colors font-bold"
               />
             </div>
 
             {!isLoadingTracking && !hasTracking && (
-              <div className="animate-in fade-in slide-in-from-top-2 space-y-1.5 duration-300">
-                <label className="text-muted-foreground text-xs font-medium">
+              <div className="animate-in fade-in slide-in-from-top-2 space-y-1.5 duration-300 md:col-span-4">
+                <label className="text-muted-foreground text-[10px] uppercase tracking-wider font-bold">
                   Applies to Entry
                 </label>
                 <div className="relative">
@@ -385,7 +383,7 @@ export function TransferOrderLineDetailsDialog({
                         ? "Loading entries..."
                         : "Click to select Entry No."
                     }
-                    className="h-9 cursor-pointer pr-10 focus:ring-1 focus:ring-red-500/50"
+                    className="h-9 cursor-pointer pr-10 focus:ring-1 focus:ring-red-500/50 text-xs font-bold"
                   />
                   <div
                     className="absolute top-2.5 right-3 cursor-pointer opacity-50 transition-opacity hover:opacity-100"
@@ -399,7 +397,7 @@ export function TransferOrderLineDetailsDialog({
               </div>
             )}
 
-            <div className="flex items-center space-x-3 md:col-span-2 pt-2">
+            <div className="flex items-center space-x-3 md:col-span-12 pt-2">
               <div
                 className={cn(
                   "flex h-4 w-4 cursor-pointer items-center justify-center rounded border transition-colors",

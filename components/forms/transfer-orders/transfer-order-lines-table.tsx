@@ -73,6 +73,30 @@ export function TransferOrderLinesTable({
     fetchTrackingMap();
   }, [fetchTrackingMap]);
 
+  // Debounced Autosave Logic
+  useEffect(() => {
+    if (!editingCell) return;
+
+    const timeoutId = setTimeout(async () => {
+      const line = lines.find(l => l.Line_No === editingCell.lineNo);
+      if (!line || !onUpdateLine) return;
+
+      const currentValue = editingCell.field === "Qty_to_Ship" ? line.Qty_to_Ship : line.Qty_to_Receive;
+      if (Number(editValue) === currentValue) return;
+
+      setIsUpdating(true);
+      try {
+        await onUpdateLine(line, { [editingCell.field]: Number(editValue) });
+      } catch (err) {
+        console.error("Autosave failed:", err);
+      } finally {
+        setIsUpdating(false);
+      }
+    }, 800);
+
+    return () => clearTimeout(timeoutId);
+  }, [editValue, editingCell, onUpdateLine, lines]);
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-8">
@@ -162,19 +186,10 @@ export function TransferOrderLinesTable({
               >
                 {editingCell?.lineNo === line.Line_No && editingCell?.field === "Qty_to_Ship" ? (
                   <div 
-                    className="flex items-center gap-1 p-1 animate-in fade-in zoom-in duration-200" 
+                    className="flex items-center p-1 animate-in fade-in zoom-in duration-200" 
                     onClick={(e) => e.stopPropagation()}
-                    onKeyDown={async (e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        setIsUpdating(true);
-                        try {
-                          await onUpdateLine?.(line, { Qty_to_Ship: Number(editValue) });
-                          setEditingCell(null);
-                        } finally {
-                          setIsUpdating(false);
-                        }
-                      } else if (e.key === "Escape") {
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === "Escape") {
                         setEditingCell(null);
                       }
                     }}
@@ -182,39 +197,21 @@ export function TransferOrderLinesTable({
                     <CalculatorInput
                       value={editValue}
                       onValueChange={setEditValue}
-                      className="h-8 text-right font-bold focus-visible:ring-1"
+                      className={cn(
+                        "h-8 text-right font-bold focus-visible:ring-1",
+                        isUpdating && "opacity-50 cursor-wait"
+                      )}
                       autoFocus
+                      onBlur={() => setEditingCell(null)}
                     />
-                    <div className="flex flex-col gap-0.5">
-                      <Button 
-                        size="icon-xs" 
-                        variant="ghost" 
-                        className="h-4 w-4 text-green-600 hover:bg-green-50"
-                        disabled={isUpdating}
-                        onClick={async () => {
-                          setIsUpdating(true);
-                          try {
-                            await onUpdateLine?.(line, { Qty_to_Ship: Number(editValue) });
-                            setEditingCell(null);
-                          } finally {
-                            setIsUpdating(false);
-                          }
-                        }}
-                      >
-                        {isUpdating ? <Loader2 className="h-2 w-2 animate-spin" /> : <Check className="h-2 w-2" />}
-                      </Button>
-                      <Button 
-                        size="icon-xs" 
-                        variant="ghost" 
-                        className="h-4 w-4 text-muted-foreground"
-                        onClick={() => setEditingCell(null)}
-                      >
-                        <X className="h-2 w-2" />
-                      </Button>
-                    </div>
                   </div>
                 ) : (
-                  line.Qty_to_Ship?.toLocaleString() ?? "0"
+                  <div className="flex items-center justify-end gap-2">
+                    {isUpdating && editingCell?.lineNo === line.Line_No && editingCell?.field === "Qty_to_Ship" && (
+                      <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
+                    )}
+                    {line.Qty_to_Ship?.toLocaleString() ?? "0"}
+                  </div>
                 )}
               </TableCell>
 
@@ -234,19 +231,10 @@ export function TransferOrderLinesTable({
               >
                 {editingCell?.lineNo === line.Line_No && editingCell?.field === "Qty_to_Receive" ? (
                   <div 
-                    className="flex items-center gap-1 p-1 animate-in fade-in zoom-in duration-200" 
+                    className="flex items-center p-1 animate-in fade-in zoom-in duration-200" 
                     onClick={(e) => e.stopPropagation()}
-                    onKeyDown={async (e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        setIsUpdating(true);
-                        try {
-                          await onUpdateLine?.(line, { Qty_to_Receive: Number(editValue) });
-                          setEditingCell(null);
-                        } finally {
-                          setIsUpdating(false);
-                        }
-                      } else if (e.key === "Escape") {
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === "Escape") {
                         setEditingCell(null);
                       }
                     }}
@@ -254,39 +242,21 @@ export function TransferOrderLinesTable({
                     <CalculatorInput
                       value={editValue}
                       onValueChange={setEditValue}
-                      className="h-8 text-right font-bold focus-visible:ring-1"
+                      className={cn(
+                        "h-8 text-right font-bold focus-visible:ring-1",
+                        isUpdating && "opacity-50 cursor-wait"
+                      )}
                       autoFocus
+                      onBlur={() => setEditingCell(null)}
                     />
-                    <div className="flex flex-col gap-0.5">
-                      <Button 
-                        size="icon-xs" 
-                        variant="ghost" 
-                        className="h-4 w-4 text-green-600 hover:bg-green-50"
-                        disabled={isUpdating}
-                        onClick={async () => {
-                          setIsUpdating(true);
-                          try {
-                            await onUpdateLine?.(line, { Qty_to_Receive: Number(editValue) });
-                            setEditingCell(null);
-                          } finally {
-                            setIsUpdating(false);
-                          }
-                        }}
-                      >
-                        {isUpdating ? <Loader2 className="h-2 w-2 animate-spin" /> : <Check className="h-2 w-2" />}
-                      </Button>
-                      <Button 
-                        size="icon-xs" 
-                        variant="ghost" 
-                        className="h-4 w-4 text-muted-foreground"
-                        onClick={() => setEditingCell(null)}
-                      >
-                        <X className="h-2 w-2" />
-                      </Button>
-                    </div>
                   </div>
                 ) : (
-                  line.Qty_to_Receive?.toLocaleString() ?? "0"
+                  <div className="flex items-center justify-end gap-2">
+                    {isUpdating && editingCell?.lineNo === line.Line_No && editingCell?.field === "Qty_to_Receive" && (
+                      <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
+                    )}
+                    {line.Qty_to_Receive?.toLocaleString() ?? "0"}
+                  </div>
                 )}
               </TableCell>
 

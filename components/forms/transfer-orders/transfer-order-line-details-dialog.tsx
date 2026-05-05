@@ -345,30 +345,8 @@ export function TransferOrderLineDetailsDialog({
               />
             </div>
 
-            <div className="flex items-center space-x-3 pt-4">
-              <div
-                className={cn(
-                  "flex h-4 w-4 cursor-pointer items-center justify-center rounded border transition-colors",
-                  formData.Exempted
-                    ? "border-green-600 bg-green-600"
-                    : "bg-muted border-input",
-                )}
-                onClick={() => handleChange("Exempted", !formData.Exempted)}
-              >
-                {formData.Exempted && (
-                  <div className="text-[8px] text-white">✔</div>
-                )}
-              </div>
-              <label
-                className="text-muted-foreground cursor-pointer text-xs font-medium"
-                onClick={() => handleChange("Exempted", !formData.Exempted)}
-              >
-                Exempted
-              </label>
-            </div>
-
             {!isLoadingTracking && !hasTracking && (
-              <div className="animate-in fade-in slide-in-from-top-2 space-y-1.5 duration-300 md:col-span-2">
+              <div className="animate-in fade-in slide-in-from-top-2 space-y-1.5 duration-300">
                 <label className="text-muted-foreground text-xs font-medium">
                   Applies to Entry
                 </label>
@@ -395,6 +373,30 @@ export function TransferOrderLineDetailsDialog({
                     <Search className="h-4 w-4" />
                   </div>
                 </div>
+              </div>
+            )}
+
+            <div className="flex items-center space-x-3 md:col-span-2 pt-2">
+              <div
+                className={cn(
+                  "flex h-4 w-4 cursor-pointer items-center justify-center rounded border transition-colors",
+                  formData.Exempted
+                    ? "border-green-600 bg-green-600"
+                    : "bg-muted border-input",
+                )}
+                onClick={() => handleChange("Exempted", !formData.Exempted)}
+              >
+                {formData.Exempted && (
+                  <div className="text-[8px] text-white">✔</div>
+                )}
+              </div>
+              <label
+                className="text-muted-foreground cursor-pointer text-xs font-medium"
+                onClick={() => handleChange("Exempted", !formData.Exempted)}
+              >
+                Exempted
+              </label>
+            </div>
 
                 <Dialog
                   open={isLedgerModalOpen}
@@ -504,22 +506,20 @@ export function TransferOrderLineDetailsDialog({
                   </DialogContent>
                 </Dialog>
               </div>
-            )}
-          </div>
 
-          {hasTracking && (
-            <div className="border-border flex flex-wrap gap-3 border-t pt-4">
-              <Button
-                variant="outline"
-                className="border-border h-10 flex-1 rounded-xl text-sm font-bold text-red-500 hover:bg-red-500/10 hover:text-red-500"
-                onClick={() => setIsTrackingOpen(true)}
-              >
-                Item Tracking
-              </Button>
+              {hasTracking && (
+                <div className="border-border flex flex-wrap gap-3 border-t pt-4 mt-6">
+                  <Button
+                    variant="outline"
+                    className="border-border h-10 flex-1 rounded-xl text-sm font-bold text-red-500 hover:bg-red-500/10 hover:text-red-500"
+                    onClick={() => setIsTrackingOpen(true)}
+                  >
+                    Item Tracking
+                  </Button>
+                </div>
+              )}
             </div>
-          )}
-        </div>
-      </DialogContent>
+          </DialogContent>
 
       <TransferOrderItemTrackingDialog
         open={isTrackingOpen}

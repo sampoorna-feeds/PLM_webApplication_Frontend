@@ -288,8 +288,9 @@ export function TransferOrderLineDialog({
             </div>
           )}
 
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-12">
-            <div className="space-y-1 sm:col-span-6">
+          <div className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-12">
+            {/* Row 1 */}
+            <div className="space-y-1 sm:col-span-5">
               <FieldTitle>Item No. <span className="text-red-500">*</span></FieldTitle>
               <ItemSelect
                 value={formData.Item_No || ""}
@@ -317,7 +318,7 @@ export function TransferOrderLineDialog({
               />
             </div>
 
-            <div className="space-y-1 sm:col-span-3">
+            <div className="space-y-1 sm:col-span-2">
               <FieldTitle required>Quantity</FieldTitle>
               <CalculatorInput
                 value={formData.Quantity || ""}
@@ -327,7 +328,7 @@ export function TransferOrderLineDialog({
               />
             </div>
 
-            <div className="space-y-1 sm:col-span-3">
+            <div className="space-y-1 sm:col-span-2">
               <FieldTitle>UOM</FieldTitle>
               <Input
                 value={formData.Unit_of_Measure_Code || ""}
@@ -336,27 +337,7 @@ export function TransferOrderLineDialog({
               />
             </div>
 
-            <div className="space-y-1 sm:col-span-4">
-              <FieldTitle>Transfer Price</FieldTitle>
-              <CalculatorInput
-                value={formData.Transfer_Price || ""}
-                onValueChange={(v) => handleChange("Transfer_Price", v)}
-                placeholder="0.00"
-                className="h-8"
-              />
-            </div>
-
-            <div className="space-y-1 sm:col-span-4">
-              <FieldTitle>Amount</FieldTitle>
-              <Input
-                type="number"
-                value={formData.Amount}
-                readOnly
-                className="bg-muted font-bold h-8 text-xs"
-              />
-            </div>
-
-            <div className="space-y-1 sm:col-span-4">
+            <div className="space-y-1 sm:col-span-3">
               <FieldTitle>GST Credit</FieldTitle>
               <SearchableSelect
                 options={[
@@ -370,30 +351,57 @@ export function TransferOrderLineDialog({
               />
             </div>
 
-            {(ledgerEntries.length > 0 || (isEdit && formData.Appl_to_Item_Entry)) && (
-              <div className="space-y-1 sm:col-span-12">
-                <FieldTitle>Appl.-to Item Entry</FieldTitle>
-                <div className="relative">
-                  <Input
-                    value={formData.Appl_to_Item_Entry ? String(formData.Appl_to_Item_Entry) : ""}
-                    readOnly
-                    onClick={() => !isLoadingLedgerEntries && setIsLedgerModalOpen(true)}
-                    placeholder={
-                      isLoadingLedgerEntries
-                        ? "Loading entries..."
-                        : "Click to select Entry No."
-                    }
-                    className="h-8 cursor-pointer pr-10 text-xs font-medium"
-                  />
-                  <div
-                    className="absolute top-2 right-3 cursor-pointer opacity-50 transition-opacity hover:opacity-100"
-                    onClick={() => !isLoadingLedgerEntries && setIsLedgerModalOpen(true)}
-                  >
-                    <Search className="h-4 w-4" />
+            {/* Row 2 */}
+            <div className="space-y-1 sm:col-span-3">
+              <FieldTitle>Transfer Price</FieldTitle>
+              <CalculatorInput
+                value={formData.Transfer_Price || ""}
+                onValueChange={(v) => handleChange("Transfer_Price", v)}
+                placeholder="0.00"
+                className="h-8"
+              />
+            </div>
+
+            <div className="space-y-1 sm:col-span-3">
+              <FieldTitle>Amount</FieldTitle>
+              <Input
+                type="number"
+                value={formData.Amount}
+                readOnly
+                className="bg-muted font-bold h-8 text-xs"
+              />
+            </div>
+
+            <div className="space-y-1 sm:col-span-6">
+              {(ledgerEntries.length > 0 || (isEdit && formData.Appl_to_Item_Entry)) ? (
+                <>
+                  <FieldTitle>Appl.-to Item Entry</FieldTitle>
+                  <div className="relative">
+                    <Input
+                      value={formData.Appl_to_Item_Entry ? String(formData.Appl_to_Item_Entry) : ""}
+                      readOnly
+                      onClick={() => !isLoadingLedgerEntries && setIsLedgerModalOpen(true)}
+                      placeholder={
+                        isLoadingLedgerEntries
+                          ? "Loading entries..."
+                          : "Click to select Entry No."
+                      }
+                      className="h-8 cursor-pointer pr-10 text-xs font-medium"
+                    />
+                    <div
+                      className="absolute top-2 right-3 cursor-pointer opacity-50 transition-opacity hover:opacity-100"
+                      onClick={() => !isLoadingLedgerEntries && setIsLedgerModalOpen(true)}
+                    >
+                      <Search className="h-4 w-4" />
+                    </div>
                   </div>
+                </>
+              ) : (
+                <div className="h-full flex items-end pb-1">
+                  <span className="text-[10px] text-muted-foreground italic">No applicable entries found for this item/location</span>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
 

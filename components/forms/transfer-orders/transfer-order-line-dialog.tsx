@@ -372,8 +372,13 @@ export function TransferOrderLineDialog({
               />
             </div>
 
-            <div className="space-y-1 sm:col-span-6">
-              {(ledgerEntries.length > 0 || (isEdit && formData.Appl_to_Item_Entry)) ? (
+            <div className="space-y-1.5 md:col-span-6">
+              {isLoadingLedgerEntries ? (
+                <div className="h-full flex items-end pb-1 gap-2">
+                  <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
+                  <span className="text-[10px] text-muted-foreground italic">Fetching entries...</span>
+                </div>
+              ) : (ledgerEntries.length > 0 || (isEdit && formData.Appl_to_Item_Entry)) ? (
                 <>
                   <FieldTitle>Appl.-to Item Entry</FieldTitle>
                   <div className="relative">
@@ -381,11 +386,7 @@ export function TransferOrderLineDialog({
                       value={formData.Appl_to_Item_Entry ? String(formData.Appl_to_Item_Entry) : ""}
                       readOnly
                       onClick={() => !isLoadingLedgerEntries && setIsLedgerModalOpen(true)}
-                      placeholder={
-                        isLoadingLedgerEntries
-                          ? "Loading entries..."
-                          : "Click to select Entry No."
-                      }
+                      placeholder="Click to select Entry No."
                       className="h-8 cursor-pointer pr-10 text-xs font-medium"
                     />
                     <div
@@ -396,9 +397,13 @@ export function TransferOrderLineDialog({
                     </div>
                   </div>
                 </>
+              ) : formData.Item_No ? (
+                <div className="h-full flex items-end pb-1">
+                  <span className="text-[10px] text-red-500/80 italic">No applicable entries found for this item/location</span>
+                </div>
               ) : (
                 <div className="h-full flex items-end pb-1">
-                  <span className="text-[10px] text-muted-foreground italic">No applicable entries found for this item/location</span>
+                  <span className="text-[10px] text-muted-foreground italic">Select an item to view available entries</span>
                 </div>
               )}
             </div>

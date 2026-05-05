@@ -175,12 +175,16 @@ export interface VoucherEntryResponse {
  */
 export async function createNoSeriesForVouchers(
   voucherType: string,
+  postingDate: string,
 ): Promise<string> {
   // Hardcoded series code for now
   const seriesCode = "GJTEST";
 
   const endpoint = `/API_CreateNoSeriesForVouchers?company='${encodeURIComponent(COMPANY)}'`;
-  const response = await apiPost<{ value: string }>(endpoint, { seriesCode });
+  const response = await apiPost<{ value: string }>(endpoint, {
+    seriesCode,
+    postingDate,
+  });
   return response.value;
 }
 
@@ -212,7 +216,7 @@ export async function getVoucherEntries(
   }
 
   // Build filter with actual userID
-  const filter = `Journal_Template_Name eq '${templateName}' and Journal_Batch_Name eq 'DEFAULT' and User_ID eq '${userID}'`;
+  const filter = `Journal_Template_Name eq '${templateName}' and Journal_Batch_Name eq 'WEB' and User_ID eq '${userID}'`;
   const endpoint = `${endpointPath}?company='${encodeURIComponent(COMPANY)}'&$top=10&$Filter=${encodeURIComponent(filter)}`;
 
   const response = await apiGet<ODataResponse<VoucherEntryResponse>>(endpoint);
@@ -269,7 +273,7 @@ export async function postVouchers(userID: string = "temp"): Promise<unknown> {
 /**
  * Delete a voucher
  * @param journalTemplateName - Journal template name (e.g., 'GENERAL', 'CASH RECE', 'CASH PAYM')
- * @param journalBatchName - Journal batch name (default: 'DEFAULT')
+ * @param journalBatchName - Journal batch name (default: 'WEB')
  * @param lineNo - Line number of the voucher
  */
 export async function deleteVoucher(
@@ -280,7 +284,7 @@ export async function deleteVoucher(
   // Determine voucher type from template name
   const voucherType = getVoucherTypeFromTemplate(journalTemplateName);
   const endpointPath = getVoucherEndpoint(voucherType);
-  // Format: /CR(Journal_Template_Name='GENERAL', Journal_Batch_Name='DEFAULT', Line_No=20000)
+  // Format: /CR(Journal_Template_Name='GENERAL', Journal_Batch_Name='WEB', Line_No=20000)
   const endpoint = `${endpointPath}(Journal_Template_Name='${encodeURIComponent(journalTemplateName)}', Journal_Batch_Name='${encodeURIComponent(journalBatchName)}', Line_No=${lineNo})?company='${encodeURIComponent(COMPANY)}'`;
 
   // Use apiDelete from client
@@ -290,7 +294,7 @@ export async function deleteVoucher(
 /**
  * Update a voucher
  * @param journalTemplateName - Journal template name (e.g., 'GENERAL', 'CASH RECE', 'CASH PAYM')
- * @param journalBatchName - Journal batch name (default: 'DEFAULT')
+ * @param journalBatchName - Journal batch name (default: 'WEB')
  * @param lineNo - Line number of the voucher
  * @param updateData - Partial voucher data to update
  */
@@ -303,7 +307,7 @@ export async function updateVoucher(
   // Determine voucher type from template name
   const voucherType = getVoucherTypeFromTemplate(journalTemplateName);
   const endpointPath = getVoucherEndpoint(voucherType);
-  // Format: /Company('Sampoorna%20Feeds%20Pvt.%20Ltd')/GJ(Journal_Template_Name='GENERAL',Journal_Batch_Name='DEFAULT',Line_No=10000)
+  // Format: /Company('Sampoorna%20Feeds%20Pvt.%20Ltd')/GJ(Journal_Template_Name='GENERAL',Journal_Batch_Name='WEB',Line_No=10000)
   // Note: Company name needs to be URL encoded in the path
   const encodedCompany = encodeURIComponent(COMPANY);
   const encodedTemplate = encodeURIComponent(journalTemplateName);

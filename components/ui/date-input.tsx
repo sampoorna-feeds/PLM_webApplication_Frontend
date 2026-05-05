@@ -170,8 +170,8 @@ export const DateInput = React.forwardRef<HTMLInputElement, DateInputProps>(
         type="date"
         value={value || ""}
         onChange={(e) => onChange(e.target.value)}
-        min={min}
-        max={max}
+        min={min === "0001-01-01" ? undefined : min}
+        max={max === "0001-01-01" ? undefined : max}
         className="pointer-events-none absolute inset-0 opacity-0"
         tabIndex={-1}
       />

@@ -17,6 +17,7 @@ import { cn } from "@/lib/utils";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { CalculatorInput } from "@/components/ui/calculator-input";
 import { DateInput } from "@/components/ui/date-input";
 import {
   Select,
@@ -57,6 +58,7 @@ import {
 import { AccountSelect } from "./account-select";
 import { DimensionSelect } from "./dimension-select";
 import { CascadingDimensionSelect } from "./cascading-dimension-select";
+import { LocationSelect } from "./shared/location-select";
 import {
   getTDSSection,
   getTCSSection,
@@ -75,6 +77,7 @@ import {
   type VoucherEntryResponse,
   type DefaultDimension,
 } from "@/lib/api/services/voucher.service";
+import { getWebUser, type WebUser } from "@/lib/api/services/web-user.service";
 import { getCustomerByNo } from "@/lib/api/services/customer.service";
 import { useAuth } from "@/lib/contexts/auth-context";
 import type { ApiError } from "@/lib/api/client";
@@ -191,16 +194,33 @@ function InputWithTooltip({
 }
 
 export function VoucherForm() {
-  const [formData, setFormData] = useState<FormState>(defaultFormState);
+  const [formData, setFormData] = useState<FormState>(() => {
+    const today = new Date().toISOString().split("T")[0];
+    return {
+      ...defaultFormState,
+      postingDate: today,
+      documentDate: today,
+    };
+  });
   const [validationErrors, setValidationErrors] = useState<ValidationErrors>(
     {},
   );
   const { userID } = useAuth();
+  const [webUserProfile, setWebUserProfile] = useState<WebUser | null>(null);
 
   // Refs for drag-to-scroll functionality
   const formTableRef = useRef<HTMLDivElement>(null);
   const entriesTableRef = useRef<HTMLDivElement>(null);
   const vouchersTableRef = useRef<HTMLDivElement>(null);
+
+  // Fetch WebUser profile for posting date restrictions
+  useEffect(() => {
+    if (userID) {
+      getWebUser(userID).then((profile) => {
+        if (profile) setWebUserProfile(profile);
+      });
+    }
+  }, [userID]);
 
   // Simple horizontal scroll hook
   const useHorizontalScroll = (ref: React.RefObject<HTMLDivElement | null>) => {
@@ -264,7 +284,7 @@ export function VoucherForm() {
     }, [ref]);
   };
 
-  useHorizontalScroll(formTableRef);
+  // useHorizontalScroll(formTableRef);
   useHorizontalScroll(entriesTableRef);
   useHorizontalScroll(vouchersTableRef);
 
@@ -1177,7 +1197,7 @@ export function VoucherForm() {
 
       await updateVoucher(
         voucherToEdit.Journal_Template_Name,
-        voucherToEdit.Journal_Batch_Name || "DEFAULT",
+        voucherToEdit.Journal_Batch_Name || "WEB",
         voucherToEdit.Line_No,
         updatePayload,
       );
@@ -1218,7 +1238,7 @@ export function VoucherForm() {
     try {
       await deleteVoucher(
         voucher.Journal_Template_Name,
-        voucher.Journal_Batch_Name || "DEFAULT",
+        voucher.Journal_Batch_Name || "WEB",
         voucher.Line_No,
       );
 
@@ -1590,7 +1610,7 @@ export function VoucherForm() {
     // Build base payload with required fields only
     const payload: Partial<CreateVoucherPayload> = {
       Journal_Template_Name: mapVoucherTypeToTemplate(entry.voucherType),
-      Journal_Batch_Name: "DEFAULT",
+      Journal_Batch_Name: "WEB",
       Posting_Date: entry.postingDate,
       // Send empty string for Document_Type if it's NA, otherwise send the value or default to 'Payment'
       Document_Type:
@@ -1768,6 +1788,7 @@ export function VoucherForm() {
             // Step 1: Create document number first
             const documentNo = await createNoSeriesForVouchers(
               entry.voucherType,
+              entry.postingDate,
             );
 
             // Step 2: Create voucher with the document number
@@ -2023,7 +2044,7 @@ export function VoucherForm() {
   );
 
   return (
-    <div className="flex w-full min-w-0 flex-col gap-3 p-4">
+    <div className="flex h-full w-full min-w-0 flex-col gap-3 p-4 overflow-hidden">
       <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           {pendingEditId ? (
@@ -2074,50 +2095,6 @@ export function VoucherForm() {
           >
             Reset
           </Button>
-
-          {pendingEditId ? (
-            <>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={handleCancelEdit}
-              >
-                Cancel
-              </Button>
-              <Button type="button" size="sm" onClick={handleUpdateEntry}>
-                Update Entry
-              </Button>
-            </>
-          ) : isEditingVoucher ? (
-            <>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={() => {
-                  resetForm();
-                }}
-                disabled={isUpdatingVoucher}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                onClick={handleAddEntry}
-                disabled={isUpdatingVoucher}
-              >
-                <Pencil className="mr-2 h-4 w-4" />
-                {isUpdatingVoucher ? "Updating..." : "Update"}
-              </Button>
-            </>
-          ) : (
-            <Button type="button" size="sm" onClick={handleAddEntry}>
-              <Plus className="mr-2 h-4 w-4" />
-              Add
-            </Button>
-          )}
         </div>
       </div>
 
@@ -2132,903 +2109,775 @@ export function VoucherForm() {
         data-form-card
         className={cn(
           excelWrap,
-          "min-w-0 cursor-grab overflow-x-auto",
+          "min-w-0 p-3 grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3",
           isEditingVoucher &&
             "bg-yellow-50/50 ring-2 ring-yellow-500 dark:bg-yellow-900/10",
         )}
       >
-        <Table className={tableClass}>
-          <TableHeader>
-            <TableRow>
-              <TableHead className={cn(colHead, "w-35")}>
-                <FieldTitle required>Posting Date</FieldTitle>
-              </TableHead>
-              <TableHead className={cn(colHead, "w-35")}>
-                <FieldTitle required>Document Date</FieldTitle>
-              </TableHead>
-              <TableHead className={cn(colHead, "w-40")}>
-                <FieldTitle required>Voucher Type</FieldTitle>
-              </TableHead>
-              <TableHead className={cn(colHead, "w-40")}>
-                <FieldTitle required>Document Type</FieldTitle>
-              </TableHead>
-              <TableHead className={cn(colHead, "w-37.5")}>
-                <FieldTitle required>Account Type</FieldTitle>
-              </TableHead>
-              <TableHead className={cn(colHead, "w-40")}>
-                <FieldTitle required>Account No.</FieldTitle>
-              </TableHead>
-              {/* TDS Type header - shown when Account Type is Vendor */}
-              {showAccountTds && (
-                <TableHead className={cn(colHead, "w-40")}>
-                  <FieldTitle>TDS Type</FieldTitle>
-                </TableHead>
-              )}
-              {/* TCS Type header - shown when Account Type is Customer */}
-              {showAccountTcs && (
-                <TableHead className={cn(colHead, "w-40")}>
-                  <FieldTitle>TCS Type</FieldTitle>
-                </TableHead>
-              )}
-              <TableHead className={cn(colHead, "w-45")}>
-                <FieldTitle
-                  required={formData.voucherType === "General Journal"}
-                >
-                  External Doc No.
-                </FieldTitle>
-              </TableHead>
-              <TableHead className={cn(colHead, "w-45")}>
-                <FieldTitle>Description</FieldTitle>
-              </TableHead>
-              <TableHead className={cn(colHead, "w-35 text-right")}>
-                <FieldTitle required>Amount</FieldTitle>
-              </TableHead>
-              <TableHead className={cn(colHead, "w-40")}>
-                <FieldTitle required>Bal. Acc Type</FieldTitle>
-              </TableHead>
-              <TableHead className={cn(colHead, "w-40")}>
-                <FieldTitle required>Bal. Acc No.</FieldTitle>
-              </TableHead>
-              {/* TDS Type header - shown when Balance Account Type is Vendor */}
-              {showBalanceTds && (
-                <TableHead className={cn(colHead, "w-40")}>
-                  <FieldTitle>TDS Type</FieldTitle>
-                </TableHead>
-              )}
-              {/* TCS Type header - shown when Balance Account Type is Customer */}
-              {showBalanceTcs && (
-                <TableHead className={cn(colHead, "w-40")}>
-                  <FieldTitle>TCS Type</FieldTitle>
-                </TableHead>
-              )}
-              <TableHead className={cn(colHead, "w-45")}>
-                <FieldTitle>Line Narration</FieldTitle>
-              </TableHead>
-              <TableHead className={cn(colHead, "w-40")}>
-                <FieldTitle required>LOB</FieldTitle>
-              </TableHead>
-              <TableHead className={cn(colHead, "w-40")}>
-                <FieldTitle required>Branch</FieldTitle>
-              </TableHead>
-              <TableHead className={cn(colHead, "w-40")}>
-                <FieldTitle required>LOC</FieldTitle>
-              </TableHead>
-              <TableHead className={cn(colHead, "w-40")}>
-                <FieldTitle required={isEmployeeMandatory}>Employee</FieldTitle>
-              </TableHead>
-              <TableHead className={cn(colHead, "w-40")}>
-                <FieldTitle required={isAssignmentMandatory}>
-                  Assignment
-                </FieldTitle>
-              </TableHead>
-              <TableHead className={cn(colHead, "w-45")}>
-                <FieldTitle required={formData.voucherType === "Cash Payment"}>
-                  Upload Files
-                </FieldTitle>
-              </TableHead>
-            </TableRow>
-          </TableHeader>
+        {/* Posting Date */}
+        <div className="flex flex-col gap-1">
+          <FieldTitle required>Posting Date</FieldTitle>
+          <InputWithTooltip
+            hasError={hasError("postingDate")}
+            errorClass={getFieldErrorClass("postingDate")}
+            fullErrorMessage={getFullErrorMessage("postingDate")}
+            placeholder={getPlaceholder("postingDate", "")}
+            id="postingDate"
+            aria-label="Posting Date"
+            aria-describedby={
+              hasError("postingDate") ? "postingDate-error" : undefined
+            }
+          >
+            <DateInput
+              ref={postingDateRef}
+              value={formData.postingDate}
+              onChange={(val) => updateField("postingDate", val)}
+              className={control}
+              min={webUserProfile?.Allow_Posting_From?.split("T")[0]}
+              max={webUserProfile?.Allow_Posting_To?.split("T")[0]}
+            />
+          </InputWithTooltip>
+        </div>
 
-          <TableBody>
-            <TableRow>
-              <TableCell className={colCell}>
-                <InputWithTooltip
-                  hasError={hasError("postingDate")}
-                  errorClass={getFieldErrorClass("postingDate")}
-                  fullErrorMessage={getFullErrorMessage("postingDate")}
-                  placeholder={getPlaceholder("postingDate", "")}
-                  id="postingDate"
-                  aria-label="Posting Date"
-                  aria-describedby={
-                    hasError("postingDate") ? "postingDate-error" : undefined
+        {/* Document Date */}
+        <div className="flex flex-col gap-1">
+          <FieldTitle required>Document Date</FieldTitle>
+          <InputWithTooltip
+            hasError={hasError("documentDate")}
+            errorClass={getFieldErrorClass("documentDate")}
+            fullErrorMessage={getFullErrorMessage("documentDate")}
+            placeholder={getPlaceholder("documentDate", "")}
+            id="documentDate"
+            aria-label="Document Date"
+            aria-describedby={
+              hasError("documentDate") ? "documentDate-error" : undefined
+            }
+          >
+            <DateInput
+              value={formData.documentDate}
+              onChange={(val) => updateField("documentDate", val)}
+              className={control}
+              min={webUserProfile?.Allow_Posting_From?.split("T")[0]}
+              max={webUserProfile?.Allow_Posting_To?.split("T")[0]}
+            />
+          </InputWithTooltip>
+        </div>
+
+        {/* Voucher Type */}
+        <div className="flex flex-col gap-1">
+          <FieldTitle required>Voucher Type</FieldTitle>
+          <CellWithTooltip errorMessage={getFullErrorMessage("voucherType")}>
+            <Select
+              value={formData.voucherType || undefined}
+              onValueChange={(v) => {
+                const newVoucherType = v as VoucherFormData["voucherType"];
+                updateField("voucherType", newVoucherType);
+                if (
+                  newVoucherType === "General Journal" &&
+                  (formData.documentType === "Payment" ||
+                    formData.documentType === "Refund")
+                ) {
+                  updateField("documentType", null);
+                } else if (
+                  (newVoucherType === "Cash Payment" ||
+                    newVoucherType === "Cash Receipt") &&
+                  (formData.documentType === "NA" ||
+                    formData.documentType === "Invoice" ||
+                    formData.documentType === "Credit Memo")
+                ) {
+                  updateField("documentType", null);
+                }
+              }}
+              disabled={!voucherTypeEnabled}
+            >
+              <SelectTrigger
+                className={cn(
+                  control,
+                  getFieldErrorClass("voucherType"),
+                  "w-full",
+                  !voucherTypeEnabled && "cursor-not-allowed",
+                )}
+                data-field-error={hasError("voucherType")}
+              >
+                <SelectValue placeholder={getPlaceholder("voucherType", "")} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="General Journal">General Journal</SelectItem>
+                <SelectItem value="Cash Payment">Cash Payment</SelectItem>
+                <SelectItem value="Cash Receipt">Cash Receipt</SelectItem>
+              </SelectContent>
+            </Select>
+          </CellWithTooltip>
+        </div>
+
+        {/* Document Type */}
+        <div className="flex flex-col gap-1">
+          <FieldTitle required>Document Type</FieldTitle>
+          <CellWithTooltip errorMessage={getFullErrorMessage("documentType")}>
+            <Select
+              value={formData.documentType || undefined}
+              onValueChange={(v) =>
+                updateField("documentType", v as VoucherFormData["documentType"])
+              }
+              disabled={!voucherTypeEnabled}
+            >
+              <SelectTrigger
+                className={cn(
+                  control,
+                  getFieldErrorClass("documentType"),
+                  "w-full",
+                  !voucherTypeEnabled && "cursor-not-allowed",
+                )}
+                data-field-error={hasError("documentType")}
+              >
+                <SelectValue placeholder={getPlaceholder("documentType", "")} />
+              </SelectTrigger>
+              <SelectContent>
+                {formData.voucherType === "General Journal" ? (
+                  <>
+                    <SelectItem value="NA">NA</SelectItem>
+                    <SelectItem value="Invoice">Invoice</SelectItem>
+                    <SelectItem value="Credit Memo">Credit Memo</SelectItem>
+                  </>
+                ) : (
+                  <>
+                    <SelectItem value="Payment">Payment</SelectItem>
+                    <SelectItem value="Refund">Refund</SelectItem>
+                  </>
+                )}
+              </SelectContent>
+            </Select>
+          </CellWithTooltip>
+        </div>
+
+        {/* Account Type */}
+        <div className="flex flex-col gap-1">
+          <FieldTitle required>Account Type</FieldTitle>
+          <CellWithTooltip errorMessage={getFullErrorMessage("accountType")}>
+            <Select
+              value={formData.accountType || undefined}
+              onValueChange={handleAccountTypeChange}
+              disabled={!accountTypeEnabled}
+            >
+              <SelectTrigger
+                className={cn(
+                  control,
+                  getFieldErrorClass("accountType"),
+                  "w-full",
+                  !accountTypeEnabled && "cursor-not-allowed",
+                )}
+                data-field-error={hasError("accountType")}
+              >
+                <SelectValue placeholder={getPlaceholder("accountType", "")} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="G/L Account">G/L Account</SelectItem>
+                <SelectItem value="Customer">Customer</SelectItem>
+                <SelectItem value="Vendor">Vendor</SelectItem>
+              </SelectContent>
+            </Select>
+          </CellWithTooltip>
+        </div>
+
+        {/* Account No. */}
+        <div className="flex flex-col gap-1">
+          <FieldTitle required>Account No.</FieldTitle>
+          <CellWithTooltip errorMessage={getFullErrorMessage("accountNo")}>
+            <AccountSelect
+              accountType={formData.accountType}
+              value={formData.accountNo}
+              onChange={(value) => {
+                updateField("accountNo", value);
+                if (formData.balanceAccountNo === value) {
+                  updateField("balanceAccountNo", "");
+                }
+              }}
+              placeholder={getPlaceholder("accountNo", "")}
+              className={cn(control, !accountNoEnabled && "cursor-not-allowed")}
+              hasError={hasError("accountNo")}
+              errorClass={getFieldErrorClass("accountNo")}
+              disabled={!accountNoEnabled}
+            />
+          </CellWithTooltip>
+        </div>
+
+        {/* Account TDS Type */}
+        {showAccountTds && (
+          <div className="flex flex-col gap-1">
+            <FieldTitle>TDS Type</FieldTitle>
+            <CellWithTooltip
+              errorMessage={getFullErrorMessage("accountTdsSection.tdsType")}
+            >
+              <Select
+                value={formData.accountTdsSection?.tdsType || ""}
+                onValueChange={(value) => {
+                  if (value === "NA") {
+                    updateField("accountTdsSection", undefined);
+                  } else {
+                    updateField("accountTdsSection", { tdsType: value });
                   }
-                >
-                  <DateInput
-                    ref={postingDateRef}
-                    value={formData.postingDate}
-                    onChange={(val) => updateField("postingDate", val)}
-                    className={control}
-                  />
-                </InputWithTooltip>
-              </TableCell>
-
-              <TableCell className={colCell}>
-                <InputWithTooltip
-                  hasError={hasError("documentDate")}
-                  errorClass={getFieldErrorClass("documentDate")}
-                  fullErrorMessage={getFullErrorMessage("documentDate")}
-                  placeholder={getPlaceholder("documentDate", "")}
-                  id="documentDate"
-                  aria-label="Document Date"
-                  aria-describedby={
-                    hasError("documentDate") ? "documentDate-error" : undefined
-                  }
-                >
-                  <DateInput
-                    value={formData.documentDate}
-                    onChange={(val) =>
-                      updateField("documentDate", val)
-                    }
-                    className={control}
-                  />
-                </InputWithTooltip>
-              </TableCell>
-
-              <TableCell className={colCell}>
-                <CellWithTooltip
-                  errorMessage={getFullErrorMessage("voucherType")}
-                >
-                  <Select
-                    value={formData.voucherType || undefined}
-                    onValueChange={(v) => {
-                      const newVoucherType =
-                        v as VoucherFormData["voucherType"];
-                      updateField("voucherType", newVoucherType);
-                      // Clear documentType if switching between incompatible types
-                      if (
-                        newVoucherType === "General Journal" &&
-                        (formData.documentType === "Payment" ||
-                          formData.documentType === "Refund")
-                      ) {
-                        updateField("documentType", null);
-                      } else if (
-                        (newVoucherType === "Cash Payment" ||
-                          newVoucherType === "Cash Receipt") &&
-                        (formData.documentType === "NA" ||
-                          formData.documentType === "Invoice" ||
-                          formData.documentType === "Credit Memo")
-                      ) {
-                        updateField("documentType", null);
-                      }
-                    }}
-                    disabled={!voucherTypeEnabled}
-                  >
-                    <SelectTrigger
-                      className={cn(
-                        control,
-                        getFieldErrorClass("voucherType"),
-                        "w-full",
-                        !voucherTypeEnabled && "cursor-not-allowed",
-                      )}
-                      data-field-error={hasError("voucherType")}
-                    >
-                      <SelectValue
-                        placeholder={getPlaceholder("voucherType", "")}
-                      />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="General Journal">
-                        General Journal
-                      </SelectItem>
-                      <SelectItem value="Cash Payment">Cash Payment</SelectItem>
-                      <SelectItem value="Cash Receipt">Cash Receipt</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </CellWithTooltip>
-              </TableCell>
-
-              <TableCell className={colCell}>
-                <CellWithTooltip
-                  errorMessage={getFullErrorMessage("documentType")}
-                >
-                  <Select
-                    value={formData.documentType || undefined}
-                    onValueChange={(v) =>
-                      updateField(
-                        "documentType",
-                        v as VoucherFormData["documentType"],
-                      )
-                    }
-                    disabled={!voucherTypeEnabled}
-                  >
-                    <SelectTrigger
-                      className={cn(
-                        control,
-                        getFieldErrorClass("documentType"),
-                        "w-full",
-                        !voucherTypeEnabled && "cursor-not-allowed",
-                      )}
-                      data-field-error={hasError("documentType")}
-                    >
-                      <SelectValue
-                        placeholder={getPlaceholder("documentType", "")}
-                      />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {formData.voucherType === "General Journal" ? (
-                        <>
-                          <SelectItem value="NA">NA</SelectItem>
-                          <SelectItem value="Invoice">Invoice</SelectItem>
-                          <SelectItem value="Credit Memo">
-                            Credit Memo
-                          </SelectItem>
-                        </>
-                      ) : (
-                        <>
-                          <SelectItem value="Payment">Payment</SelectItem>
-                          <SelectItem value="Refund">Refund</SelectItem>
-                        </>
-                      )}
-                    </SelectContent>
-                  </Select>
-                </CellWithTooltip>
-              </TableCell>
-
-              <TableCell className={colCell}>
-                <CellWithTooltip
-                  errorMessage={getFullErrorMessage("accountType")}
-                >
-                  <Select
-                    value={formData.accountType || undefined}
-                    onValueChange={handleAccountTypeChange}
-                    disabled={!accountTypeEnabled}
-                  >
-                    <SelectTrigger
-                      className={cn(
-                        control,
-                        getFieldErrorClass("accountType"),
-                        "w-full",
-                        !accountTypeEnabled && "cursor-not-allowed",
-                      )}
-                      data-field-error={hasError("accountType")}
-                    >
-                      <SelectValue
-                        placeholder={getPlaceholder("accountType", "")}
-                      />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="G/L Account">G/L Account</SelectItem>
-                      <SelectItem value="Customer">Customer</SelectItem>
-                      <SelectItem value="Vendor">Vendor</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </CellWithTooltip>
-              </TableCell>
-
-              <TableCell className={colCell}>
-                <CellWithTooltip
-                  errorMessage={getFullErrorMessage("accountNo")}
-                >
-                  <AccountSelect
-                    accountType={formData.accountType}
-                    value={formData.accountNo}
-                    onChange={(value) => {
-                      updateField("accountNo", value);
-                      // Clear Bal. Acc No. if it matches the new Account No.
-                      if (formData.balanceAccountNo === value) {
-                        updateField("balanceAccountNo", "");
-                      }
-                    }}
-                    placeholder={getPlaceholder("accountNo", "")}
-                    className={cn(
-                      control,
-                      !accountNoEnabled && "cursor-not-allowed",
-                    )}
-                    hasError={hasError("accountNo")}
-                    errorClass={getFieldErrorClass("accountNo")}
-                    disabled={!accountNoEnabled}
-                  />
-                </CellWithTooltip>
-              </TableCell>
-
-              {/* Account TDS Type - shown when Account Type is Vendor */}
-              {showAccountTds && (
-                <TableCell className={colCell}>
-                  <CellWithTooltip
-                    errorMessage={getFullErrorMessage(
-                      "accountTdsSection.tdsType",
-                    )}
-                  >
-                    <Select
-                      value={formData.accountTdsSection?.tdsType || ""}
-                      onValueChange={(value) => {
-                        if (value === "NA") {
-                          updateField("accountTdsSection", undefined);
-                        } else {
-                          updateField("accountTdsSection", {
-                            tdsType: value,
-                          });
-                        }
-                      }}
-                      disabled={!accountNoEnabled || !formData.accountNo}
-                    >
-                      <SelectTrigger
-                        className={cn(
-                          control,
-                          getFieldErrorClass("accountTdsSection.tdsType"),
-                          "w-full",
-                          (!accountNoEnabled || !formData.accountNo) &&
-                            "cursor-not-allowed",
-                        )}
-                        data-field-error={hasError("accountTdsSection.tdsType")}
-                      >
-                        <SelectValue
-                          placeholder={getPlaceholder(
-                            "accountTdsSection.tdsType",
-                            "Select TDS Type",
-                          )}
-                        />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="NA">NA</SelectItem>
-                        {accountTdsSections.length === 0 ? (
-                          <div className="text-muted-foreground px-2 py-1.5 text-sm">
-                            No TDS sections available
-                          </div>
-                        ) : (
-                          accountTdsSections.map((section) => (
-                            <SelectItem
-                              key={section.TDS_Section}
-                              value={section.TDS_Section}
-                            >
-                              {section.TDS_Section}
-                            </SelectItem>
-                          ))
-                        )}
-                      </SelectContent>
-                    </Select>
-                  </CellWithTooltip>
-                </TableCell>
-              )}
-
-              {/* Account TCS Type - shown when Account Type is Customer */}
-              {showAccountTcs && (
-                <TableCell className={colCell}>
-                  <CellWithTooltip
-                    errorMessage={getFullErrorMessage(
-                      "accountTcsSection.tcsType",
-                    )}
-                  >
-                    <Select
-                      value={formData.accountTcsSection?.tcsType || ""}
-                      onValueChange={(value) => {
-                        if (value === "NA") {
-                          updateField("accountTcsSection", undefined);
-                        } else {
-                          updateField("accountTcsSection", {
-                            tcsType: value,
-                          });
-                        }
-                      }}
-                      disabled={!accountNoEnabled || !formData.accountNo}
-                    >
-                      <SelectTrigger
-                        className={cn(
-                          control,
-                          getFieldErrorClass("accountTcsSection.tcsType"),
-                          "w-full",
-                          (!accountNoEnabled || !formData.accountNo) &&
-                            "cursor-not-allowed",
-                        )}
-                        data-field-error={hasError("accountTcsSection.tcsType")}
-                      >
-                        <SelectValue
-                          placeholder={getPlaceholder(
-                            "accountTcsSection.tcsType",
-                            "Select TCS Type",
-                          )}
-                        />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="NA">NA</SelectItem>
-                        {accountTcsSections.length === 0 ? (
-                          <div className="text-muted-foreground px-2 py-1.5 text-sm">
-                            No TCS sections available
-                          </div>
-                        ) : (
-                          accountTcsSections.map((section) => (
-                            <SelectItem
-                              key={section.TCS_Nature_of_Collection}
-                              value={section.TCS_Nature_of_Collection}
-                            >
-                              {section.TCS_Nature_of_Collection}
-                            </SelectItem>
-                          ))
-                        )}
-                      </SelectContent>
-                    </Select>
-                  </CellWithTooltip>
-                </TableCell>
-              )}
-
-              <TableCell className={colCell}>
-                <InputWithTooltip
-                  hasError={hasError("externalDocumentNo")}
-                  errorClass={getFieldErrorClass("externalDocumentNo")}
-                  fullErrorMessage={getFullErrorMessage("externalDocumentNo")}
-                  placeholder={getPlaceholder("externalDocumentNo", "")}
-                  id="externalDocumentNo"
-                  aria-label="External Document Number"
-                  aria-describedby={
-                    hasError("externalDocumentNo")
-                      ? "externalDocumentNo-error"
-                      : undefined
-                  }
-                >
-                  <Input
-                    value={formData.externalDocumentNo}
-                    onChange={(e) =>
-                      updateField("externalDocumentNo", e.target.value)
-                    }
-                    className={cn(
-                      control,
-                      !basicFieldsEnabled && "cursor-not-allowed",
-                    )}
-                    disabled={!basicFieldsEnabled}
-                  />
-                </InputWithTooltip>
-              </TableCell>
-
-              <TableCell className={colCell}>
-                <InputWithTooltip
-                  hasError={hasError("description")}
-                  errorClass={getFieldErrorClass("description")}
-                  fullErrorMessage={getFullErrorMessage("description")}
-                  placeholder={getPlaceholder("description", "")}
-                  id="description"
-                  aria-label="Description"
-                  aria-describedby={
-                    hasError("description") ? "description-error" : undefined
-                  }
-                >
-                  <Input
-                    value={formData.description}
-                    onChange={(e) => updateField("description", e.target.value)}
-                    className={cn(
-                      control,
-                      !basicFieldsEnabled && "cursor-not-allowed",
-                    )}
-                    disabled={!basicFieldsEnabled}
-                  />
-                </InputWithTooltip>
-              </TableCell>
-
-              <TableCell className={cn(colCell, "text-right")}>
-                <InputWithTooltip
-                  hasError={hasError("amount")}
-                  errorClass={getFieldErrorClass("amount")}
-                  fullErrorMessage={getFullErrorMessage("amount")}
-                  placeholder={getPlaceholder("amount", "")}
-                  id="amount"
-                  aria-label="Amount"
-                  aria-describedby={
-                    hasError("amount") ? "amount-error" : undefined
-                  }
-                >
-                  <Input
-                    value={formData.amount}
-                    onChange={(e) => updateField("amount", e.target.value)}
-                    className={cn(
-                      control,
-                      "text-right tabular-nums",
-                      !basicFieldsEnabled && "cursor-not-allowed",
-                    )}
-                    inputMode="decimal"
-                    disabled={!basicFieldsEnabled}
-                  />
-                </InputWithTooltip>
-              </TableCell>
-
-              <TableCell className={colCell}>
-                <CellWithTooltip
-                  errorMessage={getFullErrorMessage("balanceAccountType")}
-                >
-                  <Select
-                    value={formData.balanceAccountType || undefined}
-                    onValueChange={(v) => {
-                      updateField(
-                        "balanceAccountType",
-                        v as VoucherFormData["balanceAccountType"],
-                      );
-                      // Clear Balance Account No. when Balance Account Type changes
-                      updateField("balanceAccountNo", "");
-                    }}
-                    disabled={
-                      !balanceAccountEnabled ||
-                      formData.accountType === "Customer" ||
-                      formData.accountType === "Vendor"
-                    }
-                  >
-                    <SelectTrigger
-                      className={cn(
-                        control,
-                        getFieldErrorClass("balanceAccountType"),
-                        "w-full",
-                        (!balanceAccountEnabled ||
-                          formData.accountType === "Customer" ||
-                          formData.accountType === "Vendor") &&
-                          "cursor-not-allowed",
-                      )}
-                      data-field-error={hasError("balanceAccountType")}
-                    >
-                      <SelectValue
-                        placeholder={getPlaceholder("balanceAccountType", "")}
-                      />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {formData.accountType === "G/L Account" ? (
-                        // When Account Type is G/L Account, show all 3 options
-                        <>
-                          <SelectItem value="G/L Account" disabled={true}>
-                            G/L Account
-                          </SelectItem>
-                          <SelectItem value="Customer" disabled={false}>
-                            Customer
-                          </SelectItem>
-                          <SelectItem value="Vendor" disabled={false}>
-                            Vendor
-                          </SelectItem>
-                        </>
-                      ) : (
-                        // When Account Type is Customer or Vendor, only show G/L Account
-                        <SelectItem value="G/L Account">G/L Account</SelectItem>
-                      )}
-                    </SelectContent>
-                  </Select>
-                </CellWithTooltip>
-              </TableCell>
-
-              <TableCell className={colCell}>
-                <CellWithTooltip
-                  errorMessage={getFullErrorMessage("balanceAccountNo")}
-                >
-                  <AccountSelect
-                    accountType={formData.balanceAccountType}
-                    value={formData.balanceAccountNo}
-                    onChange={(value) => updateField("balanceAccountNo", value)}
-                    placeholder={getPlaceholder("balanceAccountNo", "")}
-                    className={cn(
-                      control,
-                      !balanceAccountEnabled && "cursor-not-allowed",
-                    )}
-                    hasError={hasError("balanceAccountNo")}
-                    errorClass={getFieldErrorClass("balanceAccountNo")}
-                    excludeValue={formData.accountNo} // Exclude Account No. from Bal. Acc No. list
-                    disabled={!balanceAccountEnabled}
-                  />
-                </CellWithTooltip>
-              </TableCell>
-
-              {/* Balance Account TDS Type - shown when Balance Account Type is Vendor */}
-              {showBalanceTds && (
-                <TableCell className={colCell}>
-                  <CellWithTooltip
-                    errorMessage={getFullErrorMessage(
-                      "balanceTdsSection.tdsType",
-                    )}
-                  >
-                    <Select
-                      value={formData.balanceTdsSection?.tdsType || ""}
-                      onValueChange={(value) => {
-                        if (value === "NA") {
-                          updateField("balanceTdsSection", undefined);
-                        } else {
-                          updateField("balanceTdsSection", {
-                            tdsType: value,
-                          });
-                        }
-                      }}
-                      disabled={
-                        !balanceAccountEnabled || !formData.balanceAccountNo
-                      }
-                    >
-                      <SelectTrigger
-                        className={cn(
-                          control,
-                          getFieldErrorClass("balanceTdsSection.tdsType"),
-                          "w-full",
-                          (!balanceAccountEnabled ||
-                            !formData.balanceAccountNo) &&
-                            "cursor-not-allowed",
-                        )}
-                        data-field-error={hasError("balanceTdsSection.tdsType")}
-                      >
-                        <SelectValue
-                          placeholder={getPlaceholder(
-                            "balanceTdsSection.tdsType",
-                            "Select TDS Type",
-                          )}
-                        />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="NA">NA</SelectItem>
-                        {balanceTdsSections.length === 0 ? (
-                          <div className="text-muted-foreground px-2 py-1.5 text-sm">
-                            No TDS sections available
-                          </div>
-                        ) : (
-                          balanceTdsSections.map((section) => (
-                            <SelectItem
-                              key={section.TDS_Section}
-                              value={section.TDS_Section}
-                            >
-                              {section.TDS_Section}
-                            </SelectItem>
-                          ))
-                        )}
-                      </SelectContent>
-                    </Select>
-                  </CellWithTooltip>
-                </TableCell>
-              )}
-
-              {/* Balance Account TCS Type - shown when Balance Account Type is Customer */}
-              {showBalanceTcs && (
-                <TableCell className={colCell}>
-                  <CellWithTooltip
-                    errorMessage={getFullErrorMessage(
-                      "balanceTcsSection.tcsType",
-                    )}
-                  >
-                    <Select
-                      value={formData.balanceTcsSection?.tcsType || ""}
-                      onValueChange={(value) => {
-                        if (value === "NA") {
-                          updateField("balanceTcsSection", undefined);
-                        } else {
-                          updateField("balanceTcsSection", {
-                            tcsType: value,
-                          });
-                        }
-                      }}
-                      disabled={
-                        !balanceAccountEnabled || !formData.balanceAccountNo
-                      }
-                    >
-                      <SelectTrigger
-                        className={cn(
-                          control,
-                          getFieldErrorClass("balanceTcsSection.tcsType"),
-                          "w-full",
-                          (!balanceAccountEnabled ||
-                            !formData.balanceAccountNo) &&
-                            "cursor-not-allowed",
-                        )}
-                        data-field-error={hasError("balanceTcsSection.tcsType")}
-                      >
-                        <SelectValue
-                          placeholder={getPlaceholder(
-                            "balanceTcsSection.tcsType",
-                            "Select TCS Type",
-                          )}
-                        />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="NA">NA</SelectItem>
-                        {balanceTcsSections.length === 0 ? (
-                          <div className="text-muted-foreground px-2 py-1.5 text-sm">
-                            No TCS sections available
-                          </div>
-                        ) : (
-                          balanceTcsSections.map((section) => (
-                            <SelectItem
-                              key={section.TCS_Nature_of_Collection}
-                              value={section.TCS_Nature_of_Collection}
-                            >
-                              {section.TCS_Nature_of_Collection}
-                            </SelectItem>
-                          ))
-                        )}
-                      </SelectContent>
-                    </Select>
-                  </CellWithTooltip>
-                </TableCell>
-              )}
-
-              <TableCell className={colCell}>
-                <InputWithTooltip
-                  hasError={hasError("lineNarration")}
-                  errorClass={getFieldErrorClass("lineNarration")}
-                  fullErrorMessage={getFullErrorMessage("lineNarration")}
-                  placeholder={getPlaceholder("lineNarration", "")}
-                  id="lineNarration"
-                  aria-label="Line Narration"
-                  aria-describedby={
-                    hasError("lineNarration")
-                      ? "lineNarration-error"
-                      : undefined
-                  }
-                >
-                  <Input
-                    value={formData.lineNarration}
-                    onChange={(e) =>
-                      updateField("lineNarration", e.target.value)
-                    }
-                    className={cn(
-                      control,
-                      !restFieldsEnabled && "cursor-not-allowed",
-                    )}
-                    disabled={!restFieldsEnabled}
-                  />
-                </InputWithTooltip>
-              </TableCell>
-
-              <TableCell className={colCell}>
-                <CellWithTooltip errorMessage={getFullErrorMessage("lob")}>
-                  <CascadingDimensionSelect
-                    dimensionType="LOB"
-                    value={formData.lob}
-                    onChange={(value) => {
-                      updateField("lob", value);
-                      // Clear Branch and LOC when LOB changes
-                      if (formData.branch) updateField("branch", "");
-                      if (formData.loc) updateField("loc", "");
-                    }}
-                    placeholder={getPlaceholder("lob", "Select LOB")}
-                    className={cn(
-                      control,
-                      !restFieldsEnabled && "cursor-not-allowed",
-                    )}
-                    userId={userID || undefined}
-                    hasError={hasError("lob")}
-                    errorClass={getFieldErrorClass("lob")}
-                    disabled={!restFieldsEnabled}
-                  />
-                </CellWithTooltip>
-              </TableCell>
-
-              <TableCell className={colCell}>
-                <CellWithTooltip errorMessage={getFullErrorMessage("branch")}>
-                  <CascadingDimensionSelect
-                    dimensionType="BRANCH"
-                    value={formData.branch}
-                    onChange={(value) => {
-                      updateField("branch", value);
-                      // Clear LOC when Branch changes
-                      if (formData.loc) updateField("loc", "");
-                    }}
-                    placeholder={getPlaceholder("branch", "Select Branch")}
-                    className={cn(
-                      control,
-                      !restFieldsEnabled && "cursor-not-allowed",
-                    )}
-                    hasError={hasError("branch")}
-                    userId={userID || undefined}
-                    lobValue={formData.lob}
-                    errorClass={getFieldErrorClass("branch")}
-                    disabled={!restFieldsEnabled}
-                  />
-                </CellWithTooltip>
-              </TableCell>
-
-              <TableCell className={colCell}>
-                <CellWithTooltip errorMessage={getFullErrorMessage("loc")}>
-                  <CascadingDimensionSelect
-                    dimensionType="LOC"
-                    value={formData.loc}
-                    onChange={(value) => updateField("loc", value)}
-                    placeholder={getPlaceholder("loc", "Select LOC")}
-                    className={cn(
-                      control,
-                      !restFieldsEnabled && "cursor-not-allowed",
-                    )}
-                    hasError={hasError("loc")}
-                    errorClass={getFieldErrorClass("loc")}
-                    disabled={!restFieldsEnabled}
-                    lobValue={formData.lob}
-                    branchValue={formData.branch}
-                    userId={userID || undefined}
-                  />
-                </CellWithTooltip>
-              </TableCell>
-
-              {/* Employee - always shown after LOC, required if mandatory */}
-              <TableCell className={colCell}>
-                <CellWithTooltip errorMessage={getFullErrorMessage("employee")}>
-                  <DimensionSelect
-                    dimensionType="EMPLOYEE"
-                    value={formData.employee || ""}
-                    onChange={(value) => updateField("employee", value)}
-                    placeholder={getPlaceholder("employee", "Select Employee")}
-                    className={cn(
-                      control,
-                      !restFieldsEnabled && "cursor-not-allowed",
-                    )}
-                    hasError={hasError("employee")}
-                    errorClass={getFieldErrorClass("employee")}
-                    disabled={!restFieldsEnabled}
-                  />
-                </CellWithTooltip>
-              </TableCell>
-
-              {/* Assignment - always shown after LOC, required if mandatory */}
-              <TableCell className={colCell}>
-                <CellWithTooltip
-                  errorMessage={getFullErrorMessage("assignment")}
-                >
-                  <DimensionSelect
-                    dimensionType="ASSIGNMENT"
-                    value={formData.assignment || ""}
-                    onChange={(value) => updateField("assignment", value)}
-                    placeholder={getPlaceholder(
-                      "assignment",
-                      "Select Assignment",
-                    )}
-                    className={cn(
-                      control,
-                      !restFieldsEnabled && "cursor-not-allowed",
-                    )}
-                    hasError={hasError("assignment")}
-                    errorClass={getFieldErrorClass("assignment")}
-                    disabled={!restFieldsEnabled}
-                  />
-                </CellWithTooltip>
-              </TableCell>
-
-              <TableCell className={colCell}>
-                <div className="space-y-1">
-                  <div className="relative">
-                    <Input
-                      ref={fileInputRef}
-                      type="file"
-                      multiple
-                      onChange={handleFileChange}
-                      className="hidden"
-                      disabled={isSubmitting}
-                    />
-                    <Button
-                      type="button"
-                      variant="default"
-                      size="sm"
-                      className={cn(
-                        "w-full",
-                        !restFieldsEnabled && "cursor-not-allowed",
-                      )}
-                      disabled={isSubmitting || !restFieldsEnabled}
-                      onClick={() => fileInputRef.current?.click()}
-                    >
-                      <Upload className="mr-2 h-4 w-4" />
-                      Upload Files
-                    </Button>
-                  </div>
-                  {attachments.length > 0 && (
-                    <div className="mt-1 flex flex-wrap gap-1">
-                      {attachments.map((file, index) => (
-                        <div
-                          key={index}
-                          className="bg-muted flex items-center gap-1 rounded px-2 py-1 text-xs"
-                        >
-                          <span className="max-w-30 truncate">{file.name}</span>
-                          <button
-                            type="button"
-                            onClick={() => removeAttachment(index)}
-                            className="text-destructive hover:text-destructive/80"
-                            disabled={isSubmitting}
-                          >
-                            ×
-                          </button>
-                        </div>
-                      ))}
-                    </div>
+                }}
+                disabled={!accountNoEnabled || !formData.accountNo}
+              >
+                <SelectTrigger
+                  className={cn(
+                    control,
+                    getFieldErrorClass("accountTdsSection.tdsType"),
+                    "w-full",
+                    (!accountNoEnabled || !formData.accountNo) &&
+                      "cursor-not-allowed",
                   )}
-                </div>
-              </TableCell>
-            </TableRow>
-          </TableBody>
-        </Table>
+                  data-field-error={hasError("accountTdsSection.tdsType")}
+                >
+                  <SelectValue
+                    placeholder={getPlaceholder(
+                      "accountTdsSection.tdsType",
+                      "Select TDS Type",
+                    )}
+                  />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="NA">NA</SelectItem>
+                  {accountTdsSections.length === 0 ? (
+                    <div className="text-muted-foreground px-2 py-1.5 text-sm">
+                      No TDS sections available
+                    </div>
+                  ) : (
+                    accountTdsSections.map((section) => (
+                      <SelectItem key={section.TDS_Section} value={section.TDS_Section}>
+                        {section.TDS_Section}
+                      </SelectItem>
+                    ))
+                  )}
+                </SelectContent>
+              </Select>
+            </CellWithTooltip>
+          </div>
+        )}
+
+        {/* Account TCS Type */}
+        {showAccountTcs && (
+          <div className="flex flex-col gap-1">
+            <FieldTitle>TCS Type</FieldTitle>
+            <CellWithTooltip
+              errorMessage={getFullErrorMessage("accountTcsSection.tcsType")}
+            >
+              <Select
+                value={formData.accountTcsSection?.tcsType || ""}
+                onValueChange={(value) => {
+                  if (value === "NA") {
+                    updateField("accountTcsSection", undefined);
+                  } else {
+                    updateField("accountTcsSection", { tcsType: value });
+                  }
+                }}
+                disabled={!accountNoEnabled || !formData.accountNo}
+              >
+                <SelectTrigger
+                  className={cn(
+                    control,
+                    getFieldErrorClass("accountTcsSection.tcsType"),
+                    "w-full",
+                    (!accountNoEnabled || !formData.accountNo) &&
+                      "cursor-not-allowed",
+                  )}
+                  data-field-error={hasError("accountTcsSection.tcsType")}
+                >
+                  <SelectValue
+                    placeholder={getPlaceholder(
+                      "accountTcsSection.tcsType",
+                      "Select TCS Type",
+                    )}
+                  />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="NA">NA</SelectItem>
+                  {accountTcsSections.length === 0 ? (
+                    <div className="text-muted-foreground px-2 py-1.5 text-sm">
+                      No TCS sections available
+                    </div>
+                  ) : (
+                    accountTcsSections.map((section) => (
+                      <SelectItem
+                        key={section.TCS_Nature_of_Collection}
+                        value={section.TCS_Nature_of_Collection}
+                      >
+                        {section.TCS_Nature_of_Collection}
+                      </SelectItem>
+                    ))
+                  )}
+                </SelectContent>
+              </Select>
+            </CellWithTooltip>
+          </div>
+        )}
+
+        {/* External Doc No. */}
+        <div className="flex flex-col gap-1">
+          <FieldTitle required={formData.voucherType === "General Journal"}>
+            External Doc No.
+          </FieldTitle>
+          <InputWithTooltip
+            hasError={hasError("externalDocumentNo")}
+            errorClass={getFieldErrorClass("externalDocumentNo")}
+            fullErrorMessage={getFullErrorMessage("externalDocumentNo")}
+            placeholder={getPlaceholder("externalDocumentNo", "")}
+            id="externalDocumentNo"
+            aria-label="External Document Number"
+            aria-describedby={
+              hasError("externalDocumentNo") ? "externalDocumentNo-error" : undefined
+            }
+          >
+            <Input
+              value={formData.externalDocumentNo}
+              onChange={(e) => updateField("externalDocumentNo", e.target.value)}
+              className={cn(control, !basicFieldsEnabled && "cursor-not-allowed")}
+              disabled={!basicFieldsEnabled}
+            />
+          </InputWithTooltip>
+        </div>
+
+        {/* Description */}
+        <div className="flex flex-col gap-1">
+          <FieldTitle>Description</FieldTitle>
+          <InputWithTooltip
+            hasError={hasError("description")}
+            errorClass={getFieldErrorClass("description")}
+            fullErrorMessage={getFullErrorMessage("description")}
+            placeholder={getPlaceholder("description", "")}
+            id="description"
+            aria-label="Description"
+            aria-describedby={
+              hasError("description") ? "description-error" : undefined
+            }
+          >
+            <Input
+              value={formData.description}
+              onChange={(e) => updateField("description", e.target.value)}
+              className={cn(control, !basicFieldsEnabled && "cursor-not-allowed")}
+              disabled={!basicFieldsEnabled}
+            />
+          </InputWithTooltip>
+        </div>
+
+        {/* Amount */}
+        <div className="flex flex-col gap-1">
+          <FieldTitle required>Amount</FieldTitle>
+          <InputWithTooltip
+            hasError={hasError("amount")}
+            errorClass={getFieldErrorClass("amount")}
+            fullErrorMessage={getFullErrorMessage("amount")}
+            placeholder={getPlaceholder("amount", "")}
+            id="amount"
+            aria-label="Amount"
+            aria-describedby={hasError("amount") ? "amount-error" : undefined}
+          >
+            <CalculatorInput
+              value={formData.amount}
+              onValueChange={(val) => updateField("amount", val)}
+              className={cn(control, "text-right tabular-nums", !basicFieldsEnabled && "cursor-not-allowed")}
+              disabled={!basicFieldsEnabled}
+            />
+          </InputWithTooltip>
+        </div>
+
+        {/* Bal. Acc Type */}
+        <div className="flex flex-col gap-1">
+          <FieldTitle required>Bal. Acc Type</FieldTitle>
+          <CellWithTooltip errorMessage={getFullErrorMessage("balanceAccountType")}>
+            <Select
+              value={formData.balanceAccountType || undefined}
+              onValueChange={(v) => {
+                updateField("balanceAccountType", v as VoucherFormData["balanceAccountType"]);
+                updateField("balanceAccountNo", "");
+              }}
+              disabled={
+                !balanceAccountEnabled ||
+                formData.accountType === "Customer" ||
+                formData.accountType === "Vendor"
+              }
+            >
+              <SelectTrigger
+                className={cn(
+                  control,
+                  getFieldErrorClass("balanceAccountType"),
+                  "w-full",
+                  (!balanceAccountEnabled ||
+                    formData.accountType === "Customer" ||
+                    formData.accountType === "Vendor") &&
+                    "cursor-not-allowed",
+                )}
+                data-field-error={hasError("balanceAccountType")}
+              >
+                <SelectValue placeholder={getPlaceholder("balanceAccountType", "")} />
+              </SelectTrigger>
+              <SelectContent>
+                {formData.accountType === "G/L Account" ? (
+                  <>
+                    <SelectItem value="G/L Account" disabled={true}>G/L Account</SelectItem>
+                    <SelectItem value="Customer">Customer</SelectItem>
+                    <SelectItem value="Vendor">Vendor</SelectItem>
+                  </>
+                ) : (
+                  <SelectItem value="G/L Account">G/L Account</SelectItem>
+                )}
+              </SelectContent>
+            </Select>
+          </CellWithTooltip>
+        </div>
+
+        {/* Bal. Acc No. */}
+        <div className="flex flex-col gap-1">
+          <FieldTitle required>Bal. Acc No.</FieldTitle>
+          <CellWithTooltip errorMessage={getFullErrorMessage("balanceAccountNo")}>
+            <AccountSelect
+              accountType={formData.balanceAccountType}
+              value={formData.balanceAccountNo}
+              onChange={(value) => updateField("balanceAccountNo", value)}
+              placeholder={getPlaceholder("balanceAccountNo", "")}
+              className={cn(control, !balanceAccountEnabled && "cursor-not-allowed")}
+              hasError={hasError("balanceAccountNo")}
+              errorClass={getFieldErrorClass("balanceAccountNo")}
+              excludeValue={formData.accountNo}
+              disabled={!balanceAccountEnabled}
+            />
+          </CellWithTooltip>
+        </div>
+
+        {/* Balance Account TDS Type */}
+        {showBalanceTds && (
+          <div className="flex flex-col gap-1">
+            <FieldTitle>TDS Type</FieldTitle>
+            <CellWithTooltip
+              errorMessage={getFullErrorMessage("balanceTdsSection.tdsType")}
+            >
+              <Select
+                value={formData.balanceTdsSection?.tdsType || ""}
+                onValueChange={(value) => {
+                  if (value === "NA") {
+                    updateField("balanceTdsSection", undefined);
+                  } else {
+                    updateField("balanceTdsSection", { tdsType: value });
+                  }
+                }}
+                disabled={!balanceAccountEnabled || !formData.balanceAccountNo}
+              >
+                <SelectTrigger
+                  className={cn(
+                    control,
+                    getFieldErrorClass("balanceTdsSection.tdsType"),
+                    "w-full",
+                    (!balanceAccountEnabled || !formData.balanceAccountNo) &&
+                      "cursor-not-allowed",
+                  )}
+                  data-field-error={hasError("balanceTdsSection.tdsType")}
+                >
+                  <SelectValue
+                    placeholder={getPlaceholder(
+                      "balanceTdsSection.tdsType",
+                      "Select TDS Type",
+                    )}
+                  />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="NA">NA</SelectItem>
+                  {balanceTdsSections.length === 0 ? (
+                    <div className="text-muted-foreground px-2 py-1.5 text-sm">
+                      No TDS sections available
+                    </div>
+                  ) : (
+                    balanceTdsSections.map((section) => (
+                      <SelectItem key={section.TDS_Section} value={section.TDS_Section}>
+                        {section.TDS_Section}
+                      </SelectItem>
+                    ))
+                  )}
+                </SelectContent>
+              </Select>
+            </CellWithTooltip>
+          </div>
+        )}
+
+        {/* Balance Account TCS Type */}
+        {showBalanceTcs && (
+          <div className="flex flex-col gap-1">
+            <FieldTitle>TCS Type</FieldTitle>
+            <CellWithTooltip
+              errorMessage={getFullErrorMessage("balanceTcsSection.tcsType")}
+            >
+              <Select
+                value={formData.balanceTcsSection?.tcsType || ""}
+                onValueChange={(value) => {
+                  if (value === "NA") {
+                    updateField("balanceTcsSection", undefined);
+                  } else {
+                    updateField("balanceTcsSection", { tcsType: value });
+                  }
+                }}
+                disabled={!balanceAccountEnabled || !formData.balanceAccountNo}
+              >
+                <SelectTrigger
+                  className={cn(
+                    control,
+                    getFieldErrorClass("balanceTcsSection.tcsType"),
+                    "w-full",
+                    (!balanceAccountEnabled || !formData.balanceAccountNo) &&
+                      "cursor-not-allowed",
+                  )}
+                  data-field-error={hasError("balanceTcsSection.tcsType")}
+                >
+                  <SelectValue
+                    placeholder={getPlaceholder(
+                      "balanceTcsSection.tcsType",
+                      "Select TCS Type",
+                    )}
+                  />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="NA">NA</SelectItem>
+                  {balanceTcsSections.length === 0 ? (
+                    <div className="text-muted-foreground px-2 py-1.5 text-sm">
+                      No TCS sections available
+                    </div>
+                  ) : (
+                    balanceTcsSections.map((section) => (
+                      <SelectItem
+                        key={section.TCS_Nature_of_Collection}
+                        value={section.TCS_Nature_of_Collection}
+                      >
+                        {section.TCS_Nature_of_Collection}
+                      </SelectItem>
+                    ))
+                  )}
+                </SelectContent>
+              </Select>
+            </CellWithTooltip>
+          </div>
+        )}
+
+        {/* Line Narration */}
+        <div className="flex flex-col gap-1">
+          <FieldTitle>Line Narration</FieldTitle>
+          <InputWithTooltip
+            hasError={hasError("lineNarration")}
+            errorClass={getFieldErrorClass("lineNarration")}
+            fullErrorMessage={getFullErrorMessage("lineNarration")}
+            placeholder={getPlaceholder("lineNarration", "")}
+            id="lineNarration"
+            aria-label="Line Narration"
+            aria-describedby={
+              hasError("lineNarration") ? "lineNarration-error" : undefined
+            }
+          >
+            <Input
+              value={formData.lineNarration}
+              onChange={(e) => updateField("lineNarration", e.target.value)}
+              className={cn(control, !restFieldsEnabled && "cursor-not-allowed")}
+              disabled={!restFieldsEnabled}
+            />
+          </InputWithTooltip>
+        </div>
+
+        {/* LOB */}
+        <div className="flex flex-col gap-1">
+          <FieldTitle required>LOB</FieldTitle>
+          <CellWithTooltip errorMessage={getFullErrorMessage("lob")}>
+            <CascadingDimensionSelect
+              dimensionType="LOB"
+              value={formData.lob}
+              onChange={(value) => {
+                updateField("lob", value);
+                if (formData.branch) updateField("branch", "");
+                if (formData.loc) updateField("loc", "");
+              }}
+              placeholder={getPlaceholder("lob", "Select LOB")}
+              className={cn(control, !restFieldsEnabled && "cursor-not-allowed")}
+              userId={userID || undefined}
+              hasError={hasError("lob")}
+              errorClass={getFieldErrorClass("lob")}
+              disabled={!restFieldsEnabled}
+            />
+          </CellWithTooltip>
+        </div>
+
+        {/* Branch */}
+        <div className="flex flex-col gap-1">
+          <FieldTitle required>Branch</FieldTitle>
+          <CellWithTooltip errorMessage={getFullErrorMessage("branch")}>
+            <CascadingDimensionSelect
+              dimensionType="BRANCH"
+              value={formData.branch}
+              onChange={(value) => {
+                updateField("branch", value);
+                if (formData.loc) updateField("loc", "");
+              }}
+              placeholder={getPlaceholder("branch", "Select Branch")}
+              className={cn(control, !restFieldsEnabled && "cursor-not-allowed")}
+              hasError={hasError("branch")}
+              userId={userID || undefined}
+              lobValue={formData.lob}
+              errorClass={getFieldErrorClass("branch")}
+              disabled={!restFieldsEnabled}
+            />
+          </CellWithTooltip>
+        </div>
+
+        {/* LOC */}
+        <div className="flex flex-col gap-1">
+          <FieldTitle required>LOC</FieldTitle>
+          <CellWithTooltip errorMessage={getFullErrorMessage("loc")}>
+            <LocationSelect
+              value={formData.loc || ""}
+              onChange={(value) => updateField("loc", value)}
+              placeholder={getPlaceholder("loc", "Select LOC")}
+              className={cn(control, !restFieldsEnabled && "cursor-not-allowed")}
+              hasError={hasError("loc")}
+              disabled={!restFieldsEnabled}
+              branchCode={formData.branch}
+            />
+          </CellWithTooltip>
+        </div>
+
+        {/* Employee */}
+        <div className="flex flex-col gap-1">
+          <FieldTitle required={isEmployeeMandatory}>Employee</FieldTitle>
+          <CellWithTooltip errorMessage={getFullErrorMessage("employee")}>
+            <DimensionSelect
+              dimensionType="EMPLOYEE"
+              value={formData.employee || ""}
+              onChange={(value) => updateField("employee", value)}
+              placeholder={getPlaceholder("employee", "Select Employee")}
+              className={cn(control, !restFieldsEnabled && "cursor-not-allowed")}
+              hasError={hasError("employee")}
+              errorClass={getFieldErrorClass("employee")}
+              disabled={!restFieldsEnabled}
+            />
+          </CellWithTooltip>
+        </div>
+
+        {/* Assignment */}
+        <div className="flex flex-col gap-1">
+          <FieldTitle required={isAssignmentMandatory}>Assignment</FieldTitle>
+          <CellWithTooltip errorMessage={getFullErrorMessage("assignment")}>
+            <DimensionSelect
+              dimensionType="ASSIGNMENT"
+              value={formData.assignment || ""}
+              onChange={(value) => updateField("assignment", value)}
+              placeholder={getPlaceholder("assignment", "Select Assignment")}
+              className={cn(control, !restFieldsEnabled && "cursor-not-allowed")}
+              hasError={hasError("assignment")}
+              errorClass={getFieldErrorClass("assignment")}
+              disabled={!restFieldsEnabled}
+            />
+          </CellWithTooltip>
+        </div>
+
+        {/* Upload Files */}
+        <div className="flex flex-col gap-1">
+          <FieldTitle required={formData.voucherType === "Cash Payment"}>
+            Upload Files
+          </FieldTitle>
+          <div className="space-y-1">
+            <div className="relative">
+              <Input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                onChange={handleFileChange}
+                className="hidden"
+                disabled={isSubmitting}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className={cn("w-full h-9", !restFieldsEnabled && "cursor-not-allowed")}
+                disabled={isSubmitting || !restFieldsEnabled}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <Upload className="mr-2 h-4 w-4" />
+                Upload Files
+              </Button>
+            </div>
+            {attachments.length > 0 && (
+              <div className="mt-1 flex flex-wrap gap-1">
+                {attachments.map((file, index) => (
+                  <div
+                    key={index}
+                    className="bg-muted flex items-center gap-1 rounded px-2 py-0.5 text-[10px]"
+                  >
+                    <span className="max-w-24 truncate">{file.name}</span>
+                    <button
+                      type="button"
+                      onClick={() => removeAttachment(index)}
+                      className="text-destructive hover:text-destructive/80"
+                      disabled={isSubmitting}
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Form Actions */}
+        <div className="flex flex-col gap-1 sm:col-span-1 md:col-span-1 lg:col-span-1 xl:col-span-1 2xl:col-span-1">
+          <FieldTitle>&nbsp;</FieldTitle>
+          <div className="flex items-center gap-2">
+            {pendingEditId ? (
+              <>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="h-9"
+                  onClick={handleCancelEdit}
+                >
+                  Cancel
+                </Button>
+                <Button type="button" size="sm" className="h-9" onClick={handleUpdateEntry}>
+                  Update Entry
+                </Button>
+              </>
+            ) : isEditingVoucher ? (
+              <>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="h-9"
+                  onClick={() => {
+                    resetForm();
+                  }}
+                  disabled={isUpdatingVoucher}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  className="h-9"
+                  onClick={handleAddEntry}
+                  disabled={isUpdatingVoucher}
+                >
+                  <Pencil className="mr-2 h-4 w-4" />
+                  {isUpdatingVoucher ? "Updating..." : "Update"}
+                </Button>
+              </>
+            ) : (
+              <Button type="button" size="sm" className="h-9" onClick={handleAddEntry}>
+                <Plus className="mr-2 h-4 w-4" />
+                Add Entry
+              </Button>
+            )}
+          </div>
+        </div>
       </div>
 
-      <div className="flex min-h-0 flex-col gap-2">
+      <div className="flex flex-1 min-h-0 flex-col gap-4 overflow-hidden">
+        <div className="flex flex-1 min-h-0 flex-col gap-2">
         <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div className="text-foreground/70 text-sm">
             {entries.length === 0
@@ -3079,11 +2928,11 @@ export function VoucherForm() {
         ) : (
           <div
             ref={entriesTableRef}
-            className="bg-background cursor-grab overflow-x-auto rounded-md border"
+            className="bg-background flex-1 min-h-0 cursor-grab overflow-auto rounded-md border"
           >
             <Table className={tableClass}>
               <TableHeader>
-                <TableRow>
+                <TableRow className="sticky top-0 z-30 bg-muted">
                   <TableHead className={cn(colHead, "w-30")}>Posting</TableHead>
                   <TableHead className={cn(colHead, "w-30")}>
                     Document
@@ -3360,10 +3209,10 @@ export function VoucherForm() {
             </div>
           </div>
         )}
-      </div>
+        </div>
 
       {/* Fetched Vouchers Table */}
-      <div className="mt-4 flex flex-col gap-2">
+      <div className="flex flex-1 min-h-0 flex-col gap-2">
         <div className="flex items-center justify-between">
           <div className="text-foreground/80 text-sm font-semibold">
             Vouchers from ERP
@@ -3393,14 +3242,14 @@ export function VoucherForm() {
         ) : (
           <div
             ref={vouchersTableRef}
-            className="bg-background cursor-grab overflow-x-auto rounded-md border"
+            className="bg-background flex-1 min-h-0 cursor-grab overflow-auto rounded-md border"
           >
             <Table className={tableClass}>
               <TableHeader>
-                <TableRow>
+                <TableRow className="sticky top-0 z-30 bg-muted">
                   <TableHead
                     className={cn(
-                      "text-foreground/80 bg-muted sticky left-0 z-20 px-1 py-1 text-xs font-semibold",
+                      "text-foreground/80 bg-muted sticky left-0 top-0 z-40 px-1 py-1 text-xs font-semibold",
                       "w-25",
                     )}
                     style={{ borderRight: "2px solid hsl(var(--border))" }}
@@ -3409,7 +3258,7 @@ export function VoucherForm() {
                   </TableHead>
                   <TableHead
                     className={cn(
-                      "text-foreground/80 bg-muted sticky left-25 z-20 px-1 py-1 text-xs font-semibold",
+                      "text-foreground/80 bg-muted sticky left-25 top-0 z-40 px-1 py-1 text-xs font-semibold",
                       "w-22.5",
                     )}
                     style={{ borderRight: "2px solid hsl(var(--border))" }}
@@ -3418,7 +3267,7 @@ export function VoucherForm() {
                   </TableHead>
                   <TableHead
                     className={cn(
-                      "text-foreground/80 bg-muted sticky left-47.5 z-20 px-1 py-1 text-xs font-semibold",
+                      "text-foreground/80 bg-muted sticky left-47.5 top-0 z-40 px-1 py-1 text-xs font-semibold",
                       "w-25",
                     )}
                     style={{ borderRight: "2px solid hsl(var(--border))" }}
@@ -3942,6 +3791,7 @@ export function VoucherForm() {
           </div>
         )}
       </div>
+    </div>
 
       {/* Unsaved Changes Warning Dialog (for Edit) */}
       <Dialog

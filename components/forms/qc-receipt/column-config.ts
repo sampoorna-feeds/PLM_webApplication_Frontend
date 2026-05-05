@@ -104,6 +104,13 @@ export const OPTIONAL_COLUMNS: ColumnConfig[] = [
     defaultVisible: false,
     filterType: "text",
   },
+  {
+    id: "Location_Code",
+    label: "Location Code",
+    sortable: true,
+    defaultVisible: false,
+    filterType: "text",
+  },
 ];
 
 export const ALL_COLUMNS: ColumnConfig[] = [

@@ -1,7 +1,9 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Loader2, Package } from "lucide-react";
+import { Loader2, Package, Search } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { formatDate } from "@/lib/utils/date";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,6 +28,14 @@ import {
   type TransferLine,
   type TransferItemLedgerEntry,
 } from "@/lib/api/services/transfer-orders.service";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { TransferBardanaDialog } from "./transfer-bardana-dialog";
 
 interface TransferOrderLineDialogProps {
@@ -61,6 +71,8 @@ export function TransferOrderLineDialog({
   const [isLoadingLedgerEntries, setIsLoadingLedgerEntries] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [isBardanaOpen, setIsBardanaOpen] = useState(false);
+  const [isLedgerModalOpen, setIsLedgerModalOpen] = useState(false);
+  const [ledgerSearchQuery, setLedgerSearchQuery] = useState("");
   const [canAddBardana, setCanAddBardana] = useState(false);
 
   const [formData, setFormData] = useState<Partial<TransferLine>>({
@@ -361,20 +373,106 @@ export function TransferOrderLineDialog({
             {(ledgerEntries.length > 0 || (isEdit && formData.Appl_to_Item_Entry)) && (
               <div className="space-y-1 sm:col-span-12">
                 <FieldTitle>Appl.-to Item Entry</FieldTitle>
-                <SearchableSelect
-                  options={ledgerEntries.map(e => ({
-                    value: String(e.Entry_No),
-                    label: `${e.Entry_No} (Rem: ${e.Remaining_Quantity}) - ${e.Lot_No || "No Lot"}`,
-                  }))}
-                  value={formData.Appl_to_Item_Entry ? String(formData.Appl_to_Item_Entry) : ""}
-                  onValueChange={(v) => handleChange("Appl_to_Item_Entry", Number(v))}
-                  isLoading={isLoadingLedgerEntries}
-                  placeholder="Select Entry No."
-                />
+                <div className="relative">
+                  <Input
+                    value={formData.Appl_to_Item_Entry ? String(formData.Appl_to_Item_Entry) : ""}
+                    readOnly
+                    onClick={() => !isLoadingLedgerEntries && setIsLedgerModalOpen(true)}
+                    placeholder={
+                      isLoadingLedgerEntries
+                        ? "Loading entries..."
+                        : "Click to select Entry No."
+                    }
+                    className="h-8 cursor-pointer pr-10 text-xs font-medium"
+                  />
+                  <div
+                    className="absolute top-2 right-3 cursor-pointer opacity-50 transition-opacity hover:opacity-100"
+                    onClick={() => !isLoadingLedgerEntries && setIsLedgerModalOpen(true)}
+                  >
+                    <Search className="h-4 w-4" />
+                  </div>
+                </div>
               </div>
             )}
           </div>
         </div>
+
+        <Dialog open={isLedgerModalOpen} onOpenChange={setIsLedgerModalOpen}>
+          <DialogContent className="flex max-h-[85vh] w-fit max-w-[95vw] sm:max-w-[95vw] flex-col overflow-hidden p-0">
+            <DialogHeader className="p-6 pb-2">
+              <DialogTitle>Select Ledger Entry</DialogTitle>
+              <div className="relative mt-4">
+                <Search className="text-muted-foreground absolute top-2.5 left-3 h-4 w-4" />
+                <Input
+                  placeholder="Search by Entry No., Document No., or Lot No..."
+                  value={ledgerSearchQuery}
+                  onChange={(e) => setLedgerSearchQuery(e.target.value)}
+                  className="h-10 pl-9"
+                />
+              </div>
+            </DialogHeader>
+            <div className="flex-1 overflow-y-auto p-6 pt-0">
+              <div className="border-border overflow-x-auto rounded-md border">
+                <Table>
+                  <TableHeader className="bg-muted sticky top-0 z-10 whitespace-nowrap">
+                    <TableRow>
+                      <TableHead className="w-[100px]">Entry No.</TableHead>
+                      <TableHead>Posting Date</TableHead>
+                      <TableHead>Document No.</TableHead>
+                      <TableHead className="text-right">Quantity</TableHead>
+                      <TableHead className="text-right">Rem. Qty</TableHead>
+                      <TableHead>Lot No.</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {ledgerEntries
+                      .filter(
+                        (e) =>
+                          e.Entry_No.toString().includes(ledgerSearchQuery) ||
+                          e.Document_No?.toLowerCase().includes(ledgerSearchQuery.toLowerCase()) ||
+                          e.Lot_No?.toLowerCase().includes(ledgerSearchQuery.toLowerCase())
+                      )
+                      .map((entry) => (
+                        <TableRow
+                          key={entry.Entry_No}
+                          className="hover:bg-muted/50 cursor-pointer transition-colors whitespace-nowrap"
+                          onClick={() => {
+                            handleChange("Appl_to_Item_Entry", entry.Entry_No);
+                            setIsLedgerModalOpen(false);
+                          }}
+                        >
+                          <TableCell className="font-bold">{entry.Entry_No}</TableCell>
+                          <TableCell>
+                            {entry.Posting_Date ? formatDate(new Date(entry.Posting_Date)) : "-"}
+                          </TableCell>
+                          <TableCell>{entry.Document_No}</TableCell>
+                          <TableCell className="text-right">
+                            {entry.Quantity?.toLocaleString()}
+                          </TableCell>
+                          <TableCell className="text-right font-medium text-green-600">
+                            {entry.Remaining_Quantity?.toLocaleString()}
+                          </TableCell>
+                          <TableCell className="text-xs">{entry.Lot_No || "-"}</TableCell>
+                        </TableRow>
+                      ))}
+                    {ledgerEntries.length === 0 && !isLoadingLedgerEntries && (
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-muted-foreground h-24 text-center">
+                          No ledger entries found for this item and location.
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
+            <DialogFooter className="bg-muted/20 border-t p-4">
+              <Button variant="outline" onClick={() => setIsLedgerModalOpen(false)}>
+                Close
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
 
       </DialogContent>

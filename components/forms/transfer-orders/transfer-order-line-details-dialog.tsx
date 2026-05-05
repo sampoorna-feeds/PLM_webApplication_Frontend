@@ -204,32 +204,7 @@ export function TransferOrderLineDetailsDialog({
 
           </div>
 
-          {/* Read-only Info Section - Grid for more width, less height */}
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-y-3 gap-x-6">
-            <div className="flex items-center">
-              <span className={infoLabelClass}>Item No.</span>
-              <span className={infoValueClass}>{line.Item_No}</span>
-            </div>
-            <div className="flex items-center">
-              <span className={infoLabelClass}>Type</span>
-              <span className={infoValueClass}>Item</span>
-            </div>
-            <div className="flex items-center">
-              <span className={infoLabelClass}>UOM</span>
-              <span className={infoValueClass}>{line.Unit_of_Measure_Code}</span>
-            </div>
-            <div className="flex items-center">
-              <span className={infoLabelClass}>Quantity</span>
-              <span className={infoValueClass}>{line.Quantity?.toLocaleString()}</span>
-            </div>
-            <div className="flex items-center">
-              <span className={infoLabelClass}>Qty Received</span>
-              <span className={infoValueClass}>{line.Quantity_Received?.toLocaleString() || "-"}</span>
-            </div>
-            <div className="flex items-center">
-              <span className={infoLabelClass}>Qty Shipped</span>
-              <span className={infoValueClass}>{line.Quantity_Shipped?.toLocaleString() || "0"}</span>
-            </div>
+          {/* Read-only Info Section */}
             <div className="flex items-center">
               <span className={infoLabelClass}>Available Qty</span>
               <span className={cn(
@@ -240,7 +215,6 @@ export function TransferOrderLineDetailsDialog({
                 {isLoadingStock ? "..." : (availableQty?.toLocaleString() ?? "-")}
               </span>
             </div>
-          </div>
 
 
           {!locationCode && hasTracking && (
@@ -262,25 +236,7 @@ export function TransferOrderLineDetailsDialog({
               />
             </div>
 
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-muted-foreground">Qty to Ship</label>
-              <CalculatorInput
-                value={formData.Qty_to_Ship || ""}
-                onValueChange={(v) => handleChange("Qty_to_Ship", v)}
-                className="h-9 text-sm focus:border-red-500/50 transition-colors"
-                placeholder="0"
-              />
-            </div>
 
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-muted-foreground">Qty to Receive</label>
-              <CalculatorInput
-                value={formData.Qty_to_Receive || ""}
-                onValueChange={(v) => handleChange("Qty_to_Receive", v)}
-                className="h-9 text-sm focus:border-red-500/50 transition-colors"
-                placeholder="0"
-              />
-            </div>
 
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-muted-foreground">GST Group Code</label>

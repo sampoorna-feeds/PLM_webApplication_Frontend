@@ -386,7 +386,8 @@ export async function getTransferOrderLines(
 ): Promise<TransferLine[]> {
   const escaped = documentNo.replace(/'/g, "''");
   const filter = `Document_No eq '${escaped}' and Derived_From_Line_No eq 0`;
-  const query = buildODataQuery({ $filter: filter, $orderby: "Line_No asc" });
+  const select = "Document_No,Line_No,Item_No,Exempted,Breed_Code,RPO_Created,Chicks_Item,Alternate_Quantity,Alternate_UOM,Weak_Bird_Quantity,Transit_Mortality_Quantity,Flock_No,Item_Type,Flock_Description,Location_State_code,Total_Taxable_Value,New_LOB,New_Branch,New_Dimension_Set_ID,Shortcut_Dimension_3_Code,Variant_Code,Planning_Flexibility,Description,Description_2,Transfer_From_Bin_Code,Transfer_To_Bin_Code,Quantity,Amount,Transfer_Price,GST_Credit,Reserved_Quantity_Inbnd,Reserved_Quantity_Shipped,Reserved_Quantity_Outbnd,Unit_of_Measure_Code,Unit_of_Measure,Qty_to_Ship,Quantity_Shipped,Qty_to_Receive,Quantity_Received,Shipment_Date,Receipt_Date,Custom_Duty_Amount,GST_Assessable_Value,GST_Group_Code,HSN_SAC_Code,GST_Add_on_Inventory,Shipping_Agent_Code,Shipping_Agent_Service_Code,Shipping_Time,Outbound_Whse_Handling_Time,Inbound_Whse_Handling_Time,Appl_to_Item_Entry,Shortcut_Dimension_1_Code,Shortcut_Dimension_2_Code,Derived_From_Line_No";
+  const query = buildODataQuery({ $filter: filter, $orderby: "Line_No asc", $select: select });
   const endpoint = `/TransferLine?company='${encodeURIComponent(COMPANY)}'&${query}`;
 
   const response = await apiGet<ODataResponse<TransferLine>>(endpoint);
@@ -654,7 +655,8 @@ export async function getTransferItemTrackingLines(
     "Source_Type eq 5741",
     `Source_Subtype eq '${subtype}'`,
   ].join(" and ");
-  const query = buildODataQuery({ $filter: filter });
+  const select = "Entry_No,Positive,Source_Type,Source_Subtype,Source_ID,Source_Batch_Name,Source_Prod_Order_Line,Source_Ref_No_,Item_No,Location_Code,Lot_No,Expiration_Date,Quantity_Base,Qty_to_Handl_Base";
+  const query = buildODataQuery({ $filter: filter, $select: select });
   const endpoint = `/ItemTrackingLine?company='${encodeURIComponent(COMPANY)}'&${query}`;
   const response =
     await apiGet<ODataResponse<TransferItemTrackingLine>>(endpoint);

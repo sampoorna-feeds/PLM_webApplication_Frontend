@@ -268,6 +268,7 @@ interface PurchaseCreateDocumentFormState {
   vendorAuthorizationNo: string;
   appliesToDocType: string;
   appliesToDocNo: string;
+  appliesToID: string;
   invoiceType: string;
   lob: string;
   branch: string;

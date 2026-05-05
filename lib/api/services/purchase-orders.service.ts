@@ -206,8 +206,9 @@ export async function searchPurchaseOrders(
 export async function getPurchaseOrderByNo(
   orderNo: string,
 ): Promise<PurchaseOrder | null> {
+  const select = "No,Buy_from_Vendor_No,Buy_from_Vendor_Name,Ship_to_Code,Ship_to_Name,Order_Date,Posting_Date,Document_Date,Vendor_Order_No,Vendor_Invoice_No,Status,Location_Code,Invoice_Type,Shortcut_Dimension_1_Code,Shortcut_Dimension_2_Code,Shortcut_Dimension_3_Code,Purchaser_Code,PO_Type,Service_Type,Vendor_GST_Reg_No,P_A_N_No,Order_Address_Code,Brokerage_Code,Brokerage_Rate,Rate_Basis,Terms_Code,Mandi_Name,File_No,Payment_Terms_Code,Payment_Method_Code,Due_Date_calculation,Creditors_Type,QCType,Due_Date,Vehicle_No,Line_Narration1,Freight,Buy_from_City,Pay_to_Vendor_No,Currency_Code,GST_Vendor_Type,Applies_to_Doc_Type,Applies_to_Doc_No,Applies_to_ID";
   const filter = `No eq '${orderNo.replace(/'/g, "''")}'`;
-  const query = buildODataQuery({ $filter: filter });
+  const query = buildODataQuery({ $filter: filter, $select: select });
   const endpoint = `/PurchaseOrder?company='${encodeURIComponent(COMPANY)}'&${query}`;
   const response = await apiGet<ODataResponse<PurchaseOrder>>(endpoint);
   const value = response.value;
@@ -275,7 +276,8 @@ export async function getItemLedgerEntriesForApply(
   locationCode: string,
 ): Promise<ApplyItemLedgerEntry[]> {
   const filter = `Item_No eq '${itemNo.replace(/'/g, "''")}' and Location_Code eq '${locationCode.replace(/'/g, "''")}' and Open eq true and Positive eq true`;
-  const endpoint = `/Itemledger_entry?company='${encodeURIComponent(COMPANY)}'&$top=500&$filter=${encodeURIComponent(filter)}`;
+  const select = "Entry_No,Document_No,Item_No,Posting_Date,Quantity,Remaining_Quantity,Vehicle_No";
+  const endpoint = `/Itemledger_entry?company='${encodeURIComponent(COMPANY)}'&$top=500&$filter=${encodeURIComponent(filter)}&$select=${select}`;
   const response = await apiGet<ODataResponse<ApplyItemLedgerEntry>>(endpoint);
   return response.value || [];
 }
@@ -288,7 +290,8 @@ export async function getPurchaseOrderLines(
 ): Promise<PurchaseLine[]> {
   const escaped = documentNo.replace(/'/g, "''");
   const filter = `Document_No eq '${escaped}'`;
-  const query = buildODataQuery({ $filter: filter, $orderby: "Line_No asc" });
+  const select = "Document_Type,Document_No,Line_No,Type,No,Description,Description_2,Quantity,Qty_to_Receive,Quantity_Received,Qty_to_Invoice,Quantity_Invoiced,Unit_of_Measure_Code,Unit_of_Measure,Direct_Unit_Cost,Line_Amount,Line_Discount_Amount,Line_Discount_Percent,Amt_to_Vendor,GST_Group_Code,HSN_SAC_Code,FOC,Exempted,Location_Code,Shortcut_Dimension_1_Code,Shortcut_Dimension_2_Code,ShortcutDimCode3,ShortcutDimCode4,ShortcutDimCode5,TDS_Group_Code,TDS_Section_Code,FA_Posting_Type,Salvage_Value,No_of_Bags,Challan_Qty,Weight_Qty,Actual_Qty,Outstanding_Quantity,GST_Credit,GST_Assessable_Value,Custom_Duty_Amount,Appl_to_Item_Entry";
+  const query = buildODataQuery({ $filter: filter, $orderby: "Line_No asc", $select: select });
   const endpoint = `/PurchaseLine?company='${encodeURIComponent(COMPANY)}'&${query}`;
   const response = await apiGet<ODataResponse<PurchaseLine>>(endpoint);
   return response.value || [];
@@ -420,7 +423,8 @@ export async function getPurchaseShipmentsByOrder(
     // expect yyyy-mm-dd format
     filter += ` and Posting_Date eq ${escapeODataValue(postingDate)}`;
   }
-  const query = buildODataQuery({ $filter: filter });
+  const select = "No,Order_No,Buy_from_Vendor_No,Buy_from_Vendor_Name,Transporter_Code,LR_RR_No,Vehicle_No,LR_RR_Date,Posting_Date,Purchaseperson_Code";
+  const query = buildODataQuery({ $filter: filter, $select: select });
   // API uses PurchaseShipment_ entity set
   const endpoint = `/PurchaseShipment_?company='${encodeURIComponent(COMPANY)}'&${query}`;
   const response = await apiGet<ODataResponse<PurchaseShipment>>(endpoint);
@@ -760,7 +764,8 @@ export async function getPurchaseItemTrackingLines(
     "Source_Type eq 39",
     `Source_Subtype eq '${sourceSubType}'`,
   ].join(" and ");
-  const query = buildODataQuery({ $filter: filter });
+  const select = "Entry_No,Positive,Source_Type,Source_Subtype,Source_ID,Source_Batch_Name,Source_Prod_Order_Line,Source_Ref_No_,Item_No,Location_Code,Lot_No,Expiration_Date,Quantity_Base,Qty_to_Handl_Base";
+  const query = buildODataQuery({ $filter: filter, $select: select });
   const endpoint = `/ItemTrackingLine?company='${encodeURIComponent(COMPANY)}'&${query}`;
   const response =
     await apiGet<ODataResponse<PurchaseItemTrackingLine>>(endpoint);
@@ -826,9 +831,10 @@ export async function getTaxComponents(
 export async function getPurchasereceipts(
   orderNo: string,
 ): Promise<PurchaseReceipt[]> {
-  const escaped = orderNo.replace(/'/g, "''");
-  const filter = `Order_No eq '${escaped}'`;
-  const query = buildODataQuery({ $filter: filter });
+  const escapedOrderNo = orderNo.replace(/'/g, "''");
+  const filter = `Order_No eq '${escapedOrderNo}'`;
+  const select = "No,Order_No,Buy_from_Vendor_No,Buy_from_Vendor_Name,Posting_Date,Document_Date,Vendor_Shipment_No";
+  const query = buildODataQuery({ $filter: filter, $select: select });
   const endpoint = `/Purchasereceipt?company='${encodeURIComponent(COMPANY)}'&${query}`;
   const response = await apiGet<ODataResponse<PurchaseReceipt>>(endpoint);
   return response.value || [];
@@ -874,7 +880,8 @@ export async function getPurchasereceiptLines(
   if (itemNo) {
     filter += ` and No eq '${itemNo.replace(/'/g, "''")}'`;
   }
-  const query = buildODataQuery({ $filter: filter });
+  const select = "Document_No,Line_No,Type,No,Description,Quantity";
+  const query = buildODataQuery({ $filter: filter, $select: select });
   const endpoint = `/PurchasereceiptLine?company='${encodeURIComponent(COMPANY)}'&${query}`;
   const response = await apiGet<ODataResponse<PurchaseReceiptLine>>(endpoint);
   return response.value || [];

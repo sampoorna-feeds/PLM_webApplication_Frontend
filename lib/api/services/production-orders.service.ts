@@ -212,8 +212,9 @@ export async function getProductionOrdersWithCount(
 export async function getProductionOrderByNo(
   orderNo: string,
 ): Promise<ProductionOrder | null> {
+  const select = "No,Description,Description_2,Source_Type,Source_No,Routing_No,Inventory_Posting_Group,Gen_Prod_Posting_Group,Gen_Bus_Posting_Group,Shortcut_Dimension_1_Code,Shortcut_Dimension_2_Code,Shortcut_Dimension_3_Code,Location_Code,Bin_Code,Starting_Time,Starting_Date,Ending_Time,Ending_Date,Due_Date,Finished_Date,Status,Search_Description,Quantity,Low_Level_Code";
   const filter = `No eq '${orderNo}'`;
-  const query = buildODataQuery({ $filter: filter });
+  const query = buildODataQuery({ $filter: filter, $select: select });
   const endpoint = `/ReleaseprodOrder?company='${encodeURIComponent(COMPANY)}'&${query}`;
 
   const response = await apiGet<ODataResponse<ProductionOrder>>(endpoint);
@@ -226,8 +227,9 @@ export async function getProductionOrderByNo(
 export async function getFinishedProductionOrderByNo(
   orderNo: string,
 ): Promise<ProductionOrder | null> {
+  const select = "No,Description,Description_2,Source_Type,Source_No,Routing_No,Inventory_Posting_Group,Gen_Prod_Posting_Group,Gen_Bus_Posting_Group,Shortcut_Dimension_1_Code,Shortcut_Dimension_2_Code,Shortcut_Dimension_3_Code,Location_Code,Bin_Code,Starting_Time,Starting_Date,Ending_Time,Ending_Date,Due_Date,Finished_Date,Status,Search_Description,Quantity,Low_Level_Code";
   const filter = `No eq '${orderNo}'`;
-  const query = buildODataQuery({ $filter: filter });
+  const query = buildODataQuery({ $filter: filter, $select: select });
   const endpoint = `/FinishedprodOrder?company='${encodeURIComponent(COMPANY)}'&${query}`;
 
   const response = await apiGet<ODataResponse<ProductionOrder>>(endpoint);
@@ -942,8 +944,10 @@ export async function getItemTrackingLines(
   }
 
   const filter = filters.length > 0 ? filters.join(" and ") : undefined;
+  const select = "Entry_No,Positive,Source_Type,Source_Subtype,Source_ID,Source_Batch_Name,Source_Prod_Order_Line,Source_Ref_No_,Item_No,Location_Code,Lot_No,Expiration_Date,Quantity_Base,Qty_to_Handl_Base";
   const query = buildODataQuery({
     $filter: filter,
+    $select: select,
   });
   const endpoint = `/ItemTrackingLine?company='${encodeURIComponent(COMPANY)}'&${query}`;
 
@@ -1141,11 +1145,9 @@ export async function getProductionJournal(
   orderNo: string,
 ): Promise<ProductionJournalEntry[]> {
   const filter = `Order_No eq '${orderNo}' and Journal_Template_Name eq 'PROD.ORDEA'`;
-  const select =
-    "Line_No,Entry_Type,Item_No_,Description,Quantity,Output_Quantity,Location_Code,Order_No,Journal_Batch_Name,Journal_Template_Name";
   const query = buildODataQuery({
     $filter: filter,
-    $select: select,
+    $select: "Prod_Order_No,Line_No,Item_No,Description,Location_Code,Quantity,Unit_of_Measure_Code,Journal_Batch_Name,Journal_Template_Name,Entry_Type,Posting_Date,Document_No,External_Document_No,Shortcut_Dimension_1_Code,Shortcut_Dimension_2_Code,Shortcut_Dimension_3_Code,Shortcut_Dimension_4_Code,Shortcut_Dimension_5_Code,Shortcut_Dimension_6_Code,Shortcut_Dimension_7_Code,Shortcut_Dimension_8_Code,Order_No,Order_Line_No,Production_Order_Line_No,Flock_No,Weight,No_of_Bags",
   });
   const endpoint = `/ProductionJn?company='${encodeURIComponent(COMPANY)}'&${query}`;
 

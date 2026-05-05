@@ -49,6 +49,7 @@ export interface PurchaseOrderData {
   vendorCrMemoNo?: string;
   appliesToDocType?: string;
   appliesToDocNo?: string;
+  appliesToID?: string;
   vendorAuthorizationNo?: string;
   no?: string;
   paymentMethodCode?: string;

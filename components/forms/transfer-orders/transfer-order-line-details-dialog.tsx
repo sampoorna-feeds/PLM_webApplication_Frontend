@@ -359,7 +359,7 @@ export function TransferOrderLineDetailsDialog({
                   open={isLedgerModalOpen}
                   onOpenChange={setIsLedgerModalOpen}
                 >
-                  <DialogContent className="flex max-h-[85vh] max-w-4xl flex-col overflow-hidden p-0">
+                  <DialogContent className="flex max-h-[85vh] w-fit max-w-[95vw] sm:max-w-[95vw] flex-col overflow-hidden p-0">
                     <DialogHeader className="p-6 pb-2">
                       <DialogTitle>Select Ledger Entry</DialogTitle>
                       <div className="relative mt-4">
@@ -373,9 +373,9 @@ export function TransferOrderLineDetailsDialog({
                       </div>
                     </DialogHeader>
                     <div className="flex-1 overflow-y-auto p-6 pt-0">
-                      <div className="border-border rounded-md border">
+                      <div className="border-border overflow-x-auto rounded-md border">
                         <Table>
-                          <TableHeader className="bg-muted sticky top-0 z-10">
+                          <TableHeader className="bg-muted sticky top-0 z-10 whitespace-nowrap">
                             <TableRow>
                               <TableHead className="w-[100px]">
                                 Entry No.
@@ -408,7 +408,7 @@ export function TransferOrderLineDetailsDialog({
                               .map((entry) => (
                                 <TableRow
                                   key={entry.Entry_No}
-                                  className="hover:bg-muted/50 cursor-pointer transition-colors"
+                                  className="hover:bg-muted/50 cursor-pointer transition-colors whitespace-nowrap"
                                   onClick={() => {
                                     handleChange(
                                       "Appl_to_Item_Entry",

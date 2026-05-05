@@ -187,8 +187,8 @@ export function TransferOrderLineDetailsDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl bg-background border-border p-0 overflow-hidden rounded-2xl">
-        <div className="p-6 space-y-6">
+      <DialogContent className="max-w-4xl bg-background border-border p-0 overflow-hidden rounded-2xl max-h-[90vh] flex flex-col">
+        <div className="p-6 space-y-6 overflow-y-auto flex-1">
           <div className="flex items-center justify-between">
             <h2 className={cn(
                 "text-base font-semibold transition-colors duration-300",

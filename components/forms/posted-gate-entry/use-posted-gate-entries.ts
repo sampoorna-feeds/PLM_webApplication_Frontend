@@ -9,7 +9,7 @@ import {
 import { type SortDirection, POSTED_GATE_ENTRY_COLUMNS } from "./column-config";
 import { toast } from "sonner";
 
-export function usePostedGateEntries(type: "inward" | "outward") {
+export function usePostedGateEntries(type: "inward" | "outward", initialFilters?: { skipDateFilter?: boolean }) {
   const [entries, setEntries] = useState<PostedGateEntryHeader[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [pageSize, setPageSize] = useState(20);
@@ -19,11 +19,27 @@ export function usePostedGateEntries(type: "inward" | "outward") {
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
   const [searchQuery, setSearchQuery] = useState("");
   const [columnFilters, setColumnFilters] = useState<Record<string, { value: string; valueTo?: string }>>({});
+  const [dateFilter, setDateFilter] = useState<{ fromDate: string; toDate: string } | null>(null);
+
+  const skipDateFilter = initialFilters?.skipDateFilter;
 
   const fetchEntries = useCallback(async () => {
+    if (!skipDateFilter && !dateFilter) {
+      setIsLoading(false);
+      return;
+    }
+
     setIsLoading(true);
     try {
       const filterParts: string[] = [];
+
+      // Date filter
+      if (dateFilter?.fromDate) {
+        filterParts.push(`Posting_Date ge ${dateFilter.fromDate}`);
+      }
+      if (dateFilter?.toDate) {
+        filterParts.push(`Posting_Date le ${dateFilter.toDate}`);
+      }
 
       // Global search
       if (searchQuery) {
@@ -63,7 +79,7 @@ export function usePostedGateEntries(type: "inward" | "outward") {
     } finally {
       setIsLoading(false);
     }
-  }, [type, currentPage, pageSize, sortColumn, sortDirection, searchQuery, columnFilters]);
+  }, [type, currentPage, pageSize, sortColumn, sortDirection, searchQuery, columnFilters, dateFilter, skipDateFilter]);
 
   useEffect(() => {
     fetchEntries();
@@ -108,6 +124,8 @@ export function usePostedGateEntries(type: "inward" | "outward") {
     sortDirection,
     searchQuery,
     columnFilters,
+    dateFilter,
+    setDateFilter,
     onPageSizeChange: (size: number) => { setPageSize(size); setCurrentPage(1); },
     onPageChange: setCurrentPage,
     onSort: handleSort,

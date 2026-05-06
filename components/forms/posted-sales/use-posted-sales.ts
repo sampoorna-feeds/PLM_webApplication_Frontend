@@ -7,7 +7,7 @@ import {
 } from "@/lib/api/services/posted-sales.service";
 import { toast } from "sonner";
 
-export function usePostedSales() {
+export function usePostedSales(initialFilters?: { skipDateFilter?: boolean }) {
   const [documents, setDocuments] = useState<PostedSalesHeader[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [pageSize, setPageSize] = useState(20);
@@ -16,11 +16,27 @@ export function usePostedSales() {
   const [sortColumn, setSortColumn] = useState<string | null>("No");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc" | null>("desc");
   const [searchQuery, setSearchQuery] = useState("");
+  const [dateFilter, setDateFilter] = useState<{ fromDate: string; toDate: string } | null>(null);
+
+  const skipDateFilter = initialFilters?.skipDateFilter;
 
   const fetchDocuments = useCallback(async () => {
+    if (!skipDateFilter && !dateFilter) {
+      setIsLoading(false);
+      return;
+    }
+
     setIsLoading(true);
     try {
       const filterParts: string[] = [];
+
+      // Date filter
+      if (dateFilter?.fromDate) {
+        filterParts.push(`Posting_Date ge ${dateFilter.fromDate}`);
+      }
+      if (dateFilter?.toDate) {
+        filterParts.push(`Posting_Date le ${dateFilter.toDate}`);
+      }
 
       if (searchQuery) {
         const escaped = searchQuery.replace(/'/g, "''");
@@ -49,7 +65,7 @@ export function usePostedSales() {
     } finally {
       setIsLoading(false);
     }
-  }, [currentPage, pageSize, sortColumn, sortDirection, searchQuery]);
+  }, [currentPage, pageSize, sortColumn, sortDirection, searchQuery, dateFilter, skipDateFilter]);
 
   useEffect(() => {
     fetchDocuments();
@@ -77,6 +93,8 @@ export function usePostedSales() {
     sortColumn,
     sortDirection,
     searchQuery,
+    dateFilter,
+    setDateFilter,
     onPageSizeChange: (size: number) => { setPageSize(size); setCurrentPage(1); },
     onPageChange: setCurrentPage,
     onSort: handleSort,

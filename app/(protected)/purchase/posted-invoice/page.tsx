@@ -7,6 +7,9 @@ import { PostedPurchaseTable } from "@/components/forms/posted-purchase/posted-p
 import { Button } from "@/components/ui/button";
 import { RefreshCcw, Search, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+
+import { PostedDocumentFilterForm, type DateRangeFilters } from "@/components/forms/posted-documents/posted-document-filter-form";
 
 function PostedPurchaseInvoiceContent() {
   const {
@@ -19,7 +22,10 @@ function PostedPurchaseInvoiceContent() {
     sortColumn,
     sortDirection,
     searchQuery,
+    dateFilter,
+    setDateFilter,
     onPageChange,
+    onPageSizeChange,
     onSort,
     onSearch,
     onClearFilters,
@@ -35,14 +41,44 @@ function PostedPurchaseInvoiceContent() {
     });
   };
 
+  const handleApplyFilters = (filters: DateRangeFilters) => {
+    setDateFilter(filters);
+  };
+
+  if (!dateFilter) {
+    return (
+      <PostedDocumentFilterForm
+        title="Posted Purchase Invoices"
+        description="Select a date range to view processed purchase invoices"
+        onApply={handleApplyFilters}
+      />
+    );
+  }
+
   return (
     <div className="flex h-full flex-col p-6">
       <div className="mb-6 flex items-center justify-between gap-2">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Posted Purchase Invoice</h1>
-          <p className="text-sm text-muted-foreground">View processed purchase invoices</p>
+          <div className="mt-1 flex items-center gap-2">
+            <p className="text-sm text-muted-foreground">View processed purchase invoices</p>
+            {dateFilter && (
+              <Badge variant="secondary" className="text-[10px] h-5 px-1.5 font-mono">
+                {dateFilter.fromDate.split('-').reverse().join('/')} - {dateFilter.toDate.split('-').reverse().join('/')}
+              </Badge>
+            )}
+          </div>
         </div>
         <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setDateFilter(null)}
+            className="h-8 text-xs"
+          >
+            <RefreshCcw className="mr-1.5 h-3.5 w-3.5" />
+            Change Date Range
+          </Button>
           <Button variant="outline" size="sm" onClick={refetch} disabled={isLoading}>
             <RefreshCcw className={`mr-2 h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
             Refresh

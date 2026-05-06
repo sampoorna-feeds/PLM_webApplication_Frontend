@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect } from "react";
-import { Plus } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Plus, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { getAuthCredentials } from "@/lib/auth/storage";
+import { getWebUser, type WebUser } from "@/lib/api/services/web-user.service";
 import { useFormStackContext } from "@/lib/form-stack/form-stack-context";
 import { PurchaseOrdersTable } from "@/components/forms/purchase/purchase-orders-table";
 import { PurchaseOrderFilterBar } from "@/components/forms/purchase/purchase-order-filter-bar";
@@ -30,6 +32,21 @@ export function PurchaseDocumentView({
 }: PurchaseDocumentViewProps) {
   const { openTab } = useFormStackContext();
   const config = getPurchaseDocumentConfig(documentType);
+  const [webUserProfile, setWebUserProfile] = useState<WebUser | null>(null);
+  const [isProfileLoading, setIsProfileLoading] = useState(true);
+
+  useEffect(() => {
+    const creds = getAuthCredentials();
+    if (creds?.userID) {
+      setIsProfileLoading(true);
+      getWebUser(creds.userID)
+        .then(setWebUserProfile)
+        .catch(console.error)
+        .finally(() => setIsProfileLoading(false));
+    } else {
+      setIsProfileLoading(false);
+    }
+  }, []);
 
   const {
     orders,
@@ -104,10 +121,18 @@ export function PurchaseDocumentView({
           config.supportsPoTypeFilter ? onPoTypeChange : undefined
         }
       >
-        <Button onClick={handleCreateDocument} size="sm">
-          <Plus className="mr-2 h-4 w-4" />
-          {config.createButtonLabel}
-        </Button>
+        {!isProfileLoading && webUserProfile?.Access_Purchase_Order === "Edit" && (
+          <Button onClick={handleCreateDocument} size="sm">
+            <Plus className="mr-2 h-4 w-4" />
+            {config.createButtonLabel}
+          </Button>
+        )}
+        {isProfileLoading && (
+          <Button disabled size="sm">
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            Loading...
+          </Button>
+        )}
       </PurchaseOrderFilterBar>
 
       <PurchaseOrderActiveFilters

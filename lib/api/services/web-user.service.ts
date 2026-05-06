@@ -9,6 +9,7 @@ export interface WebUser {
   Allow_Posting_From: string;
   Allow_Posting_To: string;
   Location_Code: string;
+  Access_Purchase_Order: string;
 }
 
 const COMPANY =
@@ -20,7 +21,7 @@ const COMPANY =
  */
 export async function getWebUser(userName: string): Promise<WebUser | null> {
   const query = buildODataQuery({
-    $select: "User_Name,Full_Name,Status,Allow_Posting_From,Allow_Posting_To,Location_Code",
+    $select: "User_Name,Full_Name,Status,Allow_Posting_From,Allow_Posting_To,Location_Code,Access_Purchase_Order",
     $filter: `User_Name eq '${userName}'`,
   });
 

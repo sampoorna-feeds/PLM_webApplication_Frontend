@@ -2356,7 +2356,7 @@ export function PurchaseCreateDocumentFormContent({
                   Edit
                 </Button>
               )}
-              {isViewMode && !isPendingApprovalStatus && !isReleasedStatus && (
+              {isViewMode && !isPendingApprovalStatus && !isReleasedStatus && webUserProfile?.Access_Purchase_Order === "Edit" && (
                 <Button
                   type="button"
                   variant="destructive"
@@ -2369,8 +2369,15 @@ export function PurchaseCreateDocumentFormContent({
                 </Button>
               )}
               {isViewMode &&
-                statusActions.map((action) =>
-                  action === "Gate Entry" && documentType === "order" ? (
+                statusActions
+                  .filter((action) => {
+                    if (webUserProfile?.Access_Purchase_Order !== "Edit") {
+                      return !["Send For Approval", "Cancel Approval", "Reopen"].includes(action);
+                    }
+                    return true;
+                  })
+                  .map((action) =>
+                    action === "Gate Entry" && documentType === "order" ? (
                     <PostGateEntryDialog
                       key={action}
                       sourceNo={createdOrderNo!}
@@ -2484,7 +2491,7 @@ export function PurchaseCreateDocumentFormContent({
               )}
 
               {/* Create mode */}
-              {isCreateMode && documentType !== "order" && (
+              {isCreateMode && documentType !== "order" && webUserProfile?.Access_Purchase_Order === "Edit" && (
                 <Button
                   type="button"
                   variant="outline"
@@ -2497,7 +2504,7 @@ export function PurchaseCreateDocumentFormContent({
                   Copy Document
                 </Button>
               )}
-              {isCreateMode && !createdOrderNo && (
+              {isCreateMode && !createdOrderNo && webUserProfile?.Access_Purchase_Order === "Edit" && (
                 <Button
                   type="button"
                   size="sm"
@@ -2579,8 +2586,9 @@ export function PurchaseCreateDocumentFormContent({
                         Get Posted Line
                       </Button>
                     )}
-                    <Button
-                      onClick={handleAddLineItem}
+                    {webUserProfile?.Access_Purchase_Order === "Edit" && (
+                      <Button
+                        onClick={handleAddLineItem}
                       size="sm"
                       className="h-7 px-2.5 text-xs"
                       disabled={!createdOrderNo}
@@ -2588,6 +2596,7 @@ export function PurchaseCreateDocumentFormContent({
                       <Plus className="mr-1.5 h-3.5 w-3.5" />
                       Add Line
                     </Button>
+                    )}
                   </div>
                 </div>
 

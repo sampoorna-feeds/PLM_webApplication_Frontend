@@ -14,6 +14,7 @@ import {
   type VoucherFormData,
 } from "@/lib/validations/voucher.validation";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -1279,11 +1280,16 @@ export function VoucherForm() {
         return;
       }
       await postVouchers(userID);
-      alert("Vouchers posted successfully");
+      toast.success("Vouchers posted successfully");
       // Clear any previous failed voucher highlights
       setFailedVoucherLineNos(new Set());
       // Refresh vouchers from ERP to reflect posted status
       await fetchVouchersFromERP();
+      
+      // Refresh the page to start fresh as requested
+      setTimeout(() => {
+        window.location.reload();
+      }, 1000);
     } catch (error) {
       console.error("Error posting vouchers:", error);
       const errorDetail = extractErrorDetails(error);
@@ -1948,91 +1954,6 @@ export function VoucherForm() {
 
   const validationSummaryMessage = getValidationSummaryMessage();
 
-  const isDevelopment = process.env.NODE_ENV === "development";
-
-  const handleFillForm = () => {
-    // lightweight dev helper (mirrors VoucherForm behavior, without large pools)
-    updateField("voucherType", "General Journal");
-    updateField("documentType", "Payment");
-    updateField("postingDate", new Date().toISOString().split("T")[0]);
-    updateField("documentDate", new Date().toISOString().split("T")[0]);
-    handleAccountTypeChange("G/L Account");
-    updateField("accountNo", "ACC001");
-    updateField("externalDocumentNo", "EXT001");
-    updateField("description", "Test entry");
-    updateField("amount", "100.00");
-    updateField("balanceAccountType", "G/L Account");
-    updateField("balanceAccountNo", "ACC002");
-    updateField("lineNarration", "Narration");
-    updateField("lob", "Feed");
-    updateField("branch", "Mumbai");
-    updateField("loc", "LOC001");
-    updateField("employee", "EMP001");
-    updateField("assignment", "ASSIGN001");
-    setValidationErrors({});
-  };
-
-  const handleTestScenarios = () => {
-    // Add test entries with different scenarios to demonstrate status handling
-    const testEntries: VoucherEntry[] = [
-      {
-        id: `test-1-${Date.now()}`,
-        voucherType: "General Journal",
-        documentType: "Invoice",
-        postingDate: new Date().toISOString().split("T")[0],
-        documentDate: new Date().toISOString().split("T")[0],
-        accountType: "G/L Account",
-        accountNo: "ACC001",
-        amount: 1000,
-        balanceAccountType: "G/L Account",
-        balanceAccountNo: "ACC002",
-        lineNarration: "Test entry - will succeed",
-        lob: "Feed",
-        branch: "Mumbai",
-        loc: "LOC001",
-        status: "pending",
-      },
-      {
-        id: `test-2-${Date.now()}`,
-        voucherType: "Cash Payment",
-        documentType: "Payment",
-        postingDate: new Date().toISOString().split("T")[0],
-        documentDate: new Date().toISOString().split("T")[0],
-        accountType: "G/L Account",
-        accountNo: "ACC001",
-        amount: 2000,
-        balanceAccountType: "G/L Account",
-        balanceAccountNo: "ACC002",
-        lineNarration: "Test entry - will fail",
-        lob: "Feed",
-        branch: "Mumbai",
-        loc: "LOC001",
-        status: "failed",
-        errorMessage: "Simulated failure for testing",
-      },
-      {
-        id: `test-3-${Date.now()}`,
-        voucherType: "Cash Receipt",
-        documentType: "Refund",
-        postingDate: new Date().toISOString().split("T")[0],
-        documentDate: new Date().toISOString().split("T")[0],
-        accountType: "G/L Account",
-        accountNo: "ACC001",
-        amount: 3000,
-        balanceAccountType: "G/L Account",
-        balanceAccountNo: "ACC002",
-        lineNarration: "Test entry - partial (file failed)",
-        lob: "Feed",
-        branch: "Mumbai",
-        loc: "LOC001",
-        status: "partial",
-        errorMessage: "Entry created but file upload failed",
-        failedFiles: ["test-file.pdf", "another-file.docx"],
-      },
-    ];
-    setEntries([...entries, ...testEntries]);
-  };
-
   const colHead =
     "px-2 py-1.5 text-xs font-semibold text-foreground/80 bg-muted/30";
   const colCell = "p-1.5 align-top";
@@ -2064,27 +1985,6 @@ export function VoucherForm() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-          {isDevelopment && (
-            <>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={handleFillForm}
-              >
-                Fill
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={handleTestScenarios}
-              >
-                Test
-              </Button>
-            </>
-          )}
-
           <Button
             type="button"
             size="sm"

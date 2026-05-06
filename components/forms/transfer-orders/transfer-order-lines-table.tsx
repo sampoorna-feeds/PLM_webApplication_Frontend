@@ -170,96 +170,70 @@ export function TransferOrderLinesTable({
               <TableCell className="text-right font-bold text-primary">
                 {line.Amount != null ? line.Amount.toLocaleString(undefined, { minimumFractionDigits: 2 }) : "0.00"}
               </TableCell>
-              <TableCell 
-                className={cn(
-                  "text-right transition-all duration-200",
-                  editingCell?.lineNo === line.Line_No && editingCell?.field === "Qty_to_Ship" 
-                    ? "p-0 min-w-[120px]" 
-                    : "hover:bg-primary/5 cursor-text font-medium"
-                )}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setEditingCell({ lineNo: line.Line_No, field: "Qty_to_Ship" });
-                  const val = line.Qty_to_Ship;
-                  setEditValue(val === 0 ? "" : val?.toString() || "");
-                }}
-              >
-                {editingCell?.lineNo === line.Line_No && editingCell?.field === "Qty_to_Ship" ? (
-                  <div 
-                    className="flex items-center p-1 animate-in fade-in zoom-in duration-200" 
-                    onClick={(e) => e.stopPropagation()}
+              <TableCell className="p-1 min-w-[110px]" onClick={(e) => e.stopPropagation()}>
+                <div className="relative">
+                  <CalculatorInput
+                    value={editingCell?.lineNo === line.Line_No && editingCell?.field === "Qty_to_Ship" ? editValue : (line.Qty_to_Ship ?? 0).toString()}
+                    onValueChange={(val) => {
+                      setEditingCell({ lineNo: line.Line_No, field: "Qty_to_Ship" });
+                      setEditValue(val);
+                    }}
+                    onFocus={(e) => {
+                      setEditingCell({ lineNo: line.Line_No, field: "Qty_to_Ship" });
+                      setEditValue((line.Qty_to_Ship ?? 0).toString());
+                      e.target.select();
+                    }}
+                    onBlur={() => setEditingCell(null)}
                     onKeyDown={(e) => {
                       if (e.key === "Enter" || e.key === "Escape") {
                         setEditingCell(null);
                       }
                     }}
-                  >
-                    <CalculatorInput
-                      value={editValue}
-                      onValueChange={setEditValue}
-                      className={cn(
-                        "h-8 text-right font-bold focus-visible:ring-1",
-                        isUpdating && "opacity-50 cursor-wait"
-                      )}
-                      autoFocus
-                      onFocus={(e) => e.target.select()}
-                      onBlur={() => setEditingCell(null)}
-                    />
-                  </div>
-                ) : (
-                  <div className="flex items-center justify-end gap-2">
-                    {isUpdating && editingCell?.lineNo === line.Line_No && editingCell?.field === "Qty_to_Ship" && (
-                      <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
+                    className={cn(
+                      "h-8 text-right font-bold focus-visible:ring-1 bg-background border-border",
+                      isUpdating && editingCell?.lineNo === line.Line_No && editingCell?.field === "Qty_to_Ship" && "opacity-50 cursor-wait"
                     )}
-                    {line.Qty_to_Ship?.toLocaleString() ?? "0"}
-                  </div>
-                )}
+                    disabled={isReadOnly}
+                  />
+                  {isUpdating && editingCell?.lineNo === line.Line_No && editingCell?.field === "Qty_to_Ship" && (
+                    <div className="absolute right-1 top-1/2 -translate-y-1/2">
+                      <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
+                    </div>
+                  )}
+                </div>
               </TableCell>
 
-              <TableCell 
-                className={cn(
-                  "text-right transition-all duration-200",
-                  editingCell?.lineNo === line.Line_No && editingCell?.field === "Qty_to_Receive" 
-                    ? "p-0 min-w-[120px]" 
-                    : "hover:bg-primary/5 cursor-text font-medium"
-                )}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setEditingCell({ lineNo: line.Line_No, field: "Qty_to_Receive" });
-                  const val = line.Qty_to_Receive;
-                  setEditValue(val === 0 ? "" : val?.toString() || "");
-                }}
-              >
-                {editingCell?.lineNo === line.Line_No && editingCell?.field === "Qty_to_Receive" ? (
-                  <div 
-                    className="flex items-center p-1 animate-in fade-in zoom-in duration-200" 
-                    onClick={(e) => e.stopPropagation()}
+              <TableCell className="p-1 min-w-[110px]" onClick={(e) => e.stopPropagation()}>
+                <div className="relative">
+                  <CalculatorInput
+                    value={editingCell?.lineNo === line.Line_No && editingCell?.field === "Qty_to_Receive" ? editValue : (line.Qty_to_Receive ?? 0).toString()}
+                    onValueChange={(val) => {
+                      setEditingCell({ lineNo: line.Line_No, field: "Qty_to_Receive" });
+                      setEditValue(val);
+                    }}
+                    onFocus={(e) => {
+                      setEditingCell({ lineNo: line.Line_No, field: "Qty_to_Receive" });
+                      setEditValue((line.Qty_to_Receive ?? 0).toString());
+                      e.target.select();
+                    }}
+                    onBlur={() => setEditingCell(null)}
                     onKeyDown={(e) => {
                       if (e.key === "Enter" || e.key === "Escape") {
                         setEditingCell(null);
                       }
                     }}
-                  >
-                    <CalculatorInput
-                      value={editValue}
-                      onValueChange={setEditValue}
-                      className={cn(
-                        "h-8 text-right font-bold focus-visible:ring-1",
-                        isUpdating && "opacity-50 cursor-wait"
-                      )}
-                      autoFocus
-                      onFocus={(e) => e.target.select()}
-                      onBlur={() => setEditingCell(null)}
-                    />
-                  </div>
-                ) : (
-                  <div className="flex items-center justify-end gap-2">
-                    {isUpdating && editingCell?.lineNo === line.Line_No && editingCell?.field === "Qty_to_Receive" && (
-                      <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
+                    className={cn(
+                      "h-8 text-right font-bold focus-visible:ring-1 bg-background border-border",
+                      isUpdating && editingCell?.lineNo === line.Line_No && editingCell?.field === "Qty_to_Receive" && "opacity-50 cursor-wait"
                     )}
-                    {line.Qty_to_Receive?.toLocaleString() ?? "0"}
-                  </div>
-                )}
+                    disabled={isReadOnly}
+                  />
+                  {isUpdating && editingCell?.lineNo === line.Line_No && editingCell?.field === "Qty_to_Receive" && (
+                    <div className="absolute right-1 top-1/2 -translate-y-1/2">
+                      <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
+                    </div>
+                  )}
+                </div>
               </TableCell>
 
               <TableCell className="text-right">

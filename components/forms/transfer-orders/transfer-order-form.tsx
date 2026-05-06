@@ -1691,7 +1691,7 @@ export function TransferOrderForm({
           if (!open) setPostStep(1); // Reset step when closing
         }}
       >
-        <DialogContent className="bg-background border-border rounded-2xl sm:max-w-[700px]">
+        <DialogContent className="bg-background border-border rounded-2xl sm:max-w-[550px]">
           <DialogHeader>
             <DialogTitle className="text-xl font-bold">
               Post Transfer Order
@@ -1774,7 +1774,7 @@ export function TransferOrderForm({
               </div>
             ) : (
               /* Step 2: Additional Fields Form */
-              <div className="animate-in fade-in slide-in-from-right-4 grid grid-cols-2 gap-x-6 gap-y-5 duration-300">
+              <div className="animate-in fade-in slide-in-from-right-4 grid grid-cols-2 gap-x-4 gap-y-4 duration-300">
                 <div className="space-y-1.5">
                   <label className="text-muted-foreground text-[11px] font-bold tracking-wider uppercase">
                     Posting Date
@@ -1798,7 +1798,7 @@ export function TransferOrderForm({
                         ? webUserProfile.Allow_Posting_To.split("T")[0]
                         : undefined
                     }
-                    className="border-border h-10 focus:border-green-600/50"
+                    className="border-border h-9 focus:border-green-600/50"
                   />
                 </div>
                 <div className="space-y-1.5">
@@ -1810,7 +1810,7 @@ export function TransferOrderForm({
                     onChange={(e) =>
                       handleChange("External_Document_No", e.target.value)
                     }
-                    className="border-border h-10 focus:border-green-600/50"
+                    className="border-border h-9 focus:border-green-600/50"
                     placeholder="Enter External Doc No"
                   />
                 </div>
@@ -1821,7 +1821,7 @@ export function TransferOrderForm({
                   <Input
                     value={formState.Vehicle_No || ""}
                     onChange={(e) => handleChange("Vehicle_No", e.target.value)}
-                    className="border-border h-10 focus:border-green-600/50"
+                    className="border-border h-9 focus:border-green-600/50"
                     placeholder="Enter Vehicle No"
                   />
                 </div>
@@ -1832,7 +1832,7 @@ export function TransferOrderForm({
                   <Input
                     value={formState.LR_RR_No || ""}
                     onChange={(e) => handleChange("LR_RR_No", e.target.value)}
-                    className="border-border h-10 focus:border-green-600/50"
+                    className="border-border h-9 focus:border-green-600/50"
                     placeholder="Enter LR/RR No"
                   />
                 </div>
@@ -1848,7 +1848,7 @@ export function TransferOrderForm({
                         : ""
                     }
                     onChange={(val) => handleChange("LR_RR_Date", val)}
-                    className="border-border h-10 focus:border-green-600/50"
+                    className="border-border h-9 focus:border-green-600/50"
                   />
                 </div>
                 <div className="space-y-1.5">
@@ -1865,7 +1865,7 @@ export function TransferOrderForm({
                           parseFloat(e.target.value) || 0,
                         )
                       }
-                      className="border-border h-10 focus:border-green-600/50"
+                      className="border-border h-9 focus:border-green-600/50"
                     />
                     <Button
                       type="button"
@@ -1873,7 +1873,7 @@ export function TransferOrderForm({
                       size="sm"
                       onClick={handleFetchDistance}
                       disabled={isFetchingDistance || isSubmitting}
-                      className="h-10 shrink-0"
+                      className="h-9 shrink-0"
                     >
                       {isFetchingDistance ? (
                         <Loader2 className="h-4 w-4 animate-spin" />
@@ -1896,7 +1896,7 @@ export function TransferOrderForm({
                         parseFloat(e.target.value) || 0,
                       )
                     }
-                    className="border-border h-10 focus:border-green-600/50"
+                    className="border-border h-9 focus:border-green-600/50"
                   />
                 </div>
                 <div className="space-y-1.5">
@@ -1919,7 +1919,7 @@ export function TransferOrderForm({
                     placeholder="Select Mode"
                   />
                 </div>
-                <div className="bg-muted border-border col-span-2 grid grid-cols-2 gap-6 rounded-xl border p-4">
+                <div className="bg-muted border-border col-span-2 grid grid-cols-2 gap-4 rounded-xl border p-3">
                   <div className="space-y-1.5">
                     <label className="text-muted-foreground text-[11px] font-bold tracking-wider uppercase">
                       Transporter
@@ -1947,7 +1947,7 @@ export function TransferOrderForm({
                         handleChange("Transporter_Name", e.target.value)
                       }
                       className={cn(
-                        "border-border h-10 focus:border-green-600/50",
+                        "border-border h-9 focus:border-green-600/50",
                         !!formState.Transporter_Code && "bg-muted/20",
                       )}
                       disabled={!!formState.Transporter_Code}
@@ -1965,7 +1965,7 @@ export function TransferOrderForm({
                 <Button
                   variant="outline"
                   onClick={() => setPostStep(1)}
-                  className="h-10 rounded-lg px-8"
+                  className="h-9 rounded-lg px-8"
                 >
                   Back
                 </Button>
@@ -1973,7 +1973,7 @@ export function TransferOrderForm({
                   variant="secondary"
                   onClick={handleSaveDetails}
                   disabled={isSubmitting}
-                  className="h-10 rounded-lg px-8"
+                  className="h-9 rounded-lg px-8"
                 >
                   {isSubmitting ? (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -1986,14 +1986,14 @@ export function TransferOrderForm({
             <Button
               variant="outline"
               onClick={() => setIsPostDialogOpen(false)}
-              className="h-10 rounded-lg px-8"
+              className="h-9 rounded-lg px-8"
             >
               Cancel
             </Button>
             <Button
               onClick={postStep === 1 ? handleNextStep : handlePost}
               disabled={isSubmitting}
-              className="h-10 rounded-xl bg-green-600 px-10 font-bold text-white shadow-lg shadow-green-900/20 hover:bg-green-700"
+              className="h-9 rounded-xl bg-green-600 px-10 font-bold text-white shadow-lg shadow-green-900/20 hover:bg-green-700"
             >
               {isSubmitting ? (
                 <>

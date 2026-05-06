@@ -121,7 +121,7 @@ export function PurchaseDocumentView({
           config.supportsPoTypeFilter ? onPoTypeChange : undefined
         }
       >
-        {!isProfileLoading && webUserProfile?.Access_Purchase_Order === "Edit" && (
+        {!isProfileLoading && (documentType !== "order" || webUserProfile?.Access_Purchase_Order === "Edit") && (
           <Button onClick={handleCreateDocument} size="sm">
             <Plus className="mr-2 h-4 w-4" />
             {config.createButtonLabel}

@@ -2356,7 +2356,7 @@ export function PurchaseCreateDocumentFormContent({
                   Edit
                 </Button>
               )}
-              {isViewMode && !isPendingApprovalStatus && !isReleasedStatus && webUserProfile?.Access_Purchase_Order === "Edit" && (
+              {isViewMode && !isPendingApprovalStatus && !isReleasedStatus && (documentType !== "order" || webUserProfile?.Access_Purchase_Order === "Edit") && (
                 <Button
                   type="button"
                   variant="destructive"
@@ -2371,7 +2371,7 @@ export function PurchaseCreateDocumentFormContent({
               {isViewMode &&
                 statusActions
                   .filter((action) => {
-                    if (webUserProfile?.Access_Purchase_Order !== "Edit") {
+                    if (documentType === "order" && webUserProfile?.Access_Purchase_Order !== "Edit") {
                       return !["Send For Approval", "Cancel Approval", "Reopen"].includes(action);
                     }
                     return true;
@@ -2491,7 +2491,7 @@ export function PurchaseCreateDocumentFormContent({
               )}
 
               {/* Create mode */}
-              {isCreateMode && documentType !== "order" && webUserProfile?.Access_Purchase_Order === "Edit" && (
+              {isCreateMode && documentType !== "order" && (documentType !== "order" || webUserProfile?.Access_Purchase_Order === "Edit") && (
                 <Button
                   type="button"
                   variant="outline"
@@ -2504,7 +2504,7 @@ export function PurchaseCreateDocumentFormContent({
                   Copy Document
                 </Button>
               )}
-              {isCreateMode && !createdOrderNo && webUserProfile?.Access_Purchase_Order === "Edit" && (
+              {isCreateMode && !createdOrderNo && (documentType !== "order" || webUserProfile?.Access_Purchase_Order === "Edit") && (
                 <Button
                   type="button"
                   size="sm"
@@ -2586,7 +2586,7 @@ export function PurchaseCreateDocumentFormContent({
                         Get Posted Line
                       </Button>
                     )}
-                    {webUserProfile?.Access_Purchase_Order === "Edit" && (
+                    {(documentType !== "order" || webUserProfile?.Access_Purchase_Order === "Edit") && (
                       <Button
                         onClick={handleAddLineItem}
                       size="sm"

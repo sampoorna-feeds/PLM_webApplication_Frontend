@@ -29,7 +29,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface PostedDocumentDetailFormProps {
   tabId: string;
-  context: {
+  formData?: Record<string, any>;
+  context?: {
     doc?: any;
     entry?: any;
     mode?: string;
@@ -41,7 +42,7 @@ export function PostedDocumentDetailForm({ tabId, context }: PostedDocumentDetai
   const currentTab = tabs.find((t) => t.id === tabId);
   const formType = currentTab?.formType;
   
-  const doc = context.doc || context.entry;
+  const doc = context?.doc || context?.entry;
   const [lines, setLines] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 

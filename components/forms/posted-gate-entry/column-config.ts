@@ -1,4 +1,10 @@
-import type { Column } from "@/components/ui/data-table/types";
+export interface Column {
+  id: string;
+  label: string;
+  sortable?: boolean;
+  filterable?: boolean;
+  type?: "text" | "date" | "number" | "enum";
+}
 
 export type SortDirection = "asc" | "desc" | null;
 

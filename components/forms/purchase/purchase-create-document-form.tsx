@@ -2491,7 +2491,7 @@ export function PurchaseCreateDocumentFormContent({
               )}
 
               {/* Create mode */}
-              {isCreateMode && documentType !== "order" && (documentType !== "order" || webUserProfile?.Access_Purchase_Order === "Edit") && (
+              {isCreateMode && documentType !== "order" && (
                 <Button
                   type="button"
                   variant="outline"

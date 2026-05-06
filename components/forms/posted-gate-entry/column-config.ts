@@ -1,9 +1,9 @@
 export interface Column {
   id: string;
   label: string;
-  sortable?: boolean;
-  filterable?: boolean;
-  type?: "text" | "date" | "number" | "enum";
+  sortable: boolean;
+  filterable: boolean;
+  type: "text" | "date" | "number" | "select";
 }
 
 export type SortDirection = "asc" | "desc" | null;

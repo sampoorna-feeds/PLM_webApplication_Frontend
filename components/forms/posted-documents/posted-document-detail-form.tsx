@@ -37,7 +37,7 @@ interface PostedDocumentDetailFormProps {
   };
 }
 
-export function PostedDocumentDetailForm({ tabId, context }: PostedDocumentDetailFormProps) {
+export function PostedDocumentDetailForm({ tabId, context = {} }: PostedDocumentDetailFormProps) {
   const { tabs } = useFormStackContext();
   const currentTab = tabs.find((t) => t.id === tabId);
   const formType = currentTab?.formType;

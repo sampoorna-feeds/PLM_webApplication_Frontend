@@ -100,6 +100,7 @@ export function PurchaseOrderLineEditDialog({
   gstVendorType,
 }: PurchaseOrderLineEditDialogProps) {
   const [quantity, setQuantity] = useState("");
+  const [directUnitCost, setDirectUnitCost] = useState("");
   const [qtyReceived, setQtyReceived] = useState("");
   const [qtyInvoiced, setQtyInvoiced] = useState("");
   const [description, setDescription] = useState("");
@@ -145,6 +146,7 @@ export function PurchaseOrderLineEditDialog({
   useEffect(() => {
     if (!line) return;
     setQuantity(line.Quantity?.toString() ?? "");
+    setDirectUnitCost(line.Direct_Unit_Cost != null ? String(line.Direct_Unit_Cost) : "");
     setQtyReceived(line.Quantity_Received?.toString() ?? "");
     setQtyInvoiced(line.Quantity_Invoiced?.toString() ?? "");
     setDescription(line.Description || "");
@@ -396,7 +398,7 @@ export function PurchaseOrderLineEditDialog({
     }
   };
 
-  const isValidNum = (v: string) => v === "" || /^[0-9]*\.?[0-9]*$/.test(v);
+  const isValidNum = (v: string) => v === "" || /^-?[0-9]*\.?[0-9]*$/.test(v);
 
   const handleSave = async () => {
     if (!line || !line.Line_No || !orderNo) return;
@@ -464,6 +466,15 @@ export function PurchaseOrderLineEditDialog({
         payload.ShortcutDimCode5 = shortcutDimCode5;
       if (uom !== (line.Unit_of_Measure_Code || ""))
         payload.Unit_of_Measure_Code = uom;
+
+      const parsedUnitCost = directUnitCost.trim() === "" ? undefined : Number(directUnitCost);
+      if (
+        parsedUnitCost !== undefined &&
+        !Number.isNaN(parsedUnitCost) &&
+        parsedUnitCost !== (line.Direct_Unit_Cost ?? undefined)
+      ) {
+        payload.Direct_Unit_Cost = parsedUnitCost;
+      }
 
       if (gstVendorType === "Import") {
         const assessableVal = gstAssessableValue === "" ? undefined : parseFloat(gstAssessableValue);
@@ -729,6 +740,27 @@ export function PurchaseOrderLineEditDialog({
                       isLoading={loadingUoms}
                       placeholder="Select UOM"
                       searchPlaceholder="Search UOM..."
+                      className={fieldInputClass}
+                    />
+                  </ClearableField>
+                </div>
+
+                <div className="space-y-1">
+                  <Label htmlFor="po-line-unit-price" className="text-xs">
+                    Unit Price
+                  </Label>
+                  <ClearableField
+                    value={directUnitCost}
+                    onClear={() => setDirectUnitCost("")}
+                  >
+                    <Input
+                      id="po-line-unit-price"
+                      inputMode="decimal"
+                      value={directUnitCost}
+                      onChange={(e) => {
+                        if (isValidNum(e.target.value))
+                          setDirectUnitCost(e.target.value);
+                      }}
                       className={fieldInputClass}
                     />
                   </ClearableField>

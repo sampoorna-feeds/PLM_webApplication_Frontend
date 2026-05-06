@@ -1228,7 +1228,7 @@ export function PurchaseCreateDocumentFormContent({
           vendorInvoiceNo: formData.vendorInvoiceNo || "",
           vendorCrMemoNo: formData.vendorCrMemoNo || "",
           dueDateCalculation: "Posting Date",
-          lineNarration: "",
+          lineNarration: hydratedHeaderRef.current?.Line_Narration1 || "",
         });
         setIsPostDetailsOpen(true);
       } else {
@@ -2925,7 +2925,7 @@ export function PurchaseCreateDocumentFormContent({
                     vendorInvoiceNo: formData.vendorInvoiceNo || "",
                     vendorCrMemoNo: formData.vendorCrMemoNo || "",
                     dueDateCalculation: "Posting Date",
-                    lineNarration: "",
+                    lineNarration: hydratedHeaderRef.current?.Line_Narration1 || "",
                   });
                   setIsPostDialogOpen(false);
                   setIsPostDetailsOpen(true);

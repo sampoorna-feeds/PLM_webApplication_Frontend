@@ -132,7 +132,14 @@ export function FormStackPanel() {
                   currentTab?.formType === "sales-posted-shipment-detail" ||
                   currentTab?.formType === "sales-posted-invoice-detail" ||
                   currentTab?.formType === "inward-gate-entry" ||
-                  currentTab?.formType === "outward-gate-entry"
+                  currentTab?.formType === "outward-gate-entry" ||
+                  currentTab?.formType === "posted-inward-gate-entry" ||
+                  currentTab?.formType === "posted-outward-gate-entry" ||
+                  currentTab?.formType === "posted-purchase-receipt" ||
+                  currentTab?.formType === "posted-purchase-invoice" ||
+                  currentTab?.formType === "posted-purchase-return-shipment" ||
+                  currentTab?.formType === "posted-purchase-credit-memo" ||
+                  currentTab?.formType === "posted-sales-credit-memo"
                 ? "w-screen lg:w-[80vw]"
                 : "w-screen md:w-[65vw] lg:w-[50vw]",
         )}

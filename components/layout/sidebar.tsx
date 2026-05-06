@@ -71,6 +71,7 @@ const salesSubItems = [
   { title: "Credit Memo", url: "/sales/credit-memo", icon: CreditCard },
   { title: "Posted Shipment", url: "/sales/posted-shipment", icon: Truck },
   { title: "Posted Invoice", url: "/sales/posted-invoice", icon: ClipboardCheck },
+  { title: "Posted Credit Memo", url: "/sales/posted-credit-memo", icon: ClipboardCheck },
 ];
 
 const purchaseSubItems = [
@@ -82,6 +83,10 @@ const purchaseSubItems = [
     icon: ArrowLeftRight,
   },
   { title: "Credit Memo", url: "/purchase/credit-memo", icon: CreditCard },
+  { title: "Posted Receipt", url: "/purchase/posted-receipt", icon: ClipboardCheck },
+  { title: "Posted Invoice", url: "/purchase/posted-invoice", icon: ClipboardCheck },
+  { title: "Posted Return Shipment", url: "/purchase/posted-return-shipment", icon: ClipboardCheck },
+  { title: "Posted Credit Memo", url: "/purchase/posted-credit-memo", icon: ClipboardCheck },
 ];
 
 const stockTransferSubItems = [
@@ -154,6 +159,16 @@ const gateEntrySubItems = [
     title: "Outward Gate Entry",
     url: "/outward-gate-entry",
     icon: Truck,
+  },
+  {
+    title: "Posted Inward",
+    url: "/posted-inward-gate-entry",
+    icon: ClipboardCheck,
+  },
+  {
+    title: "Posted Outward",
+    url: "/posted-outward-gate-entry",
+    icon: ClipboardCheck,
   },
 ];
 
@@ -285,7 +300,10 @@ export function AppSidebar({
                   </CollapsibleContent>
                 </Collapsible>
                 <Collapsible
-                  defaultOpen={pathname?.startsWith("/purchase")}
+                  defaultOpen={
+                    pathname?.startsWith("/purchase") ||
+                    pathname?.startsWith("/purchase/posted")
+                  }
                   className="group/purchase"
                 >
                   <SidebarMenuItem>
@@ -361,7 +379,9 @@ export function AppSidebar({
                 <Collapsible
                   defaultOpen={
                     pathname?.startsWith("/inward-gate-entry") ||
-                    pathname?.startsWith("/outward-gate-entry")
+                    pathname?.startsWith("/outward-gate-entry") ||
+                    pathname?.startsWith("/posted-inward-gate-entry") ||
+                    pathname?.startsWith("/posted-outward-gate-entry")
                   }
                   className="group/gate"
                 >

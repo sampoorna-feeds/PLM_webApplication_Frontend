@@ -147,6 +147,34 @@ export const formRegistry: Record<
     }
     return { default: OutwardGateEntryForm! };
   },
+  "posted-inward-gate-entry": async () => {
+    const m = await import("@/components/forms/posted-documents/posted-document-detail-form");
+    return { default: m.PostedDocumentDetailForm };
+  },
+  "posted-outward-gate-entry": async () => {
+    const m = await import("@/components/forms/posted-documents/posted-document-detail-form");
+    return { default: m.PostedDocumentDetailForm };
+  },
+  "posted-purchase-receipt": async () => {
+    const m = await import("@/components/forms/posted-documents/posted-document-detail-form");
+    return { default: m.PostedDocumentDetailForm };
+  },
+  "posted-purchase-invoice": async () => {
+    const m = await import("@/components/forms/posted-documents/posted-document-detail-form");
+    return { default: m.PostedDocumentDetailForm };
+  },
+  "posted-purchase-return-shipment": async () => {
+    const m = await import("@/components/forms/posted-documents/posted-document-detail-form");
+    return { default: m.PostedDocumentDetailForm };
+  },
+  "posted-purchase-credit-memo": async () => {
+    const m = await import("@/components/forms/posted-documents/posted-document-detail-form");
+    return { default: m.PostedDocumentDetailForm };
+  },
+  "posted-sales-credit-memo": async () => {
+    const m = await import("@/components/forms/posted-documents/posted-document-detail-form");
+    return { default: m.PostedDocumentDetailForm };
+  },
 };
 
 /**

@@ -14,7 +14,7 @@ import type { QCReceiptHeader, QCReceiptLine } from "@/lib/api/services/qc-recei
 import { getTransferAllLocationCodes, type TransferLocationCode } from "@/lib/api/services/transfer-orders.service";
 import { getAuthCredentials } from "@/lib/auth/storage";
 import { useFormStackContext } from "@/lib/form-stack/form-stack-context";
-import { Loader2, RotateCcw, Send } from "lucide-react";
+import { Loader2, RotateCcw, Save, Send } from "lucide-react";
 import { useEffect, useState } from "react";
 import { QCReceiptLinesTable } from "./qc-receipt-lines-table";
 import { useQCReceiptLines, useQCReceiptPosting, useQCReceiptUpdate } from "./use-qc-receipts";
@@ -103,9 +103,9 @@ export function QCReceiptDetailForm({ tabId, context }: QCReceiptDetailFormProps
   const handleFieldCommit = async (field: keyof QCReceiptHeader, value: any) => {
     if (!receipt || isPosted) return;
     
-    // Check if value actually changed
     const currentValue = (receipt as any)[field];
-    if (currentValue === value) return;
+    // Skip if value hasn't changed AND it's not currently tracked in editedFields
+    if (currentValue === value && !(field in editedFields)) return;
 
     // Update local state first for immediate feedback
     setReceipt(prev => prev ? ({ ...prev, [field]: value }) : null);
@@ -182,7 +182,8 @@ export function QCReceiptDetailForm({ tabId, context }: QCReceiptDetailFormProps
                   isPosting ||
                   isLinesLoading ||
                   isHeaderDirty ||
-                  receipt.Approval_Status !== "Approved"
+                  isHeaderUpdating ||
+                  (receipt.Approval_Status !== "Approved" && receipt.Approval_Status !== "Accepted")
                 }
                 className="gap-2 h-8"
               >

@@ -29,6 +29,7 @@ export interface PurchaseCommonHeaderFormData {
   appliesToDocType: string;
   appliesToDocNo: string;
   appliesToID: string;
+  SFPL_User_ID?: string;
 }
 
 export function buildPurchaseCommonHeaderData(
@@ -65,5 +66,6 @@ export function buildPurchaseCommonHeaderData(
     appliesToDocType: formData.appliesToDocType,
     appliesToDocNo: formData.appliesToDocNo,
     appliesToID: formData.appliesToID,
+    SFPL_User_ID: formData.SFPL_User_ID,
   };
 }

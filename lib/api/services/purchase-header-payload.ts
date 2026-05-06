@@ -52,6 +52,7 @@ export interface PurchaseHeaderPayloadSource {
   poExpirationDate?: string;
   vehicleNo?: string;
   paymentMethodCode?: string;
+  SFPL_User_ID?: string;
 }
 
 export interface BuildPurchaseHeaderPayloadOptions {
@@ -82,7 +83,6 @@ export interface BuildPurchaseHeaderPayloadOptions {
   /** Optional original data from BC (hydrated header). If provided, payload will only include changed fields. */
   original?: Record<string, unknown>;
 }
-
 
 function normalizeQcType(value: string | undefined): string | undefined {
   if (value === "_none") {
@@ -152,27 +152,30 @@ export function stripNullish(
     {} as Record<string, unknown>,
   );
 }
- 
+
 /** Helper to compare values for diffing, treating null/undefined/empty string as equivalent. */
 function isSameValue(v1: unknown, v2: unknown): boolean {
   if (v1 === v2) return true;
- 
+
   const isV1Empty =
-    v1 === null || v1 === undefined || (typeof v1 === "string" && v1.trim() === "");
+    v1 === null ||
+    v1 === undefined ||
+    (typeof v1 === "string" && v1.trim() === "");
   const isV2Empty =
-    v2 === null || v2 === undefined || (typeof v2 === "string" && v2.trim() === "");
- 
+    v2 === null ||
+    v2 === undefined ||
+    (typeof v2 === "string" && v2.trim() === "");
+
   if (isV1Empty && isV2Empty) return true;
   if (isV1Empty || isV2Empty) return false;
- 
+
   // Handle number comparison
   if (typeof v1 === "number" || typeof v2 === "number") {
     return Number(v1) === Number(v2);
   }
- 
+
   return String(v1).trim() === String(v2).trim();
 }
-
 
 export function buildPurchaseHeaderPayload(
   source: PurchaseHeaderPayloadSource,
@@ -196,6 +199,7 @@ export function buildPurchaseHeaderPayload(
     Order_Address_Code: source.orderAddressCode,
     Vehicle_No: source.vehicleNo,
     Payment_Method_Code: source.paymentMethodCode,
+    SFPL_User_ID: source.SFPL_User_ID || "",
   };
 
   // Invoice + Order + Credit Memo only (not Return Order)
@@ -293,6 +297,10 @@ export function buildPurchaseHeaderPayload(
 
   if (options.includeOrderAddressState) {
     payload.GST_Order_Address_State = source.orderAddressState;
+  }
+
+  if (source.SFPL_User_ID) {
+    payload.SFPL_User_ID = source.SFPL_User_ID;
   }
 
   const result = options.stripEmpty ? stripEmptyValues(payload) : payload;

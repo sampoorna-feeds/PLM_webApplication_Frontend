@@ -77,6 +77,7 @@ export async function createSalesOrder(
       Shortcut_Dimension_1_Code: data.lob || "",
       Shortcut_Dimension_2_Code: data.branch || "",
       Created_From_Web: true,
+      SFPL_User_ID: data.SFPL_User_ID || "",
     };
 
     const response = await apiPost<CreateSalesOrderApiResponse>(
@@ -112,7 +113,10 @@ export async function addSalesOrderLineItems(
       linePayload.ShortcutDimCode3 = locationCode;
     }
     if (item.uom) linePayload.Unit_of_Measure_Code = item.uom;
-    await apiPost(endpoint, toUpperCaseValues(linePayload, ["Document_Type", "Type"]));
+    await apiPost(
+      endpoint,
+      toUpperCaseValues(linePayload, ["Document_Type", "Type"]),
+    );
   }
 }
 

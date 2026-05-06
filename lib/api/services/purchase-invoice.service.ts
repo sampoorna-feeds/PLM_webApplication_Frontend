@@ -52,11 +52,13 @@ export async function createPurchaseInvoice(
  */
 export async function createPurchaseInvoiceCopyHeader(
   locationCode: string,
+  userID?: string,
 ): Promise<CreatePurchaseInvoiceResponse> {
   try {
     return await createPurchaseDocumentCopyBootstrapHeader(
       "invoice",
       locationCode,
+      userID,
     );
   } catch (error) {
     console.error(

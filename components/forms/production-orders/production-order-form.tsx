@@ -871,6 +871,7 @@ export function ProductionOrderForm({
             : formState.Quantity;
 
         // Create new production order
+        const creds = getAuthCredentials();
         const payload = {
           Status: "Released" as const,
           Description: formState.Description,
@@ -892,6 +893,7 @@ export function ProductionOrderForm({
               ? formState.BOM_Version_No
               : undefined,
           Batch_Size: formState.Batch_Size || undefined,
+          SFPL_User_ID: creds?.userID || "",
         };
 
         const createdOrder = await createProductionOrder(payload);

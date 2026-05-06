@@ -52,11 +52,13 @@ export async function createPurchaseReturnOrder(
  */
 export async function createPurchaseReturnOrderCopyHeader(
   locationCode: string,
+  userID?: string,
 ): Promise<CreatePurchaseReturnOrderResponse> {
   try {
     return await createPurchaseDocumentCopyBootstrapHeader(
       "return-order",
       locationCode,
+      userID,
     );
   } catch (error) {
     console.error(

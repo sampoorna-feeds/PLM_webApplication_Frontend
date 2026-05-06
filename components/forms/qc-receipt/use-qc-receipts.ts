@@ -342,7 +342,9 @@ export function useQCReceiptPosting() {
     async (receiptNo: string) => {
       setIsPosting(true);
       try {
-        await postQCReceipt(receiptNo);
+        const { getAuthCredentials } = await import("@/lib/auth/storage");
+        const creds = getAuthCredentials();
+        await postQCReceipt(receiptNo, creds?.userID || "");
         toast.success("QC Receipt posted successfully!");
         return true;
       } catch (error: any) {

@@ -86,7 +86,9 @@ function normalizeHeader(order: SalesCreditMemoHeader): SalesOrder {
     ...order,
     Order_Date: order.Order_Date || order.Posting_Date || order.Document_Date,
     Amt_to_Customer:
-      typeof order.Amt_to_Customer === "number" ? order.Amt_to_Customer : undefined,
+      typeof order.Amt_to_Customer === "number"
+        ? order.Amt_to_Customer
+        : undefined,
   };
 }
 
@@ -520,9 +522,14 @@ export async function patchSalesOrderHeader(
 export async function postSalesOrder(
   docNo: string,
   defaultOption: "1" | "2" | "3",
+  userID: string,
 ): Promise<unknown> {
   const endpoint = `/API_PostSales?company='${encodeURIComponent(COMPANY)}'`;
-  return apiPost<unknown>(endpoint, { docNo, defaultOption });
+  return apiPost<unknown>(endpoint, {
+    docNo,
+    defaultOption,
+    SFPL_User_ID: userID,
+  });
 }
 
 export interface AddSalesLinePayload {

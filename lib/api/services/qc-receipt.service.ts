@@ -157,10 +157,11 @@ export async function getQCReceiptLines(
  * Post a QC receipt using the backend action.
  * @param receiptNo The QC receipt number to post.
  */
-export async function postQCReceipt(receiptNo: string): Promise<void> {
+export async function postQCReceipt(receiptNo: string, userID: string): Promise<void> {
   const endpoint = `/QCcode_postQC?company='${encodeURIComponent(COMPANY)}'`;
   const payload = {
     docNo: receiptNo,
+    SFPL_User_ID: userID,
   };
 
   try {

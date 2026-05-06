@@ -52,11 +52,13 @@ export async function createPurchaseCreditMemo(
  */
 export async function createPurchaseCreditMemoCopyHeader(
   locationCode: string,
+  userID?: string,
 ): Promise<CreatePurchaseCreditMemoResponse> {
   try {
     return await createPurchaseDocumentCopyBootstrapHeader(
       "credit-memo",
       locationCode,
+      userID,
     );
   } catch (error) {
     console.error(

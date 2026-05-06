@@ -116,7 +116,8 @@ export function ProductionOrderPostConfirmationDialog({
 
     setIsPosting(true);
     try {
-      await postProductionOrder(prodOrderNo, postingDate);
+      const creds = getAuthCredentials();
+      await postProductionOrder(prodOrderNo, postingDate, creds?.userID || "");
       toast.success("Production order posted successfully");
       onOpenChange(false);
       onSuccess();

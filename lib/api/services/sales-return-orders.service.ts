@@ -81,7 +81,9 @@ function normalizeHeader(order: SalesReturnOrderHeader): SalesOrder {
     ...order,
     Order_Date: order.Order_Date || order.Posting_Date || order.Document_Date,
     Amt_to_Customer:
-      typeof order.Amt_to_Customer === "number" ? order.Amt_to_Customer : undefined,
+      typeof order.Amt_to_Customer === "number"
+        ? order.Amt_to_Customer
+        : undefined,
   };
 }
 
@@ -135,7 +137,8 @@ export async function getSalesOrdersWithCount(
     queryParams as Parameters<typeof buildODataQuery>[0],
   );
   const endpoint = `/${HEADER_ENTITY}?company='${encodeURIComponent(COMPANY)}'&${query}`;
-  const response = await apiGet<ODataResponse<SalesReturnOrderHeader>>(endpoint);
+  const response =
+    await apiGet<ODataResponse<SalesReturnOrderHeader>>(endpoint);
 
   return {
     orders: (response.value || []).map(normalizeHeader),
@@ -200,7 +203,8 @@ export async function getSalesOrderByNo(
   const filter = `No eq '${orderNo.replace(/'/g, "''")}'`;
   const query = buildODataQuery({ $filter: filter });
   const endpoint = `/${HEADER_ENTITY}?company='${encodeURIComponent(COMPANY)}'&${query}`;
-  const response = await apiGet<ODataResponse<SalesReturnOrderHeader>>(endpoint);
+  const response =
+    await apiGet<ODataResponse<SalesReturnOrderHeader>>(endpoint);
   const value = response.value;
   return value && value.length > 0 ? normalizeHeader(value[0]) : null;
 }
@@ -515,9 +519,14 @@ export async function patchSalesOrderHeader(
 export async function postSalesOrder(
   docNo: string,
   defaultOption: "1" | "2" | "3",
+  userID: string,
 ): Promise<unknown> {
   const endpoint = `/API_PostSales?company='${encodeURIComponent(COMPANY)}'`;
-  return apiPost<unknown>(endpoint, { docNo, defaultOption });
+  return apiPost<unknown>(endpoint, {
+    docNo,
+    defaultOption,
+    SFPL_User_ID: userID,
+  });
 }
 
 export interface AddSalesLinePayload {

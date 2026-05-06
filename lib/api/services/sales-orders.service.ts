@@ -108,7 +108,12 @@ export async function searchSalesOrders(
   }
 
   const escaped = searchTerm.replace(/'/g, "''");
-  const fieldsToSearch = ["No", "Sell_to_Customer_No", "Sell_to_Customer_Name", "Ship_to_Name"];
+  const fieldsToSearch = [
+    "No",
+    "Sell_to_Customer_No",
+    "Sell_to_Customer_Name",
+    "Ship_to_Name",
+  ];
 
   // perform one request per field
   const responses = await Promise.all(
@@ -455,7 +460,10 @@ export async function patchSalesOrderHeader(
 ): Promise<unknown> {
   const escapedNo = orderNo.replace(/'/g, "''");
   const endpoint = `/SalesOrder(Document_Type='Order',No='${encodeURIComponent(escapedNo)}')?company='${encodeURIComponent(COMPANY)}'`;
-  const payload = toUpperCaseValues(stripNullish(body), ["Document_Type", "Type"]);
+  const payload = toUpperCaseValues(stripNullish(body), [
+    "Document_Type",
+    "Type",
+  ]);
   return apiPatch<unknown>(endpoint, payload);
 }
 
@@ -466,9 +474,14 @@ export async function patchSalesOrderHeader(
 export async function postSalesOrder(
   docNo: string,
   defaultOption: "1" | "2" | "3",
+  userID: string,
 ): Promise<unknown> {
   const endpoint = `/API_PostSales?company='${encodeURIComponent(COMPANY)}'`;
-  return apiPost<unknown>(endpoint, { docNo, defaultOption });
+  return apiPost<unknown>(endpoint, {
+    docNo,
+    defaultOption,
+    SFPL_User_ID: userID,
+  });
 }
 
 export interface AddSalesLinePayload {
@@ -491,7 +504,10 @@ export async function addSalesLine(
     ...line,
     ShortcutDimCode3: line.Location_Code,
   };
-  return apiPost<unknown>(endpoint, toUpperCaseValues(payload, ["Document_Type", "Type"]));
+  return apiPost<unknown>(
+    endpoint,
+    toUpperCaseValues(payload, ["Document_Type", "Type"]),
+  );
 }
 
 /**
@@ -504,7 +520,10 @@ export async function updateSalesLine(
 ): Promise<unknown> {
   const escapedNo = documentNo.replace(/'/g, "''");
   const endpoint = `/SalesLine(Document_Type='Order',Document_No='${encodeURIComponent(escapedNo)}',Line_No=${lineNo})?company='${encodeURIComponent(COMPANY)}'`;
-  const payload = toUpperCaseValues(stripNullish(body), ["Document_Type", "Type"]);
+  const payload = toUpperCaseValues(stripNullish(body), [
+    "Document_Type",
+    "Type",
+  ]);
   return apiPatch<unknown>(endpoint, payload);
 }
 

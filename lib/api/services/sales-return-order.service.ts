@@ -71,6 +71,7 @@ export async function createSalesReturnOrder(
       Invoice_Type: data.invoiceType || "Bill of supply",
       Shortcut_Dimension_1_Code: data.lob || "",
       Shortcut_Dimension_2_Code: data.branch || "",
+      SFPL_User_ID: data.SFPL_User_ID || "",
     };
     const response = await apiPost<CreateSalesDocumentApiResponse>(
       endpoint,
@@ -89,6 +90,7 @@ export async function createSalesReturnOrderCopyHeader(
   locationCode: string,
   lobCode: string,
   branchCode: string,
+  userID?: string,
 ): Promise<CreateSalesDocumentResponse> {
   try {
     const endpoint = `/${HEADER_ENTITY}?company='${encodeURIComponent(COMPANY)}'`;
@@ -97,6 +99,7 @@ export async function createSalesReturnOrderCopyHeader(
       Shortcut_Dimension_1_Code: lobCode,
       Shortcut_Dimension_2_Code: branchCode,
       Shortcut_Dimension_3_Code: locationCode,
+      SFPL_User_ID: userID || "",
     };
     const response = await apiPost<CreateSalesDocumentApiResponse>(
       endpoint,
@@ -119,12 +122,15 @@ export async function addSalesReturnOrderLineItems(
   if (!documentNo || lineItems.length === 0) return;
   const endpoint = `/${LINE_ENTITY}?company='${encodeURIComponent(COMPANY)}'`;
   for (const item of lineItems) {
-    const linePayload: Record<string, unknown> = toUpperCaseValues({
-      Document_No: documentNo,
-      Type: item.type,
-      No: item.no,
-      Quantity: item.quantity,
-    }, ["Document_Type", "Type"]);
+    const linePayload: Record<string, unknown> = toUpperCaseValues(
+      {
+        Document_No: documentNo,
+        Type: item.type,
+        No: item.no,
+        Quantity: item.quantity,
+      },
+      ["Document_Type", "Type"],
+    );
     if (locationCode) {
       linePayload.Location_Code = locationCode;
       linePayload.ShortcutDimCode3 = locationCode;

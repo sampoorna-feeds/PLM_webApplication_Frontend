@@ -158,11 +158,13 @@ export async function createPurchaseDocumentHeader(
 export async function createPurchaseDocumentCopyBootstrapHeader(
   documentType: PurchaseDocumentAdapterType,
   locationCode: string,
+  userID?: string,
 ): Promise<{ orderId: string; orderNo: string }> {
   const config = PURCHASE_DOCUMENT_ADAPTER_CONFIG[documentType];
   const endpoint = `/${config.headerEntity}?company='${encodeURIComponent(COMPANY)}'`;
   const payload = stripEmptyValues({
     Location_Code: locationCode,
+    SFPL_User_ID: userID || "",
   });
 
   const response = await apiPost<CreateHeaderApiResponse>(endpoint, payload);

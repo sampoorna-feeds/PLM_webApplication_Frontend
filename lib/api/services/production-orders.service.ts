@@ -492,6 +492,7 @@ export interface CreateProductionOrderPayload {
   Prod_Bom_No?: string;
   BOM_Version_No?: string;
   Batch_Size?: string;
+  SFPL_User_ID?: string;
 }
 
 /**
@@ -516,6 +517,7 @@ export async function createProductionOrder(
     Hatching_Date: data.Hatching_Date || "0001-01-01",
     Shortcut_Dimension_1_Code: data.Shortcut_Dimension_1_Code,
     Shortcut_Dimension_2_Code: data.Shortcut_Dimension_2_Code,
+    SFPL_User_ID: data.SFPL_User_ID || "",
   };
 
   // Add Prod_Bom_No if provided
@@ -1237,7 +1239,8 @@ export async function updateComponentSubstitute(
 export async function postProductionOrder(
   rPONo: string,
   postingDate: string,
+  userID: string,
 ): Promise<void> {
   const endpoint = `/API_PostRPO?company='${encodeURIComponent(COMPANY)}'`;
-  await apiPost<void>(endpoint, { rPONo, pOstingdate: postingDate });
+  await apiPost<void>(endpoint, { rPONo, pOstingdate: postingDate, SFPL_User_ID: userID });
 }

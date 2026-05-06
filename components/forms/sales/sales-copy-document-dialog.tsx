@@ -81,6 +81,7 @@ interface SalesCopyDocumentDialogProps {
     locCode: string,
     lobCode: string,
     branchCode: string,
+    userID?: string,
   ) => Promise<string>;
   userId?: string;
   lobValue?: string;
@@ -584,7 +585,7 @@ export function SalesCopyDocumentDialog({
         if (!onCreateHeader) {
           throw new Error("Missing callback to create document header.");
         }
-        targetDocNo = await onCreateHeader(locationCode, lobCode, branchCode);
+        targetDocNo = await onCreateHeader(locationCode, lobCode, branchCode, userId);
         if (!targetDocNo) {
           throw new Error("Failed to get document number after creation.");
         }

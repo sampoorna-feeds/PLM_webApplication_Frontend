@@ -52,6 +52,7 @@ export interface PurchaseOrderData {
   vendorAuthorizationNo?: string;
   no?: string;
   paymentMethodCode?: string;
+  SFPL_User_ID?: string;
 }
 
 export interface PurchaseOrderLineItem {
@@ -98,7 +99,9 @@ const COMPANY =
 /**
  * Fetch the next document number for a service-type purchase order.
  */
-export async function createNoSeriesForPO(postingDate: string): Promise<string> {
+export async function createNoSeriesForPO(
+  postingDate: string,
+): Promise<string> {
   const endpoint = `/API_CreateNoSeriesForVouchers?company='${encodeURIComponent(COMPANY)}'`;
   const response = await apiPost<{ value: string }>(endpoint, {
     seriesCode: "POS",

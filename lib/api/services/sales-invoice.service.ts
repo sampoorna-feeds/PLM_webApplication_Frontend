@@ -71,6 +71,7 @@ export async function createSalesInvoice(
       Invoice_Type: data.invoiceType || "Bill of supply",
       Shortcut_Dimension_1_Code: data.lob || "",
       Shortcut_Dimension_2_Code: data.branch || "",
+      SFPL_User_ID: data.SFPL_User_ID || "",
     };
     const response = await apiPost<CreateSalesDocumentApiResponse>(
       endpoint,
@@ -89,6 +90,7 @@ export async function createSalesInvoiceCopyHeader(
   locationCode: string,
   lobCode: string,
   branchCode: string,
+  userID?: string,
 ): Promise<CreateSalesDocumentResponse> {
   try {
     const endpoint = `/${HEADER_ENTITY}?company='${encodeURIComponent(COMPANY)}'`;
@@ -97,6 +99,7 @@ export async function createSalesInvoiceCopyHeader(
       Shortcut_Dimension_1_Code: lobCode,
       Shortcut_Dimension_2_Code: branchCode,
       Shortcut_Dimension_3_Code: locationCode,
+      SFPL_User_ID: userID || "",
     };
     const response = await apiPost<CreateSalesDocumentApiResponse>(
       endpoint,
@@ -130,7 +133,10 @@ export async function addSalesInvoiceLineItems(
       linePayload.ShortcutDimCode3 = locationCode;
     }
     if (item.uom) linePayload.Unit_of_Measure_Code = item.uom;
-    await apiPost(endpoint, toUpperCaseValues(linePayload, ["Document_Type", "Type"]));
+    await apiPost(
+      endpoint,
+      toUpperCaseValues(linePayload, ["Document_Type", "Type"]),
+    );
   }
 }
 

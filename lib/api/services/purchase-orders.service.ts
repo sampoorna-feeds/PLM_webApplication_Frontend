@@ -485,7 +485,6 @@ export async function deleteAttachedGateEntry(params: {
   return apiDelete<unknown>(endpoint);
 }
 
-
 /**
  * Attach a gate entry line to its source document.
  */
@@ -495,8 +494,6 @@ export async function attachGateEntry(
   const endpoint = `/API_AttachedGateEntry?company='${encodeURIComponent(COMPANY)}'`;
   return apiPost<unknown>(endpoint, payload);
 }
-
-
 
 function escapeODataValue(value: string): string {
   return value.replace(/'/g, "''");
@@ -584,7 +581,10 @@ export async function patchPurchaseOrderHeader(
 ): Promise<unknown> {
   const escapedNo = orderNo.replace(/'/g, "''");
   const endpoint = `/PurchaseOrder(Document_Type='Order',No='${encodeURIComponent(escapedNo)}')?company='${encodeURIComponent(COMPANY)}'`;
-  const payload = toUpperCaseValues(stripNullish(body), ["Document_Type", "Type"]);
+  const payload = toUpperCaseValues(stripNullish(body), [
+    "Document_Type",
+    "Type",
+  ]);
   return apiPatch<unknown>(endpoint, payload);
 }
 
@@ -595,9 +595,14 @@ export async function patchPurchaseOrderHeader(
 export async function postPurchaseOrder(
   docNo: string,
   defaultOption: "1" | "2" | "3",
+  userID: string,
 ): Promise<unknown> {
   const endpoint = `/API_PostPurchase?company='${encodeURIComponent(COMPANY)}'`;
-  return apiPost<unknown>(endpoint, { docNo, defaultOption });
+  return apiPost<unknown>(endpoint, {
+    docNo,
+    defaultOption,
+    SFPL_User_ID: userID,
+  });
 }
 
 export interface AddPurchaseLinePayload {
@@ -630,7 +635,10 @@ export async function updatePurchaseLine(
 ): Promise<unknown> {
   const escapedNo = documentNo.replace(/'/g, "''");
   const endpoint = `/PurchaseLine(Document_Type='Order',Document_No='${encodeURIComponent(escapedNo)}',Line_No=${lineNo})?company='${encodeURIComponent(COMPANY)}'`;
-  const payload = toUpperCaseValues(stripNullish(body), ["Document_Type", "Type"]);
+  const payload = toUpperCaseValues(stripNullish(body), [
+    "Document_Type",
+    "Type",
+  ]);
   return apiPatch<unknown>(endpoint, payload);
 }
 

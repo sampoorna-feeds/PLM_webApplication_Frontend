@@ -164,7 +164,10 @@ import {
   updateSalesLine as updateLine_cm,
 } from "@/lib/api/services/sales-credit-memos.service";
 import { getItemsByNos, getItemStock } from "@/lib/api/services/item.service";
-import { getDistance, getLocationPostCode } from "@/lib/api/services/distance.service";
+import {
+  getDistance,
+  getLocationPostCode,
+} from "@/lib/api/services/distance.service";
 import { getWebUser, type WebUser } from "@/lib/api/services/web-user.service";
 import { isPostingDateValid } from "@/lib/utils/posting-date";
 import { DateInput } from "@/components/ui/date-input";
@@ -230,7 +233,11 @@ interface SalesDocumentOps {
   sendApproval: (docNo: string) => Promise<unknown>;
   cancelApproval: (docNo: string) => Promise<unknown>;
   reopen: (docNo: string) => Promise<unknown>;
-  post: (docNo: string, option: "1" | "2" | "3") => Promise<unknown>;
+  post: (
+    docNo: string,
+    option: "1" | "2" | "3",
+    userID: string,
+  ) => Promise<unknown>;
 }
 
 const SALES_DOCUMENT_OPS: Record<SalesDocumentType, SalesDocumentOps> = {
@@ -321,10 +328,10 @@ const EMPTY_FORM_STATE: CreateFormState = {
   appliesToDocType: "",
   appliesToDocNo: "",
   appliesToID: "",
+  SFPL_User_ID: "",
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-
 
 function formatAmount(val: number | undefined): string {
   if (val == null) return "-";
@@ -379,7 +386,10 @@ export function SalesCreateDocumentFormContent({
   const [branchName, setBranchName] = useState<string>("");
 
   useEffect(() => {
-    if (!formData.branch || !userId) { setBranchName(""); return; }
+    if (!formData.branch || !userId) {
+      setBranchName("");
+      return;
+    }
     getWebUserSetup(userId).then((setup) => {
       const found = setup.find((s) => s.Branch_Code === formData.branch);
       const name = found?.Branch_Name;
@@ -431,7 +441,8 @@ export function SalesCreateDocumentFormContent({
 
   // ── Get posted line dialog state ──────────────────────────────────────────
   const [isGetPostedLineOpen, setIsGetPostedLineOpen] = useState(false);
-  const [isGetPostedLineToReverseOpen, setIsGetPostedLineToReverseOpen] = useState(false);
+  const [isGetPostedLineToReverseOpen, setIsGetPostedLineToReverseOpen] =
+    useState(false);
 
   const postDetailsDefault = {
     transporterCode: "",
@@ -456,16 +467,20 @@ export function SalesCreateDocumentFormContent({
   const [isPostDetailsOpen, setIsPostDetailsOpen] = useState(false);
   const [postDetails, setPostDetails] = useState(postDetailsDefault);
   const [isPostResultOpen, setIsPostResultOpen] = useState(false);
-  const [postResultDocs, setPostResultDocs] = useState<{ Invoice?: string; Shipment?: string; CreditMemo?: string }>({});
+  const [postResultDocs, setPostResultDocs] = useState<{
+    Invoice?: string;
+    Shipment?: string;
+    CreditMemo?: string;
+  }>({});
 
   // Reset Post Details when dialog opens
   useEffect(() => {
     if (isPostDetailsOpen) {
       const today = new Date().toISOString().split("T")[0];
-      setPostDetails(prev => ({
+      setPostDetails((prev) => ({
         ...prev,
         postingDate: today,
-        lrRrDate: today
+        lrRrDate: today,
       }));
     }
   }, [isPostDetailsOpen]);
@@ -485,14 +500,23 @@ export function SalesCreateDocumentFormContent({
               vehicleNumber: (freshHeader.Vehicle_No as string) || "",
               driverPhone: (freshHeader.Driver_Mobile_No as string) || "",
               lrRrNumber: (freshHeader.LR_RR_No as string) || "",
-              lrRrDate: (freshHeader.LR_RR_Date as string)?.split("T")[0] || today,
+              lrRrDate:
+                (freshHeader.LR_RR_Date as string)?.split("T")[0] || today,
               postingDate: freshHeader.Posting_Date || today,
               externalDocumentNo: freshHeader.External_Document_No || "",
               lineNarration: (freshHeader.Line_Narration1 as string) || "",
-              distanceKm: freshHeader.Distance_km ? String(freshHeader.Distance_km) : "",
-              grossWeight: freshHeader.Gross_Weight ? String(freshHeader.Gross_Weight) : "",
-              tareWeight: freshHeader.Tier_Weight ? String(freshHeader.Tier_Weight) : "",
-              freightValue: freshHeader.Freight_Value ? String(freshHeader.Freight_Value) : "",
+              distanceKm: freshHeader.Distance_km
+                ? String(freshHeader.Distance_km)
+                : "",
+              grossWeight: freshHeader.Gross_Weight
+                ? String(freshHeader.Gross_Weight)
+                : "",
+              tareWeight: freshHeader.Tier_Weight
+                ? String(freshHeader.Tier_Weight)
+                : "",
+              freightValue: freshHeader.Freight_Value
+                ? String(freshHeader.Freight_Value)
+                : "",
             });
           }
         } catch (err) {
@@ -534,7 +558,10 @@ export function SalesCreateDocumentFormContent({
   // ── Init ──────────────────────────────────────────────────────────────────
   useEffect(() => {
     const creds = getAuthCredentials();
-    if (creds) setUserId(creds.userID);
+    if (creds) {
+      setUserId(creds.userID);
+      setFormData((prev) => ({ ...prev, SFPL_User_ID: creds.userID }));
+    }
   }, []);
 
   // Sync locationCode with loc dimension
@@ -634,7 +661,9 @@ export function SalesCreateDocumentFormContent({
   const handleOpenCopyDialog = () => {
     if (!isCreateMode) return;
     if (!formData.lob || !formData.branch || !formData.locationCode) {
-      toast.error("Please select LOB, Branch, and Location Code before copying.");
+      toast.error(
+        "Please select LOB, Branch, and Location Code before copying.",
+      );
       return;
     }
     setIsCopyDocOpen(true);
@@ -822,8 +851,14 @@ export function SalesCreateDocumentFormContent({
 
   const handleFetchDistance = async () => {
     const locationCode = orderHeader?.Location_Code as string | undefined;
-    const shipToPostCode = orderHeader?.Ship_to_Post_Code as string | null | undefined;
-    const billToPostCode = orderHeader?.Bill_to_Post_Code as string | null | undefined;
+    const shipToPostCode = orderHeader?.Ship_to_Post_Code as
+      | string
+      | null
+      | undefined;
+    const billToPostCode = orderHeader?.Bill_to_Post_Code as
+      | string
+      | null
+      | undefined;
     const toPIN = shipToPostCode || billToPostCode || "";
 
     if (!locationCode || !toPIN) {
@@ -864,7 +899,7 @@ export function SalesCreateDocumentFormContent({
         Distance_km: 0,
       };
       await ops.patchHeader(initialOrderNo, patchPayload);
-      const postResponse = await ops.post(initialOrderNo, "2");
+      const postResponse = await ops.post(initialOrderNo, "2", userId || "");
       const docs = parsePostResult(postResponse);
       setPostResultDocs(docs);
       setIsPostResultOpen(true);
@@ -877,7 +912,8 @@ export function SalesCreateDocumentFormContent({
   };
 
   const isShipOption = postOption === "1" || postOption === "3";
-  const isCreditOrReturn = documentType === "credit-memo" || documentType === "return-order";
+  const isCreditOrReturn =
+    documentType === "credit-memo" || documentType === "return-order";
 
   const netWeight =
     (parseFloat(postDetails.grossWeight) || 0) -
@@ -925,7 +961,9 @@ export function SalesCreateDocumentFormContent({
         Allow_Posting_From !== "0001-01-01" &&
         selectedDate < Allow_Posting_From.split("T")[0]
       ) {
-        toast.error(`Posting Date cannot be before ${Allow_Posting_From.split("T")[0]}`);
+        toast.error(
+          `Posting Date cannot be before ${Allow_Posting_From.split("T")[0]}`,
+        );
         return;
       }
       if (
@@ -933,7 +971,9 @@ export function SalesCreateDocumentFormContent({
         Allow_Posting_To !== "0001-01-01" &&
         selectedDate > Allow_Posting_To.split("T")[0]
       ) {
-        toast.error(`Posting Date cannot be after ${Allow_Posting_To.split("T")[0]}`);
+        toast.error(
+          `Posting Date cannot be after ${Allow_Posting_To.split("T")[0]}`,
+        );
         return;
       }
     }
@@ -943,13 +983,17 @@ export function SalesCreateDocumentFormContent({
       const patchPayload = buildSalesPostPatchPayload(
         orderHeader,
         postDetails as SalesPostDetails,
-        isCreditOrReturn
+        isCreditOrReturn,
       );
 
       if (Object.keys(patchPayload).length > 0) {
         await ops.patchHeader(initialOrderNo, patchPayload);
       }
-      const postResponse = await ops.post(initialOrderNo, postOption);
+      const postResponse = await ops.post(
+        initialOrderNo,
+        postOption,
+        userId || "",
+      );
       const docs = parsePostResult(postResponse);
       setPostResultDocs(docs);
       setIsPostDetailsOpen(false);
@@ -969,7 +1013,7 @@ export function SalesCreateDocumentFormContent({
       const patchPayload = buildSalesPostPatchPayload(
         orderHeader,
         postDetails as SalesPostDetails,
-        isCreditOrReturn
+        isCreditOrReturn,
       );
 
       if (Object.keys(patchPayload).length > 0) {
@@ -986,12 +1030,18 @@ export function SalesCreateDocumentFormContent({
     }
   };
 
-  const parsePostResult = (response: unknown): { Invoice?: string; Shipment?: string; CreditMemo?: string } => {
+  const parsePostResult = (
+    response: unknown,
+  ): { Invoice?: string; Shipment?: string; CreditMemo?: string } => {
     try {
       const value = (response as Record<string, unknown>)?.value;
       if (!value || typeof value !== "string") return {};
       const jsonStr = atob(value.replace(/\s/g, ""));
-      return JSON.parse(jsonStr) as { Invoice?: string; Shipment?: string; CreditMemo?: string };
+      return JSON.parse(jsonStr) as {
+        Invoice?: string;
+        Shipment?: string;
+        CreditMemo?: string;
+      };
     } catch {
       return {};
     }
@@ -1102,281 +1152,282 @@ export function SalesCreateDocumentFormContent({
         >
           <Separator className="mb-3" />
           <div className="grid grid-cols-2 gap-x-4 gap-y-4 sm:grid-cols-3 lg:grid-cols-6">
-        <div className={fieldClass}>
-          <label className={labelClass}>LOB</label>
-          <ClearableField
-            readOnly={isGeneralReadOnly}
-            value={formData.lob}
-            onClear={() => {
-              handleInputChange("lob", "");
-              handleInputChange("locationCode", "");
-            }}
-          >
-            <CascadingDimensionSelect
-              dimensionType="LOB"
-              value={formData.lob}
-              onChange={(v) => {
-                handleInputChange("lob", v);
-                handleInputChange("locationCode", "");
-              }}
-              placeholder="Select LOB"
-              userId={userId}
-              compactWhenSingle
-              disabled={isGeneralReadOnly}
-            />
-          </ClearableField>
-        </div>
-        <div className={fieldClass}>
-          <label className={labelClass}>Branch</label>
-          <ClearableField
-            readOnly={isGeneralReadOnly}
-            value={formData.branch}
-            onClear={() => {
-              handleInputChange("branch", "");
-              handleInputChange("locationCode", "");
-            }}
-          >
-            <CascadingDimensionSelect
-              dimensionType="BRANCH"
-              value={formData.branch}
-              onChange={(v) => {
-                handleInputChange("branch", v);
-                handleInputChange("locationCode", "");
-              }}
-              placeholder="Select Branch"
-              lobValue={formData.lob}
-              userId={userId}
-              compactWhenSingle
-              disabled={isGeneralReadOnly}
-            />
-          </ClearableField>
-          {branchName && (
-            <p className="text-muted-foreground text-xs">{branchName}</p>
-          )}
-        </div>
-        <div className={fieldClass}>
-          <label className={labelClass}>Location Code</label>
-          <LocationCodeSelectDialog
-            value={formData.locationCode}
-            onChange={(v) => handleInputChange("locationCode", v)}
-            branchCode={formData.branch}
-            disabled={isGeneralReadOnly}
-            placeholder="Select Location"
-          />
-        </div>
+            <div className={fieldClass}>
+              <label className={labelClass}>LOB</label>
+              <ClearableField
+                readOnly={isGeneralReadOnly}
+                value={formData.lob}
+                onClear={() => {
+                  handleInputChange("lob", "");
+                  handleInputChange("locationCode", "");
+                }}
+              >
+                <CascadingDimensionSelect
+                  dimensionType="LOB"
+                  value={formData.lob}
+                  onChange={(v) => {
+                    handleInputChange("lob", v);
+                    handleInputChange("locationCode", "");
+                  }}
+                  placeholder="Select LOB"
+                  userId={userId}
+                  compactWhenSingle
+                  disabled={isGeneralReadOnly}
+                />
+              </ClearableField>
+            </div>
+            <div className={fieldClass}>
+              <label className={labelClass}>Branch</label>
+              <ClearableField
+                readOnly={isGeneralReadOnly}
+                value={formData.branch}
+                onClear={() => {
+                  handleInputChange("branch", "");
+                  handleInputChange("locationCode", "");
+                }}
+              >
+                <CascadingDimensionSelect
+                  dimensionType="BRANCH"
+                  value={formData.branch}
+                  onChange={(v) => {
+                    handleInputChange("branch", v);
+                    handleInputChange("locationCode", "");
+                  }}
+                  placeholder="Select Branch"
+                  lobValue={formData.lob}
+                  userId={userId}
+                  compactWhenSingle
+                  disabled={isGeneralReadOnly}
+                />
+              </ClearableField>
+              {branchName && (
+                <p className="text-muted-foreground text-xs">{branchName}</p>
+              )}
+            </div>
+            <div className={fieldClass}>
+              <label className={labelClass}>Location Code</label>
+              <LocationCodeSelectDialog
+                value={formData.locationCode}
+                onChange={(v) => handleInputChange("locationCode", v)}
+                branchCode={formData.branch}
+                disabled={isGeneralReadOnly}
+                placeholder="Select Location"
+              />
+            </div>
 
-        {caps.supportsInvoiceType && (
-          <div className={fieldClass}>
-            <label className={labelClass}>Invoice Type</label>
-            <ClearableField
-              readOnly={isInvoiceTypeReadOnly}
-              value={formData.invoiceType}
-              onClear={() => handleInputChange("invoiceType", "")}
-            >
-              <Select
-                disabled={isInvoiceTypeReadOnly}
-                value={formData.invoiceType.trim() || "__none__"}
-                onValueChange={(v) =>
-                  handleInputChange("invoiceType", v === "__none__" ? "" : v)
+            {caps.supportsInvoiceType && (
+              <div className={fieldClass}>
+                <label className={labelClass}>Invoice Type</label>
+                <ClearableField
+                  readOnly={isInvoiceTypeReadOnly}
+                  value={formData.invoiceType}
+                  onClear={() => handleInputChange("invoiceType", "")}
+                >
+                  <Select
+                    disabled={isInvoiceTypeReadOnly}
+                    value={formData.invoiceType.trim() || "__none__"}
+                    onValueChange={(v) =>
+                      handleInputChange(
+                        "invoiceType",
+                        v === "__none__" ? "" : v,
+                      )
+                    }
+                  >
+                    <SelectTrigger className="h-9">
+                      <SelectValue placeholder="None" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {caps.invoiceTypeOptions.map((opt) => (
+                        <SelectItem
+                          key={opt.value || "__none__"}
+                          value={opt.value || "__none__"}
+                        >
+                          {opt.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </ClearableField>
+              </div>
+            )}
+            {/* Customer | Location | Sales Person | Ship To */}
+            <div className={fieldClass}>
+              <label className={labelClass}>Customer</label>
+              <ClearableField
+                readOnly={isGeneralReadOnly}
+                value={formData.customerNo}
+                onClear={() => handleCustomerChange("", undefined)}
+              >
+                <CustomerSelect
+                  value={formData.customerNo}
+                  onChange={handleCustomerChange}
+                  placeholder="Select"
+                  disabled={isGeneralReadOnly}
+                />
+              </ClearableField>
+              {formData.customerName && (
+                <p className="mt-1 pl-1 text-[10px] font-medium text-green-600">
+                  {formData.customerName}
+                </p>
+              )}
+            </div>
+            <div className={fieldClass}>
+              <label className={labelClass}>Sales Person</label>
+              <ClearableField
+                readOnly={isGeneralReadOnly}
+                value={formData.salesPersonCode}
+                onClear={() =>
+                  setFormData((p) => ({
+                    ...p,
+                    salesPersonCode: "",
+                    salesPersonName: "",
+                  }))
                 }
               >
-                <SelectTrigger className="h-9">
-                  <SelectValue placeholder="None" />
-                </SelectTrigger>
-                <SelectContent>
-                  {caps.invoiceTypeOptions.map((opt) => (
-                    <SelectItem
-                      key={opt.value || "__none__"}
-                      value={opt.value || "__none__"}
-                    >
-                      {opt.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </ClearableField>
-          </div>
-        )}
-      {/* Customer | Location | Sales Person | Ship To */}
-        <div className={fieldClass}>
-          <label className={labelClass}>Customer</label>
-          <ClearableField
-            readOnly={isGeneralReadOnly}
-            value={formData.customerNo}
-            onClear={() => handleCustomerChange("", undefined)}
-          >
-            <CustomerSelect
-              value={formData.customerNo}
-              onChange={handleCustomerChange}
-              placeholder="Select"
-              disabled={isGeneralReadOnly}
-            />
-          </ClearableField>
-          {formData.customerName && (
-            <p className="mt-1 pl-1 text-[10px] font-medium text-green-600">
-              {formData.customerName}
-            </p>
-          )}
-        </div>
-        <div className={fieldClass}>
-          <label className={labelClass}>Sales Person</label>
-          <ClearableField
-            readOnly={isGeneralReadOnly}
-            value={formData.salesPersonCode}
-            onClear={() =>
-              setFormData((p) => ({
-                ...p,
-                salesPersonCode: "",
-                salesPersonName: "",
-              }))
-            }
-          >
-            <SalesPersonSelect
-              value={formData.salesPersonCode}
-              onChange={(v, sp) =>
-                setFormData((p) => ({
-                  ...p,
-                  salesPersonCode: v,
-                  salesPersonName: sp?.Name || "",
-                }))
-              }
-              placeholder="Select"
-              disabled={isGeneralReadOnly}
-            />
-          </ClearableField>
-          {formData.salesPersonName && (
-            <p className="mt-1 pl-1 text-[10px] font-medium text-green-600">
-              {formData.salesPersonName}
-            </p>
-          )}
-        </div>
-        <div className={fieldClass}>
-          <label className={labelClass}>Ship To</label>
-          <ClearableField
-            readOnly={isGeneralReadOnly}
-            value={formData.shipToCode}
-            onClear={() => handleShipToChange("", undefined)}
-          >
-            <ShipToSelect
-              customerNo={formData.customerNo}
-              value={formData.shipToCode}
-              onChange={handleShipToChange}
-              placeholder="Select (optional)"
-              tabId=""
-              loc={formData.locationCode}
-              disabled={isGeneralReadOnly}
-            />
-          </ClearableField>
-          {(formData as unknown as Record<string, string>).shipToName && (
-            <p className="mt-1 pl-1 text-[10px] font-medium text-green-600">
-              {(formData as unknown as Record<string, string>).shipToName}
-            </p>
-          )}
-        </div>
-      {/* GST No | PAN No */}
-        <div className={fieldClass}>
-          <label className={labelClass}>GST Reg. No.</label>
-          <Input
-            value={formData.gstRegistrationNo || ""}
-            disabled
-            className="bg-muted h-8 text-[11px] font-mono"
-            readOnly
-          />
-        </div>
-        <div className={fieldClass}>
-          <label className={labelClass}>PAN No.</label>
-          <Input
-            value={formData.panNo || ""}
-            disabled
-            className="bg-muted h-8 text-[11px] font-mono"
-            readOnly
-          />
-        </div>
-        <div className={fieldClass}>
-          <label className={labelClass}>Posting Date</label>
-          <ClearableField
-            readOnly={isGeneralReadOnly}
-            value={formData.postingDate}
-            onClear={() => handleInputChange("postingDate", "")}
-          >
-            <DateInput
-              value={formData.postingDate}
-              onChange={(val) => handleInputChange("postingDate", val)}
-              min={
-                webUserProfile?.Allow_Posting_From &&
-                webUserProfile.Allow_Posting_From !== "0001-01-01"
-              ? webUserProfile.Allow_Posting_From.split("T")[0]
-              : undefined
-              }
-              max={
-                webUserProfile?.Allow_Posting_To &&
-                webUserProfile.Allow_Posting_To !== "0001-01-01"
-              ? webUserProfile.Allow_Posting_To.split("T")[0]
-              : undefined
-              }
-              className="h-8"
-              disabled={isGeneralReadOnly}
-            />
-          </ClearableField>
-        </div>
-        <div className={fieldClass}>
-          <label className={labelClass}>Document Date</label>
-          <ClearableField
-            readOnly={isGeneralReadOnly}
-            value={formData.documentDate}
-            onClear={() => handleInputChange("documentDate", "")}
-          >
-            <DateInput
-              value={formData.documentDate}
-              onChange={(val) =>
-                handleInputChange("documentDate", val)
-              }
-              min={
-                webUserProfile?.Allow_Posting_From &&
-                webUserProfile.Allow_Posting_From !== "0001-01-01"
-              ? webUserProfile.Allow_Posting_From.split("T")[0]
-              : undefined
-              }
-              max={
-                webUserProfile?.Allow_Posting_To &&
-                webUserProfile.Allow_Posting_To !== "0001-01-01"
-              ? webUserProfile.Allow_Posting_To.split("T")[0]
-              : undefined
-              }
-              className="h-8"
-              disabled={isGeneralReadOnly}
-            />
-          </ClearableField>
-        </div>
-        {caps.supportsOrderDate && (
-          <div className={fieldClass}>
-            <label className={labelClass}>Order Date</label>
-            <DateInput
-              value={formData.orderDate}
-              onChange={(val) => handleInputChange("orderDate", val)}
-              disabled
-              className="h-8"
-            />
-          </div>
-        )}
-        <div className={fieldClass}>
-          <label className={labelClass}>External Doc No.</label>
-          <ClearableField
-            readOnly={isGeneralReadOnly}
-            value={formData.externalDocumentNo}
-            onClear={() => handleInputChange("externalDocumentNo", "")}
-          >
-            <Input
-              value={formData.externalDocumentNo}
-              onChange={(e) =>
-                handleInputChange("externalDocumentNo", e.target.value)
-              }
-              placeholder="Optional"
-              className="h-8"
-              disabled={isGeneralReadOnly}
-            />
-          </ClearableField>
-        </div>
+                <SalesPersonSelect
+                  value={formData.salesPersonCode}
+                  onChange={(v, sp) =>
+                    setFormData((p) => ({
+                      ...p,
+                      salesPersonCode: v,
+                      salesPersonName: sp?.Name || "",
+                    }))
+                  }
+                  placeholder="Select"
+                  disabled={isGeneralReadOnly}
+                />
+              </ClearableField>
+              {formData.salesPersonName && (
+                <p className="mt-1 pl-1 text-[10px] font-medium text-green-600">
+                  {formData.salesPersonName}
+                </p>
+              )}
+            </div>
+            <div className={fieldClass}>
+              <label className={labelClass}>Ship To</label>
+              <ClearableField
+                readOnly={isGeneralReadOnly}
+                value={formData.shipToCode}
+                onClear={() => handleShipToChange("", undefined)}
+              >
+                <ShipToSelect
+                  customerNo={formData.customerNo}
+                  value={formData.shipToCode}
+                  onChange={handleShipToChange}
+                  placeholder="Select (optional)"
+                  tabId=""
+                  loc={formData.locationCode}
+                  disabled={isGeneralReadOnly}
+                />
+              </ClearableField>
+              {(formData as unknown as Record<string, string>).shipToName && (
+                <p className="mt-1 pl-1 text-[10px] font-medium text-green-600">
+                  {(formData as unknown as Record<string, string>).shipToName}
+                </p>
+              )}
+            </div>
+            {/* GST No | PAN No */}
+            <div className={fieldClass}>
+              <label className={labelClass}>GST Reg. No.</label>
+              <Input
+                value={formData.gstRegistrationNo || ""}
+                disabled
+                className="bg-muted h-8 font-mono text-[11px]"
+                readOnly
+              />
+            </div>
+            <div className={fieldClass}>
+              <label className={labelClass}>PAN No.</label>
+              <Input
+                value={formData.panNo || ""}
+                disabled
+                className="bg-muted h-8 font-mono text-[11px]"
+                readOnly
+              />
+            </div>
+            <div className={fieldClass}>
+              <label className={labelClass}>Posting Date</label>
+              <ClearableField
+                readOnly={isGeneralReadOnly}
+                value={formData.postingDate}
+                onClear={() => handleInputChange("postingDate", "")}
+              >
+                <DateInput
+                  value={formData.postingDate}
+                  onChange={(val) => handleInputChange("postingDate", val)}
+                  min={
+                    webUserProfile?.Allow_Posting_From &&
+                    webUserProfile.Allow_Posting_From !== "0001-01-01"
+                      ? webUserProfile.Allow_Posting_From.split("T")[0]
+                      : undefined
+                  }
+                  max={
+                    webUserProfile?.Allow_Posting_To &&
+                    webUserProfile.Allow_Posting_To !== "0001-01-01"
+                      ? webUserProfile.Allow_Posting_To.split("T")[0]
+                      : undefined
+                  }
+                  className="h-8"
+                  disabled={isGeneralReadOnly}
+                />
+              </ClearableField>
+            </div>
+            <div className={fieldClass}>
+              <label className={labelClass}>Document Date</label>
+              <ClearableField
+                readOnly={isGeneralReadOnly}
+                value={formData.documentDate}
+                onClear={() => handleInputChange("documentDate", "")}
+              >
+                <DateInput
+                  value={formData.documentDate}
+                  onChange={(val) => handleInputChange("documentDate", val)}
+                  min={
+                    webUserProfile?.Allow_Posting_From &&
+                    webUserProfile.Allow_Posting_From !== "0001-01-01"
+                      ? webUserProfile.Allow_Posting_From.split("T")[0]
+                      : undefined
+                  }
+                  max={
+                    webUserProfile?.Allow_Posting_To &&
+                    webUserProfile.Allow_Posting_To !== "0001-01-01"
+                      ? webUserProfile.Allow_Posting_To.split("T")[0]
+                      : undefined
+                  }
+                  className="h-8"
+                  disabled={isGeneralReadOnly}
+                />
+              </ClearableField>
+            </div>
+            {caps.supportsOrderDate && (
+              <div className={fieldClass}>
+                <label className={labelClass}>Order Date</label>
+                <DateInput
+                  value={formData.orderDate}
+                  onChange={(val) => handleInputChange("orderDate", val)}
+                  disabled
+                  className="h-8"
+                />
+              </div>
+            )}
+            <div className={fieldClass}>
+              <label className={labelClass}>External Doc No.</label>
+              <ClearableField
+                readOnly={isGeneralReadOnly}
+                value={formData.externalDocumentNo}
+                onClear={() => handleInputChange("externalDocumentNo", "")}
+              >
+                <Input
+                  value={formData.externalDocumentNo}
+                  onChange={(e) =>
+                    handleInputChange("externalDocumentNo", e.target.value)
+                  }
+                  placeholder="Optional"
+                  className="h-8"
+                  disabled={isGeneralReadOnly}
+                />
+              </ClearableField>
+            </div>
           </div>
         </AccordionContent>
       </AccordionItem>
@@ -1408,7 +1459,10 @@ export function SalesCreateDocumentFormContent({
                     disabled={isGeneralReadOnly}
                     value={formData.appliesToDocType || "__none__"}
                     onValueChange={(v) =>
-                      handleInputChange("appliesToDocType", v === "__none__" ? "" : v)
+                      handleInputChange(
+                        "appliesToDocType",
+                        v === "__none__" ? "" : v,
+                      )
                     }
                   >
                     <SelectTrigger className="h-9">
@@ -1419,7 +1473,9 @@ export function SalesCreateDocumentFormContent({
                       <SelectItem value="Payment">Payment</SelectItem>
                       <SelectItem value="Invoice">Invoice</SelectItem>
                       <SelectItem value="Credit Memo">Credit Memo</SelectItem>
-                      <SelectItem value="Finance Charge Memo">Finance Charge Memo</SelectItem>
+                      <SelectItem value="Finance Charge Memo">
+                        Finance Charge Memo
+                      </SelectItem>
                       <SelectItem value="Reminder">Reminder</SelectItem>
                       <SelectItem value="Refund">Refund</SelectItem>
                     </SelectContent>
@@ -1430,7 +1486,9 @@ export function SalesCreateDocumentFormContent({
                 <label className={labelClass}>Applies to Doc No</label>
                 <Input
                   value={formData.appliesToDocNo || ""}
-                  onChange={(e) => handleInputChange("appliesToDocNo", e.target.value)}
+                  onChange={(e) =>
+                    handleInputChange("appliesToDocNo", e.target.value)
+                  }
                   disabled={isGeneralReadOnly}
                   className="h-9"
                   placeholder="Doc No."
@@ -1440,7 +1498,9 @@ export function SalesCreateDocumentFormContent({
                 <label className={labelClass}>Applies to ID</label>
                 <Input
                   value={formData.appliesToID || ""}
-                  onChange={(e) => handleInputChange("appliesToID", e.target.value)}
+                  onChange={(e) =>
+                    handleInputChange("appliesToID", e.target.value)
+                  }
                   disabled={isGeneralReadOnly}
                   className="h-9"
                   placeholder="ID"
@@ -1465,51 +1525,59 @@ export function SalesCreateDocumentFormContent({
     };
 
     const shipFields = [
-      { label: "Ship-to Code",              value: h.Ship_to_Code },
-      { label: "Ship-to Name",              value: h.Ship_to_Name },
-      { label: "Ship-to Customer",          value: h.Ship_to_Customer },
-      { label: "Ship-to Address",           value: h.Ship_to_Address },
-      { label: "Ship-to Address 2",         value: h.Ship_to_Address_2 },
-      { label: "Ship-to City",              value: h.Ship_to_City },
-      { label: "Ship-to County",            value: h.Ship_to_County },
-      { label: "Ship-to Post Code",         value: h.Ship_to_Post_Code },
-      { label: "Ship-to Country",           value: h.Ship_to_Country_Region_Code },
-      { label: "Ship-to Contact",           value: h.Ship_to_Contact },
-      { label: "Ship-to GST Reg. No.",      value: h.Ship_to_GST_Reg_No },
-      { label: "Ship-to GST Customer Type", value: h.Ship_to_GST_Customer_Type },
+      { label: "Ship-to Code", value: h.Ship_to_Code },
+      { label: "Ship-to Name", value: h.Ship_to_Name },
+      { label: "Ship-to Customer", value: h.Ship_to_Customer },
+      { label: "Ship-to Address", value: h.Ship_to_Address },
+      { label: "Ship-to Address 2", value: h.Ship_to_Address_2 },
+      { label: "Ship-to City", value: h.Ship_to_City },
+      { label: "Ship-to County", value: h.Ship_to_County },
+      { label: "Ship-to Post Code", value: h.Ship_to_Post_Code },
+      { label: "Ship-to Country", value: h.Ship_to_Country_Region_Code },
+      { label: "Ship-to Contact", value: h.Ship_to_Contact },
+      { label: "Ship-to GST Reg. No.", value: h.Ship_to_GST_Reg_No },
+      {
+        label: "Ship-to GST Customer Type",
+        value: h.Ship_to_GST_Customer_Type,
+      },
     ];
 
     const billFields = [
-      { label: "Bill-to Name",       value: h.Bill_to_Name },
-      { label: "Bill-to Address",    value: h.Bill_to_Address },
-      { label: "Bill-to Address 2",  value: h.Bill_to_Address_2 },
-      { label: "Bill-to City",       value: h.Bill_to_City },
-      { label: "Bill-to County",     value: h.Bill_to_County },
-      { label: "Bill-to Post Code",  value: h.Bill_to_Post_Code },
-      { label: "Bill-to Country",    value: h.Bill_to_Country_Region_Code },
+      { label: "Bill-to Name", value: h.Bill_to_Name },
+      { label: "Bill-to Address", value: h.Bill_to_Address },
+      { label: "Bill-to Address 2", value: h.Bill_to_Address_2 },
+      { label: "Bill-to City", value: h.Bill_to_City },
+      { label: "Bill-to County", value: h.Bill_to_County },
+      { label: "Bill-to Post Code", value: h.Bill_to_Post_Code },
+      { label: "Bill-to Country", value: h.Bill_to_Country_Region_Code },
       { label: "Bill-to Contact No.", value: h.Bill_to_Contact_No },
-      { label: "Bill-to Contact",    value: h.Bill_to_Contact },
+      { label: "Bill-to Contact", value: h.Bill_to_Contact },
     ];
 
-    const renderTable = (title: string, fields: { label: string; value: unknown }[]) => (
+    const renderTable = (
+      title: string,
+      fields: { label: string; value: unknown }[],
+    ) => (
       <Accordion
         type="single"
         collapsible
-        className="flex-1 min-w-0 overflow-hidden rounded-md border"
+        className="min-w-0 flex-1 overflow-hidden rounded-md border"
       >
         <AccordionItem value="open" className="border-none">
-          <AccordionTrigger className="bg-muted/50 border-b px-3 py-2 hover:no-underline hover:bg-muted/70 [&>svg]:shrink-0">
-            <h3 className="text-xs font-bold tracking-wider uppercase">{title}</h3>
+          <AccordionTrigger className="bg-muted/50 hover:bg-muted/70 border-b px-3 py-2 hover:no-underline [&>svg]:shrink-0">
+            <h3 className="text-xs font-bold tracking-wider uppercase">
+              {title}
+            </h3>
           </AccordionTrigger>
           <AccordionContent className="pb-0">
             <Table>
               <TableBody>
                 {fields.map(({ label, value }) => (
                   <TableRow key={label} className="hover:bg-transparent">
-                    <TableCell className="text-muted-foreground w-40 shrink-0 py-1.5 pl-3 pr-2 text-xs font-medium">
+                    <TableCell className="text-muted-foreground w-40 shrink-0 py-1.5 pr-2 pl-3 text-xs font-medium">
                       {label}
                     </TableCell>
-                    <TableCell className="wrap-break-word py-1.5 pl-2 pr-3 text-xs">
+                    <TableCell className="py-1.5 pr-3 pl-2 text-xs wrap-break-word">
                       {fmt(value)}
                     </TableCell>
                   </TableRow>
@@ -1522,7 +1590,7 @@ export function SalesCreateDocumentFormContent({
     );
 
     return (
-      <div className="flex flex-col gap-4 items-start lg:flex-row">
+      <div className="flex flex-col items-start gap-4 lg:flex-row">
         {renderTable("Ship To", shipFields)}
         {renderTable("Bill To", billFields)}
       </div>
@@ -1594,18 +1662,20 @@ export function SalesCreateDocumentFormContent({
               )}
 
               {/* View mode buttons */}
-              {isViewMode && !isPending && (!isReleased || documentType === "order") && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="h-8"
-                  onClick={onRequestEdit}
-                  disabled={isActionLoading || !onRequestEdit}
-                >
-                  Edit
-                </Button>
-              )}
+              {isViewMode &&
+                !isPending &&
+                (!isReleased || documentType === "order") && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-8"
+                    onClick={onRequestEdit}
+                    disabled={isActionLoading || !onRequestEdit}
+                  >
+                    Edit
+                  </Button>
+                )}
               {isViewMode && !isPending && !isReleased && (
                 <Button
                   type="button"
@@ -1622,36 +1692,40 @@ export function SalesCreateDocumentFormContent({
                   Delete
                 </Button>
               )}
-              {(documentType === "order" || documentType === "credit-memo") && isViewMode && isOpen && (
-                <Button
-                  type="button"
-                  size="sm"
-                  className="h-8"
-                  onClick={() => handleStatusAction("sendApproval")}
-                  disabled={isActionLoading}
-                >
-                  {isActionLoading ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    "Send For Approval"
-                  )}
-                </Button>
-              )}
-              {(documentType === "order" || documentType === "credit-memo") && isViewMode && isPending && (
-                <Button
-                  type="button"
-                  size="sm"
-                  className="h-8"
-                  onClick={() => handleStatusAction("cancelApproval")}
-                  disabled={isActionLoading}
-                >
-                  {isActionLoading ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    "Cancel Approval"
-                  )}
-                </Button>
-              )}
+              {(documentType === "order" || documentType === "credit-memo") &&
+                isViewMode &&
+                isOpen && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="h-8"
+                    onClick={() => handleStatusAction("sendApproval")}
+                    disabled={isActionLoading}
+                  >
+                    {isActionLoading ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      "Send For Approval"
+                    )}
+                  </Button>
+                )}
+              {(documentType === "order" || documentType === "credit-memo") &&
+                isViewMode &&
+                isPending && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="h-8"
+                    onClick={() => handleStatusAction("cancelApproval")}
+                    disabled={isActionLoading}
+                  >
+                    {isActionLoading ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      "Cancel Approval"
+                    )}
+                  </Button>
+                )}
               {isViewMode && initialOrderNo && (
                 <ApplyCustomerEntriesDialog
                   documentNo={initialOrderNo}
@@ -1686,70 +1760,80 @@ export function SalesCreateDocumentFormContent({
                   Copy Document
                 </Button>
               )}
-              {isViewMode && caps.supportsPost && (isReleased || documentType !== "order") && (
-                <Button
-                  type="button"
-                  size="sm"
-                  className="h-8"
-                  onClick={() => {
-                    const opts = caps.postOptions;
-                    let initialDate = "";
-                    const today = new Date().toISOString().split("T")[0];
-                    if (webUserProfile) {
-                      const from = webUserProfile.Allow_Posting_From?.split("T")[0];
-                      const to = webUserProfile.Allow_Posting_To?.split("T")[0];
-                      const isAfterFrom = !from || from === "0001-01-01" || today >= from;
-                      const isBeforeTo = !to || to === "0001-01-01" || today <= to;
-                      if (isAfterFrom && isBeforeTo) {
-                        initialDate = today;
+              {isViewMode &&
+                caps.supportsPost &&
+                (isReleased || documentType !== "order") && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="h-8"
+                    onClick={() => {
+                      const opts = caps.postOptions;
+                      let initialDate = "";
+                      const today = new Date().toISOString().split("T")[0];
+                      if (webUserProfile) {
+                        const from =
+                          webUserProfile.Allow_Posting_From?.split("T")[0];
+                        const to =
+                          webUserProfile.Allow_Posting_To?.split("T")[0];
+                        const isAfterFrom =
+                          !from || from === "0001-01-01" || today >= from;
+                        const isBeforeTo =
+                          !to || to === "0001-01-01" || today <= to;
+                        if (isAfterFrom && isBeforeTo) {
+                          initialDate = today;
+                        }
                       }
-                    }
 
-                    if (opts.length === 1) {
-                      setPostOption(opts[0].value);
-                      setPostDetails((prev) => ({
-                        ...prev,
-                        postingDate: initialDate,
-                        lrRrDate: initialDate,
-                      }));
-                      setIsPostDetailsOpen(true);
-                    } else {
-                      setPostOption(null);
-                      setIsPostDialogOpen(true);
-                    }
-                  }}
-                  disabled={isActionLoading}
-                >
-                  Post
-                </Button>
-              )}
-              {isViewMode && caps.supportsGetPostedLineToReverse && currentDocNo && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="h-8"
-                  onClick={() => setIsGetPostedLineToReverseOpen(true)}
-                  disabled={isActionLoading}
-                >
-                  Get Posted Line To Reverse
-                </Button>
-              )}
-              {(documentType === "order" || documentType === "credit-memo") && isViewMode && isReleased && (
-                <Button
-                  type="button"
-                  size="sm"
-                  className="h-8"
-                  onClick={() => handleStatusAction("reopen")}
-                  disabled={isActionLoading}
-                >
-                  {isActionLoading ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    "Reopen"
-                  )}
-                </Button>
-              )}
+                      if (opts.length === 1) {
+                        setPostOption(opts[0].value);
+                        setPostDetails((prev) => ({
+                          ...prev,
+                          postingDate: initialDate,
+                          lrRrDate: initialDate,
+                        }));
+                        setIsPostDetailsOpen(true);
+                      } else {
+                        setPostOption(null);
+                        setIsPostDialogOpen(true);
+                      }
+                    }}
+                    disabled={isActionLoading}
+                  >
+                    Post
+                  </Button>
+                )}
+              {isViewMode &&
+                caps.supportsGetPostedLineToReverse &&
+                currentDocNo && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-8"
+                    onClick={() => setIsGetPostedLineToReverseOpen(true)}
+                    disabled={isActionLoading}
+                  >
+                    Get Posted Line To Reverse
+                  </Button>
+                )}
+              {(documentType === "order" || documentType === "credit-memo") &&
+                isViewMode &&
+                isReleased && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="h-8"
+                    onClick={() => handleStatusAction("reopen")}
+                    disabled={isActionLoading}
+                  >
+                    {isActionLoading ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      "Reopen"
+                    )}
+                  </Button>
+                )}
 
               {/* Edit mode buttons */}
               {isEditMode && onCancelEdit && (
@@ -2105,7 +2189,9 @@ export function SalesCreateDocumentFormContent({
           onOpenChange={setIsGetPostedLineOpen}
           documentNo={currentDocNo}
           docType={
-            (documentType === "invoice" ? "Invoice" : "CreditMemo") as SalesGetPostedLineDocType
+            (documentType === "invoice"
+              ? "Invoice"
+              : "CreditMemo") as SalesGetPostedLineDocType
           }
           sellToCustomerNo={orderHeader?.Sell_to_Customer_No}
           billToCustomerNo={orderHeader?.Bill_to_Customer_No}
@@ -2124,7 +2210,9 @@ export function SalesCreateDocumentFormContent({
           sourceDocNo={currentDocNo}
           menuOptions={SALES_MENU_OPTIONS}
           module="Sales"
-          customerNo={orderHeader?.Sell_to_Customer_No || formData.customerNo || undefined}
+          customerNo={
+            orderHeader?.Sell_to_Customer_No || formData.customerNo || undefined
+          }
           onSuccess={async () => {
             await refreshLines();
           }}
@@ -2150,16 +2238,31 @@ export function SalesCreateDocumentFormContent({
           fromDocTypeValue={formData.copyFromDocType as any}
           fromDocNoValue={formData.copyFromDocNo}
           userId={userId}
-          onCreateHeader={async (locCode, lobCode, branchCode) => {
+          onCreateHeader={async (locCode, lobCode, branchCode, userID) => {
             if (documentType === "invoice") {
-              const r = await createSalesInvoiceCopyHeader(locCode, lobCode, branchCode);
+              const r = await createSalesInvoiceCopyHeader(
+                locCode,
+                lobCode,
+                branchCode,
+                userID,
+              );
               return r.orderNo;
             }
             if (documentType === "return-order") {
-              const r = await createSalesReturnOrderCopyHeader(locCode, lobCode, branchCode);
+              const r = await createSalesReturnOrderCopyHeader(
+                locCode,
+                lobCode,
+                branchCode,
+                userID,
+              );
               return r.orderNo;
             }
-            const r = await createSalesCreditMemoCopyHeader(locCode, lobCode, branchCode);
+            const r = await createSalesCreditMemoCopyHeader(
+              locCode,
+              lobCode,
+              branchCode,
+              userID,
+            );
             return r.orderNo;
           }}
           onSuccess={async (docNo) => {
@@ -2224,50 +2327,57 @@ export function SalesCreateDocumentFormContent({
             <DialogHeader>
               <DialogTitle>Post Details</DialogTitle>
             </DialogHeader>
-            <div className="grid gap-4 py-2 sm:grid-cols-2 relative">
+            <div className="relative grid gap-4 py-2 sm:grid-cols-2">
               {isPostLoading && (
-                <div className="absolute inset-0 z-50 flex items-center justify-center bg-background/50 backdrop-blur-[1px]">
-                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                <div className="bg-background/50 absolute inset-0 z-50 flex items-center justify-center backdrop-blur-[1px]">
+                  <Loader2 className="text-primary h-6 w-6 animate-spin" />
                 </div>
               )}
-              {(caps.supportsTransporter || caps.supportsUnifiedPostForm) && !isCreditOrReturn && (
-                <>
-                  <div className="space-y-1 text-left">
-                    <Label className="text-xs font-semibold">Transporter Code</Label>
-                    <TransporterSelect
-                      value={postDetails.transporterCode}
-                      onChange={(val, item) =>
-                        setPostDetails((p) => ({
-                          ...p,
-                          transporterCode: val,
-                          transporterName: item?.Name || val || p.transporterName,
-                        }))
-                      }
-                      placeholder="Select Code"
-                    />
-                  </div>
-                  <div className="space-y-1 text-left">
-                    <Label className="text-xs font-semibold">
-                      Transporter Name{" "}
-                      {!caps.supportsUnifiedPostForm && isShipOption && (
-                        <span className="text-destructive">*</span>
-                      )}
-                    </Label>
-                    <Input
-                      value={postDetails.transporterName}
-                      onChange={(e) =>
-                        setPostDetails((p) => ({
-                          ...p,
-                          transporterName: e.target.value,
-                        }))
-                      }
-                      disabled={!!postDetails.transporterCode}
-                      className={cn("h-9", !!postDetails.transporterCode && "bg-muted")}
-                      placeholder="Enter Name"
-                    />
-                  </div>
-                </>
-              )}
+              {(caps.supportsTransporter || caps.supportsUnifiedPostForm) &&
+                !isCreditOrReturn && (
+                  <>
+                    <div className="space-y-1 text-left">
+                      <Label className="text-xs font-semibold">
+                        Transporter Code
+                      </Label>
+                      <TransporterSelect
+                        value={postDetails.transporterCode}
+                        onChange={(val, item) =>
+                          setPostDetails((p) => ({
+                            ...p,
+                            transporterCode: val,
+                            transporterName:
+                              item?.Name || val || p.transporterName,
+                          }))
+                        }
+                        placeholder="Select Code"
+                      />
+                    </div>
+                    <div className="space-y-1 text-left">
+                      <Label className="text-xs font-semibold">
+                        Transporter Name{" "}
+                        {!caps.supportsUnifiedPostForm && isShipOption && (
+                          <span className="text-destructive">*</span>
+                        )}
+                      </Label>
+                      <Input
+                        value={postDetails.transporterName}
+                        onChange={(e) =>
+                          setPostDetails((p) => ({
+                            ...p,
+                            transporterName: e.target.value,
+                          }))
+                        }
+                        disabled={!!postDetails.transporterCode}
+                        className={cn(
+                          "h-9",
+                          !!postDetails.transporterCode && "bg-muted",
+                        )}
+                        placeholder="Enter Name"
+                      />
+                    </div>
+                  </>
+                )}
               <div className="space-y-1">
                 <Label>Vehicle No.</Label>
                 <Input
@@ -2281,68 +2391,70 @@ export function SalesCreateDocumentFormContent({
                   className="h-9"
                 />
               </div>
-                  {!isCreditOrReturn && (
-                    <div className="space-y-1">
-                      <Label>
-                        Driver Phone{" "}
-                        {!caps.supportsUnifiedPostForm && isShipOption && (
-                          <span className="text-destructive">*</span>
-                        )}
-                      </Label>
-                      <Input
-                        value={postDetails.driverPhone}
-                        onChange={(e) =>
-                          setPostDetails((p) => ({
-                            ...p,
-                            driverPhone: e.target.value,
-                          }))
-                        }
-                        className="h-9"
-                      />
-                    </div>
-                  )}
-                  {!isCreditOrReturn && (
-                    <>
-                      <div className="space-y-1">
-                        <Label>
-                          LR/RR No.{" "}
-                          {!caps.supportsUnifiedPostForm && isShipOption && (
-                            <span className="text-destructive">*</span>
-                          )}
-                        </Label>
-                        <Input
-                          value={postDetails.lrRrNumber}
-                          onChange={(e) =>
-                            setPostDetails((p) => ({
-                              ...p,
-                              lrRrNumber: e.target.value,
-                            }))
-                          }
-                          className="h-9"
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <Label>
-                          LR/RR Date{" "}
-                          {!caps.supportsUnifiedPostForm && isShipOption && (
-                            <span className="text-destructive">*</span>
-                          )}
-                        </Label>
-                        <DateInput
-                          value={postDetails.lrRrDate}
-                          onChange={(val) =>
-                            setPostDetails((p) => ({
-                              ...p,
-                              lrRrDate: val,
-                            }))
-                          }
-                          className="h-9"
-                        />
-                      </div>
-                    </>
-                  )}
+              {!isCreditOrReturn && (
+                <div className="space-y-1">
+                  <Label>
+                    Driver Phone{" "}
+                    {!caps.supportsUnifiedPostForm && isShipOption && (
+                      <span className="text-destructive">*</span>
+                    )}
+                  </Label>
+                  <Input
+                    value={postDetails.driverPhone}
+                    onChange={(e) =>
+                      setPostDetails((p) => ({
+                        ...p,
+                        driverPhone: e.target.value,
+                      }))
+                    }
+                    className="h-9"
+                  />
+                </div>
+              )}
+              {!isCreditOrReturn && (
+                <>
+                  <div className="space-y-1">
+                    <Label>
+                      LR/RR No.{" "}
+                      {!caps.supportsUnifiedPostForm && isShipOption && (
+                        <span className="text-destructive">*</span>
+                      )}
+                    </Label>
+                    <Input
+                      value={postDetails.lrRrNumber}
+                      onChange={(e) =>
+                        setPostDetails((p) => ({
+                          ...p,
+                          lrRrNumber: e.target.value,
+                        }))
+                      }
+                      className="h-9"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label>
+                      LR/RR Date{" "}
+                      {!caps.supportsUnifiedPostForm && isShipOption && (
+                        <span className="text-destructive">*</span>
+                      )}
+                    </Label>
+                    <DateInput
+                      value={postDetails.lrRrDate}
+                      onChange={(val) =>
+                        setPostDetails((p) => ({
+                          ...p,
+                          lrRrDate: val,
+                        }))
+                      }
+                      className="h-9"
+                    />
+                  </div>
+                </>
+              )}
               <div className="space-y-1 text-left">
-                <Label className="text-xs font-semibold uppercase tracking-wider">Posting Date</Label>
+                <Label className="text-xs font-semibold tracking-wider uppercase">
+                  Posting Date
+                </Label>
                 <DateInput
                   value={postDetails.postingDate}
                   onChange={(val) =>
@@ -2379,7 +2491,8 @@ export function SalesCreateDocumentFormContent({
                   className="h-9"
                 />
               </div>
-              {(documentType === "credit-memo" || documentType === "return-order") && (
+              {(documentType === "credit-memo" ||
+                documentType === "return-order") && (
                 <div className="space-y-1">
                   <Label>Line Narration</Label>
                   <Input
@@ -2395,7 +2508,8 @@ export function SalesCreateDocumentFormContent({
                   />
                 </div>
               )}
-              {(documentType === "order" || (caps.supportsUnifiedPostForm && !isCreditOrReturn)) && (
+              {(documentType === "order" ||
+                (caps.supportsUnifiedPostForm && !isCreditOrReturn)) && (
                 <div className="space-y-1">
                   <Label>Freight Value</Label>
                   <Input
@@ -2413,38 +2527,40 @@ export function SalesCreateDocumentFormContent({
                   />
                 </div>
               )}
-              {(caps.supportsTransporter || caps.supportsUnifiedPostForm) && !isCreditOrReturn && (
-                <div className="space-y-1">
-                  <Label>Distance (km)</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      value={postDetails.distanceKm}
-                      onChange={(e) =>
-                        setPostDetails((p) => ({
-                          ...p,
-                          distanceKm: e.target.value,
-                        }))
-                      }
-                      className="h-9"
-                    />
-                    <Button
-                      type="button"
-                      variant="default"
-                      size="sm"
-                      onClick={handleFetchDistance}
-                      disabled={isFetchingDistance || isPostLoading}
-                      className="h-9 shrink-0"
-                    >
-                      {isFetchingDistance ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        "Fetch"
-                      )}
-                    </Button>
+              {(caps.supportsTransporter || caps.supportsUnifiedPostForm) &&
+                !isCreditOrReturn && (
+                  <div className="space-y-1">
+                    <Label>Distance (km)</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        value={postDetails.distanceKm}
+                        onChange={(e) =>
+                          setPostDetails((p) => ({
+                            ...p,
+                            distanceKm: e.target.value,
+                          }))
+                        }
+                        className="h-9"
+                      />
+                      <Button
+                        type="button"
+                        variant="default"
+                        size="sm"
+                        onClick={handleFetchDistance}
+                        disabled={isFetchingDistance || isPostLoading}
+                        className="h-9 shrink-0"
+                      >
+                        {isFetchingDistance ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          "Fetch"
+                        )}
+                      </Button>
+                    </div>
                   </div>
-                </div>
-              )}
-              {((caps.supportsUnifiedPostForm && !isCreditOrReturn) || (caps.supportsTransporter && isShipOption)) && (
+                )}
+              {((caps.supportsUnifiedPostForm && !isCreditOrReturn) ||
+                (caps.supportsTransporter && isShipOption)) && (
                 <>
                   <div className="space-y-1">
                     <Label>Gross Weight</Label>
@@ -2644,7 +2760,9 @@ export function SalesCreateDocumentFormContent({
             <DialogTitle>Document Posted</DialogTitle>
           </DialogHeader>
           <div className="space-y-3 py-2">
-            {!postResultDocs.Invoice && !postResultDocs.Shipment && !postResultDocs.CreditMemo ? (
+            {!postResultDocs.Invoice &&
+            !postResultDocs.Shipment &&
+            !postResultDocs.CreditMemo ? (
               <p className="text-muted-foreground py-2 text-center text-sm">
                 Document posted successfully, but no documents are available.
               </p>
@@ -2653,14 +2771,17 @@ export function SalesCreateDocumentFormContent({
                 {(postResultDocs.Invoice || postResultDocs.CreditMemo) && (
                   <div className="flex items-center justify-between rounded-md border p-3">
                     <span className="text-sm font-medium">
-                      {documentType === "credit-memo" ? "Credit Memo" : "Invoice"}
+                      {documentType === "credit-memo"
+                        ? "Credit Memo"
+                        : "Invoice"}
                     </span>
                     <div className="flex gap-2">
                       <Button
                         size="sm"
                         variant="outline"
                         onClick={() => {
-                          const data = postResultDocs.CreditMemo || postResultDocs.Invoice;
+                          const data =
+                            postResultDocs.CreditMemo || postResultDocs.Invoice;
                           if (data) {
                             const blob = base64ToPdfBlob(data);
                             const url = window.URL.createObjectURL(blob);
@@ -2675,14 +2796,14 @@ export function SalesCreateDocumentFormContent({
                         variant="outline"
                         onClick={() => {
                           const blob = base64ToPdfBlob(postResultDocs.Invoice!);
-                            const url = window.URL.createObjectURL(blob);
-                            const link = document.createElement("a");
-                            link.href = url;
+                          const url = window.URL.createObjectURL(blob);
+                          const link = document.createElement("a");
+                          link.href = url;
                           link.download = "Invoice.pdf";
-                            document.body.appendChild(link);
-                            link.click();
-                            document.body.removeChild(link);
-                            window.URL.revokeObjectURL(url);
+                          document.body.appendChild(link);
+                          link.click();
+                          document.body.removeChild(link);
+                          window.URL.revokeObjectURL(url);
                         }}
                       >
                         <Printer className="h-4 w-4" />
@@ -2698,7 +2819,9 @@ export function SalesCreateDocumentFormContent({
                         size="sm"
                         variant="outline"
                         onClick={() => {
-                          const blob = base64ToPdfBlob(postResultDocs.Shipment!);
+                          const blob = base64ToPdfBlob(
+                            postResultDocs.Shipment!,
+                          );
                           const url = window.URL.createObjectURL(blob);
                           window.open(url, "_blank", "noopener,noreferrer");
                         }}
@@ -2709,7 +2832,9 @@ export function SalesCreateDocumentFormContent({
                         size="sm"
                         variant="outline"
                         onClick={() => {
-                          const blob = base64ToPdfBlob(postResultDocs.Shipment!);
+                          const blob = base64ToPdfBlob(
+                            postResultDocs.Shipment!,
+                          );
                           const url = window.URL.createObjectURL(blob);
                           const link = document.createElement("a");
                           link.href = url;

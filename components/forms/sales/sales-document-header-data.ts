@@ -27,6 +27,7 @@ export interface SalesDocumentHeaderFormState {
   appliesToID?: string;
   copyFromDocType?: string;
   copyFromDocNo?: string;
+  SFPL_User_ID?: string;
 }
 
 export interface SalesDocumentHeaderData {
@@ -45,6 +46,7 @@ export interface SalesDocumentHeaderData {
   Applies_to_Doc_Type?: string;
   Applies_to_Doc_No?: string;
   Applies_to_ID?: string;
+  SFPL_User_ID?: string;
 }
 
 export function buildSalesCommonHeaderData(
@@ -66,10 +68,11 @@ export function buildSalesCommonHeaderData(
     Applies_to_Doc_Type: formData.appliesToDocType || "",
     Applies_to_Doc_No: formData.appliesToDocNo || "",
     Applies_to_ID: formData.appliesToID || "",
+    SFPL_User_ID: formData.SFPL_User_ID || "",
   };
 }
 
-/** 
+/**
  * Builds a PATCH payload from form state.
  * If 'original' is provided, it returns only the changed fields (diff).
  * Otherwise, it returns the full payload.
@@ -157,7 +160,7 @@ export interface SalesPostDetails {
 }
 
 /**
- * Builds a minimal PATCH payload for the posting dialog by comparing current 
+ * Builds a minimal PATCH payload for the posting dialog by comparing current
  * post details against the original document header.
  */
 export function buildSalesPostPatchPayload(

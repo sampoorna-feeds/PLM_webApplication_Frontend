@@ -23,7 +23,7 @@ export const LEDGER_DEFAULT_COLUMNS: ColumnConfig[] = [
     id: "Entry_No",
     label: "Entry No",
     sortable: true,
-    defaultVisible: true,
+    defaultVisible: false,
     filterType: "number",
   },
   {
@@ -104,7 +104,7 @@ export const OUTSTANDING_DEFAULT_COLUMNS: ColumnConfig[] = [
     id: "Entry_No",
     label: "Entry No",
     sortable: true,
-    defaultVisible: true,
+    defaultVisible: false,
     filterType: "number",
   },
   {

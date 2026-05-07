@@ -23,7 +23,7 @@ export const GL_ENTRY_COLUMNS: ColumnConfig[] = [
     id: "Entry_No",
     label: "Entry No",
     sortable: true,
-    defaultVisible: true,
+    defaultVisible: false,
     filterType: "number",
   },
   {

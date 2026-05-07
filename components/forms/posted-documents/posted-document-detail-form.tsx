@@ -232,23 +232,27 @@ export function PostedDocumentDetailForm({ tabId, context = {} }: PostedDocument
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/50 hover:bg-muted/50">
-                  <TableHead className="w-24 text-[10px] font-bold uppercase tracking-wider">Line No.</TableHead>
+                  <TableHead className="text-[10px] font-bold uppercase tracking-wider">Type</TableHead>
+                  <TableHead className="text-[10px] font-bold uppercase tracking-wider">No.</TableHead>
                   <TableHead className="text-[10px] font-bold uppercase tracking-wider">Description</TableHead>
                   <TableHead className="text-right text-[10px] font-bold uppercase tracking-wider">Quantity</TableHead>
+                  <TableHead className="text-[10px] font-bold uppercase tracking-wider">UOM</TableHead>
+                  <TableHead className="text-right text-[10px] font-bold uppercase tracking-wider">Unit Cost</TableHead>
+                  <TableHead className="text-right text-[10px] font-bold uppercase tracking-wider">Qty Invoiced</TableHead>
+                  <TableHead className="text-[10px] font-bold uppercase tracking-wider">Dim 1</TableHead>
+                  <TableHead className="text-[10px] font-bold uppercase tracking-wider">Dim 2</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {isLoading ? (
                   Array.from({ length: 3 }).map((_, i) => (
                     <TableRow key={i}>
-                      <TableCell><Skeleton className="h-4 w-12" /></TableCell>
-                      <TableCell><Skeleton className="h-4 w-full" /></TableCell>
-                      <TableCell><Skeleton className="h-4 w-16 ml-auto" /></TableCell>
+                      <TableCell colSpan={9}><Skeleton className="h-4 w-full" /></TableCell>
                     </TableRow>
                   ))
                 ) : lines.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={3} className="h-32 text-center">
+                    <TableCell colSpan={9} className="h-32 text-center">
                       <div className="flex flex-col items-center justify-center text-muted-foreground">
                         <p className="text-sm font-medium">No line items found</p>
                         <p className="text-xs">This document has no recorded lines.</p>
@@ -258,11 +262,21 @@ export function PostedDocumentDetailForm({ tabId, context = {} }: PostedDocument
                 ) : (
                   lines.map((line: any, index: number) => (
                     <TableRow key={line.Line_No || index} className="hover:bg-muted/30 transition-colors">
-                      <TableCell className="font-mono text-xs text-muted-foreground">{line.Line_No}</TableCell>
+                      <TableCell className="text-[10px] font-medium text-muted-foreground">{line.Type || "-"}</TableCell>
+                      <TableCell className="text-xs font-mono">{line.No || "-"}</TableCell>
                       <TableCell className="text-xs font-semibold">{line.Description || line.Item_Description || "-"}</TableCell>
                       <TableCell className="text-right text-xs font-bold font-mono">
                         {line.Quantity ? Number(line.Quantity).toLocaleString() : "-"}
                       </TableCell>
+                      <TableCell className="text-[10px] font-medium">{line.Unit_of_Measure_Code || "-"}</TableCell>
+                      <TableCell className="text-right text-xs font-mono">
+                        {line.Direct_Unit_Cost ? Number(line.Direct_Unit_Cost).toLocaleString() : "-"}
+                      </TableCell>
+                      <TableCell className="text-right text-xs font-mono">
+                        {line.Quantity_Invoiced ? Number(line.Quantity_Invoiced).toLocaleString() : "-"}
+                      </TableCell>
+                      <TableCell className="text-[10px] font-medium">{line.Shortcut_Dimension_1_Code || "-"}</TableCell>
+                      <TableCell className="text-[10px] font-medium">{line.Shortcut_Dimension_2_Code || "-"}</TableCell>
                     </TableRow>
                   ))
                 )}

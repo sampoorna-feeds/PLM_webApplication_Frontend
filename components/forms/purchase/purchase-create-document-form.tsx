@@ -983,6 +983,7 @@ export function PurchaseCreateDocumentFormContent({
       faPostingType: lineItem.faPostingType,
       salvageValue: lineItem.salvageValue,
       noOfBags: lineItem.noOfBags,
+      gstCredit: lineItem.gstCredit,
     };
 
     const locationCode = resolvePurchaseLocationCode(formData.locationCode);

@@ -19,12 +19,10 @@ export interface InvoiceTypeOption {
 
 const STANDARD_INVOICE_TYPE_OPTIONS: InvoiceTypeOption[] = [
   { value: "_none", label: "None" },
-  { value: "Bill of supply", label: "Bill of supply" },
-  { value: "Export", label: "Export" },
-  { value: "Supplementary", label: "Supplementary" },
+  { value: "Self Invoice", label: "Self Invoice" },
   { value: "Debit Note", label: "Debit Note" },
+  { value: "Supplementary", label: "Supplementary" },
   { value: "Non-GST", label: "Non-GST" },
-  { value: "Taxable", label: "Taxable" },
 ];
 
 const INVOICE_INVOICE_TYPE_OPTIONS: InvoiceTypeOption[] = [
@@ -133,7 +131,7 @@ const PURCHASE_DOCUMENT_CONFIG: Record<
       supportsPoType: false,
       supportsServiceType: false,
       supportsInvoiceType: true,
-      invoiceTypeOptions: [],
+      invoiceTypeOptions: STANDARD_INVOICE_TYPE_OPTIONS,
       supportsVendorInvoiceNo: false,
       supportsVendorCrMemoNo: true,
       supportsVendorAuthorizationNo: true,

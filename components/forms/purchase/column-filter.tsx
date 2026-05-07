@@ -99,6 +99,7 @@ export function PurchaseOrderColumnFilter({
           </div>
         );
 
+      case "boolean":
       case "enum": {
         const options = column.filterOptions || getEnumOptions(column.id);
         return (

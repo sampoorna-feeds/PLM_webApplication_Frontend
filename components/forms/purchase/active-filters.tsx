@@ -61,6 +61,13 @@ export function PurchaseOrderActiveFilters({
       }
     }
 
+    if (column.filterType === "boolean" && column.filterOptions) {
+      const option = column.filterOptions.find((opt) => opt.value === filter.value);
+      if (option) {
+        displayValue = option.label;
+      }
+    }
+
     activeFilters.push({
       key: columnId,
       label: column.label,

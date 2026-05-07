@@ -27,6 +27,7 @@ export interface Item {
   Base_Unit_of_Measure?: string;
   Inventory_Posting_Group?: string;
   Net_Change?: number;
+  GST_Credit?: string;
 }
 
 export interface ItemUnitOfMeasure {
@@ -355,7 +356,7 @@ export async function getItemByNo(itemNo: string): Promise<Item | null> {
   const baseFilter = getBaseFilter();
   const query = buildODataQuery({
     $select:
-      "No,Description,GST_Group_Code,HSN_SAC_Code,Exempted,Sales_Unit_of_Measure,Purch_Unit_of_Measure,Bardana_Generation_Enable,Status,RM_Bardana_Item",
+      "No,Description,GST_Group_Code,HSN_SAC_Code,Exempted,Sales_Unit_of_Measure,Purch_Unit_of_Measure,Bardana_Generation_Enable,Status,RM_Bardana_Item,GST_Credit",
     $filter: `No eq '${escapeODataValue(itemNo)}' and ${baseFilter}`,
   });
   const endpoint = `/ItemCard?Company=${encodeURIComponent(COMPANY)}&${query}`;

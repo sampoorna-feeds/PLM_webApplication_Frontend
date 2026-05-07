@@ -165,7 +165,7 @@ export function PurchaseOrderLineEditDialog({
     setWeightQty(line.Weight_Qty != null ? String(line.Weight_Qty) : "");
     setActualQty(line.Actual_Qty != null ? String(line.Actual_Qty) : "");
     setOutstandingQty(line.Outstanding_Quantity != null ? String(line.Outstanding_Quantity) : "");
-    setGstCredit(line.GST_Credit || "Non-Availment");
+    setGstCredit(line.GST_Credit || "");
     setShortcutDimCode4(line.ShortcutDimCode4 ? String(line.ShortcutDimCode4) : "");
     setShortcutDimCode5(line.ShortcutDimCode5 ? String(line.ShortcutDimCode5) : "");
     setApplToItemEntry(line.Appl_to_Item_Entry ? String(line.Appl_to_Item_Entry) : "");
@@ -458,7 +458,7 @@ export function PurchaseOrderLineEditDialog({
         payload.HSN_SAC_Code = hsnSacCode.trim();
       if (tdsSection !== (line.TDS_Section_Code || ""))
         payload.TDS_Section_Code = tdsSection;
-      if (gstCredit !== (line.GST_Credit || "Non-Availment"))
+      if (gstCredit !== (line.GST_Credit || ""))
         payload.GST_Credit = gstCredit;
       if (shortcutDimCode4 !== (line.ShortcutDimCode4 || ""))
         payload.ShortcutDimCode4 = shortcutDimCode4;

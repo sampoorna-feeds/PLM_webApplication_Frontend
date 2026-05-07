@@ -9,9 +9,8 @@ export const STATUS_OPTIONS = [
 
 export const INVOICE_TYPE_OPTIONS = [
   { value: "", label: "All" },
-  { value: "Taxable", label: "Taxable" },
-  { value: "Bill of Supply", label: "Bill of Supply" },
-  { value: "Export", label: "Export" },
+  { value: "Self Invoice", label: "Self Invoice" },
+  { value: "Debit Note", label: "Debit Note" },
   { value: "Supplementary", label: "Supplementary" },
   { value: "Non-GST", label: "Non-GST" },
 ] as const;

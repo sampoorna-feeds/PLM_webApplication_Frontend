@@ -119,7 +119,7 @@ function getInitialLineState(lineItem?: LineItem | null): Partial<LineItem> {
     noOfBags: lineItem?.noOfBags,
     challanQty: lineItem?.challanQty,
     weightQty: lineItem?.weightQty,
-    gstCredit: lineItem?.gstCredit || "Non-Availment",
+    gstCredit: lineItem?.gstCredit || "",
     gstAssessableValue: lineItem?.gstAssessableValue || 0,
     customDutyAmount: lineItem?.customDutyAmount || 0,
   };
@@ -448,6 +448,7 @@ export function PurchaseOrderLineDialog({
             exempted: cardItem.Exempted ?? false,
             gstGroupCode: cardItem.GST_Group_Code ?? "",
             hsnSacCode: cardItem.HSN_SAC_Code ?? "",
+            gstCredit: cardItem.GST_Credit || prev.gstCredit || "",
             uom:
               cardItem.Purch_Unit_of_Measure ||
               cardItem.Sales_Unit_of_Measure ||
@@ -1055,7 +1056,7 @@ export function PurchaseOrderLineDialog({
                     onClear={() => handleFieldChange("gstCredit", "")}
                   >
                     <Select
-                      value={formState.gstCredit || "Non-Availment"}
+                      value={formState.gstCredit || ""}
                       onValueChange={(value) =>
                         handleFieldChange("gstCredit", value)
                       }

@@ -301,7 +301,7 @@ export function TransferOrderLineDetailsDialog({
 
           {/* Editable Fields Section - 3-column Grid */}
           <div className="grid grid-cols-1 gap-x-4 gap-y-4 md:grid-cols-12">
-            <div className="space-y-1.5 md:col-span-4">
+            <div className="space-y-1.5 md:col-span-3">
               <label className="text-muted-foreground text-[10px] uppercase tracking-wider font-bold">
                 GST Group Code
               </label>
@@ -312,7 +312,7 @@ export function TransferOrderLineDetailsDialog({
               />
             </div>
 
-            <div className="space-y-1.5 md:col-span-4">
+            <div className="space-y-1.5 md:col-span-3">
               <label className="text-muted-foreground text-[10px] uppercase tracking-wider font-bold">
                 HSN/SAC Code
               </label>
@@ -323,7 +323,7 @@ export function TransferOrderLineDetailsDialog({
               />
             </div>
 
-            <div className="space-y-1.5 md:col-span-4">
+            <div className="space-y-1.5 md:col-span-3">
               <label className="text-muted-foreground flex items-center justify-between text-[10px] uppercase tracking-wider font-bold">
                 GST Credit
                 {isLoadingLine && (
@@ -344,7 +344,7 @@ export function TransferOrderLineDetailsDialog({
               />
             </div>
 
-            <div className="flex flex-col justify-center space-y-1.5 md:col-span-2">
+            <div className="flex flex-col justify-center space-y-1.5 md:col-span-3">
               <label className="text-muted-foreground text-[10px] uppercase tracking-wider font-bold">
                 Exempted
               </label>
@@ -369,6 +369,19 @@ export function TransferOrderLineDetailsDialog({
                   YES
                 </label>
               </div>
+            </div>
+
+
+            <div className="space-y-1.5 md:col-span-3">
+              <label className="text-muted-foreground text-[10px] uppercase tracking-wider font-bold">
+                Quantity
+              </label>
+              <CalculatorInput
+                value={formData.Quantity?.toString() || "0"}
+                onValueChange={(v) => handleChange("Quantity", v)}
+                className="h-9 focus:border-red-500/50 transition-colors font-bold"
+                onFocus={(e) => e.target.select()}
+              />
             </div>
 
             <div className="space-y-1.5 md:col-span-3">
@@ -396,7 +409,7 @@ export function TransferOrderLineDetailsDialog({
             </div>
 
             {!isLoadingTracking && !hasTracking && (
-              <div className="animate-in fade-in slide-in-from-top-2 space-y-1.5 duration-300 md:col-span-4">
+              <div className="animate-in fade-in slide-in-from-top-2 space-y-1.5 duration-300 md:col-span-3">
                 <label className="text-muted-foreground text-[10px] uppercase tracking-wider font-bold">
                   Applies to Entry
                 </label>

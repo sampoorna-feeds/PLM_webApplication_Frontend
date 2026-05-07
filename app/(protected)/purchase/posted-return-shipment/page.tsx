@@ -8,8 +8,9 @@ import { Button } from "@/components/ui/button";
 import { RefreshCcw, Search, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-
 import { PostedDocumentFilterForm, type DateRangeFilters } from "@/components/forms/posted-documents/posted-document-filter-form";
+import { PostedPurchaseColumnVisibility } from "@/components/forms/posted-purchase/column-visibility";
+import { POSTED_PURCHASE_COLUMNS } from "@/components/forms/posted-purchase/column-config";
 
 function PostedPurchaseReturnShipmentContent() {
   const {
@@ -22,11 +23,16 @@ function PostedPurchaseReturnShipmentContent() {
     sortColumn,
     sortDirection,
     searchQuery,
+    columnFilters,
+    visibleColumns,
     dateFilter,
     setDateFilter,
     onPageChange,
+    onPageSizeChange,
     onSort,
     onSearch,
+    onColumnFilter,
+    onToggleColumn,
     onClearFilters,
     refetch,
   } = usePostedPurchase("return-shipment");
@@ -103,6 +109,12 @@ function PostedPurchaseReturnShipmentContent() {
             </Button>
           )}
         </div>
+        <div className="flex items-center gap-2">
+          <PostedPurchaseColumnVisibility 
+            columns={POSTED_PURCHASE_COLUMNS.map(c => ({ ...c, visible: visibleColumns.includes(c.id) }))}
+            onToggle={onToggleColumn}
+          />
+        </div>
       </div>
 
       <div className="flex-1 min-h-0 overflow-hidden">
@@ -113,6 +125,9 @@ function PostedPurchaseReturnShipmentContent() {
           sortDirection={sortDirection}
           onSort={onSort}
           onRowClick={handleRowClick}
+          columnFilters={columnFilters}
+          onColumnFilter={onColumnFilter}
+          visibleColumns={visibleColumns}
         />
       </div>
 

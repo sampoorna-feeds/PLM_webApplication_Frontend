@@ -7,7 +7,7 @@
  * OData V4 response wrapper
  */
 export interface ODataResponse<T> {
-  "@odata.context": string;
+  "@odata.context"?: string;
   value: T[];
   "@odata.count"?: number;
 }
@@ -16,7 +16,7 @@ export interface ODataResponse<T> {
  * OData V4 single entity response
  */
 export interface ODataEntity<T> {
-  "@odata.context": string;
+  "@odata.context"?: string;
   [key: string]: unknown;
 }
 

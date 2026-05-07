@@ -9,6 +9,8 @@ export interface PostedPurchaseHeader {
   No: string;
   Buy_from_Vendor_No?: string;
   Buy_from_Vendor_Name?: string;
+  Pay_to_Vendor_No?: string;
+  Pay_to_Name?: string;
   Posting_Date?: string;
   Document_Date?: string;
   Location_Code?: string;

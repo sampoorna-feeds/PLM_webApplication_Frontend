@@ -11,6 +11,9 @@ import { Badge } from "@/components/ui/badge";
 
 import { PostedDocumentFilterForm, type DateRangeFilters } from "@/components/forms/posted-documents/posted-document-filter-form";
 
+import { PostedSalesColumnVisibility } from "@/components/forms/posted-sales/column-visibility";
+import { POSTED_SALES_COLUMNS } from "@/components/forms/posted-sales/column-config";
+
 function PostedSalesCreditMemoContent() {
   const {
     documents,
@@ -22,11 +25,15 @@ function PostedSalesCreditMemoContent() {
     sortColumn,
     sortDirection,
     searchQuery,
+    columnFilters,
+    visibleColumns,
     dateFilter,
     setDateFilter,
     onPageChange,
     onSort,
     onSearch,
+    onColumnFilter,
+    onToggleColumn,
     onClearFilters,
     refetch,
   } = usePostedSales();
@@ -103,6 +110,12 @@ function PostedSalesCreditMemoContent() {
             </Button>
           )}
         </div>
+        <div className="flex items-center gap-2">
+          <PostedSalesColumnVisibility 
+            columns={POSTED_SALES_COLUMNS.map(c => ({ ...c, visible: visibleColumns.includes(c.id) }))}
+            onToggle={onToggleColumn}
+          />
+        </div>
       </div>
 
       <div className="flex-1 min-h-0 overflow-hidden">
@@ -113,6 +126,9 @@ function PostedSalesCreditMemoContent() {
           sortDirection={sortDirection}
           onSort={onSort}
           onRowClick={handleRowClick}
+          columnFilters={columnFilters}
+          onColumnFilter={onColumnFilter}
+          visibleColumns={visibleColumns}
         />
       </div>
 

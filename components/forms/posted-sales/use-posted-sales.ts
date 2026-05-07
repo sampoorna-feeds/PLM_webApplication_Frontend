@@ -6,6 +6,9 @@ import {
   type PostedSalesHeader 
 } from "@/lib/api/services/posted-sales.service";
 import { toast } from "sonner";
+import type { ODataResponse } from "@/lib/api/types";
+
+import { POSTED_SALES_COLUMNS } from "./column-config";
 
 export function usePostedSales(initialFilters?: { skipDateFilter?: boolean }) {
   const [documents, setDocuments] = useState<PostedSalesHeader[]>([]);
@@ -16,6 +19,10 @@ export function usePostedSales(initialFilters?: { skipDateFilter?: boolean }) {
   const [sortColumn, setSortColumn] = useState<string | null>("No");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc" | null>("desc");
   const [searchQuery, setSearchQuery] = useState("");
+  const [columnFilters, setColumnFilters] = useState<Record<string, { value: string; valueTo?: string }>>({});
+  const [visibleColumns, setVisibleColumns] = useState<string[]>(
+    POSTED_SALES_COLUMNS.filter(c => c.visible).map(c => c.id)
+  );
   const [dateFilter, setDateFilter] = useState<{ fromDate: string; toDate: string } | null>(null);
 
   const skipDateFilter = initialFilters?.skipDateFilter;
@@ -38,24 +45,75 @@ export function usePostedSales(initialFilters?: { skipDateFilter?: boolean }) {
         filterParts.push(`Posting_Date le ${dateFilter.toDate}`);
       }
 
-      if (searchQuery) {
-        const escaped = searchQuery.replace(/'/g, "''");
-        filterParts.push(
-          `(contains(No,'${escaped}') or contains(Sell_to_Customer_No,'${escaped}') or contains(Sell_to_Customer_Name,'${escaped}'))`
-        );
-      }
+      // Column filters
+      Object.entries(columnFilters).forEach(([col, filter]) => {
+        if (filter.value) {
+          const escaped = filter.value.replace(/'/g, "''");
+          if (escaped.includes(",")) {
+            const vals = escaped.split(",").map(v => v.trim()).filter(Boolean);
+            if (vals.length > 0) {
+              filterParts.push(`(${vals.map(v => `contains(${col},'${v}')`).join(" or ")})`);
+            }
+          } else {
+            filterParts.push(`contains(${col},'${escaped}')`);
+          }
+        }
+      });
 
       const filter = filterParts.length > 0 ? filterParts.join(" and ") : undefined;
-
-      const params: any = {
-        $top: pageSize,
-        $skip: (currentPage - 1) * pageSize,
+      const baseParams: any = {
         $orderby: sortColumn && sortDirection ? `${sortColumn} ${sortDirection}` : "No desc",
         $filter: filter,
         $count: true,
       };
 
-      const result = await getPostedSalesCreditMemos(params);
+      let result: ODataResponse<PostedSalesHeader>;
+
+      if (searchQuery) {
+        const escaped = searchQuery.replace(/'/g, "''");
+        const searchFields = ["No", "Sell_to_Customer_No", "Sell_to_Customer_Name", "Location_Code"];
+        
+        const responses = await Promise.all(
+          searchFields.map(async (field) => {
+            const fieldFilter = `contains(${field},'${escaped}')`;
+            const combinedFilter = filter ? `(${filter}) and (${fieldFilter})` : fieldFilter;
+            const params = { ...baseParams, $filter: combinedFilter, $top: 100 };
+            
+            try {
+              return await getPostedSalesCreditMemos(params);
+            } catch (e) {
+              console.error(`Search failed for field ${field}:`, e);
+              return { value: [] };
+            }
+          })
+        );
+
+        const seen = new Set<string>();
+        const merged: PostedSalesHeader[] = [];
+        responses.forEach(resp => {
+          resp?.value?.forEach(doc => {
+            if (!seen.has(doc.No)) {
+              seen.add(doc.No);
+              merged.push(doc);
+            }
+          });
+        });
+
+        const start = (currentPage - 1) * pageSize;
+        const paged = merged.slice(start, start + pageSize);
+        
+        result = {
+          value: paged,
+          "@odata.count": merged.length
+        };
+      } else {
+        const params = {
+          ...baseParams,
+          $top: pageSize,
+          $skip: (currentPage - 1) * pageSize,
+        };
+        result = await getPostedSalesCreditMemos(params);
+      }
 
       setDocuments(result.value || []);
       setTotalCount(result["@odata.count"] ?? result.value?.length ?? 0);
@@ -65,7 +123,7 @@ export function usePostedSales(initialFilters?: { skipDateFilter?: boolean }) {
     } finally {
       setIsLoading(false);
     }
-  }, [currentPage, pageSize, sortColumn, sortDirection, searchQuery, dateFilter, skipDateFilter]);
+  }, [currentPage, pageSize, sortColumn, sortDirection, searchQuery, columnFilters, dateFilter, skipDateFilter]);
 
   useEffect(() => {
     fetchDocuments();
@@ -81,6 +139,24 @@ export function usePostedSales(initialFilters?: { skipDateFilter?: boolean }) {
     setCurrentPage(1);
   };
 
+  const toggleColumn = (columnId: string) => {
+    setVisibleColumns(prev => 
+      prev.includes(columnId) 
+        ? prev.filter(id => id !== columnId)
+        : [...prev, columnId]
+    );
+  };
+
+  const handleColumnFilter = (columnId: string, value: string, valueTo?: string) => {
+    setColumnFilters(prev => {
+      const next = { ...prev };
+      if (!value && !valueTo) delete next[columnId];
+      else next[columnId] = { value, valueTo };
+      return next;
+    });
+    setCurrentPage(1);
+  };
+
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
 
   return {
@@ -93,13 +169,17 @@ export function usePostedSales(initialFilters?: { skipDateFilter?: boolean }) {
     sortColumn,
     sortDirection,
     searchQuery,
+    columnFilters,
+    visibleColumns,
     dateFilter,
     setDateFilter,
     onPageSizeChange: (size: number) => { setPageSize(size); setCurrentPage(1); },
     onPageChange: setCurrentPage,
     onSort: handleSort,
     onSearch: (q: string) => { setSearchQuery(q); setCurrentPage(1); },
-    onClearFilters: () => { setSearchQuery(""); setCurrentPage(1); },
+    onColumnFilter: handleColumnFilter,
+    onToggleColumn: toggleColumn,
+    onClearFilters: () => { setSearchQuery(""); setColumnFilters({}); setCurrentPage(1); },
     refetch: fetchDocuments,
   };
 }

@@ -14,6 +14,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 
 interface TransferOrderLinesTableProps {
@@ -24,6 +25,8 @@ interface TransferOrderLinesTableProps {
   onRowClick?: (line: TransferLine) => void;
   onUpdateLine?: (line: TransferLine, updates: Partial<TransferLine>) => Promise<void>;
   isReadOnly?: boolean;
+  selectedLineNos?: number[];
+  onSelectionChange?: (nos: number[]) => void;
 }
 
 export function TransferOrderLinesTable({
@@ -34,6 +37,8 @@ export function TransferOrderLinesTable({
   onRowClick,
   onUpdateLine,
   isReadOnly = false,
+  selectedLineNos = [],
+  onSelectionChange,
 }: TransferOrderLinesTableProps) {
   const [itemTrackingMap, setItemTrackingMap] = useState<Record<string, boolean>>({});
   const [isLoadingTracking, setIsLoadingTracking] = useState(false);
@@ -121,6 +126,22 @@ export function TransferOrderLinesTable({
       <Table>
         <TableHeader>
           <TableRow className="bg-muted hover:bg-muted whitespace-nowrap">
+            <TableHead className="w-12 px-4">
+              <Checkbox
+                checked={
+                  lines.length > 0 &&
+                  selectedLineNos.length === lines.length
+                }
+                onCheckedChange={(checked) => {
+                  if (checked) {
+                    onSelectionChange?.(lines.map((line) => line.Line_No));
+                  } else {
+                    onSelectionChange?.([]);
+                  }
+                }}
+                aria-label="Select all"
+              />
+            </TableHead>
             <TableHead className="w-16">No.</TableHead>
             <TableHead>Item No.</TableHead>
             <TableHead>Description</TableHead>
@@ -149,6 +170,21 @@ export function TransferOrderLinesTable({
                 )}
                 onClick={() => onRowClick?.(line)}
               >
+                <TableCell className="w-12 px-4" onClick={(e) => e.stopPropagation()}>
+                  <Checkbox
+                    checked={selectedLineNos.includes(line.Line_No)}
+                    onCheckedChange={(checked) => {
+                      if (checked) {
+                        onSelectionChange?.([...selectedLineNos, line.Line_No]);
+                      } else {
+                        onSelectionChange?.(
+                          selectedLineNos.filter((no) => no !== line.Line_No),
+                        );
+                      }
+                    }}
+                    aria-label={`Select row ${line.Line_No}`}
+                  />
+                </TableCell>
               <TableCell className="font-medium text-muted-foreground">
                 {line.Line_No}
               </TableCell>

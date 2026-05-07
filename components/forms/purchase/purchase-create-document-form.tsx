@@ -75,6 +75,7 @@ import {
   Copy,
   MessageSquare,
   Printer,
+  Trash2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ClearableField } from "@/components/ui/clearable-field";
@@ -526,6 +527,7 @@ export function PurchaseCreateDocumentFormContent({
   const [lineItems, setLineItems] = useState<LineItem[]>(
     Array.isArray(initialFormData?.lineItems) ? initialFormData.lineItems : [],
   );
+  const [selectedLineIds, setSelectedLineIds] = useState<string[]>([]);
   const [createdOrderNo, setCreatedOrderNo] = useState<string>(
     typeof initialFormData?.createdOrderNo === "string"
       ? initialFormData.createdOrderNo
@@ -1028,6 +1030,44 @@ export function PurchaseCreateDocumentFormContent({
     } catch (error) {
       setPlaceOrderError(
         getErrorMessage(error, "Failed to delete line item. Please try again."),
+      );
+    } finally {
+      setIsSavingLine(false);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedLineIds.length === 0) return;
+
+    if (isCreateMode) {
+      const updated = lineItems.filter((item) => !selectedLineIds.includes(item.id));
+      setLineItems(updated);
+      setSelectedLineIds([]);
+      persist({ ...formData, lineItems: updated, createdOrderNo });
+      toast.success(`${selectedLineIds.length} line items removed.`);
+      return;
+    }
+
+    if (!createdOrderNo) return;
+
+    setIsSavingLine(true);
+    setPlaceOrderError(null);
+
+    try {
+      let deletedCount = 0;
+      for (const lineId of selectedLineIds) {
+        const item = lineItems.find((i) => i.id === lineId);
+        if (item && item.lineNo) {
+          await config.deleteLine(createdOrderNo, item.lineNo);
+          deletedCount++;
+        }
+      }
+      await refreshHydratedDocument();
+      setSelectedLineIds([]);
+      toast.success(`${deletedCount} line items removed.`);
+    } catch (error) {
+      setPlaceOrderError(
+        getErrorMessage(error, "Failed to delete some line items. Please try again."),
       );
     } finally {
       setIsSavingLine(false);
@@ -2655,8 +2695,19 @@ export function PurchaseCreateDocumentFormContent({
                         Get Posted Line
                       </Button>
                     )}
-                    {(documentType !== "order" ||
-                      webUserProfile?.Access_Purchase_Order === "Edit") && (
+                    {selectedLineIds.length > 0 && (
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        className="h-7 px-2.5 text-xs"
+                        onClick={handleBulkDelete}
+                        disabled={isSavingLine}
+                      >
+                        <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+                        Delete ({selectedLineIds.length})
+                      </Button>
+                    )}
+                    {(documentType !== "order" || webUserProfile?.Access_Purchase_Order === "Edit") && (
                       <Button
                         onClick={handleAddLineItem}
                         size="sm"
@@ -2681,6 +2732,8 @@ export function PurchaseCreateDocumentFormContent({
                     documentType={documentType}
                     isLoading={isHydratingDocument}
                     editable={!!createdOrderNo}
+                    selectedIds={selectedLineIds}
+                    onSelectionChange={setSelectedLineIds}
                     onInlineUpdate={async (lineItem, patch) => {
                       if (!createdOrderNo || !lineItem.lineNo) return;
                       try {

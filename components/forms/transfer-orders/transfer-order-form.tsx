@@ -59,7 +59,7 @@ import { useFormStack } from "@/lib/form-stack/use-form-stack";
 import { cn } from "@/lib/utils";
 import { getWebUser, type WebUser } from "@/lib/api/services/web-user.service";
 import { isPostingDateValid } from "@/lib/utils/posting-date";
-import { Download, Eye, Loader2, Plus, Printer, RefreshCw } from "lucide-react";
+import { Download, Eye, Loader2, Plus, Printer, RefreshCw, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { TransferOrderLineDetailsDialog } from "./transfer-order-line-details-dialog";
@@ -129,6 +129,7 @@ export function TransferOrderForm({
   const [selectedLine, setSelectedLine] = useState<TransferLine | null>(null);
   const [isLineDialogOpen, setIsLineDialogOpen] = useState(false);
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
+  const [selectedLineNos, setSelectedLineNos] = useState<number[]>([]);
 
   // Dimension dropdowns state
   const [lobs, setLobs] = useState<DimensionValue[]>([]);
@@ -636,6 +637,30 @@ export function TransferOrderForm({
       setLines(updatedLines);
     } catch (err: any) {
       toast.error(err.message || "Failed to delete line");
+    }
+  };
+
+  const handleBulkDeleteLines = async () => {
+    if (!formState.No || selectedLineNos.length === 0) return;
+    if (!confirm(`Are you sure you want to delete ${selectedLineNos.length} selected lines?`)) return;
+
+    setIsSubmitting(true);
+    try {
+      let deletedCount = 0;
+      for (const lineNo of selectedLineNos) {
+        await deleteTransferLine(formState.No, lineNo);
+        deletedCount++;
+      }
+      toast.success(`${deletedCount} lines deleted`);
+      setSelectedLineNos([]);
+      const updatedLines = await getTransferOrderLines(formState.No);
+      setLines(updatedLines);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to delete some lines");
+      const updatedLines = await getTransferOrderLines(formState.No);
+      setLines(updatedLines);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -1592,6 +1617,18 @@ export function TransferOrderForm({
                   />
                   Refresh
                 </Button>
+                {selectedLineNos.length > 0 && (
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={handleBulkDeleteLines}
+                    disabled={isSubmitting || formState.Status === "Released"}
+                    className="h-9 px-3"
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Delete ({selectedLineNos.length})
+                  </Button>
+                )}
                 <Button
                   size="sm"
                   onClick={() => {
@@ -1619,6 +1656,8 @@ export function TransferOrderForm({
                 setSelectedLine(line);
                 setIsDetailsDialogOpen(true);
               }}
+              selectedLineNos={selectedLineNos}
+              onSelectionChange={setSelectedLineNos}
               onUpdateLine={async (line, updates) => {
                 try {
                   await updateTransferLine(line.Document_No, line.Line_No, updates);

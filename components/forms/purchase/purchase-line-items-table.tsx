@@ -28,6 +28,7 @@ import {
 import { cn } from "@/lib/utils";
 import { Trash2 } from "lucide-react";
 import { useCallback, useState } from "react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { EditableQtyCell } from "../shared/editable-qty-cell";
 import type { LineItem } from "./purchase-line-item.type";
 import {
@@ -71,6 +72,10 @@ interface PurchaseLineItemsTableProps {
     lineItem: LineItem,
     patch: Record<string, number>,
   ) => Promise<void>;
+  /** Selected line item IDs for bulk actions. */
+  selectedIds?: string[];
+  /** Callback when selection changes. */
+  onSelectionChange?: (ids: string[]) => void;
 }
 
 export function PurchaseLineItemsTable({
@@ -84,6 +89,8 @@ export function PurchaseLineItemsTable({
   isLoading = false,
   editable = false,
   onInlineUpdate,
+  selectedIds = [],
+  onSelectionChange,
 }: PurchaseLineItemsTableProps) {
   const [itemToRemove, setItemToRemove] = useState<string | null>(null);
   const quantityColumns = getPurchaseLineQuantityConfig(documentType);
@@ -166,6 +173,22 @@ export function PurchaseLineItemsTable({
         <Table>
           <TableHeader>
             <TableRow className="bg-primary/5 border-primary/20 border-b whitespace-nowrap">
+              <TableHead className="w-12 px-4">
+                <Checkbox
+                  checked={
+                    lineItems.length > 0 &&
+                    selectedIds.length === lineItems.length
+                  }
+                  onCheckedChange={(checked) => {
+                    if (checked) {
+                      onSelectionChange?.(lineItems.map((item) => item.id));
+                    } else {
+                      onSelectionChange?.([]);
+                    }
+                  }}
+                  aria-label="Select all"
+                />
+              </TableHead>
               <TableHead className="text-primary w-16 text-[11px] font-bold tracking-wider uppercase">
                 Line
               </TableHead>
@@ -264,6 +287,21 @@ export function PurchaseLineItemsTable({
                 )}
                 onClick={() => onRowClick?.(item)}
               >
+                <TableCell className="w-12 px-4" onClick={(e) => e.stopPropagation()}>
+                  <Checkbox
+                    checked={selectedIds.includes(item.id)}
+                    onCheckedChange={(checked) => {
+                      if (checked) {
+                        onSelectionChange?.([...selectedIds, item.id]);
+                      } else {
+                        onSelectionChange?.(
+                          selectedIds.filter((id) => id !== item.id),
+                        );
+                      }
+                    }}
+                    aria-label={`Select row ${item.lineNo}`}
+                  />
+                </TableCell>
                 <TableCell className="font-medium">
                   {item.lineNo || "-"}
                 </TableCell>

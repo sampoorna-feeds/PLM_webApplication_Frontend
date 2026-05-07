@@ -37,6 +37,81 @@ interface PostedDocumentDetailFormProps {
   };
 }
 
+const EXCLUDED_FIELDS = new Set([
+  "id",
+  "@odata.etag",
+  "No",
+  "Gate_Entry_No",
+  // Image 1
+  "Buy_from_Contact_No",
+  "Buy_from_Country_Region_Code",
+  "BuyFromContactPhoneNo",
+  "BuyFromContactMobilePhoneNo",
+  "BuyFromContactEmail",
+  "Buy_from_Contact",
+  "VAT_Reporting_Date",
+  "Quote_No",
+  "Pre_Assigned_No",
+  "Vendor_Order_No",
+  "No_Printed",
+  "Responsibility_Center",
+  // Image 2
+  "Cancelled",
+  "Corrective",
+  "Pay_to_Country_Region_Code",
+  "Pay_to_Contact_No",
+  "PayToContactPhoneNo",
+  "PayToContactMobilePhoneNo",
+  "PayToContactEmail",
+  "Pay_to_Contact",
+  "Payment_Discount_Percent",
+  "Pmt_Discount_Date",
+  "Payment_Method_Code",
+  "Tax_Liable",
+  "Tax_Area_Code",
+  "Payment_Reference",
+  "Creditor_No",
+  // Image 3
+  "Vendor_Posting_Group",
+  "Ship_to_Code",
+  "Ship_to_Name",
+  "Ship_to_Address",
+  "Ship_to_Address_2",
+  "Ship_to_Post_Code",
+  "Ship_to_City",
+  "Ship_to_County",
+  "Ship_to_Country_Region_Code",
+  "Ship_to_Contact",
+  "Shipment_Method_Code",
+  "Expected_Receipt_Date",
+  "Remit_to_Code",
+  "Remit_to_Name",
+  "Remit_to_Address",
+  "Remit_to_Address_2",
+  "Remit_to_City",
+  "Remit_to_County",
+  "Remit_to_Post_Code",
+  "Remit_to_Country_Region_Code",
+  "Remit_to_Contact",
+  "Currency_Code",
+  "Without_Bill_Of_Entry",
+  "Associated_Enterprises",
+  "Bill_of_Entry_No",
+  "Bill_of_Entry_Date",
+  "Bill_of_Entry_Value",
+  "Vehicle_No",
+  "Vehicle_Type",
+  "Shipping_Agent_Code",
+  "GST_Invoice",
+  "Order_Address_GST_Reg_No",
+  "GST_Order_Address_State",
+  "Nature_of_Supply",
+  "Rate_Change_Applicable",
+  "Supply_Finish_Date",
+  "POS_as_Vendor_State",
+  "POS_Out_Of_India",
+]);
+
 export function PostedDocumentDetailForm({ tabId, context = {} }: PostedDocumentDetailFormProps) {
   const { tabs } = useFormStackContext();
   const currentTab = tabs.find((t) => t.id === tabId);
@@ -104,10 +179,7 @@ export function PostedDocumentDetailForm({ tabId, context = {} }: PostedDocument
             {Object.entries(doc).map(([key, value]) => {
               if (
                 typeof value === "object" || 
-                key === "id" || 
-                key === "@odata.etag" || 
-                key === "No" || 
-                key === "Gate_Entry_No"
+                EXCLUDED_FIELDS.has(key)
               ) return null;
               
               // Date formatting

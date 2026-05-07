@@ -7,7 +7,6 @@ import { useFormStackContext } from "@/lib/form-stack/form-stack-context";
 import { SalesDocumentTable } from "./sales-document-table";
 import { SalesDocumentFilterBar } from "./sales-document-filter-bar";
 import { SalesDocumentActiveFilters } from "./sales-document-active-filters";
-import { SalesDocumentPaginationControls } from "./sales-document-pagination-controls";
 import {
   getSalesDocumentConfig,
   type SalesDocumentStatusTab,
@@ -37,7 +36,6 @@ export function SalesDocumentView({
     refetch,
     pageSize,
     currentPage,
-    totalPages,
     totalCount,
     sortColumn,
     sortDirection,
@@ -48,8 +46,6 @@ export function SalesDocumentView({
     allColumns,
     defaultColumns,
     optionalColumns,
-    onPageSizeChange,
-    onPageChange,
     onSort,
     onSearch,
     onColumnFilter,
@@ -59,13 +55,16 @@ export function SalesDocumentView({
     onAddAdditionalFilter,
     onRemoveAdditionalFilter,
     onClearFilters,
+    loadMore,
+    hasMore,
+    isLoadingMore,
   } = useSalesDocuments({ documentType, statusFilter });
 
   useEffect(() => {
     registerRefetch?.(refetch);
   }, [refetch, registerRefetch]);
 
-  const hasNextPage = currentPage < totalPages;
+  // Removed hasNextPage calculation
 
   const handleCreateDocument = () => {
     openTab(config.formType, {
@@ -98,10 +97,15 @@ export function SalesDocumentView({
         onAddAdditionalFilter={onAddAdditionalFilter}
         onRemoveAdditionalFilter={onRemoveAdditionalFilter}
       >
-        <Button onClick={handleCreateDocument} size="sm">
-          <Plus className="mr-2 h-4 w-4" />
-          {config.createButtonLabel}
-        </Button>
+        <div className="flex items-center gap-4">
+          <span className="text-muted-foreground text-xs font-medium">
+            Total: {totalCount.toLocaleString()}
+          </span>
+          <Button onClick={handleCreateDocument} size="sm">
+            <Plus className="mr-2 h-4 w-4" />
+            {config.createButtonLabel}
+          </Button>
+        </div>
       </SalesDocumentFilterBar>
 
       <SalesDocumentActiveFilters
@@ -134,18 +138,11 @@ export function SalesDocumentView({
           }}
           onSort={onSort}
           onColumnFilter={onColumnFilter}
+          onLoadMore={loadMore}
+          hasMore={hasMore}
+          isLoadingMore={isLoadingMore}
         />
       </div>
-
-      <SalesDocumentPaginationControls
-        pageSize={pageSize}
-        currentPage={currentPage}
-        totalPages={totalPages}
-        totalCount={totalCount}
-        hasNextPage={hasNextPage}
-        onPageSizeChange={onPageSizeChange}
-        onPageChange={onPageChange}
-      />
     </div>
   );
 }

@@ -87,9 +87,11 @@ export function useSalesDocuments(options: UseSalesDocumentsOptions) {
 
   const [orders, setOrders] = useState<SalesOrder[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [pageSize, setPageSize] = useState(10);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [pageSize, setPageSize] = useState(200);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
   const [userBranchCodes, setUserBranchCodes] = useState<string[]>([]);
 
   const [sortColumn, setSortColumn] = useState<string | null>("Posting_Date");
@@ -165,7 +167,11 @@ export function useSalesDocuments(options: UseSalesDocumentsOptions) {
 
     const { fetchWithCount, search } = DOCUMENT_API_HANDLERS[documentType];
 
-    setIsLoading(true);
+    if (currentPage === 1) {
+      setIsLoading(true);
+    } else {
+      setIsLoadingMore(true);
+    }
     try {
       const filter = buildSalesDocumentFilterString({
         branchCodes: effectiveBranchCodes,
@@ -187,8 +193,13 @@ export function useSalesDocuments(options: UseSalesDocumentsOptions) {
         ? await search({ ...commonParams, searchTerm: searchQuery })
         : await fetchWithCount(commonParams);
 
-      setOrders(result.orders);
+      if (currentPage === 1) {
+        setOrders(result.orders);
+      } else {
+        setOrders((prev) => [...prev, ...result.orders]);
+      }
       setTotalCount(result.totalCount);
+      setHasMore(currentPage * pageSize < result.totalCount);
     } catch (error) {
       console.error("Error fetching sales documents:", error);
       toast.error("Failed to load sales documents. Please try again.");
@@ -196,6 +207,7 @@ export function useSalesDocuments(options: UseSalesDocumentsOptions) {
       setTotalCount(0);
     } finally {
       setIsLoading(false);
+      setIsLoadingMore(false);
     }
   }, [
     additionalFilters,
@@ -227,6 +239,11 @@ export function useSalesDocuments(options: UseSalesDocumentsOptions) {
   const handlePageChange = useCallback((page: number) => {
     setCurrentPage(page);
   }, []);
+
+  const loadMore = useCallback(() => {
+    if (isLoading || isLoadingMore || !hasMore) return;
+    setCurrentPage((prev) => prev + 1);
+  }, [isLoading, isLoadingMore, hasMore]);
 
   const handleSort = useCallback((column: string) => {
     setSortColumn((previousColumn) => {
@@ -336,6 +353,9 @@ export function useSalesDocuments(options: UseSalesDocumentsOptions) {
     onAddAdditionalFilter: handleAddAdditionalFilter,
     onRemoveAdditionalFilter: handleRemoveAdditionalFilter,
     onClearFilters: handleClearFilters,
+    loadMore,
+    hasMore,
+    isLoadingMore,
     refetch: fetchOrders,
   };
 }

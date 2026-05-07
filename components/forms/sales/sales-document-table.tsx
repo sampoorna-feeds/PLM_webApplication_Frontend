@@ -1,7 +1,7 @@
 "use client";
 
-import React from "react";
-import { ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
+import React, { useEffect, useRef } from "react";
+import { ArrowUp, ArrowDown, ArrowUpDown, Loader2 } from "lucide-react";
 import type { SalesOrder } from "@/lib/api/services/sales-orders.service";
 import { Skeleton } from "@/components/ui/skeleton";
 import { type SortDirection, type ColumnConfig } from "./column-config";
@@ -23,6 +23,9 @@ interface SalesDocumentTableProps {
   onSort: (column: string) => void;
   onColumnFilter: (columnId: string, value: string, valueTo?: string) => void;
   renderRowAction?: (row: SalesOrder) => React.ReactNode;
+  onLoadMore?: () => void;
+  hasMore?: boolean;
+  isLoadingMore?: boolean;
 }
 
 export function SalesDocumentTable({
@@ -40,9 +43,36 @@ export function SalesDocumentTable({
   onSort,
   onColumnFilter,
   renderRowAction,
+  onLoadMore,
+  hasMore,
+  isLoadingMore,
 }: SalesDocumentTableProps) {
   const columns = allColumns.filter((col) => visibleColumns.includes(col.id));
-  const startingSerialNo = (currentPage - 1) * pageSize;
+  const sentinelRef = useRef<HTMLTableRowElement>(null);
+
+  useEffect(() => {
+    if (!hasMore || isLoading || isLoadingMore) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          onLoadMore?.();
+        }
+      },
+      { threshold: 0.1, rootMargin: "100px" },
+    );
+
+    const currentSentinel = sentinelRef.current;
+    if (currentSentinel) {
+      observer.observe(currentSentinel);
+    }
+
+    return () => {
+      if (currentSentinel) {
+        observer.unobserve(currentSentinel);
+      }
+    };
+  }, [hasMore, isLoading, isLoadingMore, onLoadMore]);
 
   return (
     <div className="bg-card flex h-full flex-1 flex-col overflow-hidden rounded-lg border">
@@ -86,7 +116,7 @@ export function SalesDocumentTable({
                     className="border-b transition-colors"
                   >
                     <td className="text-muted-foreground p-1 px-1 py-3 text-center align-middle text-xs whitespace-nowrap">
-                      {startingSerialNo + rowIndex + 1}
+                      {rowIndex + 1}
                     </td>
                     {renderRowAction && <td className="px-1 py-3" />}
                     {columns.map((column) => (
@@ -111,18 +141,30 @@ export function SalesDocumentTable({
                 </td>
               </tr>
             )}
-            {!isLoading &&
-              orders.length > 0 &&
-              orders.map((order, index) => (
-                <SalesDocumentRow
-                  key={order.No}
-                  order={order}
-                  columns={columns}
-                  serialNo={startingSerialNo + index + 1}
-                  onClick={onRowClick ? () => onRowClick(order.No) : undefined}
-                  renderRowAction={renderRowAction}
-                />
-              ))}
+            {orders.map((order, index) => (
+              <SalesDocumentRow
+                key={order.No}
+                order={order}
+                columns={columns}
+                serialNo={index + 1}
+                onClick={onRowClick ? () => onRowClick(order.No) : undefined}
+                renderRowAction={renderRowAction}
+              />
+            ))}
+            {!isLoading && (
+              <tr ref={sentinelRef}>
+                <td
+                  colSpan={columns.length + (renderRowAction ? 2 : 1)}
+                  className="h-px p-0"
+                >
+                  {isLoadingMore && (
+                    <div className="flex justify-center py-4">
+                      <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                    </div>
+                  )}
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>

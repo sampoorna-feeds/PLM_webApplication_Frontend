@@ -18,6 +18,7 @@ export interface InvoiceTypeOption {
 }
 
 const STANDARD_INVOICE_TYPE_OPTIONS: InvoiceTypeOption[] = [
+  { value: "_none", label: "None" },
   { value: "Bill of supply", label: "Bill of supply" },
   { value: "Export", label: "Export" },
   { value: "Supplementary", label: "Supplementary" },
@@ -27,6 +28,7 @@ const STANDARD_INVOICE_TYPE_OPTIONS: InvoiceTypeOption[] = [
 ];
 
 const INVOICE_INVOICE_TYPE_OPTIONS: InvoiceTypeOption[] = [
+  { value: "_none", label: "None" },
   { value: "Self Invoice", label: "Self Invoice" },
   { value: "Debit Note", label: "Debit Note" },
   { value: "Supplementary", label: "Supplementary" },
@@ -78,7 +80,7 @@ const PURCHASE_DOCUMENT_CONFIG: Record<
     capabilities: {
       supportsPoType: true,
       supportsServiceType: true,
-      supportsInvoiceType: false,
+      supportsInvoiceType: true,
       invoiceTypeOptions: STANDARD_INVOICE_TYPE_OPTIONS,
       supportsVendorInvoiceNo: true,
       supportsVendorCrMemoNo: false,
@@ -104,7 +106,7 @@ const PURCHASE_DOCUMENT_CONFIG: Record<
     capabilities: {
       supportsPoType: false,
       supportsServiceType: false,
-      supportsInvoiceType: false,
+      supportsInvoiceType: true,
       invoiceTypeOptions: INVOICE_INVOICE_TYPE_OPTIONS,
       supportsVendorInvoiceNo: true,
       supportsVendorCrMemoNo: false,
@@ -130,7 +132,7 @@ const PURCHASE_DOCUMENT_CONFIG: Record<
     capabilities: {
       supportsPoType: false,
       supportsServiceType: false,
-      supportsInvoiceType: false,
+      supportsInvoiceType: true,
       invoiceTypeOptions: [],
       supportsVendorInvoiceNo: false,
       supportsVendorCrMemoNo: true,

@@ -44,6 +44,7 @@ import { PurchaseSearchableSelect } from "./purchase-searchable-select";
 import { TermCodeSelect } from "./term-code-select";
 import { PaymentTermSelect } from "./payment-term-select";
 import { PaymentMethodSelect } from "./payment-method-select";
+import { InvoiceTypeSelect } from "./invoice-type-select";
 import { MandiNameSelect } from "./mandi-name-select";
 import { CreditorTypeSelect } from "./creditor-type-select";
 import {
@@ -1774,23 +1775,14 @@ export function PurchaseCreateDocumentFormContent({
                           value={formData.invoiceType}
                           onClear={() => handleInputChange("invoiceType", "")}
                         >
-                          <Select
+                          <InvoiceTypeSelect
                             value={formData.invoiceType || ""}
-                            onValueChange={(value) =>
+                            options={capabilities.invoiceTypeOptions}
+                            onChange={(value) =>
                               handleInputChange("invoiceType", value)
                             }
-                          >
-                            <SelectTrigger className="h-9 text-sm shadow-none">
-                              <SelectValue placeholder="Select / None" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {capabilities.invoiceTypeOptions.map((opt) => (
-                                <SelectItem key={opt.value} value={opt.value}>
-                                  {opt.label}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                            disabled={areFieldsReadOnly}
+                          />
                         </ClearableField>
                       </div>
                     )}

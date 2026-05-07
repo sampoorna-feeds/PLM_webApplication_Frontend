@@ -1,7 +1,7 @@
 import { apiGet, apiPost, apiPatch, apiDelete } from "../client";
 import { buildODataQuery } from "../endpoints";
 import type { ODataResponse } from "../types";
-import { getPreloadedItems } from "./item.service";
+import { preloadItems } from "./item.service";
 
 export interface TransferItem {
   No: string;

@@ -31,6 +31,14 @@ function buildTextFilter(columnId: string, value: string): string {
   return `(${orConditions.join(" or ")})`;
 }
 
+function buildBooleanFilter(columnId: string, value: string): string {
+  const v = value.toLowerCase().trim();
+  if (v === "true" || v === "false") {
+    return `${columnId} eq ${v}`;
+  }
+  return "";
+}
+
 function buildDateFilter(
   columnId: string,
   valueFrom?: string,
@@ -90,6 +98,8 @@ function buildColumnFilter(
       return buildDateFilter(column.id, filter.value, filter.valueTo);
     case "number":
       return buildNumberFilter(column.id, filter.value, filter.valueTo);
+    case "boolean":
+      return filter.value ? [buildBooleanFilter(column.id, filter.value)] : [];
     default:
       return [];
   }

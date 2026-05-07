@@ -4,7 +4,7 @@
 
 export type SortDirection = "asc" | "desc" | null;
 
-export type FilterType = "text" | "enum" | "date" | "number";
+export type FilterType = "text" | "enum" | "date" | "number" | "boolean";
 
 export interface ColumnConfig {
   id: string;

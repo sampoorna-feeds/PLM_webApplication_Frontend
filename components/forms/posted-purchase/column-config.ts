@@ -1,4 +1,4 @@
-export type FilterType = "text" | "number" | "date" | "select";
+export type FilterType = "text" | "number" | "date" | "select" | "boolean";
 
 export interface ColumnConfig {
   id: string;

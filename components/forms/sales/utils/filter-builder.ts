@@ -57,6 +57,28 @@ function buildEnumFilter(columnId: string, value: string): string {
   return `(${orConditions.join(" or ")})`;
 }
 
+function buildBooleanFilter(columnId: string, value: string): string {
+  const values = value
+    .split(",")
+    .map((v) => v.trim())
+    .filter(Boolean);
+  if (values.length === 0) return "";
+  if (values.length === 1) {
+    const v = values[0].toLowerCase();
+    if (v === "true" || v === "false") {
+      return `${columnId} eq ${v}`;
+    }
+    return "";
+  }
+  const orConditions = values
+    .map((v) => v.toLowerCase())
+    .filter((v) => v === "true" || v === "false")
+    .map((v) => `${columnId} eq ${v}`);
+  
+  if (orConditions.length === 0) return "";
+  return orConditions.length === 1 ? orConditions[0] : `(${orConditions.join(" or ")})`;
+}
+
 function buildDateFilter(
   columnId: string,
   valueFrom?: string,
@@ -111,6 +133,8 @@ function buildColumnFilter(
       return buildDateFilter(column.id, filter.value, filter.valueTo);
     case "number":
       return buildNumberFilter(column.id, filter.value, filter.valueTo);
+    case "boolean":
+      return filter.value ? [buildBooleanFilter(column.id, filter.value)] : [];
     default:
       return [];
   }
@@ -178,7 +202,7 @@ export function buildSalesDocumentFilterString(
       case "ge":
       case "lt":
       case "le":
-        if (f.type === "number") {
+        if (f.type === "number" || f.type === "boolean") {
           filterParts.push(`${f.field} ${f.operator} ${f.value}`);
         } else if (f.type === "date") {
           filterParts.push(`${f.field} ${f.operator} ${f.value}`);

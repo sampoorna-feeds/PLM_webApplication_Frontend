@@ -1,6 +1,6 @@
 export type SortDirection = "asc" | "desc" | null;
 
-export type FilterType = "text" | "date" | "number" | "select";
+export type FilterType = "text" | "date" | "number" | "select" | "boolean";
 
 export interface ColumnConfig {
   id: string;

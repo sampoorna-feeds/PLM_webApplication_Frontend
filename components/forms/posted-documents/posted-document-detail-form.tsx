@@ -45,6 +45,7 @@ const EXCLUDED_FIELDS = new Set([
   // Image 1
   "Buy_from_Contact_No",
   "Buy_from_Country_Region_Code",
+  "Buy_from_County",
   "BuyFromContactPhoneNo",
   "BuyFromContactMobilePhoneNo",
   "BuyFromContactEmail",
@@ -62,6 +63,7 @@ const EXCLUDED_FIELDS = new Set([
   // Image 2
   "Cancelled",
   "Corrective",
+  "Correction",
   "Pay_to_Country_Region_Code",
   "Pay_to_Contact_No",
   "PayToContactPhoneNo",
@@ -76,6 +78,7 @@ const EXCLUDED_FIELDS = new Set([
   "Tax_Area_Code",
   "Payment_Reference",
   "Creditor_No",
+  "Reference_Invoice_No",
   // Image 3
   "Vendor_Posting_Group",
   "Ship_to_Code",

@@ -244,18 +244,24 @@ export function PostedDocumentDetailForm({ tabId, context = {} }: PostedDocument
                   <TableHead className="text-right text-[10px] font-bold uppercase tracking-wider">Quantity</TableHead>
                   <TableHead className="text-[10px] font-bold uppercase tracking-wider">UOM</TableHead>
                   <TableHead className="text-right text-[10px] font-bold uppercase tracking-wider">Unit Cost</TableHead>
-                  {formType === "posted-purchase-invoice" ? (
+                  
+                  {formType === "posted-purchase-invoice" && (
+                    <TableHead className="text-right text-[10px] font-bold uppercase tracking-wider">Disc %</TableHead>
+                  )}
+                  
+                  {(formType === "posted-purchase-invoice" || formType === "posted-purchase-credit-memo") ? (
                     <>
-                      <TableHead className="text-right text-[10px] font-bold uppercase tracking-wider">Disc %</TableHead>
                       <TableHead className="text-right text-[10px] font-bold uppercase tracking-wider">Amount</TableHead>
                       <TableHead className="text-right text-[10px] font-bold uppercase tracking-wider">Disc Amt</TableHead>
                     </>
                   ) : (
                     <TableHead className="text-right text-[10px] font-bold uppercase tracking-wider">Qty Invoiced</TableHead>
                   )}
+                  
                   <TableHead className="text-[10px] font-bold uppercase tracking-wider">Dim 1</TableHead>
                   <TableHead className="text-[10px] font-bold uppercase tracking-wider">Dim 2</TableHead>
-                  {formType === "posted-purchase-invoice" && (
+                  
+                  {(formType === "posted-purchase-invoice" || formType === "posted-purchase-credit-memo") && (
                     <TableHead className="text-[10px] font-bold uppercase tracking-wider">Dim 3</TableHead>
                   )}
                 </TableRow>
@@ -264,12 +270,12 @@ export function PostedDocumentDetailForm({ tabId, context = {} }: PostedDocument
                 {isLoading ? (
                   Array.from({ length: 3 }).map((_, i) => (
                     <TableRow key={i}>
-                      <TableCell colSpan={formType === "posted-purchase-invoice" ? 13 : 9}><Skeleton className="h-4 w-full" /></TableCell>
+                      <TableCell colSpan={formType === "posted-purchase-invoice" ? 13 : formType === "posted-purchase-credit-memo" ? 11 : 9}><Skeleton className="h-4 w-full" /></TableCell>
                     </TableRow>
                   ))
                 ) : lines.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={formType === "posted-purchase-invoice" ? 13 : 9} className="h-32 text-center">
+                    <TableCell colSpan={formType === "posted-purchase-invoice" ? 13 : formType === "posted-purchase-credit-memo" ? 11 : 9} className="h-32 text-center">
                       <div className="flex flex-col items-center justify-center text-muted-foreground">
                         <p className="text-sm font-medium">No line items found</p>
                         <p className="text-xs">This document has no recorded lines.</p>
@@ -293,11 +299,14 @@ export function PostedDocumentDetailForm({ tabId, context = {} }: PostedDocument
                         {line.Direct_Unit_Cost ? Number(line.Direct_Unit_Cost).toLocaleString() : "-"}
                       </TableCell>
                       
-                      {formType === "posted-purchase-invoice" ? (
+                      {formType === "posted-purchase-invoice" && (
+                        <TableCell className="text-right text-xs font-mono">
+                          {line.Line_Discount_Percent ? Number(line.Line_Discount_Percent).toLocaleString() : "0"}
+                        </TableCell>
+                      )}
+
+                      {(formType === "posted-purchase-invoice" || formType === "posted-purchase-credit-memo") ? (
                         <>
-                          <TableCell className="text-right text-xs font-mono">
-                            {line.Line_Discount_Percent ? Number(line.Line_Discount_Percent).toLocaleString() : "0"}
-                          </TableCell>
                           <TableCell className="text-right text-xs font-bold font-mono">
                             {line.Line_Amount ? Number(line.Line_Amount).toLocaleString() : "-"}
                           </TableCell>
@@ -313,7 +322,7 @@ export function PostedDocumentDetailForm({ tabId, context = {} }: PostedDocument
                       
                       <TableCell className="text-[10px] font-medium">{line.Shortcut_Dimension_1_Code || "-"}</TableCell>
                       <TableCell className="text-[10px] font-medium">{line.Shortcut_Dimension_2_Code || "-"}</TableCell>
-                      {formType === "posted-purchase-invoice" && (
+                      {(formType === "posted-purchase-invoice" || formType === "posted-purchase-credit-memo") && (
                         <TableCell className="text-[10px] font-medium">{line.ShortcutDimCode_x005B_3_x005D_ || "-"}</TableCell>
                       )}
                     </TableRow>

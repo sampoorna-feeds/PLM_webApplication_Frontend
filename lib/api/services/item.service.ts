@@ -98,6 +98,48 @@ function getBaseFilter(locationCode?: string): string {
 }
 
 const ITEM_LIST_SELECT = "No,Description,Unit_Price,Sales_Unit_of_Measure,Purch_Unit_of_Measure";
+const PRELOAD_SELECT = "No,Description,Unit_Price,Sales_Unit_of_Measure,Purch_Unit_of_Measure,Base_Unit_of_Measure,GST_Group_Code,HSN_SAC_Code,Exempted,Bardana_Generation_Enable";
+
+// Cache for preloaded items
+let preloadedItems: Item[] = [];
+let preloadPromise: Promise<Item[]> | null = null;
+
+/**
+ * Preload initial batch of items to eliminate lag.
+ * Fetches the first 100 items and caches them.
+ */
+export async function preloadItems(): Promise<Item[]> {
+  if (preloadedItems.length > 0) return preloadedItems;
+  if (preloadPromise) return preloadPromise;
+
+  preloadPromise = (async () => {
+    try {
+      const filter = getBaseFilter();
+      const endpoint = buildItemListEndpoint(filter, {
+        top: 30,
+        orderby: "No",
+        select: PRELOAD_SELECT,
+      });
+      const response = await apiGet<ODataResponse<Item>>(endpoint);
+      preloadedItems = response.value || [];
+      return preloadedItems;
+    } catch (error) {
+      console.error("Preload items failed:", error);
+      return [];
+    } finally {
+      preloadPromise = null;
+    }
+  })();
+
+  return preloadPromise;
+}
+
+/**
+ * Get preloaded items from cache
+ */
+export function getPreloadedItems(): Item[] {
+  return preloadedItems;
+}
 
 /**
  * Builds the ItemList endpoint URL with Company and $filter (and optional OData params)
@@ -225,6 +267,14 @@ export async function getItemsPage(
   locationCode?: string,
 ): Promise<Item[]> {
   const baseFilter = getBaseFilter(locationCode);
+
+  // Use preloaded items if possible (first page, no search)
+  if (skip === 0 && (!search || search.length < 2)) {
+    const items = await preloadItems();
+    if (items.length > 0) {
+      return items.slice(0, top);
+    }
+  }
 
   if (!search || search.length < 2) {
     const endpoint = buildItemListEndpoint(baseFilter, {

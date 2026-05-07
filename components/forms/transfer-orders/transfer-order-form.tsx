@@ -58,6 +58,7 @@ import { getAuthCredentials } from "@/lib/auth/storage";
 import { useFormStack } from "@/lib/form-stack/use-form-stack";
 import { cn } from "@/lib/utils";
 import { getWebUser, type WebUser } from "@/lib/api/services/web-user.service";
+import { preloadItems } from "@/lib/api/services/item.service";
 import { isPostingDateValid } from "@/lib/utils/posting-date";
 import { Download, Eye, Loader2, Plus, Printer, RefreshCw, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
@@ -210,6 +211,8 @@ export function TransferOrderForm({
       }
     };
     loadUserContext();
+    // Preload items for line item dialogs
+    preloadItems();
   }, [isViewMode]);
 
   // Load Order Data and Lines if orderNo exists

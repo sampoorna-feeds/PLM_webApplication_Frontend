@@ -194,6 +194,7 @@ import {
   type PurchaseCopyToDocType,
 } from "@/lib/api/services/purchase-copy-document.service";
 import { getVendorDetails } from "@/lib/api/services/vendor.service";
+import { preloadItems } from "@/lib/api/services/item.service";
 
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -629,6 +630,8 @@ export function PurchaseCreateDocumentFormContent({
       setFormData((prev) => ({ ...prev, SFPL_User_ID: creds.userID }));
       getWebUser(creds.userID).then(setWebUserProfile).catch(console.error);
     }
+    // Preload items for line item dialogs
+    preloadItems();
   }, []);
 
   const persist = (data: Record<string, any>) => {

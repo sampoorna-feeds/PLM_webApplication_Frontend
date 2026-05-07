@@ -1,6 +1,7 @@
 import { apiGet, apiPost, apiPatch, apiDelete } from "../client";
 import { buildODataQuery } from "../endpoints";
 import type { ODataResponse } from "../types";
+import { getPreloadedItems } from "./item.service";
 
 export interface TransferItem {
   No: string;
@@ -746,6 +747,18 @@ export async function getTransferItems(
     $top: top,
     $skip: skip,
   };
+
+  if (skip === 0 && (!search || search.length < 2)) {
+    const preloaded = await preloadItems();
+    if (preloaded.length > 0) {
+      // Map Item to TransferItem
+      return preloaded.slice(0, top).map((item) => ({
+        ...item,
+        Production_BOM_No: (item as any).Production_BOM_No,
+        Base_Unit_of_Measure: item.Base_Unit_of_Measure,
+      })) as TransferItem[];
+    }
+  }
 
   if (!search || search.length < 2) {
     const query = buildODataQuery(queryParams);

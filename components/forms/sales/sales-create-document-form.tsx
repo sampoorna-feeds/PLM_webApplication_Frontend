@@ -163,7 +163,7 @@ import {
   postSalesOrder as post_cm,
   updateSalesLine as updateLine_cm,
 } from "@/lib/api/services/sales-credit-memos.service";
-import { getItemsByNos, getItemStock } from "@/lib/api/services/item.service";
+import { getItemsByNos, getItemStock, preloadItems } from "@/lib/api/services/item.service";
 import {
   getDistance,
   getLocationPostCode,
@@ -570,6 +570,8 @@ export function SalesCreateDocumentFormContent({
     if (creds?.userID) {
       getWebUser(creds.userID).then(setWebUserProfile).catch(console.error);
     }
+    // Preload items for line item dialogs
+    preloadItems();
   }, []);
 
   // ── Load document for view/edit ───────────────────────────────────────────

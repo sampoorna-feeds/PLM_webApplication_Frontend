@@ -161,7 +161,7 @@ export async function postQCReceipt(receiptNo: string, userID: string): Promise<
   const endpoint = `/QCcode_postQC?company='${encodeURIComponent(COMPANY)}'`;
   const payload = {
     docNo: receiptNo,
-    SFPL_User_ID: userID,
+    sFPL_User_ID: userID.toUpperCase(),
   };
 
   try {
@@ -274,14 +274,14 @@ export async function updateQCReceiptHeader(
         !["No", "@odata.etag"].includes(key)
       ) {
         const lowerKey = key.charAt(0).toLowerCase() + key.slice(1);
-        
+
         // Ensure numeric values are sent as numbers
         const numFields = [
-          "Inspection_Quantity", "Sample_Quantity", "Quantity_to_Accept", 
+          "Inspection_Quantity", "Sample_Quantity", "Quantity_to_Accept",
           "Qty_to_Accept_with_Deviation", "Quantity_to_Reject", "Quantity_to_Rework",
           "Rabete_Percent", "No_of_Container", "Remaining_Quantity"
         ];
-        
+
         if (numFields.includes(key) && typeof value === "string") {
           acc[lowerKey] = parseFloat(value) || 0;
         } else {

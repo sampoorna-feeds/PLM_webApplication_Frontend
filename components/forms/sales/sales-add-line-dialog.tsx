@@ -328,7 +328,7 @@ export function SalesAddLineDialog({
       setForm((p) => ({
         ...p,
         no: item.No,
-        description: item.Description,
+        description: item.Description || "",
         uom: item.Sales_Unit_of_Measure || p.uom,
         unitPrice: up != null ? String(up) : p.unitPrice,
       }));
@@ -341,6 +341,7 @@ export function SalesAddLineDialog({
             exempted: card.Exempted ?? p.exempted,
             gstGroupCode: card.GST_Group_Code || p.gstGroupCode,
             hsnSacCode: card.HSN_SAC_Code || p.hsnSacCode,
+            description: card.Description || "",
             uom:
               card.Sales_Unit_of_Measure ||
               card.Purch_Unit_of_Measure ||
@@ -358,7 +359,7 @@ export function SalesAddLineDialog({
       return;
     }
     if (!gl) return;
-    setForm((p) => ({ ...p, no: gl.No, description: gl.Name }));
+    setForm((p) => ({ ...p, no: gl.No, description: gl.Name || "" }));
   }, []);
 
   const handleFixedAssetChange = useCallback(
@@ -381,7 +382,7 @@ export function SalesAddLineDialog({
       setForm((p) => ({
         ...p,
         no: asset.No,
-        description: asset.Description,
+        description: asset.Description || "",
         uom: "",
       }));
     },
@@ -406,7 +407,7 @@ export function SalesAddLineDialog({
       setForm((p) => ({
         ...p,
         no: charge.No,
-        description: charge.Description || p.description,
+        description: charge.Description || "",
         uom: "",
         exempted: charge.Exempted ?? p.exempted,
         gstGroupCode: charge.GST_Group_Code || p.gstGroupCode,
@@ -498,12 +499,17 @@ export function SalesAddLineDialog({
           </DialogHeader>
 
           <div className="space-y-4 overflow-y-auto flex-1 pr-1 -mr-1 mt-4">
-            {form.description && (
-              <div className="text-sm px-1">
-                <span className="text-muted-foreground font-medium mr-1.5">Description:</span>
-                <span className="text-foreground font-medium">{form.description}</span>
-              </div>
-            )}
+            <div className="space-y-1 px-1">
+              <FieldTitle>
+                Description <span className="text-red-500">*</span>
+              </FieldTitle>
+              <Input
+                value={form.description}
+                onChange={(e) => set("description", e.target.value)}
+                placeholder="Enter description"
+                className="h-8 text-xs font-medium"
+              />
+            </div>
 
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-12">
               <div className="space-y-1 sm:col-span-2">

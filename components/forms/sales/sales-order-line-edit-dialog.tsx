@@ -470,12 +470,20 @@ export function SalesOrderLineEditDialog({
           </div>
 
           <div className="space-y-4 overflow-y-auto flex-1 pr-1 -mr-1 mt-2">
-            {description && (
-              <div className="text-sm px-1">
-                <span className="text-muted-foreground font-medium mr-1.5">Description:</span>
-                <span className="text-foreground font-medium">{description}</span>
-              </div>
-            )}
+            <div className="space-y-1 px-1">
+              <Label htmlFor="sl-description" className="text-xs">
+                Description <span className="text-red-500">*</span>
+              </Label>
+              <ClearableField value={description} onClear={() => setDescription("")} disabled={isReleased}>
+                <Input
+                  id="sl-description"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  className={fieldInputClass}
+                  disabled={isReleased}
+                />
+              </ClearableField>
+            </div>
 
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
 

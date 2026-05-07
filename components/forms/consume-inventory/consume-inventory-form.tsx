@@ -545,6 +545,18 @@ export function ConsumeInventoryForm() {
 
             <div className="space-y-1">
               <label className="text-muted-foreground ml-1 text-[11px] font-bold tracking-wider uppercase">
+                Description <span className="text-red-500">*</span>
+              </label>
+              <Input
+                className="h-10 shadow-sm focus:ring-1"
+                value={formState.Description || ""}
+                onChange={(e) => handleChange("Description", e.target.value)}
+                placeholder="Enter description"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-muted-foreground ml-1 text-[11px] font-bold tracking-wider uppercase">
                 Quantity
               </label>
               <Input

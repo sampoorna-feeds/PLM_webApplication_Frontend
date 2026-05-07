@@ -71,16 +71,6 @@ export const voucherSchema = z
   )
   .refine(
     (data) => {
-      // Account Type and Balance Account Type cannot be the same
-      return data.accountType !== data.balanceAccountType;
-    },
-    {
-      message: "Account Type and Balance Account Type cannot be the same",
-      path: ["balanceAccountType"],
-    },
-  )
-  .refine(
-    (data) => {
       // Account No. and Bal. Acc No. cannot be the same
       return data.accountNo !== data.balanceAccountNo;
     },

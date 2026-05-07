@@ -76,8 +76,11 @@ import {
   MessageSquare,
   Printer,
   Trash2,
+  Settings2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { PurchaseOrderColumnVisibility } from "./column-visibility";
+import { getPurchaseLineColumnConfig } from "./purchase-line-column-config";
 import { ClearableField } from "@/components/ui/clearable-field";
 import { RequestFailedDialog } from "@/components/ui/request-failed-dialog";
 import { PurchaseOrderLineDialog as PurchaseLineDialog } from "./purchase-order-line-dialog";
@@ -621,6 +624,36 @@ export function PurchaseCreateDocumentFormContent({
   });
   const [, startPrintMRN] = useTransition();
   const [printingMRN] = useState(false);
+  
+  // -- Line Item Columns visibility state --
+  const lineColumnConfig = useMemo(() => getPurchaseLineColumnConfig(documentType), [documentType]);
+  const [visibleLineColumns, setVisibleLineColumns] = useState<string[]>([]);
+
+  useEffect(() => {
+    setVisibleLineColumns(lineColumnConfig.loadVisibleColumns());
+  }, [lineColumnConfig]);
+
+  const handleLineColumnToggle = useCallback((columnId: string) => {
+    setVisibleLineColumns((prev) => {
+      const next = prev.includes(columnId)
+        ? prev.filter((id) => id !== columnId)
+        : [...prev, columnId];
+      lineColumnConfig.saveVisibleColumns(next);
+      return next;
+    });
+  }, [lineColumnConfig]);
+
+  const handleResetLineColumns = useCallback(() => {
+    const defaults = lineColumnConfig.getDefaultVisibleColumns();
+    setVisibleLineColumns(defaults);
+    lineColumnConfig.saveVisibleColumns(defaults);
+  }, [lineColumnConfig]);
+
+  const handleShowAllLineColumns = useCallback(() => {
+    const all = lineColumnConfig.allColumns.map(c => c.id);
+    setVisibleLineColumns(all);
+    lineColumnConfig.saveVisibleColumns(all);
+  }, [lineColumnConfig]);
   // ─────────────────────────────────────────────────────────────────────────
 
   useEffect(() => {
@@ -2722,6 +2755,14 @@ export function PurchaseCreateDocumentFormContent({
                         Add Line
                       </Button>
                     )}
+                    <PurchaseOrderColumnVisibility
+                      visibleColumns={visibleLineColumns}
+                      defaultColumns={lineColumnConfig.defaultColumns}
+                      optionalColumns={lineColumnConfig.optionalColumns}
+                      onColumnToggle={handleLineColumnToggle}
+                      onResetColumns={handleResetLineColumns}
+                      onShowAllColumns={handleShowAllLineColumns}
+                    />
                   </div>
                 </div>
 
@@ -2738,6 +2779,7 @@ export function PurchaseCreateDocumentFormContent({
                     editable={!!createdOrderNo}
                     selectedIds={selectedLineIds}
                     onSelectionChange={setSelectedLineIds}
+                    visibleColumns={visibleLineColumns}
                     onInlineUpdate={async (lineItem, patch) => {
                       if (!createdOrderNo || !lineItem.lineNo) return;
                       try {

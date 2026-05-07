@@ -1242,5 +1242,5 @@ export async function postProductionOrder(
   userID: string,
 ): Promise<void> {
   const endpoint = `/API_PostRPO?company='${encodeURIComponent(COMPANY)}'`;
-  await apiPost<void>(endpoint, { rPONo, pOstingdate: postingDate, sFPL_User_ID: userID });
+  await apiPost<void>(endpoint, { rPONo, pOstingdate: postingDate, sFPL_User_ID: userID.toUpperCase() });
 }

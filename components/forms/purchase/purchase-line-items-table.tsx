@@ -76,6 +76,8 @@ interface PurchaseLineItemsTableProps {
   selectedIds?: string[];
   /** Callback when selection changes. */
   onSelectionChange?: (ids: string[]) => void;
+  /** Visible columns for the table. */
+  visibleColumns?: string[];
 }
 
 export function PurchaseLineItemsTable({
@@ -91,7 +93,9 @@ export function PurchaseLineItemsTable({
   onInlineUpdate,
   selectedIds = [],
   onSelectionChange,
+  visibleColumns = [],
 }: PurchaseLineItemsTableProps) {
+  const isVisible = useCallback((id: string) => visibleColumns.includes(id), [visibleColumns]);
   const [itemToRemove, setItemToRemove] = useState<string | null>(null);
   const quantityColumns = getPurchaseLineQuantityConfig(documentType);
   const showQtyColumns = documentType === "order" || documentType === "return-order";
@@ -189,88 +193,134 @@ export function PurchaseLineItemsTable({
                   aria-label="Select all"
                 />
               </TableHead>
-              <TableHead className="text-primary w-16 text-[11px] font-bold tracking-wider uppercase">
-                Line
-              </TableHead>
-              <TableHead className="text-primary w-24 text-[11px] font-bold tracking-wider uppercase">
-                Type
-              </TableHead>
-              <TableHead className="text-primary w-32 text-[11px] font-bold tracking-wider uppercase">
-                No
-              </TableHead>
-              <TableHead className="text-primary min-w-50 text-[11px] font-bold tracking-wider uppercase">
-                Description
-              </TableHead>
-              <TableHead className="text-primary w-24 text-[11px] font-bold tracking-wider uppercase">
-                UOM
-              </TableHead>
-              {showBagsColumn && (
+              {isVisible("lineNo") && (
+                <TableHead className="text-primary w-16 text-[11px] font-bold tracking-wider uppercase">
+                  Line
+                </TableHead>
+              )}
+              {isVisible("type") && (
+                <TableHead className="text-primary w-24 text-[11px] font-bold tracking-wider uppercase">
+                  Type
+                </TableHead>
+              )}
+              {isVisible("no") && (
+                <TableHead className="text-primary w-32 text-[11px] font-bold tracking-wider uppercase">
+                  No
+                </TableHead>
+              )}
+              {isVisible("description") && (
+                <TableHead className="text-primary min-w-50 text-[11px] font-bold tracking-wider uppercase">
+                  Description
+                </TableHead>
+              )}
+              {isVisible("uom") && (
+                <TableHead className="text-primary w-24 text-[11px] font-bold tracking-wider uppercase">
+                  UOM
+                </TableHead>
+              )}
+              {showBagsColumn && isVisible("noOfBags") && (
                 <TableHead className="text-primary w-24 text-right text-[11px] font-bold tracking-wider uppercase">
                   Bags
                 </TableHead>
               )}
-              <TableHead className="text-primary w-12 text-center text-[11px] font-bold tracking-wider uppercase">
-                Tax
-              </TableHead>
-              <TableHead className="text-primary w-24 text-right text-[11px] font-bold tracking-wider uppercase">
-                Quantity
-              </TableHead>
+              {isVisible("tax") && (
+                <TableHead className="text-primary w-12 text-center text-[11px] font-bold tracking-wider uppercase">
+                  Tax
+                </TableHead>
+              )}
+              {isVisible("quantity") && (
+                <TableHead className="text-primary w-24 text-right text-[11px] font-bold tracking-wider uppercase">
+                  Quantity
+                </TableHead>
+              )}
               {showExtendedQtyColumns && (
                 <>
-                  <TableHead className="text-primary w-24 text-right text-[11px] font-bold tracking-wider uppercase">
-                    Outstanding Qty
-                  </TableHead>
-                  <TableHead className="text-primary w-24 text-right text-[11px] font-bold tracking-wider uppercase">
-                    Challan Qty
-                  </TableHead>
-                  <TableHead className="text-primary w-24 text-right text-[11px] font-bold tracking-wider uppercase">
-                    Weight Qty
-                  </TableHead>
-                  <TableHead className="text-primary w-24 text-right text-[11px] font-bold tracking-wider uppercase">
-                    Actual Qty
-                  </TableHead>
-                  <TableHead className="text-primary w-24 text-right text-[11px] font-bold tracking-wider uppercase">
-                    Short/Excess
-                  </TableHead>
+                  {isVisible("outstandingQty") && (
+                    <TableHead className="text-primary w-24 text-right text-[11px] font-bold tracking-wider uppercase">
+                      Outstanding Qty
+                    </TableHead>
+                  )}
+                  {isVisible("challanQty") && (
+                    <TableHead className="text-primary w-24 text-right text-[11px] font-bold tracking-wider uppercase">
+                      Challan Qty
+                    </TableHead>
+                  )}
+                  {isVisible("weightQty") && (
+                    <TableHead className="text-primary w-24 text-right text-[11px] font-bold tracking-wider uppercase">
+                      Weight Qty
+                    </TableHead>
+                  )}
+                  {isVisible("actualQty") && (
+                    <TableHead className="text-primary w-24 text-right text-[11px] font-bold tracking-wider uppercase">
+                      Actual Qty
+                    </TableHead>
+                  )}
+                  {isVisible("shortExcess") && (
+                    <TableHead className="text-primary w-24 text-right text-[11px] font-bold tracking-wider uppercase">
+                      Short/Excess
+                    </TableHead>
+                  )}
                 </>
               )}
               {showQtyColumns && (
                 <>
-                  <TableHead className="text-primary w-24 text-right text-[11px] font-bold tracking-wider uppercase">
-                    {quantityColumns.firstPendingLabel}
-                  </TableHead>
-                  <TableHead className="text-primary w-24 text-right text-[11px] font-bold tracking-wider uppercase">
-                    {quantityColumns.firstCompletedLabel}
-                  </TableHead>
-                  <TableHead className="text-primary w-24 text-right text-[11px] font-bold tracking-wider uppercase">
-                    {quantityColumns.secondPendingLabel}
-                  </TableHead>
-                  <TableHead className="text-primary w-24 text-right text-[11px] font-bold tracking-wider uppercase">
-                    {quantityColumns.secondCompletedLabel}
-                  </TableHead>
+                  {isVisible("firstPending") && (
+                    <TableHead className="text-primary w-24 text-right text-[11px] font-bold tracking-wider uppercase">
+                      {quantityColumns.firstPendingLabel}
+                    </TableHead>
+                  )}
+                  {isVisible("firstCompleted") && (
+                    <TableHead className="text-primary w-24 text-right text-[11px] font-bold tracking-wider uppercase">
+                      {quantityColumns.firstCompletedLabel}
+                    </TableHead>
+                  )}
+                  {isVisible("secondPending") && (
+                    <TableHead className="text-primary w-24 text-right text-[11px] font-bold tracking-wider uppercase">
+                      {quantityColumns.secondPendingLabel}
+                    </TableHead>
+                  )}
+                  {isVisible("secondCompleted") && (
+                    <TableHead className="text-primary w-24 text-right text-[11px] font-bold tracking-wider uppercase">
+                      {quantityColumns.secondCompletedLabel}
+                    </TableHead>
+                  )}
                 </>
               )}
-              <TableHead className="text-primary w-32 text-right text-[11px] font-bold tracking-wider uppercase">
-                Unit Price
-              </TableHead>
-              <TableHead className="text-primary w-24 text-right text-[11px] font-bold tracking-wider uppercase">
-                Disc %
-              </TableHead>
-              <TableHead className="text-primary w-32 text-right text-[11px] font-bold tracking-wider uppercase">
-                Amount
-              </TableHead>
-              <TableHead className="text-primary w-32 text-[11px] font-bold tracking-wider uppercase">
-                GST Group
-              </TableHead>
-              <TableHead className="text-primary w-32 text-[11px] font-bold tracking-wider uppercase">
-                HSN/SAC
-              </TableHead>
-              <TableHead className="text-primary w-32 text-[11px] font-bold tracking-wider uppercase">
-                GST Credit
-              </TableHead>
-              <TableHead className="text-primary w-24 text-center text-[11px] font-bold tracking-wider uppercase">
-                Exempt
-              </TableHead>
+              {isVisible("unitPrice") && (
+                <TableHead className="text-primary w-32 text-right text-[11px] font-bold tracking-wider uppercase">
+                  Unit Price
+                </TableHead>
+              )}
+              {isVisible("discount") && (
+                <TableHead className="text-primary w-24 text-right text-[11px] font-bold tracking-wider uppercase">
+                  Disc %
+                </TableHead>
+              )}
+              {isVisible("amount") && (
+                <TableHead className="text-primary w-32 text-right text-[11px] font-bold tracking-wider uppercase">
+                  Amount
+                </TableHead>
+              )}
+              {isVisible("gstGroupCode") && (
+                <TableHead className="text-primary w-32 text-[11px] font-bold tracking-wider uppercase">
+                  GST Group
+                </TableHead>
+              )}
+              {isVisible("hsnSacCode") && (
+                <TableHead className="text-primary w-32 text-[11px] font-bold tracking-wider uppercase">
+                  HSN/SAC
+                </TableHead>
+              )}
+              {isVisible("gstCredit") && (
+                <TableHead className="text-primary w-32 text-[11px] font-bold tracking-wider uppercase">
+                  GST Credit
+                </TableHead>
+              )}
+              {isVisible("exempted") && (
+                <TableHead className="text-primary w-24 text-center text-[11px] font-bold tracking-wider uppercase">
+                  Exempt
+                </TableHead>
+              )}
               {onRemove && (
                 <TableHead className="text-primary w-12 text-center text-[11px] font-bold tracking-wider uppercase">
                   Del
@@ -302,16 +352,20 @@ export function PurchaseLineItemsTable({
                     aria-label={`Select row ${item.lineNo}`}
                   />
                 </TableCell>
-                <TableCell className="font-medium">
-                  {item.lineNo || "-"}
-                </TableCell>
-                <TableCell>{item.type}</TableCell>
-                <TableCell>{item.no}</TableCell>
-                <TableCell className="max-w-75 truncate">
-                  {item.description}
-                </TableCell>
-                <TableCell>{item.uom || "-"}</TableCell>
-                {showBagsColumn && (
+                {isVisible("lineNo") && (
+                  <TableCell className="font-medium">
+                    {item.lineNo || "-"}
+                  </TableCell>
+                )}
+                {isVisible("type") && <TableCell>{item.type}</TableCell>}
+                {isVisible("no") && <TableCell>{item.no}</TableCell>}
+                {isVisible("description") && (
+                  <TableCell className="max-w-75 truncate">
+                    {item.description}
+                  </TableCell>
+                )}
+                {isVisible("uom") && <TableCell>{item.uom || "-"}</TableCell>}
+                {showBagsColumn && isVisible("noOfBags") && (
                   <EditableQtyCell
                     value={item.noOfBags}
                     isDirty={savingId === item.id}
@@ -321,136 +375,166 @@ export function PurchaseLineItemsTable({
                     }
                   />
                 )}
-                <TableCell className="text-center">
-                  {item.lineNo && item.lineNo > 0 && documentNo ? (
-                    <div onClick={(e) => e.stopPropagation()}>
-                      <TaxInfoPopover
-                        documentNo={documentNo}
-                        lineNo={item.lineNo}
-                      />
-                    </div>
-                  ) : (
-                    "-"
-                  )}
-                </TableCell>
-                <TableCell className="text-right font-medium">
-                  {item.quantity}
-                </TableCell>
+                {isVisible("tax") && (
+                  <TableCell className="text-center">
+                    {item.lineNo && item.lineNo > 0 && documentNo ? (
+                      <div onClick={(e) => e.stopPropagation()}>
+                        <TaxInfoPopover
+                          documentNo={documentNo}
+                          lineNo={item.lineNo}
+                        />
+                      </div>
+                    ) : (
+                      "-"
+                    )}
+                  </TableCell>
+                )}
+                {isVisible("quantity") && (
+                  <TableCell className="text-right font-medium">
+                    {item.quantity}
+                  </TableCell>
+                )}
                 {showExtendedQtyColumns && (
                   <>
-                    <TableCell className="text-right">
-                      {item.outstandingQty || "0"}
-                    </TableCell>
-                    <EditableQtyCell
-                      value={item.challanQty}
-                      isDirty={savingId === item.id}
-                      onChange={() => { }}
-                      onCommit={(next) =>
-                        handleCommitInline(item, "Challan_Qty", next)
-                      }
-                    />
-                    <EditableQtyCell
-                      value={item.weightQty}
-                      isDirty={savingId === item.id}
-                      onChange={() => { }}
-                      onCommit={(next) =>
-                        handleCommitInline(item, "Weight_Qty", next)
-                      }
-                    />
-                    <EditableQtyCell
-                      value={(item as any).actualQty}
-                      isDirty={savingId === item.id}
-                      onChange={() => { }}
-                      onCommit={(next) =>
-                        handleCommitInline(item, "Actual_Qty", next)
-                      }
-                    />
-                    <TableCell className="text-right">
-                      {((item.weightQty || 0) - (item.challanQty || 0))}
-                    </TableCell>
+                    {isVisible("outstandingQty") && (
+                      <TableCell className="text-right">
+                        {item.outstandingQty || "0"}
+                      </TableCell>
+                    )}
+                    {isVisible("challanQty") && (
+                      <EditableQtyCell
+                        value={item.challanQty}
+                        isDirty={savingId === item.id}
+                        onChange={() => { }}
+                        onCommit={(next) =>
+                          handleCommitInline(item, "Challan_Qty", next)
+                        }
+                      />
+                    )}
+                    {isVisible("weightQty") && (
+                      <EditableQtyCell
+                        value={item.weightQty}
+                        isDirty={savingId === item.id}
+                        onChange={() => { }}
+                        onCommit={(next) =>
+                          handleCommitInline(item, "Weight_Qty", next)
+                        }
+                      />
+                    )}
+                    {isVisible("actualQty") && (
+                      <EditableQtyCell
+                        value={(item as any).actualQty}
+                        isDirty={savingId === item.id}
+                        onChange={() => { }}
+                        onCommit={(next) =>
+                          handleCommitInline(item, "Actual_Qty", next)
+                        }
+                      />
+                    )}
+                    {isVisible("shortExcess") && (
+                      <TableCell className="text-right">
+                        {((item.weightQty || 0) - (item.challanQty || 0))}
+                      </TableCell>
+                    )}
                   </>
                 )}
                 {showQtyColumns && (
                   <>
-                    {canInlineEdit ? (
-                      <EditableQtyCell
-                        value={
-                          item[
-                          quantityColumns.firstPendingKey as keyof LineItem
-                          ] as number | undefined
-                        }
-                        isDirty={savingId === item.id}
-                        onChange={() => { }}
-                        onCommit={(next) =>
-                          handleCommitInline(
+                    {isVisible("firstPending") && (
+                      canInlineEdit ? (
+                        <EditableQtyCell
+                          value={
+                            item[
+                            quantityColumns.firstPendingKey as keyof LineItem
+                            ] as number | undefined
+                          }
+                          isDirty={savingId === item.id}
+                          onChange={() => { }}
+                          onCommit={(next) =>
+                            handleCommitInline(
+                              item,
+                              quantityColumns.firstPendingBcField,
+                              next,
+                            )
+                          }
+                        />
+                      ) : (
+                        <TableCell className="text-right">
+                          {getQuantityDisplayValue(
                             item,
-                            quantityColumns.firstPendingBcField,
-                            next,
-                          )
-                        }
-                      />
-                    ) : (
+                            quantityColumns.firstPendingKey,
+                          )}
+                        </TableCell>
+                      )
+                    )}
+                    {isVisible("firstCompleted") && (
                       <TableCell className="text-right">
                         {getQuantityDisplayValue(
                           item,
-                          quantityColumns.firstPendingKey,
+                          quantityColumns.firstCompletedKey,
                         )}
                       </TableCell>
                     )}
-                    <TableCell className="text-right">
-                      {getQuantityDisplayValue(
-                        item,
-                        quantityColumns.firstCompletedKey,
-                      )}
-                    </TableCell>
-                    {canInlineEdit ? (
-                      <EditableQtyCell
-                        value={
-                          item[
-                          quantityColumns.secondPendingKey as keyof LineItem
-                          ] as number | undefined
-                        }
-                        isDirty={savingId === item.id}
-                        onChange={() => { }}
-                        onCommit={(next) =>
-                          handleCommitInline(
+                    {isVisible("secondPending") && (
+                      canInlineEdit ? (
+                        <EditableQtyCell
+                          value={
+                            item[
+                            quantityColumns.secondPendingKey as keyof LineItem
+                            ] as number | undefined
+                          }
+                          isDirty={savingId === item.id}
+                          onChange={() => { }}
+                          onCommit={(next) =>
+                            handleCommitInline(
+                              item,
+                              quantityColumns.secondPendingBcField,
+                              next,
+                            )
+                          }
+                        />
+                      ) : (
+                        <TableCell className="text-right">
+                          {getQuantityDisplayValue(
                             item,
-                            quantityColumns.secondPendingBcField,
-                            next,
-                          )
-                        }
-                      />
-                    ) : (
+                            quantityColumns.secondPendingKey,
+                          )}
+                        </TableCell>
+                      )
+                    )}
+                    {isVisible("secondCompleted") && (
                       <TableCell className="text-right">
                         {getQuantityDisplayValue(
                           item,
-                          quantityColumns.secondPendingKey,
+                          quantityColumns.secondCompletedKey,
                         )}
                       </TableCell>
                     )}
-                    <TableCell className="text-right">
-                      {getQuantityDisplayValue(
-                        item,
-                        quantityColumns.secondCompletedKey,
-                      )}
-                    </TableCell>
                   </>
                 )}
-                <TableCell className="text-right">
-                  {item.unitPrice || 0}
-                </TableCell>
-                <TableCell className="text-right">
-                  {item.discount > 0 ? `${item.discount}%` : "-"}
-                </TableCell>
-                <TableCell className="text-right font-bold">
-                  {item.amount || 0}
-                </TableCell>
-                <TableCell>{item.gstGroupCode || "-"}</TableCell>
-                <TableCell>{item.hsnSacCode || "-"}</TableCell>
-                <TableCell>{item.gstCredit || "-"}</TableCell>
-                <TableCell className="text-center">
-                  {item.exempted ? "Yes" : "No"}
-                </TableCell>
+                {isVisible("unitPrice") && (
+                  <TableCell className="text-right">
+                    {item.unitPrice || 0}
+                  </TableCell>
+                )}
+                {isVisible("discount") && (
+                  <TableCell className="text-right">
+                    {item.discount > 0 ? `${item.discount}%` : "-"}
+                  </TableCell>
+                )}
+                {isVisible("amount") && (
+                  <TableCell className="text-right font-bold">
+                    {item.amount || 0}
+                  </TableCell>
+                )}
+                {isVisible("gstGroupCode") && <TableCell>{item.gstGroupCode || "-"}</TableCell>}
+                {isVisible("hsnSacCode") && <TableCell>{item.hsnSacCode || "-"}</TableCell>}
+                {isVisible("gstCredit") && <TableCell>{item.gstCredit || "-"}</TableCell>}
+                {isVisible("exempted") && (
+                  <TableCell className="text-center">
+                    {item.exempted ? "Yes" : "No"}
+                  </TableCell>
+                )}
 
 
                 {onRemove && (

@@ -531,7 +531,7 @@ export async function postSalesOrder(
   return apiPost<unknown>(endpoint, {
     docNo,
     defaultOption,
-    sFPL_User_ID: userID,
+    sFPL_User_ID: userID.toUpperCase(),
   });
 }
 

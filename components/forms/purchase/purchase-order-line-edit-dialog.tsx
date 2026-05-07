@@ -642,7 +642,7 @@ export function PurchaseOrderLineEditDialog({
             {/* Description — always first, takes 2 columns to leave room for Applies to Item Entry */}
             <div className="space-y-1 sm:col-span-2 lg:col-span-2">
               <Label htmlFor="po-line-description" className="text-xs">
-                Description
+                Description <span className="text-red-500">*</span>
               </Label>
               <ClearableField
                 value={description}

@@ -148,6 +148,7 @@ export function ProductionOrderComponentDialog({
 
       // Update local state
       setItemNo(sub.Item_No);
+      setDescription(sub.Description || "");
       toast.success(`Component updated with substitute: ${sub.Item_No}`);
 
       // Close substitute dialog
@@ -275,7 +276,7 @@ export function ProductionOrderComponentDialog({
                 htmlFor="description"
                 className="text-left text-sm sm:text-right"
               >
-                Description
+                Description <span className="text-red-500">*</span>
               </Label>
               <Input
                 id="description"

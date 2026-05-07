@@ -184,7 +184,7 @@ export function TransferOrderLineDialog({
       setFormData(prev => ({
         ...prev,
         Item_No: item.No,
-        Description: item.Description,
+        Description: item.Description || "",
         Unit_of_Measure_Code: item.Base_Unit_of_Measure,
         GST_Group_Code: item.GST_Group_Code as string,
         HSN_SAC_Code: item.HSN_SAC_Code as string,
@@ -299,7 +299,7 @@ export function TransferOrderLineDialog({
                     setFormData(prev => ({
                       ...prev,
                       Item_No: item.No,
-                      Description: item.Description,
+                      Description: item.Description || "",
                       Unit_of_Measure_Code: item.Base_Unit_of_Measure,
                     }));
                     handleItemChange(item.No);

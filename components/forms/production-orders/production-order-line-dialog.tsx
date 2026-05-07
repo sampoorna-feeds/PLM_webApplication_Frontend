@@ -160,7 +160,7 @@ export function ProductionOrderLineDialog({
                 htmlFor="description"
                 className="text-left text-sm sm:text-right"
               >
-                Description
+                Description <span className="text-red-500">*</span>
               </Label>
               <Input
                 id="description"

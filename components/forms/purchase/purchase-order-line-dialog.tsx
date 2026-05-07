@@ -399,7 +399,7 @@ export function PurchaseOrderLineDialog({
         setFormState((prev) => ({
           ...prev,
           no: account.No,
-          description: account.Name,
+          description: account.Name || "",
         }));
       }
     },
@@ -430,7 +430,7 @@ export function PurchaseOrderLineDialog({
     setFormState((prev) => ({
       ...prev,
       no: item.No,
-      description: item.Description,
+      description: item.Description || "",
       uom: item.Purch_Unit_of_Measure || item.Sales_Unit_of_Measure || prev.uom,
       price: unitPrice,
       unitPrice,
@@ -449,6 +449,7 @@ export function PurchaseOrderLineDialog({
             gstGroupCode: cardItem.GST_Group_Code ?? "",
             hsnSacCode: cardItem.HSN_SAC_Code ?? "",
             gstCredit: cardItem.GST_Credit || prev.gstCredit || "",
+            description: cardItem.Description || "",
             uom:
               cardItem.Purch_Unit_of_Measure ||
               cardItem.Sales_Unit_of_Measure ||
@@ -615,12 +616,17 @@ export function PurchaseOrderLineDialog({
         </DialogHeader>
 
         <div className="space-y-4 overflow-y-auto flex-1 pr-1 -mr-1">
-          {formState.description && (
-            <div className="text-sm px-1">
-              <span className="text-muted-foreground font-medium mr-1.5">Description:</span>
-              <span className="text-foreground font-medium">{formState.description}</span>
-            </div>
-          )}
+          <div className="space-y-1 px-1">
+            <FieldTitle>
+              Description <span className="text-red-500">*</span>
+            </FieldTitle>
+            <Input
+              value={formState.description || ""}
+              onChange={(e) => handleFieldChange("description", e.target.value)}
+              placeholder="Enter description"
+              className="h-8 text-xs font-medium"
+            />
+          </div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-12">
             <div className="space-y-1 sm:col-span-2">
               <FieldTitle>Type</FieldTitle>
@@ -726,7 +732,7 @@ export function PurchaseOrderLineDialog({
                           setFormState((prev) => ({
                             ...prev,
                             no: asset.No,
-                            description: asset.Description,
+                            description: asset.Description || "",
                             uom: "",
                           }));
                         }}
@@ -786,7 +792,7 @@ export function PurchaseOrderLineDialog({
                           setFormState((prev) => ({
                             ...prev,
                             no: charge.No,
-                            description: charge.Description || prev.description,
+                            description: charge.Description || "",
                             uom: "",
                             exempted: charge.Exempted ?? prev.exempted,
                             gstGroupCode:

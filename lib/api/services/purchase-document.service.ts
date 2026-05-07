@@ -164,7 +164,7 @@ export async function createPurchaseDocumentCopyBootstrapHeader(
   const endpoint = `/${config.headerEntity}?company='${encodeURIComponent(COMPANY)}'`;
   const payload = stripEmptyValues({
     Location_Code: locationCode,
-    SFPL_User_ID: userID || "",
+    sFPL_User_ID: userID?.toUpperCase() || "",
   });
 
   const response = await apiPost<CreateHeaderApiResponse>(endpoint, payload);
@@ -229,7 +229,7 @@ export async function addSinglePurchaseDocumentLine(
   documentType: PurchaseDocumentAdapterType,
   documentNo: string,
   lineItem: PurchaseOrderLineItem,
-): Promise<{ Line_No: number; [key: string]: unknown }> {
+): Promise<{ Line_No: number;[key: string]: unknown }> {
   const config = PURCHASE_DOCUMENT_ADAPTER_CONFIG[documentType];
   const endpoint = `/${config.lineEntity}?company='${encodeURIComponent(COMPANY)}'`;
   const payload = buildCreatePurchaseLinePayload(
@@ -238,7 +238,7 @@ export async function addSinglePurchaseDocumentLine(
     lineItem,
   );
 
-  return apiPost<{ Line_No: number; [key: string]: unknown }>(
+  return apiPost<{ Line_No: number;[key: string]: unknown }>(
     endpoint,
     payload,
   );
@@ -249,13 +249,13 @@ export async function updateSinglePurchaseDocumentLine(
   documentNo: string,
   lineNo: number,
   lineItem: Partial<PurchaseOrderLineItem>,
-): Promise<{ Line_No: number; [key: string]: unknown }> {
+): Promise<{ Line_No: number;[key: string]: unknown }> {
   const config = PURCHASE_DOCUMENT_ADAPTER_CONFIG[documentType];
   const escapedNo = documentNo.replace(/'/g, "''");
   const endpoint = `/${config.lineEntity}(Document_Type='${config.documentTypeValue}',Document_No='${encodeURIComponent(escapedNo)}',Line_No=${lineNo})?company='${encodeURIComponent(COMPANY)}'`;
   const payload = buildUpdatePurchaseLinePayload(lineItem);
 
-  return apiPatch<{ Line_No: number; [key: string]: unknown }>(
+  return apiPatch<{ Line_No: number;[key: string]: unknown }>(
     endpoint,
     payload,
   );

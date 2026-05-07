@@ -390,25 +390,8 @@ export function VoucherForm() {
     formData.balanceAccountNo &&
     balanceTcsSections.length > 0;
 
-  // Progressive field enablement logic
-  // When editing (pendingEditId !== null), enable all fields
+  // Progressive field enablement logic - REMOVED
   const isEditing = pendingEditId !== null;
-  const datesFilled = formData.postingDate && formData.documentDate;
-  const voucherTypeEnabled = isEditing || datesFilled;
-  const accountTypeEnabled =
-    isEditing ||
-    (voucherTypeEnabled && formData.voucherType && formData.documentType);
-  const accountNoEnabled =
-    isEditing || (accountTypeEnabled && formData.accountType);
-  const basicFieldsEnabled =
-    isEditing || (accountNoEnabled && formData.accountNo);
-  const balanceAccountEnabled =
-    isEditing || (basicFieldsEnabled && formData.amount);
-  const restFieldsEnabled =
-    isEditing ||
-    (balanceAccountEnabled &&
-      formData.balanceAccountType &&
-      formData.balanceAccountNo);
 
   const postingDateRef = useRef<HTMLInputElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -2088,14 +2071,13 @@ export function VoucherForm() {
                   updateField("documentType", null);
                 }
               }}
-              disabled={!voucherTypeEnabled}
+              disabled={false}
             >
               <SelectTrigger
                 className={cn(
                   control,
                   getFieldErrorClass("voucherType"),
                   "w-full",
-                  !voucherTypeEnabled && "cursor-not-allowed",
                 )}
                 data-field-error={hasError("voucherType")}
               >
@@ -2119,14 +2101,13 @@ export function VoucherForm() {
               onValueChange={(v) =>
                 updateField("documentType", v as VoucherFormData["documentType"])
               }
-              disabled={!voucherTypeEnabled}
+              disabled={false}
             >
               <SelectTrigger
                 className={cn(
                   control,
                   getFieldErrorClass("documentType"),
                   "w-full",
-                  !voucherTypeEnabled && "cursor-not-allowed",
                 )}
                 data-field-error={hasError("documentType")}
               >
@@ -2157,14 +2138,13 @@ export function VoucherForm() {
             <Select
               value={formData.accountType || undefined}
               onValueChange={handleAccountTypeChange}
-              disabled={!accountTypeEnabled}
+              disabled={false}
             >
               <SelectTrigger
                 className={cn(
                   control,
                   getFieldErrorClass("accountType"),
                   "w-full",
-                  !accountTypeEnabled && "cursor-not-allowed",
                 )}
                 data-field-error={hasError("accountType")}
               >
@@ -2193,10 +2173,10 @@ export function VoucherForm() {
                 }
               }}
               placeholder={getPlaceholder("accountNo", "")}
-              className={cn(control, !accountNoEnabled && "cursor-not-allowed")}
+              className={cn(control)}
               hasError={hasError("accountNo")}
               errorClass={getFieldErrorClass("accountNo")}
-              disabled={!accountNoEnabled}
+              disabled={false}
             />
           </CellWithTooltip>
         </div>
@@ -2217,14 +2197,14 @@ export function VoucherForm() {
                     updateField("accountTdsSection", { tdsType: value });
                   }
                 }}
-                disabled={!accountNoEnabled || !formData.accountNo}
+                disabled={!formData.accountNo}
               >
                 <SelectTrigger
                   className={cn(
                     control,
                     getFieldErrorClass("accountTdsSection.tdsType"),
                     "w-full",
-                    (!accountNoEnabled || !formData.accountNo) &&
+                    !formData.accountNo &&
                       "cursor-not-allowed",
                   )}
                   data-field-error={hasError("accountTdsSection.tdsType")}
@@ -2271,14 +2251,14 @@ export function VoucherForm() {
                     updateField("accountTcsSection", { tcsType: value });
                   }
                 }}
-                disabled={!accountNoEnabled || !formData.accountNo}
+                disabled={!formData.accountNo}
               >
                 <SelectTrigger
                   className={cn(
                     control,
                     getFieldErrorClass("accountTcsSection.tcsType"),
                     "w-full",
-                    (!accountNoEnabled || !formData.accountNo) &&
+                    !formData.accountNo &&
                       "cursor-not-allowed",
                   )}
                   data-field-error={hasError("accountTcsSection.tcsType")}
@@ -2331,8 +2311,8 @@ export function VoucherForm() {
             <Input
               value={formData.externalDocumentNo}
               onChange={(e) => updateField("externalDocumentNo", e.target.value)}
-              className={cn(control, !basicFieldsEnabled && "cursor-not-allowed")}
-              disabled={!basicFieldsEnabled}
+              className={cn(control)}
+              disabled={false}
             />
           </InputWithTooltip>
         </div>
@@ -2354,8 +2334,8 @@ export function VoucherForm() {
             <Input
               value={formData.description}
               onChange={(e) => updateField("description", e.target.value)}
-              className={cn(control, !basicFieldsEnabled && "cursor-not-allowed")}
-              disabled={!basicFieldsEnabled}
+              className={cn(control)}
+              disabled={false}
             />
           </InputWithTooltip>
         </div>
@@ -2375,8 +2355,8 @@ export function VoucherForm() {
             <CalculatorInput
               value={formData.amount}
               onValueChange={(val) => updateField("amount", val)}
-              className={cn(control, "text-right tabular-nums", !basicFieldsEnabled && "cursor-not-allowed")}
-              disabled={!basicFieldsEnabled}
+              className={cn(control, "text-right tabular-nums")}
+              disabled={false}
             />
           </InputWithTooltip>
         </div>
@@ -2391,36 +2371,24 @@ export function VoucherForm() {
                 updateField("balanceAccountType", v as VoucherFormData["balanceAccountType"]);
                 updateField("balanceAccountNo", "");
               }}
-              disabled={
-                !balanceAccountEnabled ||
-                formData.accountType === "Customer" ||
-                formData.accountType === "Vendor"
-              }
+              disabled={false}
             >
               <SelectTrigger
                 className={cn(
                   control,
                   getFieldErrorClass("balanceAccountType"),
                   "w-full",
-                  (!balanceAccountEnabled ||
-                    formData.accountType === "Customer" ||
-                    formData.accountType === "Vendor") &&
-                    "cursor-not-allowed",
                 )}
                 data-field-error={hasError("balanceAccountType")}
               >
                 <SelectValue placeholder={getPlaceholder("balanceAccountType", "")} />
               </SelectTrigger>
               <SelectContent>
-                {formData.accountType === "G/L Account" ? (
-                  <>
-                    <SelectItem value="G/L Account" disabled={true}>G/L Account</SelectItem>
-                    <SelectItem value="Customer">Customer</SelectItem>
-                    <SelectItem value="Vendor">Vendor</SelectItem>
-                  </>
-                ) : (
+                <>
                   <SelectItem value="G/L Account">G/L Account</SelectItem>
-                )}
+                  <SelectItem value="Customer">Customer</SelectItem>
+                  <SelectItem value="Vendor">Vendor</SelectItem>
+                </>
               </SelectContent>
             </Select>
           </CellWithTooltip>
@@ -2435,11 +2403,11 @@ export function VoucherForm() {
               value={formData.balanceAccountNo}
               onChange={(value) => updateField("balanceAccountNo", value)}
               placeholder={getPlaceholder("balanceAccountNo", "")}
-              className={cn(control, !balanceAccountEnabled && "cursor-not-allowed")}
+              className={cn(control)}
               hasError={hasError("balanceAccountNo")}
               errorClass={getFieldErrorClass("balanceAccountNo")}
               excludeValue={formData.accountNo}
-              disabled={!balanceAccountEnabled}
+              disabled={false}
             />
           </CellWithTooltip>
         </div>
@@ -2460,14 +2428,14 @@ export function VoucherForm() {
                     updateField("balanceTdsSection", { tdsType: value });
                   }
                 }}
-                disabled={!balanceAccountEnabled || !formData.balanceAccountNo}
+                disabled={!formData.balanceAccountNo}
               >
                 <SelectTrigger
                   className={cn(
                     control,
                     getFieldErrorClass("balanceTdsSection.tdsType"),
                     "w-full",
-                    (!balanceAccountEnabled || !formData.balanceAccountNo) &&
+                    !formData.balanceAccountNo &&
                       "cursor-not-allowed",
                   )}
                   data-field-error={hasError("balanceTdsSection.tdsType")}
@@ -2514,14 +2482,14 @@ export function VoucherForm() {
                     updateField("balanceTcsSection", { tcsType: value });
                   }
                 }}
-                disabled={!balanceAccountEnabled || !formData.balanceAccountNo}
+                disabled={!formData.balanceAccountNo}
               >
                 <SelectTrigger
                   className={cn(
                     control,
                     getFieldErrorClass("balanceTcsSection.tcsType"),
                     "w-full",
-                    (!balanceAccountEnabled || !formData.balanceAccountNo) &&
+                    !formData.balanceAccountNo &&
                       "cursor-not-allowed",
                   )}
                   data-field-error={hasError("balanceTcsSection.tcsType")}
@@ -2572,8 +2540,8 @@ export function VoucherForm() {
             <Input
               value={formData.lineNarration}
               onChange={(e) => updateField("lineNarration", e.target.value)}
-              className={cn(control, !restFieldsEnabled && "cursor-not-allowed")}
-              disabled={!restFieldsEnabled}
+              className={cn(control)}
+              disabled={false}
             />
           </InputWithTooltip>
         </div>
@@ -2591,11 +2559,11 @@ export function VoucherForm() {
                 if (formData.loc) updateField("loc", "");
               }}
               placeholder={getPlaceholder("lob", "Select LOB")}
-              className={cn(control, !restFieldsEnabled && "cursor-not-allowed")}
+              className={cn(control)}
               userId={userID || undefined}
               hasError={hasError("lob")}
               errorClass={getFieldErrorClass("lob")}
-              disabled={!restFieldsEnabled}
+              disabled={false}
             />
           </CellWithTooltip>
         </div>
@@ -2612,12 +2580,12 @@ export function VoucherForm() {
                 if (formData.loc) updateField("loc", "");
               }}
               placeholder={getPlaceholder("branch", "Select Branch")}
-              className={cn(control, !restFieldsEnabled && "cursor-not-allowed")}
+              className={cn(control)}
               hasError={hasError("branch")}
               userId={userID || undefined}
               lobValue={formData.lob}
               errorClass={getFieldErrorClass("branch")}
-              disabled={!restFieldsEnabled}
+              disabled={false}
             />
           </CellWithTooltip>
         </div>
@@ -2630,9 +2598,9 @@ export function VoucherForm() {
               value={formData.loc || ""}
               onChange={(value) => updateField("loc", value)}
               placeholder={getPlaceholder("loc", "Select LOC")}
-              className={cn(control, !restFieldsEnabled && "cursor-not-allowed")}
+              className={cn(control)}
               hasError={hasError("loc")}
-              disabled={!restFieldsEnabled}
+              disabled={false}
               branchCode={formData.branch}
             />
           </CellWithTooltip>
@@ -2647,10 +2615,10 @@ export function VoucherForm() {
               value={formData.employee || ""}
               onChange={(value) => updateField("employee", value)}
               placeholder={getPlaceholder("employee", "Select Employee")}
-              className={cn(control, !restFieldsEnabled && "cursor-not-allowed")}
+              className={cn(control)}
               hasError={hasError("employee")}
               errorClass={getFieldErrorClass("employee")}
-              disabled={!restFieldsEnabled}
+              disabled={false}
             />
           </CellWithTooltip>
         </div>
@@ -2664,10 +2632,10 @@ export function VoucherForm() {
               value={formData.assignment || ""}
               onChange={(value) => updateField("assignment", value)}
               placeholder={getPlaceholder("assignment", "Select Assignment")}
-              className={cn(control, !restFieldsEnabled && "cursor-not-allowed")}
+              className={cn(control)}
               hasError={hasError("assignment")}
               errorClass={getFieldErrorClass("assignment")}
-              disabled={!restFieldsEnabled}
+              disabled={false}
             />
           </CellWithTooltip>
         </div>
@@ -2691,8 +2659,8 @@ export function VoucherForm() {
                 type="button"
                 variant="outline"
                 size="sm"
-                className={cn("w-full h-9", !restFieldsEnabled && "cursor-not-allowed")}
-                disabled={isSubmitting || !restFieldsEnabled}
+                className={cn("w-full h-9")}
+                disabled={isSubmitting}
                 onClick={() => fileInputRef.current?.click()}
               >
                 <Upload className="mr-2 h-4 w-4" />

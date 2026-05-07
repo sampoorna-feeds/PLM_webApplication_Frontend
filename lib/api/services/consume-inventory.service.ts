@@ -92,6 +92,7 @@ function transformConsumeEntry(
     ShortcutDimCode6: "",
     ShortcutDimCode7: "",
     ShortcutDimCode8: "",
+    Description: (entry.Description as string) || "",
     Consumption: true,
     Consumption_Posting: entry["Consumption Posting"] || "",
     userID: ((entry.UserID as string) || "JOBQUEUE").toUpperCase(),

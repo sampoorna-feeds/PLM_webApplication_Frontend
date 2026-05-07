@@ -99,7 +99,7 @@ export async function createSalesCreditMemoCopyHeader(
       Shortcut_Dimension_1_Code: lobCode,
       Shortcut_Dimension_2_Code: branchCode,
       Shortcut_Dimension_3_Code: locationCode,
-      SFPL_User_ID: userID || "",
+      sFPL_User_ID: userID?.toUpperCase() || "",
     };
     const response = await apiPost<CreateSalesDocumentApiResponse>(
       endpoint,
@@ -145,7 +145,7 @@ export async function addSingleSalesCreditMemoLine(
   documentNo: string,
   line: SalesDocumentLineItem,
   locationCode: string,
-): Promise<{ Line_No: number; [key: string]: unknown }> {
+): Promise<{ Line_No: number;[key: string]: unknown }> {
   const endpoint = `/${LINE_ENTITY}?company='${encodeURIComponent(COMPANY)}'`;
   const payload: Record<string, unknown> = {
     Document_No: documentNo,
@@ -166,7 +166,7 @@ export async function addSingleSalesCreditMemoLine(
   if (line.hsnSacCode) payload.HSN_SAC_Code = line.hsnSacCode;
   if (line.foc != null) payload.FOC = line.foc;
   if (line.faPostingType) payload.FA_Posting_Type = line.faPostingType;
-  const result = await apiPost<{ Line_No: number; [key: string]: unknown }>(
+  const result = await apiPost<{ Line_No: number;[key: string]: unknown }>(
     endpoint,
     toUpperCaseValues(payload, ["Document_Type", "Type"]),
   );
@@ -178,11 +178,11 @@ export async function updateSingleSalesCreditMemoLine(
   documentNo: string,
   lineNo: number,
   body: Partial<SalesDocumentLineItem>,
-): Promise<{ Line_No: number; [key: string]: unknown }> {
+): Promise<{ Line_No: number;[key: string]: unknown }> {
   const escapedNo = documentNo.replace(/'/g, "''");
   const endpoint = `/${LINE_ENTITY}(Document_Type='${encodeURIComponent(DOCUMENT_TYPE)}',Document_No='${encodeURIComponent(escapedNo)}',Line_No=${lineNo})?company='${encodeURIComponent(COMPANY)}'`;
   const payload = stripNullish(body as Record<string, unknown>);
-  const result = await apiPatch<{ Line_No: number; [key: string]: unknown }>(
+  const result = await apiPatch<{ Line_No: number;[key: string]: unknown }>(
     endpoint,
     toUpperCaseValues(payload, ["Document_Type", "Type"]),
   );

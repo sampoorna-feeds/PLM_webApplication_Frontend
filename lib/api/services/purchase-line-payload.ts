@@ -42,6 +42,7 @@ export function buildCreatePurchaseLinePayload(
 
   // Non-none types: include all standard fields
   payload.No = lineItem.no;
+  payload.Description = lineItem.description;
   payload.Quantity = lineItem.quantity;
 
   if (lineItem.uom) payload.Unit_of_Measure_Code = lineItem.uom;
@@ -75,6 +76,7 @@ export function buildUpdatePurchaseLinePayload(
 
   if (lineItem.type !== undefined) payload.Type = lineItem.type;
   if (lineItem.no !== undefined) payload.No = lineItem.no;
+  if (lineItem.description !== undefined) payload.Description = lineItem.description;
   if (lineItem.quantity !== undefined) payload.Quantity = lineItem.quantity;
   if (lineItem.uom !== undefined) payload.Unit_of_Measure_Code = lineItem.uom;
   if (lineItem.unitPrice !== undefined && lineItem.unitPrice !== null)

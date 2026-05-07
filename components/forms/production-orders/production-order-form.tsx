@@ -605,6 +605,7 @@ export function ProductionOrderForm({
         ...prev,
         Source_Type: value,
         Source_No: "",
+        Description: "",
         Prod_Bom_No: "",
         BOM_Version_No: "",
         isProdBomFromItem: false,
@@ -621,7 +622,7 @@ export function ProductionOrderForm({
       setFormState((prev) => ({
         ...prev,
         Source_No: value,
-        Description: description,
+        Description: description || "",
         Prod_Bom_No: "",
         BOM_Version_No: "",
         isProdBomFromItem: false,
@@ -637,7 +638,7 @@ export function ProductionOrderForm({
           if (item?.Production_BOM_No) {
             setFormState((p) => ({
               ...p,
-              Description: item.Description || description,
+              Description: item.Description || description || "",
               Prod_Bom_No: item.Production_BOM_No || "",
               isProdBomFromItem: true,
             }));

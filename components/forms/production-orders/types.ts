@@ -1,6 +1,6 @@
 import type { ProductionOrder } from "@/lib/api/services/production-orders.service";
 
-export type PageSize = 10 | 20 | 30 | 40 | 50;
+export type PageSize = 10 | 20 | 30 | 40 | 50 | 200;
 
 export type SheetMode = "view" | "edit" | "create";
 

@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/select";
 import type { PageSize } from "./types";
 
-const PAGE_SIZE_OPTIONS: PageSize[] = [10, 20, 30, 40, 50];
+const PAGE_SIZE_OPTIONS: PageSize[] = [10, 20, 30, 40, 50, 200];
 
 interface PaginationControlsProps {
   pageSize: PageSize;

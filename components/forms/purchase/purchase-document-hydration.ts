@@ -65,7 +65,7 @@ export function mapPurchaseHeaderToFormData(
     qcType: toStringValue(header.QCType),
     dueDate: toStringValue(header.Due_Date),
     poExpirationDate: (() => {
-      const v = toStringValue(rawHeader["PO_Expiration_Date"]);
+      const v = toStringValue(header.PO_Expiration_Date);
       return v === "0001-01-01" ? "" : v;
     })(),
     vehicleNo: toStringValue(header.Vehicle_No),

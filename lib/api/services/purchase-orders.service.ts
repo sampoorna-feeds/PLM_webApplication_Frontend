@@ -55,6 +55,7 @@ export interface PurchaseOrder {
   /** API field: QCType (no underscore) */
   QCType?: string;
   Due_Date?: string;
+  PO_Expiration_Date?: string;
   Vehicle_No?: string;
   Line_Narration1?: string;
   /** API returns Freight as a string e.g. "0" */

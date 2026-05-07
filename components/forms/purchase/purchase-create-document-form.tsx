@@ -1977,7 +1977,14 @@ export function PurchaseCreateDocumentFormContent({
                       <div className={fieldClass}>
                         <label className={labelClass}>PO Expiration Date</label>
                         <ClearableField
-                          readOnly={!isOpenStatus || areFieldsReadOnly}
+                          readOnly={
+                            !(
+                              isOpenStatus ||
+                              (isReleasedStatus &&
+                                webUserProfile?.Access_Purchase_Order ===
+                                  "Edit")
+                            ) || areFieldsReadOnly
+                          }
                           value={formData.poExpirationDate}
                           onClear={() =>
                             handleInputChange("poExpirationDate", "")
@@ -1988,7 +1995,6 @@ export function PurchaseCreateDocumentFormContent({
                             onChange={(val) =>
                               handleInputChange("poExpirationDate", val)
                             }
-                            disabled={!isOpenStatus || areFieldsReadOnly}
                             className="h-8"
                           />
                         </ClearableField>

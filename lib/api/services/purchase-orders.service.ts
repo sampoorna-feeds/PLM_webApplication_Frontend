@@ -332,15 +332,20 @@ export async function orderShiptocodeModify(
 }
 
 /**
- * Delete a purchase order line (POST to API_PurchaseOrderLine with orderNo and lineNo)
+ * Delete a purchase order line (DELETE to PurchaseLine with key)
  */
 export async function deletePurchaseOrderLine(
   orderNo: string,
   lineNo: number,
 ): Promise<unknown> {
-  const endpoint = `/API_PurchaseOrderLine?company='${encodeURIComponent(COMPANY)}'`;
-  return apiPost<unknown>(endpoint, { orderNo, lineNo });
+  const escapedNo = orderNo.replace(/'/g, "''");
+  const endpoint = `/PurchaseLine(Document_Type='Order',Document_No='${encodeURIComponent(escapedNo)}',Line_No=${lineNo})?company='${encodeURIComponent(COMPANY)}'`;
+  // OData DELETE on PurchaseLine requires If-Match header
+  return apiDelete<unknown>(endpoint, undefined, {
+    headers: { "If-Match": "*" },
+  });
 }
+
 
 /**
  * Delete a purchase order header by key.

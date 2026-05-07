@@ -262,14 +262,19 @@ export async function deleteSinglePurchaseOrderLine(
   orderNo: string,
   lineNo: number,
 ): Promise<void> {
-  const endpoint = `/API_PurchaseOrderLine?company='${encodeURIComponent(COMPANY)}'`;
+  const escapedNo = orderNo.replace(/'/g, "''");
+  const endpoint = `/PurchaseLine(Document_Type='Order',Document_No='${encodeURIComponent(escapedNo)}',Line_No=${lineNo})?company='${encodeURIComponent(COMPANY)}'`;
   try {
-    await apiPost(endpoint, { orderNo, lineNo });
+    // OData DELETE on PurchaseLine requires If-Match header
+    await apiDelete(endpoint, undefined, {
+      headers: { "If-Match": "*" },
+    });
   } catch (error) {
     console.error("Error deleting single purchase order line:", error);
     throw error as ApiError;
   }
 }
+
 
 export interface BardanaLine {
   Line_No: number;

@@ -206,15 +206,28 @@ export async function apiPatch<T>(
  * DELETE request helper
  * @param endpoint - API endpoint
  * @param data - Optional request body data
+ * @param options - Optional configuration (e.g. headers)
  */
 export async function apiDelete<T>(
   endpoint: string,
   data?: unknown,
+  options: { headers?: Record<string, string> } = {},
 ): Promise<T> {
-  const options: RequestInit = { method: "DELETE" };
+  const requestOptions: RequestInit = {
+    method: "DELETE",
+    headers: {
+      ...options.headers,
+    },
+  };
+
   if (data !== undefined) {
-    options.headers = { "Content-Type": "application/json" };
-    options.body = JSON.stringify(data);
+    requestOptions.headers = {
+      ...requestOptions.headers,
+      "Content-Type": "application/json",
+    };
+    requestOptions.body = JSON.stringify(data);
   }
-  return apiRequest<T>(endpoint, options);
+
+  return apiRequest<T>(endpoint, requestOptions);
 }
+

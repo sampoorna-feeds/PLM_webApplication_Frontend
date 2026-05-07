@@ -601,7 +601,7 @@ export async function postPurchaseOrder(
   return apiPost<unknown>(endpoint, {
     docNo,
     defaultOption,
-    SFPL_User_ID: userID,
+    sFPL_User_ID: userID,
   });
 }
 

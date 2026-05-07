@@ -7,7 +7,6 @@
 
 import { useFinishedProductionOrders } from "./use-finished-production-orders";
 import { ProductionOrdersTable } from "./production-orders-table";
-import { PaginationControls } from "./pagination-controls";
 import { TableFilterBar } from "./table-filter-bar";
 import { ActiveFilters } from "./active-filters";
 import { FINISHED_ORDERS_EXCLUDED_COLUMNS } from "./column-config";
@@ -19,10 +18,7 @@ export function FinishedOrdersView() {
     isLoading,
     pageSize,
     currentPage,
-    totalPages,
     totalCount,
-    onPageSizeChange,
-    onPageChange,
     sortColumn,
     sortDirection,
     onSort,
@@ -40,11 +36,15 @@ export function FinishedOrdersView() {
     additionalFilters,
     handleAddAdditionalFilter,
     handleRemoveAdditionalFilter,
+    loadMore,
+    hasMore,
+    isLoadingMore,
+    refetch,
   } = useFinishedProductionOrders();
 
   const { openTab } = useFormStackContext();
 
-  const hasNextPage = currentPage < totalPages;
+  // Removed hasNextPage
 
   // Open a read-only detail view in FormStack
   const handleRowClick = (orderNo: string) => {
@@ -63,6 +63,11 @@ export function FinishedOrdersView() {
           <p className="text-muted-foreground text-sm">
             Completed production orders
           </p>
+        </div>
+        <div className="flex items-center gap-4">
+          <span className="text-muted-foreground text-xs font-medium">
+            Total: {totalCount.toLocaleString()}
+          </span>
         </div>
       </div>
 
@@ -111,19 +116,9 @@ export function FinishedOrdersView() {
             onSort={onSort}
             onColumnFilter={onColumnFilter}
             branchOptions={branchOptions}
-          />
-        </div>
-
-        {/* Pagination Controls */}
-        <div className="shrink-0">
-          <PaginationControls
-            pageSize={pageSize}
-            currentPage={currentPage}
-            totalPages={totalPages}
-            totalCount={totalCount}
-            hasNextPage={hasNextPage}
-            onPageSizeChange={onPageSizeChange}
-            onPageChange={onPageChange}
+            onLoadMore={loadMore}
+            hasMore={hasMore}
+            isLoadingMore={isLoadingMore}
           />
         </div>
       </div>

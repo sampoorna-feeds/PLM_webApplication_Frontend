@@ -10,7 +10,6 @@ import { Button } from "@/components/ui/button";
 import { useFormStackContext } from "@/lib/form-stack/form-stack-context";
 import { useProductionOrders } from "./use-production-orders";
 import { ProductionOrdersTable } from "./production-orders-table";
-import { PaginationControls } from "./pagination-controls";
 import { TableFilterBar } from "./table-filter-bar";
 import { ActiveFilters } from "./active-filters";
 import { RELEASED_ORDERS_EXCLUDED_COLUMNS } from "./column-config";
@@ -23,10 +22,7 @@ export function ReleasedOrdersView() {
     isLoading,
     pageSize,
     currentPage,
-    totalPages,
     totalCount,
-    onPageSizeChange,
-    onPageChange,
     sortColumn,
     sortDirection,
     onSort,
@@ -46,9 +42,12 @@ export function ReleasedOrdersView() {
     additionalFilters,
     handleAddAdditionalFilter,
     handleRemoveAdditionalFilter,
+    loadMore,
+    hasMore,
+    isLoadingMore,
   } = useProductionOrders();
 
-  const hasNextPage = currentPage < totalPages;
+  // Removed hasNextPage
 
   const handleCreateOrder = () => {
     openTab("production-order", {
@@ -84,10 +83,15 @@ export function ReleasedOrdersView() {
             Released orders ready for production
           </p>
         </div>
-        <Button onClick={handleCreateOrder} size="sm">
-          <Plus className="mr-2 h-4 w-4" />
-          Add Order
-        </Button>
+        <div className="flex items-center gap-4">
+          <span className="text-muted-foreground text-xs font-medium">
+            Total: {totalCount.toLocaleString()}
+          </span>
+          <Button onClick={handleCreateOrder} size="sm">
+            <Plus className="mr-2 h-4 w-4" />
+            Add Order
+          </Button>
+        </div>
       </div>
 
       {/* Main content area with scrolling */}
@@ -135,19 +139,9 @@ export function ReleasedOrdersView() {
             onSort={onSort}
             onColumnFilter={onColumnFilter}
             branchOptions={branchOptions}
-          />
-        </div>
-
-        {/* Pagination Controls */}
-        <div className="shrink-0">
-          <PaginationControls
-            pageSize={pageSize}
-            currentPage={currentPage}
-            totalPages={totalPages}
-            totalCount={totalCount}
-            hasNextPage={hasNextPage}
-            onPageSizeChange={onPageSizeChange}
-            onPageChange={onPageChange}
+            onLoadMore={loadMore}
+            hasMore={hasMore}
+            isLoadingMore={isLoadingMore}
           />
         </div>
       </div>

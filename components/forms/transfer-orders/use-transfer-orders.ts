@@ -31,9 +31,11 @@ export function useTransferOrders(options: UseTransferOrdersOptions = {}) {
   const { userID } = useAuth();
   const [orders, setOrders] = useState<TransferOrder[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [pageSize, setPageSize] = useState(10);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [pageSize, setPageSize] = useState(200);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
   const [isSetupLoaded, setIsSetupLoaded] = useState(false);
 
   const [userLobCodes, setUserLobCodes] = useState<string[]>([]);
@@ -125,7 +127,8 @@ export function useTransferOrders(options: UseTransferOrdersOptions = {}) {
           .filter((c) => userBranchCodes.includes(c))
       : userBranchCodes;
 
-    setIsLoading(true);
+    if (currentPage === 1) setIsLoading(true);
+    else setIsLoadingMore(true);
     try {
       const filter = buildTransferOrderFilterString({
         lobCodes: effectiveLobCodes,
@@ -151,8 +154,13 @@ export function useTransferOrders(options: UseTransferOrdersOptions = {}) {
           })
         : await getTransferOrdersWithCount(commonParams);
 
-      setOrders(result.orders);
+      if (currentPage === 1) {
+        setOrders(result.orders);
+      } else {
+        setOrders((prev) => [...prev, ...result.orders]);
+      }
       setTotalCount(result.totalCount);
+      setHasMore(currentPage * pageSize < result.totalCount);
     } catch (error) {
       console.warn("Error fetching transfer orders:", error);
       toast.error("Failed to load transfer orders. Please try again.");
@@ -160,6 +168,7 @@ export function useTransferOrders(options: UseTransferOrdersOptions = {}) {
       setTotalCount(0);
     } finally {
       setIsLoading(false);
+      setIsLoadingMore(false);
     }
   }, [
     currentPage,
@@ -190,6 +199,11 @@ export function useTransferOrders(options: UseTransferOrdersOptions = {}) {
   const handlePageChange = useCallback((page: number) => {
     setCurrentPage(page);
   }, []);
+
+  const loadMore = useCallback(() => {
+    if (isLoading || isLoadingMore || !hasMore) return;
+    setCurrentPage((prev) => prev + 1);
+  }, [isLoading, isLoadingMore, hasMore]);
 
   const handleSort = useCallback((column: string) => {
     setSortColumn((prevColumn) => {
@@ -279,5 +293,8 @@ export function useTransferOrders(options: UseTransferOrdersOptions = {}) {
     onShowAllColumns: handleShowAllColumns,
     onClearFilters: handleClearFilters,
     refetch: fetchOrders,
+    loadMore,
+    hasMore,
+    isLoadingMore,
   };
 }

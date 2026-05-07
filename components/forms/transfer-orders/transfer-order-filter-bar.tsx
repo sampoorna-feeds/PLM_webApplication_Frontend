@@ -15,6 +15,7 @@ interface TransferOrderFilterBarProps {
   onColumnToggle: (columnId: string) => void;
   onResetColumns: () => void;
   onShowAllColumns: () => void;
+  children?: React.ReactNode;
 }
 
 export function TransferOrderFilterBar({
@@ -26,6 +27,7 @@ export function TransferOrderFilterBar({
   onColumnToggle,
   onResetColumns,
   onShowAllColumns,
+  children,
 }: TransferOrderFilterBarProps) {
   const [localSearch, setLocalSearch] = useState(searchQuery);
 
@@ -91,6 +93,7 @@ export function TransferOrderFilterBar({
         onResetColumns={onResetColumns}
         onShowAllColumns={onShowAllColumns}
       />
+      {children}
     </div>
   );
 }

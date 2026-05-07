@@ -48,9 +48,11 @@ export function useProductionOrders() {
     { label: string; value: string }[]
   >([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [pageSize, setPageSize] = useState<PageSize>(10);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [pageSize, setPageSize] = useState<PageSize>(200);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
 
   // Sorting state
   const [sortColumn, setSortColumn] = useState<string | null>("No");
@@ -152,7 +154,8 @@ export function useProductionOrders() {
   const fetchOrders = useCallback(async () => {
     if (lobCodes.length === 0) return;
 
-    setIsLoading(true);
+    if (currentPage === 1) setIsLoading(true);
+    else setIsLoadingMore(true);
     try {
       const baseParams = {
         $select: buildSelectQuery(
@@ -204,8 +207,14 @@ export function useProductionOrders() {
         }
 
         // Limit to pageSize and estimate total count
-        setOrders(mergedOrders.slice(0, pageSize));
+        const finalOrders = mergedOrders.slice(0, pageSize);
+        if (currentPage === 1) {
+          setOrders(finalOrders);
+        } else {
+          setOrders((prev) => [...prev, ...finalOrders]);
+        }
         setTotalCount(Math.max(resultByNo.totalCount, resultByDesc.totalCount));
+        setHasMore(currentPage * pageSize < Math.max(resultByNo.totalCount, resultByDesc.totalCount));
       } else {
         const result = await getProductionOrdersWithCount(
           {
@@ -216,8 +225,13 @@ export function useProductionOrders() {
           effectiveBranchCodes,
         );
 
-        setOrders(result.orders);
+        if (currentPage === 1) {
+          setOrders(result.orders);
+        } else {
+          setOrders((prev) => [...prev, ...result.orders]);
+        }
         setTotalCount(result.totalCount);
+        setHasMore(currentPage * pageSize < result.totalCount);
       }
     } catch (error) {
       console.error("Error fetching production orders:", error);
@@ -226,6 +240,7 @@ export function useProductionOrders() {
       setTotalCount(0);
     } finally {
       setIsLoading(false);
+      setIsLoadingMore(false);
     }
   }, [
     lobCodes,
@@ -252,6 +267,11 @@ export function useProductionOrders() {
   const handlePageChange = useCallback((page: number) => {
     setCurrentPage(page);
   }, []);
+
+  const loadMore = useCallback(() => {
+    if (isLoading || isLoadingMore || !hasMore) return;
+    setCurrentPage((prev) => prev + 1);
+  }, [isLoading, isLoadingMore, hasMore]);
 
   const handleSort = useCallback((column: string) => {
     if (RELEASED_ORDERS_EXCLUDED_COLUMNS.includes(column)) return;
@@ -399,6 +419,9 @@ export function useProductionOrders() {
     additionalFilters,
     handleAddAdditionalFilter,
     handleRemoveAdditionalFilter,
+    loadMore,
+    hasMore,
+    isLoadingMore,
     addOrder: useCallback((order: ProductionOrder) => {
       setOrders((prev) => [order, ...prev]);
       setTotalCount((prev) => prev + 1);

@@ -36,9 +36,11 @@ export function useFinishedProductionOrders() {
     { label: string; value: string }[]
   >([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [pageSize, setPageSize] = useState<PageSize>(10);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [pageSize, setPageSize] = useState<PageSize>(200);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
 
   // Sorting state
   const [sortColumn, setSortColumn] = useState<string | null>("Finished_Date");
@@ -136,7 +138,8 @@ export function useFinishedProductionOrders() {
   const fetchOrders = useCallback(async () => {
     if (lobCodes.length === 0) return;
 
-    setIsLoading(true);
+    if (currentPage === 1) setIsLoading(true);
+    else setIsLoadingMore(true);
     try {
       const params = {
         $select: buildSelectQuery(
@@ -161,8 +164,13 @@ export function useFinishedProductionOrders() {
         lobCodes,
         effectiveBranchCodes,
       );
-      setOrders(result.orders);
+      if (currentPage === 1) {
+        setOrders(result.orders);
+      } else {
+        setOrders((prev) => [...prev, ...result.orders]);
+      }
       setTotalCount(result.totalCount);
+      setHasMore(currentPage * pageSize < result.totalCount);
     } catch (error) {
       console.error("Error fetching finished production orders:", error);
       toast.error(
@@ -172,6 +180,7 @@ export function useFinishedProductionOrders() {
       setTotalCount(0);
     } finally {
       setIsLoading(false);
+      setIsLoadingMore(false);
     }
   }, [
     lobCodes,
@@ -204,6 +213,11 @@ export function useFinishedProductionOrders() {
   const handlePageChange = useCallback((page: number) => {
     setCurrentPage(page);
   }, []);
+
+  const loadMore = useCallback(() => {
+    if (isLoading || isLoadingMore || !hasMore) return;
+    setCurrentPage((prev) => prev + 1);
+  }, [isLoading, isLoadingMore, hasMore]);
 
   const handleSort = useCallback((column: string) => {
     // Prevent sorting by columns not available in finished orders
@@ -338,5 +352,8 @@ export function useFinishedProductionOrders() {
     branchOptions,
     userBranchCodes,
     refetch: fetchOrders,
+    loadMore,
+    hasMore,
+    isLoadingMore,
   };
 }

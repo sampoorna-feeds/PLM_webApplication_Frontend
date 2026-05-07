@@ -150,6 +150,9 @@ export function buildPurchaseOrderFilterString(
   // API-level status filter (tab: Open | Pending Approval | Released)
   if (statusFilter?.trim()) {
     filterParts.push(`Status eq '${escapeODataValue(statusFilter.trim())}'`);
+  } else {
+    // For the "all" tab, exclude Short Close and Expired
+    filterParts.push(`Status ne 'Short Close' and Status ne 'Expired'`);
   }
  
   // API-level PO Type filter

@@ -58,6 +58,7 @@ const ORDER_OPTIONAL_COLUMNS: ColumnConfig[] = [
   { id: "Creditors_Type", label: "Creditor Type", sortable: true, defaultVisible: false, filterType: "enum" },
   { id: "QCType", label: "QC Type", sortable: true, defaultVisible: false, filterType: "enum" },
   { id: "Due_Date", label: "Due Date", sortable: true, defaultVisible: false, filterType: "date" },
+  { id: "Completely_Received", label: "Completely Received", sortable: true, defaultVisible: false, filterType: "enum", filterOptions: [{ value: "true", label: "Yes" }, { value: "false", label: "No" }] },
 ];
 
 // ---------------------------------------------------------------------------

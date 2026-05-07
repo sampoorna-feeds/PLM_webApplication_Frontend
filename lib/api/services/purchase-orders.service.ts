@@ -67,6 +67,7 @@ export interface PurchaseOrder {
   Applies_to_Doc_Type?: string;
   Applies_to_Doc_No?: string;
   Applies_to_ID?: string;
+  Completely_Received?: boolean;
   "@odata.etag"?: string;
   [key: string]: unknown;
 }
@@ -124,7 +125,7 @@ export async function getPurchaseOrdersWithCount(
   params: GetPurchaseOrdersParams = {},
 ): Promise<PaginatedPurchaseOrdersResponse> {
   const {
-    $select = "No,Buy_from_Vendor_No,Buy_from_Vendor_Name,Order_Date,Posting_Date,Document_Date,Vendor_Order_No,Status,PO_Type",
+    $select = "No,Buy_from_Vendor_No,Buy_from_Vendor_Name,Order_Date,Posting_Date,Document_Date,Vendor_Order_No,Status,PO_Type,Completely_Received",
     $filter,
     $orderby = "No desc",
     $top = 10,

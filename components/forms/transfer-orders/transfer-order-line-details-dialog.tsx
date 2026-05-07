@@ -45,6 +45,7 @@ interface TransferOrderLineDetailsDialogProps {
   locationCode?: string;
   transferToCode?: string;
   onSuccess: () => void;
+  isReadOnly?: boolean;
 }
 
 export function TransferOrderLineDetailsDialog({
@@ -54,6 +55,7 @@ export function TransferOrderLineDetailsDialog({
   locationCode,
   transferToCode,
   onSuccess,
+  isReadOnly = false,
 }: TransferOrderLineDetailsDialogProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [hasTracking, setHasTracking] = useState(false);
@@ -341,6 +343,7 @@ export function TransferOrderLineDetailsDialog({
                 isLoading={isLoadingLine}
                 allowCustomValue={true}
                 className="h-9 transition-all focus:ring-1 focus:ring-red-500/50"
+                disabled={isReadOnly}
               />
             </div>
 
@@ -356,15 +359,15 @@ export function TransferOrderLineDetailsDialog({
                       ? "border-green-600 bg-green-600"
                       : "bg-muted border-input",
                   )}
-                  onClick={() => handleChange("Exempted", !formData.Exempted)}
+                  onClick={() => !isReadOnly && handleChange("Exempted", !formData.Exempted)}
                 >
                   {formData.Exempted && (
                     <div className="text-[8px] text-white">✔</div>
                   )}
                 </div>
                 <label
-                  className="text-muted-foreground ml-2 cursor-pointer text-[10px] font-bold"
-                  onClick={() => handleChange("Exempted", !formData.Exempted)}
+                  className={cn("text-muted-foreground ml-2 text-[10px] font-bold", !isReadOnly && "cursor-pointer")}
+                  onClick={() => !isReadOnly && handleChange("Exempted", !formData.Exempted)}
                 >
                   YES
                 </label>
@@ -381,6 +384,7 @@ export function TransferOrderLineDetailsDialog({
                 onValueChange={(v) => handleChange("Quantity", v)}
                 className="h-9 focus:border-red-500/50 transition-colors font-bold"
                 onFocus={(e) => e.target.select()}
+                disabled={isReadOnly}
               />
             </div>
 
@@ -418,19 +422,27 @@ export function TransferOrderLineDetailsDialog({
                     value={formData.Appl_to_Item_Entry?.toString() || ""}
                     readOnly
                     onClick={() =>
-                      !isLoadingLedger && setIsLedgerModalOpen(true)
+                      !isReadOnly && !isLoadingLedger && setIsLedgerModalOpen(true)
                     }
                     placeholder={
                       isLoadingLedger
                         ? "Loading entries..."
-                        : "Click to select Entry No."
+                        : isReadOnly
+                          ? "Entry No."
+                          : "Click to select Entry No."
                     }
-                    className="h-9 cursor-pointer pr-10 focus:ring-1 focus:ring-red-500/50 text-xs font-bold"
+                    className={cn(
+                      "h-9 text-xs font-bold",
+                      !isReadOnly && !isLoadingLedger && "cursor-pointer focus:ring-1 focus:ring-red-500/50"
+                    )}
                   />
                   <div
-                    className="absolute top-2.5 right-3 cursor-pointer opacity-50 transition-opacity hover:opacity-100"
+                    className={cn(
+                      "absolute top-2.5 right-3 opacity-50 transition-opacity",
+                      !isReadOnly && !isLoadingLedger && "cursor-pointer hover:opacity-100"
+                    )}
                     onClick={() =>
-                      !isLoadingLedger && setIsLedgerModalOpen(true)
+                      !isReadOnly && !isLoadingLedger && setIsLedgerModalOpen(true)
                     }
                   >
                     <Search className="h-4 w-4" />

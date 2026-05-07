@@ -1721,6 +1721,7 @@ export function TransferOrderForm({
           locationCode={formState.Transfer_from_Code}
           transferToCode={formState.Transfer_to_Code}
           onSuccess={() => fetchOrderData(formState.No!, false)}
+          isReadOnly={formState.Status === "Released"}
         />
       )}
 

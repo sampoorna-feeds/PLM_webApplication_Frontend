@@ -229,7 +229,6 @@ export function TransferOrderLinesTable({
                       "h-8 text-right font-bold focus-visible:ring-1 bg-background border-border",
                       isUpdating && editingCell?.lineNo === line.Line_No && editingCell?.field === "Qty_to_Ship" && "opacity-50 cursor-wait"
                     )}
-                    disabled={isReadOnly}
                   />
                   {isUpdating && editingCell?.lineNo === line.Line_No && editingCell?.field === "Qty_to_Ship" && (
                     <div className="absolute right-1 top-1/2 -translate-y-1/2">
@@ -262,7 +261,6 @@ export function TransferOrderLinesTable({
                       "h-8 text-right font-bold focus-visible:ring-1 bg-background border-border",
                       isUpdating && editingCell?.lineNo === line.Line_No && editingCell?.field === "Qty_to_Receive" && "opacity-50 cursor-wait"
                     )}
-                    disabled={isReadOnly}
                   />
                   {isUpdating && editingCell?.lineNo === line.Line_No && editingCell?.field === "Qty_to_Receive" && (
                     <div className="absolute right-1 top-1/2 -translate-y-1/2">

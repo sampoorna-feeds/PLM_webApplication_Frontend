@@ -55,6 +55,10 @@ const EXCLUDED_FIELDS = new Set([
   "Vendor_Order_No",
   "No_Printed",
   "Responsibility_Center",
+  "Line_Narration1",
+  "Mandi_Name",
+  "File_No",
+  "Vendor_Authorization_No",
   // Image 2
   "Cancelled",
   "Corrective",
@@ -64,6 +68,7 @@ const EXCLUDED_FIELDS = new Set([
   "PayToContactMobilePhoneNo",
   "PayToContactEmail",
   "Pay_to_Contact",
+  "Pay_to_County",
   "Payment_Discount_Percent",
   "Pmt_Discount_Date",
   "Payment_Method_Code",

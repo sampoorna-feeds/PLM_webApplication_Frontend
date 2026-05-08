@@ -232,7 +232,7 @@ export function PostedDocumentDetailForm({
       <div className="flex-1 space-y-4 overflow-y-auto px-4 py-4">
         {/* Details Section - Optimized for 6 columns, no title */}
         <section className="bg-card/30 space-y-3 rounded-lg border p-5 shadow-sm">
-          <div className="grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-6">
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-x-10 gap-y-6">
             {Object.entries(doc).map(([key, value]) => {
               if (typeof value === "object" || EXCLUDED_FIELDS.has(key))
                 return null;
@@ -258,11 +258,11 @@ export function PostedDocumentDetailForm({
               }
 
               return (
-                <div key={key} className="space-y-1">
-                  <dt className="text-muted-foreground text-[10px] font-bold tracking-wider uppercase">
+                <div key={key} className="flex flex-col gap-1.5">
+                  <dt className="text-muted-foreground text-[10px] font-bold tracking-wider uppercase opacity-70">
                     {key.replace(/_/g, " ")}
                   </dt>
-                  <dd className="text-foreground truncate text-sm font-medium">
+                  <dd className="text-foreground text-[13px] font-semibold leading-relaxed">
                     {displayValue}
                   </dd>
                 </div>

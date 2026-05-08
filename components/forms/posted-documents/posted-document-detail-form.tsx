@@ -21,8 +21,16 @@ import {
   getPostedPurchaseReturnShipmentLines,
 } from "@/lib/api/services/posted-purchase.service";
 import { getPostedSalesCreditMemoLines } from "@/lib/api/services/posted-sales.service";
+import { 
+  getPostedReportPdf, 
+  type PostedReportDocumentType 
+} from "@/lib/api/services/posted-report.service";
+import { viewPdfFromBase64 } from "@/lib/pdf-utils";
 import { useFormStackContext } from "@/lib/form-stack/form-stack-context";
 import { useEffect, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Loader2, Printer } from "lucide-react";
+import { toast } from "sonner";
 
 interface PostedDocumentDetailFormProps {
   tabId: string;
@@ -169,6 +177,45 @@ export function PostedDocumentDetailForm({
   const doc = context?.doc || context?.entry;
   const [lines, setLines] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isPrinting, setIsPrinting] = useState(false);
+
+  const getApiDocType = (): PostedReportDocumentType | null => {
+    switch (formType) {
+      case "posted-purchase-receipt": return "PurchReceipt";
+      case "posted-purchase-invoice": return "PurchInvoice";
+      case "posted-purchase-return-shipment": return "PurchReturnShipment";
+      case "posted-purchase-credit-memo": return "PurchCreditMemo";
+      case "posted-sales-credit-memo": return "SalesCreditMemo";
+      default: return null;
+    }
+  };
+
+  const handlePrint = async () => {
+    const apiDocType = getApiDocType();
+    if (!apiDocType) {
+      toast.error("Print functionality is not available for this document type.");
+      return;
+    }
+
+    const docNo = doc.No || doc.Gate_Entry_No;
+    if (!docNo) return;
+
+    setIsPrinting(true);
+    try {
+      const base64 = await getPostedReportPdf(apiDocType, docNo);
+      if (!base64) {
+        toast.error("No report data received from server.");
+        return;
+      }
+      viewPdfFromBase64(base64, `${apiDocType}_${docNo}`);
+      toast.success("Report generated successfully.");
+    } catch (error: any) {
+      console.error("Print error:", error);
+      toast.error(error.message || "Failed to generate report.");
+    } finally {
+      setIsPrinting(false);
+    }
+  };
 
   useEffect(() => {
     if (!doc?.No && !doc?.Gate_Entry_No) return;
@@ -227,6 +274,23 @@ export function PostedDocumentDetailForm({
             — {doc.No || doc.Gate_Entry_No}
           </span>
         </div>
+
+        {getApiDocType() && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-7 gap-1.5 px-3 text-[10px] font-bold tracking-wider uppercase"
+            onClick={handlePrint}
+            disabled={isPrinting}
+          >
+            {isPrinting ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Printer className="h-3.5 w-3.5" />
+            )}
+            {isPrinting ? "Generating..." : "Print Report"}
+          </Button>
+        )}
       </div>
 
       <div className="flex-1 space-y-4 overflow-y-auto px-4 py-4">

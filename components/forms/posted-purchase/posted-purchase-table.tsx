@@ -11,9 +11,12 @@ import {
 } from "@/components/ui/table";
 import { PostedPurchaseHeader } from "@/lib/api/services/posted-purchase.service";
 import { format } from "date-fns";
-import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, Printer, Loader2 } from "lucide-react";
 import { POSTED_PURCHASE_COLUMNS } from "./column-config";
 import { PostedPurchaseColumnFilter } from "./column-filter";
+import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { useState } from "react";
 
 interface PostedPurchaseTableProps {
   documents: PostedPurchaseHeader[];
@@ -25,6 +28,7 @@ interface PostedPurchaseTableProps {
   columnFilters: Record<string, { value: string; valueTo?: string }>;
   onColumnFilter: (columnId: string, value: string, valueTo?: string) => void;
   visibleColumns: string[];
+  onPrint?: (doc: PostedPurchaseHeader) => Promise<void>;
 }
 
 export function PostedPurchaseTable({
@@ -37,7 +41,9 @@ export function PostedPurchaseTable({
   columnFilters,
   onColumnFilter,
   visibleColumns,
+  onPrint,
 }: PostedPurchaseTableProps) {
+  const [printingDocNo, setPrintingDocNo] = useState<string | null>(null);
   const activeColumns = POSTED_PURCHASE_COLUMNS.filter((c) =>
     visibleColumns.includes(c.id),
   );
@@ -94,6 +100,11 @@ export function PostedPurchaseTable({
                   </div>
                 </TableHead>
               ))}
+              {onPrint && (
+                <TableHead className="h-10 px-4 py-2 text-[11px] font-bold uppercase text-muted-foreground text-center">
+                  Actions
+                </TableHead>
+              )}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -105,12 +116,17 @@ export function PostedPurchaseTable({
                       <Skeleton className="h-4 w-full opacity-50" />
                     </TableCell>
                   ))}
+                  {onPrint && (
+                    <TableCell className="p-4">
+                      <Skeleton className="h-4 w-8 mx-auto opacity-50" />
+                    </TableCell>
+                  )}
                 </TableRow>
               ))
             ) : documents.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={activeColumns.length}
+                  colSpan={activeColumns.length + (onPrint ? 1 : 0)}
                   className="text-muted-foreground h-24 text-center text-sm italic"
                 >
                   No posted purchase documents found.
@@ -131,6 +147,39 @@ export function PostedPurchaseTable({
                       {formatValue(doc, col.id)}
                     </TableCell>
                   ))}
+                  {onPrint && (
+                    <TableCell className="p-2 text-center" onClick={(e) => e.stopPropagation()}>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
+                              onClick={async () => {
+                                setPrintingDocNo(doc.No);
+                                try {
+                                  await onPrint(doc);
+                                } finally {
+                                  setPrintingDocNo(null);
+                                }
+                              }}
+                              disabled={printingDocNo === doc.No}
+                            >
+                              {printingDocNo === doc.No ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Printer className="h-4 w-4" />
+                              )}
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Print Report</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </TableCell>
+                  )}
                 </TableRow>
               ))
             )}

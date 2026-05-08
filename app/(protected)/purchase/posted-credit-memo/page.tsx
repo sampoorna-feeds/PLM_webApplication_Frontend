@@ -11,6 +11,9 @@ import { Badge } from "@/components/ui/badge";
 import { PostedDocumentFilterForm, type DateRangeFilters } from "@/components/forms/posted-documents/posted-document-filter-form";
 import { PostedPurchaseColumnVisibility } from "@/components/forms/posted-purchase/column-visibility";
 import { POSTED_PURCHASE_COLUMNS } from "@/components/forms/posted-purchase/column-config";
+import { getPostedReportPdf } from "@/lib/api/services/posted-report.service";
+import { viewPdfFromBase64 } from "@/lib/pdf-utils";
+import { toast } from "sonner";
 
 function PostedPurchaseCreditMemoContent() {
   const {
@@ -50,6 +53,21 @@ function PostedPurchaseCreditMemoContent() {
     setDateFilter(filters);
   };
 
+  const handlePrint = async (doc: any) => {
+    try {
+      const base64 = await getPostedReportPdf("PurchCreditMemo", doc.No);
+      if (!base64) {
+        toast.error("No report data received from server.");
+        return;
+      }
+      viewPdfFromBase64(base64, `PurchCreditMemo_${doc.No}`);
+      toast.success("Report generated successfully.");
+    } catch (error: any) {
+      console.error("Print error:", error);
+      toast.error(error.message || "Failed to generate report.");
+    }
+  };
+
   if (!dateFilter) {
     return (
       <PostedDocumentFilterForm
@@ -74,7 +92,6 @@ function PostedPurchaseCreditMemoContent() {
             )}
           </div>
         </div>
-
         <div className="flex items-center gap-2">
           <Button
             variant="outline"
@@ -129,6 +146,7 @@ function PostedPurchaseCreditMemoContent() {
           columnFilters={columnFilters}
           onColumnFilter={onColumnFilter}
           visibleColumns={visibleColumns}
+          onPrint={handlePrint}
         />
       </div>
 

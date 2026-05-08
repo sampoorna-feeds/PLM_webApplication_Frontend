@@ -8,6 +8,9 @@ import { Button } from "@/components/ui/button";
 import { RefreshCcw, Search, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { getPostedReportPdf } from "@/lib/api/services/posted-report.service";
+import { viewPdfFromBase64 } from "@/lib/pdf-utils";
+import { toast } from "sonner";
 
 import { PostedDocumentFilterForm, type DateRangeFilters } from "@/components/forms/posted-documents/posted-document-filter-form";
 
@@ -49,6 +52,21 @@ function PostedSalesCreditMemoContent() {
 
   const handleApplyFilters = (filters: DateRangeFilters) => {
     setDateFilter(filters);
+  };
+
+  const handlePrint = async (doc: any) => {
+    try {
+      const base64 = await getPostedReportPdf("SalesCreditMemo", doc.No);
+      if (!base64) {
+        toast.error("No report data received from server.");
+        return;
+      }
+      viewPdfFromBase64(base64, `SalesCreditMemo_${doc.No}`);
+      toast.success("Report generated successfully.");
+    } catch (error: any) {
+      console.error("Print error:", error);
+      toast.error(error.message || "Failed to generate report.");
+    }
   };
 
   if (!dateFilter) {
@@ -129,6 +147,7 @@ function PostedSalesCreditMemoContent() {
           columnFilters={columnFilters}
           onColumnFilter={onColumnFilter}
           visibleColumns={visibleColumns}
+          onPrint={handlePrint}
         />
       </div>
 

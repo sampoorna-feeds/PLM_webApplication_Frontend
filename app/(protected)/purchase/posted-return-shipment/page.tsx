@@ -11,6 +11,9 @@ import { Badge } from "@/components/ui/badge";
 import { PostedDocumentFilterForm, type DateRangeFilters } from "@/components/forms/posted-documents/posted-document-filter-form";
 import { PostedPurchaseColumnVisibility } from "@/components/forms/posted-purchase/column-visibility";
 import { POSTED_PURCHASE_COLUMNS } from "@/components/forms/posted-purchase/column-config";
+import { getPostedReportPdf } from "@/lib/api/services/posted-report.service";
+import { viewPdfFromBase64 } from "@/lib/pdf-utils";
+import { toast } from "sonner";
 
 function PostedPurchaseReturnShipmentContent() {
   const {
@@ -41,7 +44,7 @@ function PostedPurchaseReturnShipmentContent() {
 
   const handleRowClick = (doc: any) => {
     openTab("posted-purchase-return-shipment", {
-      title: `Posted Return: ${doc.No}`,
+      title: `Posted Return Shpt: ${doc.No}`,
       context: { doc, mode: "view" },
     });
   };
@@ -50,10 +53,25 @@ function PostedPurchaseReturnShipmentContent() {
     setDateFilter(filters);
   };
 
+  const handlePrint = async (doc: any) => {
+    try {
+      const base64 = await getPostedReportPdf("PurchReturnShipment", doc.No);
+      if (!base64) {
+        toast.error("No report data received from server.");
+        return;
+      }
+      viewPdfFromBase64(base64, `PurchReturnShipment_${doc.No}`);
+      toast.success("Report generated successfully.");
+    } catch (error: any) {
+      console.error("Print error:", error);
+      toast.error(error.message || "Failed to generate report.");
+    }
+  };
+
   if (!dateFilter) {
     return (
       <PostedDocumentFilterForm
-        title="Posted Return Shipments"
+        title="Posted Purchase Return Shipments"
         description="Select a date range to view processed purchase return shipments"
         onApply={handleApplyFilters}
       />
@@ -64,7 +82,7 @@ function PostedPurchaseReturnShipmentContent() {
     <div className="flex h-full flex-col p-6">
       <div className="mb-6 flex items-center justify-between gap-2">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Posted Return Shipment</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Posted Purchase Return Shipment</h1>
           <div className="mt-1 flex items-center gap-2">
             <p className="text-sm text-muted-foreground">View processed purchase return shipments</p>
             {dateFilter && (
@@ -128,6 +146,7 @@ function PostedPurchaseReturnShipmentContent() {
           columnFilters={columnFilters}
           onColumnFilter={onColumnFilter}
           visibleColumns={visibleColumns}
+          onPrint={handlePrint}
         />
       </div>
 

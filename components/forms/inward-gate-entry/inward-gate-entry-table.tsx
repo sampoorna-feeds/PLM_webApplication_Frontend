@@ -198,10 +198,23 @@ function InwardGateEntryRow({
 }: InwardGateEntryRowProps) {
   return (
     <tr
-      className={`border-b transition-colors ${
-        onClick ? "hover:bg-muted cursor-pointer" : ""
-      }`}
-      onClick={onClick}
+      tabIndex={0}
+      className="border-b transition-colors cursor-default outline-none hover:bg-muted/50 focus:bg-primary/10"
+      onClick={(e) => (e.currentTarget as HTMLElement).focus()}
+      onKeyDown={(e) => {
+        if (e.key === "ArrowDown") {
+          e.preventDefault();
+          const next = e.currentTarget.nextElementSibling as HTMLElement;
+          if (next?.tabIndex >= 0) next.focus();
+        } else if (e.key === "ArrowUp") {
+          e.preventDefault();
+          const prev = e.currentTarget.previousElementSibling as HTMLElement;
+          if (prev?.tabIndex >= 0) prev.focus();
+        } else if (e.key === "Enter") {
+          e.preventDefault();
+          onClick?.();
+        }
+      }}
     >
       <td className="text-muted-foreground p-2 px-3 py-3 text-center align-middle text-xs whitespace-nowrap">
         {serialNo}
@@ -211,7 +224,16 @@ function InwardGateEntryRow({
           key={column.id}
           className="p-2 px-3 py-3 align-middle text-xs whitespace-nowrap"
         >
-          {formatValue(entry[column.id as keyof InwardGateEntryHeader], column.id)}
+          {column.id === "No" && onClick ? (
+            <span
+              className="text-primary cursor-pointer hover:underline underline-offset-2 font-medium"
+              onClick={(e) => { e.stopPropagation(); onClick(); }}
+            >
+              {formatValue(entry[column.id as keyof InwardGateEntryHeader], column.id)}
+            </span>
+          ) : (
+            formatValue(entry[column.id as keyof InwardGateEntryHeader], column.id)
+          )}
         </td>
       ))}
     </tr>

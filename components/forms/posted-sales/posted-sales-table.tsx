@@ -130,8 +130,23 @@ export function PostedSalesTable({
               documents.map((doc) => (
                 <TableRow
                   key={doc.No}
-                  className="cursor-pointer hover:bg-muted/30 transition-colors border-b last:border-0 group"
-                  onClick={() => onRowClick(doc)}
+                  tabIndex={0}
+                  className="group border-b transition-colors last:border-0 cursor-default outline-none hover:bg-muted/30 focus:bg-primary/10"
+                  onClick={(e) => (e.currentTarget as HTMLElement).focus()}
+                  onKeyDown={(e) => {
+                    if (e.key === "ArrowDown") {
+                      e.preventDefault();
+                      const next = e.currentTarget.nextElementSibling as HTMLElement;
+                      if (next?.tabIndex >= 0) next.focus();
+                    } else if (e.key === "ArrowUp") {
+                      e.preventDefault();
+                      const prev = e.currentTarget.previousElementSibling as HTMLElement;
+                      if (prev?.tabIndex >= 0) prev.focus();
+                    } else if (e.key === "Enter") {
+                      e.preventDefault();
+                      onRowClick(doc);
+                    }
+                  }}
                 >
                   {onPrint && (
                     <TableCell className="p-2 text-center" onClick={(e) => e.stopPropagation()}>
@@ -168,7 +183,16 @@ export function PostedSalesTable({
                   )}
                   {activeColumns.map((col) => (
                     <TableCell key={col.id} className="p-4 whitespace-nowrap text-xs font-medium text-foreground/90 group-hover:text-foreground">
-                      {formatValue(doc, col.id)}
+                      {col.id === "No" ? (
+                        <span
+                          className="text-primary cursor-pointer hover:underline underline-offset-2"
+                          onClick={(e) => { e.stopPropagation(); onRowClick(doc); }}
+                        >
+                          {formatValue(doc, col.id)}
+                        </span>
+                      ) : (
+                        formatValue(doc, col.id)
+                      )}
                     </TableCell>
                   ))}
                 </TableRow>

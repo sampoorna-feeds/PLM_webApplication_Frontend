@@ -249,7 +249,6 @@ function ProductionOrderRow({
   serialNo,
   onClick,
 }: ProductionOrderRowProps) {
-  // Helper to get cell value
   const getCellValue = (columnId: string): string => {
     const value = (order as unknown as Record<string, unknown>)[columnId];
 
@@ -257,12 +256,10 @@ function ProductionOrderRow({
       return "-";
     }
 
-    // Format boolean values
     if (typeof value === "boolean") {
       return value ? "Yes" : "No";
     }
 
-    // Format dates
     if (
       columnId.includes("Date") &&
       typeof value === "string" &&
@@ -274,7 +271,7 @@ function ProductionOrderRow({
           return formatDate(date);
         }
       } catch {
-        // Return as-is if parsing fails
+        // ignore
       }
     }
 
@@ -283,8 +280,23 @@ function ProductionOrderRow({
 
   return (
     <tr
-      className="hover:bg-muted/50 cursor-pointer border-b transition-colors"
-      onClick={onClick}
+      tabIndex={0}
+      className="border-b transition-colors cursor-default outline-none hover:bg-muted/50 focus:bg-primary/10"
+      onClick={(e) => (e.currentTarget as HTMLElement).focus()}
+      onKeyDown={(e) => {
+        if (e.key === "ArrowDown") {
+          e.preventDefault();
+          const next = e.currentTarget.nextElementSibling as HTMLElement;
+          if (next?.tabIndex >= 0) next.focus();
+        } else if (e.key === "ArrowUp") {
+          e.preventDefault();
+          const prev = e.currentTarget.previousElementSibling as HTMLElement;
+          if (prev?.tabIndex >= 0) prev.focus();
+        } else if (e.key === "Enter") {
+          e.preventDefault();
+          onClick();
+        }
+      }}
     >
       <td className="text-muted-foreground p-2 px-3 py-3 text-center align-middle text-xs whitespace-nowrap">
         {serialNo}
@@ -294,7 +306,16 @@ function ProductionOrderRow({
           key={column.id}
           className="p-2 px-3 py-3 align-middle text-xs whitespace-nowrap"
         >
-          {getCellValue(column.id)}
+          {column.id === "No" ? (
+            <span
+              className="text-primary cursor-pointer hover:underline underline-offset-2 font-medium"
+              onClick={(e) => { e.stopPropagation(); onClick(); }}
+            >
+              {getCellValue(column.id)}
+            </span>
+          ) : (
+            getCellValue(column.id)
+          )}
         </td>
       ))}
     </tr>

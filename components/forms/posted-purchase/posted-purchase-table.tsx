@@ -137,8 +137,23 @@ export function PostedPurchaseTable({
               documents.map((doc) => (
                 <TableRow
                   key={doc.No}
-                  className="hover:bg-muted/30 group cursor-pointer border-b transition-colors last:border-0"
-                  onClick={() => onRowClick(doc)}
+                  tabIndex={0}
+                  className="group border-b transition-colors last:border-0 cursor-default outline-none hover:bg-muted/30 focus:bg-primary/10"
+                  onClick={(e) => (e.currentTarget as HTMLElement).focus()}
+                  onKeyDown={(e) => {
+                    if (e.key === "ArrowDown") {
+                      e.preventDefault();
+                      const next = e.currentTarget.nextElementSibling as HTMLElement;
+                      if (next?.tabIndex >= 0) next.focus();
+                    } else if (e.key === "ArrowUp") {
+                      e.preventDefault();
+                      const prev = e.currentTarget.previousElementSibling as HTMLElement;
+                      if (prev?.tabIndex >= 0) prev.focus();
+                    } else if (e.key === "Enter") {
+                      e.preventDefault();
+                      onRowClick(doc);
+                    }
+                  }}
                 >
                   {onPrint && (
                     <TableCell className="p-2 text-center" onClick={(e) => e.stopPropagation()}>
@@ -178,7 +193,16 @@ export function PostedPurchaseTable({
                       key={col.id}
                       className="text-foreground/90 group-hover:text-foreground p-4 text-xs font-medium whitespace-nowrap"
                     >
-                      {formatValue(doc, col.id)}
+                      {col.id === "No" ? (
+                        <span
+                          className="text-primary cursor-pointer hover:underline underline-offset-2"
+                          onClick={(e) => { e.stopPropagation(); onRowClick(doc); }}
+                        >
+                          {formatValue(doc, col.id)}
+                        </span>
+                      ) : (
+                        formatValue(doc, col.id)
+                      )}
                     </TableCell>
                   ))}
                 </TableRow>

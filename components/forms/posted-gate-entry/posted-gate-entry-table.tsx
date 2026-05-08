@@ -103,12 +103,36 @@ export function PostedGateEntryTable({
             entries.map((entry) => (
               <TableRow
                 key={entry.No}
-                className="cursor-pointer hover:bg-muted/50 transition-colors"
-                onClick={() => onRowClick(entry)}
+                tabIndex={0}
+                className="transition-colors cursor-default outline-none hover:bg-muted/50 focus:bg-primary/10"
+                onClick={(e) => (e.currentTarget as HTMLElement).focus()}
+                onKeyDown={(e) => {
+                  if (e.key === "ArrowDown") {
+                    e.preventDefault();
+                    const next = e.currentTarget.nextElementSibling as HTMLElement;
+                    if (next?.tabIndex >= 0) next.focus();
+                  } else if (e.key === "ArrowUp") {
+                    e.preventDefault();
+                    const prev = e.currentTarget.previousElementSibling as HTMLElement;
+                    if (prev?.tabIndex >= 0) prev.focus();
+                  } else if (e.key === "Enter") {
+                    e.preventDefault();
+                    onRowClick(entry);
+                  }
+                }}
               >
                 {columns.map((col) => (
                   <TableCell key={col.id} className="whitespace-nowrap text-xs font-medium">
-                    {formatValue(entry, col.id)}
+                    {col.id === "No" ? (
+                      <span
+                        className="text-primary cursor-pointer hover:underline underline-offset-2"
+                        onClick={(e) => { e.stopPropagation(); onRowClick(entry); }}
+                      >
+                        {formatValue(entry, col.id)}
+                      </span>
+                    ) : (
+                      formatValue(entry, col.id)
+                    )}
                   </TableCell>
                 ))}
               </TableRow>

@@ -160,8 +160,23 @@ export function PostedTransferTable({
   }: TransferOrderRowProps) {
     return (
       <tr
-        className={`border-b transition-colors ${onRowClick ? "hover:bg-muted cursor-pointer" : ""}`}
-        onClick={() => onRowClick?.(row.No)}
+        tabIndex={0}
+        className="border-b transition-colors cursor-default outline-none hover:bg-muted/50 focus:bg-primary/10"
+        onClick={(e) => (e.currentTarget as HTMLElement).focus()}
+        onKeyDown={(e) => {
+          if (e.key === "ArrowDown") {
+            e.preventDefault();
+            const next = e.currentTarget.nextElementSibling as HTMLElement;
+            if (next?.tabIndex >= 0) next.focus();
+          } else if (e.key === "ArrowUp") {
+            e.preventDefault();
+            const prev = e.currentTarget.previousElementSibling as HTMLElement;
+            if (prev?.tabIndex >= 0) prev.focus();
+          } else if (e.key === "Enter") {
+            e.preventDefault();
+            onRowClick?.(row.No);
+          }
+        }}
       >
         <td className="text-muted-foreground p-3 text-center text-xs whitespace-nowrap">
           {index + 1}
@@ -214,7 +229,14 @@ export function PostedTransferTable({
         )}
         {columns.map(col => (
           <td key={col.id} className="p-3 text-xs whitespace-nowrap text-muted-foreground">
-            {col.id === "E_Way_Bill_No" || col.id === "E_Invoice_No" ? (
+            {col.id === "No" && onRowClick ? (
+              <span
+                className="text-primary cursor-pointer hover:underline underline-offset-2 font-medium"
+                onClick={(e) => { e.stopPropagation(); onRowClick(row.No); }}
+              >
+                {row[col.id] || "-"}
+              </span>
+            ) : col.id === "E_Way_Bill_No" || col.id === "E_Invoice_No" ? (
               <span className="font-medium text-foreground">{row[col.id] || "-"}</span>
             ) : (
               formatValue(row[col.id], col.id)

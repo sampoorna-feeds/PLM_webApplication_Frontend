@@ -258,8 +258,8 @@ export function PostedDocumentDetailForm({
               }
 
               return (
-                <div key={key} className="flex flex-col gap-0.5">
-                  <dt className="text-muted-foreground text-xs font-medium tracking-wider uppercase opacity-60">
+                <div key={key} className="flex flex-col gap-1">
+                  <dt className="text-muted-foreground text-xs font-medium">
                     {key.replace(/_/g, " ")}
                   </dt>
                   <dd className="text-foreground text-xs font-medium leading-tight">
@@ -274,7 +274,7 @@ export function PostedDocumentDetailForm({
         {/* Lines Section */}
         <section className="bg-card/50 space-y-2 rounded-lg border p-4 shadow-sm">
           <div className="flex items-center justify-between border-b pb-1.5">
-            <h3 className="text-muted-foreground text-[9px] font-bold tracking-wider uppercase">
+            <h3 className="text-foreground text-[10px] font-bold tracking-wider uppercase">
               Line Items
             </h3>
             <Badge variant="secondary" className="font-mono text-[10px]">
@@ -287,31 +287,31 @@ export function PostedDocumentDetailForm({
               <TableHeader>
                 <TableRow className="bg-muted/50 hover:bg-muted/50">
                   {formType === "posted-purchase-invoice" && (
-                    <TableHead className="h-8 px-3 text-[9px] font-bold tracking-wider uppercase">
+                    <TableHead className="text-primary h-8 px-3 text-[10px] font-bold tracking-wider uppercase">
                       Line No.
                     </TableHead>
                   )}
-                  <TableHead className="h-8 px-3 text-[9px] font-bold tracking-wider uppercase">
+                  <TableHead className="text-primary h-8 px-3 text-[10px] font-bold tracking-wider uppercase">
                     Type
                   </TableHead>
-                  <TableHead className="h-8 px-3 text-[9px] font-bold tracking-wider uppercase">
+                  <TableHead className="text-primary h-8 px-3 text-[10px] font-bold tracking-wider uppercase">
                     No.
                   </TableHead>
-                  <TableHead className="h-8 px-3 text-[9px] font-bold tracking-wider uppercase">
+                  <TableHead className="text-primary h-8 px-3 text-[10px] font-bold tracking-wider uppercase">
                     Description
                   </TableHead>
-                    <TableHead className="text-right h-8 px-3 text-[9px] font-bold tracking-wider uppercase">
+                      <TableHead className="text-primary text-right h-8 px-3 text-[10px] font-bold tracking-wider uppercase">
                     Quantity
                   </TableHead>
-                  <TableHead className="h-8 px-3 text-[9px] font-bold tracking-wider uppercase">
+                  <TableHead className="text-primary h-8 px-3 text-[10px] font-bold tracking-wider uppercase">
                     UOM
                   </TableHead>
-                    <TableHead className="text-right h-8 px-3 text-[9px] font-bold tracking-wider uppercase">
+                      <TableHead className="text-primary text-right h-8 px-3 text-[10px] font-bold tracking-wider uppercase">
                     Unit Cost
                   </TableHead>
 
                   {formType === "posted-purchase-invoice" && (
-                      <TableHead className="text-right h-8 px-3 text-[9px] font-bold tracking-wider uppercase">
+                        <TableHead className="text-primary text-right h-8 px-3 text-[10px] font-bold tracking-wider uppercase">
                       Disc %
                     </TableHead>
                   )}
@@ -319,29 +319,29 @@ export function PostedDocumentDetailForm({
                   {formType === "posted-purchase-invoice" ||
                   formType === "posted-purchase-credit-memo" ? (
                     <>
-                        <TableHead className="text-right h-8 px-3 text-[9px] font-bold tracking-wider uppercase">
+                          <TableHead className="text-primary text-right h-8 px-3 text-[10px] font-bold tracking-wider uppercase">
                         Amount
                       </TableHead>
-                        <TableHead className="text-right h-8 px-3 text-[9px] font-bold tracking-wider uppercase">
+                          <TableHead className="text-primary text-right h-8 px-3 text-[10px] font-bold tracking-wider uppercase">
                         Disc Amt
                       </TableHead>
                     </>
                   ) : (
-                      <TableHead className="text-right h-8 px-3 text-[9px] font-bold tracking-wider uppercase">
+                        <TableHead className="text-primary text-right h-8 px-3 text-[10px] font-bold tracking-wider uppercase">
                       Qty Invoiced
                     </TableHead>
                   )}
 
-                  <TableHead className="h-8 px-3 text-[9px] font-bold tracking-wider uppercase">
+                  <TableHead className="text-primary h-8 px-3 text-[10px] font-bold tracking-wider uppercase">
                     Dim 1
                   </TableHead>
-                  <TableHead className="h-8 px-3 text-[9px] font-bold tracking-wider uppercase">
+                  <TableHead className="text-primary h-8 px-3 text-[10px] font-bold tracking-wider uppercase">
                     Dim 2
                   </TableHead>
 
                   {(formType === "posted-purchase-invoice" ||
                     formType === "posted-purchase-credit-memo") && (
-                    <TableHead className="h-8 px-3 text-[9px] font-bold tracking-wider uppercase">
+                    <TableHead className="text-primary h-8 px-3 text-[10px] font-bold tracking-wider uppercase">
                       Dim 3
                     </TableHead>
                   )}

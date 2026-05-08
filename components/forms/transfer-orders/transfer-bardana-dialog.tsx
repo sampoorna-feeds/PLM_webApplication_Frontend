@@ -5,9 +5,7 @@
  * Allows adding a bardana line to a transfer order line item.
  */
 
-import React, { useCallback, useEffect, useState } from "react";
-import { Loader2, Package } from "lucide-react";
-import { ItemSelect } from "./item-select";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -15,20 +13,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { FieldTitle } from "@/components/ui/field";
-import { SearchableSelect } from "@/components/forms/shared/searchable-select";
-import {
-  getBardanaItems,
-  getBardanaItemsPage,
-  searchBardanaItems,
-  type Item,
-} from "@/lib/api/services/item.service";
+import { Input } from "@/components/ui/input";
+import { type Item } from "@/lib/api/services/item.service";
 import {
   addTransferBardanaLine,
   postTransferBardana,
 } from "@/lib/api/services/transfer-orders.service";
+import { Loader2, Package } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { ItemSelect } from "./item-select";
 
 interface TransferBardanaDialogProps {
   isOpen: boolean;
@@ -101,7 +95,13 @@ export function TransferBardanaDialog({
     setIsSaving(true);
     setError(null);
     try {
-      await addTransferBardanaLine(documentNo, lineNo, selectedItem.No, uom, qty);
+      await addTransferBardanaLine(
+        documentNo,
+        lineNo,
+        selectedItem.No,
+        uom,
+        qty,
+      );
       setSuccess(true);
       onSuccess?.();
     } catch (err) {
@@ -135,7 +135,7 @@ export function TransferBardanaDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-h-[90vh] max-w-md overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Package className="h-4 w-4" />
@@ -169,16 +169,16 @@ export function TransferBardanaDialog({
 
         <div className="space-y-3">
           {/* Bardana Item */}
-            <FieldTitle>
-              Bardana Item <span className="text-red-500">*</span>
-            </FieldTitle>
-            <ItemSelect
-              value={selectedItem?.No || ""}
-              onChange={(v, item) => handleItemSelect(v, item as any)}
-              locationCode={locationCode}
-              placeholder="Search bardana items…"
-              customFilter="(Blocked eq false) and (Status eq 'Approved') and (RM_Bardana_Item eq true)"
-            />
+          <FieldTitle>
+            Bardana Item <span className="text-red-500">*</span>
+          </FieldTitle>
+          <ItemSelect
+            value={selectedItem?.No || ""}
+            onChange={(v, item) => handleItemSelect(v, item as any)}
+            locationCode={locationCode}
+            placeholder="Search bardana items…"
+            customFilter="(Blocked eq false) and (Status eq 'Approved') and (RM_Bardana_Item eq true)"
+          />
 
           {/* UOM — read-only, auto-filled from selected item */}
           <div className="space-y-1">
@@ -233,7 +233,7 @@ export function TransferBardanaDialog({
           {success ? (
             <Button
               type="button"
-              className="bg-green-600 hover:bg-green-700 text-white"
+              className="bg-green-600 text-white hover:bg-green-700"
               onClick={handlePost}
               disabled={isPosting}
             >

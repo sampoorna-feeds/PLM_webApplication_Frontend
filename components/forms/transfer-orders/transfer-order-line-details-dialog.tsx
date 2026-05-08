@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import { CalculatorInput } from "@/components/ui/calculator-input";
 import {
   Dialog,
   DialogContent,
@@ -9,7 +10,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { CalculatorInput } from "@/components/ui/calculator-input";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import {
   Table,
@@ -21,14 +21,14 @@ import {
 } from "@/components/ui/table";
 import {
   checkItemTracking,
+  deleteTransferBardanaLine,
   getItemAvailableQuantity,
+  getTransferBardanaLines,
   getTransferItemByNo,
   getTransferItemLedgerEntries,
   getTransferLine,
   postTransferBardana,
   updateTransferLine,
-  getTransferBardanaLines,
-  deleteTransferBardanaLine,
   type TransferBardanaLine,
   type TransferItemLedgerEntry,
   type TransferLine,
@@ -76,9 +76,13 @@ export function TransferOrderLineDetailsDialog({
   const [isPostingBardana, setIsPostingBardana] = useState(false);
   const [isLedgerModalOpen, setIsLedgerModalOpen] = useState(false);
   const [ledgerSearchQuery, setLedgerSearchQuery] = useState("");
-  const [existingBardanas, setExistingBardanas] = useState<TransferBardanaLine[]>([]);
+  const [existingBardanas, setExistingBardanas] = useState<
+    TransferBardanaLine[]
+  >([]);
   const [isLoadingBardanas, setIsLoadingBardanas] = useState(false);
-  const [isDeletingBardana, setIsDeletingBardana] = useState<number | null>(null);
+  const [isDeletingBardana, setIsDeletingBardana] = useState<number | null>(
+    null,
+  );
 
   const [formData, setFormData] = useState<Partial<TransferLine>>({ ...line });
 
@@ -210,7 +214,10 @@ export function TransferOrderLineDetailsDialog({
     if (!isOpen || !line?.Line_No || !line?.Document_No) return;
     setIsLoadingBardanas(true);
     try {
-      const lines = await getTransferBardanaLines(line.Document_No, line.Line_No);
+      const lines = await getTransferBardanaLines(
+        line.Document_No,
+        line.Line_No,
+      );
       setExistingBardanas(lines);
     } catch (error) {
       console.error("Failed to fetch existing bardanas:", error);
@@ -233,7 +240,11 @@ export function TransferOrderLineDetailsDialog({
 
     setIsDeletingBardana(bardanaLineNo);
     try {
-      await deleteTransferBardanaLine(line.Document_No, line.Line_No, bardanaLineNo);
+      await deleteTransferBardanaLine(
+        line.Document_No,
+        line.Line_No,
+        bardanaLineNo,
+      );
       toast.success("Bardana deleted successfully");
       fetchExistingBardanas();
     } catch (error: any) {
@@ -248,9 +259,12 @@ export function TransferOrderLineDetailsDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent showCloseButton={false} className="bg-background border-border flex max-h-[90vh] w-full sm:max-w-[800px] flex-col overflow-hidden rounded-2xl p-0">
+      <DialogContent
+        showCloseButton={false}
+        className="bg-background border-border flex max-h-[90vh] w-full flex-col overflow-hidden rounded-2xl p-0 sm:max-w-[800px]"
+      >
         <div className="flex-1 space-y-6 overflow-y-auto p-6">
-          <div className="flex items-center justify-between border-b pb-4 -mx-6 px-6 mb-4">
+          <div className="-mx-6 mb-4 flex items-center justify-between border-b px-6 pb-4">
             <h2
               className={cn(
                 "text-base font-semibold transition-colors duration-300",
@@ -262,7 +276,7 @@ export function TransferOrderLineDetailsDialog({
 
             <div className="flex items-center gap-2">
               {canAddBardana && (
-                <div className="flex items-center gap-2 mr-4 border-r pr-4 border-border">
+                <div className="border-border mr-4 flex items-center gap-2 border-r pr-4">
                   <Button
                     variant="outline"
                     size="sm"
@@ -289,12 +303,12 @@ export function TransferOrderLineDetailsDialog({
                   </Button>
                 </div>
               )}
-              
+
               <Button
                 onClick={handleSave}
                 disabled={isSubmitting}
                 size="sm"
-                className="h-8 rounded-lg bg-green-600 px-6 text-xs text-white hover:bg-green-700 font-bold"
+                className="h-8 rounded-lg bg-green-600 px-6 text-xs font-bold text-white hover:bg-green-700"
               >
                 {isSubmitting && (
                   <Loader2 className="mr-2 h-3 w-3 animate-spin" />
@@ -314,23 +328,29 @@ export function TransferOrderLineDetailsDialog({
           </div>
 
           {/* Header Info Section */}
-          <div className="flex flex-wrap items-center gap-x-8 gap-y-2 rounded-xl bg-muted/30 p-4 border border-border/50">
+          <div className="flex flex-wrap items-center gap-x-8 gap-y-2">
             <div className="flex items-center gap-2">
-              <span className="text-muted-foreground text-[10px] uppercase tracking-wider font-bold">Available Qty</span>
+              <span className="text-muted-foreground text-[10px] font-bold tracking-wider uppercase">
+                Available Qty
+              </span>
               <span
                 className={cn(
-                  "text-sm font-black text-foreground",
+                  "text-foreground text-sm font-black",
                   availableQty !== null && availableQty <= 0 && "text-red-500",
                   isLoadingStock && "animate-pulse",
                 )}
               >
-                {isLoadingStock ? "..." : (availableQty?.toLocaleString() ?? "-")}
+                {isLoadingStock
+                  ? "..."
+                  : (availableQty?.toLocaleString() ?? "-")}
               </span>
             </div>
 
-            <div className="flex items-center gap-2 flex-1 min-w-[200px]">
-              <span className="text-muted-foreground text-[10px] uppercase tracking-wider font-bold">Description</span>
-              <span className="text-sm font-black text-foreground line-clamp-1">
+            <div className="flex min-w-[200px] flex-1 items-center gap-2">
+              <span className="text-muted-foreground text-[10px] font-bold tracking-wider uppercase">
+                Description
+              </span>
+              <span className="text-foreground line-clamp-1 text-sm font-black">
                 {formData.Description || "-"}
               </span>
             </div>
@@ -343,12 +363,10 @@ export function TransferOrderLineDetailsDialog({
             </div>
           )}
 
-          <div className="bg-border h-px w-full" />
-
           {/* Editable Fields Section - 3-column Grid */}
           <div className="grid grid-cols-1 gap-x-4 gap-y-4 md:grid-cols-12">
             <div className="space-y-1.5 md:col-span-3">
-              <label className="text-muted-foreground text-[10px] uppercase tracking-wider font-bold">
+              <label className="text-muted-foreground text-[10px] font-bold tracking-wider uppercase">
                 GST Group Code
               </label>
               <Input
@@ -359,7 +377,7 @@ export function TransferOrderLineDetailsDialog({
             </div>
 
             <div className="space-y-1.5 md:col-span-3">
-              <label className="text-muted-foreground text-[10px] uppercase tracking-wider font-bold">
+              <label className="text-muted-foreground text-[10px] font-bold tracking-wider uppercase">
                 HSN/SAC Code
               </label>
               <Input
@@ -370,7 +388,7 @@ export function TransferOrderLineDetailsDialog({
             </div>
 
             <div className="space-y-1.5 md:col-span-3">
-              <label className="text-muted-foreground flex items-center justify-between text-[10px] uppercase tracking-wider font-bold">
+              <label className="text-muted-foreground flex items-center justify-between text-[10px] font-bold tracking-wider uppercase">
                 GST Credit
                 {isLoadingLine && (
                   <Loader2 className="text-muted-foreground h-3 w-3 animate-spin" />
@@ -392,7 +410,7 @@ export function TransferOrderLineDetailsDialog({
             </div>
 
             <div className="flex flex-col justify-center space-y-1.5 md:col-span-3">
-              <label className="text-muted-foreground text-[10px] uppercase tracking-wider font-bold">
+              <label className="text-muted-foreground text-[10px] font-bold tracking-wider uppercase">
                 Exempted
               </label>
               <div className="flex h-9 items-center">
@@ -403,62 +421,68 @@ export function TransferOrderLineDetailsDialog({
                       ? "border-green-600 bg-green-600"
                       : "bg-muted border-input",
                   )}
-                  onClick={() => !isReadOnly && handleChange("Exempted", !formData.Exempted)}
+                  onClick={() =>
+                    !isReadOnly && handleChange("Exempted", !formData.Exempted)
+                  }
                 >
                   {formData.Exempted && (
                     <div className="text-[8px] text-white">✔</div>
                   )}
                 </div>
                 <label
-                  className={cn("text-muted-foreground ml-2 text-[10px] font-bold", !isReadOnly && "cursor-pointer")}
-                  onClick={() => !isReadOnly && handleChange("Exempted", !formData.Exempted)}
+                  className={cn(
+                    "text-muted-foreground ml-2 text-[10px] font-bold",
+                    !isReadOnly && "cursor-pointer",
+                  )}
+                  onClick={() =>
+                    !isReadOnly && handleChange("Exempted", !formData.Exempted)
+                  }
                 >
                   YES
                 </label>
               </div>
             </div>
 
-
             <div className="space-y-1.5 md:col-span-3">
-              <label className="text-muted-foreground text-[10px] uppercase tracking-wider font-bold">
+              <label className="text-muted-foreground text-[10px] font-bold tracking-wider uppercase">
                 Quantity
               </label>
               <CalculatorInput
                 value={formData.Quantity?.toString() || "0"}
                 onValueChange={(v) => handleChange("Quantity", v)}
-                className="h-9 focus:border-red-500/50 transition-colors font-bold"
+                className="h-9 font-bold transition-colors focus:border-red-500/50"
                 onFocus={(e) => e.target.select()}
                 disabled={isReadOnly}
               />
             </div>
 
             <div className="space-y-1.5 md:col-span-3">
-              <label className="text-muted-foreground text-[10px] uppercase tracking-wider font-bold">
+              <label className="text-muted-foreground text-[10px] font-bold tracking-wider uppercase">
                 Qty. to Ship
               </label>
               <CalculatorInput
                 value={formData.Qty_to_Ship?.toString() || "0"}
                 onValueChange={(v) => handleChange("Qty_to_Ship", v)}
-                className="h-9 focus:border-red-500/50 transition-colors font-bold"
+                className="h-9 font-bold transition-colors focus:border-red-500/50"
                 onFocus={(e) => e.target.select()}
               />
             </div>
 
             <div className="space-y-1.5 md:col-span-3">
-              <label className="text-muted-foreground text-[10px] uppercase tracking-wider font-bold">
+              <label className="text-muted-foreground text-[10px] font-bold tracking-wider uppercase">
                 Qty. to Receive
               </label>
               <CalculatorInput
                 value={formData.Qty_to_Receive?.toString() || "0"}
                 onValueChange={(v) => handleChange("Qty_to_Receive", v)}
-                className="h-9 focus:border-red-500/50 transition-colors font-bold"
+                className="h-9 font-bold transition-colors focus:border-red-500/50"
                 onFocus={(e) => e.target.select()}
               />
             </div>
 
             {!isLoadingTracking && !hasTracking && (
               <div className="animate-in fade-in slide-in-from-top-2 space-y-1.5 duration-300 md:col-span-3">
-                <label className="text-muted-foreground text-[10px] uppercase tracking-wider font-bold">
+                <label className="text-muted-foreground text-[10px] font-bold tracking-wider uppercase">
                   Applies to Entry
                 </label>
                 <div className="relative">
@@ -466,7 +490,9 @@ export function TransferOrderLineDetailsDialog({
                     value={formData.Appl_to_Item_Entry?.toString() || ""}
                     readOnly
                     onClick={() =>
-                      !isReadOnly && !isLoadingLedger && setIsLedgerModalOpen(true)
+                      !isReadOnly &&
+                      !isLoadingLedger &&
+                      setIsLedgerModalOpen(true)
                     }
                     placeholder={
                       isLoadingLedger
@@ -477,16 +503,22 @@ export function TransferOrderLineDetailsDialog({
                     }
                     className={cn(
                       "h-9 text-xs font-bold",
-                      !isReadOnly && !isLoadingLedger && "cursor-pointer focus:ring-1 focus:ring-red-500/50"
+                      !isReadOnly &&
+                        !isLoadingLedger &&
+                        "cursor-pointer focus:ring-1 focus:ring-red-500/50",
                     )}
                   />
                   <div
                     className={cn(
                       "absolute top-2.5 right-3 opacity-50 transition-opacity",
-                      !isReadOnly && !isLoadingLedger && "cursor-pointer hover:opacity-100"
+                      !isReadOnly &&
+                        !isLoadingLedger &&
+                        "cursor-pointer hover:opacity-100",
                     )}
                     onClick={() =>
-                      !isReadOnly && !isLoadingLedger && setIsLedgerModalOpen(true)
+                      !isReadOnly &&
+                      !isLoadingLedger &&
+                      setIsLedgerModalOpen(true)
                     }
                   >
                     <Search className="h-4 w-4" />
@@ -495,192 +527,211 @@ export function TransferOrderLineDetailsDialog({
               </div>
             )}
 
-                <Dialog
-                  open={isLedgerModalOpen}
-                  onOpenChange={setIsLedgerModalOpen}
-                >
-                  <DialogContent className="flex max-h-[85vh] w-fit max-w-[95vw] sm:max-w-[95vw] flex-col overflow-hidden p-0">
-                    <DialogHeader className="p-6 pb-2">
-                      <DialogTitle>Select Ledger Entry</DialogTitle>
-                      <div className="relative mt-4">
-                        <Search className="text-muted-foreground absolute top-2.5 left-3 h-4 w-4" />
-                        <Input
-                          placeholder="Search by Entry No., Document No., or Lot No..."
-                          value={ledgerSearchQuery}
-                          onChange={(e) => setLedgerSearchQuery(e.target.value)}
-                          className="h-10 pl-9"
-                        />
-                      </div>
-                    </DialogHeader>
-                    <div className="flex-1 overflow-y-auto p-6 pt-0">
-                      <div className="border-border overflow-x-auto rounded-md border">
-                        <Table>
-                          <TableHeader className="bg-muted sticky top-0 z-10 whitespace-nowrap">
-                            <TableRow>
-                              <TableHead className="w-[100px]">
-                                Entry No.
-                              </TableHead>
-                              <TableHead>Posting Date</TableHead>
-                              <TableHead>Document No.</TableHead>
-                              <TableHead className="text-right">
-                                Quantity
-                              </TableHead>
-                              <TableHead className="text-right">
-                                Rem. Qty
-                              </TableHead>
-                              <TableHead>Lot No.</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {ledgerEntries
-                              .filter(
-                                (e) =>
-                                  e.Entry_No.toString().includes(
-                                    ledgerSearchQuery,
-                                  ) ||
-                                  e.Document_No?.toLowerCase().includes(
-                                    ledgerSearchQuery.toLowerCase(),
-                                  ) ||
-                                  e.Lot_No?.toLowerCase().includes(
-                                    ledgerSearchQuery.toLowerCase(),
-                                  ),
-                              )
-                              .map((entry) => (
-                                <TableRow
-                                  key={entry.Entry_No}
-                                  className="hover:bg-muted/50 cursor-pointer transition-colors whitespace-nowrap"
-                                  onClick={() => {
-                                    handleChange(
-                                      "Appl_to_Item_Entry",
-                                      entry.Entry_No.toString(),
-                                    );
-                                    setIsLedgerModalOpen(false);
-                                  }}
-                                >
-                                  <TableCell className="font-bold">
-                                    {entry.Entry_No}
-                                  </TableCell>
-                                  <TableCell>
-                                    {entry.Posting_Date
-                                      ? formatDate(entry.Posting_Date)
-                                      : "-"}
-                                  </TableCell>
-                                  <TableCell>{entry.Document_No}</TableCell>
-                                  <TableCell className="text-right">
-                                    {entry.Quantity?.toLocaleString()}
-                                  </TableCell>
-                                  <TableCell className="text-right font-medium text-green-600">
-                                    {entry.Remaining_Quantity?.toLocaleString()}
-                                  </TableCell>
-                                  <TableCell className="text-xs">
-                                    {entry.Lot_No || "-"}
-                                  </TableCell>
-                                </TableRow>
-                              ))}
-                            {ledgerEntries.length === 0 && !isLoadingLedger && (
-                              <TableRow>
-                                <TableCell
-                                  colSpan={6}
-                                  className="text-muted-foreground h-24 text-center"
-                                >
-                                  No ledger entries found for this item and
-                                  location.
-                                </TableCell>
-                              </TableRow>
-                            )}
-                          </TableBody>
-                        </Table>
-                      </div>
-                    </div>
-                    <DialogFooter className="bg-muted/20 border-t p-4">
-                      <Button
-                        variant="outline"
-                        onClick={() => setIsLedgerModalOpen(false)}
-                      >
-                        Close
-                      </Button>
-                    </DialogFooter>
-                  </DialogContent>
-                </Dialog>
-              </div>
-
-              {hasTracking && (
-                <div className="border-border flex flex-wrap gap-3 border-t pt-4 mt-6">
-                  <Button
-                    variant="outline"
-                    className="border-border h-10 flex-1 rounded-xl text-sm font-bold text-red-500 hover:bg-red-500/10 hover:text-red-500"
-                    onClick={() => setIsTrackingOpen(true)}
-                  >
-                    Item Tracking
-                  </Button>
-                </div>
-              )}
-
-              {canAddBardana && existingBardanas.length > 0 && (
-                <div className="md:col-span-12 mt-6">
-                  <div className="flex items-center justify-between mb-2 border-b pb-1">
-                    <h4 className="font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5 text-[10px]">
-                      <Package className="size-4" />
-                      Existing Bardana Details
-                    </h4>
-                    {isLoadingBardanas && (
-                      <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
-                    )}
+            <Dialog
+              open={isLedgerModalOpen}
+              onOpenChange={setIsLedgerModalOpen}
+            >
+              <DialogContent className="flex max-h-[85vh] w-fit max-w-[95vw] flex-col overflow-hidden p-0 sm:max-w-[95vw]">
+                <DialogHeader className="p-6 pb-2">
+                  <DialogTitle>Select Ledger Entry</DialogTitle>
+                  <div className="relative mt-4">
+                    <Search className="text-muted-foreground absolute top-2.5 left-3 h-4 w-4" />
+                    <Input
+                      placeholder="Search by Entry No., Document No., or Lot No..."
+                      value={ledgerSearchQuery}
+                      onChange={(e) => setLedgerSearchQuery(e.target.value)}
+                      className="h-10 pl-9"
+                    />
                   </div>
-                  <div className="rounded-lg border overflow-hidden bg-background">
+                </DialogHeader>
+                <div className="flex-1 overflow-y-auto p-6 pt-0">
+                  <div className="border-border overflow-x-auto rounded-md border">
                     <Table>
-                      <TableHeader className="bg-muted/50">
-                        <TableRow className="hover:bg-transparent border-none">
-                          <TableHead className="h-8 text-[10px] font-bold uppercase py-0">Code</TableHead>
-                          <TableHead className="h-8 text-[10px] font-bold uppercase py-0">Description</TableHead>
-                          <TableHead className="h-8 text-[10px] font-bold uppercase py-0 text-right">Qty</TableHead>
-                          <TableHead className="h-8 text-[10px] font-bold uppercase py-0 text-right">W. Per</TableHead>
-                          <TableHead className="h-8 text-[10px] font-bold uppercase py-0 text-right">Total W.</TableHead>
-                          {!isReadOnly && <TableHead className="h-8 text-[10px] font-bold uppercase py-0 text-right">Actions</TableHead>}
+                      <TableHeader className="bg-muted sticky top-0 z-10 whitespace-nowrap">
+                        <TableRow>
+                          <TableHead className="w-[100px]">Entry No.</TableHead>
+                          <TableHead>Posting Date</TableHead>
+                          <TableHead>Document No.</TableHead>
+                          <TableHead className="text-right">Quantity</TableHead>
+                          <TableHead className="text-right">Rem. Qty</TableHead>
+                          <TableHead>Lot No.</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {existingBardanas.map((b) => (
-                          <TableRow key={b.Line_No} className="h-9 hover:bg-muted/30 border-border/50">
-                            <TableCell className="py-1 font-bold text-primary text-[11px]">{b.Item_No}</TableCell>
-                            <TableCell className="py-1 text-[11px] truncate max-w-[150px] font-medium" title={b.Description}>
-                              {b.Description}
-                            </TableCell>
-                            <TableCell className="py-1 text-right tabular-nums text-[11px] font-bold">
-                              {b.Quantity} <span className="text-[9px] text-muted-foreground uppercase">{b.UOM}</span>
-                            </TableCell>
-                            <TableCell className="py-1 text-right tabular-nums text-[11px]">
-                              {b.Weight_Per ?? 0}
-                            </TableCell>
-                            <TableCell className="py-1 text-right tabular-nums text-[11px] text-green-600 font-bold">
-                              {b.Total_Weight ?? 0}
-                            </TableCell>
-                            {!isReadOnly && (
-                              <TableCell className="py-1 text-right">
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-md"
-                                  onClick={() => handleDeleteBardana(b.Line_No)}
-                                  disabled={isDeletingBardana === b.Line_No}
-                                >
-                                  {isDeletingBardana === b.Line_No ? (
-                                    <Loader2 className="h-3 w-3 animate-spin" />
-                                  ) : (
-                                    <Trash2 className="h-3.5 w-3.5" />
-                                  )}
-                                </Button>
+                        {ledgerEntries
+                          .filter(
+                            (e) =>
+                              e.Entry_No.toString().includes(
+                                ledgerSearchQuery,
+                              ) ||
+                              e.Document_No?.toLowerCase().includes(
+                                ledgerSearchQuery.toLowerCase(),
+                              ) ||
+                              e.Lot_No?.toLowerCase().includes(
+                                ledgerSearchQuery.toLowerCase(),
+                              ),
+                          )
+                          .map((entry) => (
+                            <TableRow
+                              key={entry.Entry_No}
+                              className="hover:bg-muted/50 cursor-pointer whitespace-nowrap transition-colors"
+                              onClick={() => {
+                                handleChange(
+                                  "Appl_to_Item_Entry",
+                                  entry.Entry_No.toString(),
+                                );
+                                setIsLedgerModalOpen(false);
+                              }}
+                            >
+                              <TableCell className="font-bold">
+                                {entry.Entry_No}
                               </TableCell>
-                            )}
+                              <TableCell>
+                                {entry.Posting_Date
+                                  ? formatDate(entry.Posting_Date)
+                                  : "-"}
+                              </TableCell>
+                              <TableCell>{entry.Document_No}</TableCell>
+                              <TableCell className="text-right">
+                                {entry.Quantity?.toLocaleString()}
+                              </TableCell>
+                              <TableCell className="text-right font-medium text-green-600">
+                                {entry.Remaining_Quantity?.toLocaleString()}
+                              </TableCell>
+                              <TableCell className="text-xs">
+                                {entry.Lot_No || "-"}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        {ledgerEntries.length === 0 && !isLoadingLedger && (
+                          <TableRow>
+                            <TableCell
+                              colSpan={6}
+                              className="text-muted-foreground h-24 text-center"
+                            >
+                              No ledger entries found for this item and
+                              location.
+                            </TableCell>
                           </TableRow>
-                        ))}
+                        )}
                       </TableBody>
                     </Table>
                   </div>
                 </div>
-              )}
+                <DialogFooter className="bg-muted/20 border-t p-4">
+                  <Button
+                    variant="outline"
+                    onClick={() => setIsLedgerModalOpen(false)}
+                  >
+                    Close
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </div>
+
+          {hasTracking && (
+            <div className="border-border mt-6 flex flex-wrap gap-3 border-t pt-4">
+              <Button
+                variant="outline"
+                className="border-border h-10 flex-1 rounded-xl text-sm font-bold text-red-500 hover:bg-red-500/10 hover:text-red-500"
+                onClick={() => setIsTrackingOpen(true)}
+              >
+                Item Tracking
+              </Button>
             </div>
-          </DialogContent>
+          )}
+
+          {canAddBardana && existingBardanas.length > 0 && (
+            <div className="mt-6 md:col-span-12">
+              <div className="mb-2 flex items-center justify-between border-b pb-1">
+                <h4 className="text-muted-foreground flex items-center gap-1.5 text-[10px] font-bold tracking-wider uppercase">
+                  <Package className="size-4" />
+                  Existing Bardana Details
+                </h4>
+                {isLoadingBardanas && (
+                  <Loader2 className="text-muted-foreground h-3 w-3 animate-spin" />
+                )}
+              </div>
+              <div className="bg-background overflow-hidden rounded-lg border">
+                <Table>
+                  <TableHeader className="bg-muted/50">
+                    <TableRow className="border-none hover:bg-transparent">
+                      <TableHead className="h-8 py-0 text-[10px] font-bold uppercase">
+                        Code
+                      </TableHead>
+                      <TableHead className="h-8 py-0 text-[10px] font-bold uppercase">
+                        Description
+                      </TableHead>
+                      <TableHead className="h-8 py-0 text-right text-[10px] font-bold uppercase">
+                        Qty
+                      </TableHead>
+                      <TableHead className="h-8 py-0 text-right text-[10px] font-bold uppercase">
+                        W. Per
+                      </TableHead>
+                      <TableHead className="h-8 py-0 text-right text-[10px] font-bold uppercase">
+                        Total W.
+                      </TableHead>
+                      {!isReadOnly && (
+                        <TableHead className="h-8 py-0 text-right text-[10px] font-bold uppercase">
+                          Actions
+                        </TableHead>
+                      )}
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {existingBardanas.map((b) => (
+                      <TableRow
+                        key={b.Line_No}
+                        className="hover:bg-muted/30 border-border/50 h-9"
+                      >
+                        <TableCell className="text-primary py-1 text-[11px] font-bold">
+                          {b.Item_No}
+                        </TableCell>
+                        <TableCell
+                          className="max-w-[150px] truncate py-1 text-[11px] font-medium"
+                          title={b.Description}
+                        >
+                          {b.Description}
+                        </TableCell>
+                        <TableCell className="py-1 text-right text-[11px] font-bold tabular-nums">
+                          {b.Quantity}{" "}
+                          <span className="text-muted-foreground text-[9px] uppercase">
+                            {b.UOM}
+                          </span>
+                        </TableCell>
+                        <TableCell className="py-1 text-right text-[11px] tabular-nums">
+                          {b.Weight_Per ?? 0}
+                        </TableCell>
+                        <TableCell className="py-1 text-right text-[11px] font-bold text-green-600 tabular-nums">
+                          {b.Total_Weight ?? 0}
+                        </TableCell>
+                        {!isReadOnly && (
+                          <TableCell className="py-1 text-right">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 h-7 w-7 rounded-md"
+                              onClick={() => handleDeleteBardana(b.Line_No)}
+                              disabled={isDeletingBardana === b.Line_No}
+                            >
+                              {isDeletingBardana === b.Line_No ? (
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                              ) : (
+                                <Trash2 className="h-3.5 w-3.5" />
+                              )}
+                            </Button>
+                          </TableCell>
+                        )}
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
+          )}
+        </div>
+      </DialogContent>
 
       <TransferOrderItemTrackingDialog
         open={isTrackingOpen}

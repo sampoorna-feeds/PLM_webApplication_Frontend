@@ -192,7 +192,7 @@ export function PostedPurchaseColumnFilter({
       <PopoverTrigger asChild>
         <button
           type="button"
-          className={`hover:bg-background/50 rounded p-0.5 transition-colors ${
+          className={`hover:bg-background/50 flex items-center justify-center rounded p-1 transition-colors ${
             hasFilter
               ? "text-primary"
               : "text-muted-foreground/50 hover:text-muted-foreground"
@@ -202,7 +202,7 @@ export function PostedPurchaseColumnFilter({
             setOpen(!open);
           }}
         >
-          <Filter className={`h-3 w-3 ${hasFilter ? "fill-current" : ""}`} />
+          <Filter className={`h-3.5 w-3.5 ${hasFilter ? "fill-current" : ""}`} />
         </button>
       </PopoverTrigger>
       <PopoverContent

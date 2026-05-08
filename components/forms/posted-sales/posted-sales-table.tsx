@@ -47,10 +47,10 @@ export function PostedSalesTable({
   const activeColumns = POSTED_SALES_COLUMNS.filter(c => visibleColumns.includes(c.id));
 
   const renderSortIcon = (columnId: string) => {
-    if (sortColumn !== columnId) return <ArrowUpDown className="ml-2 h-3.5 w-3.5 opacity-50" />;
-    if (sortDirection === "asc") return <ArrowUp className="ml-2 h-3.5 w-3.5" />;
-    if (sortDirection === "desc") return <ArrowDown className="ml-2 h-3.5 w-3.5" />;
-    return <ArrowUpDown className="ml-2 h-3.5 w-3.5 opacity-50" />;
+    if (sortColumn !== columnId) return <ArrowUpDown className="ml-1 h-3.5 w-3.5 opacity-50" />;
+    if (sortDirection === "asc") return <ArrowUp className="ml-1 h-3.5 w-3.5" />;
+    if (sortDirection === "desc") return <ArrowDown className="ml-1 h-3.5 w-3.5" />;
+    return <ArrowUpDown className="ml-1 h-3.5 w-3.5 opacity-50" />;
   };
 
   const formatValue = (doc: PostedSalesHeader, columnId: string) => {
@@ -71,12 +71,17 @@ export function PostedSalesTable({
       <Table>
           <TableHeader>
             <TableRow className="bg-muted/50 hover:bg-muted/50 border-b">
+              {onPrint && (
+                <TableHead className="h-10 px-4 py-2 text-[11px] font-bold uppercase text-muted-foreground text-center">
+                  Actions
+                </TableHead>
+              )}
               {activeColumns.map((col) => (
                 <TableHead
                   key={col.id}
                   className="h-10 px-4 py-2"
                 >
-                  <div className="flex items-center justify-between gap-1">
+                  <div className="flex items-center gap-1.5">
                     <div 
                       className="flex items-center cursor-pointer whitespace-nowrap text-[11px] font-bold uppercase text-muted-foreground transition-colors hover:text-foreground"
                       onClick={() => onSort(col.id)}
@@ -85,37 +90,34 @@ export function PostedSalesTable({
                       {renderSortIcon(col.id)}
                     </div>
                     {col.filterType && (
-                      <PostedSalesColumnFilter
-                        column={col}
-                        value={columnFilters[col.id]?.value || ""}
-                        valueTo={columnFilters[col.id]?.valueTo || ""}
-                        onChange={(val, valTo) => onColumnFilter(col.id, val, valTo)}
-                      />
+                      <div className="flex items-center">
+                        <PostedSalesColumnFilter
+                          column={col}
+                          value={columnFilters[col.id]?.value || ""}
+                          valueTo={columnFilters[col.id]?.valueTo || ""}
+                          onChange={(val, valTo) => onColumnFilter(col.id, val, valTo)}
+                        />
+                      </div>
                     )}
                   </div>
                 </TableHead>
               ))}
-              {onPrint && (
-                <TableHead className="h-10 px-4 py-2 text-[11px] font-bold uppercase text-muted-foreground text-center">
-                  Actions
-                </TableHead>
-              )}
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
               Array.from({ length: 5 }).map((_, i) => (
                 <TableRow key={i} className="border-b last:border-0">
-                  {activeColumns.map((col) => (
-                    <TableCell key={col.id} className="p-4">
-                      <Skeleton className="h-4 w-full opacity-50" />
-                    </TableCell>
-                  ))}
                   {onPrint && (
                     <TableCell className="p-4">
                       <Skeleton className="h-4 w-8 mx-auto opacity-50" />
                     </TableCell>
                   )}
+                  {activeColumns.map((col) => (
+                    <TableCell key={col.id} className="p-4">
+                      <Skeleton className="h-4 w-full opacity-50" />
+                    </TableCell>
+                  ))}
                 </TableRow>
               ))
             ) : documents.length === 0 ? (
@@ -131,11 +133,6 @@ export function PostedSalesTable({
                   className="cursor-pointer hover:bg-muted/30 transition-colors border-b last:border-0 group"
                   onClick={() => onRowClick(doc)}
                 >
-                  {activeColumns.map((col) => (
-                    <TableCell key={col.id} className="p-4 whitespace-nowrap text-xs font-medium text-foreground/90 group-hover:text-foreground">
-                      {formatValue(doc, col.id)}
-                    </TableCell>
-                  ))}
                   {onPrint && (
                     <TableCell className="p-2 text-center" onClick={(e) => e.stopPropagation()}>
                       <TooltipProvider>
@@ -169,6 +166,11 @@ export function PostedSalesTable({
                       </TooltipProvider>
                     </TableCell>
                   )}
+                  {activeColumns.map((col) => (
+                    <TableCell key={col.id} className="p-4 whitespace-nowrap text-xs font-medium text-foreground/90 group-hover:text-foreground">
+                      {formatValue(doc, col.id)}
+                    </TableCell>
+                  ))}
                 </TableRow>
               ))
             )}

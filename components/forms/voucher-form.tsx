@@ -296,7 +296,6 @@ export function VoucherForm() {
   const [entries, setEntries] = useState<VoucherEntry[]>([]);
 
   const [showUnsavedWarning, setShowUnsavedWarning] = useState(false);
-  const [showResetWarning, setShowResetWarning] = useState(false);
   const [showDeleteWarning, setShowDeleteWarning] = useState(false);
   const [showDeleteAllWarning, setShowDeleteAllWarning] = useState(false);
   const [pendingEditId, setPendingEditId] = useState<string | null>(null);
@@ -797,18 +796,6 @@ export function VoucherForm() {
 
   // Real-time validation for conditional fields only
   // This runs when dependency values change (voucherType, documentType, externalDocumentNo)
-  // Auto-set Balance Account Type to "G/L Account" when Account Type is Customer or Vendor
-  useEffect(() => {
-    if (
-      formData.accountType === "Customer" ||
-      formData.accountType === "Vendor"
-    ) {
-      if (formData.balanceAccountType !== "G/L Account") {
-        updateField("balanceAccountType", "G/L Account");
-        updateField("balanceAccountNo", ""); // Clear Balance Account No. when auto-setting
-      }
-    }
-  }, [formData.accountType]);
 
   // Fetch vouchers from ERP - reusable function
   const fetchVouchersFromERP = useCallback(async () => {
@@ -1358,15 +1345,8 @@ export function VoucherForm() {
       updateField("accountTcsSection", undefined);
     }
 
-    // Auto-set Balance Account Type to "G/L Account" when Account Type is Customer or Vendor
-    if (value === "Customer" || value === "Vendor") {
-      updateField("balanceAccountType", "G/L Account");
-      updateField("balanceAccountNo", ""); // Clear Balance Account No. when Account Type changes
-    } else if (value === "G/L Account") {
-      // Clear Balance Account Type when Account Type is set to G/L Account
-      updateField("balanceAccountType", undefined);
-      updateField("balanceAccountNo", "");
-    }
+    // Clear Balance Account No. when Account Type changes
+    updateField("balanceAccountNo", "");
   };
 
   const scrollToFirstError = () => {
@@ -1967,18 +1947,6 @@ export function VoucherForm() {
           )}
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            onClick={() => {
-              setShowResetWarning(true);
-            }}
-          >
-            Reset
-          </Button>
-        </div>
       </div>
 
       {isEditingVoucher && (
@@ -3694,35 +3662,6 @@ export function VoucherForm() {
         </DialogContent>
       </Dialog>
 
-      {/* Reset Warning Dialog */}
-      <Dialog open={showResetWarning} onOpenChange={setShowResetWarning}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Reset Form</DialogTitle>
-            <DialogDescription>
-              This action will erase all data in the form. Are you sure you want
-              to continue?
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setShowResetWarning(false)}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={() => {
-                resetForm();
-                setShowResetWarning(false);
-              }}
-            >
-              Reset Form
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {/* Delete Entry Warning Dialog */}
       <Dialog open={showDeleteWarning} onOpenChange={setShowDeleteWarning}>

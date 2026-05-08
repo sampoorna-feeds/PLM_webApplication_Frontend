@@ -67,9 +67,8 @@ export function PostedSalesTable({
   };
 
   return (
-    <div className="rounded-md border bg-card shadow-sm overflow-hidden">
-      <div className="overflow-x-auto">
-        <Table>
+    <div className="rounded-md border bg-card shadow-sm">
+      <Table>
           <TableHeader>
             <TableRow className="bg-muted/50 hover:bg-muted/50 border-b">
               {activeColumns.map((col) => (
@@ -175,7 +174,6 @@ export function PostedSalesTable({
             )}
           </TableBody>
         </Table>
-      </div>
     </div>
   );
 }

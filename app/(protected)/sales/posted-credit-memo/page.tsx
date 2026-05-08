@@ -136,7 +136,7 @@ function PostedSalesCreditMemoContent() {
         </div>
       </div>
 
-      <div className="flex-1 min-h-0 overflow-hidden">
+      <div className="flex-1 min-h-0 overflow-auto">
         <PostedSalesTable
           documents={documents}
           isLoading={isLoading}

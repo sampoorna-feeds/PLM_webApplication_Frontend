@@ -72,9 +72,8 @@ export function PostedPurchaseTable({
   };
 
   return (
-    <div className="bg-card overflow-hidden rounded-md border shadow-sm">
-      <div className="overflow-x-auto">
-        <Table>
+    <div className="bg-card rounded-md border shadow-sm">
+      <Table>
           <TableHeader>
             <TableRow className="bg-muted/50 hover:bg-muted/50 border-b">
               {activeColumns.map((col) => (
@@ -185,7 +184,6 @@ export function PostedPurchaseTable({
             )}
           </TableBody>
         </Table>
-      </div>
     </div>
   );
 }

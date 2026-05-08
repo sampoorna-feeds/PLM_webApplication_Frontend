@@ -346,7 +346,7 @@ export function PostedDocumentDetailForm({
             </Badge>
           </div>
 
-          <div className="bg-background overflow-hidden rounded-lg border shadow-inner">
+          <div className="bg-background rounded-lg border shadow-inner">
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/50 hover:bg-muted/50">

@@ -24,7 +24,14 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Loader2 } from "lucide-react";
+import { Loader2, Undo2 } from "lucide-react";
+import { undoShipment } from "@/lib/api/services/undo-actions.service";
+import { 
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
   Accordion,
   AccordionContent,
@@ -305,10 +312,32 @@ function EWayBillDialog({
 function PostedLinesTable({
   lines,
   isInvoice,
+  docNo,
+  onRefresh,
 }: {
   lines: Line[];
   isInvoice: boolean;
+  docNo: string;
+  onRefresh: () => void;
 }) {
+  const [undoingLine, setUndoingLine] = useState<number | null>(null);
+  const canUndo = !isInvoice; // Only for shipments
+
+  const handleUndo = async (lineNo: number) => {
+    if (!docNo) return;
+    setUndoingLine(lineNo);
+    try {
+      await undoShipment(docNo, lineNo);
+      toast.success("Line item undone successfully.");
+      onRefresh();
+    } catch (error: any) {
+      console.error("Undo error:", error);
+      toast.error(error.message || "Failed to undo line item.");
+    } finally {
+      setUndoingLine(null);
+    }
+  };
+
   return (
     <div className="overflow-x-auto rounded-md border">
       <Table>
@@ -329,12 +358,15 @@ function PostedLinesTable({
             )}
             <TableHead className="text-xs font-bold uppercase">GST Group</TableHead>
             <TableHead className="text-xs font-bold uppercase">HSN/SAC</TableHead>
+            {canUndo && (
+              <TableHead className="text-xs font-bold uppercase text-center">Actions</TableHead>
+            )}
           </TableRow>
         </TableHeader>
         <TableBody>
           {lines.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={isInvoice ? 11 : 8} className="h-20 text-center text-muted-foreground">
+              <TableCell colSpan={isInvoice ? 11 : (canUndo ? 9 : 8)} className="h-20 text-center text-muted-foreground">
                 No line items found.
               </TableCell>
             </TableRow>
@@ -370,6 +402,32 @@ function PostedLinesTable({
                   )}
                   <TableCell>{String(l.GST_Group_Code || "-")}</TableCell>
                   <TableCell>{String(l.HSN_SAC_Code || "-")}</TableCell>
+                  {canUndo && (
+                    <TableCell className="text-center px-2 py-1">
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 w-7 p-0 text-muted-foreground hover:text-red-600 hover:bg-red-50"
+                              onClick={() => handleUndo(Number(l.Line_No))}
+                              disabled={undoingLine === Number(l.Line_No)}
+                            >
+                              {undoingLine === Number(l.Line_No) ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                <Undo2 className="h-3.5 w-3.5" />
+                              )}
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Undo Shipment</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </TableCell>
+                  )}
                 </TableRow>
               );
             })
@@ -664,7 +722,12 @@ export function SalesPostedDocumentDetailForm({ context }: Props) {
                   {header.No}
                 </span>
               </div>
-              <PostedLinesTable lines={lines} isInvoice={isInvoice} />
+              <PostedLinesTable 
+                lines={lines} 
+                isInvoice={isInvoice} 
+                docNo={no!}
+                onRefresh={loadData}
+              />
             </section>
           </div>
         </div>

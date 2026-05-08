@@ -29,8 +29,15 @@ import { viewPdfFromBase64 } from "@/lib/pdf-utils";
 import { useFormStackContext } from "@/lib/form-stack/form-stack-context";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Loader2, Printer } from "lucide-react";
+import { Loader2, Printer, Undo2 } from "lucide-react";
 import { toast } from "sonner";
+import { undoReceipt, undoReturnShipment } from "@/lib/api/services/undo-actions.service";
+import { 
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface PostedDocumentDetailFormProps {
   tabId: string;
@@ -178,6 +185,9 @@ export function PostedDocumentDetailForm({
   const [lines, setLines] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isPrinting, setIsPrinting] = useState(false);
+  const [undoingLine, setUndoingLine] = useState<number | null>(null);
+
+  const canUndo = formType === "posted-purchase-receipt" || formType === "posted-purchase-return-shipment";
 
   const getApiDocType = (): PostedReportDocumentType | null => {
     switch (formType) {
@@ -214,6 +224,34 @@ export function PostedDocumentDetailForm({
       toast.error(error.message || "Failed to generate report.");
     } finally {
       setIsPrinting(false);
+    }
+  };
+
+  const handleUndo = async (lineNo: number) => {
+    if (!doc.No) return;
+
+    setUndoingLine(lineNo);
+    try {
+      if (formType === "posted-purchase-receipt") {
+        await undoReceipt(doc.No, lineNo);
+      } else if (formType === "posted-purchase-return-shipment") {
+        await undoReturnShipment(doc.No, lineNo);
+      }
+      toast.success("Line item undone successfully.");
+      // Refresh lines
+      const docNo = doc.No || doc.Gate_Entry_No;
+      let data: any = { value: [] };
+      if (formType === "posted-purchase-receipt")
+        data = await getPostedPurchaseReceiptLines(docNo);
+      else if (formType === "posted-purchase-return-shipment")
+        data = await getPostedPurchaseReturnShipmentLines(docNo);
+      
+      setLines(data.value || []);
+    } catch (error: any) {
+      console.error("Undo error:", error);
+      toast.error(error.message || "Failed to undo line item.");
+    } finally {
+      setUndoingLine(null);
     }
   };
 
@@ -409,6 +447,11 @@ export function PostedDocumentDetailForm({
                       Dim 3
                     </TableHead>
                   )}
+                  {canUndo && (
+                    <TableHead className="text-primary h-8 px-3 text-[10px] font-bold tracking-wider uppercase text-center">
+                      Actions
+                    </TableHead>
+                  )}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -421,7 +464,7 @@ export function PostedDocumentDetailForm({
                             ? 13
                             : formType === "posted-purchase-credit-memo"
                               ? 11
-                              : 9
+                              : (canUndo ? 10 : 9)
                         }
                       >
                         <Skeleton className="h-4 w-full" />
@@ -436,7 +479,7 @@ export function PostedDocumentDetailForm({
                           ? 13
                           : formType === "posted-purchase-credit-memo"
                             ? 11
-                            : 9
+                            : (canUndo ? 10 : 9)
                       }
                       className="h-32 text-center"
                     >
@@ -528,6 +571,32 @@ export function PostedDocumentDetailForm({
                         formType === "posted-purchase-credit-memo") && (
                         <TableCell className="px-3 py-2 text-[10px] font-medium">
                           {line.ShortcutDimCode_x005B_3_x005D_ || "-"}
+                        </TableCell>
+                      )}
+                      {canUndo && (
+                        <TableCell className="px-3 py-1 text-center">
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 w-7 p-0 text-muted-foreground hover:text-red-600 hover:bg-red-50"
+                                  onClick={() => handleUndo(line.Line_No)}
+                                  disabled={undoingLine === line.Line_No}
+                                >
+                                  {undoingLine === line.Line_No ? (
+                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                  ) : (
+                                    <Undo2 className="h-3.5 w-3.5" />
+                                  )}
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Undo {formType === "posted-purchase-receipt" ? "Receipt" : "Return Shipment"}</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
                         </TableCell>
                       )}
                     </TableRow>

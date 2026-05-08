@@ -74,6 +74,39 @@ interface TransferOrderFormProps {
   context?: Record<string, any>;
 }
 
+/**
+ * Calculates the difference between current form state and original ERP state
+ * for a specific set of fields.
+ */
+const calculateDiff = (
+  formState: Partial<TransferOrder>,
+  originalState: Partial<TransferOrder>,
+  allowedFields: string[],
+): Partial<TransferOrder> => {
+  const diff: Partial<TransferOrder> = {};
+
+  allowedFields.forEach((k) => {
+    const key = k as keyof TransferOrder;
+    const newVal = formState[key];
+    const oldVal = originalState[key];
+
+    // Normalization: treat null/undefined as empty string for comparison
+    const normalizedNew = newVal === null || newVal === undefined ? "" : String(newVal);
+    const normalizedOld = oldVal === null || oldVal === undefined ? "" : String(oldVal);
+
+    if (normalizedNew !== normalizedOld) {
+      (diff as any)[key] = newVal ?? (typeof newVal === "number" ? 0 : "");
+    }
+  });
+
+  // Ensure we don't send both Transporter_Code and Transporter_Name to avoid API conflicts
+  if ("Transporter_Code" in diff) {
+    delete (diff as any).Transporter_Name;
+  }
+
+  return diff;
+};
+
 export function TransferOrderForm({
   tabId,
   formData: initialFormData,
@@ -591,18 +624,7 @@ export function TransferOrderForm({
       "Mode_of_Transport",
     ];
 
-    const diff: Partial<TransferOrder> = {};
-    allowedToUpdate.forEach((k) => {
-      const key = k as keyof TransferOrder;
-      if (formState[key] !== originalState[key]) {
-        (diff as any)[key] = formState[key] || "";
-      }
-    });
-
-    // Ensure we don't send both Transporter_Code and Transporter_Name to avoid API conflicts
-    if (diff.Transporter_Code) {
-      delete diff.Transporter_Name;
-    }
+    const diff = calculateDiff(formState, originalState, allowedToUpdate);
 
     if (Object.keys(diff).length === 0) {
       toast.info("No changes to update");
@@ -750,19 +772,7 @@ export function TransferOrderForm({
         "Mode_of_Transport",
       ];
 
-      const diff: Partial<TransferOrder> = {};
-      allowedToUpdate.forEach((k) => {
-        const key = k as keyof TransferOrder;
-        if (formState[key] !== originalState[key]) {
-          (diff as any)[key] =
-            formState[key] || (typeof formState[key] === "number" ? 0 : "");
-        }
-      });
-
-      // Ensure we don't send both Transporter_Code and Transporter_Name to avoid API conflicts
-      if (diff.Transporter_Code) {
-        delete diff.Transporter_Name;
-      }
+      const diff = calculateDiff(formState, originalState, allowedToUpdate);
 
       let isHeaderUpdated = false;
       if (Object.keys(diff).length > 0) {
@@ -859,18 +869,7 @@ export function TransferOrderForm({
         "Mode_of_Transport",
       ];
 
-      const diff: Partial<TransferOrder> = {};
-      allowedToUpdate.forEach((k) => {
-        const key = k as keyof TransferOrder;
-        if (formState[key] !== originalState[key]) {
-          (diff as any)[key] =
-            formState[key] || (typeof formState[key] === "number" ? 0 : "");
-        }
-      });
-
-      if (diff.Transporter_Code) {
-        delete diff.Transporter_Name;
-      }
+      const diff = calculateDiff(formState, originalState, allowedToUpdate);
 
       if (Object.keys(diff).length > 0) {
         await patchTransferOrder(formState.No, diff);

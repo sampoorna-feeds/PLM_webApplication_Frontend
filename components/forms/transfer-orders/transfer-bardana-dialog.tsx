@@ -39,6 +39,7 @@ interface TransferBardanaDialogProps {
   /** Line description for context display */
   lineDescription?: string;
   locationCode?: string;
+  onSuccess?: () => void;
 }
 
 export function TransferBardanaDialog({
@@ -49,6 +50,7 @@ export function TransferBardanaDialog({
   noOfBags,
   lineDescription,
   locationCode,
+  onSuccess,
 }: TransferBardanaDialogProps) {
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
   const [uom, setUom] = useState("");
@@ -101,6 +103,7 @@ export function TransferBardanaDialog({
     try {
       await addTransferBardanaLine(documentNo, lineNo, selectedItem.No, uom, qty);
       setSuccess(true);
+      onSuccess?.();
     } catch (err) {
       const msg =
         err && typeof (err as any).message === "string"
@@ -117,6 +120,7 @@ export function TransferBardanaDialog({
     setError(null);
     try {
       await postTransferBardana(documentNo, lineNo);
+      onSuccess?.();
       onOpenChange(false);
     } catch (err) {
       const msg =

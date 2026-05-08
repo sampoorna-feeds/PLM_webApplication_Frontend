@@ -27,13 +27,16 @@ import {
   getTransferLine,
   postTransferBardana,
   updateTransferLine,
+  getTransferBardanaLines,
+  deleteTransferBardanaLine,
+  type TransferBardanaLine,
   type TransferItemLedgerEntry,
   type TransferLine,
 } from "@/lib/api/services/transfer-orders.service";
 import { cn } from "@/lib/utils";
 import { formatDate } from "@/lib/utils/date";
-import { Loader2, Package, Search } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Loader2, Package, Search, Trash2 } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { TransferBardanaDialog } from "./transfer-bardana-dialog";
 import { TransferOrderItemTrackingDialog } from "./transfer-order-item-tracking-dialog";
@@ -73,6 +76,9 @@ export function TransferOrderLineDetailsDialog({
   const [isPostingBardana, setIsPostingBardana] = useState(false);
   const [isLedgerModalOpen, setIsLedgerModalOpen] = useState(false);
   const [ledgerSearchQuery, setLedgerSearchQuery] = useState("");
+  const [existingBardanas, setExistingBardanas] = useState<TransferBardanaLine[]>([]);
+  const [isLoadingBardanas, setIsLoadingBardanas] = useState(false);
+  const [isDeletingBardana, setIsDeletingBardana] = useState<number | null>(null);
 
   const [formData, setFormData] = useState<Partial<TransferLine>>({ ...line });
 
@@ -191,11 +197,49 @@ export function TransferOrderLineDetailsDialog({
     try {
       await postTransferBardana(line.Document_No, line.Line_No);
       toast.success("Bardana posted successfully");
+      fetchExistingBardanas();
     } catch (err: any) {
       console.error("Error posting bardana:", err);
       toast.error(err.message || "Failed to post bardana");
     } finally {
       setIsPostingBardana(false);
+    }
+  };
+
+  const fetchExistingBardanas = useCallback(async () => {
+    if (!isOpen || !line?.Line_No || !line?.Document_No) return;
+    setIsLoadingBardanas(true);
+    try {
+      const lines = await getTransferBardanaLines(line.Document_No, line.Line_No);
+      setExistingBardanas(lines);
+    } catch (error) {
+      console.error("Failed to fetch existing bardanas:", error);
+    } finally {
+      setIsLoadingBardanas(false);
+    }
+  }, [isOpen, line?.Line_No, line?.Document_No]);
+
+  useEffect(() => {
+    if (isOpen && canAddBardana) {
+      fetchExistingBardanas();
+    } else {
+      setExistingBardanas([]);
+    }
+  }, [isOpen, canAddBardana, fetchExistingBardanas]);
+
+  const handleDeleteBardana = async (bardanaLineNo: number) => {
+    if (!line?.Document_No || !line?.Line_No) return;
+    if (!confirm("Are you sure you want to delete this bardana?")) return;
+
+    setIsDeletingBardana(bardanaLineNo);
+    try {
+      await deleteTransferBardanaLine(line.Document_No, line.Line_No, bardanaLineNo);
+      toast.success("Bardana deleted successfully");
+      fetchExistingBardanas();
+    } catch (error: any) {
+      toast.error(error.message || "Failed to delete bardana");
+    } finally {
+      setIsDeletingBardana(null);
     }
   };
 
@@ -571,6 +615,70 @@ export function TransferOrderLineDetailsDialog({
                   </Button>
                 </div>
               )}
+
+              {canAddBardana && existingBardanas.length > 0 && (
+                <div className="md:col-span-12 mt-6">
+                  <div className="flex items-center justify-between mb-2 border-b pb-1">
+                    <h4 className="font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5 text-[10px]">
+                      <Package className="size-4" />
+                      Existing Bardana Details
+                    </h4>
+                    {isLoadingBardanas && (
+                      <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
+                    )}
+                  </div>
+                  <div className="rounded-lg border overflow-hidden bg-background">
+                    <Table>
+                      <TableHeader className="bg-muted/50">
+                        <TableRow className="hover:bg-transparent border-none">
+                          <TableHead className="h-8 text-[10px] font-bold uppercase py-0">Code</TableHead>
+                          <TableHead className="h-8 text-[10px] font-bold uppercase py-0">Description</TableHead>
+                          <TableHead className="h-8 text-[10px] font-bold uppercase py-0 text-right">Qty</TableHead>
+                          <TableHead className="h-8 text-[10px] font-bold uppercase py-0 text-right">W. Per</TableHead>
+                          <TableHead className="h-8 text-[10px] font-bold uppercase py-0 text-right">Total W.</TableHead>
+                          {!isReadOnly && <TableHead className="h-8 text-[10px] font-bold uppercase py-0 text-right">Actions</TableHead>}
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {existingBardanas.map((b) => (
+                          <TableRow key={b.Line_No} className="h-9 hover:bg-muted/30 border-border/50">
+                            <TableCell className="py-1 font-bold text-primary text-[11px]">{b.Item_No}</TableCell>
+                            <TableCell className="py-1 text-[11px] truncate max-w-[150px] font-medium" title={b.Description}>
+                              {b.Description}
+                            </TableCell>
+                            <TableCell className="py-1 text-right tabular-nums text-[11px] font-bold">
+                              {b.Quantity} <span className="text-[9px] text-muted-foreground uppercase">{b.UOM}</span>
+                            </TableCell>
+                            <TableCell className="py-1 text-right tabular-nums text-[11px]">
+                              {b.Weight_Per ?? 0}
+                            </TableCell>
+                            <TableCell className="py-1 text-right tabular-nums text-[11px] text-green-600 font-bold">
+                              {b.Total_Weight ?? 0}
+                            </TableCell>
+                            {!isReadOnly && (
+                              <TableCell className="py-1 text-right">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-md"
+                                  onClick={() => handleDeleteBardana(b.Line_No)}
+                                  disabled={isDeletingBardana === b.Line_No}
+                                >
+                                  {isDeletingBardana === b.Line_No ? (
+                                    <Loader2 className="h-3 w-3 animate-spin" />
+                                  ) : (
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  )}
+                                </Button>
+                              </TableCell>
+                            )}
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+              )}
             </div>
           </DialogContent>
 
@@ -592,6 +700,7 @@ export function TransferOrderLineDetailsDialog({
           lineNo={line.Line_No}
           lineDescription={formData.Description}
           locationCode={locationCode}
+          onSuccess={fetchExistingBardanas}
         />
       )}
     </Dialog>

@@ -1196,6 +1196,17 @@ export async function getDownloadRecordLink(params: { documentType: string; docu
   }
 }
 
+export interface TransferBardanaLine {
+  Line_No: number;
+  Item_No: string;
+  Description: string;
+  UOM: string;
+  Quantity: number;
+  Weight_Per?: number;
+  Total_Weight?: number;
+  [key: string]: unknown;
+}
+
 /**
  * Add a bardana line for a transfer order line item.
  */
@@ -1218,6 +1229,46 @@ export async function addTransferBardanaLine(
     });
   } catch (error: any) {
     console.error("Error adding transfer bardana line:", error);
+    throw error;
+  }
+}
+
+/**
+ * Get bardana lines for a transfer order line item.
+ */
+export async function getTransferBardanaLines(
+  documentNo: string,
+  documentLineNo: number,
+): Promise<TransferBardanaLine[]> {
+  const escapedNo = documentNo.replace(/'/g, "''");
+  const filter = `Document_Type eq 'Transfer Order' and Document_No eq '${escapedNo}' and Document_Line_No eq ${documentLineNo} and Posted_Document_No eq ''`;
+  const query = `?company='${encodeURIComponent(COMPANY)}'&$filter=${encodeURIComponent(filter)}`;
+  const endpoint = `/QCPurchaseBardanaList${query}`;
+
+  try {
+    const response = await apiGet<ODataResponse<TransferBardanaLine>>(endpoint);
+    return response.value || [];
+  } catch (error: any) {
+    console.error("Error fetching transfer bardana lines:", error);
+    throw error;
+  }
+}
+
+/**
+ * Delete a transfer bardana line.
+ */
+export async function deleteTransferBardanaLine(
+  documentNo: string,
+  documentLineNo: number,
+  lineNo: number,
+): Promise<void> {
+  const escapedNo = documentNo.replace(/'/g, "''");
+  const endpoint = `/QCPurchaseBardanaList(Document_Type='Transfer Order',Document_No='${encodeURIComponent(escapedNo)}',Document_Line_No=${documentLineNo},Line_No=${lineNo})?company='${encodeURIComponent(COMPANY)}'`;
+
+  try {
+    await apiDelete(endpoint);
+  } catch (error: any) {
+    console.error("Error deleting transfer bardana line:", error);
     throw error;
   }
 }

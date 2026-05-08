@@ -231,8 +231,8 @@ export function PostedDocumentDetailForm({
 
       <div className="flex-1 space-y-4 overflow-y-auto px-4 py-4">
         {/* Details Section - Optimized for 6 columns, no title */}
-        <section className="bg-card/30 space-y-3 rounded-lg border p-5 shadow-sm">
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-x-10 gap-y-6">
+        <section className="bg-card/30 space-y-2 rounded-lg border p-4 shadow-sm">
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-3">
             {Object.entries(doc).map(([key, value]) => {
               if (typeof value === "object" || EXCLUDED_FIELDS.has(key))
                 return null;
@@ -258,11 +258,11 @@ export function PostedDocumentDetailForm({
               }
 
               return (
-                <div key={key} className="flex flex-col gap-1.5">
-                  <dt className="text-muted-foreground text-[10px] font-bold tracking-wider uppercase opacity-70">
+                <div key={key} className="flex flex-col gap-0.5">
+                  <dt className="text-muted-foreground text-xs font-medium tracking-wider uppercase opacity-60">
                     {key.replace(/_/g, " ")}
                   </dt>
-                  <dd className="text-foreground text-[13px] font-semibold leading-relaxed">
+                  <dd className="text-foreground text-xs font-medium leading-tight">
                     {displayValue}
                   </dd>
                 </div>
@@ -272,9 +272,9 @@ export function PostedDocumentDetailForm({
         </section>
 
         {/* Lines Section */}
-        <section className="bg-card/50 space-y-4 rounded-xl border p-6 shadow-sm">
-          <div className="flex items-center justify-between border-b pb-2">
-            <h3 className="text-muted-foreground text-[10px] font-bold tracking-wider uppercase">
+        <section className="bg-card/50 space-y-2 rounded-lg border p-4 shadow-sm">
+          <div className="flex items-center justify-between border-b pb-1.5">
+            <h3 className="text-muted-foreground text-[9px] font-bold tracking-wider uppercase">
               Line Items
             </h3>
             <Badge variant="secondary" className="font-mono text-[10px]">
@@ -287,31 +287,31 @@ export function PostedDocumentDetailForm({
               <TableHeader>
                 <TableRow className="bg-muted/50 hover:bg-muted/50">
                   {formType === "posted-purchase-invoice" && (
-                    <TableHead className="text-[10px] font-bold tracking-wider uppercase">
+                    <TableHead className="h-8 px-3 text-[9px] font-bold tracking-wider uppercase">
                       Line No.
                     </TableHead>
                   )}
-                  <TableHead className="text-[10px] font-bold tracking-wider uppercase">
+                  <TableHead className="h-8 px-3 text-[9px] font-bold tracking-wider uppercase">
                     Type
                   </TableHead>
-                  <TableHead className="text-[10px] font-bold tracking-wider uppercase">
+                  <TableHead className="h-8 px-3 text-[9px] font-bold tracking-wider uppercase">
                     No.
                   </TableHead>
-                  <TableHead className="text-[10px] font-bold tracking-wider uppercase">
+                  <TableHead className="h-8 px-3 text-[9px] font-bold tracking-wider uppercase">
                     Description
                   </TableHead>
-                  <TableHead className="text-right text-[10px] font-bold tracking-wider uppercase">
+                    <TableHead className="text-right h-8 px-3 text-[9px] font-bold tracking-wider uppercase">
                     Quantity
                   </TableHead>
-                  <TableHead className="text-[10px] font-bold tracking-wider uppercase">
+                  <TableHead className="h-8 px-3 text-[9px] font-bold tracking-wider uppercase">
                     UOM
                   </TableHead>
-                  <TableHead className="text-right text-[10px] font-bold tracking-wider uppercase">
+                    <TableHead className="text-right h-8 px-3 text-[9px] font-bold tracking-wider uppercase">
                     Unit Cost
                   </TableHead>
 
                   {formType === "posted-purchase-invoice" && (
-                    <TableHead className="text-right text-[10px] font-bold tracking-wider uppercase">
+                      <TableHead className="text-right h-8 px-3 text-[9px] font-bold tracking-wider uppercase">
                       Disc %
                     </TableHead>
                   )}
@@ -319,29 +319,29 @@ export function PostedDocumentDetailForm({
                   {formType === "posted-purchase-invoice" ||
                   formType === "posted-purchase-credit-memo" ? (
                     <>
-                      <TableHead className="text-right text-[10px] font-bold tracking-wider uppercase">
+                        <TableHead className="text-right h-8 px-3 text-[9px] font-bold tracking-wider uppercase">
                         Amount
                       </TableHead>
-                      <TableHead className="text-right text-[10px] font-bold tracking-wider uppercase">
+                        <TableHead className="text-right h-8 px-3 text-[9px] font-bold tracking-wider uppercase">
                         Disc Amt
                       </TableHead>
                     </>
                   ) : (
-                    <TableHead className="text-right text-[10px] font-bold tracking-wider uppercase">
+                      <TableHead className="text-right h-8 px-3 text-[9px] font-bold tracking-wider uppercase">
                       Qty Invoiced
                     </TableHead>
                   )}
 
-                  <TableHead className="text-[10px] font-bold tracking-wider uppercase">
+                  <TableHead className="h-8 px-3 text-[9px] font-bold tracking-wider uppercase">
                     Dim 1
                   </TableHead>
-                  <TableHead className="text-[10px] font-bold tracking-wider uppercase">
+                  <TableHead className="h-8 px-3 text-[9px] font-bold tracking-wider uppercase">
                     Dim 2
                   </TableHead>
 
                   {(formType === "posted-purchase-invoice" ||
                     formType === "posted-purchase-credit-memo") && (
-                    <TableHead className="text-[10px] font-bold tracking-wider uppercase">
+                    <TableHead className="h-8 px-3 text-[9px] font-bold tracking-wider uppercase">
                       Dim 3
                     </TableHead>
                   )}
@@ -397,13 +397,13 @@ export function PostedDocumentDetailForm({
                           {line.Line_No}
                         </TableCell>
                       )}
-                      <TableCell className="text-muted-foreground text-[10px] font-medium">
+                    <TableCell className="px-3 py-2 text-[10px] font-medium">
                         {line.Type || "-"}
                       </TableCell>
                       <TableCell className="font-mono text-xs">
                         {line.No || "-"}
                       </TableCell>
-                      <TableCell className="text-xs font-semibold">
+                    <TableCell className="px-3 py-2 text-xs font-semibold">
                         {line.Description || line.Item_Description || "-"}
                       </TableCell>
                       <TableCell className="text-right font-mono text-xs font-bold">
@@ -414,7 +414,7 @@ export function PostedDocumentDetailForm({
                       <TableCell className="text-[10px] font-medium">
                         {line.Unit_of_Measure_Code || "-"}
                       </TableCell>
-                      <TableCell className="text-right font-mono text-xs">
+                      <TableCell className="px-3 py-2 text-right font-mono text-xs">
                         {line.Direct_Unit_Cost
                           ? Number(line.Direct_Unit_Cost).toLocaleString()
                           : "-"}
@@ -433,7 +433,7 @@ export function PostedDocumentDetailForm({
                       {formType === "posted-purchase-invoice" ||
                       formType === "posted-purchase-credit-memo" ? (
                         <>
-                          <TableCell className="text-right font-mono text-xs font-bold">
+                          <TableCell className="px-3 py-2 text-right font-mono text-xs font-bold">
                             {line.Line_Amount
                               ? Number(line.Line_Amount).toLocaleString()
                               : "-"}
@@ -447,22 +447,22 @@ export function PostedDocumentDetailForm({
                           </TableCell>
                         </>
                       ) : (
-                        <TableCell className="text-right font-mono text-xs">
+                      <TableCell className="px-3 py-2 text-right font-mono text-xs">
                           {line.Quantity_Invoiced
                             ? Number(line.Quantity_Invoiced).toLocaleString()
                             : "-"}
                         </TableCell>
                       )}
 
-                      <TableCell className="text-[10px] font-medium">
+                      <TableCell className="px-3 py-2 text-[10px] font-medium">
                         {line.Shortcut_Dimension_1_Code || "-"}
                       </TableCell>
-                      <TableCell className="text-[10px] font-medium">
+                      <TableCell className="px-3 py-2 text-[10px] font-medium">
                         {line.Shortcut_Dimension_2_Code || "-"}
                       </TableCell>
                       {(formType === "posted-purchase-invoice" ||
                         formType === "posted-purchase-credit-memo") && (
-                        <TableCell className="text-[10px] font-medium">
+                        <TableCell className="px-3 py-2 text-[10px] font-medium">
                           {line.ShortcutDimCode_x005B_3_x005D_ || "-"}
                         </TableCell>
                       )}

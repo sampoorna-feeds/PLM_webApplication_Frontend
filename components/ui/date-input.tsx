@@ -55,6 +55,15 @@ export const DateInput = React.forwardRef<HTMLInputElement, DateInputProps>(
     }
   }, [value]);
 
+  const isValidDate = (year: number, month: number, day: number) => {
+    const date = new Date(year, month - 1, day);
+    return (
+      date.getFullYear() === year &&
+      date.getMonth() === month - 1 &&
+      date.getDate() === day
+    );
+  };
+
   const parseUserInput = (input: string): string | null => {
     const cleaned = input.replace(/\s/g, "");
 
@@ -62,33 +71,74 @@ export const DateInput = React.forwardRef<HTMLInputElement, DateInputProps>(
     const slashDashPattern = /^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/;
     let match = cleaned.match(slashDashPattern);
     if (match) {
-      const day = match[1].padStart(2, "0");
-      const month = match[2].padStart(2, "0");
-      const year = match[3];
-      return `${year}-${month}-${day}`;
+      const day = parseInt(match[1], 10);
+      const month = parseInt(match[2], 10);
+      const year = parseInt(match[3], 10);
+      if (isValidDate(year, month, day)) {
+        return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+      }
     }
 
     // Try DDMMYYYY
     const compactPattern = /^(\d{2})(\d{2})(\d{4})$/;
     match = cleaned.match(compactPattern);
     if (match) {
-      const day = match[1];
-      const month = match[2];
-      const year = match[3];
-      return `${year}-${month}-${day}`;
+      const day = parseInt(match[1], 10);
+      const month = parseInt(match[2], 10);
+      const year = parseInt(match[3], 10);
+      if (isValidDate(year, month, day)) {
+        return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+      }
     }
 
     // Try YYYY-MM-DD or YYYY/MM/DD
     const isoPattern = /^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})$/;
     match = cleaned.match(isoPattern);
     if (match) {
-      const year = match[1];
-      const month = match[2].padStart(2, "0");
-      const day = match[3].padStart(2, "0");
-      return `${year}-${month}-${day}`;
+      const year = parseInt(match[1], 10);
+      const month = parseInt(match[2], 10);
+      const day = parseInt(match[3], 10);
+      if (isValidDate(year, month, day)) {
+        return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+      }
     }
 
     return null;
+  };
+
+  const formatAsYouType = (input: string) => {
+    // Remove all non-digits
+    const digits = input.replace(/\D/g, "");
+    const truncated = digits.slice(0, 8);
+    
+    let formatted = "";
+    if (truncated.length > 0) {
+      formatted += truncated.slice(0, 2);
+      if (truncated.length > 2) {
+        formatted += "/" + truncated.slice(2, 4);
+        if (truncated.length > 4) {
+          formatted += "/" + truncated.slice(4, 8);
+        }
+      }
+    }
+    return formatted;
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const input = e.target.value;
+    
+    const formatted = formatAsYouType(input);
+    setDisplayValue(formatted);
+
+    // If fully typed, validate immediately
+    if (formatted.length === 10) {
+      const parsed = parseUserInput(formatted);
+      if (!parsed) {
+        toast.error("Invalid date value");
+        setDisplayValue("");
+        onChange("");
+      }
+    }
   };
 
   const handleBlur = () => {
@@ -102,12 +152,14 @@ export const DateInput = React.forwardRef<HTMLInputElement, DateInputProps>(
       // Check min/max range for manual entry
       if (min && min !== "0001-01-01" && parsedDate < min) {
         toast.error(`Selected date cannot be before ${min}`);
-        revertToPrevious();
+        setDisplayValue("");
+        onChange("");
         return;
       }
       if (max && max !== "0001-01-01" && parsedDate > max) {
         toast.error(`Selected date cannot be after ${max}`);
-        revertToPrevious();
+        setDisplayValue("");
+        onChange("");
         return;
       }
 
@@ -116,7 +168,9 @@ export const DateInput = React.forwardRef<HTMLInputElement, DateInputProps>(
       const parts = parsedDate.split("-");
       setDisplayValue(`${parts[2]}/${parts[1]}/${parts[0]}`);
     } else {
-      revertToPrevious();
+      toast.error("Invalid date");
+      setDisplayValue("");
+      onChange("");
     }
   };
 
@@ -147,7 +201,7 @@ export const DateInput = React.forwardRef<HTMLInputElement, DateInputProps>(
         id={id}
         type="text"
         value={displayValue}
-        onChange={(e) => setDisplayValue(e.target.value)}
+        onChange={handleInputChange}
         onBlur={handleBlur}
         onKeyDown={handleKeyDown}
         placeholder={placeholder}

@@ -84,13 +84,7 @@ import { getCustomerByNo } from "@/lib/api/services/customer.service";
 import { useAuth } from "@/lib/contexts/auth-context";
 import type { ApiError } from "@/lib/api/client";
 
-type VoucherEntry = VoucherFormData & {
-  id: string;
-  attachments?: File[];
-  status?: "pending" | "success" | "failed" | "partial";
-  errorMessage?: string;
-  failedFiles?: string[];
-};
+// Removed VoucherEntry type as staging area is being removed
 
 type FormState = {
   voucherType: VoucherFormData["voucherType"] | undefined;
@@ -212,7 +206,6 @@ export function VoucherForm() {
 
   // Refs for drag-to-scroll functionality
   const formTableRef = useRef<HTMLDivElement>(null);
-  const entriesTableRef = useRef<HTMLDivElement>(null);
   const vouchersTableRef = useRef<HTMLDivElement>(null);
 
   // Fetch WebUser profile for posting date restrictions
@@ -287,20 +280,15 @@ export function VoucherForm() {
   };
 
   // useHorizontalScroll(formTableRef);
-  useHorizontalScroll(entriesTableRef);
   useHorizontalScroll(vouchersTableRef);
 
   const [accountType, setAccountType] = useState<
     VoucherFormData["accountType"] | undefined
   >(undefined);
 
-  const [entries, setEntries] = useState<VoucherEntry[]>([]);
+// Removed entries state as staging area is being removed
 
-  const [showUnsavedWarning, setShowUnsavedWarning] = useState(false);
-  const [showDeleteWarning, setShowDeleteWarning] = useState(false);
-  const [showDeleteAllWarning, setShowDeleteAllWarning] = useState(false);
-  const [pendingEditId, setPendingEditId] = useState<string | null>(null);
-  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+// Removed entry-related states
 
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [attachments, setAttachments] = useState<File[]>([]);
@@ -391,7 +379,7 @@ export function VoucherForm() {
     balanceTcsSections.length > 0;
 
   // Progressive field enablement logic - REMOVED
-  const isEditing = pendingEditId !== null;
+  const isEditing = false;
 
   const postingDateRef = useRef<HTMLInputElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -742,24 +730,12 @@ export function VoucherForm() {
     setHasUnsavedChanges(hasValues);
   }, [formData]);
 
-  useEffect(() => {
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (entries.length > 0 || hasUnsavedChanges) {
-        e.preventDefault();
-        e.returnValue = "";
-        return "";
-      }
-    };
-
-    window.addEventListener("beforeunload", handleBeforeUnload);
-    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
-  }, [entries, hasUnsavedChanges]);
+// Removed beforeunload effect as staging area is being removed
 
   const resetForm = useCallback(() => {
     setFormData(defaultFormState);
     setAccountType(undefined as VoucherFormData["accountType"] | undefined);
     setHasUnsavedChanges(false);
-    setPendingEditId(null);
     setIsEditingVoucher(false);
     setVoucherToEdit(null);
     setValidationErrors({});
@@ -1005,7 +981,6 @@ export function VoucherForm() {
     setIsEditingVoucher(true);
     setHasUnsavedChanges(true);
     setValidationErrors({});
-    setPendingEditId(null); // Not editing entry
 
     // Scroll to form
     setTimeout(() => {
@@ -1363,179 +1338,7 @@ export function VoucherForm() {
     }, 100);
   };
 
-  const handleAddEntry = () => {
-    // If editing voucher, show update confirmation
-    if (isEditingVoucher && voucherToEdit) {
-      setShowUpdateVoucherWarning(true);
-      return;
-    }
-
-    // Validate all fields on Add button click
-    const errors = validateAllFields(formData);
-    setValidationErrors(errors);
-
-    if (Object.keys(errors).length > 0) {
-      scrollToFirstError();
-      return;
-    }
-
-    const data = formStateToVoucherData(formData) as VoucherFormData;
-    const newEntry: VoucherEntry = {
-      ...data,
-      id: Date.now().toString(),
-      attachments: attachments.length > 0 ? [...attachments] : undefined,
-      status: "pending",
-    };
-    setEntries((prev) => [...prev, newEntry]);
-    resetForm();
-    setAttachments([]);
-  };
-
-  const loadEntryForEdit = (entryId: string) => {
-    const entry = entries.find((e) => e.id === entryId);
-    if (!entry) return;
-
-    // Set accountType FIRST before setting form data so AccountSelect can display values properly
-    // Use setTimeout to ensure accountType is set before form data
-    setAccountType(entry.accountType as VoucherFormData["accountType"]);
-
-    // Use setTimeout to ensure AccountSelect components have time to initialize with accountType
-    setTimeout(() => {
-      setFormData({
-        voucherType: entry.voucherType,
-        documentType: entry.documentType,
-        postingDate: entry.postingDate,
-        documentDate: entry.documentDate,
-        accountType: entry.accountType,
-        accountNo: entry.accountNo,
-        accountTdsSection: entry.accountTdsSection
-          ? { tdsType: entry.accountTdsSection.tdsType }
-          : undefined,
-        accountTcsSection: entry.accountTcsSection
-          ? { tcsType: entry.accountTcsSection.tcsType }
-          : undefined,
-        externalDocumentNo: entry.externalDocumentNo || "",
-        description: entry.description || undefined,
-        amount: entry.amount.toString(),
-        balanceAccountType: entry.balanceAccountType,
-        balanceAccountNo: entry.balanceAccountNo,
-        balanceTdsSection: entry.balanceTdsSection
-          ? { tdsType: entry.balanceTdsSection.tdsType }
-          : undefined,
-        balanceTcsSection: entry.balanceTcsSection
-          ? { tcsType: entry.balanceTcsSection.tcsType }
-          : undefined,
-        lineNarration: entry.lineNarration || "",
-        lob: entry.lob,
-        branch: entry.branch,
-        loc: entry.loc,
-        employee: entry.employee,
-        assignment: entry.assignment,
-      });
-    }, 0);
-
-    setPendingEditId(entryId);
-    setHasUnsavedChanges(true);
-    setValidationErrors({});
-    setAttachments(entry.attachments || []);
-    setIsEditingVoucher(false); // Not editing voucher, editing entry
-
-    setTimeout(() => {
-      const formCard = document.querySelector("[data-form-card]");
-      if (formCard) {
-        const contentContainer = document.querySelector(
-          ".flex.flex-1.flex-col.overflow-y-auto",
-        ) as HTMLElement | null;
-        if (contentContainer) {
-          const cardRect = formCard.getBoundingClientRect();
-          const containerRect = contentContainer.getBoundingClientRect();
-          const scrollTop = contentContainer.scrollTop;
-          const relativeTop = cardRect.top - containerRect.top + scrollTop - 20;
-          contentContainer.scrollTo({
-            top: Math.max(0, relativeTop),
-            behavior: "smooth",
-          });
-        } else {
-          formCard.scrollIntoView({ behavior: "smooth", block: "start" });
-        }
-      }
-      postingDateRef.current?.focus();
-    }, 100);
-  };
-
-  const handleEditClick = (entryId: string) => {
-    if (pendingEditId === entryId) return;
-
-    if (pendingEditId !== null || hasUnsavedChanges) {
-      setPendingEditId(entryId);
-      setShowUnsavedWarning(true);
-      return;
-    }
-
-    loadEntryForEdit(entryId);
-  };
-
-  const handleConfirmEdit = () => {
-    const entryIdToEdit = pendingEditId;
-    setShowUnsavedWarning(false);
-    setPendingEditId(null);
-
-    if (entryIdToEdit) {
-      resetForm();
-      setTimeout(() => loadEntryForEdit(entryIdToEdit), 10);
-    }
-  };
-
-  const handleUpdateEntry = () => {
-    if (!pendingEditId) return;
-
-    // Validate all fields on Update button click
-    const errors = validateAllFields(formData);
-    setValidationErrors(errors);
-
-    if (Object.keys(errors).length > 0) {
-      scrollToFirstError();
-      return;
-    }
-
-    const data = formStateToVoucherData(formData) as VoucherFormData;
-    // Preserve attachments when updating entry
-    setEntries((prev) =>
-      prev.map((e) =>
-        e.id === pendingEditId
-          ? { ...data, id: pendingEditId, attachments: attachments }
-          : e,
-      ),
-    );
-    resetForm();
-  };
-
-  const handleCancelEdit = () => resetForm();
-
-  const handleDeleteEntry = (entryId: string) => {
-    if (pendingEditId === entryId) return;
-    setPendingDeleteId(entryId);
-    setShowDeleteWarning(true);
-  };
-
-  const handleConfirmDelete = () => {
-    if (pendingDeleteId) {
-      setEntries((prev) => prev.filter((e) => e.id !== pendingDeleteId));
-      setPendingDeleteId(null);
-    }
-    setShowDeleteWarning(false);
-  };
-
-  const handleDeleteAll = () => {
-    if (entries.length === 0) return;
-    if (pendingEditId) return;
-    setShowDeleteAllWarning(true);
-  };
-
-  const handleConfirmDeleteAll = () => {
-    setEntries([]);
-    setShowDeleteAllWarning(false);
-  };
+// Removed entry-related functions as staging area is being removed
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
@@ -1574,7 +1377,7 @@ export function VoucherForm() {
   };
 
   const buildVoucherPayload = (
-    entry: VoucherEntry,
+    entry: VoucherFormData,
     documentNo: string,
   ): CreateVoucherPayload => {
     // Build base payload with required fields only
@@ -1676,19 +1479,15 @@ export function VoucherForm() {
   // Helper function to extract error details from API errors
   const extractErrorDetails = (
     error: unknown,
-    entryId?: string,
     entryLabel?: string,
   ): ErrorDetail => {
     let errorMessage = "";
-    let lineNo: number | null = null;
 
     if (error && typeof error === "object" && "message" in error) {
       const apiError = error as ApiError;
       errorMessage = apiError.message || "Unknown error";
-      lineNo = extractLineNoFromError(errorMessage);
 
       return {
-        entryId,
         entryLabel,
         message: errorMessage,
         code: apiError.code,
@@ -1698,195 +1497,109 @@ export function VoucherForm() {
     }
     if (error instanceof Error) {
       errorMessage = error.message;
-      lineNo = extractLineNoFromError(errorMessage);
       return {
-        entryId,
         entryLabel,
         message: errorMessage,
       };
     }
     errorMessage = String(error) || "Unknown error";
-    lineNo = extractLineNoFromError(errorMessage);
     return {
-      entryId,
       entryLabel,
       message: errorMessage,
     };
   };
 
-  const handleSubmitAll = async () => {
-    if (entries.length === 0) return;
+  const handleSubmitDirectly = async () => {
+    // Validate all fields
+    const errors = validateAllFields(formData);
+    setValidationErrors(errors);
+
+    if (Object.keys(errors).length > 0) {
+      scrollToFirstError();
+      return;
+    }
+
+    // Additional validation for Cash Payment
+    if (
+      formData.voucherType === "Cash Payment" &&
+      attachments.length === 0
+    ) {
+      setErrorDialogData({
+        title: "Validation Error",
+        message: "Attachment is required when Voucher Type is Cash Payment",
+        errors: [{
+          message: "Attachment is required when Voucher Type is Cash Payment",
+          entryLabel: "Voucher Form"
+        }],
+        type: "submit",
+      });
+      setErrorDialogOpen(true);
+      return;
+    }
 
     setIsSubmitting(true);
     const errorDetails: ErrorDetail[] = [];
-    const successfulEntryIds: string[] = [];
 
     try {
-      // Validate entries before submission - check for required attachments
-      const entriesWithErrors = entries.filter((entry) => {
-        if (
-          entry.voucherType === "Cash Payment" &&
-          (!entry.attachments || entry.attachments.length === 0)
-        ) {
-          errorDetails.push({
-            entryId: entry.id,
-            entryLabel: `Entry ${entry.id}`,
-            message: "Attachment is required when Voucher Type is Cash Payment",
-          });
-          return true;
-        }
-        return false;
-      });
+      const data = formStateToVoucherData(formData) as VoucherFormData;
 
-      if (entriesWithErrors.length > 0) {
-        setErrorDialogData({
-          title: "Validation Error",
-          message:
-            "Some entries have validation errors. Please fix them before submitting.",
-          errors: errorDetails,
-          type: "submit",
-        });
-        setErrorDialogOpen(true);
-        setIsSubmitting(false);
-        return;
+      // Step 1: Create document number first
+      const documentNo = await createNoSeriesForVouchers(
+        data.voucherType,
+        data.postingDate,
+      );
+
+      // Step 2: Create voucher with the document number
+      const payload = buildVoucherPayload(data, documentNo);
+      await createVoucher(payload, data.voucherType);
+
+      // Step 3: Upload attachments if any
+      if (attachments.length > 0) {
+        for (const file of attachments) {
+          try {
+            const base64 = await convertFileToBase64(file);
+            await uploadAttachment(
+              {
+                recNo: documentNo,
+                fileName: file.name,
+                fileEncodedTextDialog: base64,
+              },
+              data.voucherType,
+            );
+          } catch (error) {
+            console.error(`Error uploading attachment ${file.name}:`, error);
+            errorDetails.push(
+              extractErrorDetails(error, `File: ${file.name}`)
+            );
+          }
+        }
       }
 
-      // Process each entry and track status
-      const updatedEntries = await Promise.all(
-        entries.map(async (entry) => {
-          try {
-            // Step 1: Create document number first
-            const documentNo = await createNoSeriesForVouchers(
-              entry.voucherType,
-              entry.postingDate,
-            );
-
-            // Step 2: Create voucher with the document number
-            const payload = buildVoucherPayload(entry, documentNo);
-            await createVoucher(payload, entry.voucherType);
-
-            // Step 3: Upload attachments if any (using the same document number)
-            const failedFiles: string[] = [];
-            if (entry.attachments && entry.attachments.length > 0) {
-              for (const file of entry.attachments) {
-                try {
-                  const base64 = await convertFileToBase64(file);
-                  const result = await uploadAttachment(
-                    {
-                      recNo: documentNo,
-                      fileName: file.name,
-                      fileEncodedTextDialog: base64,
-                    },
-                    entry.voucherType,
-                  );
-                  console.log(
-                    `${file.name}: ${result.message || "Uploaded successfully"}`,
-                  );
-                } catch (error) {
-                  console.error(
-                    `Error uploading attachment ${file.name}:`,
-                    error,
-                  );
-                  failedFiles.push(file.name);
-                  errorDetails.push(
-                    extractErrorDetails(
-                      error,
-                      entry.id,
-                      `Entry ${entry.id} - File: ${file.name}`,
-                    ),
-                  );
-                }
-              }
-            }
-
-            // Entry created successfully
-            if (failedFiles.length > 0) {
-              // Partial success - entry created but some files failed
-              return {
-                ...entry,
-                status: "partial" as const,
-                failedFiles,
-                errorMessage: `Entry created but ${failedFiles.length} file(s) failed to upload`,
-              };
-            } else {
-              // Complete success
-              successfulEntryIds.push(entry.id);
-              return {
-                ...entry,
-                status: "success" as const,
-              };
-            }
-          } catch (error) {
-            // Entry creation failed
-            console.error(
-              `Error creating voucher for entry ${entry.id}:`,
-              error,
-            );
-            const errorDetail = extractErrorDetails(
-              error,
-              entry.id,
-              `Entry ${entry.id} - Voucher Creation`,
-            );
-            errorDetails.push(errorDetail);
-            return {
-              ...entry,
-              status: "failed" as const,
-              errorMessage: errorDetail.message,
-            };
-          }
-        }),
-      );
-
-      // Update entries - keep failed and partial, remove successful
-      const remainingEntries = updatedEntries.filter(
-        (entry) => entry.status === "failed" || entry.status === "partial",
-      );
-      setEntries(remainingEntries);
-
-      // Refresh vouchers from ERP to show newly created entries
+      // Refresh vouchers from ERP
       await fetchVouchersFromERP();
 
-      // Show summary
-      const successCount = successfulEntryIds.length;
-      const failedCount = remainingEntries.filter(
-        (e) => e.status === "failed",
-      ).length;
-      const partialCount = remainingEntries.filter(
-        (e) => e.status === "partial",
-      ).length;
-
-      if (successCount > 0 && failedCount === 0 && partialCount === 0) {
-        // All successful
-        setSuccessMessage(
-          `All ${successCount} ${successCount === 1 ? "entry" : "entries"} submitted successfully!`,
-        );
+      if (errorDetails.length > 0) {
+        // Partial success
+        setErrorDialogData({
+          title: "Voucher Created with Upload Errors",
+          message: `Voucher created successfully (Doc No: ${documentNo}), but some attachments failed to upload.`,
+          errors: errorDetails,
+          type: "upload",
+        });
+        setErrorDialogOpen(true);
+        resetForm();
+      } else {
+        // Complete success
+        setSuccessMessage(`Voucher submitted successfully! (Doc No: ${documentNo})`);
         setSuccessDialogOpen(true);
         resetForm();
-      } else if (errorDetails.length > 0) {
-        // Show error dialog with detailed errors
-        setErrorDialogData({
-          title: "Voucher Submission Errors",
-          message: `Submitted ${successCount} entry(ies) successfully. ${failedCount + partialCount} entry(ies) had errors.`,
-          errors: errorDetails,
-          type: "submit",
-        });
-        setErrorDialogOpen(true);
-      } else {
-        // Some failures or partials but no detailed errors captured
-        setErrorDialogData({
-          title: "Voucher Submission Issues",
-          message: `Submitted ${successCount} entry(ies) successfully. ${failedCount} entry(ies) failed to create. ${partialCount} entry(ies) created but had file upload issues.`,
-          errors: [],
-          type: "submit",
-        });
-        setErrorDialogOpen(true);
       }
     } catch (error) {
-      console.error("Error submitting entries:", error);
-      const errorDetail = extractErrorDetails(error);
+      console.error("Error submitting voucher:", error);
+      const errorDetail = extractErrorDetails(error, "Voucher Creation");
       setErrorDialogData({
         title: "Submission Error",
-        message: "An error occurred while submitting entries.",
+        message: "Failed to submit voucher to ERP.",
         errors: [errorDetail],
         type: "submit",
       });
@@ -1895,7 +1608,6 @@ export function VoucherForm() {
       setIsSubmitting(false);
     }
   };
-
   const getPlaceholder = (
     fieldName: string,
     defaultPlaceholder: string,
@@ -1925,22 +1637,15 @@ export function VoucherForm() {
   const tableClass = "min-w-max";
   const excelWrap = cn(
     "rounded-md border bg-background",
-    pendingEditId && "ring-2 ring-primary ring-offset-2",
   );
 
   return (
     <div className="flex h-full w-full min-w-0 flex-col gap-3 p-4 overflow-hidden">
       <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
-          {pendingEditId ? (
-            <div className="text-primary text-sm font-medium">
-              Editing entry
-            </div>
-          ) : (
-            <div className="text-foreground/80 text-sm font-medium">
-              Voucher
-            </div>
-          )}
+          <div className="text-foreground/80 text-sm font-medium">
+            Voucher
+          </div>
           {validationSummaryMessage && (
             <div className="text-destructive text-sm">
               {validationSummaryMessage}
@@ -2663,22 +2368,7 @@ export function VoucherForm() {
         <div className="flex flex-col gap-1 sm:col-span-1 md:col-span-1 lg:col-span-1 xl:col-span-1 2xl:col-span-1">
           <FieldTitle>&nbsp;</FieldTitle>
           <div className="flex items-center gap-2">
-            {pendingEditId ? (
-              <>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  className="h-9"
-                  onClick={handleCancelEdit}
-                >
-                  Cancel
-                </Button>
-                <Button type="button" size="sm" className="h-9" onClick={handleUpdateEntry}>
-                  Update Entry
-                </Button>
-              </>
-            ) : isEditingVoucher ? (
+            {isEditingVoucher ? (
               <>
                 <Button
                   type="button"
@@ -2696,7 +2386,7 @@ export function VoucherForm() {
                   type="button"
                   size="sm"
                   className="h-9"
-                  onClick={handleAddEntry}
+                  onClick={() => setShowUpdateVoucherWarning(true)}
                   disabled={isUpdatingVoucher}
                 >
                   <Pencil className="mr-2 h-4 w-4" />
@@ -2704,349 +2394,31 @@ export function VoucherForm() {
                 </Button>
               </>
             ) : (
-              <Button type="button" size="sm" className="h-9" onClick={handleAddEntry}>
-                <Plus className="mr-2 h-4 w-4" />
-                Add Entry
+              <Button 
+                type="button" 
+                size="sm" 
+                className="h-9" 
+                onClick={handleSubmitDirectly}
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Submitting...
+                  </>
+                ) : (
+                  <>
+                    <Upload className="mr-2 h-4 w-4" />
+                    Submit to ERP
+                  </>
+                )}
               </Button>
             )}
           </div>
         </div>
       </div>
 
-      <div className="flex flex-1 min-h-0 flex-col gap-4 overflow-hidden">
-        <div className="flex flex-1 min-h-0 flex-col gap-2">
-        <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <div className="text-foreground/70 text-sm">
-            {entries.length === 0
-              ? "No entries"
-              : `${entries.length} ${entries.length === 1 ? "entry" : "entries"} added`}
-          </div>
-          <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-            <Button
-              type="button"
-              size="sm"
-              onClick={handleSubmitAll}
-              disabled={
-                entries.length === 0 || pendingEditId !== null || isSubmitting
-              }
-              title={
-                pendingEditId
-                  ? "Cannot submit while editing an entry"
-                  : isSubmitting
-                    ? "Submitting entries..."
-                    : "Submit all entries to ERP"
-              }
-            >
-              {isSubmitting ? "Submitting..." : "Submit to ERP"}
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant="destructive"
-              onClick={handleDeleteAll}
-              disabled={entries.length === 0 || pendingEditId !== null}
-              title={
-                pendingEditId
-                  ? "Cannot delete all while editing an entry"
-                  : "Delete all entries"
-              }
-            >
-              <Trash2 className="mr-2 h-4 w-4" />
-              Delete
-            </Button>
-          </div>
-        </div>
-
-        {entries.length === 0 ? (
-          <div className="bg-muted/20 text-foreground/70 rounded-md border p-6 text-center">
-            <div>No entries yet.</div>
-            <div className="mt-1 text-sm">Fill the row and click "Add".</div>
-          </div>
-        ) : (
-          <div
-            ref={entriesTableRef}
-            className="bg-background flex-1 min-h-0 cursor-grab overflow-auto rounded-md border"
-          >
-            <Table className={tableClass}>
-              <TableHeader>
-                <TableRow className="sticky top-0 z-30 bg-muted">
-                  <TableHead className={cn(colHead, "w-30")}>Posting</TableHead>
-                  <TableHead className={cn(colHead, "w-30")}>
-                    Document
-                  </TableHead>
-                  <TableHead className={cn(colHead, "w-35")}>Voucher</TableHead>
-                  <TableHead className={cn(colHead, "w-35")}>
-                    Doc Type
-                  </TableHead>
-                  <TableHead className={cn(colHead, "w-32.5")}>
-                    Acc Type
-                  </TableHead>
-                  <TableHead className={cn(colHead, "w-35")}>Acc No</TableHead>
-                  <TableHead className={cn(colHead, "w-40")}>Ext Doc</TableHead>
-                  <TableHead className={cn(colHead, "w-45")}>
-                    Description
-                  </TableHead>
-                  <TableHead className={cn(colHead, "w-30 text-right")}>
-                    Amount
-                  </TableHead>
-                  <TableHead className={cn(colHead, "w-32.5")}>
-                    Bal Type
-                  </TableHead>
-                  <TableHead className={cn(colHead, "w-35")}>Bal No</TableHead>
-                  <TableHead className={cn(colHead, "w-50")}>
-                    Narration
-                  </TableHead>
-                  <TableHead className={cn(colHead, "w-35")}>LOB</TableHead>
-                  <TableHead className={cn(colHead, "w-35")}>Branch</TableHead>
-                  <TableHead className={cn(colHead, "w-35")}>LOC</TableHead>
-                  <TableHead className={cn(colHead, "w-35")}>
-                    Employee
-                  </TableHead>
-                  <TableHead className={cn(colHead, "w-35")}>
-                    Assignment
-                  </TableHead>
-                  <TableHead className={cn(colHead, "w-35")}>TDS</TableHead>
-                  <TableHead className={cn(colHead, "w-35")}>TCS</TableHead>
-                  <TableHead className={cn(colHead, "w-50")}>
-                    Upload Files
-                  </TableHead>
-                  <TableHead className={cn(colHead, "w-30")}>Status</TableHead>
-                  <TableHead className={cn(colHead, "w-27.5")}>
-                    Actions
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {entries.map((entry) => (
-                  <ContextMenu key={entry.id}>
-                    <ContextMenuTrigger asChild>
-                      <TableRow
-                        className={cn(
-                          pendingEditId === entry.id && "bg-primary/5",
-                          entry.status === "failed" &&
-                            "bg-destructive/10 hover:bg-destructive/15",
-                          entry.status === "partial" &&
-                            "bg-yellow-500/10 hover:bg-yellow-500/15",
-                        )}
-                      >
-                        <TableCell className="p-2 text-xs">
-                          {entry.postingDate}
-                        </TableCell>
-                        <TableCell className="p-2 text-xs">
-                          {entry.documentDate}
-                        </TableCell>
-                        <TableCell className="p-2 text-xs font-medium">
-                          {entry.voucherType}
-                        </TableCell>
-                        <TableCell className="p-2 text-xs">
-                          {entry.documentType}
-                        </TableCell>
-                        <TableCell className="p-2 text-xs">
-                          {entry.accountType}
-                        </TableCell>
-                        <TableCell className="p-2 text-xs">
-                          {entry.accountNo}
-                        </TableCell>
-                        <TableCell className="p-2 text-xs">
-                          {entry.externalDocumentNo}
-                        </TableCell>
-                        <TableCell className="p-2 text-xs">
-                          {entry.description}
-                        </TableCell>
-                        <TableCell className="p-2 text-right text-xs tabular-nums">
-                          {entry.amount.toFixed(2)}
-                        </TableCell>
-                        <TableCell className="p-2 text-xs">
-                          {entry.balanceAccountType}
-                        </TableCell>
-                        <TableCell className="p-2 text-xs">
-                          {entry.balanceAccountNo}
-                        </TableCell>
-                        <TableCell className="p-2 text-xs">
-                          {entry.lineNarration}
-                        </TableCell>
-                        <TableCell className="p-2 text-xs">
-                          {entry.lob}
-                        </TableCell>
-                        <TableCell className="p-2 text-xs">
-                          {entry.branch}
-                        </TableCell>
-                        <TableCell className="p-2 text-xs">
-                          {entry.loc}
-                        </TableCell>
-                        <TableCell className="p-2 text-xs">
-                          {entry.employee}
-                        </TableCell>
-                        <TableCell className="p-2 text-xs">
-                          {entry.assignment}
-                        </TableCell>
-                        <TableCell className="p-2 text-xs">
-                          {entry.accountTdsSection?.tdsType &&
-                          entry.accountTdsSection.tdsType !== "NA"
-                            ? entry.accountTdsSection.tdsType
-                            : entry.balanceTdsSection?.tdsType &&
-                                entry.balanceTdsSection.tdsType !== "NA"
-                              ? entry.balanceTdsSection.tdsType
-                              : "-"}
-                        </TableCell>
-                        <TableCell className="p-2 text-xs">
-                          {entry.accountTcsSection?.tcsType &&
-                          entry.accountTcsSection.tcsType !== "NA"
-                            ? entry.accountTcsSection.tcsType
-                            : entry.balanceTcsSection?.tcsType &&
-                                entry.balanceTcsSection.tcsType !== "NA"
-                              ? entry.balanceTcsSection.tcsType
-                              : "-"}
-                        </TableCell>
-                        <TableCell className="p-2 text-xs">
-                          {entry.attachments && entry.attachments.length > 0 ? (
-                            <div className="flex flex-wrap gap-1">
-                              {entry.attachments.map((file, index) => {
-                                const isFailed = entry.failedFiles?.includes(
-                                  file.name,
-                                );
-                                return (
-                                  <span
-                                    key={index}
-                                    className={cn(
-                                      "max-w-37.5 truncate rounded px-1.5 py-0.5 text-xs",
-                                      isFailed
-                                        ? "bg-destructive/20 text-destructive border-destructive/30 border"
-                                        : "bg-muted",
-                                    )}
-                                    title={
-                                      isFailed
-                                        ? `${file.name} - Upload failed`
-                                        : file.name
-                                    }
-                                  >
-                                    {file.name}
-                                    {isFailed && " ⚠"}
-                                  </span>
-                                );
-                              })}
-                            </div>
-                          ) : (
-                            <span className="text-muted-foreground">-</span>
-                          )}
-                        </TableCell>
-                        <TableCell className="p-2">
-                          <div className="flex flex-col gap-1">
-                            {entry.status === "failed" && (
-                              <span
-                                className="bg-destructive/20 text-destructive border-destructive/30 rounded border px-2 py-0.5 text-xs"
-                                title={entry.errorMessage}
-                              >
-                                Failed
-                              </span>
-                            )}
-                            {entry.status === "partial" && (
-                              <div className="flex flex-col gap-0.5">
-                                <span className="rounded border border-yellow-500/30 bg-yellow-500/20 px-2 py-0.5 text-xs text-yellow-700 dark:text-yellow-500">
-                                  Partial
-                                </span>
-                                {entry.failedFiles &&
-                                  entry.failedFiles.length > 0 && (
-                                    <span
-                                      className="text-muted-foreground text-xs"
-                                      title={entry.errorMessage}
-                                    >
-                                      {entry.failedFiles.length} file(s) failed
-                                    </span>
-                                  )}
-                              </div>
-                            )}
-                            {entry.status === "success" && (
-                              <span className="rounded border border-green-500/30 bg-green-500/20 px-2 py-0.5 text-xs text-green-700 dark:text-green-500">
-                                Success
-                              </span>
-                            )}
-                            {(!entry.status || entry.status === "pending") && (
-                              <span className="bg-muted text-muted-foreground rounded px-2 py-0.5 text-xs">
-                                Pending
-                              </span>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell className="p-2">
-                          <div className="flex items-center gap-1">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleEditClick(entry.id)}
-                              className="h-8 w-8"
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleDeleteEntry(entry.id)}
-                              className="h-8 w-8"
-                              disabled={pendingEditId === entry.id}
-                              title={
-                                pendingEditId === entry.id
-                                  ? "Cannot delete entry being edited"
-                                  : "Delete entry"
-                              }
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    </ContextMenuTrigger>
-                    <ContextMenuContent>
-                      <ContextMenuItem
-                        onClick={() => handleEditClick(entry.id)}
-                        disabled={
-                          pendingEditId !== null && pendingEditId !== entry.id
-                        }
-                      >
-                        <Pencil className="mr-2 h-4 w-4" />
-                        Edit
-                      </ContextMenuItem>
-                      <ContextMenuItem
-                        onClick={() => handleDeleteEntry(entry.id)}
-                        variant="destructive"
-                        disabled={pendingEditId === entry.id}
-                      >
-                        <Trash2 className="mr-2 h-4 w-4" />
-                        Delete
-                      </ContextMenuItem>
-                    </ContextMenuContent>
-                  </ContextMenu>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        )}
-
-        {/* Legend */}
-        {entries.length > 0 && (
-          <div className="bg-muted/30 rounded-md border p-3 text-xs">
-            <div className="text-foreground/80 mb-2 font-semibold">
-              Status Legend:
-            </div>
-            <div className="flex flex-wrap gap-4">
-              <div className="flex items-center gap-2">
-                <div className="bg-destructive/10 border-destructive/30 h-4 w-4 rounded border"></div>
-                <span>Entry failed to create</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="h-4 w-4 rounded border border-yellow-500/30 bg-yellow-500/10"></div>
-                <span>Entry created but file(s) failed</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="bg-destructive/20 text-destructive border-destructive/30 rounded border px-1.5 py-0.5 text-xs">
-                  File ⚠
-                </span>
-                <span>File upload failed</span>
-              </div>
-            </div>
-          </div>
-        )}
-        </div>
+      {/* Staging area removed */}
 
       {/* Fetched Vouchers Table */}
       <div className="flex flex-1 min-h-0 flex-col gap-2">
@@ -3628,65 +3000,9 @@ export function VoucherForm() {
           </div>
         )}
       </div>
-    </div>
-
-      {/* Unsaved Changes Warning Dialog (for Edit) */}
-      <Dialog
-        open={showUnsavedWarning}
-        onOpenChange={(open) => {
-          setShowUnsavedWarning(open);
-          if (!open) setPendingEditId(null);
-        }}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Unsaved Changes</DialogTitle>
-            <DialogDescription>
-              You have unsaved changes in the form. If you continue, your
-              current changes will be lost.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setShowUnsavedWarning(false);
-                setPendingEditId(null);
-              }}
-            >
-              Cancel
-            </Button>
-            <Button variant="destructive" onClick={handleConfirmEdit}>
-              Discard Changes
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
 
-      {/* Delete Entry Warning Dialog */}
-      <Dialog open={showDeleteWarning} onOpenChange={setShowDeleteWarning}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Delete Entry</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to delete this entry? This action cannot be
-              undone.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setShowDeleteWarning(false)}
-            >
-              Cancel
-            </Button>
-            <Button variant="destructive" onClick={handleConfirmDelete}>
-              Delete
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Removed entry-related dialogs */}
 
       {/* Success Dialog */}
       <Dialog open={successDialogOpen} onOpenChange={setSuccessDialogOpen}>
@@ -3811,32 +3127,7 @@ export function VoucherForm() {
         </DialogContent>
       </Dialog>
 
-      {/* Delete All Warning Dialog */}
-      <Dialog
-        open={showDeleteAllWarning}
-        onOpenChange={setShowDeleteAllWarning}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Delete All Entries</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to delete all {entries.length} entries? This
-              action cannot be undone.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setShowDeleteAllWarning(false)}
-            >
-              Cancel
-            </Button>
-            <Button variant="destructive" onClick={handleConfirmDeleteAll}>
-              Delete All
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Removed delete all dialog */}
     </div>
   );
 }

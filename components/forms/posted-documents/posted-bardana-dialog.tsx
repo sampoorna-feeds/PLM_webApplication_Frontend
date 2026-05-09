@@ -152,7 +152,7 @@ export function PostedBardanaDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[80vh] flex flex-col">
+      <DialogContent className="sm:max-w-[1100px] w-[95vw] max-h-[90vh] flex flex-col">
         <DialogHeader>
           <div className="flex items-center justify-between pr-6">
             <DialogTitle className="flex items-center gap-2">

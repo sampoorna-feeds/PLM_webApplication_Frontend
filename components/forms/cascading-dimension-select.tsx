@@ -14,6 +14,7 @@ import {
   Popover,
   PopoverContent,
   PopoverTrigger,
+  PopoverAnchor,
 } from "@/components/ui/popover";
 import {
   getLOBsFromUserSetup,
@@ -72,7 +73,7 @@ export function CascadingDimensionSelect({
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const listRef = useRef<HTMLDivElement | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
-  const itemRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const inputRef = useRef<HTMLInputElement>(null);
   const prevItemsRef = useRef<DimensionValue[]>(items);
 
   // Load items based on dimension type and parent values
@@ -92,7 +93,6 @@ export function CascadingDimensionSelect({
           break;
         case "BRANCH":
           if (!lobValue) {
-            // If no LOB specified, show all branches for the user
             result = await getAllBranchesFromUserSetup(userId);
           } else {
             result = await getBranchesFromUserSetup(lobValue, userId);
@@ -100,7 +100,6 @@ export function CascadingDimensionSelect({
           break;
         case "LOC":
           if (!lobValue && branchValue) {
-            // If no LOB but branch exists, show LOCs for that branch across all LOBs
             result = await getLOCsForBranchFromUserSetup(branchValue, userId);
           } else if (!lobValue || !branchValue) {
             result = [];
@@ -121,11 +120,6 @@ export function CascadingDimensionSelect({
 
   // Clear value if parent dependency is not met
   useEffect(() => {
-    // If it's a BRANCH and we HAVE an LOB, we keep the value. 
-    // If we DON'T have an LOB, we also keep the value (new requirement).
-    // So BRANCH never clears its value based on LOB now.
-    
-    // For LOC, if we don't have a branch, we clear it.
     if (dimensionType === "LOC" && !branchValue && value) {
       onChange("");
     }
@@ -133,14 +127,12 @@ export function CascadingDimensionSelect({
 
   // Only reload items when parent values change (not on every render)
   useEffect(() => {
-    // Only load if dropdown is open or items are empty
     if (isOpen || items.length === 0) {
       loadItems();
     }
   }, [dimensionType, lobValue, branchValue, userId, isOpen]);
 
-  // Auto-select when single option and compactWhenSingle — only fires when items change (new load),
-  // not when value is cleared by the user, preventing an immediate re-select loop.
+  // Auto-select when single option
   useEffect(() => {
     const itemsChanged = prevItemsRef.current !== items;
     prevItemsRef.current = items;
@@ -150,62 +142,13 @@ export function CascadingDimensionSelect({
     }
   }, [compactWhenSingle, items, value, onChange, onSelectItem]);
 
-  // Search with debounce
+  // Search logic (client-side filtering)
   const performSearch = useCallback(
     async (query: string) => {
-      // Cancel previous request
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
-
-      // Clear debounce timer
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current);
-      }
-
-      // If query is too short, show all items
-      if (query.length < MIN_SEARCH_LENGTH) {
-        setSearchQuery(query);
-        loadItems();
-        return;
-      }
-
-      // Debounce the search
-      debounceTimerRef.current = setTimeout(async () => {
-        const controller = new AbortController();
-        abortControllerRef.current = controller;
-
-        setIsLoading(true);
-        try {
-          // Load all items first, then filter client-side
-          await loadItems();
-
-          // Filter items client-side based on search query
-          setItems((prev) => {
-            const filtered = prev.filter((item) => {
-              const codeMatch = item.Code?.toLowerCase().includes(
-                query.toLowerCase(),
-              );
-              const nameMatch = item.Name?.toLowerCase().includes(
-                query.toLowerCase(),
-              );
-              return codeMatch || nameMatch;
-            });
-            return filtered;
-          });
-        } catch (error) {
-          if (error instanceof Error && error.name === "AbortError") {
-            return;
-          }
-          console.error(`Error searching ${dimensionType}:`, error);
-        } finally {
-          if (!controller.signal.aborted) {
-            setIsLoading(false);
-          }
-        }
-      }, DEBOUNCE_MS);
+      setSearchQuery(query);
+      if (!isOpen) setIsOpen(true);
     },
-    [dimensionType, loadItems],
+    [isOpen],
   );
 
   // Handle dropdown open
@@ -213,20 +156,18 @@ export function CascadingDimensionSelect({
     if (disabled) return;
     setIsOpen(open);
     if (open) {
-      // Only load if items are empty or parent values changed
+      setFocusedIndex(-1);
       if (items.length === 0) {
         loadItems();
       }
     } else {
       setSearchQuery("");
-      // Don't reload when closing - it's unnecessary
     }
   };
 
   // Check if field should be disabled
   const isFieldDisabled =
-    disabled ||
-    (dimensionType === "LOC" && !branchValue);
+    disabled || (dimensionType === "LOC" && !branchValue);
 
   // Find selected item display value
   const selectedItem = items.find((item) => item.Code === value);
@@ -238,22 +179,9 @@ export function CascadingDimensionSelect({
       ? "None"
       : value || "";
 
-  // Reset focusedIndex when filteredItems changes or dropdown closes
-  useEffect(() => {
-    setFocusedIndex(-1);
-    itemRefs.current = [];
-  }, [searchQuery, isOpen]);
-
-  // Scroll focused item into view
-  useEffect(() => {
-    if (focusedIndex >= 0 && itemRefs.current[focusedIndex]) {
-      itemRefs.current[focusedIndex]?.scrollIntoView({ block: "nearest" });
-    }
-  }, [focusedIndex]);
-
   // Filter items based on search query
   const filteredItems =
-    searchQuery.length >= MIN_SEARCH_LENGTH
+    searchQuery.length > 0
       ? items.filter((item) => {
           const codeMatch = item.Code?.toLowerCase().includes(
             searchQuery.toLowerCase(),
@@ -264,6 +192,53 @@ export function CascadingDimensionSelect({
           return codeMatch || nameMatch;
         })
       : items;
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (isFieldDisabled) return;
+
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      if (!isOpen) {
+        setIsOpen(true);
+      } else {
+        setFocusedIndex((prev) =>
+          Math.min(prev + 1, filteredItems.length - 1),
+        );
+      }
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      if (isOpen) {
+        setFocusedIndex((prev) => Math.max(prev - 1, 0));
+      }
+    } else if (e.key === "Enter") {
+      if (isOpen && focusedIndex >= 0) {
+        e.preventDefault();
+        const item = filteredItems[focusedIndex];
+        if (item) {
+          onChange(item.Code);
+          onSelectItem?.(item);
+          setIsOpen(false);
+          setSearchQuery("");
+        }
+      }
+    } else if (e.key === "Escape") {
+      setIsOpen(false);
+      setSearchQuery("");
+    } else if (e.key === "Tab") {
+      setIsOpen(false);
+    }
+  };
+
+  // Scroll focused item into view
+  useEffect(() => {
+    if (isOpen && focusedIndex >= 0 && listRef.current) {
+      const listElement = listRef.current;
+      const itemElement = listElement.children[focusedIndex] as HTMLElement;
+      if (itemElement) {
+        itemElement.scrollIntoView({ block: "nearest" });
+      }
+    }
+  }, [focusedIndex, isOpen]);
 
   const showAsLabel =
     compactWhenSingle && items.length === 1 && value === items[0]?.Code;
@@ -278,35 +253,39 @@ export function CascadingDimensionSelect({
 
   return (
     <Popover open={isOpen} onOpenChange={handleOpenChange}>
-      <PopoverTrigger asChild>
-        <Button
-          variant="outline"
-          role="combobox"
-          disabled={isFieldDisabled}
-          aria-expanded={isOpen}
-          aria-haspopup="listbox"
-          aria-label={placeholder || dimensionType}
-          className={cn(
-            "h-9 w-full justify-between text-sm font-normal shadow-sm",
-            !value && "text-muted-foreground",
-            className,
-            errorClass,
-          )}
-          data-field-error={hasError}
-        >
-          <span className="truncate">
-            {isFieldDisabled && dimensionType === "LOC" && !branchValue
+      <PopoverAnchor asChild>
+        <div className="relative w-full">
+          <Input
+            ref={inputRef}
+            value={isOpen ? searchQuery : displayValue}
+            onChange={(e) => performSearch(e.target.value)}
+            onFocus={() => {
+              if (!isOpen) {
+                setSearchQuery("");
+                setIsOpen(true);
+              }
+            }}
+            onKeyDown={handleKeyDown}
+            placeholder={
+              isFieldDisabled && dimensionType === "LOC" && !branchValue
                 ? "Select Branch first"
-                : !isFieldDisabled && items.length === 0 && !isLoading && userId
-                  ? `No ${dimensionType} found. Please contact IT.`
-                  : displayValue || (disabled ? "None" : placeholder)}
-          </span>
-          <div className="flex items-center gap-1 shrink-0">
+                : placeholder
+            }
+            disabled={isFieldDisabled}
+            className={cn(
+              "h-9 w-full pr-10 text-sm font-normal shadow-sm",
+              !value && !isOpen && "text-muted-foreground",
+              className,
+              errorClass,
+            )}
+            data-field-error={hasError}
+          />
+          <div className="absolute right-0 top-0 flex h-full items-center gap-1.5 px-3">
             {value && !disabled && (
               <div
                 role="button"
                 tabIndex={0}
-                className="hover:text-foreground p-1 text-muted-foreground transition-colors hover:bg-muted rounded-full"
+                className="hover:text-foreground p-1 text-muted-foreground transition-colors hover:bg-muted rounded-full pointer-events-auto"
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
@@ -323,72 +302,32 @@ export function CascadingDimensionSelect({
                 <X className="h-3 w-3" />
               </div>
             )}
-            <ChevronDownIcon className="h-4 w-4 shrink-0 opacity-40" />
+            {isLoading ? (
+              <Loader2 className="h-4 w-4 animate-spin opacity-50" />
+            ) : (
+              <ChevronDownIcon className="h-4 w-4 opacity-50" />
+            )}
           </div>
-        </Button>
-      </PopoverTrigger>
+        </div>
+      </PopoverAnchor>
       <PopoverContent
         className="flex max-h-(--radix-popover-content-available-height,80vh) min-h-0 w-(--radix-popover-trigger-width) max-w-[calc(100vw-2rem)] min-w-[320px] flex-col overflow-hidden p-0"
         align="start"
         collisionPadding={8}
         onOpenAutoFocus={(e) => {
-          // Prevent auto-focus from scrolling
           e.preventDefault();
         }}
         onCloseAutoFocus={(e) => {
-          // Prevent auto-focus from scrolling
           e.preventDefault();
         }}
       >
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-          <div className="shrink-0 border-b p-2">
-            <Input
-              placeholder="Search by Code or Name..."
-              value={searchQuery}
-              onChange={(e) => {
-                const query = e.target.value;
-                setSearchQuery(query);
-                performSearch(query);
-              }}
-              onKeyDown={(e) => {
-                if (e.key === "ArrowDown") {
-                  e.preventDefault();
-                  setFocusedIndex((prev) =>
-                    Math.min(prev + 1, filteredItems.length - 1),
-                  );
-                } else if (e.key === "ArrowUp") {
-                  e.preventDefault();
-                  setFocusedIndex((prev) => Math.max(prev - 1, 0));
-                } else if (e.key === "Enter" && focusedIndex >= 0) {
-                  e.preventDefault();
-                  const item = filteredItems[focusedIndex];
-                  if (item) {
-                    onChange(item.Code);
-                    onSelectItem?.(item);
-                    setIsOpen(false);
-                  }
-                } else if (e.key === "Escape") {
-                  e.preventDefault();
-                  setIsOpen(false);
-                }
-              }}
-              className="h-8 text-sm"
-              autoFocus
-              aria-autocomplete="list"
-              aria-controls="cascading-select-listbox"
-              aria-activedescendant={
-                focusedIndex >= 0
-                  ? `cascading-option-${filteredItems[focusedIndex]?.Code}`
-                  : undefined
-              }
-            />
-          </div>
           <div
             ref={listRef}
             id="cascading-select-listbox"
             role="listbox"
             aria-label={placeholder || dimensionType}
-            className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto"
+            className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto p-1"
           >
             {isLoading && items.length === 0 ? (
               <div className="flex items-center justify-center p-4">
@@ -399,10 +338,8 @@ export function CascadingDimensionSelect({
                 {isFieldDisabled
                   ? "Select Branch first"
                   : searchQuery.length < MIN_SEARCH_LENGTH && items.length === 0
-                    ? `No ${dimensionType} found. Please contact IT.`
-                    : searchQuery.length < MIN_SEARCH_LENGTH
-                      ? `Type at least ${MIN_SEARCH_LENGTH} characters to search`
-                      : "No items found"}
+                    ? `No ${dimensionType} found.`
+                    : "No items found"}
               </div>
             ) : (
               <>
@@ -412,11 +349,8 @@ export function CascadingDimensionSelect({
                     id={`cascading-option-${item.Code}`}
                     role="option"
                     aria-selected={value === item.Code}
-                    ref={(el) => {
-                      itemRefs.current[index] = el;
-                    }}
                     className={cn(
-                      "hover:bg-muted/50 relative flex cursor-default items-start rounded-sm px-2 py-2 text-sm outline-none select-none",
+                      "hover:bg-muted/50 relative flex cursor-default items-start rounded-sm px-2 py-2 text-sm outline-none select-none transition-colors",
                       value === item.Code && "bg-muted",
                       focusedIndex === index && "bg-accent text-accent-foreground",
                     )}
@@ -428,20 +362,30 @@ export function CascadingDimensionSelect({
                         onSelectItem?.(item);
                       }
                       setIsOpen(false);
+                      setSearchQuery("");
+                      inputRef.current?.focus();
                     }}
+                    onMouseEnter={() => setFocusedIndex(index)}
                   >
                     <CheckIcon
                       className={cn(
                         "mt-0.5 mr-2 h-4 w-4 shrink-0",
                         value === item.Code ? "opacity-100" : "opacity-0",
+                        focusedIndex === index && "text-accent-foreground",
                       )}
                     />
                     <div className="min-w-0 flex-1">
-                      <div className="text-foreground font-medium wrap-break-word">
+                      <div className={cn(
+                        "text-foreground font-medium wrap-break-word",
+                        focusedIndex === index && "text-accent-foreground"
+                      )}>
                         {item.Code}
                       </div>
                       {item.Name && (
-                        <div className="text-muted-foreground mt-0.5 text-xs wrap-break-word">
+                        <div className={cn(
+                          "text-muted-foreground mt-0.5 text-xs wrap-break-word",
+                          focusedIndex === index && "text-accent-foreground/80"
+                        )}>
                           {item.Name}
                         </div>
                       )}

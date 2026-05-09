@@ -14,6 +14,7 @@ import {
   Popover,
   PopoverContent,
   PopoverTrigger,
+  PopoverAnchor,
 } from "@/components/ui/popover";
 import {
   getBranches,
@@ -67,6 +68,9 @@ export function DimensionSelect({
   const listRef = useRef<HTMLDivElement | null>(null);
   const prevDimensionTypeRef = useRef<DimensionType | undefined>(dimensionType);
   const abortControllerRef = useRef<AbortController | null>(null);
+
+  const [focusedIndex, setFocusedIndex] = useState(-1);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   // Check if this dimension supports search (LOB doesn't)
   const supportsSearch = dimensionType !== "LOB";
@@ -302,8 +306,11 @@ export function DimensionSelect({
   // Handle dropdown open
   const handleOpenChange = (open: boolean) => {
     setIsOpen(open);
-    if (open && items.length === 0) {
-      loadInitialItems();
+    if (open) {
+      setFocusedIndex(-1);
+      if (items.length === 0) {
+        loadInitialItems();
+      }
     }
     if (!open) {
       setSearchQuery("");
@@ -354,6 +361,52 @@ export function DimensionSelect({
       : selectedItem.Code
     : value || "";
 
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (disabled) return;
+
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      if (!isOpen) {
+        setIsOpen(true);
+      } else {
+        setFocusedIndex((prev) => 
+          prev < items.length - 1 ? prev + 1 : prev
+        );
+      }
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      if (isOpen) {
+        setFocusedIndex((prev) => (prev > 0 ? prev - 1 : 0));
+      }
+    } else if (e.key === "Enter") {
+      if (isOpen && focusedIndex >= 0) {
+        e.preventDefault();
+        const item = items[focusedIndex];
+        if (item) {
+          onChange(item.Code);
+          setIsOpen(false);
+          setSearchQuery("");
+        }
+      }
+    } else if (e.key === "Escape") {
+      setIsOpen(false);
+      setSearchQuery("");
+    } else if (e.key === "Tab") {
+      setIsOpen(false);
+    }
+  };
+
+  // Scroll focused item into view
+  useEffect(() => {
+    if (isOpen && focusedIndex >= 0 && listRef.current) {
+      const listElement = listRef.current;
+      const itemElement = listElement.children[focusedIndex] as HTMLElement;
+      if (itemElement) {
+        itemElement.scrollIntoView({ block: "nearest" });
+      }
+    }
+  }, [focusedIndex, isOpen]);
+
   // Calculate max width needed for dropdown based on items
   const calculateDropdownWidth = () => {
     if (items.length === 0) return "280px";
@@ -372,26 +425,40 @@ export function DimensionSelect({
 
   return (
     <Popover open={isOpen} onOpenChange={handleOpenChange}>
-      <PopoverTrigger asChild>
-        <Button
-          variant="outline"
-          role="combobox"
-          disabled={disabled}
-          className={cn(
-            "h-9 w-full justify-between text-sm font-normal shadow-sm",
-            !value && "text-muted-foreground",
-            className,
-            errorClass,
-          )}
-          data-field-error={hasError}
-        >
-          <span className="truncate">{displayValue || placeholder}</span>
-          <div className="flex items-center gap-1 shrink-0">
+      <PopoverAnchor asChild>
+        <div className="relative w-full">
+          <Input
+            ref={inputRef}
+            value={isOpen ? searchQuery : displayValue}
+            onChange={(e) => {
+              const query = e.target.value;
+              setSearchQuery(query);
+              if (!isOpen) setIsOpen(true);
+              performSearch(query);
+            }}
+            onFocus={() => {
+              if (!isOpen) {
+                setSearchQuery("");
+                setIsOpen(true);
+              }
+            }}
+            onKeyDown={handleKeyDown}
+            placeholder={placeholder}
+            disabled={disabled}
+            className={cn(
+              "h-9 w-full pr-10 text-sm font-normal shadow-sm",
+              !value && !isOpen && "text-muted-foreground",
+              className,
+              errorClass,
+            )}
+            data-field-error={hasError}
+          />
+          <div className="absolute right-0 top-0 flex h-full items-center gap-1.5 px-3">
             {value && !disabled && (
               <div
                 role="button"
                 tabIndex={0}
-                className="hover:text-foreground p-1 text-muted-foreground transition-colors hover:bg-muted rounded-full"
+                className="hover:text-foreground p-1 text-muted-foreground transition-colors hover:bg-muted rounded-full pointer-events-auto"
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
@@ -408,10 +475,14 @@ export function DimensionSelect({
                 <X className="h-3 w-3" />
               </div>
             )}
-            <ChevronDownIcon className="h-4 w-4 shrink-0 opacity-40" />
+            {isLoading ? (
+              <Loader2 className="h-4 w-4 animate-spin opacity-50" />
+            ) : (
+              <ChevronDownIcon className="h-4 w-4 opacity-50" />
+            )}
           </div>
-        </Button>
-      </PopoverTrigger>
+        </div>
+      </PopoverAnchor>
       <PopoverContent
         className="flex max-h-(--radix-popover-content-available-height,80vh) min-h-0 w-auto max-w-125 min-w-70 flex-col overflow-hidden p-0"
         align="start"
@@ -426,36 +497,9 @@ export function DimensionSelect({
         }}
       >
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-          {supportsSearch && (
-            <div className="shrink-0 border-b p-2">
-              <Input
-                placeholder="Search by Code or Name..."
-                value={searchQuery}
-                onChange={(e) => {
-                  const query = e.target.value;
-                  setSearchQuery(query);
-                  performSearch(query);
-                }}
-                className="h-8 text-sm"
-                autoFocus
-              />
-            </div>
-          )}
           <div
             ref={listRef}
-            className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto"
-            onScroll={(e) => {
-              if (!supportsSearch) return;
-              const target = e.currentTarget;
-              if (
-                target.scrollHeight - target.scrollTop <=
-                  target.clientHeight * 1.5 &&
-                hasMore &&
-                !isLoading
-              ) {
-                loadMore();
-              }
-            }}
+            className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto p-1"
           >
             {isLoading && items.length === 0 ? (
               <div className="flex items-center justify-center p-4">
@@ -463,18 +507,19 @@ export function DimensionSelect({
               </div>
             ) : items.length === 0 ? (
               <div className="text-muted-foreground p-4 text-center text-sm">
-                {supportsSearch && searchQuery.length < MIN_SEARCH_LENGTH
+                {supportsSearch && searchQuery.length < MIN_SEARCH_LENGTH && searchQuery.length > 0
                   ? `Type at least ${MIN_SEARCH_LENGTH} characters to search`
                   : "No items found"}
               </div>
             ) : (
               <>
-                {items.map((item) => (
+                {items.map((item, index) => (
                   <div
                     key={item.Code}
                     className={cn(
                       "hover:bg-muted/50 relative flex cursor-default items-start rounded-sm px-2 py-2 text-sm outline-none select-none",
                       value === item.Code && "bg-muted",
+                      focusedIndex === index && "bg-accent text-accent-foreground",
                     )}
                     onClick={() => {
                       if (value === item.Code) {
@@ -483,20 +528,30 @@ export function DimensionSelect({
                         onChange(item.Code);
                       }
                       setIsOpen(false);
+                      setSearchQuery("");
+                      inputRef.current?.focus();
                     }}
+                    onMouseEnter={() => setFocusedIndex(index)}
                   >
                     <CheckIcon
                       className={cn(
                         "mt-0.5 mr-2 h-4 w-4 shrink-0",
                         value === item.Code ? "opacity-100" : "opacity-0",
+                        focusedIndex === index && "text-accent-foreground",
                       )}
                     />
                     <div className="min-w-0 flex-1">
-                      <div className="text-foreground font-medium">
+                      <div className={cn(
+                        "text-foreground font-medium",
+                        focusedIndex === index && "text-accent-foreground"
+                      )}>
                         {item.Code}
                       </div>
                       {item.Name && (
-                        <div className="text-muted-foreground mt-0.5 text-xs wrap-break-word">
+                        <div className={cn(
+                          "text-muted-foreground mt-0.5 text-xs wrap-break-word",
+                          focusedIndex === index && "text-accent-foreground/80"
+                        )}>
                           {item.Name}
                         </div>
                       )}

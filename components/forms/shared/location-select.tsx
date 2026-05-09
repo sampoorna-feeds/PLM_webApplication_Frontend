@@ -35,6 +35,7 @@ import {
   Popover,
   PopoverContent,
   PopoverTrigger,
+  PopoverAnchor,
 } from "@/components/ui/popover";
 import {
   getTransferLocationsForDialog,
@@ -132,6 +133,9 @@ export function LocationSelect({
   const sentinelRef = useRef<HTMLTableRowElement>(null);
   const PAGE_SIZE = 30;
 
+  const [focusedIndex, setFocusedIndex] = useState(-1);
+  const inputRef = useRef<HTMLInputElement>(null);
+
   // Debounce search
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(searchQuery), 350);
@@ -148,7 +152,7 @@ export function LocationSelect({
       if (isNextPage) setLoadingMore(true);
       else {
         setLoading(true);
-        setLocations([]); // Clear results for fresh search
+        if (!isNextPage) setLocations([]); // Clear results for fresh search
       }
 
       try {
@@ -211,6 +215,8 @@ export function LocationSelect({
     if (!newOpen) {
       setSearchQuery("");
       setColumnFilters({});
+    } else {
+      setFocusedIndex(-1);
     }
   };
 
@@ -221,6 +227,8 @@ export function LocationSelect({
       onChange(l.Code, l);
     }
     setOpen(false);
+    setSearchQuery("");
+    inputRef.current?.focus();
   };
 
   const handleSort = (id: string) => {
@@ -246,107 +254,145 @@ export function LocationSelect({
   const activeFilterCount = Object.keys(columnFilters).length;
 
   const selectedLocation = locations.find(l => l.Code === value);
-  const displayLabel = selectedLocation ? `${selectedLocation.Code} - ${selectedLocation.Name}` : value;
+  const displayValue = selectedLocation ? `${selectedLocation.Code} - ${selectedLocation.Name}` : value;
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (disabled) return;
+
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      if (!open) {
+        setOpen(true);
+      } else {
+        setFocusedIndex((prev) => 
+          prev < locations.length - 1 ? prev + 1 : prev
+        );
+      }
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      if (open) {
+        setFocusedIndex((prev) => (prev > 0 ? prev - 1 : 0));
+      }
+    } else if (e.key === "Enter") {
+      if (open && focusedIndex >= 0) {
+        e.preventDefault();
+        const item = locations[focusedIndex];
+        if (item) {
+          handleSelect(item);
+        }
+      }
+    } else if (e.key === "Escape") {
+      setOpen(false);
+      setSearchQuery("");
+    } else if (e.key === "Tab") {
+      setOpen(false);
+    }
+  };
+
+  // Scroll focused row into view
+  useEffect(() => {
+    if (open && focusedIndex >= 0 && scrollContainerRef.current) {
+      const container = scrollContainerRef.current;
+      const rows = container.querySelectorAll("tbody tr");
+      const focusedRow = rows[focusedIndex] as HTMLElement;
+      if (focusedRow) {
+        focusedRow.scrollIntoView({ block: "nearest" });
+      }
+    }
+  }, [focusedIndex, open]);
 
   return (
-    <>
-      <Button
-        type="button"
-        variant="outline"
-        onClick={() => setOpen(true)}
-        disabled={disabled}
-        className={cn(
-          "w-full h-8 justify-between px-3 text-left font-normal border-border/50",
-          !value && "text-muted-foreground",
-          hasError && "border-destructive/50 ring-destructive/20",
-          className
-        )}
-      >
-        <span className="truncate max-w-[92%]">
-          {displayLabel || placeholder}
-        </span>
-        <div className="flex items-center gap-1 shrink-0">
-          {value && !disabled && (
-            <div
-              role="button"
-              tabIndex={0}
-              className="hover:text-foreground p-1 text-muted-foreground transition-colors hover:bg-muted rounded-full"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                onChange("", undefined);
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
+    <Popover open={open} onOpenChange={handleOpenChange}>
+      <PopoverAnchor asChild>
+        <div className="relative w-full">
+          <Input
+            ref={inputRef}
+            value={open ? searchQuery : displayValue}
+            onChange={(e) => {
+              const query = e.target.value;
+              setSearchQuery(query);
+              if (!open) setOpen(true);
+            }}
+            onFocus={() => {
+              if (!open) {
+                setSearchQuery("");
+                setOpen(true);
+              }
+            }}
+            onKeyDown={handleKeyDown}
+            placeholder={placeholder}
+            disabled={disabled}
+            className={cn(
+              "h-9 w-full pr-10 text-sm font-normal shadow-sm",
+              !value && !open && "text-muted-foreground",
+              className,
+              hasError && "border-destructive/50 ring-destructive/20"
+            )}
+          />
+          <div className="absolute right-0 top-0 flex h-full items-center gap-1.5 px-3">
+            {value && !disabled && (
+              <div
+                role="button"
+                tabIndex={0}
+                className="hover:text-foreground p-1 text-muted-foreground transition-colors hover:bg-muted rounded-full pointer-events-auto"
+                onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
                   onChange("", undefined);
-                }
-              }}
-            >
-              <X className="h-3 w-3" />
-            </div>
-          )}
-          <ChevronDownIcon className="h-4 w-4 shrink-0 opacity-40" />
-        </div>
-      </Button>
-
-      <Dialog open={open} onOpenChange={handleOpenChange}>
-        <DialogContent
-          className="flex h-[85vh] flex-col gap-0 p-0"
-          style={{ width: "min(1000px, 92vw)", maxWidth: "none" }}
-        >
-          <DialogHeader className="shrink-0 border-b px-5 py-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <MapPin className="text-muted-foreground h-4 w-4" />
-                <DialogTitle className="text-[15px] font-semibold">
-                  {title}
-                </DialogTitle>
-                {!loading && totalCount > 0 && (
-                  <Badge variant="secondary" className="h-5 rounded-sm px-1.5 text-[10px] font-bold">
-                    {totalCount.toLocaleString()}
-                  </Badge>
-                )}
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onChange("", undefined);
+                  }
+                }}
+              >
+                <X className="h-3 w-3" />
               </div>
-              {hasActiveFilters && (
-                <button
-                  type="button"
-                  onClick={() => setColumnFilters({})}
-                  className="text-primary hover:text-primary/80 flex items-center gap-1 text-[11px] font-medium"
-                >
-                  <span>{activeFilterCount} filter active</span>
-                  <X className="h-3 w-3" />
-                </button>
+            )}
+            {loading ? (
+              <Loader2 className="h-4 w-4 animate-spin opacity-50" />
+            ) : (
+              <ChevronDownIcon className="h-4 w-4 opacity-50" />
+            )}
+          </div>
+        </div>
+      </PopoverAnchor>
+      <PopoverContent
+        className="flex max-h-[var(--radix-popover-content-available-height,80vh)] min-h-0 w-auto max-w-[95vw] min-w-[320px] flex-col overflow-hidden p-0"
+        align="start"
+        onOpenAutoFocus={(e) => e.preventDefault()}
+        onCloseAutoFocus={(e) => e.preventDefault()}
+      >
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden" style={{ width: "min(800px, 92vw)" }}>
+          <div className="flex items-center justify-between border-b px-3 py-2 bg-muted/30">
+            <div className="flex items-center gap-2">
+              <MapPin className="text-muted-foreground h-3.5 w-3.5" />
+              <span className="text-xs font-semibold uppercase tracking-wider">{title}</span>
+              {!loading && totalCount > 0 && (
+                <Badge variant="secondary" className="h-4 rounded-sm px-1 text-[10px] font-bold">
+                  {totalCount.toLocaleString()}
+                </Badge>
               )}
             </div>
-          </DialogHeader>
-
-          <div className="bg-muted/30 shrink-0 border-b px-5 py-2.5">
-            <div className="flex items-center gap-2">
-              <div className="relative flex-1">
-                <Search className="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
-                <Input
-                  placeholder="Search by Code or Name …"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="bg-background h-9 pl-9 pr-9 text-sm focus-visible:ring-1"
-                  autoFocus
-                />
-                {searchQuery && (
-                  <button type="button" onClick={() => setSearchQuery("")} className="absolute top-1/2 right-3 -translate-y-1/2">
-                    <X className="h-4 w-4" />
-                  </button>
-                )}
-              </div>
-            </div>
+            {hasActiveFilters && (
+              <button
+                type="button"
+                onClick={() => setColumnFilters({})}
+                className="text-primary hover:text-primary/80 flex items-center gap-1 text-[10px] font-medium"
+              >
+                <span>{activeFilterCount} filter active</span>
+                <X className="h-2.5 w-2.5" />
+              </button>
+            )}
           </div>
 
           <div ref={scrollContainerRef} className="min-h-0 flex-1 overflow-auto">
-            <table className="w-full border-collapse text-sm">
+            <table className="w-full border-collapse text-[11px]">
               <thead className="sticky top-0 z-10 bg-muted">
                 <tr>
-                  <th className="w-10 border-b px-3" />
+                  <th className="w-8 border-b px-2" />
                   {DEFAULT_COLUMNS.map((col) => (
                     <LocationTableHead
                       key={col.id}
@@ -361,15 +407,15 @@ export function LocationSelect({
                 </tr>
               </thead>
               <tbody>
-                {loading ? (
+                {loading && locations.length === 0 ? (
                   <tr>
-                    <td colSpan={DEFAULT_COLUMNS.length + 1} className="py-20 text-center">
-                      <Loader2 className="mx-auto h-6 w-6 animate-spin text-muted-foreground" />
+                    <td colSpan={DEFAULT_COLUMNS.length + 1} className="py-10 text-center">
+                      <Loader2 className="mx-auto h-5 w-5 animate-spin text-muted-foreground" />
                     </td>
                   </tr>
                 ) : locations.length === 0 ? (
                   <tr>
-                    <td colSpan={DEFAULT_COLUMNS.length + 1} className="py-20 text-center text-muted-foreground">
+                    <td colSpan={DEFAULT_COLUMNS.length + 1} className="py-10 text-center text-muted-foreground">
                       No locations found
                     </td>
                   </tr>
@@ -378,17 +424,19 @@ export function LocationSelect({
                     <tr
                       key={l.Code}
                       onClick={() => handleSelect(l)}
+                      onMouseEnter={() => setFocusedIndex(idx)}
                       className={cn(
-                        "group cursor-pointer border-b transition-colors hover:bg-primary/5",
-                        idx % 2 === 0 ? "bg-background" : "bg-muted/20",
-                        value === l.Code && "bg-primary/10"
+                        "group cursor-pointer border-b transition-colors",
+                        idx % 2 === 0 ? "bg-background" : "bg-muted/10",
+                        value === l.Code && "bg-primary/5",
+                        focusedIndex === idx && "bg-accent text-accent-foreground"
                       )}
                     >
-                      <td className="w-10 px-3 py-2.5 text-center">
-                        {value === l.Code && <Check className="mx-auto h-3.5 w-3.5 text-primary" />}
+                      <td className="w-8 px-2 py-1.5 text-center">
+                        {value === l.Code && <Check className={cn("mx-auto h-3 w-3 text-primary", focusedIndex === idx && "text-accent-foreground")} />}
                       </td>
                       {DEFAULT_COLUMNS.map((col) => (
-                        <td key={col.id} className={cn("px-3 py-2 text-xs", col.id === "Code" && "font-mono font-semibold")}>
+                        <td key={col.id} className={cn("px-2 py-1.5", col.id === "Code" && "font-mono font-semibold", focusedIndex === idx && "text-accent-foreground/90")}>
                           {(l as any)[col.id] || <span className="opacity-30">—</span>}
                         </td>
                       ))}
@@ -399,9 +447,9 @@ export function LocationSelect({
               </tbody>
             </table>
           </div>
-        </DialogContent>
-      </Dialog>
-    </>
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 }
 

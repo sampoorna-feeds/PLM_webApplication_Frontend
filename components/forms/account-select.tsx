@@ -15,6 +15,7 @@ import {
   Popover,
   PopoverContent,
   PopoverTrigger,
+  PopoverAnchor,
 } from "@/components/ui/popover";
 import {
   getGLAccounts,
@@ -77,6 +78,9 @@ export function AccountSelect({
   const listRef = useRef<HTMLDivElement | null>(null);
   const prevAccountTypeRef = useRef<AccountType | undefined>(accountType);
   const abortControllerRef = useRef<AbortController | null>(null);
+
+  const [focusedIndex, setFocusedIndex] = useState(-1);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   // Load initial items when dropdown opens
   const loadInitialItems = useCallback(async () => {
@@ -188,7 +192,7 @@ export function AccountSelect({
         }
       }, DEBOUNCE_MS);
     },
-    [accountType, loadInitialItems],
+    [accountType],
   );
 
   // Load more items (pagination)
@@ -236,6 +240,7 @@ export function AccountSelect({
   const handleOpenChange = (open: boolean) => {
     setIsOpen(open);
     if (open) {
+      setFocusedIndex(-1);
       // Always load items when opening, even if we have some, to ensure value is in list
       if (
         items.length === 0 ||
@@ -363,6 +368,54 @@ export function AccountSelect({
     ? `${selectedItem.No} - ${selectedItem.Name}`
     : value || "";
 
+  const filteredItems = items.filter((item) => !excludeValue || item.No !== excludeValue);
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (disabled || !accountType) return;
+
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      if (!isOpen) {
+        setIsOpen(true);
+      } else {
+        setFocusedIndex((prev) => 
+          prev < filteredItems.length - 1 ? prev + 1 : prev
+        );
+      }
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      if (isOpen) {
+        setFocusedIndex((prev) => (prev > 0 ? prev - 1 : 0));
+      }
+    } else if (e.key === "Enter") {
+      if (isOpen && focusedIndex >= 0) {
+        e.preventDefault();
+        const item = filteredItems[focusedIndex];
+        if (item) {
+          onChange(item.No);
+          setIsOpen(false);
+          setSearchQuery("");
+        }
+      }
+    } else if (e.key === "Escape") {
+      setIsOpen(false);
+      setSearchQuery("");
+    } else if (e.key === "Tab") {
+      setIsOpen(false);
+    }
+  };
+
+  // Scroll focused item into view
+  useEffect(() => {
+    if (isOpen && focusedIndex >= 0 && listRef.current) {
+      const listElement = listRef.current;
+      const itemElement = listElement.children[focusedIndex] as HTMLElement;
+      if (itemElement) {
+        itemElement.scrollIntoView({ block: "nearest" });
+      }
+    }
+  }, [focusedIndex, isOpen]);
+
   // Calculate max width needed for dropdown based on items
   const calculateDropdownWidth = () => {
     if (items.length === 0) return "280px";
@@ -381,23 +434,43 @@ export function AccountSelect({
 
   return (
     <Popover open={isOpen} onOpenChange={handleOpenChange}>
-      <PopoverTrigger asChild>
-        <Button
-          variant="outline"
-          role="combobox"
-          disabled={disabled || !accountType}
-          className={cn(
-            "h-9 w-full justify-between text-sm font-normal shadow-sm",
-            !value && "text-muted-foreground",
-            className,
-            errorClass,
-          )}
-          data-field-error={hasError}
-        >
-          <span className="truncate">{displayValue || placeholder}</span>
-          <ChevronDownIcon className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-        </Button>
-      </PopoverTrigger>
+      <PopoverAnchor asChild>
+        <div className="relative w-full">
+          <Input
+            ref={inputRef}
+            value={isOpen ? searchQuery : displayValue}
+            onChange={(e) => {
+              const query = e.target.value;
+              setSearchQuery(query);
+              if (!isOpen) setIsOpen(true);
+              performSearch(query);
+            }}
+            onFocus={() => {
+              if (!isOpen) {
+                setSearchQuery("");
+                setIsOpen(true);
+              }
+            }}
+            onKeyDown={handleKeyDown}
+            placeholder={placeholder}
+            disabled={disabled || !accountType}
+            className={cn(
+              "h-9 w-full pr-10 text-sm font-normal shadow-sm",
+              !value && !isOpen && "text-muted-foreground",
+              className,
+              errorClass,
+            )}
+            data-field-error={hasError}
+          />
+          <div className="absolute right-0 top-0 flex h-full items-center px-3 pointer-events-none">
+            {isLoading ? (
+              <Loader2 className="h-4 w-4 animate-spin opacity-50" />
+            ) : (
+              <ChevronDownIcon className="h-4 w-4 opacity-50" />
+            )}
+          </div>
+        </div>
+      </PopoverAnchor>
       <PopoverContent
         className="flex max-h-[var(--radix-popover-content-available-height,80vh)] min-h-0 w-auto max-w-[500px] min-w-[280px] flex-col overflow-hidden p-0"
         align="start"
@@ -412,76 +485,61 @@ export function AccountSelect({
         }}
       >
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-          <div className="flex-shrink-0 border-b p-2">
-            <Input
-              placeholder="Search by No or Name..."
-              value={searchQuery}
-              onChange={(e) => {
-                const query = e.target.value;
-                setSearchQuery(query);
-                performSearch(query);
-              }}
-              className="h-8 text-sm"
-              autoFocus
-            />
-          </div>
           <div
             ref={listRef}
-            className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto"
-            onScroll={(e) => {
-              const target = e.currentTarget;
-              if (
-                target.scrollHeight - target.scrollTop <=
-                  target.clientHeight * 1.5 &&
-                hasMore &&
-                !isLoading
-              ) {
-                loadMore();
-              }
-            }}
+            className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto p-1"
           >
             {isLoading && items.length === 0 ? (
               <div className="flex items-center justify-center p-4">
                 <Loader2 className="h-4 w-4 animate-spin" />
               </div>
-            ) : items.length === 0 ? (
+            ) : filteredItems.length === 0 ? (
               <div className="text-muted-foreground p-4 text-center text-sm">
-                {searchQuery.length < MIN_SEARCH_LENGTH
+                {searchQuery.length < MIN_SEARCH_LENGTH && searchQuery.length > 0
                   ? `Type at least ${MIN_SEARCH_LENGTH} characters to search`
                   : "No accounts found"}
               </div>
             ) : (
               <>
-                {items
-                  .filter((item) => !excludeValue || item.No !== excludeValue)
-                  .map((item) => (
-                    <div
-                      key={item.No}
+                {filteredItems.map((item, index) => (
+                  <div
+                    key={item.No}
+                    className={cn(
+                      "hover:bg-muted/50 relative flex cursor-default items-start rounded-sm px-2 py-2 text-sm outline-none select-none",
+                      value === item.No && "bg-muted",
+                      focusedIndex === index && "bg-accent text-accent-foreground",
+                    )}
+                    onClick={() => {
+                      onChange(item.No);
+                      setIsOpen(false);
+                      setSearchQuery("");
+                      inputRef.current?.focus();
+                    }}
+                    onMouseEnter={() => setFocusedIndex(index)}
+                  >
+                    <CheckIcon
                       className={cn(
-                        "hover:bg-muted/50 relative flex cursor-default items-start rounded-sm px-2 py-2 text-sm outline-none select-none",
-                        value === item.No && "bg-muted",
+                        "mt-0.5 mr-2 h-4 w-4 shrink-0",
+                        value === item.No ? "opacity-100" : "opacity-0",
+                        focusedIndex === index && "text-accent-foreground",
                       )}
-                      onClick={() => {
-                        onChange(item.No);
-                        setIsOpen(false);
-                      }}
-                    >
-                      <CheckIcon
-                        className={cn(
-                          "mt-0.5 mr-2 h-4 w-4 shrink-0",
-                          value === item.No ? "opacity-100" : "opacity-0",
-                        )}
-                      />
-                      <div className="min-w-0 flex-1">
-                        <div className="text-foreground font-medium">
-                          {item.No}
-                        </div>
-                        <div className="text-muted-foreground mt-0.5 text-xs break-words">
-                          {item.Name}
-                        </div>
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div className={cn(
+                        "text-foreground font-medium",
+                        focusedIndex === index && "text-accent-foreground"
+                      )}>
+                        {item.No}
+                      </div>
+                      <div className={cn(
+                        "text-muted-foreground mt-0.5 text-xs break-words",
+                        focusedIndex === index && "text-accent-foreground/80"
+                      )}>
+                        {item.Name}
                       </div>
                     </div>
-                  ))}
+                  </div>
+                ))}
                 {isLoading && items.length > 0 && (
                   <div className="flex items-center justify-center p-2">
                     <Loader2 className="h-4 w-4 animate-spin" />

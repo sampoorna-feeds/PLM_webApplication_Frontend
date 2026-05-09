@@ -152,7 +152,7 @@ export function PostedBardanaDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[1100px] w-[95vw] max-h-[90vh] flex flex-col">
+      <DialogContent className="sm:max-w-3xl w-[95vw] max-h-[90vh] flex flex-col">
         <DialogHeader>
           <div className="flex items-center justify-between pr-6">
             <DialogTitle className="flex items-center gap-2">
@@ -199,26 +199,26 @@ export function PostedBardanaDialog({
               <Table>
                 <TableHeader className="bg-muted/50">
                   <TableRow>
-                    <TableHead className="text-[10px] font-bold uppercase tracking-wider h-9">Item No</TableHead>
+                    <TableHead className="text-[10px] font-bold uppercase tracking-wider h-9 w-[120px]">Item No</TableHead>
                     <TableHead className="text-[10px] font-bold uppercase tracking-wider h-9">Description</TableHead>
-                    <TableHead className="text-[10px] font-bold uppercase tracking-wider h-9">UOM</TableHead>
-                    <TableHead className="text-[10px] font-bold uppercase tracking-wider h-9 text-right">Weight Per (g)</TableHead>
-                    <TableHead className="text-[10px] font-bold uppercase tracking-wider h-9 text-right">No. of Bags</TableHead>
-                    <TableHead className="text-[10px] font-bold uppercase tracking-wider h-9 text-right">Total Weight (Kg)</TableHead>
-                    <TableHead className="text-[10px] font-bold uppercase tracking-wider h-9 text-center">Actions</TableHead>
+                    <TableHead className="text-[10px] font-bold uppercase tracking-wider h-9 w-[60px]">UOM</TableHead>
+                    <TableHead className="text-[10px] font-bold uppercase tracking-wider h-9 text-right w-[100px]">Weight (g)</TableHead>
+                    <TableHead className="text-[10px] font-bold uppercase tracking-wider h-9 text-right w-[100px]">Bags</TableHead>
+                    <TableHead className="text-[10px] font-bold uppercase tracking-wider h-9 text-right w-[120px]">Total (Kg)</TableHead>
+                    <TableHead className="text-[10px] font-bold uppercase tracking-wider h-9 text-center w-[80px]">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {lines.map((line) => (
                     <TableRow key={line.Line_No} className="hover:bg-muted/30 transition-colors">
-                      <TableCell className="text-xs font-mono py-2">{line.Item_No}</TableCell>
+                      <TableCell className="text-xs font-mono py-2 truncate">{line.Item_No}</TableCell>
                       <TableCell className="text-xs py-2 font-medium">{line.Description}</TableCell>
                       <TableCell className="text-[10px] py-2">{line.UOM}</TableCell>
                       <TableCell className="text-right py-2">
                         {editingId === line.Line_No ? (
                           <Input
                             type="number"
-                            className="h-7 text-right text-xs w-24 ml-auto"
+                            className="h-7 text-right text-xs w-full"
                             value={editValues.Weight_Per || ""}
                             onChange={(e) => setEditValues({ ...editValues, Weight_Per: Number(e.target.value) })}
                           />
@@ -230,7 +230,7 @@ export function PostedBardanaDialog({
                         {editingId === line.Line_No ? (
                           <Input
                             type="number"
-                            className="h-7 text-right text-xs w-20 ml-auto"
+                            className="h-7 text-right text-xs w-full"
                             value={editValues.Quantity || ""}
                             onChange={(e) => setEditValues({ ...editValues, Quantity: Number(e.target.value) })}
                           />

@@ -1,29 +1,17 @@
 "use client";
 
-/**
- * Error Dialog Component
- * Displays detailed error messages from API/ERP failures
- */
-
-import React from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { AlertCircle } from "lucide-react";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { AlertTriangle } from "lucide-react";
 
 export interface ErrorDetail {
-  entryId?: string;
-  entryLabel?: string;
+  field?: string;
   message: string;
   code?: string;
   status?: number;
   details?: string;
+  entryId?: string;
+  entryLabel?: string;
 }
 
 export interface ErrorDialogProps {
@@ -32,104 +20,63 @@ export interface ErrorDialogProps {
   title?: string;
   message?: string;
   errors?: ErrorDetail[];
-  type?: "submit" | "post" | "upload" | "general";
+  type?: string;
+  onClose?: () => void;
 }
 
 export function ErrorDialog({
   open,
   onOpenChange,
-  title,
-  message,
+  title = "Error",
+  message = "An unexpected error occurred.",
   errors = [],
-  type = "general",
+  type,
+  onClose,
 }: ErrorDialogProps) {
-  const getDefaultTitle = () => {
-    switch (type) {
-      case "submit":
-        return "Voucher Submission Failed";
-      case "post":
-        return "Post Vouchers Failed";
-      case "upload":
-        return "File Upload Failed";
-      default:
-        return "Error Occurred";
-    }
+  const handleClose = () => {
+    onOpenChange(false);
+    if (onClose) onClose();
   };
-
-  const getDefaultMessage = () => {
-    switch (type) {
-      case "submit":
-        return "Some vouchers failed to submit. Please review the errors below:";
-      case "post":
-        return "Failed to post vouchers. Please review the errors below:";
-      case "upload":
-        return "Some files failed to upload. Please review the errors below:";
-      default:
-        return "An error occurred. Please review the details below:";
-    }
-  };
-
-  const displayTitle = title || getDefaultTitle();
-  const displayMessage = message || getDefaultMessage();
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex max-h-[80vh] max-w-2xl flex-col overflow-hidden">
-        <DialogHeader>
-          <div className="flex items-center gap-2">
-            <AlertCircle className="text-destructive h-5 w-5" />
-            <DialogTitle className="text-destructive">
-              {displayTitle}
-            </DialogTitle>
+      <DialogContent className="pointer-events-none flex flex-col items-center justify-center border-none bg-transparent p-0 shadow-none sm:max-w-[500px]">
+        <div className="bg-background/95 animate-in zoom-in-95 pointer-events-auto flex w-full flex-col items-center space-y-8 rounded-[2.5rem] border border-red-500/20 p-12 text-center shadow-[0_0_50px_-12px_rgba(239,68,68,0.3)] backdrop-blur-md duration-300">
+          <div className="relative">
+            <div className="absolute inset-0 animate-pulse rounded-full bg-red-500/20 blur-3xl" />
+            <div className="relative rounded-full border border-red-500/20 bg-red-500/10 p-6">
+              <AlertTriangle className="h-16 w-16 stroke-[1.5px] text-red-500" />
+            </div>
           </div>
-          <DialogDescription>{displayMessage}</DialogDescription>
-        </DialogHeader>
 
-        <div className="min-h-0 flex-1 overflow-y-auto">
-          {errors.length > 0 ? (
-            <div className="space-y-3">
-              {errors.map((error, index) => (
-                <div
-                  key={index}
-                  className="border-destructive/20 bg-destructive/5 space-y-2 rounded-lg border p-4"
-                >
-                  {error.entryLabel && (
-                    <div className="text-foreground text-sm font-semibold">
-                      {error.entryLabel}
-                    </div>
-                  )}
-                  <div className="text-foreground text-sm">{error.message}</div>
-                  {(error.code || error.status) && (
-                    <div className="text-muted-foreground flex gap-4 text-xs">
-                      {error.code && <span>Code: {error.code}</span>}
-                      {error.status && <span>Status: {error.status}</span>}
-                    </div>
-                  )}
-                  {error.details && (
-                    <details className="mt-2">
-                      <summary className="text-muted-foreground hover:text-foreground cursor-pointer text-xs">
-                        View Details
-                      </summary>
-                      <pre className="bg-muted mt-2 overflow-x-auto rounded p-2 text-xs">
-                        {error.details}
-                      </pre>
-                    </details>
-                  )}
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="border-destructive/20 bg-destructive/5 rounded-lg border p-4">
-              <div className="text-foreground text-sm">
-                {displayMessage || "An unexpected error occurred."}
+          <div className="space-y-3">
+            <h2 className="text-foreground from-foreground to-foreground/70 bg-linear-to-br bg-clip-text text-4xl font-black tracking-tight">
+              {title}
+            </h2>
+            <p className="text-muted-foreground mx-auto max-w-[320px] text-lg leading-relaxed font-medium">
+              {message}
+            </p>
+            {errors.length > 0 && (
+              <div className="mt-4 max-h-[150px] w-full overflow-y-auto rounded-xl bg-red-500/5 p-4 text-left">
+                <ul className="space-y-2">
+                  {errors.map((err, i) => (
+                    <li key={i} className="text-red-400 text-sm">
+                      {err.field ? <span className="font-bold">{err.field}: </span> : null}
+                      {err.message}
+                    </li>
+                  ))}
+                </ul>
               </div>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
 
-        <DialogFooter>
-          <Button onClick={() => onOpenChange(false)}>Close</Button>
-        </DialogFooter>
+          <Button
+            onClick={handleClose}
+            className="h-14 w-full rounded-2xl bg-red-600 text-lg font-bold text-white shadow-lg shadow-red-900/20 transition-all hover:bg-red-700 hover:shadow-red-900/30 active:scale-95"
+          >
+            Understood
+          </Button>
+        </div>
       </DialogContent>
     </Dialog>
   );

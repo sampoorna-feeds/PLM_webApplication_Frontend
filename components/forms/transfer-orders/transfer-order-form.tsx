@@ -58,6 +58,7 @@ import { getAuthCredentials } from "@/lib/auth/storage";
 import { useFormStack } from "@/lib/form-stack/use-form-stack";
 import { cn } from "@/lib/utils";
 import { getWebUser, type WebUser } from "@/lib/api/services/web-user.service";
+import { useError } from "@/lib/contexts/error-context";
 import { preloadItems } from "@/lib/api/services/item.service";
 import { isPostingDateValid } from "@/lib/utils/posting-date";
 import { Download, Eye, Loader2, Plus, Printer, RefreshCw, Trash2 } from "lucide-react";
@@ -113,6 +114,7 @@ export function TransferOrderForm({
   context,
 }: TransferOrderFormProps) {
   const { handleSuccess, updateTab, registerRefresh } = useFormStack(tabId);
+  const { showError } = useError();
   const [userId, setUserId] = useState<string | undefined>(undefined);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -592,7 +594,7 @@ export function TransferOrderForm({
     } catch (error: any) {
       console.error("Error creating transfer order:", error);
       const errorMessage = error?.message || "Failed to create transfer order";
-      toast.error(errorMessage);
+      showError(errorMessage);
     } finally {
       setIsSubmitting(false);
     }
@@ -645,7 +647,7 @@ export function TransferOrderForm({
       fetchOrderData(formState.No);
     } catch (error: any) {
       console.error("Error updating transfer order:", error);
-      toast.error(error.message || "Failed to update transfer order");
+      showError(error.message || "Failed to update transfer order");
     } finally {
       setIsSubmitting(false);
     }
@@ -845,7 +847,7 @@ export function TransferOrderForm({
       setIsPostDialogOpen(false);
     } catch (error: any) {
       console.error("Error posting transfer order:", error);
-      toast.error(error.message || "Failed to post transfer order");
+      showError(error.message || "Failed to post transfer order");
     } finally {
       setIsSubmitting(false);
     }

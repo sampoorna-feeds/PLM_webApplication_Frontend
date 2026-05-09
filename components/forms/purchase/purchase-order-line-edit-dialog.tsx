@@ -58,6 +58,7 @@ import { BardanaDialog } from "./bardana-dialog";
 import { ApplyItemEntryModal } from "@/components/forms/shared/apply-item-entry-modal";
 import { GenericLookupModal } from "@/components/forms/shared/generic-lookup-modal";
 import { cn } from "@/lib/utils";
+import { useError } from "@/lib/contexts/error-context";
 import { ClearableField } from "@/components/ui/clearable-field";
 import {
   getPurchaseLineQuantityConfig,
@@ -127,7 +128,7 @@ export function PurchaseOrderLineEditDialog({
   const [isLoadingLedger, setIsLoadingLedger] = useState(false);
   const [isApplyItemEntryOpen, setIsApplyItemEntryOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [apiError, setApiError] = useState<ApiErrorState | null>(null);
+  const { showError } = useError();
   const [uom, setUom] = useState("");
   const [uomOptions, setUomOptions] = useState<SearchableSelectOption[]>([]);
   const [loadingUoms, setLoadingUoms] = useState(false);
@@ -532,8 +533,8 @@ export function PurchaseOrderLineEditDialog({
       onSave();
       onOpenChange(false);
     } catch (error) {
-      const { message, code } = extractApiError(error);
-      setApiError({ title: "Update Failed", message, code });
+      const { message } = extractApiError(error);
+      showError(message, "Update Failed");
     } finally {
       setIsSaving(false);
     }
@@ -549,8 +550,8 @@ export function PurchaseOrderLineEditDialog({
       await onDelete(line);
       onOpenChange(false);
     } catch (error) {
-      const { message, code } = extractApiError(error);
-      setApiError({ title: "Delete Failed", message, code });
+      const { message } = extractApiError(error);
+      showError(message, "Delete Failed");
     } finally {
       setIsDeleting(false);
     }
@@ -1124,7 +1125,6 @@ export function PurchaseOrderLineEditDialog({
         selectedEntryNo={applToItemEntry ? Number(applToItemEntry) : undefined}
       />
 
-      <ApiErrorDialog error={apiError} onClose={() => setApiError(null)} />
 
       {isBardanaOpen && line && (
         <BardanaDialog

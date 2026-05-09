@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme/theme-provider";
 import { AuthProvider } from "@/lib/contexts/auth-context";
+import { ErrorProvider } from "@/lib/contexts/error-context";
 import { Toaster } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -49,7 +50,9 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <AuthProvider>{children}</AuthProvider>
+          <ErrorProvider>
+            <AuthProvider>{children}</AuthProvider>
+          </ErrorProvider>
           <Toaster richColors position="top-right" />
         </ThemeProvider>
       </body>

@@ -13,9 +13,13 @@ import type { ODataResponse } from "@/lib/api/types";
 
 import { POSTED_PURCHASE_COLUMNS } from "./column-config";
 
+import { useAuth } from "@/lib/contexts/auth-context";
+import { getAllBranchesFromUserSetup } from "@/lib/api/services/dimension.service";
+
 export type PostedPurchaseType = "receipt" | "invoice" | "return-shipment" | "credit-memo";
 
 export function usePostedPurchase(type: PostedPurchaseType, initialFilters?: { skipDateFilter?: boolean }) {
+  const { userID } = useAuth();
   const [documents, setDocuments] = useState<PostedPurchaseHeader[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [pageSize, setPageSize] = useState(20);
@@ -29,6 +33,20 @@ export function usePostedPurchase(type: PostedPurchaseType, initialFilters?: { s
     POSTED_PURCHASE_COLUMNS.filter(c => c.visible).map(c => c.id)
   );
   const [dateFilter, setDateFilter] = useState<{ fromDate: string; toDate: string } | null>(null);
+  const [userBranchCodes, setUserBranchCodes] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (!userID) return;
+    const fetchBranches = async () => {
+      try {
+        const branches = await getAllBranchesFromUserSetup(userID);
+        setUserBranchCodes(branches.map((b) => b.Code));
+      } catch (error) {
+        console.error("Error fetching user branches:", error);
+      }
+    };
+    fetchBranches();
+  }, [userID]);
 
   const skipDateFilter = initialFilters?.skipDateFilter;
 
@@ -38,9 +56,22 @@ export function usePostedPurchase(type: PostedPurchaseType, initialFilters?: { s
       return;
     }
 
+    if (userBranchCodes.length === 0) {
+      setDocuments([]);
+      setTotalCount(0);
+      setIsLoading(false);
+      return;
+    }
+
     setIsLoading(true);
     try {
       const filterParts: string[] = [];
+
+      // Branch filter
+      if (userBranchCodes.length > 0) {
+        const branchFilter = userBranchCodes.map(code => `Shortcut_Dimension_2_Code eq '${code}'`).join(" or ");
+        filterParts.push(`(${branchFilter})`);
+      }
 
       // Date filter
       if (dateFilter?.fromDate) {
@@ -168,7 +199,7 @@ export function usePostedPurchase(type: PostedPurchaseType, initialFilters?: { s
     } finally {
       setIsLoading(false);
     }
-  }, [type, currentPage, pageSize, sortColumn, sortDirection, searchQuery, columnFilters, dateFilter, skipDateFilter]);
+  }, [type, currentPage, pageSize, sortColumn, sortDirection, searchQuery, columnFilters, dateFilter, skipDateFilter, userBranchCodes]);
 
   useEffect(() => {
     fetchDocuments();

@@ -11,17 +11,35 @@ import {
 import { type SortDirection } from "./column-config";
 import { type PostedTransferFilters } from "./posted-transfer-filter-form";
 
+import { useAuth } from "@/lib/contexts/auth-context";
+import { getAllBranchesFromUserSetup } from "@/lib/api/services/dimension.service";
+
 export interface UsePostedTransfersOptions {
   type: "shipment" | "receipt";
   initialFilters: PostedTransferFilters | null;
 }
 
 export function usePostedTransfers({ type, initialFilters }: UsePostedTransfersOptions) {
+  const { userID } = useAuth();
   const [data, setData] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [pageSize, setPageSize] = useState(20);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
+  const [userBranchCodes, setUserBranchCodes] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (!userID) return;
+    const fetchBranches = async () => {
+      try {
+        const branches = await getAllBranchesFromUserSetup(userID);
+        setUserBranchCodes(branches.map((b) => b.Code));
+      } catch (error) {
+        console.error("Error fetching user branches:", error);
+      }
+    };
+    fetchBranches();
+  }, [userID]);
 
   const [sortColumn, setSortColumn] = useState<string | null>("No");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
@@ -35,23 +53,30 @@ export function usePostedTransfers({ type, initialFilters }: UsePostedTransfersO
     if (!initialFilters) return "";
 
     const parts = [];
+    
+    // Branch filter
+    if (userBranchCodes.length > 0) {
+      const branchFilter = userBranchCodes.map(code => `Shortcut_Dimension_2_Code eq '${code}'`).join(" or ");
+      parts.push(`(${branchFilter})`);
+    }
+
     if (initialFilters.fromDate) parts.push(`Posting_Date ge ${initialFilters.fromDate}`);
     if (initialFilters.toDate) parts.push(`Posting_Date le ${initialFilters.toDate}`);
     if (initialFilters.fromLocation) parts.push(`Transfer_from_Code eq '${initialFilters.fromLocation}'`);
     if (initialFilters.toLocation) parts.push(`Transfer_to_Code eq '${initialFilters.toLocation}'`);
 
-    // Add local search to server-side filter if possible
-    // Note: This is a bit complex because OData 'contains' might not be supported on all fields.
-    // In transfer-orders/utils/filter-builder, they build a complex string.
-    
-    // For now, let's just stick to the initial filters and handle search/column filters server-side if too many.
-    // Or just fetch enough for the current page.
-
     return parts.join(" and ");
-  }, [initialFilters]);
+  }, [initialFilters, userBranchCodes]);
 
   const fetchData = useCallback(async () => {
     if (!initialFilters) return;
+
+    if (userBranchCodes.length === 0) {
+      setData([]);
+      setTotalCount(0);
+      setIsLoading(false);
+      return;
+    }
     
     setIsLoading(true);
     try {
@@ -77,7 +102,7 @@ export function usePostedTransfers({ type, initialFilters }: UsePostedTransfersO
     } finally {
       setIsLoading(false);
     }
-  }, [type, initialFilters, pageSize, currentPage, sortColumn, sortDirection, buildFilterString]);
+  }, [type, initialFilters, pageSize, currentPage, sortColumn, sortDirection, buildFilterString, userBranchCodes]);
 
   useEffect(() => {
     fetchData();

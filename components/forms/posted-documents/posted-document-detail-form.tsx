@@ -604,11 +604,11 @@ export function PostedDocumentDetailForm({
                       {(canUndo || formType === "posted-purchase-receipt") && (
                         <TableCell className="px-3 py-1 text-center">
                           <div className="flex items-center justify-center gap-1">
-                            {formType === "posted-purchase-receipt" && (
+                            {formType === "posted-purchase-receipt" && line.Type === "Item" && line.No && line.Bardana_RPO && (
                               <>
                                 <TooltipProvider>
-
                                   <Tooltip>
+
                                     <TooltipTrigger asChild>
                                       <Button
                                         variant="ghost"

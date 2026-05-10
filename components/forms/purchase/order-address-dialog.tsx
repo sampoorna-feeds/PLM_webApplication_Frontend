@@ -6,6 +6,7 @@
 
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
+import { toastError } from "@/lib/errors";
 import {
   Dialog,
   DialogContent,
@@ -96,7 +97,7 @@ export function OrderAddressDialog({
 
   const handleSave = async () => {
     if (!form.Code.trim()) {
-      toast.error("Code is required");
+      toastError(new Error("Code is required"));
       return;
     }
 
@@ -125,7 +126,8 @@ export function OrderAddressDialog({
       }
       onSaved();
     } catch (error: any) {
-      toast.error(error?.message || "Failed to save address");
+      console.error("Error saving order address:", error);
+      toastError(error, "Failed to save address");
     } finally {
       setIsSaving(false);
     }

@@ -48,6 +48,7 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
+import { toastError } from "@/lib/errors";
 import { SourceLookupModal } from "./source-lookup-modal";
 import { LineEntryModal } from "./line-entry-modal";
 import { CascadingDimensionSelect } from "@/components/forms/cascading-dimension-select";
@@ -139,7 +140,7 @@ export function OutwardGateEntryForm({
       setLines(data);
     } catch (error) {
       console.error("Error fetching lines:", error);
-      toast.error("Failed to fetch line items");
+      toastError(error, "Failed to fetch line items");
     } finally {
       setIsLoadingLines(false);
     }
@@ -310,7 +311,7 @@ export function OutwardGateEntryForm({
       markAsSaved();
     } catch (error: any) {
       console.error("Error saving gate entry:", error);
-      toast.error(error.message || "Failed to save");
+      toastError(error, "Failed to save");
     } finally {
       setIsSaving(false);
     }
@@ -318,7 +319,7 @@ export function OutwardGateEntryForm({
 
   const handlePostClick = () => {
     if (!entry.No) {
-      toast.error("Please save the entry first");
+      toastError(new Error("Please save the entry first"));
       return;
     }
     setPostDetails({
@@ -357,7 +358,7 @@ export function OutwardGateEntryForm({
     }
 
     if (!option) {
-      toast.error("Unable to determine posting option from lines");
+      toastError(new Error("Unable to determine posting option from lines"));
       return;
     }
 
@@ -383,7 +384,7 @@ export function OutwardGateEntryForm({
       closeTab();
     } catch (error: any) {
       console.error("Error posting gate entry:", error);
-      toast.error(error.message || "Failed to post gate entry");
+      toastError(error, "Failed to post gate entry");
     } finally {
       setIsPosting(false);
     }
@@ -407,7 +408,7 @@ export function OutwardGateEntryForm({
       onRefetch?.();
     } catch (error: any) {
       console.error("Error saving gate entry details:", error);
-      toast.error(error.message || "Failed to save details");
+      toastError(error, "Failed to save details");
     } finally {
       setIsPosting(false);
     }
@@ -435,7 +436,7 @@ export function OutwardGateEntryForm({
 
   const handleSaveLineFromModal = async (lineData: Partial<OutwardGateEntryLine>) => {
     if (!entry.No) {
-      toast.error("Please save the header first");
+      toastError(new Error("Please save the header first"));
       throw new Error("Header not saved");
     }
 
@@ -454,7 +455,7 @@ export function OutwardGateEntryForm({
       fetchLines();
     } catch (error: any) {
       console.error("Error saving line:", error);
-      toast.error(error.message || "Failed to save line");
+      toastError(error, "Failed to save line");
       throw error;
     }
   };
@@ -477,7 +478,7 @@ export function OutwardGateEntryForm({
       fetchLines();
     } catch (error: any) {
       console.error("Error deleting line:", error);
-      toast.error("Failed to delete line");
+      toastError(error, "Failed to delete line");
     }
   };
 

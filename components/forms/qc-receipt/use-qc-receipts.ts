@@ -15,6 +15,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/lib/contexts/auth-context";
 import { getAllBranchesFromUserSetup } from "@/lib/api/services/dimension.service";
 import { toast } from "sonner";
+import { toastError } from "@/lib/errors";
 import {
   ALL_COLUMNS,
   buildSelectQuery,
@@ -174,7 +175,7 @@ export function useQCReceipts(initialFilters?: {
       setTotalCount(result.totalCount);
     } catch (error) {
       console.error("Error fetching QC receipts:", error);
-      toast.error("Failed to load QC receipts. Please try again.");
+      toastError(error, "Failed to load QC receipts. Please try again.");
       setReceipts([]);
       setTotalCount(0);
     } finally {
@@ -323,7 +324,7 @@ export function useQCReceiptLines(
         setLines(data);
       } catch (error) {
         console.error("Error fetching QC lines:", error);
-        toast.error("Failed to load QC receipt lines.");
+        toastError(error, "Failed to load QC receipt lines.");
       } finally {
         setIsLoading(false);
       }
@@ -349,7 +350,7 @@ export function useQCReceiptPosting() {
         return true;
       } catch (error: any) {
         console.error("Error posting QC receipt:", error);
-        toast.error(error.message || "Failed to post QC Receipt.");
+        toastError(error, "Failed to post QC Receipt.");
         return false;
       } finally {
         setIsPosting(false);
@@ -383,7 +384,7 @@ export function useQCReceiptLineUpdate() {
         return result;
       } catch (error: any) {
         console.error("Error updating QC line:", error);
-        toast.error(error.message || "Failed to update line");
+        toastError(error, "Failed to update line");
         return null;
       } finally {
         setIsUpdating(false);
@@ -411,7 +412,7 @@ export function useQCReceiptUpdate() {
         return result;
       } catch (error: any) {
         console.error("Error updating QC receipt:", error);
-        toast.error(error.message || "Failed to update receipt");
+        toastError(error, "Failed to update receipt");
         return null;
       } finally {
         setIsUpdating(false);

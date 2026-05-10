@@ -25,6 +25,7 @@ import {
   Save,
 } from "lucide-react";
 import { toast } from "sonner";
+import { toastError } from "@/lib/errors";
 import { cn } from "@/lib/utils";
 
 interface ApplyCustomerEntriesDialogProps {
@@ -114,8 +115,9 @@ export function ApplyCustomerEntriesDialog({
         });
         setEntries(data.value);
         setTotalCount(data.count);
-      } catch {
-        // errors handled in service
+      } catch (error) {
+        console.error("Failed to fetch entries", error);
+        toastError(error, "Failed to fetch entries");
       } finally {
         setIsLoading(false);
       }
@@ -143,8 +145,9 @@ export function ApplyCustomerEntriesDialog({
           return [...prev, ...data.value.filter((e) => !seen.has(e.Entry_No))];
         });
         setTotalCount(data.count);
-      } catch {
-        // handled in service
+      } catch (error) {
+        console.error("Failed to load more entries", error);
+        toastError(error, "Failed to load more entries");
       } finally {
         setIsLoadingMore(false);
       }
@@ -239,8 +242,9 @@ export function ApplyCustomerEntriesDialog({
       setIsOpen(false);
       setSelectedEntryMap(new Map());
       onSuccess();
-    } catch {
-      toast.error("Failed to apply some entries.");
+    } catch (error) {
+      console.error("Failed to apply entries", error);
+      toastError(error, "Failed to apply some entries.");
     } finally {
       setIsApplying(false);
     }

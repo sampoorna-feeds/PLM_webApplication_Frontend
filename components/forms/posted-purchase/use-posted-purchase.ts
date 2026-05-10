@@ -9,6 +9,7 @@ import {
   type PostedPurchaseHeader 
 } from "@/lib/api/services/posted-purchase.service";
 import { toast } from "sonner";
+import { toastError } from "@/lib/errors";
 import type { ODataResponse } from "@/lib/api/types";
 
 import { POSTED_PURCHASE_COLUMNS } from "./column-config";
@@ -195,7 +196,7 @@ export function usePostedPurchase(type: PostedPurchaseType, initialFilters?: { s
       setTotalCount(result["@odata.count"] ?? result.value?.length ?? 0);
     } catch (error) {
       console.error(`Error fetching posted purchase ${type}:`, error);
-      toast.error(`Failed to load posted purchase ${type}.`);
+      toastError(error, `Failed to load posted purchase ${type}.`);
     } finally {
       setIsLoading(false);
     }

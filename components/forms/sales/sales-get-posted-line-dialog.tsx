@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
+import { toastError } from "@/lib/errors";
 import {
   submitSalesPostedLine,
   type SalesGetPostedLineDocType,
@@ -84,7 +85,7 @@ export function SalesGetPostedLineDialog({
       onOpenChange(false);
     } catch (error) {
       console.error("Failed to get posted lines:", error);
-      toast.error("Failed to copy lines. Please try again.");
+      toastError(error, "Failed to copy lines. Please try again.");
     } finally {
       setIsSubmitting(false);
     }

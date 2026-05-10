@@ -10,6 +10,7 @@ import { LocationSelect } from "@/components/forms/shared/location-select";
 import { useAuth } from "@/lib/contexts/auth-context";
 import { Loader2, FileDown } from "lucide-react";
 import { toast } from "sonner";
+import { toastError } from "@/lib/errors";
 
 export function ConsumptionReportForm() {
   const { userID } = useAuth();
@@ -45,12 +46,12 @@ export function ConsumptionReportForm() {
 
   const handleFetchReport = async () => {
     if (!startingDate || !endingDate) {
-      toast.error("Please select both starting and ending dates");
+      toastError(new Error("Please select both starting and ending dates"));
       return;
     }
 
     if (!loc) {
-      toast.error("Please select a location");
+      toastError(new Error("Please select a location"));
       return;
     }
 
@@ -58,7 +59,7 @@ export function ConsumptionReportForm() {
     try {
       const base64 = await getConsumptionReport({ startingDate, endingDate, loc });
       if (!base64) {
-        toast.error("No data received for the selected criteria");
+        toastError(new Error("No data received for the selected criteria"));
         return;
       }
 
@@ -82,7 +83,7 @@ export function ConsumptionReportForm() {
       URL.revokeObjectURL(url);
     } catch (error: any) {
       console.error("Error fetching consumption report:", error);
-      toast.error(error.message || "Failed to fetch consumption report");
+      toastError(error, "Failed to fetch consumption report");
     } finally {
       setIsLoading(false);
     }

@@ -6,6 +6,7 @@ import {
   type PostedSalesHeader 
 } from "@/lib/api/services/posted-sales.service";
 import { toast } from "sonner";
+import { toastError } from "@/lib/errors";
 import type { ODataResponse } from "@/lib/api/types";
 
 import { POSTED_SALES_COLUMNS } from "./column-config";
@@ -150,7 +151,7 @@ export function usePostedSales(initialFilters?: { skipDateFilter?: boolean }) {
       setTotalCount(result["@odata.count"] ?? result.value?.length ?? 0);
     } catch (error) {
       console.error(`Error fetching posted sales credit memo:`, error);
-      toast.error(`Failed to load posted sales credit memo.`);
+      toastError(error, `Failed to load posted sales credit memo.`);
     } finally {
       setIsLoading(false);
     }

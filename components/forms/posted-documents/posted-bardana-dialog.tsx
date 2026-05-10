@@ -27,6 +27,7 @@ import {
   updateBardanaLine,
   type BardanaLine,
 } from "@/lib/api/services/bardana.service";
+import { toastError } from "@/lib/errors";
 import {
   getBardanaItems,
   getBardanaItemsPage,
@@ -86,7 +87,7 @@ export function PostedBardanaDialog({
       setLines(data);
     } catch (error: any) {
       console.error("Error fetching bardana lines:", error);
-      toast.error("Failed to fetch bardana items.");
+      toastError(error, "Failed to fetch bardana items.");
     } finally {
       setIsLoading(false);
     }
@@ -94,7 +95,22 @@ export function PostedBardanaDialog({
 
   useEffect(() => {
     if (isOpen) {
-      fetchLines();
+      const init = async () => {
+        setIsGenerating(true);
+        try {
+          // Call Generate QC Form API as requested
+          await generateQCForm(postedDocNo, lineNo);
+          await fetchLines();
+        } catch (error: any) {
+          console.error("Error initializing bardana:", error);
+          toastError(error, "Failed to initialize bardana items.");
+          // Still try to fetch lines even if generation fails (they might already exist)
+          await fetchLines();
+        } finally {
+          setIsGenerating(false);
+        }
+      };
+      init();
     }
   }, [isOpen, fetchLines]);
 
@@ -139,7 +155,7 @@ export function PostedBardanaDialog({
       await fetchLines();
     } catch (error: any) {
       console.error("Error updating bardana:", error);
-      toast.error(error.message || "Failed to update bardana item.");
+      toastError(error, "Failed to update bardana item.");
     } finally {
       setIsSaving(false);
     }
@@ -155,7 +171,7 @@ export function PostedBardanaDialog({
       await fetchLines();
     } catch (error: any) {
       console.error("Error deleting bardana:", error);
-      toast.error(error.message || "Failed to delete bardana item.");
+      toastError(error, "Failed to delete bardana item.");
     } finally {
       setDeletingId(null);
     }

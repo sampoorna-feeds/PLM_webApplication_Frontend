@@ -8,6 +8,7 @@
 
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
+import { toastError } from "@/lib/errors";
 import {
   refreshProductionOrder,
   changeProductionOrderStatus,
@@ -112,11 +113,7 @@ export function useOrderActions({
       setOrderComponents(allComponents);
     } catch (error) {
       console.error("Error refreshing production order:", error);
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "Failed to refresh production order",
-      );
+      toastError(error, "Failed to refresh production order");
     } finally {
       setIsRefreshing(false);
     }
@@ -170,11 +167,7 @@ export function useOrderActions({
       setOrderComponents(allComponents);
     } catch (error) {
       console.error("Error changing production order status:", error);
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "Failed to change production order status",
-      );
+      toastError(error, "Failed to change production order status");
     } finally {
       setIsManufacturing(false);
     }
@@ -218,11 +211,7 @@ export function useOrderActions({
       return { success: true, orderNo: createdOrder.No };
     } catch (error) {
       console.error("Error creating Production Order:", error);
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "Failed to create production order",
-      );
+      toastError(error, "Failed to create production order");
       return { success: false };
     } finally {
       setIsSubmitting(false);

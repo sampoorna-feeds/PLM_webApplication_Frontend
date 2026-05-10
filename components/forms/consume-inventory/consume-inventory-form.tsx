@@ -67,6 +67,7 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { toastError } from "@/lib/errors";
 import { getWebUser, type WebUser } from "@/lib/api/services/web-user.service";
 import { isPostingDateValid } from "@/lib/utils/posting-date";
 import { LedgerEntryModal } from "./ledger-entry-modal";
@@ -250,7 +251,7 @@ export function ConsumeInventoryForm() {
       !formState["Location Code"] ||
       !formState.Quantity
     ) {
-      toast.error("Please fill in Item, Location and Quantity");
+      toastError(new Error("Please fill in Item, Location and Quantity"));
       return;
     }
 
@@ -313,7 +314,7 @@ export function ConsumeInventoryForm() {
 
   const handlePost = () => {
     if (selectedIndices.length === 0) {
-      toast.error("Please select at least one entry to post");
+      toastError(new Error("Please select at least one entry to post"));
       return;
     }
     setIsConfirmPostOpen(true);
@@ -369,7 +370,7 @@ export function ConsumeInventoryForm() {
         );
       } catch (postError: any) {
         console.error("Posting failed, rolling back entries...", postError);
-        toast.error(`Posting failed: ${postError.message}. Rolling back...`);
+        toastError(postError, "Posting failed. Rolling back...");
         
         // Rollback: Delete the entries we just created
         for (const entry of createdEntries) {
@@ -383,7 +384,7 @@ export function ConsumeInventoryForm() {
         throw postError; // Re-throw to be caught by outer catch
       }
     } catch (error: any) {
-      toast.error(error.message || "Failed to post");
+      toastError(error, "Failed to post");
     } finally {
       setSubmitting(false);
     }

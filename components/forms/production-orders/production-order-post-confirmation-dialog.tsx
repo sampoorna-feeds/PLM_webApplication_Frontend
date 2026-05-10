@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { Calendar, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { toastError } from "@/lib/errors";
 import {
   Dialog,
   DialogContent,
@@ -77,14 +78,14 @@ export function ProductionOrderPostConfirmationDialog({
   const handlePost = async () => {
     // Validate posting date
     if (!postingDate) {
-      toast.error("Posting date is required");
+      toastError(new Error("Posting date is required"));
       return;
     }
 
     // Validate date format
     const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
     if (!dateRegex.test(postingDate)) {
-      toast.error("Invalid date format. Use YYYY-MM-DD");
+      toastError(new Error("Invalid date format. Use YYYY-MM-DD"));
       return;
     }
 
@@ -97,9 +98,9 @@ export function ProductionOrderPostConfirmationDialog({
         Allow_Posting_From !== "0001-01-01" &&
         selectedDate < Allow_Posting_From.split("T")[0]
       ) {
-        toast.error(
+        toastError(new Error(
           `Posting Date cannot be before ${Allow_Posting_From.split("T")[0]}`,
-        );
+        ));
         return;
       }
       if (
@@ -107,9 +108,9 @@ export function ProductionOrderPostConfirmationDialog({
         Allow_Posting_To !== "0001-01-01" &&
         selectedDate > Allow_Posting_To.split("T")[0]
       ) {
-        toast.error(
+        toastError(new Error(
           `Posting Date cannot be after ${Allow_Posting_To.split("T")[0]}`,
-        );
+        ));
         return;
       }
     }

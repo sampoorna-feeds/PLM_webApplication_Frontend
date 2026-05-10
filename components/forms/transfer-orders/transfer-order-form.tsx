@@ -59,6 +59,7 @@ import { useFormStack } from "@/lib/form-stack/use-form-stack";
 import { cn } from "@/lib/utils";
 import { getWebUser, type WebUser } from "@/lib/api/services/web-user.service";
 import { useError } from "@/lib/contexts/error-context";
+import { toastError, getErrorMessage } from "@/lib/errors";
 import { preloadItems } from "@/lib/api/services/item.service";
 import { isPostingDateValid } from "@/lib/utils/posting-date";
 import { Download, Eye, Loader2, Plus, Printer, RefreshCw, Trash2 } from "lucide-react";
@@ -270,7 +271,7 @@ export function TransferOrderForm({
         }
       } catch (err) {
         console.error("Error fetching order data:", err);
-        toast.error("Failed to load order data");
+        toastError(err, "Failed to load order data");
       } finally {
         setIsLoading(false);
         setIsLoadingLines(false);
@@ -546,7 +547,7 @@ export function TransferOrderForm({
     e.preventDefault();
 
     if (!formState.Transfer_from_Code || !formState.Transfer_to_Code) {
-      toast.error("Please fill in all mandatory fields (Transfer From and To)");
+      toastError(new Error("Please fill in all mandatory fields (Transfer From and To)"));
       return;
     }
 
@@ -593,8 +594,7 @@ export function TransferOrderForm({
       });
     } catch (error: any) {
       console.error("Error creating transfer order:", error);
-      const errorMessage = error?.message || "Failed to create transfer order";
-      showError(errorMessage);
+      toastError(error, "Failed to create transfer order");
     } finally {
       setIsSubmitting(false);
     }
@@ -647,7 +647,7 @@ export function TransferOrderForm({
       fetchOrderData(formState.No);
     } catch (error: any) {
       console.error("Error updating transfer order:", error);
-      showError(error.message || "Failed to update transfer order");
+      toastError(error, "Failed to update transfer order");
     } finally {
       setIsSubmitting(false);
     }
@@ -663,7 +663,7 @@ export function TransferOrderForm({
       const updatedLines = await getTransferOrderLines(formState.No);
       setLines(updatedLines);
     } catch (err: any) {
-      toast.error(err.message || "Failed to delete line");
+      toastError(err, "Failed to delete line");
     }
   };
 
@@ -683,7 +683,7 @@ export function TransferOrderForm({
       const updatedLines = await getTransferOrderLines(formState.No);
       setLines(updatedLines);
     } catch (err: any) {
-      toast.error(err.message || "Failed to delete some lines");
+      toastError(err, "Failed to delete some lines");
       const updatedLines = await getTransferOrderLines(formState.No);
       setLines(updatedLines);
     } finally {
@@ -696,7 +696,7 @@ export function TransferOrderForm({
     const toCode = formState.Transfer_to_Code;
 
     if (!fromCode || !toCode) {
-      toast.error("Not enough data available");
+      toastError(new Error("Not enough data available"));
       return;
     }
 
@@ -708,14 +708,14 @@ export function TransferOrderForm({
       ]);
 
       if (!fromPIN || !toPIN) {
-        toast.error("Not enough data available");
+        toastError(new Error("Not enough data available"));
         return;
       }
 
       const distance = await getDistance(fromPIN, toPIN);
       handleChange("Distance_Km", distance);
     } catch (err: any) {
-      toast.error(err?.message || "Failed to fetch distance");
+      toastError(err, "Failed to fetch distance");
     } finally {
       setIsFetchingDistance(false);
     }
@@ -725,7 +725,7 @@ export function TransferOrderForm({
     if (!formState.No) return;
 
     if (!formState.Posting_Date || formState.Posting_Date === "0001-01-01") {
-      toast.error("Please select a Posting Date");
+      toastError(new Error("Please select a Posting Date"));
       return;
     }
 
@@ -738,9 +738,9 @@ export function TransferOrderForm({
       ) {
         const fromDate = new Date(webUserProfile.Allow_Posting_From);
         if (postingDate < fromDate) {
-          toast.error(
+          toastError(new Error(
             `Posting Date must be after ${formatDate(webUserProfile.Allow_Posting_From)}`,
-          );
+          ));
           return;
         }
       }
@@ -750,9 +750,9 @@ export function TransferOrderForm({
       ) {
         const toDate = new Date(webUserProfile.Allow_Posting_To);
         if (postingDate > toDate) {
-          toast.error(
+          toastError(new Error(
             `Posting Date must be before ${formatDate(webUserProfile.Allow_Posting_To)}`,
-          );
+          ));
           return;
         }
       }
@@ -847,7 +847,7 @@ export function TransferOrderForm({
       setIsPostDialogOpen(false);
     } catch (error: any) {
       console.error("Error posting transfer order:", error);
-      showError(error.message || "Failed to post transfer order");
+      toastError(error, "Failed to post transfer order");
     } finally {
       setIsSubmitting(false);
     }
@@ -882,7 +882,7 @@ export function TransferOrderForm({
       }
     } catch (error: any) {
       console.error("Error saving transfer order details:", error);
-      toast.error(error.message || "Failed to save details");
+      toastError(error, "Failed to save details");
     } finally {
       setIsSubmitting(false);
     }
@@ -898,7 +898,7 @@ export function TransferOrderForm({
       fetchOrderData(formState.No);
     } catch (error: any) {
       console.error("Error reopening transfer order:", error);
-      toast.error(error.message || "Failed to reopen transfer order");
+      toastError(error, "Failed to reopen transfer order");
     } finally {
       setIsSubmitting(false);
     }
@@ -914,7 +914,7 @@ export function TransferOrderForm({
       fetchOrderData(formState.No);
     } catch (error: any) {
       console.error("Error releasing transfer order:", error);
-      toast.error(error.message || "Failed to release transfer order");
+      toastError(error, "Failed to release transfer order");
     } finally {
       setIsSubmitting(false);
     }
@@ -949,7 +949,7 @@ export function TransferOrderForm({
         toast.info(`No ${type}s found for this order.`);
       }
     } catch (err: any) {
-      toast.error(err.message || `Failed to load ${type}s`);
+      toastError(err, `Failed to load ${type}s`);
     } finally {
       setIsReportLoading(false);
     }
@@ -993,7 +993,7 @@ export function TransferOrderForm({
       const url = await getReportPdfUrl(docNo, type);
       window.open(url, "_blank", "noopener,noreferrer");
     } catch (err: any) {
-      toast.error(err.message || "Failed to preview report");
+      toastError(err, "Failed to preview report");
     }
   };
 
@@ -1008,7 +1008,7 @@ export function TransferOrderForm({
       link.click();
       document.body.removeChild(link);
     } catch (err: any) {
-      toast.error(err.message || "Failed to download report");
+      toastError(err, "Failed to download report");
     }
   };
 
@@ -1075,7 +1075,7 @@ export function TransferOrderForm({
         iframe.contentWindow?.print();
       };
     } catch (err: any) {
-      toast.error(err.message || "Failed to print report");
+      toastError(err, "Failed to print report");
     }
   };
 
@@ -1108,7 +1108,7 @@ export function TransferOrderForm({
       document.body.removeChild(link);
       window.URL.revokeObjectURL(blobUrl);
     } catch (err: any) {
-      toast.error(err.message || `Failed to get ${reportName} link`);
+      toastError(err, `Failed to get ${reportName} link`);
     } finally {
       setActiveReportDocNo(null);
     }
@@ -1149,7 +1149,7 @@ export function TransferOrderForm({
         window.URL.revokeObjectURL(blobUrl);
       }, 5000);
     } catch (err: any) {
-      toast.error(err.message || `Failed to print ${reportName}`);
+      toastError(err, `Failed to print ${reportName}`);
     } finally {
       setActiveReportDocNo(null);
     }

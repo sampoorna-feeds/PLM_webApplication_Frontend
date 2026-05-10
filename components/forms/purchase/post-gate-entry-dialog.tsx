@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { Loader2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { toastError } from "@/lib/errors";
 
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -78,9 +79,8 @@ export function PostGateEntryDialog({
       setAttachedRows(attached);
       setSelectedIds(new Set());
     } catch (error) {
-      toast.error(
-        (error as ApiError).message ?? "Failed to load gate entry lines.",
-      );
+      console.error("Error loading gate entry lines:", error);
+      toastError(error, "Failed to load gate entry lines.");
       setRows([]);
       setAttachedRows([]);
       setSelectedIds(new Set());
@@ -102,9 +102,8 @@ export function PostGateEntryDialog({
       toast.success("Gate entry attachment removed.");
       void loadRows();
     } catch (error) {
-      toast.error(
-        (error as ApiError).message ?? "Failed to remove attachment.",
-      );
+      console.error("Error removing attachment:", error);
+      toastError(error, "Failed to remove attachment.");
     } finally {
       setIsDeleting(null);
     }
@@ -139,7 +138,7 @@ export function PostGateEntryDialog({
 
   const handlePushSelected = async () => {
     if (selectedRows.length === 0) {
-      toast.error("Select at least one row.");
+      toastError(new Error("Select at least one row."));
       return;
     }
 
@@ -163,10 +162,8 @@ export function PostGateEntryDialog({
       setSelectedIds(new Set());
       void loadRows();
     } catch (error) {
-      toast.error(
-        (error as ApiError).message ??
-          "Failed to attach selected gate entries.",
-      );
+      console.error("Error attaching gate entries:", error);
+      toastError(error, "Failed to attach selected gate entries.");
     } finally {
       setIsPushing(false);
     }

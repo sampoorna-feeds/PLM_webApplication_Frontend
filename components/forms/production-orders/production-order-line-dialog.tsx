@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { toastError } from "@/lib/errors";
 import {
   Dialog,
   DialogContent,
@@ -94,17 +95,17 @@ export function ProductionOrderLineDialog({
 
     // Validation
     if (quantityValue < 0) {
-      toast.error("Quantity cannot be negative");
+      toastError(new Error("Quantity cannot be negative"));
       return;
     }
 
     if (description.length > 100) {
-      toast.error("Description must be 100 characters or less");
+      toastError(new Error("Description must be 100 characters or less"));
       return;
     }
 
     if (!locationCode.trim()) {
-      toast.error("Location Code is required");
+      toastError(new Error("Location Code is required"));
       return;
     }
 

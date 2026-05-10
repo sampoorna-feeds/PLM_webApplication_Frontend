@@ -21,6 +21,7 @@ import {
   createVendorLedgerEntry 
 } from "@/lib/api/services/vendor-ledger.service";
 import { toast } from "sonner";
+import { toastError } from "@/lib/errors";
 
 interface NewVendorEntryDialogProps {
   onSuccess?: () => void;
@@ -43,7 +44,7 @@ export function NewVendorEntryDialog({ onSuccess, defaultVendorNo }: NewVendorEn
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.Vendor_No || !formData.Document_No || !formData.Amount) {
-      toast.error("Please fill in all required fields.");
+      toastError(new Error("Please fill in all required fields."));
       return;
     }
 
@@ -55,7 +56,7 @@ export function NewVendorEntryDialog({ onSuccess, defaultVendorNo }: NewVendorEn
       onSuccess?.();
     } catch (error) {
       console.error("Error creating vendor ledger entry:", error);
-      toast.error("Failed to create vendor ledger entry.");
+      toastError(error, "Failed to create vendor ledger entry.");
     } finally {
       setIsSubmitting(false);
     }

@@ -17,6 +17,7 @@ import { exportToExcel } from "@/lib/utils/export";
 import { Download } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { toastError } from "@/lib/errors";
 
 interface GLEntryExportDialogProps {
   open: boolean;
@@ -69,7 +70,7 @@ export function GLEntryExportDialog({
     const effectiveTotal = isVisibleOnly ? currentEntries.length : totalRecords;
 
     if (effectiveTotal === 0) {
-      toast.error("No records found to export.");
+      toastError(new Error("No records found to export."));
       onOpenChange(false);
       return;
     }
@@ -127,7 +128,7 @@ export function GLEntryExportDialog({
       onOpenChange(false);
     } catch (error) {
       console.error("Export failed:", error);
-      toast.error("Failed to export GL records. Please try again.");
+      toastError(error, "Failed to export GL records. Please try again.");
       onOpenChange(false);
     }
   };

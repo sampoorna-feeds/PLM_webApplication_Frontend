@@ -64,7 +64,7 @@ import {
   resolvePurchaseLocationCode,
 } from "./purchase-document-line-items-data";
 import { getAuthCredentials } from "@/lib/auth/storage";
-import { getErrorMessage } from "@/lib/errors";
+import { getErrorMessage, toastError } from "@/lib/errors";
 import type { LineItem } from "@/components/forms/purchase/purchase-line-item.type";
 import { PurchaseLineItemsTable } from "./purchase-line-items-table";
 import {
@@ -182,16 +182,16 @@ import {
   getPurchasereceipts,
   getPurchaseOrderReport,
   getPurchasereceiptReport,
-  type PurchaseReceipt,
-} from "@/lib/api/services/purchase-orders.service";
-import { buildPurchaseHeaderPayload } from "@/lib/api/services/purchase-header-payload";
-import {
   cancelApprovalRequest,
   reopenPurchaseOrder,
   sendApprovalRequest,
+  getPurchaseTotal,
+  type PurchaseReceipt,
   type PurchaseLine,
   type PurchaseOrder,
+  type PurchaseTotals,
 } from "@/lib/api/services/purchase-orders.service";
+import { buildPurchaseHeaderPayload } from "@/lib/api/services/purchase-header-payload";
 import {
   COPY_FROM_DOC_TYPE_OPTIONS,
   type PurchaseCopyToDocType,
@@ -577,7 +577,11 @@ export function PurchaseCreateDocumentFormContent({
     vendorCrMemoNo: "",
     dueDateCalculation: "Posting Date",
     lineNarration: "",
+    creditorType: "",
   });
+  const [purchaseTotals, setPurchaseTotals] = useState<PurchaseTotals | null>(
+    null,
+  );
   const [isReceiptOpen, setIsReceiptOpen] = useState(false);
   const [isReceiptLoading, setIsReceiptLoading] = useState(false);
   const [receiptShipments, setReceiptShipments] = useState<PurchaseReceipt[]>(
@@ -601,6 +605,7 @@ export function PurchaseCreateDocumentFormContent({
         vendorInvoiceNo: formData.vendorInvoiceNo || "",
         vendorCrMemoNo: formData.vendorCrMemoNo || "",
         dueDateCalculation: formData.dueDateCalculation || "Posting Date",
+        creditorType: formData.creditorType || "",
       }));
     }
   }, [isPostDetailsOpen, formData]);
@@ -762,6 +767,9 @@ export function PurchaseCreateDocumentFormContent({
         setCreatedOrderNo(hydratedDocumentNo);
         setDocumentStatus(toStringValue(header.Status));
 
+        // Fetch totals
+        void refreshPurchaseTotals(hydratedDocumentNo);
+
         persist({
           ...mappedFormData,
           lineItems: mappedLineItems,
@@ -792,6 +800,19 @@ export function PurchaseCreateDocumentFormContent({
     console.log("handleInputChange called with", field, value);
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
+
+  const refreshPurchaseTotals = useCallback(async (no?: string) => {
+    const targetNo = no || createdOrderNo;
+    if (!targetNo) return;
+    const totals = await getPurchaseTotal(targetNo);
+    setPurchaseTotals(totals);
+  }, [createdOrderNo]);
+
+  useEffect(() => {
+    if (createdOrderNo) {
+      void refreshPurchaseTotals();
+    }
+  }, [lineItems.length, createdOrderNo]);
 
   // Vendor change handler — also fetches GST / PAN and resets order address
   const handleVendorChange = async (
@@ -928,9 +949,9 @@ export function PurchaseCreateDocumentFormContent({
     if (!isCreateMode) return;
 
     if (!formData.lob || !formData.branch || !formData.locationCode) {
-      toast.error(
+      toastError(new Error(
         "Please select LOB, Branch, and Location Code before copying.",
-      );
+      ));
       return;
     }
 
@@ -966,7 +987,7 @@ export function PurchaseCreateDocumentFormContent({
         }
       } catch (error) {
         console.error("Failed to fetch fresh line data:", error);
-        toast.error("Failed to fetch latest line data from server.");
+        toastError(error, "Failed to fetch latest line data from server.");
       } finally {
         setIsActionLoading(false);
       }
@@ -1319,6 +1340,7 @@ export function PurchaseCreateDocumentFormContent({
           vendorCrMemoNo: formData.vendorCrMemoNo || "",
           dueDateCalculation: "Posting Date",
           lineNarration: hydratedHeaderRef.current?.Line_Narration1 || "",
+          creditorType: formData.creditorType || "",
         });
         setIsPostDetailsOpen(true);
       } else {
@@ -1400,11 +1422,11 @@ export function PurchaseCreateDocumentFormContent({
   const handlePostDetailsSubmit = async () => {
     if (!createdOrderNo || !postOption) return;
     if (!postDetails.postingDate) {
-      toast.error("Posting Date is required.");
+      toastError(new Error("Posting Date is required."));
       return;
     }
     if (!postDetails.documentDate) {
-      toast.error("Document Date is required.");
+      toastError(new Error("Document Date is required."));
       return;
     }
 
@@ -1423,6 +1445,7 @@ export function PurchaseCreateDocumentFormContent({
         Posting_Date: postDetails.postingDate,
         Document_Date: postDetails.documentDate,
         Vehicle_No: postDetails.vehicleNo || "",
+        Creditors_Type: postDetails.creditorType || "",
       };
       if (documentType === "credit-memo" || documentType === "return-order") {
         patchPayload.Vendor_Cr_Memo_No = postDetails.vendorCrMemoNo || "";
@@ -1504,7 +1527,7 @@ export function PurchaseCreateDocumentFormContent({
       }
       // onSuccess is called when the user closes the post-result dialog
     } catch (err) {
-      setPlaceOrderError((err as Error).message ?? "Post failed.");
+      setPlaceOrderError(getErrorMessage(err, "Post failed."));
     } finally {
       setIsPostLoading(false);
     }
@@ -1525,6 +1548,7 @@ export function PurchaseCreateDocumentFormContent({
         Posting_Date: postDetails.postingDate,
         Document_Date: postDetails.documentDate,
         Vehicle_No: postDetails.vehicleNo || "",
+        Creditors_Type: postDetails.creditorType || "",
       };
       if (documentType === "credit-memo" || documentType === "return-order") {
         patchPayload.Vendor_Cr_Memo_No = postDetails.vendorCrMemoNo || "";
@@ -1563,7 +1587,7 @@ export function PurchaseCreateDocumentFormContent({
         toast.info("No changes to save.");
       }
     } catch (err) {
-      toast.error((err as Error).message ?? "Save failed.");
+      toastError(err, "Save failed.");
     } finally {
       setIsPostLoading(false);
     }
@@ -2384,7 +2408,7 @@ export function PurchaseCreateDocumentFormContent({
     );
   };
 
-  const totalAmount = lineItems.reduce((sum, item) => sum + item.amount, 0);
+  const totalAmount = purchaseTotals ? purchaseTotals["Total Amt"] : lineItems.reduce((sum, item) => sum + item.amount, 0);
 
   return (
     <>
@@ -2816,18 +2840,47 @@ export function PurchaseCreateDocumentFormContent({
                 )}
 
                 {createdOrderNo && (
-                  <div className="bg-muted/20 flex items-center justify-between rounded-lg border px-4 py-2.5">
-                    <span className="text-muted-foreground text-[10px] font-bold tracking-wider uppercase">
-                      {lineItems.length} Line{lineItems.length !== 1 ? "s" : ""}
-                    </span>
-                    <div className="flex items-baseline gap-2">
-                      <span className="text-muted-foreground text-xs">
-                        Total Amount
+                  <div className="bg-muted/20 flex flex-col gap-3 rounded-lg border px-4 py-3">
+                    <div className="flex items-center justify-between border-b pb-2">
+                      <span className="text-muted-foreground text-[10px] font-bold tracking-wider uppercase">
+                        {lineItems.length} Line{lineItems.length !== 1 ? "s" : ""}
                       </span>
-                      <span className="text-sm font-bold tabular-nums">
-                        {totalAmount.toFixed(2)}
-                      </span>
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-muted-foreground text-xs">Total Amount</span>
+                        <span className="text-sm font-bold tabular-nums text-primary">
+                          {totalAmount.toFixed(2)}
+                        </span>
+                      </div>
                     </div>
+                    
+                    {purchaseTotals && (
+                      <div className="grid grid-cols-2 gap-x-8 gap-y-2 lg:grid-cols-3 xl:grid-cols-6">
+                        <div className="flex flex-col">
+                          <span className="text-muted-foreground text-[9px] font-semibold uppercase tracking-tight">Gross Amount</span>
+                          <span className="text-xs font-medium tabular-nums">{purchaseTotals["Gross Amount"].toFixed(2)}</span>
+                        </div>
+                        <div className="flex flex-col border-l pl-4 border-muted/50">
+                          <span className="text-muted-foreground text-[9px] font-semibold uppercase tracking-tight">IGST</span>
+                          <span className="text-xs font-medium tabular-nums">{purchaseTotals.IGST.toFixed(2)}</span>
+                        </div>
+                        <div className="flex flex-col border-l pl-4 border-muted/50">
+                          <span className="text-muted-foreground text-[9px] font-semibold uppercase tracking-tight">CGST</span>
+                          <span className="text-xs font-medium tabular-nums">{purchaseTotals.CGST.toFixed(2)}</span>
+                        </div>
+                        <div className="flex flex-col border-l pl-4 border-muted/50">
+                          <span className="text-muted-foreground text-[9px] font-semibold uppercase tracking-tight">SGST</span>
+                          <span className="text-xs font-medium tabular-nums">{purchaseTotals.SGST.toFixed(2)}</span>
+                        </div>
+                        <div className="flex flex-col border-l pl-4 border-muted/50">
+                          <span className="text-muted-foreground text-[9px] font-semibold uppercase tracking-tight">TDS</span>
+                          <span className="text-xs font-medium tabular-nums">{purchaseTotals.TDS.toFixed(2)}</span>
+                        </div>
+                        <div className="flex flex-col border-l pl-4 border-primary/20 bg-primary/5 rounded px-2 -mx-2">
+                          <span className="text-primary text-[9px] font-bold uppercase tracking-tight">Total Payable</span>
+                          <span className="text-sm font-bold tabular-nums text-primary">{purchaseTotals["Total Amt"].toFixed(2)}</span>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </section>
@@ -3107,6 +3160,7 @@ export function PurchaseCreateDocumentFormContent({
                     dueDateCalculation: "Posting Date",
                     lineNarration:
                       hydratedHeaderRef.current?.Line_Narration1 || "",
+                    creditorType: formData.creditorType || "",
                   });
                   setIsPostDialogOpen(false);
                   setIsPostDetailsOpen(true);
@@ -3264,6 +3318,16 @@ export function PurchaseCreateDocumentFormContent({
                 </div>
               </>
             )}
+            <div className="space-y-1">
+              <Label className="text-xs font-semibold">Creditor Type</Label>
+              <CreditorTypeSelect
+                value={postDetails.creditorType}
+                onChange={(val) =>
+                  setPostDetails((p) => ({ ...p, creditorType: val }))
+                }
+                className="h-8"
+              />
+            </div>
           </div>
           <DialogFooter>
             <Button
@@ -3288,7 +3352,20 @@ export function PurchaseCreateDocumentFormContent({
               )}
             </Button>
             <Button
-              onClick={handlePostDetailsSubmit}
+              onClick={() => {
+                setConfirmDialog({
+                  open: true,
+                  title: "Confirm Post",
+                  description: `Are you sure you want to post this ${config.displayTitle}? This action cannot be undone.`,
+                  actionLabel: "Post Now",
+                  cancelLabel: "Review",
+                  variant: "default",
+                  action: async () => {
+                    setConfirmDialog((p) => ({ ...p, open: false }));
+                    await handlePostDetailsSubmit();
+                  },
+                });
+              }}
               disabled={
                 isPostLoading ||
                 !postDetails.postingDate ||

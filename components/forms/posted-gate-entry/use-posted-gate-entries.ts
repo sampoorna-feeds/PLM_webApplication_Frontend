@@ -10,6 +10,7 @@ import { type SortDirection, POSTED_GATE_ENTRY_COLUMNS } from "./column-config";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/contexts/auth-context";
 import { getAllBranchesFromUserSetup } from "@/lib/api/services/dimension.service";
+import { toastError } from "@/lib/errors";
 
 export function usePostedGateEntries(type: "inward" | "outward", initialFilters?: { skipDateFilter?: boolean }) {
   const { userID } = useAuth();
@@ -105,7 +106,7 @@ export function usePostedGateEntries(type: "inward" | "outward", initialFilters?
       setTotalCount(result["@odata.count"] ?? result.value?.length ?? 0);
     } catch (error) {
       console.error(`Error fetching posted ${type} gate entries:`, error);
-      toast.error(`Failed to load posted ${type} gate entries.`);
+      toastError(error, `Failed to load posted ${type} gate entries.`);
     } finally {
       setIsLoading(false);
     }

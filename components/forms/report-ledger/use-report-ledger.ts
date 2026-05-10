@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { toast } from "sonner";
+import { toastError } from "@/lib/errors";
 import { useAuth } from "@/lib/contexts/auth-context";
 import {
   getItemLedgerEntries,
@@ -95,7 +96,7 @@ export function useReportLedger() {
         setFilters((prev) => ({ ...prev, locationCodes: allCodes }));
       } catch (error) {
         console.error("Error loading user locations:", error);
-        toast.error("Failed to load location options");
+        toastError(error, "Failed to load location options");
         setLocationOptions([]);
       } finally {
         setIsLoadingLocations(false);
@@ -147,7 +148,7 @@ export function useReportLedger() {
       } catch (error) {
         console.error("Error loading items:", error);
         if (!isLoadMore) {
-          toast.error("Failed to load item options");
+          toastError(error, "Failed to load item options");
           setItemOptions([]);
         }
       } finally {
@@ -290,7 +291,7 @@ export function useReportLedger() {
       setTotalCount(result.totalCount);
     } catch (error) {
       console.error("Error fetching item ledger entries:", error);
-      toast.error("Failed to load item ledger entries. Please try again.");
+      toastError(error, "Failed to load item ledger entries. Please try again.");
       setEntries([]);
       setTotalCount(0);
     } finally {
@@ -357,12 +358,12 @@ export function useReportLedger() {
 
   const handleApplyFilters = useCallback(() => {
     if (filters.locationCodes.length === 0) {
-      toast.error("Please select at least one location");
+      toastError(new Error("Please select at least one location"));
       return;
     }
 
     if (filters.postingDateFrom > filters.postingDateTo) {
-      toast.error("'Date From' cannot be after 'Date To'");
+      toastError(new Error("'Date From' cannot be after 'Date To'"));
       return;
     }
 

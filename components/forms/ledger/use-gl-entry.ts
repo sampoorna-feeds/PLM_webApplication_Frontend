@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { toast } from "sonner";
+import { toastError } from "@/lib/errors";
 import {
   getGLEntries,
   getGLBalance,
@@ -112,7 +113,7 @@ export function useGLEntry() {
       setTotalCount(entriesRes["@odata.count"] || entriesRes.value.length);
     } catch (error) {
       console.error("Error fetching GL entries:", error);
-      toast.error("Failed to load general ledger entries.");
+      toastError(error, "Failed to load general ledger entries.");
     } finally {
       setIsLoading(false);
       setIsFetchingNextPage(false);

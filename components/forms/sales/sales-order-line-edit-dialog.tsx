@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Loader2, Link2, Trash2, Search, X } from "lucide-react";
 import { toast } from "sonner";
+import { toastError } from "@/lib/errors";
 import {
   Dialog,
   DialogContent,
@@ -284,15 +285,15 @@ export function SalesOrderLineEditDialog({
     const discVal = parseFloat(discountPct) || 0;
 
     if (qtyVal < 0) {
-      toast.error("Quantity cannot be negative");
+      toastError(new Error("Quantity cannot be negative"));
       return;
     }
     if (shipVal < 0) {
-      toast.error("Qty to ship cannot be negative");
+      toastError(new Error("Qty to ship cannot be negative"));
       return;
     }
     if (invoiceVal < 0) {
-      toast.error("Qty to invoice cannot be negative");
+      toastError(new Error("Qty to invoice cannot be negative"));
       return;
     }
 
@@ -425,49 +426,7 @@ export function SalesOrderLineEditDialog({
             </div>
           </DialogHeader>
 
-          {/* ── Info strip ── */}
-          <div className="bg-muted/40 grid grid-cols-2 overflow-hidden rounded-md border text-sm sm:grid-cols-3">
-            <div className="border-r border-b p-2">
-              <p className="text-muted-foreground text-[10px] tracking-wide uppercase">
-                Line
-              </p>
-              <p className="font-medium">{line.Line_No}</p>
-            </div>
-            <div className="border-b p-2 sm:border-r">
-              <p className="text-muted-foreground text-[10px] tracking-wide uppercase">
-                {lineType === "G/L Account" ? "GL Account" : "Item No"}
-              </p>
-              <p className="font-medium">{line.No || "—"}</p>
-            </div>
-            <div className="border-r border-b p-2 sm:border-r-0">
-              <p className="text-muted-foreground text-[10px] tracking-wide uppercase">
-                Type
-              </p>
-              <p>{lineType || "—"}</p>
-            </div>
-            <div className="border-b p-2 sm:border-r sm:border-b-0">
-              <p className="text-muted-foreground text-[10px] tracking-wide uppercase">
-                UOM
-              </p>
-              <p>{line.Unit_of_Measure_Code || line.Unit_of_Measure || "—"}</p>
-            </div>
-            {showQtyColumns && (
-              <>
-                <div className="border-r p-2 sm:border-b-0">
-                  <p className="text-muted-foreground text-[10px] tracking-wide uppercase">
-                    {qtyShippedLabel}
-                  </p>
-                  <p>{line.Quantity_Shipped ?? "0"}</p>
-                </div>
-                <div className="p-2">
-                  <p className="text-muted-foreground text-[10px] tracking-wide uppercase">
-                    Qty Invoiced
-                  </p>
-                  <p>{line.Quantity_Invoiced ?? "0"}</p>
-                </div>
-              </>
-            )}
-          </div>
+
 
           <div className="space-y-4 overflow-y-auto flex-1 pr-1 -mr-1 mt-2">
             <div className="space-y-1 px-1">
@@ -540,39 +499,7 @@ export function SalesOrderLineEditDialog({
                   </ClearableField>
                 </div>
 
-                {showQtyColumns && (
-                  <>
-                    <div className="space-y-1">
-                      <Label htmlFor="sl-qty-to-ship" className="text-xs">
-                        {qtyToShipLabel}
-                      </Label>
-                      <ClearableField value={qtyToShip} onClear={() => setQtyToShip("")}>
-                        <CalculatorInput
-                          id="sl-qty-to-ship"
-                          value={qtyToShip}
-                          onValueChange={(v) => {
-                            if (isValidNum(v)) setQtyToShip(v);
-                          }}
-                        />
-                      </ClearableField>
-                    </div>
 
-                    <div className="space-y-1">
-                      <Label htmlFor="sl-qty-to-invoice" className="text-xs">
-                        Qty to Invoice
-                      </Label>
-                      <ClearableField value={qtyToInvoice} onClear={() => setQtyToInvoice("")}>
-                        <CalculatorInput
-                          id="sl-qty-to-invoice"
-                          value={qtyToInvoice}
-                          onValueChange={(v) => {
-                            if (isValidNum(v)) setQtyToInvoice(v);
-                          }}
-                        />
-                      </ClearableField>
-                    </div>
-                  </>
-                )}
 
                 <div className="space-y-1">
                   <Label htmlFor="sl-uom" className="text-xs">
@@ -594,41 +521,7 @@ export function SalesOrderLineEditDialog({
             )}
           </div>
 
-          {showQtyColumns && lineType !== "" && (
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 border-t pt-3">
-              <div className="space-y-1">
-                <Label htmlFor="sl-qty-to-ship" className="text-xs">
-                  {qtyToShipLabel}
-                </Label>
-                <ClearableField value={qtyToShip} onClear={() => setQtyToShip("")}>
-                  <CalculatorInput
-                    id="sl-qty-to-ship"
-                    value={qtyToShip}
-                    onValueChange={(v) => {
-                      if (isValidNum(v)) setQtyToShip(v);
-                    }}
-                    className={fieldInputClass}
-                  />
-                </ClearableField>
-              </div>
 
-              <div className="space-y-1">
-                <Label htmlFor="sl-qty-to-invoice" className="text-xs">
-                  Qty to Invoice
-                </Label>
-                <ClearableField value={qtyToInvoice} onClear={() => setQtyToInvoice("")}>
-                  <CalculatorInput
-                    id="sl-qty-to-invoice"
-                    value={qtyToInvoice}
-                    onValueChange={(v) => {
-                      if (isValidNum(v)) setQtyToInvoice(v);
-                    }}
-                    className={fieldInputClass}
-                  />
-                </ClearableField>
-              </div>
-            </div>
-          )}
 
           {lineType !== "" && (
             <div className="space-y-3 border-t pt-3">

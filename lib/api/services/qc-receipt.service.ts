@@ -168,8 +168,8 @@ export async function postQCReceipt(receiptNo: string, userID: string): Promise<
     await apiPost(endpoint, payload);
   } catch (error: any) {
     console.error("Error posting QC receipt:", error);
-    const detail = error.details || error.message || JSON.stringify(error);
-    throw new Error(`Failed to post QC receipt: ${detail}`);
+    // Let the error bubble up with its cleaned message from apiRequest
+    throw error;
   }
 }
 

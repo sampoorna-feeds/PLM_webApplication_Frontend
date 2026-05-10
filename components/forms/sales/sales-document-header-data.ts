@@ -84,6 +84,7 @@ export function buildSalesHeaderPatchPayload(
 ): Record<string, unknown> {
   if (!original) {
     const payload: Record<string, unknown> = {
+      Sell_to_Customer_No: formData.customerNo || "",
       Ship_to_Code: formData.shipToCode || "",
       Salesperson_Code: formData.salesPersonCode || "",
       Location_Code: formData.locationCode || "",
@@ -123,6 +124,7 @@ export function buildSalesHeaderPatchPayload(
     }
   };
 
+  compareString("Sell_to_Customer_No", formData.customerNo || "");
   compareString("Ship_to_Code", formData.shipToCode || "");
   compareString("Salesperson_Code", formData.salesPersonCode || "");
   compareString("Location_Code", formData.locationCode || "");

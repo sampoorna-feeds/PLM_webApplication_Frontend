@@ -21,6 +21,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
+import { toastError } from "@/lib/errors";
 import {
   getItemCharges,
   assignItemCharge,
@@ -62,7 +63,7 @@ export function ItemChargeMultiSelectDialog({
       setCharges(chargesData);
     } catch (error) {
       console.error("Failed to fetch data:", error);
-      toast.error("Failed to load MRN lines or item charges");
+      toastError(error, "Failed to load MRN lines or item charges");
     } finally {
       setLoading(false);
     }
@@ -112,7 +113,7 @@ export function ItemChargeMultiSelectDialog({
 
   const handleAssign = async () => {
     if (selectedLines.size === 0 || selectedChargeNos.size === 0) {
-      toast.error("Please select at least one line and one item charge");
+      toastError(new Error("Please select at least one line and one item charge"));
       return;
     }
 
@@ -137,7 +138,7 @@ export function ItemChargeMultiSelectDialog({
       onOpenChange(false);
     } catch (error) {
       console.error("Failed to assign item charges:", error);
-      toast.error("Failed to assign one or more item charges.");
+      toastError(error, "Failed to assign one or more item charges.");
     } finally {
       setIsAssigning(false);
     }

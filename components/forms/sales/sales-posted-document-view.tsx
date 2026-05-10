@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Eye, Loader2, Printer } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
+import { toastError } from "@/lib/errors";
 import { useFormStackContext } from "@/lib/form-stack/form-stack-context";
 import { useAuth } from "@/lib/contexts/auth-context";
 import { Button } from "@/components/ui/button";
@@ -91,7 +92,7 @@ export function SalesPostedDocumentView({
     try {
       const url = await getDownloadRecordLink({ documentType: "SalesInvoice", documentNo: no });
       if (!url) {
-        toast.error("No URL returned for E-Way Bill.");
+        toastError(new Error("No URL returned for E-Way Bill."));
         return;
       }
       const response = await fetch(url);
@@ -105,8 +106,8 @@ export function SalesPostedDocumentView({
       link.click();
       document.body.removeChild(link);
       setTimeout(() => window.URL.revokeObjectURL(blobUrl), 5000);
-    } catch {
-      toast.error("Failed to print E-Way Bill.");
+    } catch (error) {
+      toastError(error, "Failed to print E-Way Bill.");
     } finally {
       setLoadingEWayDocNo(null);
     }
@@ -122,7 +123,7 @@ export function SalesPostedDocumentView({
     const rawRow = row as unknown as Record<string, unknown>;
     const customerNo = String(rawRow.Sell_to_Customer_No || "").trim();
     if (!customerNo) {
-      toast.error("Missing customer number for PDF generation.");
+      toastError(new Error("Missing customer number for PDF generation."));
       return;
     }
 
@@ -143,8 +144,8 @@ export function SalesPostedDocumentView({
       const url = window.URL.createObjectURL(blob);
       pdfUrlsRef.current[no] = url;
       window.open(url, "_blank", "noopener,noreferrer");
-    } catch {
-      toast.error("Failed to generate PDF report.");
+    } catch (error) {
+      toastError(error, "Failed to generate PDF report.");
     } finally {
       setLoadingDocNo(null);
     }

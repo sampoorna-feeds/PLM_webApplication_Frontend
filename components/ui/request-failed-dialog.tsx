@@ -1,22 +1,5 @@
-"use client";
-
-/**
- * Request Failed Dialog
- * Common dialog for API/request failures with title "Request failed" and cleaned message.
- * Uses cleanApiErrorMessage to strip CorrelationId and similar noise.
- */
-
 import React from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { AlertCircle } from "lucide-react";
+import { ErrorDialog } from "@/components/ui/error-dialog";
 import { cleanApiErrorMessage } from "@/lib/errors";
 
 export interface RequestFailedDialogProps {
@@ -35,25 +18,11 @@ export function RequestFailedDialog({
     cleanApiErrorMessage(message) || "The request failed. Please try again.";
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <div className="flex items-center gap-2">
-            <AlertCircle className="text-destructive h-5 w-5 shrink-0" />
-            <DialogTitle className="text-destructive">
-              Request failed
-            </DialogTitle>
-          </div>
-          <DialogDescription asChild>
-            <p className="text-foreground mt-2 text-sm whitespace-pre-wrap">
-              {displayMessage}
-            </p>
-          </DialogDescription>
-        </DialogHeader>
-        <DialogFooter>
-          <Button onClick={() => onOpenChange(false)}>Close</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <ErrorDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Request failed"
+      message={displayMessage}
+    />
   );
 }

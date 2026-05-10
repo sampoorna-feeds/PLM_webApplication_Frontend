@@ -25,7 +25,7 @@ import { ShipToSelect } from "./shipto-select";
 import { SalesPersonSelect } from "./sales-person-select";
 import type { ShipToAddress } from "@/lib/api/services/shipto.service";
 import { getAuthCredentials } from "@/lib/auth/storage";
-import { getErrorMessage } from "@/lib/errors";
+import { getErrorMessage, toastError } from "@/lib/errors";
 import { ClearableField } from "@/components/ui/clearable-field";
 import { RequestFailedDialog } from "@/components/ui/request-failed-dialog";
 import { Badge } from "@/components/ui/badge";
@@ -677,8 +677,9 @@ export function SalesCreateDocumentFormContent({
   const handleOpenCopyDialog = () => {
     if (!isCreateMode) return;
     if (!formData.lob || !formData.branch || !formData.locationCode) {
-      toast.error(
-        "Please select LOB, Branch, and Location Code before copying.",
+      toastError(
+        new Error("Missing required fields"),
+        "Please select LOB, Branch, and Location Code before copying."
       );
       return;
     }
@@ -811,7 +812,7 @@ export function SalesCreateDocumentFormContent({
     try {
       if (deleteMode === "lines") {
         if (selectedDeleteLineNos.length === 0) {
-          toast.error("Select at least one line to delete");
+          toastError(new Error("No lines selected"), "Select at least one line to delete");
           return;
         }
         for (const lineNo of selectedDeleteLineNos) {
@@ -842,7 +843,7 @@ export function SalesCreateDocumentFormContent({
   // ── Post (order only) ─────────────────────────────────────────────────────
   const handlePostOptionContinue = () => {
     if (!postOption) {
-      toast.error("Select a post option");
+      toastError(new Error("No post option"), "Select a post option");
       return;
     }
     let initialDate = "";
@@ -878,7 +879,7 @@ export function SalesCreateDocumentFormContent({
     const toPIN = shipToPostCode || billToPostCode || "";
 
     if (!locationCode || !toPIN) {
-      toast.error("Not enough data available");
+      toastError(new Error("Missing data"), "Not enough data available");
       return;
     }
 
@@ -886,13 +887,13 @@ export function SalesCreateDocumentFormContent({
     try {
       const fromPIN = await getLocationPostCode(locationCode);
       if (!fromPIN) {
-        toast.error("Not enough data available");
+        toastError(new Error("Missing PIN"), "Not enough data available");
         return;
       }
       const distance = await getDistance(fromPIN, toPIN);
       setPostDetails((p) => ({ ...p, distanceKm: String(distance) }));
     } catch (err) {
-      toast.error(getErrorMessage(err, "Failed to fetch distance"));
+      toastError(err, "Failed to fetch distance");
     } finally {
       setIsFetchingDistance(false);
     }
@@ -939,32 +940,32 @@ export function SalesCreateDocumentFormContent({
     if (!initialOrderNo || !postOption) return;
     if (!caps.supportsUnifiedPostForm && !isCreditOrReturn) {
       if (isShipOption && !postDetails.transporterName.trim()) {
-        toast.error("Transporter Name is mandatory for Ship options");
+        toastError(new Error("Missing transporter"), "Transporter Name is mandatory for Ship options");
         return;
       }
       if (isShipOption) {
         if (!postDetails.driverPhone.trim()) {
-          toast.error("Driver phone is required for shipping");
+          toastError(new Error("Missing phone"), "Driver phone is required for shipping");
           return;
         }
         const phoneError = validatePhone(postDetails.driverPhone);
         if (phoneError) {
-          toast.error(phoneError);
+          toastError(new Error("Invalid phone"), phoneError);
           return;
         }
         if (!postDetails.lrRrNumber.trim()) {
-          toast.error("LR/RR Number is required for shipping");
+          toastError(new Error("Missing LR/RR"), "LR/RR Number is required for shipping");
           return;
         }
         if (!postDetails.lrRrDate) {
-          toast.error("LR/RR Date is required for shipping");
+          toastError(new Error("Missing LR/RR date"), "LR/RR Date is required for shipping");
           return;
         }
       }
     }
 
     if (!postDetails.postingDate) {
-      toast.error("Posting Date is required");
+      toastError(new Error("Missing posting date"), "Posting Date is required");
       return;
     }
 
@@ -977,9 +978,7 @@ export function SalesCreateDocumentFormContent({
         Allow_Posting_From !== "0001-01-01" &&
         selectedDate < Allow_Posting_From.split("T")[0]
       ) {
-        toast.error(
-          `Posting Date cannot be before ${Allow_Posting_From.split("T")[0]}`,
-        );
+        toastError(new Error("Invalid posting date"), `Posting Date cannot be before ${Allow_Posting_From.split("T")[0]}`);
         return;
       }
       if (
@@ -987,9 +986,7 @@ export function SalesCreateDocumentFormContent({
         Allow_Posting_To !== "0001-01-01" &&
         selectedDate > Allow_Posting_To.split("T")[0]
       ) {
-        toast.error(
-          `Posting Date cannot be after ${Allow_Posting_To.split("T")[0]}`,
-        );
+        toastError(new Error("Invalid posting date"), `Posting Date cannot be after ${Allow_Posting_To.split("T")[0]}`);
         return;
       }
     }
@@ -1040,7 +1037,7 @@ export function SalesCreateDocumentFormContent({
         toast.info("No changes to save.");
       }
     } catch (err) {
-      toast.error(getErrorMessage(err, "Failed to save details."));
+      toastError(err, "Failed to save details.");
     } finally {
       setIsPostLoading(false);
     }
@@ -1109,7 +1106,7 @@ export function SalesCreateDocumentFormContent({
 
   const loadChallan = async () => {
     if (!orderHeader?.No || !challanDate) {
-      toast.error("Please choose a posting date");
+      toastError(new Error("Missing date"), "Please choose a posting date");
       return;
     }
     setIsChallanLoading(true);
@@ -1120,7 +1117,7 @@ export function SalesCreateDocumentFormContent({
       );
       setChallanShipments(results);
     } catch (err) {
-      toast.error(getErrorMessage(err, "Failed to load shipments."));
+      toastError(err, "Failed to load shipments.");
     } finally {
       setIsChallanLoading(false);
     }
@@ -2704,9 +2701,7 @@ export function SalesCreateDocumentFormContent({
                                       "noopener,noreferrer",
                                     );
                                   } catch (err) {
-                                    toast.error(
-                                      getErrorMessage(err, "Operation failed."),
-                                    );
+                                    toastError(err, "Operation failed.");
                                   }
                                 }}
                               >
@@ -2732,9 +2727,7 @@ export function SalesCreateDocumentFormContent({
                                     link.click();
                                     document.body.removeChild(link);
                                   } catch (err) {
-                                    toast.error(
-                                      getErrorMessage(err, "Operation failed."),
-                                    );
+                                    toastError(err, "Operation failed.");
                                   }
                                 }}
                               >

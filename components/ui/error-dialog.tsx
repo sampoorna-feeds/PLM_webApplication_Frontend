@@ -3,6 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { AlertTriangle } from "lucide-react";
+import { cleanApiErrorMessage } from "@/lib/errors";
 
 export interface ErrorDetail {
   field?: string;
@@ -38,6 +39,8 @@ export function ErrorDialog({
     if (onClose) onClose();
   };
 
+  const displayMessage = cleanApiErrorMessage(message);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="pointer-events-none flex flex-col items-center justify-center border-none bg-transparent p-0 shadow-none sm:max-w-[500px]">
@@ -49,12 +52,12 @@ export function ErrorDialog({
             </div>
           </div>
 
-          <div className="space-y-3">
-            <h2 className="text-foreground from-foreground to-foreground/70 bg-linear-to-br bg-clip-text text-4xl font-black tracking-tight">
+          <div className="space-y-4">
+            <h2 className="text-red-500/80 text-sm font-bold tracking-[0.2em] uppercase">
               {title}
             </h2>
-            <p className="text-muted-foreground mx-auto max-w-[320px] text-lg leading-relaxed font-medium">
-              {message}
+            <p className="text-foreground mx-auto max-w-[400px] text-2xl font-black leading-tight tracking-tight">
+              {displayMessage}
             </p>
             {errors.length > 0 && (
               <div className="mt-4 max-h-[150px] w-full overflow-y-auto rounded-xl bg-red-500/5 p-4 text-left">
@@ -62,7 +65,7 @@ export function ErrorDialog({
                   {errors.map((err, i) => (
                     <li key={i} className="text-red-400 text-sm">
                       {err.field ? <span className="font-bold">{err.field}: </span> : null}
-                      {err.message}
+                      {cleanApiErrorMessage(err.message)}
                     </li>
                   ))}
                 </ul>

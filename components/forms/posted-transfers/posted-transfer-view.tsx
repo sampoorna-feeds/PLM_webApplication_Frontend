@@ -10,6 +10,7 @@ import { ChevronLeft, RefreshCcw } from "lucide-react";
 import { type SortDirection, loadVisibleColumns, saveVisibleColumns, getDefaultVisibleColumns, POSTED_TRANSFER_COLUMNS } from "./column-config";
 import { getPostedTransferShipments, getTransferReceipts, getTransferShipmentReport, getDownloadRecordLink, searchPostedTransferShipments, searchTransferReceiptsExtended } from "@/lib/api/services/transfer-orders.service";
 import { toast } from "sonner";
+import { toastError } from "@/lib/errors";
 import { useFormStackContext } from "@/lib/form-stack/form-stack-context";
 import { useAuth } from "@/lib/contexts/auth-context";
 import { getAllLOCsFromUserSetup } from "@/lib/api/services/dimension.service";
@@ -138,7 +139,7 @@ export function PostedTransferView({ type }: PostedTransferViewProps) {
       setTotalCount(result.totalCount);
     } catch (error) {
       console.error(`Error fetching posted transfer ${type}s:`, error);
-      toast.error(`Failed to load posted ${type}s.`);
+      toastError(error, `Failed to load posted ${type}s.`);
       setData([]);
       setTotalCount(0);
     } finally {
@@ -188,7 +189,7 @@ export function PostedTransferView({ type }: PostedTransferViewProps) {
       const url = await getReportPdfUrl(shipmentNo);
       window.open(url, "_blank", "noopener,noreferrer");
     } catch (err: any) {
-      toast.error(err.message || "Failed to preview report");
+      toastError(err, "Failed to preview report");
     }
   };
 
@@ -213,7 +214,7 @@ export function PostedTransferView({ type }: PostedTransferViewProps) {
       document.body.removeChild(link);
       window.URL.revokeObjectURL(blobUrl);
     } catch (err: any) {
-      toast.error(err.message || `Failed to get ${reportName} link`);
+      toastError(err, `Failed to get ${reportName} link`);
     } finally {
       setActiveReportDocNo(null);
     }
@@ -244,7 +245,7 @@ export function PostedTransferView({ type }: PostedTransferViewProps) {
         window.URL.revokeObjectURL(blobUrl);
       }, 5000);
     } catch (err: any) {
-      toast.error(err.message || `Failed to print ${reportName}`);
+      toastError(err, `Failed to print ${reportName}`);
     } finally {
       setActiveReportDocNo(null);
     }

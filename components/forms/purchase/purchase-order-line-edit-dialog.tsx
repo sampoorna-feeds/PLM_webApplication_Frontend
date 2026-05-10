@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Loader2, Package, Trash2, Link2, Search, X, User, Briefcase } from "lucide-react";
 import { toast } from "sonner";
+import { toastError } from "@/lib/errors";
 import {
   Dialog,
   DialogContent,
@@ -392,8 +393,7 @@ export function PurchaseOrderLineEditDialog({
       toast.success("Bardana deleted successfully");
       fetchExistingBardanas();
     } catch (error) {
-      const { message } = extractApiError(error);
-      toast.error(`Failed to delete bardana: ${message}`);
+      toastError(error, "Failed to delete bardana");
     } finally {
       setIsDeletingBardana(null);
     }
@@ -411,29 +411,29 @@ export function PurchaseOrderLineEditDialog({
     const invoiceVal = parseFloat(qtyToInvoice) || 0;
 
     if (qtyVal < 0) {
-      toast.error("Quantity cannot be negative");
+      toastError(new Error("Quantity cannot be negative"));
       return;
     }
     if (receivedVal < 0) {
-      toast.error("Qty Received cannot be negative");
+      toastError(new Error("Qty Received cannot be negative"));
       return;
     }
     if (invoicedVal < 0) {
-      toast.error("Qty Invoiced cannot be negative");
+      toastError(new Error("Qty Invoiced cannot be negative"));
       return;
     }
     if (receiveVal < 0) {
-      toast.error("Qty to Receive cannot be negative");
+      toastError(new Error("Qty to Receive cannot be negative"));
       return;
     }
     if (invoiceVal < 0) {
-      toast.error("Qty to Invoice cannot be negative");
+      toastError(new Error("Qty to Invoice cannot be negative"));
       return;
     }
     if (receivedVal + receiveVal > qtyVal) {
-      toast.error(
+      toastError(new Error(
         `Qty Received (${receivedVal}) + Qty to Receive (${receiveVal}) cannot exceed Quantity (${qtyVal})`,
-      );
+      ));
       return;
     }
 

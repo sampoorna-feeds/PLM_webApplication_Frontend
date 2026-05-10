@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ChevronDown, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { toastError } from "@/lib/errors";
 import { formatDate } from "@/lib/utils/date";
 
 export interface PostedTransferDetailFormProps {
@@ -60,7 +61,7 @@ export function PostedTransferDetailForm({
       await fn();
       toast.success(`${actionName} completed successfully`);
     } catch (err: any) {
-      toast.error(err.message || `Failed to ${actionName.toLowerCase()}`);
+      toastError(err, `Failed to ${actionName.toLowerCase()}`);
     } finally {
       setActionLoading(null);
     }

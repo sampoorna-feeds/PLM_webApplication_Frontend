@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { printQRCode } from "@/lib/api/services/production-orders.service";
 import { toast } from "sonner";
+import { toastError } from "@/lib/errors";
 
 interface ProductionOrderQRDialogProps {
   prodOrderNo: string;
@@ -74,7 +75,7 @@ export function ProductionOrderQRDialog({
       setPdfUrl(url);
     } catch (error) {
       console.error("Error loading QR Code:", error);
-      toast.error("Error loading QR Code");
+      toastError(error, "Error loading QR Code");
     } finally {
       setIsLoading(false);
     }

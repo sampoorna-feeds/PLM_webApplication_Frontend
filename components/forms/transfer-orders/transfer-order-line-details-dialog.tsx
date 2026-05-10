@@ -38,6 +38,7 @@ import { formatDate } from "@/lib/utils/date";
 import { Loader2, Package, Search, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
+import { toastError } from "@/lib/errors";
 import { TransferBardanaDialog } from "./transfer-bardana-dialog";
 import { TransferOrderItemTrackingDialog } from "./transfer-order-item-tracking-dialog";
 
@@ -162,9 +163,9 @@ export function TransferOrderLineDetailsDialog({
     // Validation: Qty to Ship <= Available Quantity
     const qtyToShip = Number(formData.Qty_to_Ship);
     if (availableQty !== null && qtyToShip > availableQty) {
-      toast.error(
+      toastError(new Error(
         `Cannot ship ${qtyToShip}. Only ${availableQty} available at ${locationCode}`,
-      );
+      ));
       return;
     }
 
@@ -188,7 +189,7 @@ export function TransferOrderLineDetailsDialog({
       onOpenChange(false);
     } catch (err: any) {
       console.error("Error updating line:", err);
-      toast.error(err.message || "Failed to update line details");
+      toastError(err, "Failed to update line details");
     } finally {
       setIsSubmitting(false);
     }
@@ -204,7 +205,7 @@ export function TransferOrderLineDetailsDialog({
       fetchExistingBardanas();
     } catch (err: any) {
       console.error("Error posting bardana:", err);
-      toast.error(err.message || "Failed to post bardana");
+      toastError(err, "Failed to post bardana");
     } finally {
       setIsPostingBardana(false);
     }
@@ -248,7 +249,7 @@ export function TransferOrderLineDetailsDialog({
       toast.success("Bardana deleted successfully");
       fetchExistingBardanas();
     } catch (error: any) {
-      toast.error(error.message || "Failed to delete bardana");
+      toastError(error, "Failed to delete bardana");
     } finally {
       setIsDeletingBardana(null);
     }

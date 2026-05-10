@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { toast } from "sonner";
+import { toastError } from "@/lib/errors";
 import { useAuth } from "@/lib/contexts/auth-context";
 import { getAllLOCsFromUserSetup } from "@/lib/api/services/dimension.service";
 import {
@@ -119,7 +120,7 @@ export function useInventorySummary() {
         setFilters((prev) => ({ ...prev, locationCodes: allCodes }));
       } catch (error) {
         console.error("Error loading locations:", error);
-        toast.error("Failed to load location options");
+        toastError(error, "Failed to load location options");
       } finally {
         setIsLoadingLocations(false);
       }
@@ -170,7 +171,7 @@ export function useInventorySummary() {
       } catch (error) {
         console.error("Error loading items:", error);
         if (!isLoadMore) {
-          toast.error("Failed to load item options");
+          toastError(error, "Failed to load item options");
           setItemOptions([]);
         }
       } finally {
@@ -283,7 +284,7 @@ export function useInventorySummary() {
       setLoadingPhase("done");
     } catch (error) {
       console.error("Error fetching summary data:", error);
-      toast.error("Failed to load inventory summary. Please try again.");
+      toastError(error, "Failed to load inventory summary. Please try again.");
       setAllRows([]);
       setLoadingPhase("error");
     }
@@ -517,14 +518,14 @@ export function useInventorySummary() {
       !filters.postingDateFrom ||
       !filters.postingDateTo
     ) {
-      toast.error(
+      toastError(new Error(
         "Please select at least one location and fill in date fields",
-      );
+      ));
       return;
     }
 
     if (filters.postingDateFrom > filters.postingDateTo) {
-      toast.error("'Date From' cannot be after 'Date To'");
+      toastError(new Error("'Date From' cannot be after 'Date To'"));
       return;
     }
 
@@ -564,7 +565,7 @@ export function useInventorySummary() {
 
   const handleExport = useCallback(() => {
     if (allRows.length === 0) {
-      toast.error("No summary data to export.");
+      toastError(new Error("No summary data to export."));
       return;
     }
 

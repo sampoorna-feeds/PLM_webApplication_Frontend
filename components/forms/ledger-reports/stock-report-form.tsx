@@ -11,6 +11,7 @@ import { LocationSelect } from "@/components/forms/shared/location-select";
 import { Loader2, FileDown } from "lucide-react";
 import { useAuth } from "@/lib/contexts/auth-context";
 import { toast } from "sonner";
+import { toastError } from "@/lib/errors";
 import { getAllLOCsFromUserSetup } from "@/lib/api/services/dimension.service";
 
 export function StockReportForm() {
@@ -30,7 +31,7 @@ export function StockReportForm() {
 
   const handleFetchReport = async () => {
     if (!startingDate || !endingDate || !loc) {
-      toast.error("Please fill in both dates and select a location");
+      toastError(new Error("Please fill in both dates and select a location"));
       return;
     }
 
@@ -38,7 +39,7 @@ export function StockReportForm() {
     try {
       const base64 = await getStockReport({ startingDate, endingDate, itemNo, loc, userID: userID?.toString() || "" });
       if (!base64) {
-        toast.error("No data received for the selected parameters");
+        toastError(new Error("No data received for the selected parameters"));
         return;
       }
 
@@ -63,7 +64,7 @@ export function StockReportForm() {
       URL.revokeObjectURL(url);
     } catch (error: any) {
       console.error("Error fetching stock report:", error);
-      toast.error(error.message || "Failed to fetch stock report");
+      toastError(error, "Failed to fetch stock report");
     } finally {
       setIsLoading(false);
     }

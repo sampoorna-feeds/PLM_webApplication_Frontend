@@ -5,6 +5,7 @@ import { Loader2, Package, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatDate } from "@/lib/utils/date";
 import { toast } from "sonner";
+import { toastError } from "@/lib/errors";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { CalculatorInput } from "@/components/ui/calculator-input";
@@ -210,7 +211,7 @@ export function TransferOrderLineDialog({
 
   const handleSubmit = async () => {
     if (!formData.Item_No || !formData.Quantity) {
-      toast.error("Item No and Quantity are required");
+      toastError(new Error("Item No and Quantity are required"));
       return;
     }
 
@@ -235,7 +236,7 @@ export function TransferOrderLineDialog({
       onOpenChange(false);
     } catch (error: any) {
       console.error("Error saving line:", error);
-      toast.error(error.message || "Failed to save line");
+      toastError(error, "Failed to save line");
     } finally {
       setIsSubmitting(false);
     }

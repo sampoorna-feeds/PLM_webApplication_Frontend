@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { toast } from "sonner";
+import { toastError } from "@/lib/errors";
 import {
   getVendorLedgerEntries,
   getVendorBalance,
@@ -123,7 +124,7 @@ export function useVendorLedger(options: UseVendorLedgerOptions = {}) {
       setTotalCount(entriesRes["@odata.count"] || entriesRes.value.length);
     } catch (error) {
       console.error("Error fetching vendor ledger entries:", error);
-      toast.error("Failed to load vendor ledger entries.");
+      toastError(error, "Failed to load vendor ledger entries.");
       if (!isAppending) {
         setEntries([]);
         setTotalCount(0);

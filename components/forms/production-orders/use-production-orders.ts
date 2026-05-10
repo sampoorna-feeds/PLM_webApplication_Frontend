@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { toast } from "sonner";
+import { toastError } from "@/lib/errors";
 import { useAuth } from "@/lib/contexts/auth-context";
 import {
   getLOBsFromUserSetup,
@@ -111,7 +112,7 @@ export function useProductionOrders() {
         }
       } catch (error) {
         console.error("Error fetching user setup:", error);
-        toast.error("Failed to load user settings");
+        toastError(error, "Failed to load user settings");
         setLobCodes([]);
         setUserBranchCodes([]);
         setBranchOptions([]);
@@ -235,7 +236,7 @@ export function useProductionOrders() {
       }
     } catch (error) {
       console.error("Error fetching production orders:", error);
-      toast.error("Failed to load production orders. Please try again.");
+      toastError(error, "Failed to load production orders. Please try again.");
       setOrders([]);
       setTotalCount(0);
     } finally {

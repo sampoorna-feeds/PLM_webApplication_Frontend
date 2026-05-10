@@ -48,6 +48,7 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
+import { toastError } from "@/lib/errors";
 import { SourceLookupModal } from "./source-lookup-modal";
 import { LineEntryModal } from "./line-entry-modal";
 import { CascadingDimensionSelect } from "@/components/forms/cascading-dimension-select";
@@ -139,7 +140,7 @@ export function InwardGateEntryForm({
       setLines(data);
     } catch (error) {
       console.error("Error fetching lines:", error);
-      toast.error("Failed to fetch line items");
+      toastError(error, "Failed to fetch line items");
     } finally {
       setIsLoadingLines(false);
     }
@@ -310,7 +311,7 @@ export function InwardGateEntryForm({
       markAsSaved();
     } catch (error: any) {
       console.error("Error saving gate entry:", error);
-      toast.error(error.message || "Failed to save");
+      toastError(error, "Failed to save");
     } finally {
       setIsSaving(false);
     }
@@ -318,7 +319,7 @@ export function InwardGateEntryForm({
 
   const handlePostClick = () => {
     if (!entry.No) {
-      toast.error("Please save the entry first");
+      toastError(new Error("Please save the entry first"));
       return;
     }
     setPostDetails({
@@ -361,7 +362,7 @@ export function InwardGateEntryForm({
       closeTab();
     } catch (error: any) {
       console.error("Error posting gate entry:", error);
-      toast.error(error.message || "Failed to post gate entry");
+      toastError(error, "Failed to post gate entry");
     } finally {
       setIsPosting(false);
     }
@@ -385,7 +386,7 @@ export function InwardGateEntryForm({
       onRefetch?.();
     } catch (error: any) {
       console.error("Error saving gate entry details:", error);
-      toast.error(error.message || "Failed to save details");
+      toastError(error, "Failed to save details");
     } finally {
       setIsPosting(false);
     }
@@ -413,7 +414,7 @@ export function InwardGateEntryForm({
 
   const handleSaveLineFromModal = async (lineData: Partial<InwardGateEntryLine>) => {
     if (!entry.No) {
-      toast.error("Please save the header first");
+      toastError(new Error("Please save the header first"));
       throw new Error("Header not saved");
     }
 
@@ -432,7 +433,7 @@ export function InwardGateEntryForm({
       fetchLines();
     } catch (error: any) {
       console.error("Error saving line:", error);
-      toast.error(error.message || "Failed to save line");
+      toastError(error, "Failed to save line");
       throw error;
     }
   };
@@ -455,7 +456,7 @@ export function InwardGateEntryForm({
       fetchLines();
     } catch (error: any) {
       console.error("Error deleting line:", error);
-      toast.error("Failed to delete line");
+      toastError(error, "Failed to delete line");
     }
   };
 

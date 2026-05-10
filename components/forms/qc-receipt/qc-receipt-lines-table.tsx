@@ -6,7 +6,7 @@ import type { QCReceiptLine } from "@/lib/api/services/qc-receipt.service";
 import { Loader2 } from "lucide-react";
 import { useState, useRef } from "react";
 import { useQCReceiptLineUpdate } from "./use-qc-receipts";
-import { toast } from "sonner";
+import { toastError } from "@/lib/errors";
 
 interface QCReceiptLinesTableProps {
   lines: QCReceiptLine[];
@@ -32,7 +32,7 @@ export function QCReceiptLinesTable({
     
     // Validation: prevent negative values for Actual_Value
     if (field === "Actual_Value" && typeof value === "number" && value < 0) {
-      toast.error("Negative values are not allowed for Actual Value");
+      toastError(new Error("Negative values are not allowed for Actual Value"));
       return;
     }
 
@@ -78,7 +78,7 @@ export function QCReceiptLinesTable({
       
       // Validation check before moving down
       if (field === "Actual_Value" && !isNaN(numValue) && numValue < 0) {
-        toast.error("Negative values are not allowed");
+        toastError(new Error("Negative values are not allowed"));
         return;
       }
 

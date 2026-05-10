@@ -9,6 +9,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { Loader2, Calendar, Pencil, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
+import { toastError } from "@/lib/errors";
 import {
   Dialog,
   DialogContent,
@@ -203,17 +204,17 @@ export function PurchaseItemTrackingDialog({
 
     const quantityValue = parseFloat(quantity) || 0;
     if (!lotNo.trim()) {
-      toast.error("Lot No. is required");
+      toastError(new Error("Lot No. is required"));
       return;
     }
     if (!quantityValue || quantityValue <= 0) {
-      toast.error("Quantity must be greater than 0");
+      toastError(new Error("Quantity must be greater than 0"));
       return;
     }
     if (quantityValue > availableForAssignment) {
-      toast.error(
+      toastError(new Error(
         `Quantity exceeds available amount. Available: ${availableForAssignment} (Remaining: ${remainingQuantity}, Already Assigned: ${assignedQuantity})`,
-      );
+      ));
       return;
     }
 

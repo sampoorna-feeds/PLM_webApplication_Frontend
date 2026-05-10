@@ -3,7 +3,7 @@
  * Fetches purchase orders from ERP OData V4 API
  */
 
-import { apiGet, apiPost, apiPatch, apiDelete } from "../client";
+import { apiGet, apiPost, apiPatch, apiDelete, apiRequest } from "../client";
 import { buildODataQuery } from "../endpoints";
 import type { ODataResponse } from "../types";
 import { stripNullish } from "./purchase-header-payload";
@@ -116,6 +116,43 @@ export interface SearchPurchaseOrdersParams extends GetPurchaseOrdersParams {
 export interface PaginatedPurchaseOrdersResponse {
   orders: PurchaseOrder[];
   totalCount: number;
+}
+
+export interface PurchaseTotals {
+  "Gross Amount": number;
+  IGST: number;
+  CGST: number;
+  SGST: number;
+  TDS: number;
+  "Total Amt": number;
+}
+
+/**
+ * Get purchase document totals breakdown (Gross, Tax, Total)
+ */
+export async function getPurchaseTotal(docNo: string): Promise<PurchaseTotals | null> {
+  const endpoint = `/API_Purchasetotal?company='${encodeURIComponent(COMPANY)}'`;
+  try {
+    const response = await apiRequest<{ value: string } | string>(endpoint, {
+      method: "POST",
+      body: JSON.stringify({ docNo }),
+    });
+    
+    let base64 = "";
+    if (typeof response === "string") {
+      base64 = response;
+    } else if (response && response.value) {
+      base64 = response.value;
+    }
+    
+    if (!base64) return null;
+    
+    const decoded = atob(base64);
+    return JSON.parse(decoded) as PurchaseTotals;
+  } catch (error) {
+    console.error("Failed to fetch purchase totals:", error);
+    return null;
+  }
 }
 
 /**

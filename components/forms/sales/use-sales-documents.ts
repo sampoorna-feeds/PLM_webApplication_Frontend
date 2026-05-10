@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { toast } from "sonner";
+import { toastError } from "@/lib/errors";
 import { useAuth } from "@/lib/contexts/auth-context";
 import { getAllBranchesFromUserSetup } from "@/lib/api/services/dimension.service";
 import {
@@ -136,7 +137,7 @@ export function useSalesDocuments(options: UseSalesDocumentsOptions) {
         }
       } catch (error) {
         console.error("Error fetching user branches:", error);
-        toast.error("Failed to load user settings. Using defaults.");
+        toastError(error, "Failed to load user settings. Using defaults.");
         setUserBranchCodes([]);
       }
     };
@@ -202,7 +203,7 @@ export function useSalesDocuments(options: UseSalesDocumentsOptions) {
       setHasMore(currentPage * pageSize < result.totalCount);
     } catch (error) {
       console.error("Error fetching sales documents:", error);
-      toast.error("Failed to load sales documents. Please try again.");
+      toastError(error, "Failed to load sales documents. Please try again.");
       setOrders([]);
       setTotalCount(0);
     } finally {

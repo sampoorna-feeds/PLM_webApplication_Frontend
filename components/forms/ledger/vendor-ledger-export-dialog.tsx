@@ -15,6 +15,7 @@ import {
 } from "@/lib/api/services/vendor-ledger.service";
 import { exportToExcel } from "@/lib/utils/export";
 import { toast } from "sonner";
+import { toastError } from "@/lib/errors";
 import { ALL_COLUMNS } from "@/components/forms/ledger/vendor-ledger-column-config";
 import { cn } from "@/lib/utils";
 
@@ -71,7 +72,7 @@ export function VendorLedgerExportDialog({
     const effectiveTotal = isVisibleOnly ? currentEntries.length : totalRecords;
     
     if (effectiveTotal === 0) {
-      toast.error("No records found to export.");
+      toastError(new Error("No records found to export."));
       onOpenChange(false);
       return;
     }
@@ -127,7 +128,7 @@ export function VendorLedgerExportDialog({
       onOpenChange(false);
     } catch (error) {
       console.error("Export failed:", error);
-      toast.error("Failed to export records. Please try again.");
+      toastError(error, "Failed to export records. Please try again.");
       onOpenChange(false);
     }
   };

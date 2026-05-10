@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { toast } from "sonner";
+import { toastError } from "@/lib/errors";
 import { useAuth } from "@/lib/contexts/auth-context";
 import { getAllBranchesFromUserSetup } from "@/lib/api/services/dimension.service";
 import {
@@ -191,8 +192,8 @@ export function useSalesPostedDocuments(documentType: SalesPostedDocumentType) {
 
       setOrders(result.orders as unknown as Record<string, unknown>[]);
       setTotalCount(result.totalCount);
-    } catch {
-      toast.error("Failed to load documents. Please try again.");
+    } catch (error) {
+      toastError(error, "Failed to load documents. Please try again.");
       setOrders([]);
       setTotalCount(0);
     } finally {

@@ -30,6 +30,7 @@ import {
   Save,
 } from "lucide-react";
 import { toast } from "sonner";
+import { toastError } from "@/lib/errors";
 import { cn } from "@/lib/utils";
 
 interface ApplyVendorEntriesDialogProps {
@@ -186,6 +187,7 @@ export function ApplyVendorEntriesDialog({
         setTotalCount(data.count);
       } catch (error) {
         console.error("Failed to fetch entries", error);
+        toastError(error, "Failed to fetch entries");
       } finally {
         setIsLoading(false);
       }
@@ -218,6 +220,7 @@ export function ApplyVendorEntriesDialog({
         setTotalCount(data.count);
       } catch (error) {
         console.error("Failed to load more", error);
+        toastError(error, "Failed to load more entries");
       } finally {
         setIsLoadingMore(false);
       }
@@ -342,7 +345,7 @@ export function ApplyVendorEntriesDialog({
       onSuccess();
     } catch (error) {
       console.error(error);
-      toast.error("Failed to apply some entries.");
+      toastError(error, "Failed to apply some entries.");
     } finally {
       setIsApplying(false);
       // Clean up map over multiple opens

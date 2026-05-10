@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { toast } from "sonner";
+import { toastError } from "@/lib/errors";
 import { useAuth } from "@/lib/contexts/auth-context";
 import { getAllBranchesFromUserSetup, getLOBsFromUserSetup } from "@/lib/api/services/dimension.service";
 import {
@@ -93,7 +94,7 @@ export function useTransferOrders(options: UseTransferOrdersOptions = {}) {
         setIsSetupLoaded(true);
       } catch (error) {
         console.error("Error fetching user setup:", error);
-        toast.error("Failed to load user settings. Using defaults.");
+        toastError(error, "Failed to load user settings. Using defaults.");
         setUserLobCodes([]);
         setUserBranchCodes([]);
         setIsSetupLoaded(true); // Still set to true to allow fallback fetching if needed, or we could keep it false
@@ -163,7 +164,7 @@ export function useTransferOrders(options: UseTransferOrdersOptions = {}) {
       setHasMore(currentPage * pageSize < result.totalCount);
     } catch (error) {
       console.warn("Error fetching transfer orders:", error);
-      toast.error("Failed to load transfer orders. Please try again.");
+      toastError(error, "Failed to load transfer orders. Please try again.");
       setOrders([]);
       setTotalCount(0);
     } finally {

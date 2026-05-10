@@ -7,6 +7,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
+import { toastError } from "@/lib/errors";
 import {
   getProductionOrderByNo,
   getProductionOrderLines,
@@ -158,7 +159,7 @@ export function useProductionOrderData(
         setHasLoadedComponents(true);
       } catch (error) {
         console.error("Error loading components:", error);
-        toast.error("Failed to load components");
+        toastError(error, "Failed to load components");
       } finally {
         setIsLoadingComponents(false);
       }
@@ -188,9 +189,7 @@ export function useProductionOrderData(
       }
     } catch (error) {
       console.error("Error refreshing order data:", error);
-      toast.error(
-        error instanceof Error ? error.message : "Failed to refresh order",
-      );
+      toastError(error, "Failed to refresh order");
     }
   }, [orderNo, hasLoadedComponents, loadComponents]);
 

@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useCallback } from "react";
 import { ErrorDialog } from "@/components/ui/error-dialog";
+import { cleanApiErrorMessage } from "@/lib/errors";
 
 interface ErrorContextType {
   showError: (message: string, title?: string) => void;
@@ -16,7 +17,7 @@ export function ErrorProvider({ children }: { children: React.ReactNode }) {
   const [message, setMessage] = useState("");
 
   const showError = useCallback((msg: string, t: string = "Error") => {
-    setMessage(msg);
+    setMessage(cleanApiErrorMessage(msg));
     setTitle(t);
     setOpen(true);
   }, []);

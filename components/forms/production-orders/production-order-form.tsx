@@ -7,6 +7,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { toast } from "sonner";
+import { toastError } from "@/lib/errors";
 import {
   Loader2,
   Pencil,
@@ -767,7 +768,7 @@ export function ProductionOrderForm({
       setOrderLines(lines);
     } catch (error) {
       console.error("Error refreshing order lines:", error);
-      toast.error("Failed to refresh order lines");
+      toastError(error, "Failed to refresh order lines");
     } finally {
       setIsRefreshingLines(false);
     }

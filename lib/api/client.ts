@@ -1,3 +1,4 @@
+import { cleanApiErrorMessage } from "../errors";
 /**
  * Base API client for ERP OData V4 API
  * Makes direct calls to ERP API from client
@@ -129,25 +130,9 @@ export async function apiRequest<T>(
         console.error("Error parsing error response:", parseError);
       }
 
-/**
- * Cleans technical noise from error messages (CorrelationId, OData prefixes, etc.)
- */
-function cleanErrorMessage(message: string): string {
-  if (!message) return "";
-  
-  let cleaned = message;
-  
-  // Remove CorrelationId and anything after it
-  cleaned = cleaned.replace(/CorrelationId:.*$/i, "");
-  
-  // Remove trailing dots and whitespace that might remain
-  cleaned = cleaned.trim().replace(/\.+$/, "");
-  
-  return cleaned || message;
-}
 
       const error: ApiError = {
-        message: cleanErrorMessage(errorMessage),
+        message: cleanApiErrorMessage(errorMessage),
         status: response.status,
         code: errorCode,
       };

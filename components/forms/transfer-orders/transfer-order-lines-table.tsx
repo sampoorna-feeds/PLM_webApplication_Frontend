@@ -16,6 +16,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
+import { toastError } from "@/lib/errors";
 
 interface TransferOrderLinesTableProps {
   lines: TransferLine[];
@@ -94,6 +95,7 @@ export function TransferOrderLinesTable({
         await onUpdateLine(line, { [editingCell.field]: Number(editValue) });
       } catch (err) {
         console.error("Autosave failed:", err);
+        toastError(err, "Failed to autosave changes");
       } finally {
         setIsUpdating(false);
       }

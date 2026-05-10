@@ -33,6 +33,7 @@ import { Loader2, Package, Printer, Undo2, ClipboardCheck, Zap } from "lucide-re
 
 
 import { toast } from "sonner";
+import { toastError } from "@/lib/errors";
 import { undoReceipt, undoReturnShipment } from "@/lib/api/services/undo-actions.service";
 import { 
   Tooltip,
@@ -240,7 +241,7 @@ export function PostedDocumentDetailForm({
   const handlePrint = async () => {
     const apiDocType = getApiDocType();
     if (!apiDocType) {
-      toast.error("Print functionality is not available for this document type.");
+      toastError(new Error("Print functionality is not available for this document type."));
       return;
     }
 
@@ -251,14 +252,14 @@ export function PostedDocumentDetailForm({
     try {
       const base64 = await getPostedReportPdf(apiDocType, docNo);
       if (!base64) {
-        toast.error("No report data received from server.");
+        toastError(new Error("No report data received from server."));
         return;
       }
       viewPdfFromBase64(base64, `${apiDocType}_${docNo}`);
       toast.success("Report generated successfully.");
     } catch (error: any) {
       console.error("Print error:", error);
-      toast.error(error.message || "Failed to generate report.");
+      toastError(error, "Failed to generate report.");
     } finally {
       setIsPrinting(false);
     }
@@ -293,7 +294,7 @@ export function PostedDocumentDetailForm({
           setLines(data.value || []);
         } catch (error: any) {
           console.error("Undo error:", error);
-          toast.error(error.message || "Failed to undo line item.");
+          toastError(error, "Failed to undo line item.");
         } finally {
           setUndoingLine(null);
         }

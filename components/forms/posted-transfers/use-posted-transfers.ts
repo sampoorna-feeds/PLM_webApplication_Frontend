@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { toast } from "sonner";
+import { toastError } from "@/lib/errors";
 import { 
   getPostedTransferShipments, 
   getTransferReceipts,
@@ -96,7 +97,7 @@ export function usePostedTransfers({ type, initialFilters }: UsePostedTransfersO
       setTotalCount(result.totalCount);
     } catch (error) {
       console.error(`Error fetching posted transfer ${type}s:`, error);
-      toast.error(`Failed to load posted ${type}s.`);
+      toastError(error, `Failed to load posted ${type}s.`);
       setData([]);
       setTotalCount(0);
     } finally {

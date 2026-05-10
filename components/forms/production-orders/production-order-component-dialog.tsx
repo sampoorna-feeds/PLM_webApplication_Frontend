@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { toastError } from "@/lib/errors";
 import {
   Dialog,
   DialogContent,
@@ -106,7 +107,7 @@ export function ProductionOrderComponentDialog({
 
   const handleFetchSubstitutes = async () => {
     if (!component) {
-      toast.error("Component data is required to check substitutes.");
+      toastError(new Error("Component data is required to check substitutes."));
       return;
     }
 
@@ -176,22 +177,22 @@ export function ProductionOrderComponentDialog({
 
     // Validation
     if (!itemNo.trim()) {
-      toast.error("Item No. is required");
+      toastError(new Error("Item No. is required"));
       return;
     }
 
     if (quantityPerValue < 0) {
-      toast.error("Quantity Per cannot be negative");
+      toastError(new Error("Quantity Per cannot be negative"));
       return;
     }
 
     if (description.length > 100) {
-      toast.error("Description must be 100 characters or less");
+      toastError(new Error("Description must be 100 characters or less"));
       return;
     }
 
     if (!locationCode.trim()) {
-      toast.error("Location Code is required");
+      toastError(new Error("Location Code is required"));
       return;
     }
 

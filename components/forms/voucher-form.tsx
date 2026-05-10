@@ -44,6 +44,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { ErrorDialog, type ErrorDetail } from "@/components/ui/error-dialog";
+import { cleanApiErrorMessage } from "@/lib/errors";
 import {
   Tooltip,
   TooltipContent,
@@ -1485,7 +1486,7 @@ export function VoucherForm() {
 
     if (error && typeof error === "object" && "message" in error) {
       const apiError = error as ApiError;
-      errorMessage = apiError.message || "Unknown error";
+      errorMessage = cleanApiErrorMessage(apiError.message || "Unknown error");
 
       return {
         entryLabel,
@@ -1496,13 +1497,13 @@ export function VoucherForm() {
       };
     }
     if (error instanceof Error) {
-      errorMessage = error.message;
+      errorMessage = cleanApiErrorMessage(error.message);
       return {
         entryLabel,
         message: errorMessage,
       };
     }
-    errorMessage = String(error) || "Unknown error";
+    errorMessage = cleanApiErrorMessage(String(error) || "Unknown error");
     return {
       entryLabel,
       message: errorMessage,

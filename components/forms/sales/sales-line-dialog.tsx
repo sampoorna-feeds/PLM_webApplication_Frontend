@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { toastError } from "@/lib/errors";
 import {
   Dialog,
   DialogContent,
@@ -67,11 +68,11 @@ export function SalesLineDialog({
     const shipVal = parseFloat(qtyToShip) || 0;
     const invoiceVal = parseFloat(qtyToInvoice) || 0;
     if (shipVal < 0) {
-      toast.error("Qty to ship cannot be negative");
+      toastError(new Error("Qty to ship cannot be negative"));
       return;
     }
     if (invoiceVal < 0) {
-      toast.error("Qty to invoice cannot be negative");
+      toastError(new Error("Qty to invoice cannot be negative"));
       return;
     }
 

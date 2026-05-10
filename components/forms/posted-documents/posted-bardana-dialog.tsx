@@ -23,7 +23,6 @@ import {
 import {
   addPostedBardanaLine,
   deleteBardanaLine,
-  generateQCForm,
   getPostedBardanaLines,
   updateBardanaLine,
   type BardanaLine,
@@ -66,13 +65,13 @@ export function PostedBardanaDialog({
 }: PostedBardanaDialogProps) {
   const [lines, setLines] = useState<BardanaLine[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isGenerating, setIsGenerating] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editValues, setEditValues] = useState<Partial<BardanaLine>>({});
   const [isSaving, setIsSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
 
   // Add Item State
+
   const [isAdding, setIsAdding] = useState(false);
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
   const [newQuantity, setNewQuantity] = useState<string>("");
@@ -94,24 +93,10 @@ export function PostedBardanaDialog({
 
   useEffect(() => {
     if (isOpen) {
-      const init = async () => {
-        setIsGenerating(true);
-        try {
-          // Call Generate QC Form API as requested
-          await generateQCForm(postedDocNo, lineNo);
-          await fetchLines();
-        } catch (error: any) {
-          console.error("Error initializing bardana:", error);
-          toast.error(error.message || "Failed to initialize bardana items.");
-          // Still try to fetch lines even if generation fails (they might already exist)
-          await fetchLines();
-        } finally {
-          setIsGenerating(false);
-        }
-      };
-      init();
+      fetchLines();
     }
-  }, [isOpen, postedDocNo, lineNo, fetchLines]);
+  }, [isOpen, fetchLines]);
+
 
   const handleEdit = (line: BardanaLine) => {
     setEditingId(line.Line_No);
@@ -241,7 +226,7 @@ export function PostedBardanaDialog({
             </DialogTitle>
             <div className="flex flex-col items-end gap-2">
               <div className="flex items-center gap-2">
-                {!isAdding && !isGenerating && (
+                {!isAdding && (
                   <Button
                     variant="outline"
                     size="sm"
@@ -256,6 +241,7 @@ export function PostedBardanaDialog({
                   {postedDocNo} / Line {lineNo}
                 </Badge>
               </div>
+
               <span className="text-muted-foreground text-[10px] font-medium">
                 {itemNo} - {itemDescription}
               </span>
@@ -264,22 +250,13 @@ export function PostedBardanaDialog({
         </DialogHeader>
 
         <div className="flex-1 overflow-auto py-4">
-          {isGenerating && (
-            <div className="flex flex-col items-center justify-center gap-3 py-12">
-              <Loader2 className="text-primary h-8 w-8 animate-spin" />
-              <p className="text-muted-foreground text-sm font-medium tracking-tight">
-                Generating QC Form & Loading Bardana Items...
-              </p>
-            </div>
-          )}
-
-          {!isGenerating && isLoading && lines.length === 0 && (
+          {isLoading && lines.length === 0 && (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="text-muted-foreground h-6 w-6 animate-spin" />
             </div>
           )}
 
-          {!isGenerating && !isLoading && lines.length === 0 && !isAdding && (
+          {!isLoading && lines.length === 0 && !isAdding && (
             <div className="flex flex-col items-center justify-center py-12 text-center">
               <AlertCircle className="text-muted-foreground mb-3 h-10 w-10 opacity-20" />
               <p className="text-muted-foreground text-sm font-semibold">
@@ -287,6 +264,7 @@ export function PostedBardanaDialog({
               </p>
             </div>
           )}
+
 
           {isAdding && (
             <div className="border-primary/20 bg-primary/5 animate-in fade-in slide-in-from-top-2 mb-4 rounded-md border p-4 shadow-sm duration-200">

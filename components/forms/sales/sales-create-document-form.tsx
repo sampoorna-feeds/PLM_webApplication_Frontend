@@ -164,6 +164,7 @@ import {
   updateSalesLine as updateLine_cm,
 } from "@/lib/api/services/sales-credit-memos.service";
 import { getItemsByNos, getItemStock, preloadItems } from "@/lib/api/services/item.service";
+import { getSalesPersonByCode } from "@/lib/api/services/sales-person.service";
 import {
   getDistance,
   getLocationPostCode,
@@ -588,7 +589,21 @@ export function SalesCreateDocumentFormContent({
       setLines(lineItems);
 
       if (header) {
-        setFormData(mapSalesHeaderToFormData(header));
+        const formState = mapSalesHeaderToFormData(header);
+        // Fetch salesperson name for display below field
+        if (formState.salesPersonCode) {
+          getSalesPersonByCode(formState.salesPersonCode)
+            .then((sp) => {
+              if (sp) {
+                setFormData({ ...formState, salesPersonName: sp.Name });
+              } else {
+                setFormData(formState);
+              }
+            })
+            .catch(() => setFormData(formState));
+        } else {
+          setFormData(formState);
+        }
       }
 
       if (header?.Location_Code && lineItems.length > 0) {
@@ -1148,7 +1163,7 @@ export function SalesCreateDocumentFormContent({
         <AccordionContent
           className={cn(
             "pb-2",
-            areFieldsReadOnly && "pointer-events-none opacity-70",
+            areFieldsReadOnly && "pointer-events-none",
           )}
         >
           <Separator className="mb-3" />
@@ -1437,9 +1452,9 @@ export function SalesCreateDocumentFormContent({
           </AccordionTrigger>
           <AccordionContent
             className={cn(
-              "pb-2",
-              areFieldsReadOnly && "pointer-events-none opacity-70",
-            )}
+            "pb-2",
+            areFieldsReadOnly && "pointer-events-none",
+          )}
           >
             <Separator className="mb-3" />
             <div className="grid grid-cols-2 gap-x-4 gap-y-4 sm:grid-cols-3 lg:grid-cols-6">

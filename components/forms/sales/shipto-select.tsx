@@ -234,6 +234,7 @@ export function ShipToSelect({
         onClick={() => !disabled && customerNo && setIsOpen(true)}
         className={cn(
           "h-9 w-full justify-between text-sm font-normal shadow-sm",
+          "disabled:!text-foreground disabled:bg-muted/50",
           !value && "text-muted-foreground",
           className,
           errorClass,

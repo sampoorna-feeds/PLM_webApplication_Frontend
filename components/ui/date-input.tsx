@@ -213,7 +213,7 @@ export const DateInput = React.forwardRef<HTMLInputElement, DateInputProps>(
         type="button"
         onClick={handleCalendarClick}
         disabled={disabled}
-        className="text-muted-foreground hover:text-foreground absolute top-0 right-0 flex h-full items-center px-3 disabled:opacity-50"
+        className="text-muted-foreground hover:text-foreground absolute top-0 right-0 flex h-full items-center px-3"
         tabIndex={-1}
       >
         <Calendar className="h-4 w-4" />

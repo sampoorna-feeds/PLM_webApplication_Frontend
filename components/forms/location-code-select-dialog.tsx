@@ -248,6 +248,7 @@ export function LocationCodeSelectDialog({
           disabled={triggerDisabled}
           className={cn(
             "h-9 w-full justify-between px-3 text-left font-normal",
+            "disabled:!text-foreground disabled:bg-muted/50",
             !value && "text-muted-foreground",
             hasError && "border-destructive/50 ring-1 ring-destructive/20",
             className,

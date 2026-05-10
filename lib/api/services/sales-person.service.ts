@@ -71,3 +71,21 @@ export async function searchSalesPersons(
   [...byCode, ...byName].forEach((p) => { if (!map.has(p.Code)) map.set(p.Code, p); });
   return Array.from(map.values()).slice(skip, skip + top);
 }
+
+/**
+ * Get a single sales person by their exact Code
+ */
+export async function getSalesPersonByCode(
+  code: string,
+): Promise<SalesPerson | null> {
+  if (!code) return null;
+  const escaped = escapeODataValue(code);
+  const query = buildODataQuery({
+    $select: "Code,Name",
+    $filter: `Code eq '${escaped}'`,
+    $top: 1,
+  });
+  const endpoint = `/SalesPerson?company='${encodeURIComponent(COMPANY)}'&${query}`;
+  const response = await apiGet<ODataResponse<SalesPerson>>(endpoint);
+  return response.value?.[0] ?? null;
+}

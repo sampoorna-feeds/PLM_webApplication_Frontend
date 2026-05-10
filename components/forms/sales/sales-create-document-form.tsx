@@ -500,8 +500,7 @@ export function SalesCreateDocumentFormContent({
               vehicleNumber: (freshHeader.Vehicle_No as string) || "",
               driverPhone: (freshHeader.Driver_Mobile_No as string) || "",
               lrRrNumber: (freshHeader.LR_RR_No as string) || "",
-              lrRrDate:
-                (freshHeader.LR_RR_Date as string)?.split("T")[0] || today,
+              lrRrDate: today,
               postingDate: freshHeader.Posting_Date || today,
               externalDocumentNo: freshHeader.External_Document_No || "",
               lineNarration: (freshHeader.Line_Narration1 as string) || "",
@@ -1357,12 +1356,6 @@ export function SalesCreateDocumentFormContent({
                 <DateInput
                   value={formData.postingDate}
                   onChange={(val) => handleInputChange("postingDate", val)}
-                  min={
-                    webUserProfile?.Allow_Posting_From &&
-                    webUserProfile.Allow_Posting_From !== "0001-01-01"
-                      ? webUserProfile.Allow_Posting_From.split("T")[0]
-                      : undefined
-                  }
                   max={
                     webUserProfile?.Allow_Posting_To &&
                     webUserProfile.Allow_Posting_To !== "0001-01-01"
@@ -2325,11 +2318,11 @@ export function SalesCreateDocumentFormContent({
       {/* Post details dialog (transporter, etc.) */}
       {caps.supportsPost && (
         <Dialog open={isPostDetailsOpen} onOpenChange={setIsPostDetailsOpen}>
-          <DialogContent className="sm:max-w-150">
+          <DialogContent className="sm:max-w-90">
             <DialogHeader>
               <DialogTitle>Post Details</DialogTitle>
             </DialogHeader>
-            <div className="relative grid gap-4 py-2 sm:grid-cols-2">
+            <div className="relative grid gap-3 py-2 grid-cols-2">
               {isPostLoading && (
                 <div className="bg-background/50 absolute inset-0 z-50 flex items-center justify-center backdrop-blur-[1px]">
                   <Loader2 className="text-primary h-6 w-6 animate-spin" />

@@ -101,10 +101,14 @@ export function PostedBardanaDialog({
   const handleEdit = (line: BardanaLine) => {
     setEditingId(line.Line_No);
     setEditValues({
+      Item_No: line.Item_No,
+      Description: line.Description,
+      UOM: line.UOM,
       Weight_Per: line.Weight_Per,
       Quantity: line.Quantity,
     });
   };
+
 
   const handleCancelEdit = () => {
     setEditingId(null);
@@ -120,9 +124,13 @@ export function PostedBardanaDialog({
       const quantity = Number(editValues.Quantity) || 0;
 
       const updateData = {
+        Item_No: editValues.Item_No,
+        Description: editValues.Description,
+        UOM: editValues.UOM,
         Weight_Per: weightPer,
         Quantity: quantity,
       };
+
 
       await updateBardanaLine(line, line["@odata.etag"] || "*", updateData);
       toast.success("Bardana item updated.");
@@ -188,10 +196,12 @@ export function PostedBardanaDialog({
         lineNo,
         postedDocNo,
         selectedItem.No,
+        selectedItem.Description,
         uom,
         qty,
         weight,
       );
+
 
       toast.success("Bardana item added successfully.");
       setIsAdding(false);
@@ -383,14 +393,56 @@ export function PostedBardanaDialog({
                       className="hover:bg-muted/30 transition-colors"
                     >
                       <TableCell className="truncate py-2 font-mono text-xs">
-                        {line.Item_No}
+                        {editingId === line.Line_No ? (
+                          <div className="w-[140px]">
+                            <SearchableSelect<Item>
+                              value={editValues.Item_No || ""}
+                              onChange={(itemNo, item) => {
+                                if (item) {
+                                  setEditValues({
+                                    ...editValues,
+                                    Item_No: item.No,
+                                    Description: item.Description,
+                                    UOM: item.Sales_Unit_of_Measure || item.Base_Unit_of_Measure || "PCS"
+                                  });
+                                }
+                              }}
+                              placeholder="Item…"
+                              loadInitial={() => getBardanaItems(20)}
+                              searchItems={searchBardanaItems}
+                              loadMore={(skip, search) => getBardanaItemsPage(skip, search, 20)}
+                              getDisplayValue={(item) => item.No}
+                              getItemValue={(item) => item.No}
+                              className="h-7 text-[10px]"
+                            />
+                          </div>
+                        ) : (
+                          line.Item_No
+                        )}
                       </TableCell>
                       <TableCell className="py-2 text-xs font-medium">
-                        {line.Description}
+                        {editingId === line.Line_No ? (
+                          <Input
+                            className="h-7 text-xs"
+                            value={editValues.Description || ""}
+                            onChange={(e) => setEditValues({ ...editValues, Description: e.target.value })}
+                          />
+                        ) : (
+                          line.Description
+                        )}
                       </TableCell>
                       <TableCell className="py-2 text-[10px]">
-                        {line.UOM}
+                        {editingId === line.Line_No ? (
+                          <Input
+                            className="h-7 w-12 text-[10px]"
+                            value={editValues.UOM || ""}
+                            onChange={(e) => setEditValues({ ...editValues, UOM: e.target.value })}
+                          />
+                        ) : (
+                          line.UOM
+                        )}
                       </TableCell>
+
                       <TableCell className="py-2 text-right">
                         {editingId === line.Line_No ? (
                           <Input

@@ -107,6 +107,7 @@ export async function addPostedBardanaLine(
   documentLineNo: number,
   postedDocNo: string,
   itemNo: string,
+  description: string,
   uom: string,
   quantity: number,
   weightPer: number,
@@ -119,6 +120,7 @@ export async function addPostedBardanaLine(
       Document_Line_No: documentLineNo,
       Posted_Document_No: postedDocNo.toUpperCase(),
       Item_No: itemNo.toUpperCase(),
+      Description: description,
       UOM: uom.toUpperCase(),
       Quantity: quantity,
       Weight_Per: weightPer,
@@ -129,4 +131,5 @@ export async function addPostedBardanaLine(
     throw error;
   }
 }
+
 

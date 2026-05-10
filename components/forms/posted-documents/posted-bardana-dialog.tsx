@@ -127,9 +127,9 @@ export function PostedBardanaDialog({
         Item_No: editValues.Item_No,
         Description: editValues.Description,
         UOM: editValues.UOM,
-        Weight_Per: weightPer,
         Quantity: quantity,
       };
+
 
 
       await updateBardanaLine(line, line["@odata.etag"] || "*", updateData);
@@ -444,23 +444,10 @@ export function PostedBardanaDialog({
                       </TableCell>
 
                       <TableCell className="py-2 text-right">
-                        {editingId === line.Line_No ? (
-                          <Input
-                            type="number"
-                            className="h-7 w-full text-right text-xs"
-                            value={editValues.Weight_Per || ""}
-                            onChange={(e) =>
-                              setEditValues({
-                                ...editValues,
-                                Weight_Per: Number(e.target.value),
-                              })
-                            }
-                          />
-                        ) : (
-                          <span className="font-mono text-xs">
-                            {line.Weight_Per}
-                          </span>
-                        )}
+                        <span className="font-mono text-xs opacity-50">
+                          {editingId === line.Line_No ? editValues.Weight_Per : line.Weight_Per}
+                        </span>
+
                       </TableCell>
                       <TableCell className="py-2 text-right">
                         {editingId === line.Line_No ? (

@@ -97,3 +97,36 @@ export async function updateBardanaLine(
     throw error;
   }
 }
+
+/**
+ * Add a bardana line for a posted document.
+ */
+export async function addPostedBardanaLine(
+  documentType: string,
+  documentNo: string,
+  documentLineNo: number,
+  postedDocNo: string,
+  itemNo: string,
+  uom: string,
+  quantity: number,
+  weightPer: number,
+): Promise<any> {
+  const endpoint = `/QCPurchaseBardanaList?company='${encodeURIComponent(COMPANY)}'`;
+  try {
+    const response = await apiPost<any>(endpoint, {
+      Document_Type: documentType,
+      Document_No: documentNo.toUpperCase(),
+      Document_Line_No: documentLineNo,
+      Posted_Document_No: postedDocNo.toUpperCase(),
+      Item_No: itemNo.toUpperCase(),
+      UOM: uom.toUpperCase(),
+      Quantity: quantity,
+      Weight_Per: weightPer,
+    });
+    return response;
+  } catch (error: any) {
+    console.error("Error adding posted bardana line:", error);
+    throw error;
+  }
+}
+

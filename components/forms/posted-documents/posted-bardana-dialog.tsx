@@ -1,15 +1,8 @@
 "use client";
 
-import React, { useEffect, useState, useCallback } from "react";
-import { 
-  Loader2, 
-  Package, 
-  Trash2, 
-  Edit2, 
-  Save, 
-  X,
-  AlertCircle
-} from "lucide-react";
+import { SearchableSelect } from "@/components/forms/shared/searchable-select";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -17,7 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
+import { FieldTitle } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
   Table,
@@ -27,15 +20,32 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import { toast } from "sonner";
-import { 
-  getPostedBardanaLines, 
-  deleteBardanaLine, 
-  updateBardanaLine,
+import {
+  addPostedBardanaLine,
+  deleteBardanaLine,
   generateQCForm,
-  type BardanaLine
+  getPostedBardanaLines,
+  updateBardanaLine,
+  type BardanaLine,
 } from "@/lib/api/services/bardana.service";
+import {
+  getBardanaItems,
+  getBardanaItemsPage,
+  searchBardanaItems,
+  type Item,
+} from "@/lib/api/services/item.service";
+import {
+  AlertCircle,
+  Edit2,
+  Loader2,
+  Package,
+  Plus,
+  Save,
+  Trash2,
+  X,
+} from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { toast } from "sonner";
 
 interface PostedBardanaDialogProps {
   isOpen: boolean;
@@ -61,6 +71,13 @@ export function PostedBardanaDialog({
   const [editValues, setEditValues] = useState<Partial<BardanaLine>>({});
   const [isSaving, setIsSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
+
+  // Add Item State
+  const [isAdding, setIsAdding] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<Item | null>(null);
+  const [newQuantity, setNewQuantity] = useState<string>("");
+  const [newWeightPer, setNewWeightPer] = useState<string>("");
+  const [isAddingSubmit, setIsAddingSubmit] = useState(false);
 
   const fetchLines = useCallback(async () => {
     setIsLoading(true);
@@ -150,20 +167,96 @@ export function PostedBardanaDialog({
     }
   };
 
+  const handleAddItem = async () => {
+    if (!selectedItem) {
+      toast.error("Please select a bardana item.");
+      return;
+    }
+
+    const qty = parseFloat(newQuantity);
+    const weight = parseFloat(newWeightPer);
+
+    if (isNaN(qty) || qty <= 0) {
+      toast.error("Please enter a valid quantity.");
+      return;
+    }
+
+    if (isNaN(weight) || weight < 0) {
+      toast.error("Please enter a valid weight.");
+      return;
+    }
+
+    setIsAddingSubmit(true);
+    try {
+      // If we have lines, use their Document_Type and Document_No
+      // Otherwise fallback to "Order" and postedDocNo (this might need adjustment depending on BC logic)
+      const docType = lines.length > 0 ? lines[0].Document_Type : "Order";
+      const docNo = lines.length > 0 ? lines[0].Document_No : postedDocNo;
+      const uom =
+        selectedItem.Sales_Unit_of_Measure ||
+        selectedItem.Base_Unit_of_Measure ||
+        "PCS";
+
+      await addPostedBardanaLine(
+        docType,
+        docNo,
+        lineNo,
+        postedDocNo,
+        selectedItem.No,
+        uom,
+        qty,
+        weight,
+      );
+
+      toast.success("Bardana item added successfully.");
+      setIsAdding(false);
+      setSelectedItem(null);
+      setNewQuantity("");
+      setNewWeightPer("");
+      await fetchLines();
+    } catch (error: any) {
+      console.error("Error adding bardana:", error);
+      toast.error(error.message || "Failed to add bardana item.");
+    } finally {
+      setIsAddingSubmit(false);
+    }
+  };
+
+  const handleItemSelect = (itemNo: string, item?: Item) => {
+    if (item) {
+      setSelectedItem(item);
+    } else {
+      setSelectedItem(null);
+    }
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-3xl w-[95vw] max-h-[90vh] flex flex-col">
+      <DialogContent className="flex max-h-[90vh] w-[95vw] flex-col sm:max-w-3xl">
         <DialogHeader>
           <div className="flex items-center justify-between pr-6">
             <DialogTitle className="flex items-center gap-2">
-              <Package className="h-5 w-5 text-primary" />
+              <Package className="text-primary h-5 w-5" />
               Bardana Items
             </DialogTitle>
-            <div className="flex flex-col items-end">
-              <Badge variant="outline" className="font-mono text-[10px]">
-                {postedDocNo} / Line {lineNo}
-              </Badge>
-              <span className="text-[10px] text-muted-foreground font-medium">
+            <div className="flex flex-col items-end gap-2">
+              <div className="flex items-center gap-2">
+                {!isAdding && !isGenerating && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 gap-1 text-[10px] font-bold tracking-wider uppercase"
+                    onClick={() => setIsAdding(true)}
+                  >
+                    <Plus className="h-3 w-3" />
+                    Add Item
+                  </Button>
+                )}
+                <Badge variant="outline" className="font-mono text-[10px]">
+                  {postedDocNo} / Line {lineNo}
+                </Badge>
+              </div>
+              <span className="text-muted-foreground text-[10px] font-medium">
                 {itemNo} - {itemDescription}
               </span>
             </div>
@@ -172,9 +265,9 @@ export function PostedBardanaDialog({
 
         <div className="flex-1 overflow-auto py-4">
           {isGenerating && (
-            <div className="flex flex-col items-center justify-center py-12 gap-3">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              <p className="text-sm font-medium text-muted-foreground tracking-tight">
+            <div className="flex flex-col items-center justify-center gap-3 py-12">
+              <Loader2 className="text-primary h-8 w-8 animate-spin" />
+              <p className="text-muted-foreground text-sm font-medium tracking-tight">
                 Generating QC Form & Loading Bardana Items...
               </p>
             </div>
@@ -182,69 +275,195 @@ export function PostedBardanaDialog({
 
           {!isGenerating && isLoading && lines.length === 0 && (
             <div className="flex items-center justify-center py-12">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              <Loader2 className="text-muted-foreground h-6 w-6 animate-spin" />
             </div>
           )}
 
-          {!isGenerating && !isLoading && lines.length === 0 && (
+          {!isGenerating && !isLoading && lines.length === 0 && !isAdding && (
             <div className="flex flex-col items-center justify-center py-12 text-center">
-              <AlertCircle className="h-10 w-10 text-muted-foreground mb-3 opacity-20" />
-              <p className="text-sm font-semibold text-muted-foreground">No bardana items found.</p>
-              <p className="text-xs text-muted-foreground/60">Call Generate QC Form to create them.</p>
+              <AlertCircle className="text-muted-foreground mb-3 h-10 w-10 opacity-20" />
+              <p className="text-muted-foreground text-sm font-semibold">
+                No bardana items found.
+              </p>
+            </div>
+          )}
+
+          {isAdding && (
+            <div className="border-primary/20 bg-primary/5 animate-in fade-in slide-in-from-top-2 mb-4 rounded-md border p-4 shadow-sm duration-200">
+              <div className="mb-3 flex items-center justify-between">
+                <h4 className="text-primary text-[10px] font-bold tracking-wider uppercase">
+                  Add New Bardana Item
+                </h4>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 w-6 p-0"
+                  onClick={() => setIsAdding(false)}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+
+              <div className="grid grid-cols-1 items-end gap-4 md:grid-cols-3">
+                <div className="space-y-1">
+                  <FieldTitle className="text-[10px] uppercase">
+                    Bardana Item
+                  </FieldTitle>
+                  <SearchableSelect<Item>
+                    value={selectedItem?.No || ""}
+                    onChange={handleItemSelect}
+                    placeholder="Search item…"
+                    loadInitial={() => getBardanaItems(20)}
+                    searchItems={searchBardanaItems}
+                    loadMore={(skip, search) =>
+                      getBardanaItemsPage(skip, search, 20)
+                    }
+                    getDisplayValue={(item) =>
+                      `${item.No} - ${item.Description}`
+                    }
+                    getItemValue={(item) => item.No}
+                    className="h-8 text-xs"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <FieldTitle className="text-[10px] uppercase">
+                    Weight (g)
+                  </FieldTitle>
+                  <Input
+                    type="number"
+                    value={newWeightPer}
+                    onChange={(e) => setNewWeightPer(e.target.value)}
+                    placeholder="Weight per item"
+                    className="h-8 text-xs"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <FieldTitle className="text-[10px] uppercase">
+                    Quantity (Bags)
+                  </FieldTitle>
+                  <div className="flex gap-2">
+                    <Input
+                      type="number"
+                      value={newQuantity}
+                      onChange={(e) => setNewQuantity(e.target.value)}
+                      placeholder="No. of bags"
+                      className="h-8 text-xs"
+                    />
+                    <Button
+                      size="sm"
+                      className="h-8 px-4 text-xs font-bold tracking-wider uppercase"
+                      onClick={handleAddItem}
+                      disabled={isAddingSubmit}
+                    >
+                      {isAddingSubmit ? (
+                        <Loader2 className="mr-1.5 h-3 w-3 animate-spin" />
+                      ) : (
+                        <Plus className="mr-1.5 h-3 w-3" />
+                      )}
+                      Add
+                    </Button>
+                  </div>
+                </div>
+              </div>
             </div>
           )}
 
           {lines.length > 0 && (
-            <div className="rounded-md border border-border/60 shadow-sm overflow-hidden bg-card/30">
+            <div className="border-border/60 bg-card/30 overflow-hidden rounded-md border shadow-sm">
               <Table>
                 <TableHeader className="bg-muted/50">
                   <TableRow>
-                    <TableHead className="text-[10px] font-bold uppercase tracking-wider h-9 w-[120px]">Item No</TableHead>
-                    <TableHead className="text-[10px] font-bold uppercase tracking-wider h-9">Description</TableHead>
-                    <TableHead className="text-[10px] font-bold uppercase tracking-wider h-9 w-[60px]">UOM</TableHead>
-                    <TableHead className="text-[10px] font-bold uppercase tracking-wider h-9 text-right w-[100px]">Weight (g)</TableHead>
-                    <TableHead className="text-[10px] font-bold uppercase tracking-wider h-9 text-right w-[100px]">Bags</TableHead>
-                    <TableHead className="text-[10px] font-bold uppercase tracking-wider h-9 text-right w-[120px]">Total (Kg)</TableHead>
-                    <TableHead className="text-[10px] font-bold uppercase tracking-wider h-9 text-center w-[80px]">Actions</TableHead>
+                    <TableHead className="h-9 w-[120px] text-[10px] font-bold tracking-wider uppercase">
+                      Item No
+                    </TableHead>
+                    <TableHead className="h-9 text-[10px] font-bold tracking-wider uppercase">
+                      Description
+                    </TableHead>
+                    <TableHead className="h-9 w-[60px] text-[10px] font-bold tracking-wider uppercase">
+                      UOM
+                    </TableHead>
+                    <TableHead className="h-9 w-[100px] text-right text-[10px] font-bold tracking-wider uppercase">
+                      Weight (g)
+                    </TableHead>
+                    <TableHead className="h-9 w-[100px] text-right text-[10px] font-bold tracking-wider uppercase">
+                      Bags
+                    </TableHead>
+                    <TableHead className="h-9 w-[120px] text-right text-[10px] font-bold tracking-wider uppercase">
+                      Total (Kg)
+                    </TableHead>
+                    <TableHead className="h-9 w-[80px] text-center text-[10px] font-bold tracking-wider uppercase">
+                      Actions
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {lines.map((line) => (
-                    <TableRow key={line.Line_No} className="hover:bg-muted/30 transition-colors">
-                      <TableCell className="text-xs font-mono py-2 truncate">{line.Item_No}</TableCell>
-                      <TableCell className="text-xs py-2 font-medium">{line.Description}</TableCell>
-                      <TableCell className="text-[10px] py-2">{line.UOM}</TableCell>
-                      <TableCell className="text-right py-2">
+                    <TableRow
+                      key={line.Line_No}
+                      className="hover:bg-muted/30 transition-colors"
+                    >
+                      <TableCell className="truncate py-2 font-mono text-xs">
+                        {line.Item_No}
+                      </TableCell>
+                      <TableCell className="py-2 text-xs font-medium">
+                        {line.Description}
+                      </TableCell>
+                      <TableCell className="py-2 text-[10px]">
+                        {line.UOM}
+                      </TableCell>
+                      <TableCell className="py-2 text-right">
                         {editingId === line.Line_No ? (
                           <Input
                             type="number"
-                            className="h-7 text-right text-xs w-full"
+                            className="h-7 w-full text-right text-xs"
                             value={editValues.Weight_Per || ""}
-                            onChange={(e) => setEditValues({ ...editValues, Weight_Per: Number(e.target.value) })}
+                            onChange={(e) =>
+                              setEditValues({
+                                ...editValues,
+                                Weight_Per: Number(e.target.value),
+                              })
+                            }
                           />
                         ) : (
-                          <span className="font-mono text-xs">{line.Weight_Per}</span>
+                          <span className="font-mono text-xs">
+                            {line.Weight_Per}
+                          </span>
                         )}
                       </TableCell>
-                      <TableCell className="text-right py-2">
+                      <TableCell className="py-2 text-right">
                         {editingId === line.Line_No ? (
                           <Input
                             type="number"
-                            className="h-7 text-right text-xs w-full"
+                            className="h-7 w-full text-right text-xs"
                             value={editValues.Quantity || ""}
-                            onChange={(e) => setEditValues({ ...editValues, Quantity: Number(e.target.value) })}
+                            onChange={(e) =>
+                              setEditValues({
+                                ...editValues,
+                                Quantity: Number(e.target.value),
+                              })
+                            }
                           />
                         ) : (
-                          <span className="font-mono text-xs">{line.Quantity}</span>
+                          <span className="font-mono text-xs">
+                            {line.Quantity}
+                          </span>
                         )}
                       </TableCell>
-                      <TableCell className="text-right py-2 font-bold text-xs">
+                      <TableCell className="py-2 text-right text-xs font-bold">
                         {editingId === line.Line_No ? (
-                          <span className="opacity-50 font-mono">
-                            {((Number(editValues.Weight_Per) || 0) * (Number(editValues.Quantity) || 0) / 1000).toFixed(2)}
+                          <span className="font-mono opacity-50">
+                            {(
+                              ((Number(editValues.Weight_Per) || 0) *
+                                (Number(editValues.Quantity) || 0)) /
+                              1000
+                            ).toFixed(2)}
                           </span>
                         ) : (
-                          <span className="font-mono">{Number(line.Total_Weight).toFixed(2)}</span>
+                          <span className="font-mono">
+                            {Number(line.Total_Weight).toFixed(2)}
+                          </span>
                         )}
                       </TableCell>
                       <TableCell className="py-2">
@@ -254,16 +473,20 @@ export function PostedBardanaDialog({
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                className="h-7 w-7 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
+                                className="h-7 w-7 p-0 text-green-600 hover:bg-green-50 hover:text-green-700"
                                 onClick={() => handleSave(line)}
                                 disabled={isSaving}
                               >
-                                {isSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+                                {isSaving ? (
+                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                ) : (
+                                  <Save className="h-3.5 w-3.5" />
+                                )}
                               </Button>
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                className="h-7 w-7 p-0 text-muted-foreground"
+                                className="text-muted-foreground h-7 w-7 p-0"
                                 onClick={handleCancelEdit}
                                 disabled={isSaving}
                               >
@@ -275,7 +498,7 @@ export function PostedBardanaDialog({
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                className="h-7 w-7 p-0 text-muted-foreground hover:text-blue-600 hover:bg-blue-50"
+                                className="text-muted-foreground h-7 w-7 p-0 hover:bg-blue-50 hover:text-blue-600"
                                 onClick={() => handleEdit(line)}
                                 disabled={!!editingId || deletingId !== null}
                               >
@@ -284,11 +507,17 @@ export function PostedBardanaDialog({
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                className="h-7 w-7 p-0 text-muted-foreground hover:text-red-600 hover:bg-red-50"
+                                className="text-muted-foreground h-7 w-7 p-0 hover:bg-red-50 hover:text-red-600"
                                 onClick={() => handleDelete(line)}
-                                disabled={!!editingId || deletingId === line.Line_No}
+                                disabled={
+                                  !!editingId || deletingId === line.Line_No
+                                }
                               >
-                                {deletingId === line.Line_No ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                                {deletingId === line.Line_No ? (
+                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                ) : (
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                )}
                               </Button>
                             </>
                           )}
@@ -303,7 +532,12 @@ export function PostedBardanaDialog({
         </div>
 
         <DialogFooter className="border-t pt-4">
-          <Button variant="outline" size="sm" onClick={() => onOpenChange(false)} className="h-8 text-xs font-bold uppercase tracking-wider">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onOpenChange(false)}
+            className="h-8 text-xs font-bold tracking-wider uppercase"
+          >
             Close
           </Button>
         </DialogFooter>

@@ -2318,11 +2318,11 @@ export function SalesCreateDocumentFormContent({
       {/* Post details dialog (transporter, etc.) */}
       {caps.supportsPost && (
         <Dialog open={isPostDetailsOpen} onOpenChange={setIsPostDetailsOpen}>
-          <DialogContent className="sm:max-w-90">
+          <DialogContent className="sm:max-w-120 max-h-[95vh] flex flex-col overflow-hidden">
             <DialogHeader>
               <DialogTitle>Post Details</DialogTitle>
             </DialogHeader>
-            <div className="relative grid gap-3 py-2 grid-cols-2">
+            <div className="relative grid gap-3 py-2 grid-cols-2 flex-1 min-h-0 overflow-y-auto">
               {isPostLoading && (
                 <div className="bg-background/50 absolute inset-0 z-50 flex items-center justify-center backdrop-blur-[1px]">
                   <Loader2 className="text-primary h-6 w-6 animate-spin" />
@@ -2594,7 +2594,7 @@ export function SalesCreateDocumentFormContent({
                 </>
               )}
             </div>
-            <DialogFooter>
+            <DialogFooter className="border-t pt-2">
               <Button
                 variant="outline"
                 onClick={() => setIsPostDetailsOpen(false)}

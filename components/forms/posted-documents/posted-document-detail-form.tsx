@@ -29,7 +29,8 @@ import { viewPdfFromBase64 } from "@/lib/pdf-utils";
 import { useFormStackContext } from "@/lib/form-stack/form-stack-context";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Loader2, Package, Printer, Undo2 } from "lucide-react";
+import { Loader2, Package, Printer, Undo2, Sparkles, Zap } from "lucide-react";
+
 import { toast } from "sonner";
 import { undoReceipt, undoReturnShipment } from "@/lib/api/services/undo-actions.service";
 import { 
@@ -39,6 +40,8 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { PostedBardanaDialog } from "./posted-bardana-dialog";
+import { generateQCForm } from "@/lib/api/services/bardana.service";
+
 
 interface PostedDocumentDetailFormProps {
   tabId: string;
@@ -187,7 +190,9 @@ export function PostedDocumentDetailForm({
   const [isLoading, setIsLoading] = useState(true);
   const [isPrinting, setIsPrinting] = useState(false);
   const [undoingLine, setUndoingLine] = useState<number | null>(null);
+  const [generatingQCLine, setGeneratingQCLine] = useState<number | null>(null);
   const [bardanaConfig, setBardanaConfig] = useState<{ isOpen: boolean; line: any } | null>(null);
+
 
   const canUndo = formType === "posted-purchase-receipt" || formType === "posted-purchase-return-shipment";
 
@@ -257,7 +262,23 @@ export function PostedDocumentDetailForm({
     }
   };
 
+  const handleGenerateQC = async (line: any) => {
+    if (!doc.No) return;
+
+    setGeneratingQCLine(line.Line_No);
+    try {
+      await generateQCForm(doc.No, line.Line_No);
+      toast.success("QC form generated successfully.");
+    } catch (error: any) {
+      console.error("QC generation error:", error);
+      toast.error(error.message || "Failed to generate QC form.");
+    } finally {
+      setGeneratingQCLine(null);
+    }
+  };
+
   const handleBardana = (line: any) => {
+
     setBardanaConfig({ isOpen: true, line });
   };
 
@@ -584,24 +605,51 @@ export function PostedDocumentDetailForm({
                           <div className="flex items-center justify-center gap-1">
                             {formType === "posted-purchase-receipt" && line.Type === "Item" && line.No && (
 
-                              <TooltipProvider>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      className="h-7 w-7 p-0 text-muted-foreground hover:text-blue-600 hover:bg-blue-50"
-                                      onClick={() => handleBardana(line)}
-                                    >
-                                      <Package className="h-3.5 w-3.5" />
-                                    </Button>
-                                  </TooltipTrigger>
-                                  <TooltipContent>
-                                    <p>Bardana Details</p>
-                                  </TooltipContent>
-                                </Tooltip>
-                              </TooltipProvider>
+                              <>
+                                {line.Bardana_RPO && (
+                                  <TooltipProvider>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          className="h-7 w-7 p-0 text-muted-foreground hover:text-orange-600 hover:bg-orange-50"
+                                          onClick={() => handleGenerateQC(line)}
+                                          disabled={generatingQCLine === line.Line_No}
+                                        >
+                                          {generatingQCLine === line.Line_No ? (
+                                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                          ) : (
+                                            <Sparkles className="h-3.5 w-3.5" />
+                                          )}
+                                        </Button>
+                                      </TooltipTrigger>
+                                      <TooltipContent>
+                                        <p>QC Generate</p>
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
+                                )}
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-7 w-7 p-0 text-muted-foreground hover:text-blue-600 hover:bg-blue-50"
+                                        onClick={() => handleBardana(line)}
+                                      >
+                                        <Package className="h-3.5 w-3.5" />
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      <p>Bardana Details</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                              </>
                             )}
+
                             {canUndo && (
                               <TooltipProvider>
                                 <Tooltip>

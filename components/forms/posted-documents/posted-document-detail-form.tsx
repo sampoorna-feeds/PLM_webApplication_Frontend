@@ -41,6 +41,17 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { PostedBardanaDialog } from "./posted-bardana-dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+
 import { generateQCForm } from "@/lib/api/services/bardana.service";
 import { getItemsByNos, Item } from "@/lib/api/services/item.service";
 
@@ -196,6 +207,20 @@ export function PostedDocumentDetailForm({
   const [generatingQCLine, setGeneratingQCLine] = useState<number | null>(null);
   const [bardanaConfig, setBardanaConfig] = useState<{ isOpen: boolean; line: any } | null>(null);
   const [itemConfigs, setItemConfigs] = useState<Record<string, Item>>({});
+  const [confirmDialog, setConfirmDialog] = useState<{
+    isOpen: boolean;
+    title: string;
+    description: string;
+    onConfirm: () => void;
+    actionLabel?: string;
+    variant?: "default" | "destructive" | "outline" | "secondary" | "ghost" | "link";
+  }>({
+    isOpen: false,
+    title: "",
+    description: "",
+    onConfirm: () => {},
+  });
+
 
 
 
@@ -241,45 +266,63 @@ export function PostedDocumentDetailForm({
 
   const handleUndo = async (lineNo: number) => {
     if (!doc.No) return;
-
-    setUndoingLine(lineNo);
-    try {
-      if (formType === "posted-purchase-receipt") {
-        await undoReceipt(doc.No, lineNo);
-      } else if (formType === "posted-purchase-return-shipment") {
-        await undoReturnShipment(doc.No, lineNo);
+    
+    setConfirmDialog({
+      isOpen: true,
+      title: "Undo Line Item",
+      description: "Are you sure you want to undo this line item? This action cannot be reversed.",
+      actionLabel: "Undo",
+      variant: "destructive",
+      onConfirm: async () => {
+        setUndoingLine(lineNo);
+        try {
+          if (formType === "posted-purchase-receipt") {
+            await undoReceipt(doc.No, lineNo);
+          } else if (formType === "posted-purchase-return-shipment") {
+            await undoReturnShipment(doc.No, lineNo);
+          }
+          toast.success("Line item undone successfully.");
+          // Refresh lines
+          const docNo = doc.No || doc.Gate_Entry_No;
+          let data: any = { value: [] };
+          if (formType === "posted-purchase-receipt")
+            data = await getPostedPurchaseReceiptLines(docNo);
+          else if (formType === "posted-purchase-return-shipment")
+            data = await getPostedPurchaseReturnShipmentLines(docNo);
+          
+          setLines(data.value || []);
+        } catch (error: any) {
+          console.error("Undo error:", error);
+          toast.error(error.message || "Failed to undo line item.");
+        } finally {
+          setUndoingLine(null);
+        }
       }
-      toast.success("Line item undone successfully.");
-      // Refresh lines
-      const docNo = doc.No || doc.Gate_Entry_No;
-      let data: any = { value: [] };
-      if (formType === "posted-purchase-receipt")
-        data = await getPostedPurchaseReceiptLines(docNo);
-      else if (formType === "posted-purchase-return-shipment")
-        data = await getPostedPurchaseReturnShipmentLines(docNo);
-      
-      setLines(data.value || []);
-    } catch (error: any) {
-      console.error("Undo error:", error);
-      toast.error(error.message || "Failed to undo line item.");
-    } finally {
-      setUndoingLine(null);
-    }
+    });
   };
 
   const handleGenerateQC = async (line: any) => {
     if (!doc.No) return;
 
-    setGeneratingQCLine(line.Line_No);
-    try {
-      await generateQCForm(doc.No, line.Line_No);
-      toast.success("QC form generated successfully.");
-    } catch (error: any) {
-      console.error("QC generation error:", error);
-      toast.error(error.message || "Failed to generate QC form.");
-    } finally {
-      setGeneratingQCLine(null);
-    }
+    setConfirmDialog({
+      isOpen: true,
+      title: "Generate QC Form",
+      description: `Generate QC form for item ${line.No || "this line"}?`,
+      actionLabel: "Generate",
+      variant: "default",
+      onConfirm: async () => {
+        setGeneratingQCLine(line.Line_No);
+        try {
+          await generateQCForm(doc.No, line.Line_No);
+          toast.success("QC form generated successfully.");
+        } catch (error: any) {
+          console.error("QC generation error:", error);
+          toast.error(error.message || "Failed to generate QC form.");
+        } finally {
+          setGeneratingQCLine(null);
+        }
+      }
+    });
   };
 
   const handleBardana = (line: any) => {
@@ -676,9 +719,6 @@ export function PostedDocumentDetailForm({
                                     </Tooltip>
                                   </TooltipProvider>
                                 )}
-
-
-
                               </>
                             )}
 
@@ -728,6 +768,30 @@ export function PostedDocumentDetailForm({
           itemDescription={bardanaConfig.line.Description || bardanaConfig.line.Item_Description}
         />
       )}
+
+      <AlertDialog
+        open={confirmDialog.isOpen}
+        onOpenChange={(open) => setConfirmDialog((prev) => ({ ...prev, isOpen: open }))}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{confirmDialog.title}</AlertDialogTitle>
+            <AlertDialogDescription>{confirmDialog.description}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              variant={confirmDialog.variant}
+              onClick={() => {
+                confirmDialog.onConfirm();
+                setConfirmDialog((prev) => ({ ...prev, isOpen: false }));
+              }}
+            >
+              {confirmDialog.actionLabel || "Continue"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -67,7 +67,7 @@ export const DEFAULT_COLUMNS: ColumnConfig[] = [
     filterType: "date",
   },
   {
-    id: "Document_No",
+    id: "Bardana_RPO",
     label: "Bardana RPO",
     sortable: true,
     defaultVisible: true,

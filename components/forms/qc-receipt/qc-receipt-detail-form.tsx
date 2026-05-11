@@ -215,7 +215,7 @@ export function QCReceiptDetailForm({ tabId, context }: QCReceiptDetailFormProps
              <SummaryField label="Vendor No." value={receipt.Buy_from_Vendor_No} />
              <SummaryField label="Vendor Name" value={receipt.Buy_from_Vendor_Name} />
              <SummaryField label="PO No." value={receipt.Purchase_Order_No} />
-             <SummaryField label="Bardana RPO" value={receipt.Document_No} />
+             <SummaryField label="Bardana RPO" value={receipt.Bardana_RPO} />
              <SummaryField label="Branch" value={receipt.Shortcut_Dimension_2_Code || receipt.Shortcut_Dimension_1_Code || userBranch} />
              <SummaryField label="Item Tracking" value={receipt.Item_Tracking} />
           </SectionContainer>

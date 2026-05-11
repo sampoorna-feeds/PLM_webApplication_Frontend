@@ -45,6 +45,7 @@ export interface QCReceiptHeader {
   Order_Date: string;
   Document_Type: string;
   Document_No: string;
+  Bardana_RPO: string;
   Document_Line_No: number;
   Purchase_Receipt_No: string;
   Buy_from_Vendor_No: string;

@@ -121,7 +121,7 @@ export function useQCReceipts(initialFilters?: {
       if (searchQuery) {
         const escaped = searchQuery.replace(/'/g, "''");
         filterParts.push(
-          `(contains(No,'${escaped}') or contains(Purchase_Receipt_No,'${escaped}') or contains(Item_No,'${escaped}') or contains(Item_Name,'${escaped}') or contains(Buy_from_Vendor_Name,'${escaped}') or contains(Document_No,'${escaped}') or contains(Vehicle_No,'${escaped}'))`,
+          `(contains(No,'${escaped}') or contains(Purchase_Receipt_No,'${escaped}') or contains(Item_No,'${escaped}') or contains(Item_Name,'${escaped}') or contains(Buy_from_Vendor_Name,'${escaped}') or contains(Bardana_RPO,'${escaped}') or contains(Vehicle_No,'${escaped}'))`,
         );
       }
 

@@ -52,6 +52,16 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 import { generateQCForm } from "@/lib/api/services/bardana.service";
 import { getItemsByNos, Item } from "@/lib/api/services/item.service";
@@ -206,6 +216,7 @@ export function PostedDocumentDetailForm({
   const [isPrinting, setIsPrinting] = useState(false);
   const [undoingLine, setUndoingLine] = useState<number | null>(null);
   const [generatingQCLine, setGeneratingQCLine] = useState<number | null>(null);
+  const [qcDialog, setQcDialog] = useState<{ isOpen: boolean; line: any; qty: string } | null>(null);
   const [bardanaConfig, setBardanaConfig] = useState<{ isOpen: boolean; line: any } | null>(null);
   const [itemConfigs, setItemConfigs] = useState<Record<string, Item>>({});
   const [confirmDialog, setConfirmDialog] = useState<{
@@ -302,28 +313,36 @@ export function PostedDocumentDetailForm({
     });
   };
 
-  const handleGenerateQC = async (line: any) => {
-    if (!doc.No) return;
-
-    setConfirmDialog({
+  const handleGenerateQC = (line: any) => {
+    setQcDialog({
       isOpen: true,
-      title: "Generate QC Form",
-      description: `Generate QC form for item ${line.No || "this line"}?`,
-      actionLabel: "Generate",
-      variant: "default",
-      onConfirm: async () => {
-        setGeneratingQCLine(line.Line_No);
-        try {
-          await generateQCForm(doc.No, line.Line_No);
-          toast.success("QC form generated successfully.");
-        } catch (error: any) {
-          console.error("QC generation error:", error);
-          toast.error(error.message || "Failed to generate QC form.");
-        } finally {
-          setGeneratingQCLine(null);
-        }
-      }
+      line,
+      qty: String(line.Quantity || ""),
     });
+  };
+
+  const confirmGenerateQC = async () => {
+    if (!qcDialog?.line || !doc.No) return;
+    const { line, qty } = qcDialog;
+    const numQty = parseFloat(qty);
+    
+    if (isNaN(numQty) || numQty <= 0) {
+      toast.error("Please enter a valid positive quantity.");
+      return;
+    }
+
+    setGeneratingQCLine(line.Line_No);
+    setQcDialog(prev => prev ? { ...prev, isOpen: false } : null);
+    
+    try {
+      await generateQCForm(doc.No, line.Line_No, numQty);
+      toast.success("QC form generated successfully.");
+    } catch (error: any) {
+      console.error("QC generation error:", error);
+      toast.error(error.message || "Failed to generate QC form.");
+    } finally {
+      setGeneratingQCLine(null);
+    }
   };
 
   const handleBardana = (line: any) => {
@@ -758,6 +777,57 @@ export function PostedDocumentDetailForm({
           </div>
         </section>
       </div>
+
+      {qcDialog && (
+        <Dialog 
+          open={qcDialog.isOpen} 
+          onOpenChange={(open) => setQcDialog(prev => prev ? { ...prev, isOpen: open } : null)}
+        >
+          <DialogContent className="sm:max-w-[425px]">
+            <DialogHeader>
+              <DialogTitle>Generate QC Form</DialogTitle>
+              <DialogDescription>
+                Enter the quantity for item {qcDialog.line.No} to generate the QC form.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="qty" className="text-right">
+                  Quantity
+                </Label>
+                <Input
+                  id="qty"
+                  type="number"
+                  min="0"
+                  value={qcDialog.qty}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val && parseFloat(val) < 0) return;
+                    setQcDialog(prev => prev ? { ...prev, qty: val } : null);
+                  }}
+                  className="col-span-3"
+                  autoFocus
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      confirmGenerateQC();
+                    } else if (e.key === '-' || e.key === 'e') {
+                      e.preventDefault();
+                    }
+                  }}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setQcDialog(prev => prev ? { ...prev, isOpen: false } : null)}>
+                Cancel
+              </Button>
+              <Button onClick={confirmGenerateQC}>
+                Generate
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
 
       {bardanaConfig && (
         <PostedBardanaDialog

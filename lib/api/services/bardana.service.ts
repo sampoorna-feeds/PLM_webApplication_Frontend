@@ -23,11 +23,12 @@ export interface BardanaLine {
 /**
  * Generate QC Form / Bardana lines for a posted document line.
  */
-export async function generateQCForm(docNo: string, lineNo: number): Promise<void> {
+export async function generateQCForm(docNo: string, lineNo: number, qty: number): Promise<void> {
   const endpoint = `/QCCode_GenerateQCForm?company='${encodeURIComponent(COMPANY)}'`;
   const payload = {
     docNo: docNo,
     lineno: lineNo,
+    qty: qty,
   };
 
   try {

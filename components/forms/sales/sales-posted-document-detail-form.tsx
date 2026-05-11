@@ -53,6 +53,16 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import type { SalesPostedDocumentType } from "./sales-posted-document-config";
 import { RequestFailedDialog } from "@/components/ui/request-failed-dialog";
@@ -321,25 +331,67 @@ function PostedLinesTable({
   onRefresh: () => void;
 }) {
   const [undoingLine, setUndoingLine] = useState<number | null>(null);
+  const [confirmDialog, setConfirmDialog] = useState<{
+    isOpen: boolean;
+    title: string;
+    description: string;
+    onConfirm: () => void;
+    actionLabel?: string;
+    variant?: "default" | "destructive" | "outline" | "secondary" | "ghost" | "link";
+  }>({
+    isOpen: false,
+    title: "",
+    description: "",
+    onConfirm: () => {},
+  });
   const canUndo = !isInvoice; // Only for shipments
 
-  const handleUndo = async (lineNo: number) => {
+  const handleUndo = (lineNo: number) => {
     if (!docNo) return;
-    setUndoingLine(lineNo);
-    try {
-      await undoShipment(docNo, lineNo);
-      toast.success("Line item undone successfully.");
-      onRefresh();
-    } catch (error: any) {
-      console.error("Undo error:", error);
-      toast.error(error.message || "Failed to undo line item.");
-    } finally {
-      setUndoingLine(null);
-    }
+    setConfirmDialog({
+      isOpen: true,
+      title: "Undo Shipment Line",
+      description: "Are you sure you want to undo this shipment line? This action cannot be reversed.",
+      actionLabel: "Undo",
+      variant: "destructive",
+      onConfirm: async () => {
+        setUndoingLine(lineNo);
+        try {
+          await undoShipment(docNo, lineNo);
+          toast.success("Line item undone successfully.");
+          onRefresh();
+        } catch (error: any) {
+          console.error("Undo error:", error);
+          toast.error(error.message || "Failed to undo line item.");
+        } finally {
+          setUndoingLine(null);
+        }
+      }
+    });
   };
 
   return (
     <div className="overflow-x-auto rounded-md border">
+      <AlertDialog
+        open={confirmDialog.isOpen}
+        onOpenChange={(isOpen) => setConfirmDialog((prev) => ({ ...prev, isOpen }))}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{confirmDialog.title}</AlertDialogTitle>
+            <AlertDialogDescription>{confirmDialog.description}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDialog.onConfirm}
+              className={confirmDialog.variant === "destructive" ? "bg-destructive text-destructive-foreground hover:bg-destructive/90" : ""}
+            >
+              {confirmDialog.actionLabel || "Continue"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <Table>
         <TableHeader>
           <TableRow className="bg-muted whitespace-nowrap">
@@ -402,7 +454,7 @@ function PostedLinesTable({
                   )}
                   <TableCell>{String(l.GST_Group_Code || "-")}</TableCell>
                   <TableCell>{String(l.HSN_SAC_Code || "-")}</TableCell>
-                  {canUndo && (
+                  {canUndo && !!l.Type && String(l.Type).trim() !== "" && (
                     <TableCell className="text-center px-2 py-1">
                       <TooltipProvider>
                         <Tooltip>

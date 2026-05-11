@@ -742,7 +742,7 @@ export function PostedDocumentDetailForm({
                               </>
                             )}
 
-                            {canUndo && (
+                            {canUndo && line.Type && line.Type.trim() !== "" && (
                               <TooltipProvider>
                                 <Tooltip>
                                   <TooltipTrigger asChild>

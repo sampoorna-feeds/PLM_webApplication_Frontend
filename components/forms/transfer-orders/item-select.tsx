@@ -108,9 +108,8 @@ export function ItemSelect({
   const [page, setPage] = useState(0);
   const [allFetched, setAllFetched] = useState(false);
   
-  const [sortColumn, setSortColumn] = useState<string | null>("No");
-  const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
-  const [columnFilters, setColumnFilters] = useState<Record<string, string>>({});
+  const [sortColumn, setSortColumn] = useState<string>("No");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const sentinelRef = useRef<HTMLTableRowElement>(null);
@@ -142,7 +141,6 @@ export function ItemSelect({
           search: debouncedSearch,
           sortColumn,
           sortDirection,
-          filters: columnFilters,
           locationCode,
           dateFilter,
           customFilter,
@@ -167,12 +165,12 @@ export function ItemSelect({
         setLoadingMore(false);
       }
     },
-    [loading, loadingMore, allFetched, page, debouncedSearch, sortColumn, sortDirection, columnFilters, locationCode, dateFilter, customFilter]
+    [loading, loadingMore, allFetched, page, debouncedSearch, sortColumn, sortDirection, locationCode, dateFilter, customFilter]
   );
 
   useEffect(() => {
     if (open) fetchData(false);
-  }, [debouncedSearch, sortColumn, sortDirection, columnFilters, open, locationCode, customFilter]);
+  }, [debouncedSearch, sortColumn, sortDirection, open, locationCode, customFilter]);
 
   useEffect(() => {
     if (!open) return;
@@ -193,7 +191,15 @@ export function ItemSelect({
     setOpen(newOpen);
     if (!newOpen) {
       setSearchQuery("");
-      setColumnFilters({});
+    }
+  };
+
+  const handleSort = (colId: string) => {
+    if (sortColumn === colId) {
+      setSortDirection((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortColumn(colId);
+      setSortDirection("asc");
     }
   };
 
@@ -206,8 +212,6 @@ export function ItemSelect({
     setOpen(false);
   };
 
-  const hasActiveFilters = Object.keys(columnFilters).length > 0;
-  
   const selectedItem = items.find(i => i.No === value);
   const displayLabel = selectedItem ? `${selectedItem.No} - ${selectedItem.Description}` : value;
 
@@ -257,7 +261,7 @@ export function ItemSelect({
       <Dialog open={open} onOpenChange={handleOpenChange}>
         <DialogContent
           className="flex h-[85vh] flex-col gap-0 p-0"
-          style={{ width: "min(1000px, 92vw)", maxWidth: "none" }}
+          style={{ width: "min(700px, 92vw)", maxWidth: "none" }}
         >
           <DialogHeader className="shrink-0 border-b px-5 py-3">
             <div className="flex items-center justify-between">
@@ -301,8 +305,23 @@ export function ItemSelect({
                 <tr>
                   <th className="w-10 border-b px-3" />
                   {DEFAULT_COLUMNS.map((col) => (
-                    <th key={col.id} className="bg-muted h-10 border-b px-3 py-2 text-left text-xs font-bold">
-                      {col.label}
+                    <th
+                      key={col.id}
+                      className={cn(
+                        "bg-muted h-10 border-b px-3 py-2 text-left text-xs font-bold",
+                        col.sortable && "cursor-pointer select-none hover:bg-muted/80",
+                      )}
+                      style={col.flex ? undefined : { width: col.width }}
+                      onClick={() => col.sortable && handleSort(col.id)}
+                    >
+                      <div className="flex items-center gap-1">
+                        {col.label}
+                        {col.sortable && sortColumn === col.id && (
+                          <span className="text-[10px] text-primary">
+                            {sortDirection === "asc" ? "↑" : "↓"}
+                          </span>
+                        )}
+                      </div>
                     </th>
                   ))}
                 </tr>

@@ -108,45 +108,48 @@ function getBaseFilter(locationCode?: string): string {
 const ITEM_LIST_SELECT = "No,Description,Unit_Price,Sales_Unit_of_Measure,Purch_Unit_of_Measure,RM_Bardana_Wt";
 const PRELOAD_SELECT = "No,Description,Unit_Price,Sales_Unit_of_Measure,Purch_Unit_of_Measure,Base_Unit_of_Measure,GST_Group_Code,HSN_SAC_Code,Exempted,Bardana_Generation_Enable,QC_Required,RM_Bardana_Wt";
 
-// Cache for preloaded items
-let preloadedItems: Item[] = [];
-let preloadPromise: Promise<Item[]> | null = null;
+// Cache for preloaded items by locationCode (key "" for no location)
+const preloadedItemsCache = new Map<string, Item[]>();
+const preloadPromisesCache = new Map<string, Promise<Item[]>>();
 
 /**
  * Preload initial batch of items to eliminate lag.
  * Fetches the first 100 items and caches them.
  */
-export async function preloadItems(): Promise<Item[]> {
-  if (preloadedItems.length > 0) return preloadedItems;
-  if (preloadPromise) return preloadPromise;
+export async function preloadItems(locationCode?: string): Promise<Item[]> {
+  const key = locationCode || "";
+  if (preloadedItemsCache.has(key)) return preloadedItemsCache.get(key)!;
+  if (preloadPromisesCache.has(key)) return preloadPromisesCache.get(key)!;
 
-  preloadPromise = (async () => {
+  const promise = (async () => {
     try {
-      const filter = getBaseFilter();
+      const filter = getBaseFilter(locationCode);
       const endpoint = buildItemListEndpoint(filter, {
         top: 30,
         orderby: "No",
         select: PRELOAD_SELECT,
       });
       const response = await apiGet<ODataResponse<Item>>(endpoint);
-      preloadedItems = response.value || [];
-      return preloadedItems;
+      const items = response.value || [];
+      preloadedItemsCache.set(key, items);
+      return items;
     } catch (error) {
-      console.error("Preload items failed:", error);
+      console.error(`Preload items failed for location ${key}:`, error);
       return [];
     } finally {
-      preloadPromise = null;
+      preloadPromisesCache.delete(key);
     }
   })();
 
-  return preloadPromise;
+  preloadPromisesCache.set(key, promise);
+  return promise;
 }
 
 /**
  * Get preloaded items from cache
  */
-export function getPreloadedItems(): Item[] {
-  return preloadedItems;
+export function getPreloadedItems(locationCode?: string): Item[] {
+  return preloadedItemsCache.get(locationCode || "") || [];
 }
 
 /**
@@ -463,6 +466,13 @@ export async function getSalesItemsForDialog(params: {
     const endpoint = `/ItemCard?Company=${encodeURIComponent(COMPANY)}&${params2.toString()}`;
     return apiGet<ODataResponse<Item>>(endpoint);
   };
+
+  if (params.skip === 0 && !params.search?.trim() && (!params.filters || Object.keys(params.filters).length === 0)) {
+    const preloaded = getPreloadedItems(params.locationCode);
+    if (preloaded.length > 0) {
+      return { value: preloaded.slice(0, params.top), count: preloaded.length };
+    }
+  }
 
   if (!params.search?.trim()) {
     const res = await fetchBatch();

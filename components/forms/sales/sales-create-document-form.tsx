@@ -575,6 +575,13 @@ export function SalesCreateDocumentFormContent({
     preloadItems();
   }, []);
 
+  // Preload items when location is selected to ensure instant item list
+  useEffect(() => {
+    if (formData.locationCode) {
+      preloadItems(formData.locationCode);
+    }
+  }, [formData.locationCode]);
+
   // ── Load document for view/edit ───────────────────────────────────────────
   const loadDocument = useCallback(async () => {
     const docNo = initialOrderNo;

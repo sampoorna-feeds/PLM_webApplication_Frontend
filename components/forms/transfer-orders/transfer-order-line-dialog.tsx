@@ -66,8 +66,6 @@ export function TransferOrderLineDialog({
 }: TransferOrderLineDialogProps) {
   const isEdit = !!line;
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [items, setItems] = useState<TransferItem[]>([]);
-  const [isLoadingItems, setIsLoadingItems] = useState(false);
   const [ledgerEntries, setLedgerEntries] = useState<TransferItemLedgerEntry[]>([]);
   const [isLoadingLedgerEntries, setIsLoadingLedgerEntries] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -96,47 +94,36 @@ export function TransferOrderLineDialog({
   });
 
   useEffect(() => {
-    if (line) {
-      setFormData(line);
-    } else {
-      setFormData({
-        Document_No: documentNo,
-        Item_No: "",
-        Quantity: 0,
-        Transfer_Price: 0,
-        Amount: 0,
-        Description: "",
-        Unit_of_Measure_Code: "",
-        Shortcut_Dimension_1_Code: defaultDimensions.Shortcut_Dimension_1_Code,
-        Shortcut_Dimension_2_Code: defaultDimensions.Shortcut_Dimension_2_Code,
-        New_LOB: defaultDimensions.Shortcut_Dimension_1_Code,
-        New_Branch: defaultDimensions.Shortcut_Dimension_2_Code,
-        Shortcut_Dimension_3_Code: "",
-        Shipment_Date: defaultDimensions.Shipment_Date,
-        Receipt_Date: defaultDimensions.Receipt_Date,
-        Appl_to_Item_Entry: 0,
-        GST_Credit: "Non-Availment",
-      });
+    if (isOpen) {
+      if (line) {
+        setFormData(line);
+        getTransferItemByNo(line.Item_No!).then(item => {
+          setCanAddBardana(item?.Bardana_Generation_Enable === true);
+        });
+      } else {
+        setFormData({
+          Document_No: documentNo,
+          Item_No: "",
+          Quantity: 0,
+          Transfer_Price: 0,
+          Amount: 0,
+          Description: "",
+          Unit_of_Measure_Code: "",
+          Shortcut_Dimension_1_Code: defaultDimensions.Shortcut_Dimension_1_Code,
+          Shortcut_Dimension_2_Code: defaultDimensions.Shortcut_Dimension_2_Code,
+          New_LOB: defaultDimensions.Shortcut_Dimension_1_Code,
+          New_Branch: defaultDimensions.Shortcut_Dimension_2_Code,
+          Shortcut_Dimension_3_Code: "",
+          Shipment_Date: defaultDimensions.Shipment_Date,
+          Receipt_Date: defaultDimensions.Receipt_Date,
+          Appl_to_Item_Entry: 0,
+          GST_Credit: "Non-Availment",
+        });
+        setCanAddBardana(false);
+      }
     }
   }, [line, documentNo, defaultDimensions, isOpen]);
 
-  useEffect(() => {
-    const loadItems = async () => {
-      setIsLoadingItems(true);
-      try {
-        const data = await getTransferItems(searchQuery || undefined);
-        setItems(data);
-      } catch (err) {
-        console.error("Error loading items:", err);
-      } finally {
-        setIsLoadingItems(false);
-      }
-    };
-
-    if (isOpen) {
-      loadItems();
-    }
-  }, [isOpen, searchQuery]);
 
   // Load Item Ledger Entries when item or location changes
   useEffect(() => {
@@ -162,35 +149,16 @@ export function TransferOrderLineDialog({
     }
   }, [isOpen, formData.Item_No, locationCode]);
 
-  // Check if bardana can be added
-  useEffect(() => {
-    const checkBardana = async () => {
-      if (!formData.Item_No) {
-        setCanAddBardana(false);
-        return;
-      }
-      try {
-        const item = items.find(i => i.No === formData.Item_No) || await getTransferItemByNo(formData.Item_No);
-        setCanAddBardana(item?.Bardana_Generation_Enable === true);
-      } catch (err) {
-        setCanAddBardana(false);
-      }
-    };
-    if (isOpen) checkBardana();
-  }, [formData.Item_No, items, isOpen]);
-
-  const handleItemChange = async (itemNo: string) => {
-    const item = await getTransferItemByNo(itemNo);
-    if (item) {
-      setFormData(prev => ({
-        ...prev,
-        Item_No: item.No,
-        Description: item.Description || "",
-        Unit_of_Measure_Code: item.Base_Unit_of_Measure,
-        GST_Group_Code: item.GST_Group_Code as string,
-        HSN_SAC_Code: item.HSN_SAC_Code as string,
-      }));
-    }
+  const handleItemChange = (val: string, item?: TransferItem) => {
+    setFormData((prev) => ({
+      ...prev,
+      Item_No: val,
+      Description: item?.Description || "",
+      Unit_of_Measure_Code: item?.Base_Unit_of_Measure || "",
+      GST_Group_Code: item?.GST_Group_Code as string,
+      HSN_SAC_Code: item?.HSN_SAC_Code as string,
+    }));
+    setCanAddBardana(item?.Bardana_Generation_Enable === true);
   };
 
   const handleCalcAmount = (qty: number, price: number) => {
@@ -295,24 +263,7 @@ export function TransferOrderLineDialog({
               <FieldTitle>Item No. <span className="text-red-500">*</span></FieldTitle>
               <ItemSelect
                 value={formData.Item_No || ""}
-                onChange={(v, item) => {
-                  if (item) {
-                    setFormData(prev => ({
-                      ...prev,
-                      Item_No: item.No,
-                      Description: item.Description || "",
-                      Unit_of_Measure_Code: item.Base_Unit_of_Measure,
-                    }));
-                    handleItemChange(item.No);
-                  } else {
-                    setFormData(prev => ({
-                      ...prev,
-                      Item_No: "",
-                      Description: "",
-                      Unit_of_Measure_Code: "",
-                    }));
-                  }
-                }}
+                onChange={handleItemChange}
                 locationCode={locationCode}
                 placeholder="Select Item"
                 disabled={isEdit}

@@ -1422,10 +1422,24 @@ export async function getTransferItemsForDialog(params: {
     return apiGet<ODataResponse<TransferItem>>(endpoint);
   };
 
+  if (params.skip === 0 && !params.search?.trim() && (!params.filters || Object.keys(params.filters).length === 0)) {
+    const preloaded = await preloadItems(params.locationCode);
+    if (preloaded.length > 0) {
+      // Map Item to TransferItem
+      const mapped = preloaded.slice(0, params.top).map(item => ({
+        ...item,
+        Production_BOM_No: (item as any).Production_BOM_No,
+        Base_Unit_of_Measure: item.Base_Unit_of_Measure,
+      })) as TransferItem[];
+      return { value: mapped, count: preloaded.length };
+    }
+  }
+
   if (!params.search || !params.search.trim()) {
     const res = await fetchBatch();
     return { value: res.value || [], count: res["@odata.count"] || res.value?.length || 0 };
   }
+
 
   const s = params.search.trim().replace(/'/g, "''");
   const sLower = s.toLowerCase();

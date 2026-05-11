@@ -251,6 +251,13 @@ export function TransferOrderForm({
     preloadItems();
   }, [isViewMode]);
 
+  // Preload items when location is selected to ensure instant item list
+  useEffect(() => {
+    if (formState.Transfer_from_Code) {
+      preloadItems(formState.Transfer_from_Code);
+    }
+  }, [formState.Transfer_from_Code]);
+
   // Load Order Data and Lines if orderNo exists
   const fetchOrderData = useCallback(
     async (no: string, showFullLoader: boolean = true) => {

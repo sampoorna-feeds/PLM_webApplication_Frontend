@@ -2353,8 +2353,7 @@ export function SalesCreateDocumentFormContent({
                           setPostDetails((p) => ({
                             ...p,
                             transporterCode: val,
-                            transporterName:
-                              item?.Name || val || p.transporterName,
+                            transporterName: item?.Name || "",
                           }))
                         }
                         placeholder="Select Code"

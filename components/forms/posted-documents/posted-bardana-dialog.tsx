@@ -25,6 +25,7 @@ import {
   deleteBardanaLine,
   getPostedBardanaLines,
   updateBardanaLine,
+  generateQCForm,
   type BardanaLine,
 } from "@/lib/api/services/bardana.service";
 import { toastError } from "@/lib/errors";
@@ -67,6 +68,7 @@ export function PostedBardanaDialog({
 }: PostedBardanaDialogProps) {
   const [lines, setLines] = useState<BardanaLine[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isGenerating, setIsGenerating] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editValues, setEditValues] = useState<Partial<BardanaLine>>({});
   const [isSaving, setIsSaving] = useState(false);
@@ -294,13 +296,22 @@ export function PostedBardanaDialog({
         </DialogHeader>
 
         <div className="flex-1 overflow-auto py-4">
-          {isLoading && lines.length === 0 && (
+          {isGenerating && (
+            <div className="flex flex-col items-center justify-center py-12 gap-3">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <p className="text-sm font-medium text-muted-foreground tracking-tight">
+                Generating QC Form & Loading Bardana Items...
+              </p>
+            </div>
+          )}
+
+          {!isGenerating && isLoading && lines.length === 0 && (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="text-muted-foreground h-6 w-6 animate-spin" />
             </div>
           )}
 
-          {!isLoading && lines.length === 0 && !isAdding && (
+          {!isGenerating && !isLoading && lines.length === 0 && !isAdding && (
             <div className="flex flex-col items-center justify-center py-12 text-center">
               <AlertCircle className="text-muted-foreground mb-3 h-10 w-10 opacity-20" />
               <p className="text-muted-foreground text-sm font-semibold">

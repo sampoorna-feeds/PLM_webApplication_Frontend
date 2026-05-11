@@ -220,9 +220,12 @@ export function buildSalesPostPatchPayload(
     const origTransName = (original.Transporter_Name as string) || "";
 
     if (current.transporterCode) {
-      if (current.transporterCode !== origTransCode) {
+      if (
+        current.transporterCode !== origTransCode ||
+        current.transporterName !== origTransName
+      ) {
         patch.Transporter_Code = current.transporterCode;
-        patch.Transporter_Name = "";
+        patch.Transporter_Name = current.transporterName;
       }
     } else if (current.transporterName) {
       if (current.transporterName !== origTransName || origTransCode !== "") {

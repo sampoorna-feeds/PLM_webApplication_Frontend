@@ -42,6 +42,8 @@ import {
 } from "@/components/ui/tooltip";
 import { PostedBardanaDialog } from "./posted-bardana-dialog";
 import { generateQCForm } from "@/lib/api/services/bardana.service";
+import { getItemsByNos, Item } from "@/lib/api/services/item.service";
+
 
 
 interface PostedDocumentDetailFormProps {
@@ -193,6 +195,8 @@ export function PostedDocumentDetailForm({
   const [undoingLine, setUndoingLine] = useState<number | null>(null);
   const [generatingQCLine, setGeneratingQCLine] = useState<number | null>(null);
   const [bardanaConfig, setBardanaConfig] = useState<{ isOpen: boolean; line: any } | null>(null);
+  const [itemConfigs, setItemConfigs] = useState<Record<string, Item>>({});
+
 
 
   const canUndo = formType === "posted-purchase-receipt" || formType === "posted-purchase-return-shipment";
@@ -308,8 +312,31 @@ export function PostedDocumentDetailForm({
         else if (formType === "posted-sales-credit-memo")
           data = await getPostedSalesCreditMemoLines(docNo);
 
-        setLines(data.value || []);
+        const fetchedLines = data.value || [];
+        setLines(fetchedLines);
+
+        // Fetch item configurations for actions (Bardana, QC)
+        if (formType === "posted-purchase-receipt" && fetchedLines.length > 0) {
+          const itemNos = fetchedLines
+            .filter((l: any) => l.Type === "Item" && l.No)
+            .map((l: any) => l.No);
+          
+          if (itemNos.length > 0) {
+            try {
+              const items = await getItemsByNos(itemNos);
+              const configs: Record<string, Item> = {};
+              items.forEach((item) => {
+                configs[item.No] = item;
+              });
+              setItemConfigs(configs);
+            } catch (err) {
+
+              console.error("Error fetching item configs:", err);
+            }
+          }
+        }
       } catch (error) {
+
         console.error("Error fetching lines:", error);
       } finally {
         setIsLoading(false);
@@ -606,52 +633,50 @@ export function PostedDocumentDetailForm({
                           <div className="flex items-center justify-center gap-1">
                             {formType === "posted-purchase-receipt" && line.Type === "Item" && line.No && (
                               <>
-                                {line.QC_Required && (
+                                {itemConfigs[line.No]?.QC_Required && (
                                   <TooltipProvider>
                                     <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        className="h-7 w-7 p-0 text-muted-foreground hover:text-orange-600 hover:bg-orange-50"
-                                        onClick={() => handleGenerateQC(line)}
-                                        disabled={generatingQCLine === line.Line_No}
-                                      >
-                                        {generatingQCLine === line.Line_No ? (
-                                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                        ) : (
-                                          <ClipboardCheck className="h-3.5 w-3.5" />
-                                        )}
-
-                                      </Button>
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                      <p>QC Generate</p>
-                                    </TooltipContent>
-                                  </Tooltip>
-                                </TooltipProvider>
+                                      <TooltipTrigger asChild>
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          className="h-7 w-7 p-0 text-muted-foreground hover:text-orange-600 hover:bg-orange-50"
+                                          onClick={() => handleGenerateQC(line)}
+                                          disabled={generatingQCLine === line.Line_No}
+                                        >
+                                          {generatingQCLine === line.Line_No ? (
+                                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                          ) : (
+                                            <ClipboardCheck className="h-3.5 w-3.5" />
+                                          )}
+                                        </Button>
+                                      </TooltipTrigger>
+                                      <TooltipContent>
+                                        <p>QC Generate</p>
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
                                 )}
-                                {line.Bardana_Generation_Enable && (
-
+                                {itemConfigs[line.No]?.Bardana_Generation_Enable && (
                                   <TooltipProvider>
                                     <Tooltip>
-
-                                    <TooltipTrigger asChild>
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        className="h-7 w-7 p-0 text-muted-foreground hover:text-blue-600 hover:bg-blue-50"
-                                        onClick={() => handleBardana(line)}
-                                      >
-                                        <Package className="h-3.5 w-3.5" />
-                                      </Button>
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                      <p>Bardana Details</p>
-                                    </TooltipContent>
-                                  </Tooltip>
-                                </TooltipProvider>
+                                      <TooltipTrigger asChild>
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          className="h-7 w-7 p-0 text-muted-foreground hover:text-blue-600 hover:bg-blue-50"
+                                          onClick={() => handleBardana(line)}
+                                        >
+                                          <Package className="h-3.5 w-3.5" />
+                                        </Button>
+                                      </TooltipTrigger>
+                                      <TooltipContent>
+                                        <p>Bardana Details</p>
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
                                 )}
+
 
 
                               </>

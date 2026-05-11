@@ -11,8 +11,10 @@ export interface Item {
   No: string;
   Description: string;
   Bardana_Generation_Enable?: boolean;
+  QC_Required?: boolean;
   Status?: string;
   RM_Bardana_Item?: boolean;
+
   /** From ItemCard (detail) */
   GST_Group_Code?: string;
   HSN_SAC_Code?: string;
@@ -70,6 +72,9 @@ export async function getItemStock(
   });
   return map;
 }
+
+
+
 
 const COMPANY =
   process.env.NEXT_PUBLIC_API_COMPANY || "Sampoorna Feeds Pvt. Ltd";
@@ -382,7 +387,8 @@ export async function getItemsByNos(itemNos: string[]): Promise<Item[]> {
   const filter = `(Blocked eq false) and (${filterConditions.join(" or ")})`;
 
   const query = buildODataQuery({
-    $select: "No,Description,Item_Tracking_Code",
+    $select: "No,Description,Item_Tracking_Code,Bardana_Generation_Enable,QC_Required",
+
     $filter: filter,
     $top: itemNos.length,
   });

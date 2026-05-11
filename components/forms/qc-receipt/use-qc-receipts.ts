@@ -121,7 +121,7 @@ export function useQCReceipts(initialFilters?: {
       if (searchQuery) {
         const escaped = searchQuery.replace(/'/g, "''");
         filterParts.push(
-          `(contains(No,'${escaped}') or contains(Purchase_Receipt_No,'${escaped}') or contains(Item_No,'${escaped}') or contains(Item_Name,'${escaped}') or contains(Buy_from_Vendor_Name,'${escaped}') or contains(Document_No,'${escaped}'))`,
+          `(contains(No,'${escaped}') or contains(Purchase_Receipt_No,'${escaped}') or contains(Item_No,'${escaped}') or contains(Item_Name,'${escaped}') or contains(Buy_from_Vendor_Name,'${escaped}') or contains(Document_No,'${escaped}') or contains(Vehicle_No,'${escaped}'))`,
         );
       }
 
@@ -147,7 +147,7 @@ export function useQCReceipts(initialFilters?: {
 
       const select = buildSelectQuery(visibleColumns);
       // For posted receipts, we need to exclude fields that might not exist on the posted entity
-      const fieldsToExclude = ["Approval_Status", "Vehicle_No"];
+      const fieldsToExclude = ["Approval_Status"];
       const finalSelect = initialFilters?.isPosted
         ? select
             .split(",")

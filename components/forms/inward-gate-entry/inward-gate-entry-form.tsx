@@ -21,6 +21,16 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
 import {
   createInwardGateEntryHeader,
@@ -127,6 +137,7 @@ export function InwardGateEntryForm({
       hour12: false,
     }),
   });
+  const [isConfirmPostOpen, setIsConfirmPostOpen] = useState(false);
 
   const { tab, markAsSaved, updateTab, closeTab } = useFormStack(tabId);
 
@@ -335,11 +346,15 @@ export function InwardGateEntryForm({
   };
 
   async function handleConfirmPost() {
+    if (!isPostingDateValid(postDetails.postingDate, webUserProfile)) return;
+    setIsConfirmPostOpen(true);
+  }
+
+  async function executeFinalPost() {
     const docNo = entry.No;
     if (!docNo) return;
 
-    if (!isPostingDateValid(postDetails.postingDate, webUserProfile)) return;
-
+    setIsConfirmPostOpen(false);
     setIsPosting(true);
     try {
       // 1. Update the header with the new posting date and time
@@ -1036,6 +1051,27 @@ export function InwardGateEntryForm({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={isConfirmPostOpen} onOpenChange={setIsConfirmPostOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure you want to post?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action will finalize the gate entry and cannot be undone easily.
+              Please verify all details before proceeding.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={executeFinalPost}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              Confirm Post
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

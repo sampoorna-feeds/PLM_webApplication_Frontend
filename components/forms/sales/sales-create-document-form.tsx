@@ -468,6 +468,7 @@ export function SalesCreateDocumentFormContent({
   const [isPostDetailsOpen, setIsPostDetailsOpen] = useState(false);
   const [postDetails, setPostDetails] = useState(postDetailsDefault);
   const [isPostResultOpen, setIsPostResultOpen] = useState(false);
+  const [isConfirmPostOpen, setIsConfirmPostOpen] = useState(false);
   const [postResultDocs, setPostResultDocs] = useState<{
     Invoice?: string;
     Shipment?: string;
@@ -991,6 +992,11 @@ export function SalesCreateDocumentFormContent({
       }
     }
 
+    setIsConfirmPostOpen(true);
+  };
+
+  const handleFinalPost = async () => {
+    setIsConfirmPostOpen(false);
     setIsPostLoading(true);
     try {
       const patchPayload = buildSalesPostPatchPayload(
@@ -1000,11 +1006,11 @@ export function SalesCreateDocumentFormContent({
       );
 
       if (Object.keys(patchPayload).length > 0) {
-        await ops.patchHeader(initialOrderNo, patchPayload);
+        await ops.patchHeader(initialOrderNo!, patchPayload);
       }
       const postResponse = await ops.post(
-        initialOrderNo,
-        postOption,
+        initialOrderNo!,
+        postOption!,
         userId || "",
       );
       const docs = parsePostResult(postResponse);
@@ -2860,6 +2866,27 @@ export function SalesCreateDocumentFormContent({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={isConfirmPostOpen} onOpenChange={setIsConfirmPostOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure you want to post?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action will finalize the document and cannot be undone easily.
+              Please verify all details before proceeding.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleFinalPost}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              Confirm Post
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

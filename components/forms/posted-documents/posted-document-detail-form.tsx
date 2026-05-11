@@ -767,6 +767,7 @@ export function PostedDocumentDetailForm({
           lineNo={bardanaConfig.line.Line_No}
           itemNo={bardanaConfig.line.No}
           itemDescription={bardanaConfig.line.Description || bardanaConfig.line.Item_Description}
+          orderNo={doc.Order_No}
         />
       )}
 

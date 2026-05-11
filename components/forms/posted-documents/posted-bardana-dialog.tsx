@@ -56,6 +56,7 @@ interface PostedBardanaDialogProps {
   lineNo: number;
   itemNo: string;
   itemDescription: string;
+  orderNo?: string;
 }
 
 export function PostedBardanaDialog({
@@ -65,6 +66,7 @@ export function PostedBardanaDialog({
   lineNo,
   itemNo,
   itemDescription,
+  orderNo,
 }: PostedBardanaDialogProps) {
   const [lines, setLines] = useState<BardanaLine[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -202,8 +204,9 @@ export function PostedBardanaDialog({
     try {
       // If we have lines, use their Document_Type and Document_No
       // Otherwise fallback to "Order" and postedDocNo (this might need adjustment depending on BC logic)
+      // Document_No should come from orderNo if available (even if empty string), otherwise fallback to existing lines or postedDocNo
+      const docNo = orderNo !== undefined ? orderNo : (lines.length > 0 ? lines[0].Document_No : postedDocNo);
       const docType = lines.length > 0 ? lines[0].Document_Type : "Order";
-      const docNo = lines.length > 0 ? lines[0].Document_No : postedDocNo;
       const uom =
         selectedItem.Sales_Unit_of_Measure ||
         selectedItem.Base_Unit_of_Measure ||
@@ -218,7 +221,6 @@ export function PostedBardanaDialog({
         selectedItem.Description,
         uom,
         qty,
-        weight,
       );
 
 

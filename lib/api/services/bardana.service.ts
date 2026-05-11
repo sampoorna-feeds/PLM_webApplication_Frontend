@@ -110,7 +110,6 @@ export async function addPostedBardanaLine(
   description: string,
   uom: string,
   quantity: number,
-  weightPer: number,
 ): Promise<any> {
   const endpoint = `/QCPurchaseBardanaList?company='${encodeURIComponent(COMPANY)}'`;
   try {
@@ -123,7 +122,6 @@ export async function addPostedBardanaLine(
       Description: description,
       UOM: uom.toUpperCase(),
       Quantity: quantity,
-      Weight_Per: weightPer,
     });
     return response;
   } catch (error: any) {

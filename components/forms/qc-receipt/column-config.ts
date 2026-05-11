@@ -67,11 +67,11 @@ export const DEFAULT_COLUMNS: ColumnConfig[] = [
     filterType: "date",
   },
   {
-    id: "Approval_Status",
-    label: "Status",
+    id: "Document_No",
+    label: "Bardana RPO",
     sortable: true,
     defaultVisible: true,
-    filterType: "enum",
+    filterType: "text",
   },
   {
     id: "Inspection_Quantity",

@@ -14,6 +14,8 @@ export interface Item {
   QC_Required?: boolean;
   Status?: string;
   RM_Bardana_Item?: boolean;
+  RM_Bardana_Wt?: number;
+
 
   /** From ItemCard (detail) */
   GST_Group_Code?: string;
@@ -103,8 +105,8 @@ function getBaseFilter(locationCode?: string): string {
   return `(${blockedFilter})`;
 }
 
-const ITEM_LIST_SELECT = "No,Description,Unit_Price,Sales_Unit_of_Measure,Purch_Unit_of_Measure";
-const PRELOAD_SELECT = "No,Description,Unit_Price,Sales_Unit_of_Measure,Purch_Unit_of_Measure,Base_Unit_of_Measure,GST_Group_Code,HSN_SAC_Code,Exempted,Bardana_Generation_Enable";
+const ITEM_LIST_SELECT = "No,Description,Unit_Price,Sales_Unit_of_Measure,Purch_Unit_of_Measure,RM_Bardana_Wt";
+const PRELOAD_SELECT = "No,Description,Unit_Price,Sales_Unit_of_Measure,Purch_Unit_of_Measure,Base_Unit_of_Measure,GST_Group_Code,HSN_SAC_Code,Exempted,Bardana_Generation_Enable,QC_Required,RM_Bardana_Wt";
 
 // Cache for preloaded items
 let preloadedItems: Item[] = [];
@@ -160,7 +162,7 @@ function buildItemListEndpoint(
   if (options?.orderby) params.set("$orderby", options.orderby);
   if (options?.top != null) params.set("$top", String(options.top));
   if (options?.skip != null) params.set("$skip", String(options.skip));
-  return `/ItemCard?Company=${encodeURIComponent(COMPANY)}&${params.toString()}`;
+  return `/ItemCard?company=${encodeURIComponent(COMPANY)}&${params.toString()}`;
 }
 
 /**
@@ -361,10 +363,10 @@ export async function getItemByNo(itemNo: string): Promise<Item | null> {
   const baseFilter = getBaseFilter();
   const query = buildODataQuery({
     $select:
-      "No,Description,GST_Group_Code,HSN_SAC_Code,Exempted,Sales_Unit_of_Measure,Purch_Unit_of_Measure,Bardana_Generation_Enable,Status,RM_Bardana_Item,GST_Credit",
+      "No,Description,GST_Group_Code,HSN_SAC_Code,Exempted,Sales_Unit_of_Measure,Purch_Unit_of_Measure,Bardana_Generation_Enable,QC_Required,Status,RM_Bardana_Item,RM_Bardana_Wt,GST_Credit",
     $filter: `No eq '${escapeODataValue(itemNo)}' and ${baseFilter}`,
   });
-  const endpoint = `/ItemCard?Company=${encodeURIComponent(COMPANY)}&${query}`;
+  const endpoint = `/ItemCard?company=${encodeURIComponent(COMPANY)}&${query}`;
   const response = await apiGet<ODataResponse<Item>>(endpoint);
 
   return response.value.length > 0 ? response.value[0] : null;
@@ -387,7 +389,8 @@ export async function getItemsByNos(itemNos: string[]): Promise<Item[]> {
   const filter = `(Blocked eq false) and (${filterConditions.join(" or ")})`;
 
   const query = buildODataQuery({
-    $select: "No,Description,Item_Tracking_Code,Bardana_Generation_Enable,QC_Required",
+    $select: "No,Description,Item_Tracking_Code,Bardana_Generation_Enable,QC_Required,RM_Bardana_Wt",
+
 
     $filter: filter,
     $top: itemNos.length,
@@ -562,7 +565,8 @@ export async function getBardanaItems(top: number = 20): Promise<Item[]> {
   const endpoint = buildItemListEndpoint(filter, {
     top,
     orderby: "No",
-    select: "No,Description,Sales_Unit_of_Measure,Base_Unit_of_Measure",
+    select: "No,Description,Sales_Unit_of_Measure,Base_Unit_of_Measure,RM_Bardana_Wt",
+
   });
   const response = await apiGet<ODataResponse<Item>>(endpoint);
   return response.value;
@@ -577,7 +581,8 @@ export async function getBardanaItemsPage(
   top: number = 20,
 ): Promise<Item[]> {
   const base = `(Blocked eq false) and (Status eq 'Approved') and (RM_Bardana_Item eq true)`;
-  const select = "No,Description,Sales_Unit_of_Measure,Base_Unit_of_Measure";
+  const select = "No,Description,Sales_Unit_of_Measure,Base_Unit_of_Measure,RM_Bardana_Wt";
+
 
   if (!search || search.trim().length < 2) {
     const endpoint = buildItemListEndpoint(base, {
@@ -637,7 +642,7 @@ export async function searchBardanaItems(query: string): Promise<Item[]> {
       const ep = buildItemListEndpoint(f, {
         top: 20,
         orderby: "No",
-        select: "No,Description,Sales_Unit_of_Measure,Base_Unit_of_Measure",
+        select: "No,Description,Sales_Unit_of_Measure,Base_Unit_of_Measure,RM_Bardana_Wt",
       });
       return (await apiGet<ODataResponse<Item>>(ep)).value;
     })(),
@@ -646,10 +651,11 @@ export async function searchBardanaItems(query: string): Promise<Item[]> {
       const ep = buildItemListEndpoint(f, {
         top: 20,
         orderby: "No",
-        select: "No,Description,Sales_Unit_of_Measure,Base_Unit_of_Measure",
+        select: "No,Description,Sales_Unit_of_Measure,Base_Unit_of_Measure,RM_Bardana_Wt",
       });
       return (await apiGet<ODataResponse<Item>>(ep)).value;
     })(),
+
   ]);
 
   const map = new Map<string, Item>();

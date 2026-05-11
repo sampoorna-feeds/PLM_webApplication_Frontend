@@ -31,6 +31,7 @@ import {
   getBardanaItems,
   getBardanaItemsPage,
   searchBardanaItems,
+  getItemByNo,
   type Item,
 } from "@/lib/api/services/item.service";
 import {
@@ -217,13 +218,30 @@ export function PostedBardanaDialog({
     }
   };
 
-  const handleItemSelect = (itemNo: string, item?: Item) => {
+  const handleItemSelect = async (itemNo: string, item?: Item) => {
     if (item) {
       setSelectedItem(item);
+      
+      // If weight is missing, fetch full item details
+      let weight = item.RM_Bardana_Wt;
+      if (weight === undefined || weight === 0) {
+        try {
+          const fullItem = await getItemByNo(item.No);
+          if (fullItem?.RM_Bardana_Wt) {
+            weight = fullItem.RM_Bardana_Wt;
+          }
+        } catch (e) {
+          console.error("Error fetching item weight:", e);
+        }
+      }
+      
+      setNewWeightPer(Number(weight || 0).toString());
     } else {
       setSelectedItem(null);
+      setNewWeightPer("");
     }
   };
+
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -397,13 +415,28 @@ export function PostedBardanaDialog({
                           <div className="w-[140px]">
                             <SearchableSelect<Item>
                               value={editValues.Item_No || ""}
-                              onChange={(itemNo, item) => {
+                              onChange={async (itemNo, item) => {
                                 if (item) {
+                                  let weight = item.RM_Bardana_Wt;
+                                  
+                                  // Fallback: fetch full item if weight is missing or zero
+                                  if (weight === undefined || weight === 0) {
+                                    try {
+                                      const fullItem = await getItemByNo(item.No);
+                                      if (fullItem?.RM_Bardana_Wt) {
+                                        weight = fullItem.RM_Bardana_Wt;
+                                      }
+                                    } catch (e) {
+                                      console.error("Error fetching item weight:", e);
+                                    }
+                                  }
+
                                   setEditValues({
                                     ...editValues,
                                     Item_No: item.No,
                                     Description: item.Description,
-                                    UOM: item.Sales_Unit_of_Measure || item.Base_Unit_of_Measure || "PCS"
+                                    UOM: item.Sales_Unit_of_Measure || item.Base_Unit_of_Measure || "PCS",
+                                    Weight_Per: Number(weight || 0)
                                   });
                                 }
                               }}

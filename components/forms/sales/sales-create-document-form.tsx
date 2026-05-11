@@ -6,54 +6,16 @@
 
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { CascadingDimensionSelect } from "@/components/forms/cascading-dimension-select";
 import { LocationCodeSelectDialog } from "@/components/forms/location-code-select-dialog";
-import { getWebUserSetup } from "@/lib/api/services/dimension.service";
-import { CustomerSelect, type SalesCustomer } from "./customer-select";
-import { ShipToSelect } from "./shipto-select";
-import { SalesPersonSelect } from "./sales-person-select";
-import type { ShipToAddress } from "@/lib/api/services/shipto.service";
-import { getAuthCredentials } from "@/lib/auth/storage";
-import { getErrorMessage, toastError } from "@/lib/errors";
-import { ClearableField } from "@/components/ui/clearable-field";
-import { RequestFailedDialog } from "@/components/ui/request-failed-dialog";
-import { Badge } from "@/components/ui/badge";
-import { toast } from "sonner";
-import { Loader2, Plus, Printer } from "lucide-react";
-import { cn } from "@/lib/utils";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { GetPostedLineToReverseDialog } from "@/components/forms/shared/get-posted-line-to-reverse-dialog";
+import { TransporterSelect } from "@/components/forms/shared/transporter-select";
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { Separator } from "@/components/ui/separator";
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -64,121 +26,160 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { SearchableSelect } from "@/components/forms/shared/searchable-select";
+import { ClearableField } from "@/components/ui/clearable-field";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { RequestFailedDialog } from "@/components/ui/request-failed-dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { getWebUserSetup } from "@/lib/api/services/dimension.service";
+import { SALES_MENU_OPTIONS } from "@/lib/api/services/get-pstd-doc-lines-to-reverse.service";
+import {
+  type SalesCopyToDocType
+} from "@/lib/api/services/sales-copy-document.service";
+import type { SalesGetPostedLineDocType } from "@/lib/api/services/sales-get-posted-line.service";
+import type { ShipToAddress } from "@/lib/api/services/shipto.service";
+import { getAuthCredentials } from "@/lib/auth/storage";
+import { getErrorMessage, toastError } from "@/lib/errors";
+import { cn } from "@/lib/utils";
+import { Loader2, Plus, Printer } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
+import { ApplyCustomerEntriesDialog } from "./apply-customer-entries-dialog";
+import { CustomerSelect, type SalesCustomer } from "./customer-select";
 import { SalesAddLineDialog } from "./sales-add-line-dialog";
 import { SalesCopyDocumentDialog } from "./sales-copy-document-dialog";
-import {
-  SALES_COPY_FROM_DOC_TYPE_OPTIONS,
-  type SalesCopyToDocType,
-} from "@/lib/api/services/sales-copy-document.service";
 import { SalesGetPostedLineDialog } from "./sales-get-posted-line-dialog";
-import type { SalesGetPostedLineDocType } from "@/lib/api/services/sales-get-posted-line.service";
-import { GetPostedLineToReverseDialog } from "@/components/forms/shared/get-posted-line-to-reverse-dialog";
-import { SALES_MENU_OPTIONS } from "@/lib/api/services/get-pstd-doc-lines-to-reverse.service";
+import { SalesItemChargeAssignmentDialog } from "./sales-item-charge-assignment-dialog";
 import { SalesItemTrackingDialog } from "./sales-item-tracking-dialog";
 import { SalesLineItemsTable } from "./sales-line-items-table";
 import { SalesOrderLineEditDialog } from "./sales-order-line-edit-dialog";
-import { SalesItemChargeAssignmentDialog } from "./sales-item-charge-assignment-dialog";
-import { ApplyCustomerEntriesDialog } from "./apply-customer-entries-dialog";
-import { TransporterSelect } from "@/components/forms/shared/transporter-select";
+import { SalesPersonSelect } from "./sales-person-select";
+import { ShipToSelect } from "./shipto-select";
 
 // ── Services ──────────────────────────────────────────────────────────────────
-import {
-  createSalesOrder,
-  addSalesOrderLineItems,
-  addSingleSalesOrderLine,
-  type SalesDocumentLineItem,
-} from "@/lib/api/services/sales-order.service";
-import {
-  createSalesInvoice,
-  createSalesInvoiceCopyHeader,
-  addSalesInvoiceLineItems,
-  addSingleSalesInvoiceLine,
-} from "@/lib/api/services/sales-invoice.service";
-import {
-  createSalesReturnOrder,
-  createSalesReturnOrderCopyHeader,
-  addSalesReturnOrderLineItems,
-  addSingleSalesReturnOrderLine,
-} from "@/lib/api/services/sales-return-order.service";
-import {
-  createSalesCreditMemo,
-  createSalesCreditMemoCopyHeader,
-  addSalesCreditMemoLineItems,
-  addSingleSalesCreditMemoLine,
-} from "@/lib/api/services/sales-credit-memo.service";
-import {
-  getSalesOrderByNo,
-  getSalesOrderLines,
-  sendApprovalRequest as sendApproval_order,
-  cancelApprovalRequest as cancelApproval_order,
-  reopenSalesOrder as reopen_order,
-  patchSalesOrderHeader as patch_order,
-  deleteSalesOrderHeader as deleteHeader_order,
-  deleteSalesOrderLine as deleteLine_order,
-  postSalesOrder as post_order,
-  getSalesShipmentsByOrder,
-  getDeliveryReportPdf,
-  updateSalesLine as updateLine_order,
-  type SalesOrder,
-  type SalesLine,
-  type Transporter,
-  type SalesShipment,
-} from "@/lib/api/services/sales-orders.service";
-import {
-  getSalesOrderByNo as getInvoiceByNo,
-  getSalesOrderLines as getInvoiceLines,
-  sendApprovalRequest as sendApproval_invoice,
-  cancelApprovalRequest as cancelApproval_invoice,
-  reopenSalesOrder as reopen_invoice,
-  patchSalesOrderHeader as patch_invoice,
-  deleteSalesOrderHeader as deleteHeader_invoice,
-  deleteSalesOrderLine as deleteLine_invoice,
-  postSalesOrder as post_invoice,
-  updateSalesLine as updateLine_invoice,
-} from "@/lib/api/services/sales-invoices.service";
-import {
-  getSalesOrderByNo as getReturnByNo,
-  getSalesOrderLines as getReturnLines,
-  sendApprovalRequest as sendApproval_return,
-  cancelApprovalRequest as cancelApproval_return,
-  reopenSalesOrder as reopen_return,
-  patchSalesOrderHeader as patch_return,
-  deleteSalesOrderHeader as deleteHeader_return,
-  deleteSalesOrderLine as deleteLine_return,
-  postSalesOrder as post_return,
-  updateSalesLine as updateLine_return,
-} from "@/lib/api/services/sales-return-orders.service";
-import {
-  getSalesOrderByNo as getCreditMemoByNo,
-  getSalesOrderLines as getCreditMemoLines,
-  sendApprovalRequest as sendApproval_cm,
-  cancelApprovalRequest as cancelApproval_cm,
-  reopenSalesOrder as reopen_cm,
-  patchSalesOrderHeader as patch_cm,
-  deleteSalesOrderHeader as deleteHeader_cm,
-  deleteSalesOrderLine as deleteLine_cm,
-  postSalesOrder as post_cm,
-  updateSalesLine as updateLine_cm,
-} from "@/lib/api/services/sales-credit-memos.service";
-import { getItemsByNos, getItemStock, preloadItems } from "@/lib/api/services/item.service";
-import { getSalesPersonByCode } from "@/lib/api/services/sales-person.service";
+import { DateInput } from "@/components/ui/date-input";
 import {
   getDistance,
   getLocationPostCode,
 } from "@/lib/api/services/distance.service";
+import { getItemsByNos, getItemStock, preloadItems } from "@/lib/api/services/item.service";
+import {
+  addSalesCreditMemoLineItems,
+  addSingleSalesCreditMemoLine,
+  createSalesCreditMemo,
+  createSalesCreditMemoCopyHeader,
+} from "@/lib/api/services/sales-credit-memo.service";
+import {
+  cancelApprovalRequest as cancelApproval_cm,
+  deleteSalesOrderHeader as deleteHeader_cm,
+  deleteSalesOrderLine as deleteLine_cm,
+  getSalesOrderByNo as getCreditMemoByNo,
+  getSalesOrderLines as getCreditMemoLines,
+  patchSalesOrderHeader as patch_cm,
+  postSalesOrder as post_cm,
+  reopenSalesOrder as reopen_cm,
+  sendApprovalRequest as sendApproval_cm,
+  updateSalesLine as updateLine_cm,
+} from "@/lib/api/services/sales-credit-memos.service";
+import {
+  addSalesInvoiceLineItems,
+  addSingleSalesInvoiceLine,
+  createSalesInvoice,
+  createSalesInvoiceCopyHeader,
+} from "@/lib/api/services/sales-invoice.service";
+import {
+  cancelApprovalRequest as cancelApproval_invoice,
+  deleteSalesOrderHeader as deleteHeader_invoice,
+  deleteSalesOrderLine as deleteLine_invoice,
+  getSalesOrderByNo as getInvoiceByNo,
+  getSalesOrderLines as getInvoiceLines,
+  patchSalesOrderHeader as patch_invoice,
+  postSalesOrder as post_invoice,
+  reopenSalesOrder as reopen_invoice,
+  sendApprovalRequest as sendApproval_invoice,
+  updateSalesLine as updateLine_invoice,
+} from "@/lib/api/services/sales-invoices.service";
+import {
+  addSalesOrderLineItems,
+  addSingleSalesOrderLine,
+  createSalesOrder,
+  type SalesDocumentLineItem,
+} from "@/lib/api/services/sales-order.service";
+import {
+  cancelApprovalRequest as cancelApproval_order,
+  deleteSalesOrderHeader as deleteHeader_order,
+  deleteSalesOrderLine as deleteLine_order,
+  getDeliveryReportPdf,
+  getSalesOrderByNo,
+  getSalesOrderLines,
+  getSalesShipmentsByOrder,
+  patchSalesOrderHeader as patch_order,
+  postSalesOrder as post_order,
+  reopenSalesOrder as reopen_order,
+  sendApprovalRequest as sendApproval_order,
+  updateSalesLine as updateLine_order,
+  type SalesLine,
+  type SalesOrder,
+  type SalesShipment
+} from "@/lib/api/services/sales-orders.service";
+import { getSalesPersonByCode } from "@/lib/api/services/sales-person.service";
+import {
+  addSalesReturnOrderLineItems,
+  addSingleSalesReturnOrderLine,
+  createSalesReturnOrder,
+  createSalesReturnOrderCopyHeader,
+} from "@/lib/api/services/sales-return-order.service";
+import {
+  cancelApprovalRequest as cancelApproval_return,
+  deleteSalesOrderHeader as deleteHeader_return,
+  deleteSalesOrderLine as deleteLine_return,
+  getSalesOrderByNo as getReturnByNo,
+  getSalesOrderLines as getReturnLines,
+  patchSalesOrderHeader as patch_return,
+  postSalesOrder as post_return,
+  reopenSalesOrder as reopen_return,
+  sendApprovalRequest as sendApproval_return,
+  updateSalesLine as updateLine_return,
+} from "@/lib/api/services/sales-return-orders.service";
+import { getVendorDetails } from "@/lib/api/services/vendor.service";
 import { getWebUser, type WebUser } from "@/lib/api/services/web-user.service";
 import { isPostingDateValid } from "@/lib/utils/posting-date";
-import { DateInput } from "@/components/ui/date-input";
 
 // ── Config + utilities ────────────────────────────────────────────────────────
+import { formatDate } from "@/lib/utils/date";
+import { validatePhone } from "@/lib/validations/shipto.validation";
 import {
-  getSalesDocumentConfig,
   getSalesDocumentCapabilities,
+  getSalesDocumentConfig,
   type SalesDocumentType,
 } from "./sales-document-config";
+import type { SalesDocumentHeaderData } from "./sales-document-header-data";
 import {
   buildSalesCommonHeaderData,
   buildSalesHeaderPatchPayload,
@@ -188,9 +189,6 @@ import {
 } from "./sales-document-header-data";
 import { mapSalesHeaderToFormData } from "./sales-document-hydration";
 import type { SalesDocumentFormMode } from "./sales-form-stack";
-import { validatePhone } from "@/lib/validations/shipto.validation";
-import type { SalesDocumentHeaderData } from "./sales-document-header-data";
-import { formatDate } from "@/lib/utils/date";
 
 // ── Per-document-type config object ──────────────────────────────────────────
 
@@ -496,9 +494,24 @@ export function SalesCreateDocumentFormContent({
           const freshHeader = await ops.fetchHeader(initialOrderNo);
           if (freshHeader) {
             setOrderHeader(freshHeader);
+
+            const tCode = (freshHeader.Transporter_Code as string) || "";
+            let tName = (freshHeader.Transporter_Name as string) || "";
+
+            if (tCode && !tName) {
+              try {
+                const vendor = await getVendorDetails(tCode);
+                if (vendor) {
+                  tName = vendor.Name;
+                }
+              } catch (err) {
+                console.error("Failed to fetch transporter name:", err);
+              }
+            }
+
             setPostDetails({
-              transporterCode: (freshHeader.Transporter_Code as string) || "",
-              transporterName: (freshHeader.Transporter_Name as string) || "",
+              transporterCode: tCode,
+              transporterName: tName,
               vehicleNumber: (freshHeader.Vehicle_No as string) || "",
               driverPhone: (freshHeader.Driver_Mobile_No as string) || "",
               lrRrNumber: (freshHeader.LR_RR_No as string) || "",

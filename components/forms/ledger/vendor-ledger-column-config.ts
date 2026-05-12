@@ -3,7 +3,11 @@
  * Defines all available columns, their metadata, and default visibility
  */
 
+import { getAuthCredentials } from "@/lib/auth/storage";
+import { getCookie, setCookie } from "@/lib/utils/cookies";
+
 export type SortDirection = "asc" | "desc" | null;
+
 
 export type FilterType = "text" | "enum" | "boolean" | "date" | "number";
 
@@ -19,13 +23,6 @@ export interface ColumnConfig {
 
 // Default columns for Ledger
 export const LEDGER_DEFAULT_COLUMNS: ColumnConfig[] = [
-  {
-    id: "Entry_No",
-    label: "Entry No",
-    sortable: true,
-    defaultVisible: false,
-    filterType: "number",
-  },
   {
     id: "Posting_Date",
     label: "Posting Date",
@@ -82,31 +79,11 @@ export const LEDGER_DEFAULT_COLUMNS: ColumnConfig[] = [
     defaultVisible: true,
     filterType: "number",
   },
-  {
-    id: "Remaining_Amount",
-    label: "Remaining",
-    sortable: true,
-    defaultVisible: true,
-    filterType: "number",
-  },
-  {
-    id: "Open",
-    label: "Status",
-    sortable: true,
-    defaultVisible: true,
-    filterType: "boolean",
-  },
 ];
+
 
 // Default columns for Outstanding
 export const OUTSTANDING_DEFAULT_COLUMNS: ColumnConfig[] = [
-  {
-    id: "Entry_No",
-    label: "Entry No",
-    sortable: true,
-    defaultVisible: false,
-    filterType: "number",
-  },
   {
     id: "Posting_Date",
     label: "Posting Date",
@@ -150,13 +127,6 @@ export const OUTSTANDING_DEFAULT_COLUMNS: ColumnConfig[] = [
     filterType: "number",
   },
   {
-    id: "Remaining_Amount",
-    label: "Remaining",
-    sortable: true,
-    defaultVisible: true,
-    filterType: "number",
-  },
-  {
     id: "Due_Date",
     label: "Due Date",
     sortable: true,
@@ -165,8 +135,31 @@ export const OUTSTANDING_DEFAULT_COLUMNS: ColumnConfig[] = [
   },
 ];
 
+
 export const OPTIONAL_COLUMNS: ColumnConfig[] = [
+  {
+    id: "Entry_No",
+    label: "Entry No",
+    sortable: true,
+    defaultVisible: false,
+    filterType: "number",
+  },
+  {
+    id: "Remaining_Amount",
+    label: "Remaining",
+    sortable: true,
+    defaultVisible: false,
+    filterType: "number",
+  },
+  {
+    id: "Open",
+    label: "Status",
+    sortable: true,
+    defaultVisible: false,
+    filterType: "boolean",
+  },
   // ── Financial Balance & Advanced ──
+
   {
     id: "Amount_LCY",
     label: "Amount (LCY)",
@@ -606,12 +599,18 @@ export function saveVisibleColumns(columns: string[], isOutstanding: boolean = f
   }
 }
 
-const WIDTHS_KEY = "vendorLedger_columnWidths";
+const WIDTHS_COOKIE_PREFIX = "sf_vledger_widths_";
 const ORDER_KEY = "vendorLedger_columnOrder";
+
+function getWidthsKey(): string {
+  const userID = getAuthCredentials()?.userID || "default";
+  return `${WIDTHS_COOKIE_PREFIX}${userID}`;
+}
 
 export function loadColumnWidths(): Record<string, number> {
   try {
-    const stored = localStorage.getItem(WIDTHS_KEY);
+    const key = getWidthsKey();
+    const stored = getCookie(key);
     return stored ? JSON.parse(stored) : {};
   } catch (error) {
     return {};
@@ -620,9 +619,11 @@ export function loadColumnWidths(): Record<string, number> {
 
 export function saveColumnWidths(widths: Record<string, number>): void {
   try {
-    localStorage.setItem(WIDTHS_KEY, JSON.stringify(widths));
+    const key = getWidthsKey();
+    setCookie(key, JSON.stringify(widths));
   } catch (error) {}
 }
+
 
 export function loadColumnOrder(): string[] {
   try {
@@ -642,8 +643,12 @@ export function saveColumnOrder(order: string[]): void {
 
 export function resetVendorTableUI(): void {
   try {
-    localStorage.removeItem(WIDTHS_KEY);
+    const key = getWidthsKey();
+    localStorage.removeItem(key); // Also clear legacy if exists
+    localStorage.removeItem("vendorLedger_columnWidths"); // Clear old global key
+    setCookie(key, "", -1); // Clear cookie
     localStorage.removeItem(ORDER_KEY);
   } catch (error) {}
 }
+
 

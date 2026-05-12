@@ -48,8 +48,9 @@ export function useVendorLedger(options: UseVendorLedgerOptions = {}) {
     additionalFilters: [],
     columnFilters: {},
     sortField: "Posting_Date",
-    sortOrder: "desc"
+    sortOrder: options.isOutstanding ? "desc" : "asc"
   });
+
 
   const LIMIT = 50;
 
@@ -156,6 +157,8 @@ export function useVendorLedger(options: UseVendorLedgerOptions = {}) {
   }, []);
 
   const handleColumnFilterChange = useCallback((field: string, value: string, valueTo?: string) => {
+    if (!options.isOutstanding) return; // Filtering disabled for Ledger
+
     setFilters((prev) => ({
       ...prev,
       columnFilters: {
@@ -163,9 +166,12 @@ export function useVendorLedger(options: UseVendorLedgerOptions = {}) {
         [field]: valueTo ? `${value},${valueTo}` : value
       }
     }));
-  }, []);
+  }, [options.isOutstanding]);
+
 
   const handleSort = useCallback((field: string) => {
+    if (!options.isOutstanding) return; // Sorting disabled for Ledger
+
     setFilters((prev) => {
       const isAsc = prev.sortField === field && prev.sortOrder === "asc";
       return {
@@ -174,7 +180,8 @@ export function useVendorLedger(options: UseVendorLedgerOptions = {}) {
         sortOrder: isAsc ? "desc" : "asc"
       };
     });
-  }, []);
+  }, [options.isOutstanding]);
+
 
   const handleAddAdditionalFilter = useCallback((filter: FilterCondition) => {
     setFilters((prev) => ({

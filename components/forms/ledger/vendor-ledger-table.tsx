@@ -185,8 +185,32 @@ export function VendorLedgerTable({
       : [filterState, ""];
 
     const onResizeMouseDown = (e: React.MouseEvent) => {
-      // Resizing disabled as per user request
+      e.preventDefault();
+      e.stopPropagation();
+      
+      const startX = e.pageX;
+      const startWidth = columnWidths[field] || 150;
+
+      const onMouseMove = (moveEvent: MouseEvent) => {
+        const delta = moveEvent.pageX - startX;
+        const newWidth = Math.max(50, startWidth + delta);
+        handleResize(field, newWidth);
+      };
+
+      const onMouseUp = (upEvent: MouseEvent) => {
+        document.removeEventListener("mousemove", onMouseMove);
+        document.removeEventListener("mouseup", onMouseUp);
+        
+        // Save the final width
+        const delta = upEvent.pageX - startX;
+        const finalWidth = Math.max(50, startWidth + delta);
+        saveWidths({ ...columnWidths, [field]: finalWidth });
+      };
+
+      document.addEventListener("mousemove", onMouseMove);
+      document.addEventListener("mouseup", onMouseUp);
     };
+
 
     const [isDragOver, setIsDragOver] = useState(false);
     const [isActionsOpen, setIsActionsOpen] = useState(false);
@@ -213,20 +237,25 @@ export function VendorLedgerTable({
           maxWidth: columnWidths[field] ? `${columnWidths[field]}px` : undefined,
         }}
         className={cn(
-          "bg-muted border-b px-4 py-3 text-left align-middle text-xs font-bold whitespace-nowrap sticky top-0 z-10 transition-all overflow-hidden select-none",
+          "bg-muted border-b px-4 py-3 text-left align-middle text-xs font-bold sticky top-0 z-10 transition-all overflow-hidden select-none",
           sortField === field ? "text-primary" : "text-foreground",
           className,
         )}
+
       >
         <div className="flex items-center gap-1.5 overflow-hidden py-1">
           <span
-            className="hover:text-primary cursor-pointer transition-colors truncate"
-            onClick={() => isSortable && onSort(field)}
+            className={cn(
+              "transition-colors",
+              isOutstanding ? "hover:text-primary cursor-pointer" : "cursor-default"
+            )}
+
+            onClick={() => isOutstanding && isSortable && onSort(field)}
             title={label}
           >
             {label}
           </span>
-          {isSortable && (
+          {isOutstanding && isSortable && (
             <button
               type="button"
               className="hover:text-primary transition-colors shrink-0"
@@ -235,7 +264,7 @@ export function VendorLedgerTable({
               <SortIcon field={field} />
             </button>
           )}
-          {colConfig?.filterType && (
+          {isOutstanding && colConfig?.filterType && (
             <div className="shrink-0">
               <ColumnFilter
                 column={colConfig}
@@ -246,6 +275,13 @@ export function VendorLedgerTable({
             </div>
           )}
         </div>
+
+        {/* Resize Handle */}
+        <div
+          onMouseDown={onResizeMouseDown}
+          className="absolute right-0 top-0 h-full w-1.5 cursor-col-resize hover:bg-primary/30 transition-colors z-20 group-hover/table:bg-muted-foreground/10"
+        />
+
       </th>
     );
   };
@@ -261,26 +297,30 @@ export function VendorLedgerTable({
 
     if (value === null || value === undefined || value === "") {
       return (
-        <TableCell key={col.id} style={cellStyle} className="text-center text-muted-foreground/30 px-4 py-2">
+        <TableCell key={col.id} style={cellStyle} className="text-center text-muted-foreground/30 px-4 py-2 whitespace-normal">
           -
         </TableCell>
+
       );
     }
 
     if (col.id === "Entry_No") {
       return (
-        <TableCell key={col.id} style={cellStyle} className="text-xs font-medium whitespace-nowrap text-primary px-4 py-3">
+        <TableCell key={col.id} style={cellStyle} className="text-xs font-medium text-primary px-4 py-3 break-words whitespace-normal">
           {value}
         </TableCell>
+
+
       );
     }
 
     switch (col.filterType) {
       case "date":
         return (
-          <TableCell key={col.id} style={cellStyle} className="text-xs text-foreground/80 px-4 py-3 break-words">
+          <TableCell key={col.id} style={cellStyle} className="text-xs text-foreground/80 px-4 py-3 break-words whitespace-normal">
             {value && value !== "0001-01-01" ? format(new Date(value), "dd-MM-yyyy") : "-"}
           </TableCell>
+
         );
       case "number": {
         const numValue = Number(value) || 0;
@@ -289,17 +329,18 @@ export function VendorLedgerTable({
             key={col.id}
             style={cellStyle}
             className={cn(
-              "text-right text-xs px-4 py-3 tabular-nums",
+              "text-right text-xs px-4 py-3 tabular-nums break-words whitespace-normal",
               numValue < 0 ? "text-destructive" : numValue > 0 ? "text-primary" : "text-muted-foreground/40",
             )}
           >
             {numValue === 0 ? "-" : numValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </TableCell>
+
         );
       }
       case "boolean":
         return (
-          <TableCell key={col.id} style={cellStyle} className="text-center px-4 py-3">
+          <TableCell key={col.id} style={cellStyle} className="text-center px-4 py-3 whitespace-normal">
             <Badge
               variant={value ? "default" : "secondary"}
               className={cn(
@@ -310,6 +351,7 @@ export function VendorLedgerTable({
               {value ? "Open" : "Closed"}
             </Badge>
           </TableCell>
+
         );
       default:
         return (
@@ -317,13 +359,14 @@ export function VendorLedgerTable({
             key={col.id}
             style={cellStyle}
             className={cn(
-              "text-xs px-4 py-3 transition-colors break-words",
+              "text-xs px-4 py-3 transition-colors break-words whitespace-normal",
               col.id === "Document_No" ? "font-bold text-primary hover:underline cursor-pointer" : "text-foreground/80"
             )}
             title={String(value)}
           >
             {String(value)}
           </TableCell>
+
         );
     }
   };
@@ -427,10 +470,12 @@ export function VendorLedgerTable({
                 {balancePrefixColSpan > 0 && (
                   <td
                     colSpan={balancePrefixColSpan}
-                    className="px-4 py-2 text-left"
+                    className="px-4 py-2 text-left break-words whitespace-normal"
                   >
+
                     Opening Balance
                   </td>
+
                 )}
                 {activeColumns.slice(balancePrefixColSpan).map((col) => {
                   const cellStyle = {
@@ -443,8 +488,10 @@ export function VendorLedgerTable({
                       <td
                         key={col.id}
                         style={cellStyle}
-                        className="px-4 py-2 text-right border-l"
+                        className="px-4 py-2 text-right border-l break-words whitespace-normal"
                       >
+
+
                         {openingBalance.toLocaleString(undefined, {
                           minimumFractionDigits: 2,
                           maximumFractionDigits: 2,
@@ -489,10 +536,12 @@ export function VendorLedgerTable({
                 {balancePrefixColSpan > 0 && (
                   <td
                     colSpan={balancePrefixColSpan}
-                    className="px-4 py-3 text-left"
+                    className="px-4 py-3 text-left break-words whitespace-normal"
                   >
+
                     Summary
                   </td>
+
                 )}
                 {activeColumns.slice(balancePrefixColSpan).map((col) => {
                   const cellStyle = {
@@ -506,8 +555,10 @@ export function VendorLedgerTable({
                       <td
                         key={col.id}
                         style={cellStyle}
-                        className="px-4 py-3 text-right border-l"
+                        className="px-4 py-3 text-right border-l break-words whitespace-normal"
                       >
+
+
                         <div className="text-xs text-muted-foreground uppercase font-medium">Total Debit</div>
                         <div>{formatAmount(debitSum)}</div>
                       </td>
@@ -519,8 +570,10 @@ export function VendorLedgerTable({
                       <td
                         key={col.id}
                         style={cellStyle}
-                        className="px-4 py-3 text-right border-l"
+                        className="px-4 py-3 text-right border-l break-words whitespace-normal"
                       >
+
+
                         <div className="text-xs text-muted-foreground uppercase font-medium">Total Credit</div>
                         <div>{formatAmount(creditSum)}</div>
                       </td>
@@ -532,8 +585,10 @@ export function VendorLedgerTable({
                       <td
                         key={col.id}
                         style={cellStyle}
-                        className="px-4 py-3 text-right border-l text-primary"
+                        className="px-4 py-3 text-right border-l text-primary break-words whitespace-normal"
                       >
+
+
                         <div className="text-xs text-muted-foreground uppercase font-medium">Closing Balance</div>
                         <div>{formatAmount(closingBalance)}</div>
                       </td>

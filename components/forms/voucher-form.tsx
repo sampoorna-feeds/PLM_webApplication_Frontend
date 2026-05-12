@@ -2511,6 +2511,14 @@ export function VoucherForm() {
                   <TableHead
                     className={cn(
                       "text-foreground/80 bg-muted/30 px-1 py-1 text-xs font-semibold",
+                      "w-40",
+                    )}
+                  >
+                    Acc Name
+                  </TableHead>
+                  <TableHead
+                    className={cn(
+                      "text-foreground/80 bg-muted/30 px-1 py-1 text-xs font-semibold",
                       "w-27.5",
                     )}
                   >
@@ -2547,6 +2555,14 @@ export function VoucherForm() {
                     )}
                   >
                     Bal No
+                  </TableHead>
+                  <TableHead
+                    className={cn(
+                      "text-foreground/80 bg-muted/30 px-1 py-1 text-xs font-semibold",
+                      "w-40",
+                    )}
+                  >
+                    Bal Name
                   </TableHead>
                   <TableHead
                     className={cn(
@@ -2692,6 +2708,9 @@ export function VoucherForm() {
                             {voucher.Account_No}
                           </TableCell>
                           <TableCell className="px-1 py-0.5 text-xs">
+                            {voucher.AccountName || "-"}
+                          </TableCell>
+                          <TableCell className="px-1 py-0.5 text-xs">
                             {voucher.External_Document_No || "-"}
                           </TableCell>
                           <TableCell className="px-1 py-0.5 text-xs">
@@ -2705,6 +2724,9 @@ export function VoucherForm() {
                           </TableCell>
                           <TableCell className="px-1 py-0.5 text-xs">
                             {voucher.Bal_Account_No}
+                          </TableCell>
+                          <TableCell className="px-1 py-0.5 text-xs">
+                            {voucher.BalAccName || "-"}
                           </TableCell>
                           <TableCell className="px-1 py-0.5 text-xs">
                             {voucher.Line_Narration1 || "-"}

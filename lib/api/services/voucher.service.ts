@@ -165,6 +165,8 @@ export interface VoucherEntryResponse {
   TCS_Nature_of_Collection?: string;
   Party_Type?: string;
   Party_Code?: string;
+  AccountName?: string;
+  BalAccName?: string;
   [key: string]: unknown;
 }
 

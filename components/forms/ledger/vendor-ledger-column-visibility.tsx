@@ -67,12 +67,12 @@ export function VendorColumnVisibility({
       <PopoverContent className="w-64 p-0 shadow-lg border-primary/10" align="end">
         <div className="border-b p-3 bg-muted/20">
           <div className="flex items-center justify-between">
-            <span className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Toggle Columns</span>
+            <span className="text-sm font-semibold text-muted-foreground">Toggle Columns</span>
             <div className="flex gap-1">
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-7 px-2 text-[10px] font-bold uppercase hover:bg-primary/10 hover:text-primary transition-colors"
+                className="h-7 px-2 text-xs"
                 onClick={onShowAllColumns}
               >
                 All
@@ -80,7 +80,7 @@ export function VendorColumnVisibility({
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-7 px-2 text-[10px] font-bold uppercase hover:bg-primary/10 hover:text-primary transition-colors"
+                className="h-7 px-2 text-xs"
                 onClick={onResetColumns}
               >
                 <RotateCcw className="mr-1 h-3 w-3" />
@@ -105,7 +105,7 @@ export function VendorColumnVisibility({
           {filteredDefault.length > 0 && (
             <div className="mb-2">
               <div className="px-2 py-1 mb-1">
-                <span className="text-[10px] font-black uppercase tracking-widest text-primary/70">
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-primary/70">
                   Default Columns
                 </span>
               </div>
@@ -128,7 +128,7 @@ export function VendorColumnVisibility({
           {filteredOptional.length > 0 && (
             <div>
               <div className="px-2 py-1 mb-1">
-                <span className="text-[10px] font-black uppercase tracking-widest text-primary/70">
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-primary/70">
                   Additional Columns
                 </span>
               </div>

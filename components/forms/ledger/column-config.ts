@@ -8,9 +8,9 @@ export const VENDOR_LEDGER_COLUMNS: ColumnConfig[] = [
   // ── Core Identification ──
   { id: "Entry_No", label: "Entry No.", filterType: "number" },
   { id: "Posting_Date", label: "Posting Date", filterType: "date" },
-  { id: "Document_Type", label: "Doc Type", filterType: "text" },
-  { id: "Document_No", label: "Doc No.", filterType: "text" },
-  { id: "External_Document_No", label: "Ext. Doc No.", filterType: "text" },
+  { id: "Document_Type", label: "Document Type", filterType: "text" },
+  { id: "Document_No", label: "Document No.", filterType: "text" },
+  { id: "External_Document_No", label: "External Doc No.", filterType: "text" },
   { id: "Vendor_No", label: "Vendor No.", filterType: "text" },
   { id: "VendorName", label: "Vendor Name", filterType: "text" },
 
@@ -23,13 +23,13 @@ export const VENDOR_LEDGER_COLUMNS: ColumnConfig[] = [
   { id: "Debit_Amount_LCY", label: "Debit (LCY)", filterType: "number" },
   { id: "Credit_Amount_LCY", label: "Credit (LCY)", filterType: "number" },
   { id: "Original_Amount", label: "Original Amount", filterType: "number" },
-  { id: "Closed_by_Amount", label: "Closed by Amt.", filterType: "number" },
+  { id: "Closed_by_Amount", label: "Closed by Amount", filterType: "number" },
 
   // ── Dates ──
   { id: "Due_Date", label: "Due Date", filterType: "date" },
   { id: "Document_Date", label: "Doc Date", filterType: "date" },
   { id: "Closed_at_Date", label: "Closed Date", filterType: "date" },
-  { id: "Invoice_Received_Date", label: "Inv. Rec. Date", filterType: "date" },
+  { id: "Invoice_Received_Date", label: "Invoice Received Date", filterType: "date" },
 
   // ── Payment & Compliance ──
   { id: "Payment_Method_Code", label: "Payment Method", filterType: "text" },

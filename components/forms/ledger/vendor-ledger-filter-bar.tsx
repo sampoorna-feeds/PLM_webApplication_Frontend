@@ -92,32 +92,27 @@ export function VendorLedgerFilterBar({
               variant="outline"
               size="sm"
               className={cn(
-                "h-11 px-4 gap-3 bg-background/40 hover:bg-background/60 border-border/50 shadow-sm transition-all duration-300 rounded-xl",
-                hasActiveDateFilter && "border-primary/50 bg-primary/5 shadow-primary/10"
+                "h-9 px-3 gap-2 shadow-sm",
+                hasActiveDateFilter && "border-primary bg-primary/5"
               )}
             >
-              <div className={cn(
-                "p-1.5 rounded-lg transition-colors",
-                hasActiveDateFilter ? "bg-primary/20 text-primary" : "bg-muted text-muted-foreground"
-              )}>
-                <Calendar className="h-4 w-4" />
-              </div>
+              <Calendar className="h-4 w-4 text-muted-foreground" />
               <div className="flex flex-col items-start leading-none text-left">
-                <span className="text-[9px] uppercase font-black tracking-widest text-muted-foreground/80 mb-0.5">Date Range</span>
-                <span className="text-xs font-bold whitespace-nowrap">{dateRangeText}</span>
+                <span className="text-xs text-muted-foreground mb-1">Date Range</span>
+                <span className="text-sm font-medium whitespace-nowrap">{dateRangeText}</span>
               </div>
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="w-80 p-0 border-border/50 shadow-2xl rounded-2xl overflow-hidden" align="start">
-            <div className="p-4 bg-muted/30 border-b border-border/50">
+          <PopoverContent className="w-80 p-0 shadow-lg rounded-md overflow-hidden" align="start">
+            <div className="p-4 bg-muted/50 border-b">
               <div className="flex items-center justify-between">
-                <h4 className="font-bold text-sm tracking-tight">Period Selection</h4>
+                <h4 className="font-medium text-sm">Period Selection</h4>
                 {hasActiveDateFilter && (
                   <Button 
                     variant="ghost" 
                     size="sm" 
                     onClick={() => onFilterChange({ fromDate: "", toDate: "" })}
-                    className="h-7 text-[10px] font-bold uppercase tracking-widest text-destructive hover:bg-destructive/10"
+                    className="h-7 text-xs text-destructive"
                   >
                     Reset
                   </Button>
@@ -125,33 +120,33 @@ export function VendorLedgerFilterBar({
               </div>
             </div>
             
-            <div className="p-5 space-y-5">
-              <div className="space-y-2.5">
-                <Label htmlFor="date-from" className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+            <div className="p-4 space-y-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="date-from" className="text-xs text-muted-foreground">
                   From Date
                 </Label>
                 <DateInput
                   id="date-from"
                   value={filters.fromDate}
                   onChange={(val) => onFilterChange({ fromDate: val })}
-                  className="w-full h-10 bg-background/50 border-border/50 focus:border-primary/50 transition-all rounded-lg"
+                  className="w-full h-9"
                 />
               </div>
 
-              <div className="space-y-2.5">
-                <Label htmlFor="date-to" className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="date-to" className="text-xs text-muted-foreground">
                   To Date
                 </Label>
                 <DateInput
                   id="date-to"
                   value={filters.toDate}
                   onChange={(val) => onFilterChange({ toDate: val })}
-                  className="w-full h-10 bg-background/50 border-border/50 focus:border-primary/50 transition-all rounded-lg"
+                  className="w-full h-9"
                 />
               </div>
               
               <Button 
-                className="w-full h-10 font-bold text-xs uppercase tracking-widest shadow-lg shadow-primary/20"
+                className="w-full h-9 text-xs font-medium"
                 onClick={() => setFilterPopoverOpen(false)}
               >
                 Apply Filter
@@ -165,7 +160,7 @@ export function VendorLedgerFilterBar({
             variant="ghost"
             size="sm"
             onClick={onClearFilters}
-            className="h-11 w-11 p-0 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-all duration-300 rounded-xl"
+            className="h-9 w-9 p-0 text-muted-foreground"
             title="Clear all filters"
           >
             <X className="h-4 w-4" />
@@ -173,19 +168,19 @@ export function VendorLedgerFilterBar({
         )}
       </div>
 
-      <div className="flex items-center gap-3 bg-muted/20 px-4 py-2 rounded-xl border border-border/40 flex-1 max-w-sm ml-2 group focus-within:border-primary/40 focus-within:bg-background/40 transition-all duration-300">
-        <Search className="h-4 w-4 text-muted-foreground/60 group-focus-within:text-primary transition-colors" />
+      <div className="flex items-center gap-2 bg-muted/50 px-3 py-1 rounded-md border flex-1 max-w-sm ml-2 group focus-within:border-primary transition-all">
+        <Search className="h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
         <input
           type="text"
           placeholder="Search entries..."
           value={filters.search || ""}
           onChange={(e) => handleSearchChange(e.target.value)}
-          className="bg-transparent border-none focus:ring-0 text-sm h-7 w-full placeholder:text-muted-foreground/40 font-medium outline-none"
+          className="bg-transparent border-none focus:ring-0 text-sm h-7 w-full placeholder:text-muted-foreground/50 outline-none"
         />
         {filters.search && (
           <button 
             onClick={() => handleSearchChange("")}
-            className="p-1 hover:bg-muted rounded-lg transition-colors"
+            className="p-1 hover:bg-muted rounded-md transition-colors"
           >
             <X className="h-3 w-3 text-muted-foreground" />
           </button>
@@ -206,7 +201,7 @@ export function VendorLedgerFilterBar({
         <Button
           variant="outline"
           size="sm"
-          className="h-11 px-5 gap-2.5 border-border/50 bg-background/40 hover:bg-primary/10 hover:text-primary hover:border-primary/30 font-bold text-[10px] uppercase tracking-widest shadow-sm rounded-xl transition-all duration-300"
+          className="h-9 gap-2 shadow-sm"
           onClick={() => setExportDialogOpen(true)}
           disabled={totalCount === 0}
         >

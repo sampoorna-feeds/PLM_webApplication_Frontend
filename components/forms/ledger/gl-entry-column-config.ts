@@ -23,7 +23,7 @@ export const GL_ENTRY_COLUMNS: ColumnConfig[] = [
     id: "Entry_No",
     label: "Entry No",
     sortable: true,
-    defaultVisible: false,
+    defaultVisible: true,
     filterType: "number",
   },
   {
@@ -34,8 +34,15 @@ export const GL_ENTRY_COLUMNS: ColumnConfig[] = [
     filterType: "date",
   },
   {
+    id: "Document_Type",
+    label: "Document Type",
+    sortable: true,
+    defaultVisible: true,
+    filterType: "text",
+  },
+  {
     id: "Document_No",
-    label: "Doc No.",
+    label: "Document No.",
     sortable: true,
     defaultVisible: true,
     filterType: "text",
@@ -83,24 +90,16 @@ export const GL_ENTRY_COLUMNS: ColumnConfig[] = [
     filterType: "number",
   },
 
-  // ── Document Metadata ──
-  {
-    id: "Document_Type",
-    label: "Doc Type",
-    sortable: true,
-    defaultVisible: false,
-    filterType: "text",
-  },
   {
     id: "Document_Date",
-    label: "Doc Date",
+    label: "Document Date",
     sortable: true,
     defaultVisible: false,
     filterType: "date",
   },
   {
     id: "External_Document_No",
-    label: "Ext. Doc No.",
+    label: "External Document No.",
     sortable: true,
     defaultVisible: false,
     filterType: "text",
@@ -216,7 +215,7 @@ export const GL_ENTRY_COLUMNS: ColumnConfig[] = [
   },
   {
     id: "Additional_Currency_Amount",
-    label: "Add. Curr. Amt",
+    label: "Additional Currency Amount",
     sortable: true,
     defaultVisible: false,
     filterType: "number",
@@ -230,7 +229,7 @@ export const GL_ENTRY_COLUMNS: ColumnConfig[] = [
   },
   {
     id: "NonDeductibleVATAmount",
-    label: "Non-Deduct. VAT",
+    label: "Non-Deductible VAT",
     sortable: true,
     defaultVisible: false,
     filterType: "number",

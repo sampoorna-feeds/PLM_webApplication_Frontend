@@ -185,28 +185,7 @@ export function VendorLedgerTable({
       : [filterState, ""];
 
     const onResizeMouseDown = (e: React.MouseEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-      const startX = e.pageX;
-      const headerElement = (e.currentTarget as HTMLElement).parentElement;
-      const startWidth = headerElement?.offsetWidth || 0;
-
-      const onMouseMove = (moveEvent: MouseEvent) => {
-        const currentWidth = Math.max(80, startWidth + (moveEvent.pageX - startX));
-        handleResize(field, currentWidth);
-      };
-
-      const onMouseUp = () => {
-        window.removeEventListener("mousemove", onMouseMove);
-        window.removeEventListener("mouseup", onMouseUp);
-        setColumnWidths(prev => {
-          saveWidths(prev);
-          return prev;
-        });
-      };
-
-      window.addEventListener("mousemove", onMouseMove);
-      window.addEventListener("mouseup", onMouseUp);
+      // Resizing disabled as per user request
     };
 
     const [isDragOver, setIsDragOver] = useState(false);
@@ -226,124 +205,47 @@ export function VendorLedgerTable({
     const handleDragLeave = () => {
       setIsDragOver(false);
     };
-
-    const handleDrop = (e: React.DragEvent) => {
-      e.preventDefault();
-      setIsDragOver(false);
-      const draggedId = e.dataTransfer.getData("columnId");
-      if (draggedId && draggedId !== field) {
-        handleColumnReorder(draggedId, field);
-      }
-    };
-
     return (
       <th
-        draggable
-        onDragStart={handleDragStart}
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-        onDrop={handleDrop}
         style={{ 
           width: columnWidths[field] ? `${columnWidths[field]}px` : undefined,
           minWidth: columnWidths[field] ? `${columnWidths[field]}px` : undefined,
           maxWidth: columnWidths[field] ? `${columnWidths[field]}px` : undefined,
         }}
         className={cn(
-          "bg-background border-b border-border/40 px-5 py-3.5 text-left align-middle font-bold tracking-widest text-muted-foreground whitespace-nowrap sticky top-0 transition-all duration-200 group/header overflow-hidden backdrop-blur-md",
-          hasActiveFilter && "bg-primary/5 text-primary border-b-primary/40",
-          isDragOver && "bg-primary/5 border-r-2 border-r-primary",
+          "bg-muted border-b px-4 py-3 text-left align-middle text-xs font-bold whitespace-nowrap sticky top-0 z-10 transition-all overflow-hidden select-none",
+          sortField === field ? "text-primary" : "text-foreground",
           className,
         )}
       >
-        <div className="flex items-center justify-between gap-2">
-          <div
-            className={cn(
-              "flex min-w-0 flex-1 cursor-pointer items-center gap-1.5 transition-all duration-300",
-              !isSortable && "cursor-default",
-              sortField === field ? "text-primary translate-x-0.5" : "text-muted-foreground hover:text-foreground"
-            )}
+        <div className="flex items-center gap-1.5 overflow-hidden py-1">
+          <span
+            className="hover:text-primary cursor-pointer transition-colors truncate"
             onClick={() => isSortable && onSort(field)}
+            title={label}
           >
-            <span
-              className={cn(
-                "truncate whitespace-nowrap leading-none transition-colors",
-                hasActiveFilter ? "text-primary" : "group-hover/header:text-foreground",
-              )}
+            {label}
+          </span>
+          {isSortable && (
+            <button
+              type="button"
+              className="hover:text-primary transition-colors shrink-0"
+              onClick={() => onSort(field)}
             >
-              {label}
-            </span>
-            {isSortable && <SortIcon field={field} />}
-          </div>
-
-          <Popover open={isActionsOpen} onOpenChange={setIsActionsOpen}>
-            <PopoverTrigger asChild>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                }}
-                className={cn(
-                  "shrink-0 rounded-md p-1 transition-colors hover:bg-primary/10 hover:text-foreground",
-                  hasActiveFilter || isActionsOpen
-                    ? "text-primary opacity-100"
-                    : "text-muted-foreground/60 opacity-50 group-hover/header:opacity-100"
-                )}
-                title="Column actions"
-              >
-                <MoreHorizontal className="h-3.5 w-3.5" />
-              </button>
-            </PopoverTrigger>
-            <PopoverContent
-              align="end"
-              className="w-56 gap-3 p-3"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="space-y-1">
-                {isSortable && (
-                  <button
-                    className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-sm transition-colors hover:bg-accent"
-                    onClick={() => {
-                      onSort(field);
-                      setIsActionsOpen(false);
-                    }}
-                  >
-                    <span>Sort</span>
-                    <SortIcon field={field} />
-                  </button>
-                )}
-                {/* Freeze button removed */}
-              </div>
-
-              {colConfig?.filterType && (
-                <div className="border-t border-border/50 pt-3">
-                  <div className="mb-2 text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
-                    Filter
-                  </div>
-                  <div className="flex items-center justify-between rounded-md border border-border/50 px-2 py-1.5">
-                    <span className="text-sm text-foreground/80">
-                      {hasActiveFilter ? "Edit filter" : "Open filter"}
-                    </span>
-                    <ColumnFilter
-                      column={colConfig}
-                      value={val}
-                      valueTo={valTo}
-                      onChange={(v, vTo) => onColumnFilterChange(field, v, vTo)}
-                    />
-                  </div>
-                </div>
-              )}
-            </PopoverContent>
-          </Popover>
-        </div>
-
-        {/* Resizer Handle */}
-        <div
-          onMouseDown={onResizeMouseDown}
-          className={cn(
-            "absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize transition-all z-50 hover:bg-primary/40",
-            "after:content-[''] after:absolute after:right-0 after:top-1/4 after:bottom-1/4 after:w-px after:bg-border/50",
-            columnWidths[field] ? "bg-primary/10" : "bg-transparent"
+              <SortIcon field={field} />
+            </button>
           )}
-        />
+          {colConfig?.filterType && (
+            <div className="shrink-0">
+              <ColumnFilter
+                column={colConfig}
+                value={val}
+                valueTo={valTo}
+                onChange={(v, vTo) => onColumnFilterChange(field, v, vTo)}
+              />
+            </div>
+          )}
+        </div>
       </th>
     );
   };
@@ -359,15 +261,15 @@ export function VendorLedgerTable({
 
     if (value === null || value === undefined || value === "") {
       return (
-        <TableCell key={col.id} style={cellStyle} className="text-center text-muted-foreground/20 px-4 py-4">
-          <span className="text-[10px]">●</span>
+        <TableCell key={col.id} style={cellStyle} className="text-center text-muted-foreground/30 px-4 py-2">
+          -
         </TableCell>
       );
     }
 
     if (col.id === "Entry_No") {
       return (
-        <TableCell key={col.id} style={cellStyle} className="text-[13px] font-bold whitespace-nowrap text-primary px-5 py-3.5">
+        <TableCell key={col.id} style={cellStyle} className="text-xs font-medium whitespace-nowrap text-primary px-4 py-3">
           {value}
         </TableCell>
       );
@@ -376,8 +278,8 @@ export function VendorLedgerTable({
     switch (col.filterType) {
       case "date":
         return (
-          <TableCell key={col.id} style={cellStyle} className="text-xs font-bold text-foreground/80 px-4 py-4 whitespace-nowrap">
-            {value && value !== "0001-01-01" ? format(new Date(value), "MMM dd, yyyy") : "-"}
+          <TableCell key={col.id} style={cellStyle} className="text-xs text-foreground/80 px-4 py-3 break-words">
+            {value && value !== "0001-01-01" ? format(new Date(value), "dd-MM-yyyy") : "-"}
           </TableCell>
         );
       case "number": {
@@ -387,7 +289,7 @@ export function VendorLedgerTable({
             key={col.id}
             style={cellStyle}
             className={cn(
-              "text-right text-[13px] font-semibold px-5 py-3.5 tabular-nums tracking-tight",
+              "text-right text-xs px-4 py-3 tabular-nums",
               numValue < 0 ? "text-destructive" : numValue > 0 ? "text-primary" : "text-muted-foreground/40",
             )}
           >
@@ -397,12 +299,12 @@ export function VendorLedgerTable({
       }
       case "boolean":
         return (
-          <TableCell key={col.id} style={cellStyle} className="text-center px-4 py-4">
+          <TableCell key={col.id} style={cellStyle} className="text-center px-4 py-3">
             <Badge
               variant={value ? "default" : "secondary"}
               className={cn(
-                "h-5 px-2 text-[10px] font-medium",
-                value ? "bg-primary/20 text-primary border-primary/20 shadow-sm" : "bg-muted text-muted-foreground border-transparent"
+                "h-5 px-2 text-[10px]",
+                value ? "bg-primary/10 text-primary border-primary/20 shadow-none" : "bg-muted text-muted-foreground border-transparent"
               )}
             >
               {value ? "Open" : "Closed"}
@@ -415,8 +317,8 @@ export function VendorLedgerTable({
             key={col.id}
             style={cellStyle}
             className={cn(
-              "text-[13px] px-5 py-3.5 truncate transition-colors",
-              col.id === "Document_No" ? "font-bold text-primary hover:text-primary/80 cursor-default" : "text-foreground/80 font-medium"
+              "text-xs px-4 py-3 transition-colors break-words",
+              col.id === "Document_No" ? "font-bold text-primary hover:underline cursor-pointer" : "text-foreground/80"
             )}
             title={String(value)}
           >
@@ -505,32 +407,29 @@ export function VendorLedgerTable({
   }
 
   return (
-    <div className="relative flex-1 overflow-hidden flex flex-col group/table bg-card/10">
-      <div className="flex-1 overflow-auto custom-scrollbar">
+    <div className="relative flex-1 overflow-hidden flex flex-col group/table">
+      <div className="flex-1 overflow-auto">
         <table 
           className="min-w-full text-sm border-separate border-spacing-0 table-fixed"
           style={{ width: `${totalTableWidth}px` }}
         >
           <thead className="bg-muted sticky top-0 z-50">
-            <tr className="hover:bg-transparent">
+            <tr>
               {activeColumns.map((col) => (
                 <HeaderCell key={col.id} field={col.id} label={col.label} />
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-border/20">
+          <tbody className="divide-y divide-border">
             {/* Opening Balance Row */}
             {!isLoading && entries.length > 0 && !isOutstanding && (
-              <tr className="bg-card group/balance border-b border-primary/10">
+              <tr className="bg-muted/30 font-medium">
                 {balancePrefixColSpan > 0 && (
                   <td
                     colSpan={balancePrefixColSpan}
-                    className="px-6 py-4 text-left font-black text-primary/85"
+                    className="px-4 py-2 text-left"
                   >
-                    <div className="flex items-center gap-2">
-                      <div className="h-2 w-2 rounded-full bg-primary/70 group-hover/balance:animate-ping" />
-                      <span className="text-sm font-black tracking-wide">Opening Balance</span>
-                    </div>
+                    Opening Balance
                   </td>
                 )}
                 {activeColumns.slice(balancePrefixColSpan).map((col) => {
@@ -544,7 +443,7 @@ export function VendorLedgerTable({
                       <td
                         key={col.id}
                         style={cellStyle}
-                        className="px-5 py-4 text-right text-[14px] font-bold tabular-nums text-primary/90 border-l border-primary/10 tracking-tight"
+                        className="px-4 py-2 text-right border-l"
                       >
                         {openingBalance.toLocaleString(undefined, {
                           minimumFractionDigits: 2,
@@ -553,7 +452,7 @@ export function VendorLedgerTable({
                       </td>
                     );
                   }
-                  return <td key={col.id} style={cellStyle} className="px-5 py-4 border-l border-border/5" />;
+                  return <td key={col.id} style={cellStyle} className="px-4 py-2 border-l" />;
                 })}
               </tr>
             )}
@@ -563,8 +462,8 @@ export function VendorLedgerTable({
               <tr
                 key={entry.Entry_No || index}
                 className={cn(
-                  "group hover:bg-muted/50 transition-colors duration-200 relative",
-                  index % 2 === 1 ? "bg-muted/30" : "bg-background"
+                  "group hover:bg-muted/50 transition-colors duration-200",
+                  index % 2 === 1 ? "bg-muted/10" : "bg-background"
                 )}
               >
                 {activeColumns.map((col) => renderCell(col, entry, index))}
@@ -576,9 +475,9 @@ export function VendorLedgerTable({
               <td colSpan={activeColumns.length} className="p-0 border-none">
                 <div ref={observerTarget} className="h-full w-full" />
                 {isFetchingNextPage && (
-                  <div className="flex items-center justify-center py-6 gap-3 text-muted-foreground/40 animate-pulse">
+                  <div className="flex items-center justify-center py-4 gap-2 text-muted-foreground">
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    <span className="text-xs font-semibold">Fetching Next Page</span>
+                    <span className="text-xs">Loading more...</span>
                   </div>
                 )}
               </td>
@@ -586,16 +485,13 @@ export function VendorLedgerTable({
 
             {/* Summary Row */}
             {!isLoading && entries.length > 0 && (
-              <tr className="bg-card border-t-2 border-primary group/balance sticky bottom-0 z-40 shadow-[0_-8px_30px_rgba(0,0,0,0.4)]">
+              <tr className="bg-muted sticky bottom-0 z-40 border-t shadow-sm font-bold">
                 {balancePrefixColSpan > 0 && (
                   <td
                     colSpan={balancePrefixColSpan}
-                    className="px-6 py-4 text-left font-black text-[13px] text-primary tracking-wider"
+                    className="px-4 py-3 text-left"
                   >
-                    <div className="flex items-center gap-3">
-                      <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-                      Summary
-                    </div>
+                    Summary
                   </td>
                 )}
                 {activeColumns.slice(balancePrefixColSpan).map((col) => {
@@ -610,14 +506,10 @@ export function VendorLedgerTable({
                       <td
                         key={col.id}
                         style={cellStyle}
-                        className="px-5 py-3.5 text-right border-l border-primary/10"
+                        className="px-4 py-3 text-right border-l"
                       >
-                        <div className="text-[11px] font-bold text-foreground/60 uppercase tracking-wider mb-1">
-                          Total Debit
-                        </div>
-                        <div className="text-[13px] font-black tabular-nums tracking-tight text-foreground/90">
-                          {formatAmount(debitSum)}
-                        </div>
+                        <div className="text-xs text-muted-foreground uppercase font-medium">Total Debit</div>
+                        <div>{formatAmount(debitSum)}</div>
                       </td>
                     );
                   }
@@ -627,14 +519,10 @@ export function VendorLedgerTable({
                       <td
                         key={col.id}
                         style={cellStyle}
-                        className="px-5 py-3.5 text-right border-l border-primary/10"
+                        className="px-4 py-3 text-right border-l"
                       >
-                        <div className="text-[11px] font-bold text-foreground/60 uppercase tracking-wider mb-1">
-                          Total Credit
-                        </div>
-                        <div className="text-[13px] font-black tabular-nums tracking-tight text-foreground/90">
-                          {formatAmount(creditSum)}
-                        </div>
+                        <div className="text-xs text-muted-foreground uppercase font-medium">Total Credit</div>
+                        <div>{formatAmount(creditSum)}</div>
                       </td>
                     );
                   }
@@ -644,19 +532,15 @@ export function VendorLedgerTable({
                       <td
                         key={col.id}
                         style={cellStyle}
-                        className="px-5 py-3.5 text-right border-l border-primary/10"
+                        className="px-4 py-3 text-right border-l text-primary"
                       >
-                        <div className="text-[11px] font-bold text-foreground/60 uppercase tracking-wider mb-1">
-                          Closing Balance
-                        </div>
-                        <div className="text-[14px] font-black tabular-nums tracking-tight text-primary">
-                          {formatAmount(closingBalance)}
-                        </div>
+                        <div className="text-xs text-muted-foreground uppercase font-medium">Closing Balance</div>
+                        <div>{formatAmount(closingBalance)}</div>
                       </td>
                     );
                   }
 
-                  return <td key={col.id} style={cellStyle} className="px-5 py-3.5 border-l border-border/5" />;
+                  return <td key={col.id} style={cellStyle} className="px-4 py-3 border-l" />;
                 })}
               </tr>
             )}
@@ -665,15 +549,9 @@ export function VendorLedgerTable({
       </div>
       
       {isLoading && entries.length === 0 && (
-        <div className="absolute inset-0 bg-background/40 backdrop-blur-sm z-50 flex flex-col items-center justify-center space-y-6 animate-in fade-in duration-500">
-          <div className="relative h-16 w-16">
-             <div className="absolute inset-0 rounded-full border-4 border-primary/10" />
-             <div className="absolute inset-0 rounded-full border-4 border-primary border-t-transparent animate-spin" />
-          </div>
-          <div className="flex flex-col items-center gap-1">
-            <h4 className="text-xs font-black uppercase tracking-[0.3em] text-primary animate-pulse">Synchronizing</h4>
-            <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">Accessing Real-time Ledger Data</p>
-          </div>
+        <div className="absolute inset-0 bg-background/50 flex flex-col items-center justify-center space-y-4">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <p className="text-sm text-muted-foreground">Loading ledger data...</p>
         </div>
       )}
     </div>

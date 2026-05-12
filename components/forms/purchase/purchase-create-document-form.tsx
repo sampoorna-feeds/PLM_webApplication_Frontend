@@ -2408,7 +2408,7 @@ export function PurchaseCreateDocumentFormContent({
     );
   };
 
-  const totalAmount = purchaseTotals ? purchaseTotals["Total Amt"] : lineItems.reduce((sum, item) => sum + item.amount, 0);
+
 
   return (
     <>
@@ -2845,12 +2845,7 @@ export function PurchaseCreateDocumentFormContent({
                       <span className="text-muted-foreground text-[10px] font-bold tracking-wider uppercase">
                         {lineItems.length} Line{lineItems.length !== 1 ? "s" : ""}
                       </span>
-                      <div className="flex items-baseline gap-2">
-                        <span className="text-muted-foreground text-xs">Total Amount</span>
-                        <span className="text-sm font-bold tabular-nums text-primary">
-                          {totalAmount.toFixed(2)}
-                        </span>
-                      </div>
+
                     </div>
                     
                     {purchaseTotals && (

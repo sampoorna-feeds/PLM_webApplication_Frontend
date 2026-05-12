@@ -1418,7 +1418,7 @@ export async function getTransferItemsForDialog(params: {
       $skip: params.search ? 0 : params.skip,
       $count: true,
     });
-    const endpoint = `/ItemCard?Company=${encodeURIComponent(COMPANY)}&${query}`;
+    const endpoint = `/ItemCard?company='${encodeURIComponent(COMPANY)}'&${query}`;
     return apiGet<ODataResponse<TransferItem>>(endpoint);
   };
 

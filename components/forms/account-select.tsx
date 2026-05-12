@@ -505,7 +505,7 @@ export function AccountSelect({
                   <div
                     key={item.No}
                     className={cn(
-                      "hover:bg-muted/50 relative flex cursor-default items-start rounded-sm px-2 py-2 text-sm outline-none select-none",
+                      "relative flex cursor-default items-start rounded-sm px-2 py-2 text-sm outline-none select-none",
                       value === item.No && "bg-muted",
                       focusedIndex === index && "bg-accent text-accent-foreground",
                     )}

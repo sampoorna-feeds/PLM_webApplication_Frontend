@@ -338,7 +338,7 @@ export function SearchableSelect({
                         "group relative flex cursor-pointer items-start rounded-sm px-2 py-1.5 text-sm transition-colors outline-none select-none",
                         isSelected
                           ? "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
-                          : "hover:bg-muted hover:text-foreground",
+                          : "hover:bg-accent hover:text-accent-foreground",
                       )}
                       onClick={() => {
                         if (isMulti) {

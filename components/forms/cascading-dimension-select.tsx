@@ -350,7 +350,7 @@ export function CascadingDimensionSelect({
                     role="option"
                     aria-selected={value === item.Code}
                     className={cn(
-                      "hover:bg-muted/50 relative flex cursor-default items-start rounded-sm px-2 py-2 text-sm outline-none select-none transition-colors",
+                      "relative flex cursor-default items-start rounded-sm px-2 py-2 text-sm outline-none select-none",
                       value === item.Code && "bg-muted",
                       focusedIndex === index && "bg-accent text-accent-foreground",
                     )}

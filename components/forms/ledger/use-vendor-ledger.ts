@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { toast } from "sonner";
 import { toastError } from "@/lib/errors";
 import {
@@ -34,6 +34,8 @@ export function useVendorLedger(options: UseVendorLedgerOptions = {}) {
   const [isLoading, setIsLoading] = useState(false);
   const [isFetchingNextPage, setIsFetchingNextPage] = useState(false);
   const [totalCount, setTotalCount] = useState(0);
+  const entriesLengthRef = useRef(0);
+
 
   const [openingBalance, setOpeningBalance] = useState(0);
   const [closingBalance, setClosingBalance] = useState(0);
@@ -48,8 +50,10 @@ export function useVendorLedger(options: UseVendorLedgerOptions = {}) {
     additionalFilters: [],
     columnFilters: {},
     sortField: "Posting_Date",
-    sortOrder: options.isOutstanding ? "desc" : "asc"
+    sortOrder: options.isOutstanding ? "desc" : "asc",
+    isOutstanding: options.isOutstanding
   });
+
 
 
   const LIMIT = 50;
@@ -75,9 +79,9 @@ export function useVendorLedger(options: UseVendorLedgerOptions = {}) {
 
   const fetchEntries = useCallback(async (isAppending = false) => {
     const isDateRangeSelected = !!(filters.fromDate && filters.toDate);
+    const shouldSkipFetch = !filters.vendorNo || (!options.isOutstanding && !isDateRangeSelected);
     
-    // Only fetch if vendor and date range are selected
-    if (!filters.vendorNo || !isDateRangeSelected) {
+    if (shouldSkipFetch) {
       setEntries([]);
       setTotalCount(0);
       setOpeningBalance(0);
@@ -96,32 +100,46 @@ export function useVendorLedger(options: UseVendorLedgerOptions = {}) {
     }
 
     try {
-      const skip = isAppending ? entries.length : 0;
+      const skip = isAppending ? entriesLengthRef.current : 0;
+
       
-      // Fetch entries and balances
-      const [entriesRes, openingBal, closingBal, sums] = await Promise.all([
-        getVendorLedgerEntries(filters, LIMIT, skip),
-        // Only fetch balances on first load
+      // Fetch entries and totals
+      const [entriesRes, openingBal, sums] = await Promise.all([
+        getVendorLedgerEntries({ ...filters, isOutstanding: options.isOutstanding }, LIMIT, skip),
+        // Only fetch opening balance on first load and if dates are present
         !isAppending && filters.fromDate 
           ? getVendorBalance(filters.vendorNo, filters.fromDate, true) 
-          : !isAppending ? Promise.resolve(0) : Promise.resolve(openingBalance),
-        !isAppending 
-          ? (filters.toDate ? getVendorBalance(filters.vendorNo, filters.toDate, false) : getVendorBalance(filters.vendorNo))
-          : Promise.resolve(closingBalance),
+          : Promise.resolve(0),
+        // Always fetch sums on first load to calculate closing balance and show totals
         !isAppending
-          ? getVendorLedgerSums(filters)
-          : Promise.resolve({ debitSum, creditSum })
+          ? getVendorLedgerSums({ ...filters, isOutstanding: options.isOutstanding })
+          : Promise.resolve(null)
       ]);
 
       if (isAppending) {
-        setEntries(prev => [...prev, ...entriesRes.value]);
+        setEntries(prev => {
+          const newEntries = [...prev, ...entriesRes.value];
+          entriesLengthRef.current = newEntries.length;
+          return newEntries;
+        });
       } else {
         setEntries(entriesRes.value);
+        entriesLengthRef.current = entriesRes.value.length;
         setOpeningBalance(openingBal);
-        setClosingBalance(closingBal);
-        setDebitSum(sums.debitSum);
-        setCreditSum(sums.creditSum);
+        
+        if (sums) {
+          setDebitSum(sums.debitSum);
+          setCreditSum(sums.creditSum);
+          // Calculate closing balance: Opening + Debit - Credit
+          setClosingBalance(openingBal + sums.debitSum - sums.creditSum);
+        } else if (!isAppending && !filters.fromDate && !filters.toDate && options.isOutstanding) {
+          // If no dates but outstanding mode, fetch total balance as closing balance
+          const totalBal = await getVendorBalance(filters.vendorNo);
+          setClosingBalance(totalBal);
+        }
       }
+
+
       setTotalCount(entriesRes["@odata.count"] || entriesRes.value.length);
     } catch (error) {
       console.error("Error fetching vendor ledger entries:", error);
@@ -134,7 +152,8 @@ export function useVendorLedger(options: UseVendorLedgerOptions = {}) {
       setIsLoading(false);
       setIsFetchingNextPage(false);
     }
-  }, [filters, entries.length, openingBalance, closingBalance, debitSum, creditSum, LIMIT]);
+  }, [filters, options.isOutstanding, LIMIT]); // Removed entries.length, openingBalance, etc.
+
 
   // Initial fetch on filter change
   useEffect(() => {
@@ -249,7 +268,7 @@ export function useVendorLedger(options: UseVendorLedgerOptions = {}) {
     columnOrder,
     setColumnOrder,
     saveColumnOrder,
-    currentFilterString: buildVendorFilterString(filters),
+    currentFilterString: buildVendorFilterString({ ...filters, isOutstanding: options.isOutstanding }),
     humanReadableFilters: buildHumanReadableVendorFilters(filters),
     refetch: () => fetchEntries(false),
   };

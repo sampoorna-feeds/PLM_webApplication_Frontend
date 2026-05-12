@@ -32,6 +32,9 @@ export interface VendorLedgerEntry {
 }
 
 const COMPANY = process.env.NEXT_PUBLIC_API_COMPANY || "Sampoorna Feeds Pvt. Ltd";
+// Global flag to track if aggregation ($apply) is supported by the ERP endpoint
+let aggregationSupported = true;
+
 
 export interface VendorLedgerFilters {
   fromDate?: string;
@@ -169,6 +172,7 @@ export function buildVendorFilterString(filters: VendorLedgerFilters): string {
 
   if (filters.isOutstanding) {
     filterParts.push(`Remaining_Amount ne 0`);
+    filterParts.push(`Open eq true`);
   }
 
   // Universal search filter is now handled in searchVendorLedgerEntries
@@ -309,24 +313,30 @@ export async function getVendorBalance(
   };
 
   try {
-    // Try aggregation first - it's more efficient
-    const aggregationQuery = buildODataQuery({
-      ...queryParams,
-      $apply: "aggregate(Amount with sum as TotalAmount)",
-    });
-    
-    const endpoint = `/VendorLedgerEntry?company='${encodeURIComponent(COMPANY)}'&${aggregationQuery}`;
-    const response = await apiGet<any>(endpoint);
-    
-    // OData V4 aggregation results are in value[0].Property
-    if (response?.value?.[0] && typeof response.value[0].TotalAmount !== 'undefined') {
-      return Number(response.value[0].TotalAmount) || 0;
+    // Try aggregation first - it's more efficient, but only if supported
+    if (aggregationSupported) {
+      const aggregationQuery = buildODataQuery({
+        ...queryParams,
+        $apply: "aggregate(Amount with sum as TotalAmount)",
+      });
+      
+      const endpoint = `/VendorLedgerEntry?company='${encodeURIComponent(COMPANY)}'&${aggregationQuery}`;
+      const response = await apiGet<any>(endpoint);
+      
+      // OData V4 aggregation results are in value[0].Property
+      if (response?.value?.[0] && typeof response.value[0].TotalAmount !== 'undefined') {
+        return Number(response.value[0].TotalAmount) || 0;
+      }
     }
     
-    // If we reach here, aggregation returned an unexpected structure, fall back
-    throw new Error("Unexpected aggregation response structure");
+    // If we reach here, aggregation returned an unexpected structure or was skipped
+    throw new Error("Aggregation not supported or returned invalid structure");
   } catch (error) {
-    console.warn("Aggregation failed or unsupported, falling back to manual sum", error);
+    if (aggregationSupported) {
+      console.warn("Aggregation failed, disabling for this session", error);
+      aggregationSupported = false;
+    }
+
     
     // Fallback: Fetch only necessary fields for efficiency
     const fallbackQuery = buildODataQuery({
@@ -370,30 +380,34 @@ export async function getVendorLedgerSums(
 
   try {
     // Try aggregation first
-    const aggregationQuery = buildODataQuery({
-      ...queryParams,
-      $apply: "aggregate(Debit_Amount with sum as TotalDebit, Credit_Amount with sum as TotalCredit)",
-    });
-    
-    const endpoint = `/VendorLedgerEntry?company='${encodeURIComponent(COMPANY)}'&${aggregationQuery}`;
-    const response = await apiGet<any>(endpoint);
-    
-    // Validate that we actually got numeric results back from aggregation
-    if (response?.value?.[0] && 
-        (typeof response.value[0].TotalDebit !== 'undefined' || 
-         typeof response.value[0].TotalCredit !== 'undefined')) {
+    if (aggregationSupported) {
+      const aggregationQuery = buildODataQuery({
+        ...queryParams,
+        $apply: "aggregate(Debit_Amount with sum as TotalDebit, Credit_Amount with sum as TotalCredit)",
+      });
       
-      const d = Number(response.value[0].TotalDebit) || 0;
-      const c = Number(response.value[0].TotalCredit) || 0;
+      const endpoint = `/VendorLedgerEntry?company='${encodeURIComponent(COMPANY)}'&${aggregationQuery}`;
+      const response = await apiGet<any>(endpoint);
       
-      // If we got exactly 0 for both but have filters, it's suspicious enough to verify via fallback
-      // but only if we really want to be 100% sure. For now, just return if not undefined.
-      return { debitSum: d, creditSum: c };
+      // Validate that we actually got numeric results back from aggregation
+      if (response?.value?.[0] && 
+          (typeof response.value[0].TotalDebit !== 'undefined' || 
+           typeof response.value[0].TotalCredit !== 'undefined')) {
+        
+        const d = Number(response.value[0].TotalDebit) || 0;
+        const c = Number(response.value[0].TotalCredit) || 0;
+        
+        return { debitSum: d, creditSum: c };
+      }
     }
     
     throw new Error("Invalid or empty aggregation response");
   } catch (error) {
-    console.warn("Aggregation failed for Vendor Ledger Sums, falling back to manual sum", error);
+    if (aggregationSupported) {
+      console.warn("Aggregation failed for sums, disabling for this session", error);
+      aggregationSupported = false;
+    }
+
     
     // Fallback: Fetch necessary fields for manual calculation
     const fallbackQuery = buildODataQuery({

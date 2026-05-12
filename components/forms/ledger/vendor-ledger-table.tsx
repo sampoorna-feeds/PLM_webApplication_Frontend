@@ -415,7 +415,7 @@ export function VendorLedgerTable({
     );
   }
 
-  if (!fromDate || !toDate) {
+  if (!isOutstanding && (!fromDate || !toDate)) {
     return (
       <div className="flex flex-col items-center justify-center p-20 text-center h-full min-h-[400px]">
         <div className="bg-primary/5 p-8 rounded-full mb-6 relative animate-pulse">

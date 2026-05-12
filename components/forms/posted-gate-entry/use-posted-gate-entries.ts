@@ -8,12 +8,9 @@ import {
 } from "@/lib/api/services/posted-gate-entry.service";
 import { type SortDirection, POSTED_GATE_ENTRY_COLUMNS } from "./column-config";
 import { toast } from "sonner";
-import { useAuth } from "@/lib/contexts/auth-context";
-import { getAllBranchesFromUserSetup } from "@/lib/api/services/dimension.service";
 import { toastError } from "@/lib/errors";
 
 export function usePostedGateEntries(type: "inward" | "outward", initialFilters?: { skipDateFilter?: boolean }) {
-  const { userID } = useAuth();
   const [entries, setEntries] = useState<PostedGateEntryHeader[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [pageSize, setPageSize] = useState(20);
@@ -24,20 +21,6 @@ export function usePostedGateEntries(type: "inward" | "outward", initialFilters?
   const [searchQuery, setSearchQuery] = useState("");
   const [columnFilters, setColumnFilters] = useState<Record<string, { value: string; valueTo?: string }>>({});
   const [dateFilter, setDateFilter] = useState<{ fromDate: string; toDate: string } | null>(null);
-  const [userBranchCodes, setUserBranchCodes] = useState<string[]>([]);
-
-  useEffect(() => {
-    if (!userID) return;
-    const fetchBranches = async () => {
-      try {
-        const branches = await getAllBranchesFromUserSetup(userID);
-        setUserBranchCodes(branches.map((b) => b.Code));
-      } catch (error) {
-        console.error("Error fetching user branches:", error);
-      }
-    };
-    fetchBranches();
-  }, [userID]);
 
   const skipDateFilter = initialFilters?.skipDateFilter;
 
@@ -47,22 +30,9 @@ export function usePostedGateEntries(type: "inward" | "outward", initialFilters?
       return;
     }
 
-    if (userBranchCodes.length === 0) {
-      setEntries([]);
-      setTotalCount(0);
-      setIsLoading(false);
-      return;
-    }
-
     setIsLoading(true);
     try {
       const filterParts: string[] = [];
-
-      // Branch filter
-      if (userBranchCodes.length > 0) {
-        const branchFilter = userBranchCodes.map(code => `Shortcut_Dimension_2_Code eq '${code}'`).join(" or ");
-        filterParts.push(`(${branchFilter})`);
-      }
 
       // Date filter
       if (dateFilter?.fromDate) {
@@ -110,7 +80,7 @@ export function usePostedGateEntries(type: "inward" | "outward", initialFilters?
     } finally {
       setIsLoading(false);
     }
-  }, [type, currentPage, pageSize, sortColumn, sortDirection, searchQuery, columnFilters, dateFilter, skipDateFilter, userBranchCodes]);
+  }, [type, currentPage, pageSize, sortColumn, sortDirection, searchQuery, columnFilters, dateFilter, skipDateFilter]);
 
   useEffect(() => {
     fetchEntries();

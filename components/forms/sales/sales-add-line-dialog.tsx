@@ -88,6 +88,7 @@ interface FormState {
   hsnSacCode: string;
   faPostingType: string;
   salvageValue: string;
+  faLocationCode: string;
 }
 
 const EMPTY_FORM: FormState = {
@@ -105,6 +106,7 @@ const EMPTY_FORM: FormState = {
   hsnSacCode: "",
   faPostingType: "",
   salvageValue: "",
+  faLocationCode: "",
 };
 
 interface SalesAddLineDialogProps {
@@ -384,6 +386,7 @@ export function SalesAddLineDialog({
         no: asset.No,
         description: asset.Description || "",
         uom: "",
+        faLocationCode: asset.FA_Location_Code || "",
       }));
     },
     [],
@@ -450,6 +453,8 @@ export function SalesAddLineDialog({
         hsnSacCode: form.hsnSacCode || undefined,
         faPostingType:
           form.type === "Fixed Asset" ? form.faPostingType || undefined : undefined,
+        faLocationCode:
+          form.type === "Fixed Asset" ? form.faLocationCode || undefined : undefined,
       };
       await addSingleLine(documentNo, line, locationCode);
       onSave();
@@ -582,7 +587,9 @@ export function SalesAddLineDialog({
                           loadMore={(skip, search) =>
                             getFixedAssetsPage(skip, search)
                           }
-                          getDisplayValue={(a) => `${a.No} - ${a.Description}`}
+                          getDisplayValue={(asset) =>
+                            `${asset.No} - ${asset.Description}`
+                          }
                           getItemValue={(a) => a.No}
                           supportsDualSearch
                           searchByField={(q, field) =>
@@ -782,6 +789,24 @@ export function SalesAddLineDialog({
                               "h-8 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none",
                               fieldInputClass,
                             )}
+                          />
+                        </ClearableField>
+                      </div>
+
+                      <div className="space-y-1">
+                        <FieldTitle>FA Location Code</FieldTitle>
+                        <ClearableField
+                          value={form.faLocationCode}
+                          onClear={() => set("faLocationCode", "")}
+                        >
+                          <Input
+                            type="text"
+                            value={form.faLocationCode}
+                            onChange={(e) =>
+                              set("faLocationCode", e.target.value)
+                            }
+                            placeholder="Location Code"
+                            className={cn("h-8", fieldInputClass)}
                           />
                         </ClearableField>
                       </div>

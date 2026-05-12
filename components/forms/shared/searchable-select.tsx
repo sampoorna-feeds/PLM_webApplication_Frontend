@@ -379,6 +379,11 @@ export function SearchableSelect<T extends SearchableItem>({
                             <span className="text-muted-foreground text-xs wrap-break-word">
                               {item.Description || item.Name || ""}
                             </span>
+                            {item.FA_Location_Code && (
+                              <span className="text-primary mt-0.5 text-[10px] font-medium uppercase">
+                                FA Location Code: {item.FA_Location_Code}
+                              </span>
+                            )}
                           </div>
                         ) : (
                           <span className="wrap-break-word">

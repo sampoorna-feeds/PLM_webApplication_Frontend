@@ -19,6 +19,7 @@ export interface PurchaseLinePayloadSource {
   gstCredit?: string;
   gstAssessableValue?: number;
   customDutyAmount?: number;
+  faLocationCode?: string;
 }
 
 export function buildCreatePurchaseLinePayload(
@@ -65,6 +66,8 @@ export function buildCreatePurchaseLinePayload(
     payload.GST_Assessable_Value = lineItem.gstAssessableValue;
   if (lineItem.customDutyAmount !== undefined && lineItem.customDutyAmount !== null && lineItem.customDutyAmount !== 0)
     payload.Custom_Duty_Amount = lineItem.customDutyAmount;
+  if (lineItem.faLocationCode)
+    payload.FA_Location_Code = lineItem.faLocationCode;
 
   return toUpperCaseValues(payload, ["Document_Type", "Type"]);
 }
@@ -101,6 +104,8 @@ export function buildUpdatePurchaseLinePayload(
     payload.GST_Assessable_Value = lineItem.gstAssessableValue;
   if (lineItem.customDutyAmount !== undefined && lineItem.customDutyAmount !== null)
     payload.Custom_Duty_Amount = lineItem.customDutyAmount;
+  if (lineItem.faLocationCode !== undefined)
+    payload.FA_Location_Code = lineItem.faLocationCode;
 
   return toUpperCaseValues(payload, ["Document_Type", "Type"]);
 }

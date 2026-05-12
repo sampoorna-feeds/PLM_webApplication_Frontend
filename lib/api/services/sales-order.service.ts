@@ -52,6 +52,7 @@ export interface SalesDocumentLineItem {
   tdsGroupCode?: string;
   foc?: boolean;
   faPostingType?: string;
+  faLocationCode?: string;
 }
 
 /**
@@ -147,6 +148,7 @@ export async function addSingleSalesOrderLine(
   if (line.hsnSacCode) payload.HSN_SAC_Code = line.hsnSacCode;
   if (line.foc != null) payload.FOC = line.foc;
   if (line.faPostingType) payload.FA_Posting_Type = line.faPostingType;
+  if (line.faLocationCode) payload.FA_Location_Code = line.faLocationCode;
   const result = await apiPost<{ Line_No: number; [key: string]: unknown }>(
     endpoint,
     toUpperCaseValues(payload, ["Document_Type", "Type"]),

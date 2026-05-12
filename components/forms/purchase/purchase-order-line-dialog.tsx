@@ -119,9 +119,10 @@ function getInitialLineState(lineItem?: LineItem | null): Partial<LineItem> {
     noOfBags: lineItem?.noOfBags,
     challanQty: lineItem?.challanQty,
     weightQty: lineItem?.weightQty,
-    gstCredit: lineItem?.gstCredit || "",
+     gstCredit: lineItem?.gstCredit || "",
     gstAssessableValue: lineItem?.gstAssessableValue || 0,
     customDutyAmount: lineItem?.customDutyAmount || 0,
+    faLocationCode: lineItem?.faLocationCode || "",
   };
 }
 
@@ -354,6 +355,7 @@ export function PurchaseOrderLineDialog({
       qtyToInvoice: 0,
       price: type === "" ? 0 : prev.price,
       unitPrice: type === "" ? 0 : prev.unitPrice,
+      faLocationCode: "",
     }));
   }, []);
 
@@ -517,6 +519,7 @@ export function PurchaseOrderLineDialog({
       gstCredit: formState.gstCredit,
       gstAssessableValue: Number(formState.gstAssessableValue) || 0,
       customDutyAmount: Number(formState.customDutyAmount) || 0,
+      faLocationCode: formState.faLocationCode || undefined,
     };
 
     const normalizedLineItemRecord = normalizedLineItem as unknown as Record<
@@ -734,6 +737,7 @@ export function PurchaseOrderLineDialog({
                             no: asset.No,
                             description: asset.Description || "",
                             uom: "",
+                            faLocationCode: asset.FA_Location_Code || "",
                           }));
                         }}
                         placeholder="Select Fixed Asset"
@@ -978,6 +982,23 @@ export function PurchaseOrderLineDialog({
                           value={formatNumericValue(formState.salvageValue)}
                           onValueChange={(v) => handleNumericChange("salvageValue", v)}
                           placeholder="0.00"
+                          className={cn("h-8", fieldInputClass)}
+                        />
+                      </ClearableField>
+                    </div>
+
+                    <div className="space-y-1">
+                      <FieldTitle>FA Location Code</FieldTitle>
+                      <ClearableField
+                        value={formState.faLocationCode || ""}
+                        onClear={() => handleFieldChange("faLocationCode", "")}
+                      >
+                        <Input
+                          value={formState.faLocationCode || ""}
+                          onChange={(e) =>
+                            handleFieldChange("faLocationCode", e.target.value)
+                          }
+                          placeholder="Location Code"
                           className={cn("h-8", fieldInputClass)}
                         />
                       </ClearableField>

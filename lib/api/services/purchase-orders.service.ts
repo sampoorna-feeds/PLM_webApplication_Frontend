@@ -287,6 +287,7 @@ export interface PurchaseLine {
   TDS_Section_Code?: string;
   FA_Posting_Type?: string;
   Salvage_Value?: number;
+  FA_Location_Code?: string;
   No_of_Bags?: number;
   Challan_Qty?: number;
   Weight_Qty?: number;

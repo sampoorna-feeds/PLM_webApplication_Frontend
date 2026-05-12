@@ -5,7 +5,7 @@ import type { ODataResponse } from "../types";
 export interface FixedAsset {
   No: string;
   Description: string;
-  Acquired?: boolean;
+  FA_Location_Code?: string;
 }
 
 const COMPANY =
@@ -17,7 +17,7 @@ function escapeODataValue(value: string): string {
 
 export async function getFixedAssets(top: number = 20): Promise<FixedAsset[]> {
   const query = buildODataQuery({
-    $select: "No,Description,Acquired",
+    $select: "No,Description,FA_Location_Code",
     $orderby: "No",
     $top: top,
   });
@@ -36,7 +36,7 @@ export async function searchFixedAssets(query: string): Promise<FixedAsset[]> {
     (async () => {
       const filterByNo = `contains(No,'${escapedQuery}')`;
       const q = buildODataQuery({
-        $select: "No,Description,Acquired",
+        $select: "No,Description,FA_Location_Code",
         $filter: filterByNo,
         $orderby: "No",
         $top: 30,
@@ -48,7 +48,7 @@ export async function searchFixedAssets(query: string): Promise<FixedAsset[]> {
     (async () => {
       const filterByDescription = `contains(Description,'${escapedQuery}')`;
       const q = buildODataQuery({
-        $select: "No,Description,Acquired",
+        $select: "No,Description,FA_Location_Code",
         $filter: filterByDescription,
         $orderby: "No",
         $top: 30,
@@ -76,7 +76,7 @@ export async function getFixedAssetsPage(
 ): Promise<FixedAsset[]> {
   if (!search || search.length < 2) {
     const query = buildODataQuery({
-      $select: "No,Description,Acquired",
+      $select: "No,Description,FA_Location_Code",
       $orderby: "No",
       $top: top,
       $skip: skip,
@@ -91,7 +91,7 @@ export async function getFixedAssetsPage(
     (async () => {
       const filterByNo = `contains(No,'${escapedQuery}')`;
       const q = buildODataQuery({
-        $select: "No,Description,Acquired",
+        $select: "No,Description,FA_Location_Code",
         $filter: filterByNo,
         $orderby: "No",
         $top: top,
@@ -104,7 +104,7 @@ export async function getFixedAssetsPage(
     (async () => {
       const filterByDescription = `contains(Description,'${escapedQuery}')`;
       const q = buildODataQuery({
-        $select: "No,Description,Acquired",
+        $select: "No,Description,FA_Location_Code",
         $filter: filterByDescription,
         $orderby: "No",
         $top: top,
@@ -135,7 +135,7 @@ export async function searchFixedAssetsByField(
   const escapedQuery = escapeODataValue(query);
   const filter = `contains(${field},'${escapedQuery}')`;
   const q = buildODataQuery({
-    $select: "No,Description,Acquired",
+    $select: "No,Description,FA_Location_Code",
     $filter: filter,
     $orderby: "No",
     $top: 30,

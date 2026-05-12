@@ -108,7 +108,7 @@ export function useVendorLedger(options: UseVendorLedgerOptions = {}) {
         getVendorLedgerEntries({ ...filters, isOutstanding: options.isOutstanding }, LIMIT, skip),
         // Only fetch opening balance on first load and if dates are present
         !isAppending && filters.fromDate 
-          ? getVendorBalance(filters.vendorNo, filters.fromDate, true) 
+          ? getVendorBalance(filters.vendorNo!, filters.fromDate, true) 
           : Promise.resolve(0),
         // Always fetch sums on first load to calculate closing balance and show totals
         !isAppending
@@ -134,7 +134,7 @@ export function useVendorLedger(options: UseVendorLedgerOptions = {}) {
           setClosingBalance(openingBal + sums.debitSum - sums.creditSum);
         } else if (!isAppending && !filters.fromDate && !filters.toDate && options.isOutstanding) {
           // If no dates but outstanding mode, fetch total balance as closing balance
-          const totalBal = await getVendorBalance(filters.vendorNo);
+          const totalBal = await getVendorBalance(filters.vendorNo!);
           setClosingBalance(totalBal);
         }
       }

@@ -29,6 +29,7 @@ export async function getPurchasers(
 ): Promise<Purchaser[]> {
   const query = buildODataQuery({
     $select: "Code,Name",
+    $filter: "Blocked eq false",
     $orderby: "Code",
     $top: top,
     $skip: skip,
@@ -52,7 +53,7 @@ export async function searchPurchasers(
   const fetchByField = async (field: string): Promise<Purchaser[]> => {
     const query = buildODataQuery({
       $select: "Code,Name",
-      $filter: `contains(${field},'${escapedQuery}')`,
+      $filter: `Blocked eq false and contains(${field},'${escapedQuery}')`,
       $orderby: "Code",
       $top: top,
       $skip: 0,

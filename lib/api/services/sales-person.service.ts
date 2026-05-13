@@ -29,6 +29,7 @@ export async function getSalesPersons(
 ): Promise<SalesPerson[]> {
   const query = buildODataQuery({
     $select: "Code,Name",
+    $filter: "Blocked eq false",
     $orderby: "Code",
     $top: top,
     $skip: skip,
@@ -52,7 +53,7 @@ export async function searchSalesPersons(
   const fetchByField = async (field: string): Promise<SalesPerson[]> => {
     const query = buildODataQuery({
       $select: "Code,Name",
-      $filter: `contains(${field},'${escapedQuery}')`,
+      $filter: `Blocked eq false and contains(${field},'${escapedQuery}')`,
       $orderby: "Code",
       $top: top,
       $skip: 0,
@@ -82,7 +83,7 @@ export async function getSalesPersonByCode(
   const escaped = escapeODataValue(code);
   const query = buildODataQuery({
     $select: "Code,Name",
-    $filter: `Code eq '${escaped}'`,
+    $filter: `Blocked eq false and Code eq '${escaped}'`,
     $top: 1,
   });
   const endpoint = `/SalesPerson?company='${encodeURIComponent(COMPANY)}'&${query}`;

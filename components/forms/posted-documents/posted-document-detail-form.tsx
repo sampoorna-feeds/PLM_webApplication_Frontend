@@ -511,59 +511,90 @@ export function PostedDocumentDetailForm({
                       Line No.
                     </TableHead>
                   )}
-                  <TableHead className="text-primary h-8 px-3 text-[10px] font-bold tracking-wider uppercase">
-                    Type
-                  </TableHead>
-                  <TableHead className="text-primary h-8 px-3 text-[10px] font-bold tracking-wider uppercase">
-                    No.
-                  </TableHead>
-                  <TableHead className="text-primary h-8 px-3 text-[10px] font-bold tracking-wider uppercase">
-                    Description
-                  </TableHead>
-                      <TableHead className="text-primary text-right h-8 px-3 text-[10px] font-bold tracking-wider uppercase">
-                    Quantity
-                  </TableHead>
-                  <TableHead className="text-primary h-8 px-3 text-[10px] font-bold tracking-wider uppercase">
-                    UOM
-                  </TableHead>
-                      <TableHead className="text-primary text-right h-8 px-3 text-[10px] font-bold tracking-wider uppercase">
-                    Unit Cost
-                  </TableHead>
-
-                  {formType === "posted-purchase-invoice" && (
-                        <TableHead className="text-primary text-right h-8 px-3 text-[10px] font-bold tracking-wider uppercase">
-                      Disc %
-                    </TableHead>
-                  )}
-
-                  {formType === "posted-purchase-invoice" ||
-                  formType === "posted-purchase-credit-memo" ? (
+                  {formType === "posted-inward-gate-entry" || formType === "posted-outward-gate-entry" ? (
                     <>
-                          <TableHead className="text-primary text-right h-8 px-3 text-[10px] font-bold tracking-wider uppercase">
-                        Amount
+                      <TableHead className="text-primary h-8 px-3 text-[10px] font-bold tracking-wider uppercase">
+                        Line No.
                       </TableHead>
-                          <TableHead className="text-primary text-right h-8 px-3 text-[10px] font-bold tracking-wider uppercase">
-                        Disc Amt
+                      <TableHead className="text-primary h-8 px-3 text-[10px] font-bold tracking-wider uppercase">
+                        Source Type
+                      </TableHead>
+                      <TableHead className="text-primary h-8 px-3 text-[10px] font-bold tracking-wider uppercase">
+                        Source No.
+                      </TableHead>
+                      <TableHead className="text-primary h-8 px-3 text-[10px] font-bold tracking-wider uppercase">
+                        Source Name
+                      </TableHead>
+                      <TableHead className="text-primary h-8 px-3 text-[10px] font-bold tracking-wider uppercase">
+                        Challan No.
+                      </TableHead>
+                      <TableHead className="text-primary h-8 px-3 text-[10px] font-bold tracking-wider uppercase">
+                        Challan Date
+                      </TableHead>
+                      <TableHead className="text-primary h-8 px-3 text-[10px] font-bold tracking-wider uppercase">
+                        Description
+                      </TableHead>
+                      <TableHead className="text-primary h-8 px-3 text-[10px] font-bold tracking-wider uppercase">
+                        Status
                       </TableHead>
                     </>
                   ) : (
+                    <>
+                      <TableHead className="text-primary h-8 px-3 text-[10px] font-bold tracking-wider uppercase">
+                        Type
+                      </TableHead>
+                      <TableHead className="text-primary h-8 px-3 text-[10px] font-bold tracking-wider uppercase">
+                        No.
+                      </TableHead>
+                      <TableHead className="text-primary h-8 px-3 text-[10px] font-bold tracking-wider uppercase">
+                        Description
+                      </TableHead>
+                      <TableHead className="text-primary text-right h-8 px-3 text-[10px] font-bold tracking-wider uppercase">
+                        Quantity
+                      </TableHead>
+                      <TableHead className="text-primary h-8 px-3 text-[10px] font-bold tracking-wider uppercase">
+                        UOM
+                      </TableHead>
+                      <TableHead className="text-primary text-right h-8 px-3 text-[10px] font-bold tracking-wider uppercase">
+                        Unit Cost
+                      </TableHead>
+
+                      {formType === "posted-purchase-invoice" && (
                         <TableHead className="text-primary text-right h-8 px-3 text-[10px] font-bold tracking-wider uppercase">
-                      Qty Invoiced
-                    </TableHead>
-                  )}
+                          Disc %
+                        </TableHead>
+                      )}
 
-                  <TableHead className="text-primary h-8 px-3 text-[10px] font-bold tracking-wider uppercase">
-                    Dim 1
-                  </TableHead>
-                  <TableHead className="text-primary h-8 px-3 text-[10px] font-bold tracking-wider uppercase">
-                    Dim 2
-                  </TableHead>
+                      {formType === "posted-purchase-invoice" ||
+                      formType === "posted-purchase-credit-memo" ? (
+                        <>
+                          <TableHead className="text-primary text-right h-8 px-3 text-[10px] font-bold tracking-wider uppercase">
+                            Amount
+                          </TableHead>
+                          <TableHead className="text-primary text-right h-8 px-3 text-[10px] font-bold tracking-wider uppercase">
+                            Disc Amt
+                          </TableHead>
+                        </>
+                      ) : (
+                        <TableHead className="text-primary text-right h-8 px-3 text-[10px] font-bold tracking-wider uppercase">
+                          Qty Invoiced
+                        </TableHead>
+                      )}
 
-                  {(formType === "posted-purchase-invoice" ||
-                    formType === "posted-purchase-credit-memo") && (
-                    <TableHead className="text-primary h-8 px-3 text-[10px] font-bold tracking-wider uppercase">
-                      Dim 3
-                    </TableHead>
+                      <TableHead className="text-primary h-8 px-3 text-[10px] font-bold tracking-wider uppercase">
+                        Dim 1
+                      </TableHead>
+                      <TableHead className="text-primary h-8 px-3 text-[10px] font-bold tracking-wider uppercase">
+                        Dim 2
+                      </TableHead>
+
+                      {(formType === "posted-purchase-invoice" ||
+                        formType === "posted-purchase-credit-memo") && (
+                        <TableHead className="text-primary h-8 px-3 text-[10px] font-bold tracking-wider uppercase">
+                          Dim 3
+                        </TableHead>
+                      )}
+                    </>
                   )}
                   {canUndo && (
                     <TableHead className="text-primary h-8 px-3 text-[10px] font-bold tracking-wider uppercase text-center">
@@ -582,7 +613,9 @@ export function PostedDocumentDetailForm({
                             ? 13
                             : formType === "posted-purchase-credit-memo"
                               ? 11
-                              : (canUndo ? 10 : 9)
+                              : formType === "posted-inward-gate-entry" || formType === "posted-outward-gate-entry"
+                                ? 8
+                                : (canUndo ? 10 : 9)
                         }
                       >
                         <Skeleton className="h-4 w-full" />
@@ -597,7 +630,9 @@ export function PostedDocumentDetailForm({
                           ? 13
                           : formType === "posted-purchase-credit-memo"
                             ? 11
-                            : (canUndo ? 10 : 9)
+                            : formType === "posted-inward-gate-entry" || formType === "posted-outward-gate-entry"
+                              ? 8
+                              : (canUndo ? 10 : 9)
                       }
                       className="h-32 text-center"
                     >
@@ -617,79 +652,119 @@ export function PostedDocumentDetailForm({
                       key={line.Line_No || index}
                       className="hover:bg-muted/30 transition-colors"
                     >
-                      {formType === "posted-purchase-invoice" && (
-                        <TableCell className="text-muted-foreground font-mono text-[10px]">
-                          {line.Line_No}
-                        </TableCell>
-                      )}
-                    <TableCell className="px-3 py-2 text-[10px] font-medium">
-                        {line.Type || "-"}
-                      </TableCell>
-                      <TableCell className="font-mono text-xs">
-                        {line.No || "-"}
-                      </TableCell>
-                    <TableCell className="px-3 py-2 text-xs font-semibold">
-                        {line.Description || line.Item_Description || "-"}
-                      </TableCell>
-                      <TableCell className="text-right font-mono text-xs font-bold">
-                        {line.Quantity
-                          ? Number(line.Quantity).toLocaleString()
-                          : "-"}
-                      </TableCell>
-                      <TableCell className="text-[10px] font-medium">
-                        {line.Unit_of_Measure_Code || "-"}
-                      </TableCell>
-                      <TableCell className="px-3 py-2 text-right font-mono text-xs">
-                        {line.Direct_Unit_Cost
-                          ? Number(line.Direct_Unit_Cost).toLocaleString()
-                          : "-"}
-                      </TableCell>
-
-                      {formType === "posted-purchase-invoice" && (
-                        <TableCell className="text-right font-mono text-xs">
-                          {line.Line_Discount_Percent
-                            ? Number(
-                                line.Line_Discount_Percent,
-                              ).toLocaleString()
-                            : "0"}
-                        </TableCell>
-                      )}
-
-                      {formType === "posted-purchase-invoice" ||
-                      formType === "posted-purchase-credit-memo" ? (
+                      {formType === "posted-inward-gate-entry" || formType === "posted-outward-gate-entry" ? (
                         <>
-                          <TableCell className="px-3 py-2 text-right font-mono text-xs font-bold">
-                            {line.Line_Amount
-                              ? Number(line.Line_Amount).toLocaleString()
-                              : "-"}
+                          <TableCell className="text-muted-foreground font-mono text-[10px]">
+                            {line.Line_No}
                           </TableCell>
-                          <TableCell className="text-right font-mono text-xs text-orange-600">
-                            {line.Line_Discount_Amount
-                              ? Number(
-                                  line.Line_Discount_Amount,
-                                ).toLocaleString()
-                              : "0"}
+                          <TableCell className="px-3 py-2 text-[10px] font-medium">
+                            {line.Source_Type || "-"}
+                          </TableCell>
+                          <TableCell className="font-mono text-xs">
+                            {line.Source_No || "-"}
+                          </TableCell>
+                          <TableCell className="px-3 py-2 text-xs font-semibold">
+                            {line.Source_Name || "-"}
+                          </TableCell>
+                          <TableCell className="font-mono text-xs">
+                            {line.Challan_No || "-"}
+                          </TableCell>
+                          <TableCell className="px-3 py-2 text-xs">
+                            {line.Challan_Date ? (() => {
+                              const date = new Date(line.Challan_Date);
+                              if (isNaN(date.getTime())) return line.Challan_Date;
+                              const day = String(date.getDate()).padStart(2, "0");
+                              const month = String(date.getMonth() + 1).padStart(2, "0");
+                              const year = date.getFullYear();
+                              return `${day}/${month}/${year}`;
+                            })() : "-"}
+                          </TableCell>
+                          <TableCell className="px-3 py-2 text-xs">
+                            {line.Description || "-"}
+                          </TableCell>
+                          <TableCell className="px-3 py-2">
+                            <Badge variant="outline" className="text-[10px] uppercase">
+                              {line.Status || "-"}
+                            </Badge>
                           </TableCell>
                         </>
                       ) : (
-                      <TableCell className="px-3 py-2 text-right font-mono text-xs">
-                          {line.Quantity_Invoiced
-                            ? Number(line.Quantity_Invoiced).toLocaleString()
-                            : "-"}
-                        </TableCell>
-                      )}
+                        <>
+                          {formType === "posted-purchase-invoice" && (
+                            <TableCell className="text-muted-foreground font-mono text-[10px]">
+                              {line.Line_No}
+                            </TableCell>
+                          )}
+                          <TableCell className="px-3 py-2 text-[10px] font-medium">
+                            {line.Type || "-"}
+                          </TableCell>
+                          <TableCell className="font-mono text-xs">
+                            {line.No || "-"}
+                          </TableCell>
+                          <TableCell className="px-3 py-2 text-xs font-semibold">
+                            {line.Description || line.Item_Description || "-"}
+                          </TableCell>
+                          <TableCell className="text-right font-mono text-xs font-bold">
+                            {line.Quantity
+                              ? Number(line.Quantity).toLocaleString()
+                              : "-"}
+                          </TableCell>
+                          <TableCell className="text-[10px] font-medium">
+                            {line.Unit_of_Measure_Code || "-"}
+                          </TableCell>
+                          <TableCell className="px-3 py-2 text-right font-mono text-xs">
+                            {line.Direct_Unit_Cost
+                              ? Number(line.Direct_Unit_Cost).toLocaleString()
+                              : "-"}
+                          </TableCell>
 
-                      <TableCell className="px-3 py-2 text-[10px] font-medium">
-                        {line.Shortcut_Dimension_1_Code || "-"}
-                      </TableCell>
-                      <TableCell className="px-3 py-2 text-[10px] font-medium">
-                        {line.Shortcut_Dimension_2_Code || "-"}
-                      </TableCell>
-                      {(formType === "posted-purchase-invoice" ||
-                        formType === "posted-purchase-credit-memo") && (
-                        <TableCell className="px-3 py-2 text-[10px] font-medium">
-                          {line.ShortcutDimCode_x005B_3_x005D_ || "-"}
-                        </TableCell>
+                          {formType === "posted-purchase-invoice" && (
+                            <TableCell className="text-right font-mono text-xs">
+                              {line.Line_Discount_Percent
+                                ? Number(
+                                    line.Line_Discount_Percent,
+                                  ).toLocaleString()
+                                : "0"}
+                            </TableCell>
+                          )}
+
+                          {formType === "posted-purchase-invoice" ||
+                          formType === "posted-purchase-credit-memo" ? (
+                            <>
+                              <TableCell className="px-3 py-2 text-right font-mono text-xs font-bold">
+                                {line.Line_Amount
+                                  ? Number(line.Line_Amount).toLocaleString()
+                                  : "-"}
+                              </TableCell>
+                              <TableCell className="text-right font-mono text-xs text-orange-600">
+                                {line.Line_Discount_Amount
+                                  ? Number(
+                                      line.Line_Discount_Amount,
+                                    ).toLocaleString()
+                                  : "0"}
+                              </TableCell>
+                            </>
+                          ) : (
+                            <TableCell className="px-3 py-2 text-right font-mono text-xs">
+                              {line.Quantity_Invoiced
+                                ? Number(line.Quantity_Invoiced).toLocaleString()
+                                : "-"}
+                            </TableCell>
+                          )}
+
+                          <TableCell className="px-3 py-2 text-[10px] font-medium">
+                            {line.Shortcut_Dimension_1_Code || "-"}
+                          </TableCell>
+                          <TableCell className="px-3 py-2 text-[10px] font-medium">
+                            {line.Shortcut_Dimension_2_Code || "-"}
+                          </TableCell>
+                          {(formType === "posted-purchase-invoice" ||
+                            formType === "posted-purchase-credit-memo") && (
+                            <TableCell className="px-3 py-2 text-[10px] font-medium">
+                              {line.ShortcutDimCode_x005B_3_x005D_ || "-"}
+                            </TableCell>
+                          )}
+                        </>
                       )}
                       {(canUndo || formType === "posted-purchase-receipt") && (
                         <TableCell className="px-3 py-1 text-center">

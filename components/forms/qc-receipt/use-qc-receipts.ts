@@ -120,9 +120,20 @@ export function useQCReceipts(initialFilters?: {
       // Global search
       if (searchQuery) {
         const escaped = searchQuery.replace(/'/g, "''");
-        filterParts.push(
-          `(contains(No,'${escaped}') or contains(Purchase_Receipt_No,'${escaped}') or contains(Item_No,'${escaped}') or contains(Item_Name,'${escaped}') or contains(Buy_from_Vendor_Name,'${escaped}') or contains(Bardana_RPO,'${escaped}') or contains(Vehicle_No,'${escaped}'))`,
-        );
+        const searchParts = [
+          `contains(No,'${escaped}')`,
+          `contains(Purchase_Receipt_No,'${escaped}')`,
+          `contains(Item_No,'${escaped}')`,
+          `contains(Item_Name,'${escaped}')`,
+          `contains(Buy_from_Vendor_Name,'${escaped}')`,
+          `contains(Vehicle_No,'${escaped}')`,
+        ];
+
+        if (initialFilters?.isPosted) {
+          searchParts.push(`contains(Bardana_RPO,'${escaped}')`);
+        }
+
+        filterParts.push(`(${searchParts.join(" or ")})`);
       }
 
       // Column filters
@@ -147,13 +158,15 @@ export function useQCReceipts(initialFilters?: {
 
       const select = buildSelectQuery(visibleColumns);
       // For posted receipts, we need to exclude fields that might not exist on the posted entity
-      const fieldsToExclude = ["Approval_Status"];
-      const finalSelect = initialFilters?.isPosted
-        ? select
-            .split(",")
-            .filter((col) => !fieldsToExclude.includes(col))
-            .join(",")
-        : select;
+      // For unposted receipts, we need to exclude fields that only exist on the posted entity (like Bardana_RPO)
+      const fieldsToExclude = initialFilters?.isPosted
+        ? ["Approval_Status"]
+        : ["Bardana_RPO"];
+
+      const finalSelect = select
+        .split(",")
+        .filter((col) => !fieldsToExclude.includes(col))
+        .join(",");
 
       const params: any = {
         $select: finalSelect,

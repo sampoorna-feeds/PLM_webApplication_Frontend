@@ -23,6 +23,7 @@ interface QCReceiptsTableProps {
   onRowClick?: (receipt: QCReceiptHeader) => void;
   onSort: (column: string) => void;
   onFilter: (columnId: string, value: string, valueTo?: string) => void;
+  isPosted: boolean;
 }
 
 export function QCReceiptsTable({
@@ -37,12 +38,13 @@ export function QCReceiptsTable({
   onRowClick,
   onSort,
   onFilter,
+  isPosted,
 }: QCReceiptsTableProps) {
-  const columns = ALL_COLUMNS.filter((col) => visibleColumns.includes(col.id));
+  const columns = ALL_COLUMNS.filter((col) => {
+    if (col.id === "Bardana_RPO" && !isPosted) return false;
+    return visibleColumns.includes(col.id);
+  });
   const startingSerialNo = (currentPage - 1) * pageSize;
-
-
-
 
   return (
     <div className="bg-card flex h-full flex-1 flex-col overflow-hidden rounded-lg border">

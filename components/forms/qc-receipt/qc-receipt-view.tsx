@@ -104,6 +104,7 @@ export function QCReceiptView({ statusFilter, isPosted, skipDateFilter }: QCRece
           onSort={onSort}
           onFilter={onColumnFilter}
           onRowClick={handleRowClick}
+          isPosted={!!isPosted}
         />
       </div>
 

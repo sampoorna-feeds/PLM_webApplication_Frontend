@@ -67,13 +67,6 @@ export const DEFAULT_COLUMNS: ColumnConfig[] = [
     filterType: "date",
   },
   {
-    id: "Bardana_RPO",
-    label: "Bardana RPO",
-    sortable: true,
-    defaultVisible: true,
-    filterType: "text",
-  },
-  {
     id: "Inspection_Quantity",
     label: "Insp. Qty",
     sortable: true,
@@ -107,6 +100,13 @@ export const OPTIONAL_COLUMNS: ColumnConfig[] = [
   {
     id: "Location_Code",
     label: "Location Code",
+    sortable: true,
+    defaultVisible: false,
+    filterType: "text",
+  },
+  {
+    id: "Bardana_RPO",
+    label: "Bardana RPO",
     sortable: true,
     defaultVisible: false,
     filterType: "text",

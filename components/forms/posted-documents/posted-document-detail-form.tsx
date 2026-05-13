@@ -534,9 +534,6 @@ export function PostedDocumentDetailForm({
                       <TableHead className="text-primary h-8 px-3 text-[10px] font-bold tracking-wider uppercase">
                         Description
                       </TableHead>
-                      <TableHead className="text-primary h-8 px-3 text-[10px] font-bold tracking-wider uppercase">
-                        Status
-                      </TableHead>
                     </>
                   ) : (
                     <>
@@ -614,8 +611,8 @@ export function PostedDocumentDetailForm({
                             : formType === "posted-purchase-credit-memo"
                               ? 11
                               : formType === "posted-inward-gate-entry" || formType === "posted-outward-gate-entry"
-                                ? 8
-                                : (canUndo ? 10 : 9)
+                              ? 7
+                              : (canUndo ? 10 : 9)
                         }
                       >
                         <Skeleton className="h-4 w-full" />
@@ -631,7 +628,7 @@ export function PostedDocumentDetailForm({
                           : formType === "posted-purchase-credit-memo"
                             ? 11
                             : formType === "posted-inward-gate-entry" || formType === "posted-outward-gate-entry"
-                              ? 8
+                              ? 7
                               : (canUndo ? 10 : 9)
                       }
                       className="h-32 text-center"
@@ -681,11 +678,6 @@ export function PostedDocumentDetailForm({
                           </TableCell>
                           <TableCell className="px-3 py-2 text-xs">
                             {line.Description || "-"}
-                          </TableCell>
-                          <TableCell className="px-3 py-2">
-                            <Badge variant="outline" className="text-[10px] uppercase">
-                              {line.Status || "-"}
-                            </Badge>
                           </TableCell>
                         </>
                       ) : (

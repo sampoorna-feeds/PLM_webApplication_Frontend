@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect } from "react";
-import { Plus } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Plus, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useFormStackContext } from "@/lib/form-stack/form-stack-context";
+import { SalesPlanningModal } from "./sales-planning-modal";
 import { SalesDocumentTable } from "./sales-document-table";
 import { SalesDocumentFilterBar } from "./sales-document-filter-bar";
 import { SalesDocumentActiveFilters } from "./sales-document-active-filters";
@@ -29,6 +30,7 @@ export function SalesDocumentView({
 }: SalesDocumentViewProps) {
   const { openTab } = useFormStackContext();
   const config = getSalesDocumentConfig(documentType);
+  const [isSalesPlanningOpen, setIsSalesPlanningOpen] = useState(false);
 
   const {
     orders,
@@ -98,6 +100,17 @@ export function SalesDocumentView({
         onRemoveAdditionalFilter={onRemoveAdditionalFilter}
       >
         <div className="flex items-center gap-4">
+          {config.type === "order" && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsSalesPlanningOpen(true)}
+              className="h-8 gap-1.5 px-3 text-[10px] font-bold tracking-wider uppercase border-primary/30 hover:bg-primary/10 hover:text-primary transition-colors"
+            >
+              <FileText className="h-3.5 w-3.5" />
+              Sales Planning
+            </Button>
+          )}
           <span className="text-muted-foreground text-xs font-medium">
             Total: {totalCount.toLocaleString()}
           </span>
@@ -143,6 +156,11 @@ export function SalesDocumentView({
           isLoadingMore={isLoadingMore}
         />
       </div>
+
+      <SalesPlanningModal
+        isOpen={isSalesPlanningOpen}
+        onClose={() => setIsSalesPlanningOpen(false)}
+      />
     </div>
   );
 }

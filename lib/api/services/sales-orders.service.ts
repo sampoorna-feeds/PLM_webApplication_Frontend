@@ -634,3 +634,17 @@ export async function deleteSalesItemTrackingLine(
   const endpoint = `/ItemTrackingLine(Entry_No=${entryNo},Positive=${positive})?company='${encodeURIComponent(COMPANY)}'`;
   return apiDelete<unknown>(endpoint);
 }
+/**
+ * Get Sales Planning Report base64 string
+ */
+export async function getSalesPlanningReport(
+  locationCode: string,
+): Promise<string> {
+  const endpoint = `/API_SalesPLaning?company='${encodeURIComponent(COMPANY)}'`;
+  const payload = { locationCode };
+
+  const response = await apiPost<{ value: string } | string>(endpoint, payload);
+
+  if (typeof response === "string") return response;
+  return response?.value || "";
+}

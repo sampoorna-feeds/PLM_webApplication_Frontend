@@ -30,14 +30,15 @@ function PostedPurchaseInvoiceContent() {
     visibleColumns,
     dateFilter,
     setDateFilter,
-    onPageChange,
-    onPageSizeChange,
     onSort,
     onSearch,
     onColumnFilter,
     onToggleColumn,
     onClearFilters,
     refetch,
+    loadMore,
+    hasMore,
+    isLoadingMore,
   } = usePostedPurchase("invoice");
 
   const { openTab } = useFormStackContext();
@@ -102,7 +103,7 @@ function PostedPurchaseInvoiceContent() {
             <RefreshCcw className="mr-1.5 h-3.5 w-3.5" />
             Change Date Range
           </Button>
-          <Button variant="outline" size="sm" onClick={refetch} disabled={isLoading}>
+          <Button variant="outline" size="sm" onClick={() => refetch(true)} disabled={isLoading}>
             <RefreshCcw className={`mr-2 h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
             Refresh
           </Button>
@@ -147,29 +148,12 @@ function PostedPurchaseInvoiceContent() {
           onColumnFilter={onColumnFilter}
           visibleColumns={visibleColumns}
           onPrint={handlePrint}
+          onLoadMore={loadMore}
+          hasMore={hasMore}
+          isLoadingMore={isLoadingMore}
         />
       </div>
 
-      <div className="mt-4 flex items-center justify-between border-t pt-4">
-        <div className="flex items-center gap-2">
-          <p className="text-xs text-muted-foreground">
-            Showing <span className="font-medium text-foreground">{(currentPage - 1) * pageSize + 1}</span> to{" "}
-            <span className="font-medium text-foreground">{Math.min(currentPage * pageSize, totalCount)}</span> of{" "}
-            <span className="font-medium text-foreground">{totalCount}</span> results
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => onPageChange(currentPage - 1)} disabled={currentPage === 1}>
-            Previous
-          </Button>
-          <div className="text-xs font-medium">
-            Page {currentPage} of {totalPages}
-          </div>
-          <Button variant="outline" size="sm" onClick={() => onPageChange(currentPage + 1)} disabled={currentPage >= totalPages}>
-            Next
-          </Button>
-        </div>
-      </div>
     </div>
   );
 }

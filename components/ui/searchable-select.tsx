@@ -57,6 +57,7 @@ export function SearchableSelect({
   const [open, setOpen] = React.useState(false);
   const [searchQuery, setSearchQuery] = React.useState("");
   const listRef = React.useRef<HTMLDivElement>(null);
+  const sentinelRef = React.useRef<HTMLDivElement>(null);
   const searchTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
 
   // Get the selected options' labels
@@ -101,19 +102,33 @@ export function SearchableSelect({
       opt.description?.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
-  // Handle scroll for infinite loading
-  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
-    if (!onLoadMore || !hasMore || isLoadingMore) return;
+  // Handle infinite loading with Sentinel Pattern
+  React.useEffect(() => {
+    if (!open || !onLoadMore || !hasMore || isLoadingMore) return;
 
-    const target = e.target as HTMLDivElement;
-    const scrollBottom =
-      target.scrollHeight - target.scrollTop - target.clientHeight;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          onLoadMore();
+        }
+      },
+      { 
+        threshold: 0.1,
+        root: listRef.current
+      },
+    );
 
-    // Load more when near bottom (within 50px)
-    if (scrollBottom < 50) {
-      onLoadMore();
+    const currentSentinel = sentinelRef.current;
+    if (currentSentinel) {
+      observer.observe(currentSentinel);
     }
-  };
+
+    return () => {
+      if (currentSentinel) {
+        observer.unobserve(currentSentinel);
+      }
+    };
+  }, [open, onLoadMore, hasMore, isLoadingMore]);
 
   const handleWheel = (e: React.WheelEvent<HTMLDivElement>) => {
     const target = e.currentTarget;
@@ -123,14 +138,6 @@ export function SearchableSelect({
     e.preventDefault();
     e.stopPropagation();
     target.scrollTop += e.deltaY;
-
-    if (!onLoadMore || !hasMore || isLoadingMore) return;
-
-    const scrollBottom =
-      target.scrollHeight - target.scrollTop - target.clientHeight;
-    if (scrollBottom < 50) {
-      onLoadMore();
-    }
   };
 
   // Reset search when popover closes - REMOVED to keep search persistent
@@ -251,7 +258,6 @@ export function SearchableSelect({
           <div
             ref={listRef}
             className="min-h-0 flex-1 overflow-y-auto p-1"
-            onScroll={handleScroll}
             onWheel={handleWheel}
           >
             {isLoading ? (
@@ -368,6 +374,9 @@ export function SearchableSelect({
                   );
                 })}
 
+                {/* Sentinel div for infinite scroll */}
+                <div ref={sentinelRef} className="h-1 w-full" />
+
                 {/* Load More Indicator */}
                 {isLoadingMore && (
                   <div className="flex items-center justify-center py-2">
@@ -378,7 +387,7 @@ export function SearchableSelect({
                   </div>
                 )}
 
-                {/* Load More Button */}
+                {/* Load More Button - Fallback if observer fails */}
                 {hasMore && !isLoadingMore && (
                   <div className="py-2 text-center">
                     <Button

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { 
   getPostedPurchaseReceipts,
   getPostedPurchaseInvoices,
@@ -23,9 +23,11 @@ export function usePostedPurchase(type: PostedPurchaseType, initialFilters?: { s
   const { userID } = useAuth();
   const [documents, setDocuments] = useState<PostedPurchaseHeader[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [pageSize, setPageSize] = useState(20);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [pageSize, setPageSize] = useState(200);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
   const [sortColumn, setSortColumn] = useState<string | null>("No");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc" | null>("desc");
   const [searchQuery, setSearchQuery] = useState("");
@@ -35,6 +37,11 @@ export function usePostedPurchase(type: PostedPurchaseType, initialFilters?: { s
   );
   const [dateFilter, setDateFilter] = useState<{ fromDate: string; toDate: string } | null>(null);
   const [userBranchCodes, setUserBranchCodes] = useState<string[]>([]);
+
+  const isLoadingRef = useRef(false);
+  const isLoadingMoreRef = useRef(false);
+  const lastRequestId = useRef(0);
+  const pageRef = useRef(1);
 
   useEffect(() => {
     if (!userID) return;
@@ -51,7 +58,7 @@ export function usePostedPurchase(type: PostedPurchaseType, initialFilters?: { s
 
   const skipDateFilter = initialFilters?.skipDateFilter;
 
-  const fetchDocuments = useCallback(async () => {
+  const fetchDocuments = useCallback(async (reset = false) => {
     if (!skipDateFilter && !dateFilter) {
       setIsLoading(false);
       return;
@@ -64,7 +71,17 @@ export function usePostedPurchase(type: PostedPurchaseType, initialFilters?: { s
       return;
     }
 
-    setIsLoading(true);
+    const requestId = ++lastRequestId.current;
+
+    if (reset) {
+      pageRef.current = 1;
+      isLoadingRef.current = true;
+      setIsLoading(true);
+    } else {
+      isLoadingMoreRef.current = true;
+      setIsLoadingMore(true);
+    }
+
     try {
       const filterParts: string[] = [];
 
@@ -142,6 +159,8 @@ export function usePostedPurchase(type: PostedPurchaseType, initialFilters?: { s
           })
         );
 
+        if (requestId !== lastRequestId.current) return;
+
         // Merge and deduplicate results
         const seen = new Set<string>();
         const merged: PostedPurchaseHeader[] = [];
@@ -160,7 +179,7 @@ export function usePostedPurchase(type: PostedPurchaseType, initialFilters?: { s
         });
 
         // Manual pagination on merged results
-        const start = (currentPage - 1) * pageSize;
+        const start = (pageRef.current - 1) * pageSize;
         const paged = merged.slice(start, start + pageSize);
         
         result = {
@@ -171,7 +190,7 @@ export function usePostedPurchase(type: PostedPurchaseType, initialFilters?: { s
         const params = {
           ...baseParams,
           $top: pageSize,
-          $skip: (currentPage - 1) * pageSize,
+          $skip: (pageRef.current - 1) * pageSize,
         };
 
         switch (type) {
@@ -181,6 +200,8 @@ export function usePostedPurchase(type: PostedPurchaseType, initialFilters?: { s
           case "credit-memo": result = await getPostedPurchaseCreditMemos(params); break;
         }
         
+        if (requestId !== lastRequestId.current) return;
+
         // Normalize vendor data in non-search results too
         if (result.value) {
           result.value = result.value.map(doc => {
@@ -192,18 +213,40 @@ export function usePostedPurchase(type: PostedPurchaseType, initialFilters?: { s
         }
       }
 
-      setDocuments(result.value || []);
+      if (pageRef.current === 1) {
+        setDocuments(result.value || []);
+      } else {
+        setDocuments((prev) => [...prev, ...(result.value || [])]);
+      }
       setTotalCount(result["@odata.count"] ?? result.value?.length ?? 0);
+      setHasMore(pageRef.current * pageSize < (result["@odata.count"] ?? 0));
+      setCurrentPage(pageRef.current);
     } catch (error) {
+      if (requestId !== lastRequestId.current) return;
       console.error(`Error fetching posted purchase ${type}:`, error);
       toastError(error, `Failed to load posted purchase ${type}.`);
+      if (pageRef.current === 1) {
+        setDocuments([]);
+        setTotalCount(0);
+      }
     } finally {
-      setIsLoading(false);
+      if (requestId === lastRequestId.current) {
+        setIsLoading(false);
+        setIsLoadingMore(false);
+        isLoadingRef.current = false;
+        isLoadingMoreRef.current = false;
+      }
     }
-  }, [type, currentPage, pageSize, sortColumn, sortDirection, searchQuery, columnFilters, dateFilter, skipDateFilter, userBranchCodes]);
+  }, [type, pageSize, sortColumn, sortDirection, searchQuery, columnFilters, dateFilter, skipDateFilter, userBranchCodes]);
+
+  const loadMore = useCallback(() => {
+    if (isLoadingRef.current || isLoadingMoreRef.current || !hasMore) return;
+    pageRef.current += 1;
+    fetchDocuments(false);
+  }, [hasMore, fetchDocuments]);
 
   useEffect(() => {
-    fetchDocuments();
+    fetchDocuments(true);
   }, [fetchDocuments]);
 
   const handleSort = (column: string) => {
@@ -258,5 +301,8 @@ export function usePostedPurchase(type: PostedPurchaseType, initialFilters?: { s
     onToggleColumn: toggleColumn,
     onClearFilters: () => { setSearchQuery(""); setColumnFilters({}); setCurrentPage(1); },
     refetch: fetchDocuments,
+    loadMore,
+    hasMore,
+    isLoadingMore,
   };
 }

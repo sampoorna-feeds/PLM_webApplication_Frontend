@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { toast } from "sonner";
 import { toastError } from "@/lib/errors";
 import { useAuth } from "@/lib/contexts/auth-context";
@@ -56,6 +56,11 @@ export function useTransferOrders(options: UseTransferOrdersOptions = {}) {
       : getDefaultVisibleColumns(),
   );
 
+  const isLoadingRef = useRef(false);
+  const isLoadingMoreRef = useRef(false);
+  const lastRequestId = useRef(0);
+  const pageRef = useRef(1);
+
   const totalPages = useMemo(
     () => Math.max(1, Math.ceil(totalCount / pageSize)),
     [totalCount, pageSize],
@@ -109,8 +114,19 @@ export function useTransferOrders(options: UseTransferOrdersOptions = {}) {
     return `${sortColumn} ${sortDirection}`;
   }, [sortColumn, sortDirection]);
 
-  const fetchOrders = useCallback(async () => {
+  const fetchOrders = useCallback(async (reset = false) => {
     if (!isSetupLoaded) return;
+
+    const requestId = ++lastRequestId.current;
+    
+    if (reset) {
+      pageRef.current = 1;
+      isLoadingRef.current = true;
+      setIsLoading(true);
+    } else {
+      isLoadingMoreRef.current = true;
+      setIsLoadingMore(true);
+    }
 
     const lobFilterValue = columnFilters["Shortcut_Dimension_1_Code"]?.value;
     const effectiveLobCodes = lobFilterValue
@@ -128,16 +144,12 @@ export function useTransferOrders(options: UseTransferOrdersOptions = {}) {
           .filter((c) => userBranchCodes.includes(c))
       : userBranchCodes;
 
-    if (currentPage === 1) setIsLoading(true);
-    else setIsLoadingMore(true);
     try {
       const filter = buildTransferOrderFilterString({
         lobCodes: effectiveLobCodes,
         branchCodes: effectiveBranchCodes,
         statusFilter,
         columnFilters,
-        // We pass the authorized lists too if we want the builder to double-check, 
-        // but since we intersected here, the builder's lobCodes/branchCodes are already valid.
       });
 
       const commonParams = {
@@ -145,7 +157,7 @@ export function useTransferOrders(options: UseTransferOrdersOptions = {}) {
         $filter: filter,
         $orderby: getOrderByString(),
         $top: pageSize,
-        $skip: (currentPage - 1) * pageSize,
+        $skip: (pageRef.current - 1) * pageSize,
       };
 
       const result = searchQuery
@@ -155,24 +167,34 @@ export function useTransferOrders(options: UseTransferOrdersOptions = {}) {
           })
         : await getTransferOrdersWithCount(commonParams);
 
-      if (currentPage === 1) {
+      if (requestId !== lastRequestId.current) return;
+
+      if (pageRef.current === 1) {
         setOrders(result.orders);
       } else {
         setOrders((prev) => [...prev, ...result.orders]);
       }
       setTotalCount(result.totalCount);
-      setHasMore(currentPage * pageSize < result.totalCount);
+      setHasMore(pageRef.current * pageSize < result.totalCount);
+      setCurrentPage(pageRef.current);
     } catch (error) {
+      if (requestId !== lastRequestId.current) return;
       console.warn("Error fetching transfer orders:", error);
       toastError(error, "Failed to load transfer orders. Please try again.");
-      setOrders([]);
-      setTotalCount(0);
+      if (pageRef.current === 1) {
+        setOrders([]);
+        setTotalCount(0);
+      }
     } finally {
-      setIsLoading(false);
-      setIsLoadingMore(false);
+      if (requestId === lastRequestId.current) {
+        setIsLoading(false);
+        setIsLoadingMore(false);
+        isLoadingRef.current = false;
+        isLoadingMoreRef.current = false;
+      }
     }
   }, [
-    currentPage,
+    isSetupLoaded,
     pageSize,
     visibleColumns,
     searchQuery,
@@ -185,12 +207,8 @@ export function useTransferOrders(options: UseTransferOrdersOptions = {}) {
 
   // Reset to page 1 when status tab changes
   useEffect(() => {
-    setCurrentPage(1);
-  }, [statusFilter]);
-
-  useEffect(() => {
-    fetchOrders();
-  }, [fetchOrders]);
+    fetchOrders(true);
+  }, [statusFilter, searchQuery, columnFilters, sortColumn, sortDirection, visibleColumns, pageSize, fetchOrders]);
 
   const handlePageSizeChange = useCallback((size: number) => {
     setPageSize(size);
@@ -202,9 +220,10 @@ export function useTransferOrders(options: UseTransferOrdersOptions = {}) {
   }, []);
 
   const loadMore = useCallback(() => {
-    if (isLoading || isLoadingMore || !hasMore) return;
-    setCurrentPage((prev) => prev + 1);
-  }, [isLoading, isLoadingMore, hasMore]);
+    if (isLoadingRef.current || isLoadingMoreRef.current || !hasMore) return;
+    pageRef.current += 1;
+    fetchOrders(false);
+  }, [hasMore, fetchOrders]);
 
   const handleSort = useCallback((column: string) => {
     setSortColumn((prevColumn) => {

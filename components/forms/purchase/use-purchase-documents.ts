@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { toast } from "sonner";
 import { toastError } from "@/lib/errors";
 import { useAuth } from "@/lib/contexts/auth-context";
@@ -91,9 +91,11 @@ export function usePurchaseDocuments(options: UsePurchaseDocumentsOptions) {
 
   const [orders, setOrders] = useState<PurchaseOrder[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [pageSize, setPageSize] = useState(10);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [pageSize, setPageSize] = useState(200);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
   const [userBranchCodes, setUserBranchCodes] = useState<string[]>([]);
 
   const [sortColumn, setSortColumn] = useState<string | null>("No");
@@ -112,6 +114,11 @@ export function usePurchaseDocuments(options: UsePurchaseDocumentsOptions) {
       ? getColumnConfig(documentType).loadVisibleColumns()
       : getColumnConfig(documentType).getDefaultVisibleColumns(),
   );
+
+  const isLoadingRef = useRef(false);
+  const isLoadingMoreRef = useRef(false);
+  const lastRequestId = useRef(0);
+  const pageRef = useRef(1);
 
   const totalPages = useMemo(
     () => Math.max(1, Math.ceil(totalCount / pageSize)),
@@ -152,7 +159,7 @@ export function usePurchaseDocuments(options: UsePurchaseDocumentsOptions) {
     return `${sortColumn} ${sortDirection}`;
   }, [sortColumn, sortDirection]);
 
-  const fetchOrders = useCallback(async () => {
+  const fetchOrders = useCallback(async (reset = false) => {
     const branchFilterValue = columnFilters["Shortcut_Dimension_2_Code"]?.value;
     const effectiveBranchCodes = branchFilterValue
       ? branchFilterValue
@@ -168,9 +175,19 @@ export function usePurchaseDocuments(options: UsePurchaseDocumentsOptions) {
       return;
     }
 
+    const requestId = ++lastRequestId.current;
+
+    if (reset) {
+      pageRef.current = 1;
+      isLoadingRef.current = true;
+      setIsLoading(true);
+    } else {
+      isLoadingMoreRef.current = true;
+      setIsLoadingMore(true);
+    }
+
     const { fetchWithCount, search } = DOCUMENT_API_HANDLERS[documentType];
 
-    setIsLoading(true);
     try {
       const filter = buildPurchaseOrderFilterString({
         branchCodes: effectiveBranchCodes,
@@ -185,27 +202,43 @@ export function usePurchaseDocuments(options: UsePurchaseDocumentsOptions) {
         $filter: filter,
         $orderby: getOrderByString(),
         $top: pageSize,
-        $skip: (currentPage - 1) * pageSize,
+        $skip: (pageRef.current - 1) * pageSize,
       };
 
       const result = searchQuery
         ? await search({ ...commonParams, searchTerm: searchQuery })
         : await fetchWithCount(commonParams);
 
-      setOrders(result.orders);
+      if (requestId !== lastRequestId.current) return;
+
+      if (pageRef.current === 1) {
+        setOrders(result.orders);
+      } else {
+        setOrders((prev) => [...prev, ...result.orders]);
+      }
       setTotalCount(result.totalCount);
+      setHasMore(pageRef.current * pageSize < result.totalCount);
+      setCurrentPage(pageRef.current);
     } catch (error) {
+      if (requestId !== lastRequestId.current) return;
       console.error("Error fetching purchase documents:", error);
       toastError(error, "Failed to load purchase documents. Please try again.");
-      setOrders([]);
-      setTotalCount(0);
+      if (pageRef.current === 1) {
+        setOrders([]);
+        setTotalCount(0);
+      }
     } finally {
-      setIsLoading(false);
+      if (requestId === lastRequestId.current) {
+        setIsLoading(false);
+        setIsLoadingMore(false);
+        isLoadingRef.current = false;
+        isLoadingMoreRef.current = false;
+      }
     }
   }, [
     additionalFilters,
     columnFilters,
-    currentPage,
+    columnConfig,
     documentType,
     getOrderByString,
     pageSize,
@@ -216,13 +249,26 @@ export function usePurchaseDocuments(options: UsePurchaseDocumentsOptions) {
     visibleColumns,
   ]);
 
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [statusFilter]);
+  const loadMore = useCallback(() => {
+    if (isLoadingRef.current || isLoadingMoreRef.current || !hasMore) return;
+    pageRef.current += 1;
+    fetchOrders(false);
+  }, [hasMore, fetchOrders]);
 
   useEffect(() => {
-    fetchOrders();
-  }, [fetchOrders]);
+    fetchOrders(true);
+  }, [
+    statusFilter,
+    searchQuery,
+    columnFilters,
+    additionalFilters,
+    poType,
+    sortColumn,
+    sortDirection,
+    visibleColumns,
+    pageSize,
+    fetchOrders
+  ]);
 
   const handlePageSizeChange = useCallback((size: number) => {
     setPageSize(size);
@@ -349,5 +395,8 @@ export function usePurchaseDocuments(options: UsePurchaseDocumentsOptions) {
     onPoTypeChange: handlePoTypeChange,
     onClearFilters: handleClearFilters,
     refetch: fetchOrders,
+    loadMore,
+    hasMore,
+    isLoadingMore,
   };
 }

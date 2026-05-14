@@ -135,12 +135,11 @@ export function SalesItemChargeAssignmentDialog({
   const [columnFilters, setColumnFilters] = useState<Record<string, { value: string }>>({});
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedSearchQuery(searchQuery);
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [searchQuery]);
+  const isLoadingRef = useRef(false);
+  const isLoadingMoreRef = useRef(false);
+  const isAllFetchedRef = useRef(false);
+  const pageRef = useRef(0);
+  const lastRequestId = useRef(0);
 
   const [selectionOpen, setSelectionOpen] = useState(false);
   const [selectionType, setSelectionType] = useState<SalesChargeSourceType>("SalesShipment");
@@ -173,15 +172,31 @@ export function SalesItemChargeAssignmentDialog({
     setErrorDialogOpen(true);
   };
 
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
   const fetchInitial = useCallback(async () => {
+    const requestId = ++lastRequestId.current;
+    
+    isLoadingRef.current = true;
+    setLoading(true);
+    setLines([]);
+    setTotalCount(0);
+    setSelectedLines(new Set());
+    setIsAllSelected(false);
+    pageRef.current = 0;
+    isAllFetchedRef.current = false;
+
+    if (scrollContainerRef.current) scrollContainerRef.current.scrollTop = 0;
     try {
-      setLoading(true);
-      setLines([]);
-      setTotalCount(0);
-      setSelectedLines(new Set());
-      setIsAllSelected(false);
-      if (scrollContainerRef.current) scrollContainerRef.current.scrollTop = 0;
       await salesItemChargeAssignmentService.prepareChargeItemLines(docNo, docLineNo);
+      
+      if (requestId !== lastRequestId.current) return;
+
       const result = await salesItemChargeAssignmentService.getAssignments({
         docType,
         docNo,
@@ -194,49 +209,80 @@ export function SalesItemChargeAssignmentDialog({
         columnFilters,
         search: debouncedSearchQuery,
       });
+
+      if (requestId !== lastRequestId.current) return;
+
       setLines(result.value);
       setTotalCount(result.count);
+      isAllFetchedRef.current = result.value.length < PAGE_SIZE;
     } catch (error) {
       showError("Fetch Failed", "Could not load assignments from the server.", error);
     } finally {
-      setLoading(false);
+      if (requestId === lastRequestId.current) {
+        isLoadingRef.current = false;
+        setLoading(false);
+      }
     }
   }, [docType, docNo, docLineNo, itemChargeNo, sortColumn, sortDirection, columnFilters, debouncedSearchQuery]);
 
   const fetchMore = useCallback(async () => {
-    if (!canFetchMore) return;
+    if (isLoadingRef.current || isLoadingMoreRef.current || isAllFetchedRef.current) return;
+    
+    const requestId = ++lastRequestId.current;
+    isLoadingMoreRef.current = true;
+    setLoadingMore(true);
     try {
-      setLoadingMore(true);
+      const nextSkip = (pageRef.current + 1) * PAGE_SIZE;
       const result = await salesItemChargeAssignmentService.getAssignments({
         docType,
         docNo,
         docLineNo,
         itemChargeNo,
-        skip: lines.length,
+        skip: nextSkip,
         top: PAGE_SIZE,
         sortColumn,
         sortDirection,
         columnFilters,
         search: debouncedSearchQuery,
       });
+
+      if (requestId !== lastRequestId.current) return;
+
       setLines((prev) => [...prev, ...result.value]);
       setTotalCount(result.count);
+      pageRef.current += 1;
+      isAllFetchedRef.current = result.value.length < PAGE_SIZE;
     } catch {
       // silent
     } finally {
-      setLoadingMore(false);
+      if (requestId === lastRequestId.current) {
+        isLoadingMoreRef.current = false;
+        setLoadingMore(false);
+      }
     }
-  }, [canFetchMore, docType, docNo, docLineNo, itemChargeNo, lines.length, sortColumn, sortDirection, columnFilters, debouncedSearchQuery]);
+  }, [docType, docNo, docLineNo, itemChargeNo, sortColumn, sortDirection, columnFilters, debouncedSearchQuery]);
 
   useEffect(() => { if (open) fetchInitial(); }, [open, fetchInitial]);
 
   useEffect(() => {
+    if (!open) return;
     const sentinel = sentinelRef.current;
     if (!sentinel) return;
-    const observer = new IntersectionObserver((entries) => { if (entries[0].isIntersecting) fetchMore(); }, { threshold: 0.1 });
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && !isLoadingRef.current && !isLoadingMoreRef.current && !isAllFetchedRef.current) {
+          fetchMore();
+        }
+      },
+      { 
+        threshold: 0.1,
+        root: scrollContainerRef.current
+      },
+    );
     observer.observe(sentinel);
     return () => observer.disconnect();
-  }, [fetchMore]);
+  }, [open, fetchMore]);
 
   const handleOpenSelection = (type: SalesChargeSourceType) => {
     setSelectionType(type);

@@ -157,6 +157,12 @@ export function ApplyVendorEntriesDialog({
     columnFiltersRef.current = columnFilters;
   }, [debouncedSearch, sortColumn, sortDirection, columnFilters]);
 
+  const isLoadingRef = useRef(false);
+  const isLoadingMoreRef = useRef(false);
+  const isAllFetchedRef = useRef(false);
+  const pageRef = useRef(0);
+  const lastRequestId = useRef(0);
+
   // 1. Initial Fetch
   const fetchInitial = useCallback(
     async (
@@ -166,12 +172,17 @@ export function ApplyVendorEntriesDialog({
       colFilters: Record<string, string>,
     ) => {
       if (!vendorNo || !isOpen) return;
+      const requestId = ++lastRequestId.current;
 
+      isLoadingRef.current = true;
+      setIsLoading(true);
+      setEntries([]);
+      setTotalCount(0);
+      pageRef.current = 0;
+      isAllFetchedRef.current = false;
+
+      if (scrollContainerRef.current) scrollContainerRef.current.scrollTop = 0;
       try {
-        setIsLoading(true);
-        if (scrollContainerRef.current)
-          scrollContainerRef.current.scrollTop = 0;
-
         const data = await getVendorLedgerEntriesForDialog({
           vendorNo,
           search: search || undefined,
@@ -183,13 +194,19 @@ export function ApplyVendorEntriesDialog({
           visibleColumns,
         });
 
+        if (requestId !== lastRequestId.current) return;
+
         setEntries(data.value);
         setTotalCount(data.count);
+        isAllFetchedRef.current = data.value.length < PAGE_SIZE;
       } catch (error) {
         console.error("Failed to fetch entries", error);
         toastError(error, "Failed to fetch entries");
       } finally {
-        setIsLoading(false);
+        if (requestId === lastRequestId.current) {
+          isLoadingRef.current = false;
+          setIsLoading(false);
+        }
       }
     },
     [vendorNo, isOpen, visibleColumns],
@@ -197,15 +214,18 @@ export function ApplyVendorEntriesDialog({
 
   // 2. Fetch More
   const fetchMore = useCallback(
-    async (currentLength: number) => {
-      if (!vendorNo || !isOpen) return;
+    async () => {
+      if (!vendorNo || !isOpen || isLoadingRef.current || isLoadingMoreRef.current || isAllFetchedRef.current) return;
 
+      const requestId = ++lastRequestId.current;
+      isLoadingMoreRef.current = true;
+      setIsLoadingMore(true);
       try {
-        setIsLoadingMore(true);
+        const nextSkip = (pageRef.current + 1) * PAGE_SIZE;
         const data = await getVendorLedgerEntriesForDialog({
           vendorNo,
           search: debouncedSearchRef.current || undefined,
-          skip: currentLength,
+          skip: nextSkip,
           top: PAGE_SIZE,
           sortColumn: sortColumnRef.current,
           sortDirection: sortDirectionRef.current,
@@ -213,16 +233,23 @@ export function ApplyVendorEntriesDialog({
           visibleColumns,
         });
 
+        if (requestId !== lastRequestId.current) return;
+
         setEntries((prev) => {
           const seen = new Set(prev.map((v) => v.Entry_No));
           return [...prev, ...data.value.filter((v) => !seen.has(v.Entry_No))];
         });
         setTotalCount(data.count);
+        pageRef.current += 1;
+        isAllFetchedRef.current = data.value.length < PAGE_SIZE;
       } catch (error) {
         console.error("Failed to load more", error);
         toastError(error, "Failed to load more entries");
       } finally {
-        setIsLoadingMore(false);
+        if (requestId === lastRequestId.current) {
+          isLoadingMoreRef.current = false;
+          setIsLoadingMore(false);
+        }
       }
     },
     [vendorNo, isOpen, visibleColumns],
@@ -248,26 +275,16 @@ export function ApplyVendorEntriesDialog({
     const sentinel = sentinelRef.current;
     if (!sentinel) return;
 
-    let isFetching = false;
     const observer = new IntersectionObserver(
       (observerEntries) => {
-        if (observerEntries[0].isIntersecting && !isFetching) {
-          setEntries((prev) => {
-            setTotalCount((total) => {
-              const alreadyAll = total > 0 && prev.length >= total;
-              if (!alreadyAll && !isFetching) {
-                isFetching = true;
-                fetchMore(prev.length).finally(() => {
-                  isFetching = false;
-                });
-              }
-              return total;
-            });
-            return prev;
-          });
+        if (observerEntries[0].isIntersecting && !isLoadingRef.current && !isLoadingMoreRef.current && !isAllFetchedRef.current) {
+          fetchMore();
         }
       },
-      { root: scrollContainerRef.current, rootMargin: "100px", threshold: 0.1 },
+      { 
+        root: scrollContainerRef.current, 
+        threshold: 0.1 
+      },
     );
 
     observer.observe(sentinel);

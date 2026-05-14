@@ -103,6 +103,12 @@ export function GetPostedLineToReverseDialog({
 
   const rowId = (r: PstdDocLineRow) => `${r.Document_No}-${r.Line_No}`;
 
+  const isLoadingRef = useRef(false);
+  const isLoadingMoreRef = useRef(false);
+  const isAllFetchedRef = useRef(false);
+  const pageRef = useRef(0);
+  const lastRequestId = useRef(0);
+
   // Debounce search
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(searchQuery), 400);
@@ -112,11 +118,17 @@ export function GetPostedLineToReverseDialog({
   // Reset rows + selection when option or search changes
   const fetchInitial = useCallback(async () => {
     if (!open) return;
+    const requestId = ++lastRequestId.current;
+
+    isLoadingRef.current = true;
     setLoading(true);
     setRows([]);
     setTotalCount(0);
     setSelectedIds(new Set());
     setIsAllSelected(false);
+    pageRef.current = 0;
+    isAllFetchedRef.current = false;
+
     if (scrollRef.current) scrollRef.current.scrollTop = 0;
     try {
       const result = await fetchPstdDocLines(selectedOption.endpoint, {
@@ -129,12 +141,19 @@ export function GetPostedLineToReverseDialog({
         sortDirection,
         columnFilters,
       });
+
+      if (requestId !== lastRequestId.current) return;
+
       setRows(result.value);
       setTotalCount(result.count);
+      isAllFetchedRef.current = result.value.length < PAGE_SIZE;
     } catch (err) {
       setErrorMsg(getErrorMessage(err, "Failed to fetch documents."));
     } finally {
-      setLoading(false);
+      if (requestId === lastRequestId.current) {
+        isLoadingRef.current = false;
+        setLoading(false);
+      }
     }
   }, [open, selectedOption, debouncedSearch, vendorNo, customerNo, sortColumn, sortDirection, columnFilters]);
 
@@ -154,12 +173,16 @@ export function GetPostedLineToReverseDialog({
   }, [open, menuOptions]);
 
   const fetchMore = useCallback(async () => {
-    if (!canFetchMore) return;
+    if (isLoadingRef.current || isLoadingMoreRef.current || isAllFetchedRef.current) return;
+    
+    const requestId = ++lastRequestId.current;
+    isLoadingMoreRef.current = true;
     setLoadingMore(true);
     try {
+      const nextSkip = (pageRef.current + 1) * PAGE_SIZE;
       const result = await fetchPstdDocLines(selectedOption.endpoint, {
         search: debouncedSearch || undefined,
-        skip: rows.length,
+        skip: nextSkip,
         top: PAGE_SIZE,
         vendorNo,
         customerNo,
@@ -167,28 +190,43 @@ export function GetPostedLineToReverseDialog({
         sortDirection,
         columnFilters,
       });
+
+      if (requestId !== lastRequestId.current) return;
+
       setRows((prev) => [...prev, ...result.value]);
       setTotalCount(result.count);
+      pageRef.current += 1;
+      isAllFetchedRef.current = result.value.length < PAGE_SIZE;
     } catch {
       /* silent */
     } finally {
-      setLoadingMore(false);
+      if (requestId === lastRequestId.current) {
+        isLoadingMoreRef.current = false;
+        setLoadingMore(false);
+      }
     }
-  }, [canFetchMore, selectedOption.endpoint, debouncedSearch, rows.length, vendorNo, customerNo, sortColumn, sortDirection, columnFilters]);
+  }, [selectedOption.endpoint, debouncedSearch, vendorNo, customerNo, sortColumn, sortDirection, columnFilters]);
 
   // Infinite scroll via IntersectionObserver
   useEffect(() => {
+    if (!open) return;
     const el = sentinelRef.current;
     if (!el) return;
+
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0].isIntersecting) fetchMore();
+        if (entries[0].isIntersecting && !isLoadingRef.current && !isLoadingMoreRef.current && !isAllFetchedRef.current) {
+          fetchMore();
+        }
       },
-      { threshold: 0.1 },
+      { 
+        threshold: 0.1,
+        root: scrollRef.current 
+      },
     );
     observer.observe(el);
     return () => observer.disconnect();
-  }, [fetchMore]);
+  }, [open, fetchMore]);
 
   // Drag-select support
   useEffect(() => {

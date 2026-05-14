@@ -98,16 +98,13 @@ export function SourceLookupModal({
   // Disconnect observer on unmount to prevent memory leak
   useEffect(() => () => { observer.current?.disconnect(); }, []);
 
-  const lastElementRef = useCallback((node: HTMLTableRowElement | null) => {
-    if (isLoading || isLoadingMore) return;
-    if (observer.current) observer.current.disconnect();
-    observer.current = new IntersectionObserver(entries => {
-      if (entries[0].isIntersecting && hasMore) {
-        setCurrentPage(prev => prev + 1);
-      }
-    });
-    if (node) observer.current.observe(node);
-  }, [isLoading, isLoadingMore, hasMore]);
+  const isLoadingRef = useRef(false);
+  const isLoadingMoreRef = useRef(false);
+  const isAllFetchedRef = useRef(false);
+  const pageRef = useRef(1);
+  const lastRequestId = useRef(0);
+  const sentinelRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   // Debounce search
   useEffect(() => {
@@ -117,28 +114,21 @@ export function SourceLookupModal({
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  // Reset and fetch page 1 when search params or open state changes
-  useEffect(() => {
-    if (isOpen) {
-      fetchGenRef.current++;
-      const gen = fetchGenRef.current;
+  const fetchData = useCallback(async (page: number, isNewSearch: boolean) => {
+    const requestId = ++lastRequestId.current;
+    
+    if (isNewSearch) {
+      isLoadingRef.current = true;
+      setIsLoading(true);
       setData([]);
-      setCurrentPage(1);
-      setHasMore(true);
-      fetchData(1, true, gen);
+      setTotalCount(0);
+      pageRef.current = 1;
+      isAllFetchedRef.current = false;
+      if (scrollContainerRef.current) scrollContainerRef.current.scrollTop = 0;
+    } else {
+      isLoadingMoreRef.current = true;
+      setIsLoadingMore(true);
     }
-  }, [sourceType, debouncedSearch, branchCode, locationCode, isOpen, columnFilters]);
-
-  // Fetch next page when currentPage increments (IntersectionObserver trigger)
-  useEffect(() => {
-    if (isOpen && currentPage > 1) {
-      fetchData(currentPage, false, fetchGenRef.current);
-    }
-  }, [currentPage, isOpen]);
-
-  async function fetchData(page: number, isNewSearch: boolean, gen: number) {
-    if (isNewSearch) setIsLoading(true);
-    else setIsLoadingMore(true);
 
     try {
       const params = {
@@ -159,7 +149,7 @@ export function SourceLookupModal({
         result = await getTransferOrders(params);
       }
 
-      if (gen !== fetchGenRef.current) return;
+      if (requestId !== lastRequestId.current) return;
 
       if (result) {
         if (isNewSearch) {
@@ -168,17 +158,51 @@ export function SourceLookupModal({
           setData(prev => [...prev, ...result.data]);
         }
         setTotalCount(result.totalCount);
-        setHasMore(result.data.length === pageSize);
+        isAllFetchedRef.current = result.data.length < pageSize;
+        pageRef.current = page;
       }
     } catch (error) {
-      if (gen !== fetchGenRef.current) return;
       console.error("Error fetching source data:", error);
     } finally {
-      if (gen !== fetchGenRef.current) return;
-      setIsLoading(false);
-      setIsLoadingMore(false);
+      if (requestId === lastRequestId.current) {
+        if (isNewSearch) {
+          isLoadingRef.current = false;
+          setIsLoading(false);
+        } else {
+          isLoadingMoreRef.current = false;
+          setIsLoadingMore(false);
+        }
+      }
     }
-  }
+  }, [sourceType, debouncedSearch, branchCode, locationCode, columnFilters]);
+
+  // Reset and fetch page 1 when search params or open state changes
+  useEffect(() => {
+    if (isOpen) {
+      fetchData(1, true);
+    }
+  }, [isOpen, fetchData]);
+
+  // Infinite scroll via IntersectionObserver
+  useEffect(() => {
+    if (!isOpen) return;
+    const el = sentinelRef.current;
+    if (!el) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && !isLoadingRef.current && !isLoadingMoreRef.current && !isAllFetchedRef.current) {
+          fetchData(pageRef.current + 1, false);
+        }
+      },
+      { 
+        threshold: 0.1,
+        root: scrollContainerRef.current
+      },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [isOpen, fetchData]);
 
   const activeFiltersCount = Object.keys(columnFilters).length + (searchQuery ? 1 : 0);
 
@@ -218,7 +242,7 @@ export function SourceLookupModal({
           )}
         </div>
 
-        <div className="flex-1 overflow-auto">
+        <div className="flex-1 overflow-auto" ref={scrollContainerRef}>
           <Table>
             <TableHeader className="bg-muted/50 sticky top-0 z-10">
               <TableRow>
@@ -284,12 +308,9 @@ export function SourceLookupModal({
                     const status = item.Status || "";
                     const location = item.Location_Code || item.Transfer_to_Code || "";
 
-                    const isLastElement = index === data.length - 1;
-
                     return (
                       <TableRow
                         key={item.id || no || `source-${index}`}
-                        ref={isLastElement ? lastElementRef : undefined}
                         className="hover:bg-muted cursor-pointer"
                         onClick={() => onSelect(no, item)}
                       >
@@ -326,6 +347,7 @@ export function SourceLookupModal({
               )}
             </TableBody>
           </Table>
+          <div ref={sentinelRef} className="h-4" />
         </div>
         <div className="text-muted-foreground border-t px-4 py-2 text-[10px] font-bold tracking-wider uppercase">
           Showing {data.length} of {totalCount} records

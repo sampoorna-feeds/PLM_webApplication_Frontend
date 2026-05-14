@@ -50,6 +50,7 @@ export function ProductionOrdersTable({
   // Get visible column configs in order
   const columns = ALL_COLUMNS.filter((col) => visibleColumns.includes(col.id));
   const sentinelRef = useRef<HTMLTableRowElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!hasMore || isLoading || isLoadingMore) return;
@@ -60,7 +61,11 @@ export function ProductionOrdersTable({
           onLoadMore?.();
         }
       },
-      { threshold: 0.1, rootMargin: "100px" },
+      { 
+        threshold: 0.1, 
+        rootMargin: "100px",
+        root: scrollContainerRef.current
+      },
     );
 
     const currentSentinel = sentinelRef.current;
@@ -77,7 +82,7 @@ export function ProductionOrdersTable({
 
   return (
     <div className="bg-card flex h-full flex-1 flex-col overflow-hidden rounded-lg border">
-      <div className="flex-1 overflow-auto">
+      <div ref={scrollContainerRef} className="flex-1 overflow-auto">
         <table className="w-full caption-bottom text-sm">
           {/* Header is ALWAYS visible with filters - sticky */}
           <thead className="bg-muted sticky top-0 z-10 [&_tr]:border-b">

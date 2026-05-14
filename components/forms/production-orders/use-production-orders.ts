@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { toast } from "sonner";
 import { toastError } from "@/lib/errors";
 import { useAuth } from "@/lib/contexts/auth-context";
@@ -85,6 +85,11 @@ export function useProductionOrders() {
     return Math.max(1, Math.ceil(totalCount / pageSize));
   }, [totalCount, pageSize]);
 
+  const isLoadingRef = useRef(false);
+  const isLoadingMoreRef = useRef(false);
+  const lastRequestId = useRef(0);
+  const pageRef = useRef(1);
+
   // Fetch LOB codes and Branch codes from user setup
   useEffect(() => {
     if (!userID) return;
@@ -152,11 +157,20 @@ export function useProductionOrders() {
   }, [sortColumn, sortDirection]);
 
   // Fetch production orders
-  const fetchOrders = useCallback(async () => {
+  const fetchOrders = useCallback(async (reset = false) => {
     if (lobCodes.length === 0) return;
 
-    if (currentPage === 1) setIsLoading(true);
-    else setIsLoadingMore(true);
+    const requestId = ++lastRequestId.current;
+
+    if (reset) {
+      pageRef.current = 1;
+      isLoadingRef.current = true;
+      setIsLoading(true);
+    } else {
+      isLoadingMoreRef.current = true;
+      setIsLoadingMore(true);
+    }
+
     try {
       const baseParams = {
         $select: buildSelectQuery(
@@ -165,7 +179,7 @@ export function useProductionOrders() {
         ),
         $orderby: getOrderByString(),
         $top: pageSize,
-        $skip: (currentPage - 1) * pageSize,
+        $skip: (pageRef.current - 1) * pageSize,
       };
 
       // Calculate branch codes to use (User allowed + Filter)
@@ -174,6 +188,8 @@ export function useProductionOrders() {
       const effectiveBranchCodes = branchFilterValue
         ? branchFilterValue.split(",")
         : userBranchCodes;
+
+      let result: { orders: ProductionOrder[]; totalCount: number };
 
       // If there's a search query, make 2 parallel API calls
       if (searchQuery.trim()) {
@@ -208,16 +224,12 @@ export function useProductionOrders() {
         }
 
         // Limit to pageSize and estimate total count
-        const finalOrders = mergedOrders.slice(0, pageSize);
-        if (currentPage === 1) {
-          setOrders(finalOrders);
-        } else {
-          setOrders((prev) => [...prev, ...finalOrders]);
-        }
-        setTotalCount(Math.max(resultByNo.totalCount, resultByDesc.totalCount));
-        setHasMore(currentPage * pageSize < Math.max(resultByNo.totalCount, resultByDesc.totalCount));
+        result = {
+          orders: mergedOrders.slice(0, pageSize),
+          totalCount: Math.max(resultByNo.totalCount, resultByDesc.totalCount),
+        };
       } else {
-        const result = await getProductionOrdersWithCount(
+        result = await getProductionOrdersWithCount(
           {
             ...baseParams,
             $filter: buildFilterString(),
@@ -225,29 +237,38 @@ export function useProductionOrders() {
           lobCodes,
           effectiveBranchCodes,
         );
-
-        if (currentPage === 1) {
-          setOrders(result.orders);
-        } else {
-          setOrders((prev) => [...prev, ...result.orders]);
-        }
-        setTotalCount(result.totalCount);
-        setHasMore(currentPage * pageSize < result.totalCount);
       }
+
+      if (requestId !== lastRequestId.current) return;
+
+      if (pageRef.current === 1) {
+        setOrders(result.orders);
+      } else {
+        setOrders((prev) => [...prev, ...result.orders]);
+      }
+      setTotalCount(result.totalCount);
+      setHasMore(pageRef.current * pageSize < result.totalCount);
+      setCurrentPage(pageRef.current);
     } catch (error) {
+      if (requestId !== lastRequestId.current) return;
       console.error("Error fetching production orders:", error);
       toastError(error, "Failed to load production orders. Please try again.");
-      setOrders([]);
-      setTotalCount(0);
+      if (pageRef.current === 1) {
+        setOrders([]);
+        setTotalCount(0);
+      }
     } finally {
-      setIsLoading(false);
-      setIsLoadingMore(false);
+      if (requestId === lastRequestId.current) {
+        setIsLoading(false);
+        setIsLoadingMore(false);
+        isLoadingRef.current = false;
+        isLoadingMoreRef.current = false;
+      }
     }
   }, [
     lobCodes,
     userBranchCodes,
     pageSize,
-    currentPage,
     visibleColumns,
     searchQuery,
     buildFilterString,
@@ -256,8 +277,8 @@ export function useProductionOrders() {
   ]);
 
   useEffect(() => {
-    fetchOrders();
-  }, [fetchOrders]);
+    fetchOrders(true);
+  }, [fetchOrders, sortColumn, sortDirection, searchQuery, dueDateFrom, dueDateTo, columnFilters, additionalFilters, visibleColumns, pageSize]);
 
   // Handlers
   const handlePageSizeChange = useCallback((size: PageSize) => {
@@ -270,9 +291,10 @@ export function useProductionOrders() {
   }, []);
 
   const loadMore = useCallback(() => {
-    if (isLoading || isLoadingMore || !hasMore) return;
-    setCurrentPage((prev) => prev + 1);
-  }, [isLoading, isLoadingMore, hasMore]);
+    if (isLoadingRef.current || isLoadingMoreRef.current || !hasMore) return;
+    pageRef.current += 1;
+    fetchOrders(false);
+  }, [hasMore, fetchOrders]);
 
   const handleSort = useCallback((column: string) => {
     if (RELEASED_ORDERS_EXCLUDED_COLUMNS.includes(column)) return;

@@ -1,6 +1,7 @@
 "use client";
 
-import { ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
+import { useEffect, useRef } from "react";
+import { ArrowUp, ArrowDown, ArrowUpDown, Loader2 } from "lucide-react";
 import type { PurchaseOrder } from "@/lib/api/services/purchase-orders.service";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -23,6 +24,9 @@ interface PurchaseOrdersTableProps {
   onRowClick?: (orderNo: string) => void;
   onSort: (column: string) => void;
   onColumnFilter: (columnId: string, value: string, valueTo?: string) => void;
+  onLoadMore?: () => void;
+  hasMore?: boolean;
+  isLoadingMore?: boolean;
 }
 
 export function PurchaseOrdersTable({
@@ -38,13 +42,45 @@ export function PurchaseOrdersTable({
   onRowClick,
   onSort,
   onColumnFilter,
+  onLoadMore,
+  hasMore,
+  isLoadingMore,
 }: PurchaseOrdersTableProps) {
   const columns = allColumns.filter((col) => visibleColumns.includes(col.id));
-  const startingSerialNo = (currentPage - 1) * pageSize;
+  const sentinelRef = useRef<HTMLTableRowElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!hasMore || isLoading || isLoadingMore) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          onLoadMore?.();
+        }
+      },
+      { 
+        threshold: 0.1, 
+        rootMargin: "100px",
+        root: scrollContainerRef.current
+      },
+    );
+
+    const currentSentinel = sentinelRef.current;
+    if (currentSentinel) {
+      observer.observe(currentSentinel);
+    }
+
+    return () => {
+      if (currentSentinel) {
+        observer.unobserve(currentSentinel);
+      }
+    };
+  }, [hasMore, isLoading, isLoadingMore, onLoadMore]);
 
   return (
     <div className="bg-card flex h-full flex-1 flex-col overflow-hidden rounded-lg border">
-      <div className="flex-1 overflow-auto">
+      <div ref={scrollContainerRef} className="flex-1 overflow-auto">
         <table className="w-full caption-bottom text-sm">
           <thead className="bg-muted sticky top-0 z-10 [&_tr]:border-b">
             <tr className="border-b transition-colors">
@@ -76,7 +112,7 @@ export function PurchaseOrdersTable({
                     className="border-b transition-colors"
                   >
                     <td className="text-muted-foreground p-2 px-3 py-3 text-center align-middle text-xs whitespace-nowrap">
-                      {startingSerialNo + rowIndex + 1}
+                      {rowIndex + 1}
                     </td>
                     {columns.map((column) => (
                       <td
@@ -107,10 +143,21 @@ export function PurchaseOrdersTable({
                   key={order.No}
                   order={order}
                   columns={columns}
-                  serialNo={startingSerialNo + index + 1}
+                  serialNo={index + 1}
                   onClick={onRowClick ? () => onRowClick(order.No) : undefined}
                 />
               ))}
+            {!isLoading && (
+              <tr ref={sentinelRef}>
+                <td colSpan={columns.length + 1} className="h-px p-0">
+                  {isLoadingMore && (
+                    <div className="flex justify-center py-4">
+                      <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                    </div>
+                  )}
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>

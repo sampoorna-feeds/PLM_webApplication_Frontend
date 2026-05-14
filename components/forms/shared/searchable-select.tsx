@@ -86,19 +86,32 @@ export function SearchableSelect<T extends SearchableItem>({
   const listRef = useRef<HTMLDivElement | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
+  const isLoadingRef = useRef(false);
+  const isLoadingMoreRef = useRef(false);
+  const lastRequestId = useRef(0);
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+
   // Load initial items when dropdown opens
   const loadInitialItems = useCallback(async () => {
+    const requestId = ++lastRequestId.current;
+    isLoadingRef.current = true;
     setIsLoading(true);
     try {
       const result = await loadInitial();
+      if (requestId !== lastRequestId.current) return;
+      
       setItems(result);
       setSkip(result.length);
       setHasMore(result.length >= initialLoadCount);
     } catch (error) {
+      if (requestId !== lastRequestId.current) return;
       console.error("Error loading initial items:", error);
       setItems([]);
     } finally {
-      setIsLoading(false);
+      if (requestId === lastRequestId.current) {
+        isLoadingRef.current = false;
+        setIsLoading(false);
+      }
     }
   }, [loadInitial, initialLoadCount]);
 
@@ -126,9 +139,11 @@ export function SearchableSelect<T extends SearchableItem>({
 
       // Debounce the search
       debounceTimerRef.current = setTimeout(async () => {
+        const requestId = ++lastRequestId.current;
         const controller = new AbortController();
         abortControllerRef.current = controller;
 
+        isLoadingRef.current = true;
         setIsLoading(true);
         try {
           let result: T[];
@@ -154,8 +169,8 @@ export function SearchableSelect<T extends SearchableItem>({
             result = await searchItems(query);
           }
 
-          // Check if request was aborted
-          if (controller.signal.aborted) {
+          // Check if request was aborted or overwritten
+          if (controller.signal.aborted || requestId !== lastRequestId.current) {
             return;
           }
 
@@ -167,14 +182,15 @@ export function SearchableSelect<T extends SearchableItem>({
           if (error instanceof Error && error.name === "AbortError") {
             return;
           }
-          // Check if request was aborted
-          if (controller.signal.aborted) {
+          // Check if request was aborted or overwritten
+          if (controller.signal.aborted || requestId !== lastRequestId.current) {
             return;
           }
           console.error("Error searching items:", error);
           setItems([]);
         } finally {
-          if (!controller.signal.aborted) {
+          if (!controller.signal.aborted && requestId === lastRequestId.current) {
+            isLoadingRef.current = false;
             setIsLoading(false);
           }
         }
@@ -194,11 +210,16 @@ export function SearchableSelect<T extends SearchableItem>({
 
   // Load more items (pagination)
   const loadMoreItems = useCallback(async () => {
-    if (isLoading || !hasMore || !loadMore) return;
+    if (isLoadingRef.current || isLoadingMoreRef.current || !hasMore || !loadMore) return;
 
-    setIsLoading(true);
+    const requestId = ++lastRequestId.current;
+    isLoadingMoreRef.current = true;
+    setIsLoading(true); // Still use state for UI spinner
     try {
       const newItems = await loadMore(skip, searchQuery || undefined);
+      
+      if (requestId !== lastRequestId.current) return;
+
       if (newItems.length === 0) {
         setHasMore(false);
       } else {
@@ -207,11 +228,15 @@ export function SearchableSelect<T extends SearchableItem>({
         setHasMore(newItems.length >= pageSize);
       }
     } catch (error) {
+      if (requestId !== lastRequestId.current) return;
       console.error("Error loading more items:", error);
     } finally {
-      setIsLoading(false);
+      if (requestId === lastRequestId.current) {
+        isLoadingMoreRef.current = false;
+        setIsLoading(false);
+      }
     }
-  }, [isLoading, hasMore, skip, searchQuery, loadMore, pageSize]);
+  }, [hasMore, skip, searchQuery, loadMore, pageSize]);
 
   // Handle dropdown open
   const handleOpenChange = (open: boolean) => {
@@ -230,22 +255,30 @@ export function SearchableSelect<T extends SearchableItem>({
   useEffect(() => {
     if (!isOpen || !listRef.current || !loadMore) return;
 
-    const handleScroll = () => {
-      const element = listRef.current;
-      if (!element) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (
+          entries[0].isIntersecting &&
+          hasMore &&
+          !isLoadingRef.current &&
+          !isLoadingMoreRef.current
+        ) {
+          loadMoreItems();
+        }
+      },
+      {
+        threshold: 0.1,
+        root: listRef.current,
+      },
+    );
 
-      const { scrollTop, scrollHeight, clientHeight } = element;
-      const isNearBottom = scrollTop + clientHeight >= scrollHeight - 50;
+    const currentSentinel = sentinelRef.current;
+    if (currentSentinel) {
+      observer.observe(currentSentinel);
+    }
 
-      if (isNearBottom && hasMore && !isLoading) {
-        loadMoreItems();
-      }
-    };
-
-    const element = listRef.current;
-    element.addEventListener("scroll", handleScroll);
-    return () => element.removeEventListener("scroll", handleScroll);
-  }, [isOpen, hasMore, isLoading, loadMoreItems, loadMore]);
+    return () => observer.disconnect();
+  }, [isOpen, hasMore, loadMore, loadMoreItems]);
 
   const handleListWheel = (e: React.WheelEvent<HTMLDivElement>) => {
     const element = e.currentTarget;
@@ -255,15 +288,6 @@ export function SearchableSelect<T extends SearchableItem>({
     e.preventDefault();
     e.stopPropagation();
     element.scrollTop += e.deltaY;
-
-    if (!loadMore || !hasMore || isLoading) return;
-
-    const isNearBottom =
-      element.scrollTop + element.clientHeight >= element.scrollHeight - 50;
-
-    if (isNearBottom) {
-      loadMoreItems();
-    }
   };
 
   // Find selected item display value
@@ -402,6 +426,7 @@ export function SearchableSelect<T extends SearchableItem>({
                     <Loader2 className="text-muted-foreground h-4 w-4 animate-spin" />
                   </div>
                 )}
+                <div ref={sentinelRef} className="h-px w-full" />
               </>
             )}
           </div>

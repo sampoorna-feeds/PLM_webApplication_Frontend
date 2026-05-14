@@ -141,6 +141,12 @@ export function VendorLedgerEntrySelect({
 
   const allFetched = totalCount > 0 && vendors.length >= totalCount;
 
+  const isLoadingRef = useRef(false);
+  const isLoadingMoreRef = useRef(false);
+  const isAllFetchedRef = useRef(false);
+  const pageRef = useRef(0);
+  const lastRequestId = useRef(0);
+
   // Debounce search
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(searchQuery), DEBOUNCE_MS);
@@ -156,9 +162,14 @@ export function VendorLedgerEntrySelect({
       visCols: string[],
       
     ) => {
+      const requestId = ++lastRequestId.current;
+      isLoadingRef.current = true;
       setLoading(true);
       setVendors([]);
       setTotalCount(0);
+      pageRef.current = 0;
+      isAllFetchedRef.current = false;
+
       if (scrollContainerRef.current) scrollContainerRef.current.scrollTop = 0;
       try {
         const result = await getVendorLedgerEntriesForDialog({
@@ -171,22 +182,34 @@ export function VendorLedgerEntrySelect({
           filters: colFilters,
           visibleColumns: visCols,
         });
+
+        if (requestId !== lastRequestId.current) return;
+
         setVendors(result.value);
         setTotalCount(result.count);
+        isAllFetchedRef.current = result.value.length < PAGE_SIZE;
       } catch (err) {
-        console.error("Error loading vendors:", err);
+        console.error("Error loading vendor ledger entries:", err);
       } finally {
-        setLoading(false);
+        if (requestId === lastRequestId.current) {
+          isLoadingRef.current = false;
+          setLoading(false);
+        }
       }
     },
-    [],
+    [vendorNo],
   );
 
-  const fetchMore = useCallback(async (currentLength: number) => {
+  const fetchMore = useCallback(async () => {
+    if (isLoadingRef.current || isLoadingMoreRef.current || isAllFetchedRef.current) return;
+    
+    const requestId = ++lastRequestId.current;
+    isLoadingMoreRef.current = true;
     setLoadingMore(true);
     try {
+      const nextSkip = (pageRef.current + 1) * PAGE_SIZE;
       const result = await getVendorLedgerEntriesForDialog({
-        skip: currentLength,
+        skip: nextSkip,
         top: PAGE_SIZE,
         search: debouncedSearchRef.current || undefined,
         vendorNo: vendorNo,
@@ -195,17 +218,25 @@ export function VendorLedgerEntrySelect({
         filters: columnFiltersRef.current,
         visibleColumns: visibleColumnsRef.current,
       });
+
+      if (requestId !== lastRequestId.current) return;
+
       setVendors((prev) => {
         const seen = new Set(prev.map((v) => v.Entry_No));
         return [...prev, ...result.value.filter((v) => !seen.has(v.Entry_No))];
       });
       setTotalCount(result.count);
+      pageRef.current += 1;
+      isAllFetchedRef.current = result.value.length < PAGE_SIZE;
     } catch (err) {
-      console.error("Error loading more vendors:", err);
+      console.error("Error loading more vendor ledger entries:", err);
     } finally {
-      setLoadingMore(false);
+      if (requestId === lastRequestId.current) {
+        isLoadingMoreRef.current = false;
+        setLoadingMore(false);
+      }
     }
-  }, []);
+  }, [vendorNo]);
 
   useEffect(() => {
     if (open) {
@@ -228,33 +259,24 @@ export function VendorLedgerEntrySelect({
   ]);
 
   useEffect(() => {
+    if (!open) return;
     const sentinel = sentinelRef.current;
     if (!sentinel) return;
 
-    let isFetching = false;
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0].isIntersecting && !isFetching) {
-          setVendors((prev) => {
-            setTotalCount((total) => {
-              const alreadyAll = total > 0 && prev.length >= total;
-              if (!alreadyAll && !isFetching) {
-                isFetching = true;
-                fetchMore(prev.length).finally(() => {
-                  isFetching = false;
-                });
-              }
-              return total;
-            });
-            return prev;
-          });
+        if (entries[0].isIntersecting && !isLoadingRef.current && !isLoadingMoreRef.current && !isAllFetchedRef.current) {
+          fetchMore();
         }
       },
-      { threshold: 0.1 },
+      { 
+        threshold: 0.1,
+        root: scrollContainerRef.current
+      },
     );
     observer.observe(sentinel);
     return () => observer.disconnect();
-  }, [fetchMore, loading, loadingMore]);
+  }, [open, fetchMore]);
 
   useEffect(() => {
     if (!value) {

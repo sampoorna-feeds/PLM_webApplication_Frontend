@@ -79,9 +79,15 @@ export function SalesItemSelectDialog({
   const [sortColumn, setSortColumn] = useState<string>("No");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
 
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const sentinelRef = useRef<HTMLTableRowElement>(null);
   const lastRequestId = useRef(0);
   const selectedItemRef = useRef<Item | undefined>(undefined);
+
+  const isLoading = useRef(false);
+  const isLoadingMore = useRef(false);
+  const isAllFetched = useRef(false);
+  const pageRef = useRef(0);
 
   // Debounce search
   useEffect(() => {
@@ -91,18 +97,25 @@ export function SalesItemSelectDialog({
 
   const fetchData = useCallback(
     async (isNextPage = false) => {
-      if (isNextPage && (loading || loadingMore || allFetched)) return;
+      if (isNextPage && (isLoading.current || isLoadingMore.current || isAllFetched.current)) return;
+      if (!isNextPage && isLoading.current) return;
 
       const requestId = ++lastRequestId.current;
-      if (isNextPage) setLoadingMore(true);
-      else {
+      if (isNextPage) {
+        isLoadingMore.current = true;
+        setLoadingMore(true);
+      } else {
+        isLoading.current = true;
         setLoading(true);
         setItems([]);
+        setPage(0);
+        pageRef.current = 0;
+        isAllFetched.current = false;
         setAllFetched(false);
       }
 
       try {
-        const nextSkip = isNextPage ? (page + 1) * PAGE_SIZE : 0;
+        const nextSkip = isNextPage ? (pageRef.current + 1) * PAGE_SIZE : 0;
         const res = await getSalesItemsForDialog({
           skip: nextSkip,
           top: PAGE_SIZE,
@@ -116,31 +129,37 @@ export function SalesItemSelectDialog({
 
         if (isNextPage) {
           setItems((prev) => [...prev, ...res.value]);
-          setPage((p) => p + 1);
+          pageRef.current += 1;
+          setPage(pageRef.current);
         } else {
           setItems(res.value);
+          pageRef.current = 0;
           setPage(0);
         }
 
         setTotalCount(res.count);
-        setAllFetched(res.value.length < PAGE_SIZE);
+        const reachedEnd = res.value.length < PAGE_SIZE;
+        isAllFetched.current = reachedEnd;
+        setAllFetched(reachedEnd);
       } catch {
         // non-fatal
       } finally {
         if (requestId === lastRequestId.current) {
+          isLoading.current = false;
           setLoading(false);
+          isLoadingMore.current = false;
           setLoadingMore(false);
         }
       }
     },
-    [loading, loadingMore, allFetched, page, debouncedSearch, sortColumn, sortDirection, locationCode],
+    [debouncedSearch, sortColumn, sortDirection, locationCode]
   );
 
   // Refetch when search/sort/open changes
   useEffect(() => {
     if (open) fetchData(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [debouncedSearch, sortColumn, sortDirection, open, locationCode]);
+  }, [debouncedSearch, sortColumn, sortDirection, open, locationCode, fetchData]);
 
   // Infinite scroll via IntersectionObserver
   useEffect(() => {
@@ -149,18 +168,21 @@ export function SalesItemSelectDialog({
       (entries) => {
         if (
           entries[0].isIntersecting &&
-          !loading &&
-          !loadingMore &&
-          !allFetched
+          !isLoading.current &&
+          !isLoadingMore.current &&
+          !isAllFetched.current
         ) {
           fetchData(true);
         }
       },
-      { threshold: 0.1 },
+      { 
+        threshold: 0.1,
+        root: scrollContainerRef.current
+      },
     );
     if (sentinelRef.current) observer.observe(sentinelRef.current);
     return () => observer.disconnect();
-  }, [open, loading, loadingMore, allFetched, fetchData]);
+  }, [open, fetchData]);
 
   const handleOpenChange = (newOpen: boolean) => {
     if (disabled) return;
@@ -294,7 +316,7 @@ export function SalesItemSelectDialog({
           </div>
 
           {/* Table */}
-          <div className="min-h-0 flex-1 overflow-auto">
+          <div ref={scrollContainerRef} className="min-h-0 flex-1 overflow-auto">
             <table className="w-full border-collapse text-sm">
               <thead className="sticky top-0 z-10 bg-muted">
                 <tr>

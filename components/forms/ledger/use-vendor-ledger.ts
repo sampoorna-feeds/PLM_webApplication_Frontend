@@ -57,6 +57,9 @@ export function useVendorLedger(options: UseVendorLedgerOptions = {}) {
 
 
   const LIMIT = 50;
+  const isLoadingRef = useRef(false);
+  const isFetchingNextPageRef = useRef(false);
+  const lastRequestId = useRef(0);
 
   const [visibleColumns, setVisibleColumns] = useState<string[]>(() =>
     typeof window !== "undefined"
@@ -93,28 +96,33 @@ export function useVendorLedger(options: UseVendorLedgerOptions = {}) {
       return;
     }
 
+    const requestId = ++lastRequestId.current;
+
     if (isAppending) {
+      isFetchingNextPageRef.current = true;
       setIsFetchingNextPage(true);
     } else {
+      isLoadingRef.current = true;
       setIsLoading(true);
     }
 
     try {
       const skip = isAppending ? entriesLengthRef.current : 0;
 
-      
       // Fetch entries and totals
       const [entriesRes, openingBal, sums] = await Promise.all([
         getVendorLedgerEntries({ ...filters, isOutstanding: options.isOutstanding }, LIMIT, skip),
         // Only fetch opening balance on first load and if dates are present
         !isAppending && filters.fromDate 
-          ? getVendorBalance(filters.vendorNo!, filters.fromDate, true) 
+          ? getVendorBalance(filters.vendorNo || "", filters.fromDate, true) 
           : Promise.resolve(0),
         // Always fetch sums on first load to calculate closing balance and show totals
         !isAppending
           ? getVendorLedgerSums({ ...filters, isOutstanding: options.isOutstanding })
           : Promise.resolve(null)
       ]);
+
+      if (requestId !== lastRequestId.current) return;
 
       if (isAppending) {
         setEntries(prev => {
@@ -134,14 +142,14 @@ export function useVendorLedger(options: UseVendorLedgerOptions = {}) {
           setClosingBalance(openingBal + sums.debitSum - sums.creditSum);
         } else if (!isAppending && !filters.fromDate && !filters.toDate && options.isOutstanding) {
           // If no dates but outstanding mode, fetch total balance as closing balance
-          const totalBal = await getVendorBalance(filters.vendorNo!);
+          const totalBal = await getVendorBalance(filters.vendorNo || "");
           setClosingBalance(totalBal);
         }
       }
 
-
-      setTotalCount(entriesRes["@odata.count"] || entriesRes.value.length);
+      setTotalCount(entriesRes["@odata.count"] || (isAppending ? totalCount : entriesRes.value.length));
     } catch (error) {
+      if (requestId !== lastRequestId.current) return;
       console.error("Error fetching vendor ledger entries:", error);
       toastError(error, "Failed to load vendor ledger entries.");
       if (!isAppending) {
@@ -149,11 +157,14 @@ export function useVendorLedger(options: UseVendorLedgerOptions = {}) {
         setTotalCount(0);
       }
     } finally {
-      setIsLoading(false);
-      setIsFetchingNextPage(false);
+      if (requestId === lastRequestId.current) {
+        setIsLoading(false);
+        setIsFetchingNextPage(false);
+        isLoadingRef.current = false;
+        isFetchingNextPageRef.current = false;
+      }
     }
-  }, [filters, options.isOutstanding, LIMIT]); // Removed entries.length, openingBalance, etc.
-
+  }, [filters, options.isOutstanding, LIMIT, totalCount]);
 
   // Initial fetch on filter change
   useEffect(() => {
@@ -161,9 +172,9 @@ export function useVendorLedger(options: UseVendorLedgerOptions = {}) {
   }, [fetchEntries]);
 
   const loadMore = useCallback(() => {
-    if (!hasMore || isLoading || isFetchingNextPage) return;
+    if (!hasMore || isLoadingRef.current || isFetchingNextPageRef.current) return;
     fetchEntries(true);
-  }, [hasMore, isLoading, isFetchingNextPage, fetchEntries]);
+  }, [hasMore, fetchEntries]);
 
   const handleFilterChange = useCallback((newFilters: Partial<VendorLedgerFilters>) => {
     setFilters((prev) => ({ 

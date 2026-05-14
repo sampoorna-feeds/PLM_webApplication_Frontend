@@ -906,6 +906,12 @@ export function BrokerSelect({
 
   const allFetched = totalCount > 0 && vendors.length >= totalCount;
 
+  const isLoadingRef = useRef(false);
+  const isLoadingMoreRef = useRef(false);
+  const isAllFetchedRef = useRef(false);
+  const pageRef = useRef(0);
+  const lastRequestId = useRef(0);
+
   // Debounce search
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(searchQuery), DEBOUNCE_MS);
@@ -920,12 +926,18 @@ export function BrokerSelect({
       colFilters: Record<string, string>,
       visCols: string[],
     ) => {
+      const requestId = ++lastRequestId.current;
+      isLoadingRef.current = true;
       setLoading(true);
       setVendors([]);
       setTotalCount(0);
+      pageRef.current = 0;
+      isAllFetchedRef.current = false;
+
       if (scrollContainerRef.current) scrollContainerRef.current.scrollTop = 0;
       try {
-        const result = await getVendorsForDialog({ brokerOnly: true,
+        const result = await getVendorsForDialog({
+          brokerOnly: true,
           skip: 0,
           top: PAGE_SIZE,
           search: search || undefined,
@@ -934,22 +946,35 @@ export function BrokerSelect({
           filters: colFilters,
           visibleColumns: visCols,
         });
+
+        if (requestId !== lastRequestId.current) return;
+
         setVendors(result.value);
         setTotalCount(result.count);
+        isAllFetchedRef.current = result.value.length < PAGE_SIZE;
       } catch (err) {
-        console.error("Error loading vendors:", err);
+        console.error("Error loading brokers:", err);
       } finally {
-        setLoading(false);
+        if (requestId === lastRequestId.current) {
+          isLoadingRef.current = false;
+          setLoading(false);
+        }
       }
     },
     [],
   );
 
-  const fetchMore = useCallback(async (currentLength: number) => {
+  const fetchMore = useCallback(async () => {
+    if (isLoadingRef.current || isLoadingMoreRef.current || isAllFetchedRef.current) return;
+    
+    const requestId = ++lastRequestId.current;
+    isLoadingMoreRef.current = true;
     setLoadingMore(true);
     try {
-      const result = await getVendorsForDialog({ brokerOnly: true,
-        skip: currentLength,
+      const nextSkip = (pageRef.current + 1) * PAGE_SIZE;
+      const result = await getVendorsForDialog({
+        brokerOnly: true,
+        skip: nextSkip,
         top: PAGE_SIZE,
         search: debouncedSearchRef.current || undefined,
         sortColumn: sortColumnRef.current,
@@ -957,15 +982,23 @@ export function BrokerSelect({
         filters: columnFiltersRef.current,
         visibleColumns: visibleColumnsRef.current,
       });
+
+      if (requestId !== lastRequestId.current) return;
+
       setVendors((prev) => {
         const seen = new Set(prev.map((v) => v.No));
         return [...prev, ...result.value.filter((v) => !seen.has(v.No))];
       });
       setTotalCount(result.count);
+      pageRef.current += 1;
+      isAllFetchedRef.current = result.value.length < PAGE_SIZE;
     } catch (err) {
-      console.error("Error loading more vendors:", err);
+      console.error("Error loading more brokers:", err);
     } finally {
-      setLoadingMore(false);
+      if (requestId === lastRequestId.current) {
+        isLoadingMoreRef.current = false;
+        setLoadingMore(false);
+      }
     }
   }, []);
 
@@ -990,26 +1023,24 @@ export function BrokerSelect({
   ]);
 
   useEffect(() => {
+    if (!open) return;
     const sentinel = sentinelRef.current;
     if (!sentinel) return;
 
-    const checkAndFetch = () => {
-      const total = totalCountRef.current;
-      const count = vendorsLengthRef.current;
-      if ((total > 0 && count >= total) || isFetchingMoreRef.current) return;
-      isFetchingMoreRef.current = true;
-      fetchMore(count).finally(() => {
-        isFetchingMoreRef.current = false;
-      });
-    };
-
-    const obs = new IntersectionObserver(
-      (entries) => { if (entries[0].isIntersecting) checkAndFetch(); },
-      { threshold: 0.1 },
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && !isLoadingRef.current && !isLoadingMoreRef.current && !isAllFetchedRef.current) {
+          fetchMore();
+        }
+      },
+      { 
+        threshold: 0.1,
+        root: scrollContainerRef.current
+      },
     );
-    obs.observe(sentinel);
-    return () => obs.disconnect();
-  }, [fetchMore, loading]);
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [open, fetchMore]);
 
   useEffect(() => {
     if (!value) {

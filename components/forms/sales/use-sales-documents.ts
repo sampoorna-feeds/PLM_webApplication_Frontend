@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { toast } from "sonner";
 import { toastError } from "@/lib/errors";
 import { useAuth } from "@/lib/contexts/auth-context";
@@ -111,6 +111,11 @@ export function useSalesDocuments(options: UseSalesDocumentsOptions) {
       : getColumnConfig(documentType).getDefaultVisibleColumns(),
   );
 
+  const isLoadingRef = useRef(false);
+  const isLoadingMoreRef = useRef(false);
+  const lastRequestId = useRef(0);
+  const pageRef = useRef(1);
+
   const totalPages = useMemo(
     () => Math.max(1, Math.ceil(totalCount / pageSize)),
     [totalCount, pageSize],
@@ -150,7 +155,7 @@ export function useSalesDocuments(options: UseSalesDocumentsOptions) {
     return `${sortColumn} ${sortDirection}`;
   }, [sortColumn, sortDirection]);
 
-  const fetchOrders = useCallback(async () => {
+  const fetchOrders = useCallback(async (reset = false) => {
     const branchFilterValue = columnFilters["Shortcut_Dimension_2_Code"]?.value;
     const effectiveBranchCodes = branchFilterValue
       ? branchFilterValue
@@ -167,12 +172,17 @@ export function useSalesDocuments(options: UseSalesDocumentsOptions) {
     }
 
     const { fetchWithCount, search } = DOCUMENT_API_HANDLERS[documentType];
+    const requestId = ++lastRequestId.current;
 
-    if (currentPage === 1) {
+    if (reset) {
+      pageRef.current = 1;
+      isLoadingRef.current = true;
       setIsLoading(true);
     } else {
+      isLoadingMoreRef.current = true;
       setIsLoadingMore(true);
     }
+
     try {
       const filter = buildSalesDocumentFilterString({
         branchCodes: effectiveBranchCodes,
@@ -187,34 +197,43 @@ export function useSalesDocuments(options: UseSalesDocumentsOptions) {
         $filter: filter,
         $orderby: getOrderByString(),
         $top: pageSize,
-        $skip: (currentPage - 1) * pageSize,
+        $skip: (pageRef.current - 1) * pageSize,
       };
 
       const result = searchQuery
         ? await search({ ...commonParams, searchTerm: searchQuery })
         : await fetchWithCount(commonParams);
 
-      if (currentPage === 1) {
+      if (requestId !== lastRequestId.current) return;
+
+      if (pageRef.current === 1) {
         setOrders(result.orders);
       } else {
         setOrders((prev) => [...prev, ...result.orders]);
       }
       setTotalCount(result.totalCount);
-      setHasMore(currentPage * pageSize < result.totalCount);
+      setHasMore(pageRef.current * pageSize < result.totalCount);
+      setCurrentPage(pageRef.current);
     } catch (error) {
+      if (requestId !== lastRequestId.current) return;
       console.error("Error fetching sales documents:", error);
       toastError(error, "Failed to load sales documents. Please try again.");
-      setOrders([]);
-      setTotalCount(0);
+      if (pageRef.current === 1) {
+        setOrders([]);
+        setTotalCount(0);
+      }
     } finally {
-      setIsLoading(false);
-      setIsLoadingMore(false);
+      if (requestId === lastRequestId.current) {
+        setIsLoading(false);
+        setIsLoadingMore(false);
+        isLoadingRef.current = false;
+        isLoadingMoreRef.current = false;
+      }
     }
   }, [
     additionalFilters,
     columnFilters,
     columnConfig,
-    currentPage,
     documentType,
     getOrderByString,
     pageSize,
@@ -229,8 +248,8 @@ export function useSalesDocuments(options: UseSalesDocumentsOptions) {
   }, [statusFilter]);
 
   useEffect(() => {
-    fetchOrders();
-  }, [fetchOrders]);
+    fetchOrders(true);
+  }, [fetchOrders, sortColumn, sortDirection, searchQuery, columnFilters, additionalFilters, statusFilter, visibleColumns, pageSize]);
 
   const handlePageSizeChange = useCallback((size: number) => {
     setPageSize(size);
@@ -242,9 +261,10 @@ export function useSalesDocuments(options: UseSalesDocumentsOptions) {
   }, []);
 
   const loadMore = useCallback(() => {
-    if (isLoading || isLoadingMore || !hasMore) return;
-    setCurrentPage((prev) => prev + 1);
-  }, [isLoading, isLoadingMore, hasMore]);
+    if (isLoadingRef.current || isLoadingMoreRef.current || !hasMore) return;
+    pageRef.current += 1;
+    fetchOrders(false);
+  }, [hasMore, fetchOrders]);
 
   const handleSort = useCallback((column: string) => {
     setSortColumn((previousColumn) => {

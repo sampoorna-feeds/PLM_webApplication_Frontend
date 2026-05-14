@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { 
   getPostedSalesCreditMemos,
   type PostedSalesHeader 
@@ -18,9 +18,11 @@ export function usePostedSales(initialFilters?: { skipDateFilter?: boolean }) {
   const { userID } = useAuth();
   const [documents, setDocuments] = useState<PostedSalesHeader[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [pageSize, setPageSize] = useState(20);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [pageSize, setPageSize] = useState(200);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
   const [sortColumn, setSortColumn] = useState<string | null>("No");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc" | null>("desc");
   const [searchQuery, setSearchQuery] = useState("");
@@ -30,6 +32,11 @@ export function usePostedSales(initialFilters?: { skipDateFilter?: boolean }) {
   );
   const [dateFilter, setDateFilter] = useState<{ fromDate: string; toDate: string } | null>(null);
   const [userBranchCodes, setUserBranchCodes] = useState<string[]>([]);
+
+  const isLoadingRef = useRef(false);
+  const isLoadingMoreRef = useRef(false);
+  const lastRequestId = useRef(0);
+  const pageRef = useRef(1);
 
   useEffect(() => {
     if (!userID) return;
@@ -46,7 +53,7 @@ export function usePostedSales(initialFilters?: { skipDateFilter?: boolean }) {
 
   const skipDateFilter = initialFilters?.skipDateFilter;
 
-  const fetchDocuments = useCallback(async () => {
+  const fetchDocuments = useCallback(async (reset = false) => {
     if (!skipDateFilter && !dateFilter) {
       setIsLoading(false);
       return;
@@ -59,7 +66,17 @@ export function usePostedSales(initialFilters?: { skipDateFilter?: boolean }) {
       return;
     }
 
-    setIsLoading(true);
+    const requestId = ++lastRequestId.current;
+
+    if (reset) {
+      pageRef.current = 1;
+      isLoadingRef.current = true;
+      setIsLoading(true);
+    } else {
+      isLoadingMoreRef.current = true;
+      setIsLoadingMore(true);
+    }
+
     try {
       const filterParts: string[] = [];
 
@@ -120,6 +137,8 @@ export function usePostedSales(initialFilters?: { skipDateFilter?: boolean }) {
           })
         );
 
+        if (requestId !== lastRequestId.current) return;
+
         const seen = new Set<string>();
         const merged: PostedSalesHeader[] = [];
         responses.forEach(resp => {
@@ -131,7 +150,7 @@ export function usePostedSales(initialFilters?: { skipDateFilter?: boolean }) {
           });
         });
 
-        const start = (currentPage - 1) * pageSize;
+        const start = (pageRef.current - 1) * pageSize;
         const paged = merged.slice(start, start + pageSize);
         
         result = {
@@ -142,23 +161,46 @@ export function usePostedSales(initialFilters?: { skipDateFilter?: boolean }) {
         const params = {
           ...baseParams,
           $top: pageSize,
-          $skip: (currentPage - 1) * pageSize,
+          $skip: (pageRef.current - 1) * pageSize,
         };
         result = await getPostedSalesCreditMemos(params);
+        if (requestId !== lastRequestId.current) return;
       }
 
-      setDocuments(result.value || []);
+      if (pageRef.current === 1) {
+        setDocuments(result.value || []);
+      } else {
+        setDocuments((prev) => [...prev, ...(result.value || [])]);
+      }
       setTotalCount(result["@odata.count"] ?? result.value?.length ?? 0);
+      setHasMore(pageRef.current * pageSize < (result["@odata.count"] ?? 0));
+      setCurrentPage(pageRef.current);
     } catch (error) {
+      if (requestId !== lastRequestId.current) return;
       console.error(`Error fetching posted sales credit memo:`, error);
       toastError(error, `Failed to load posted sales credit memo.`);
+      if (pageRef.current === 1) {
+        setDocuments([]);
+        setTotalCount(0);
+      }
     } finally {
-      setIsLoading(false);
+      if (requestId === lastRequestId.current) {
+        setIsLoading(false);
+        setIsLoadingMore(false);
+        isLoadingRef.current = false;
+        isLoadingMoreRef.current = false;
+      }
     }
-  }, [currentPage, pageSize, sortColumn, sortDirection, searchQuery, columnFilters, dateFilter, skipDateFilter, userBranchCodes]);
+  }, [pageSize, sortColumn, sortDirection, searchQuery, columnFilters, dateFilter, skipDateFilter, userBranchCodes]);
+
+  const loadMore = useCallback(() => {
+    if (isLoadingRef.current || isLoadingMoreRef.current || !hasMore) return;
+    pageRef.current += 1;
+    fetchDocuments(false);
+  }, [hasMore, fetchDocuments]);
 
   useEffect(() => {
-    fetchDocuments();
+    fetchDocuments(true);
   }, [fetchDocuments]);
 
   const handleSort = (column: string) => {
@@ -213,5 +255,8 @@ export function usePostedSales(initialFilters?: { skipDateFilter?: boolean }) {
     onToggleColumn: toggleColumn,
     onClearFilters: () => { setSearchQuery(""); setColumnFilters({}); setCurrentPage(1); },
     refetch: fetchDocuments,
+    loadMore,
+    hasMore,
+    isLoadingMore,
   };
 }

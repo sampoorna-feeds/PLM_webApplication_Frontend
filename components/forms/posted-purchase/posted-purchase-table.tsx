@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
@@ -16,7 +17,6 @@ import { POSTED_PURCHASE_COLUMNS } from "./column-config";
 import { PostedPurchaseColumnFilter } from "./column-filter";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { useState } from "react";
 
 interface PostedPurchaseTableProps {
   documents: PostedPurchaseHeader[];
@@ -29,6 +29,9 @@ interface PostedPurchaseTableProps {
   onColumnFilter: (columnId: string, value: string, valueTo?: string) => void;
   visibleColumns: string[];
   onPrint?: (doc: PostedPurchaseHeader) => Promise<void>;
+  onLoadMore?: () => void;
+  hasMore?: boolean;
+  isLoadingMore?: boolean;
 }
 
 export function PostedPurchaseTable({
@@ -42,11 +45,45 @@ export function PostedPurchaseTable({
   onColumnFilter,
   visibleColumns,
   onPrint,
+  onLoadMore,
+  hasMore,
+  isLoadingMore,
 }: PostedPurchaseTableProps) {
   const [printingDocNo, setPrintingDocNo] = useState<string | null>(null);
   const activeColumns = POSTED_PURCHASE_COLUMNS.filter((c) =>
     visibleColumns.includes(c.id),
   );
+
+  const sentinelRef = useRef<HTMLTableRowElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!hasMore || isLoading || isLoadingMore) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          onLoadMore?.();
+        }
+      },
+      { 
+        threshold: 0.1, 
+        rootMargin: "100px",
+        root: scrollContainerRef.current
+      },
+    );
+
+    const currentSentinel = sentinelRef.current;
+    if (currentSentinel) {
+      observer.observe(currentSentinel);
+    }
+
+    return () => {
+      if (currentSentinel) {
+        observer.unobserve(currentSentinel);
+      }
+    };
+  }, [hasMore, isLoading, isLoadingMore, onLoadMore]);
 
   const renderSortIcon = (columnId: string) => {
     if (sortColumn !== columnId)
@@ -73,9 +110,10 @@ export function PostedPurchaseTable({
 
   return (
     <div className="bg-card rounded-md border shadow-sm">
-      <Table>
-          <TableHeader>
-            <TableRow className="bg-muted/50 hover:bg-muted/50 border-b">
+      <div ref={scrollContainerRef} className="max-h-[600px] overflow-auto">
+        <Table>
+          <TableHeader className="sticky top-0 z-10 bg-muted/50 shadow-sm">
+            <TableRow className="hover:bg-muted/50 border-b">
               {onPrint && (
                 <TableHead className="h-10 px-4 py-2 text-[11px] font-bold uppercase text-muted-foreground text-center">
                   Actions
@@ -134,82 +172,96 @@ export function PostedPurchaseTable({
                 </TableCell>
               </TableRow>
             ) : (
-              documents.map((doc) => (
-                <TableRow
-                  key={doc.No}
-                  tabIndex={0}
-                  className="group border-b transition-colors last:border-0 cursor-default outline-none hover:bg-muted/30 focus:bg-primary/10"
-                  onClick={(e) => (e.currentTarget as HTMLElement).focus()}
-                  onKeyDown={(e) => {
-                    if (e.key === "ArrowDown") {
-                      e.preventDefault();
-                      const next = e.currentTarget.nextElementSibling as HTMLElement;
-                      if (next?.tabIndex >= 0) next.focus();
-                    } else if (e.key === "ArrowUp") {
-                      e.preventDefault();
-                      const prev = e.currentTarget.previousElementSibling as HTMLElement;
-                      if (prev?.tabIndex >= 0) prev.focus();
-                    } else if (e.key === "Enter") {
-                      e.preventDefault();
-                      onRowClick(doc);
-                    }
-                  }}
-                >
-                  {onPrint && (
-                    <TableCell className="p-2 text-center" onClick={(e) => e.stopPropagation()}>
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
-                              onClick={async () => {
-                                setPrintingDocNo(doc.No);
-                                try {
-                                  await onPrint(doc);
-                                } finally {
-                                  setPrintingDocNo(null);
-                                }
-                              }}
-                              disabled={printingDocNo === doc.No}
-                            >
-                              {printingDocNo === doc.No ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                              ) : (
-                                <Printer className="h-4 w-4" />
-                              )}
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>Print Report</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    </TableCell>
-                  )}
-                  {activeColumns.map((col) => (
-                    <TableCell
-                      key={col.id}
-                      className="text-foreground/90 group-hover:text-foreground p-4 text-xs font-medium whitespace-nowrap"
-                    >
-                      {col.id === "No" ? (
-                        <span
-                          className="text-primary cursor-pointer hover:underline underline-offset-2"
-                          onClick={(e) => { e.stopPropagation(); onRowClick(doc); }}
-                        >
-                          {formatValue(doc, col.id)}
-                        </span>
-                      ) : (
-                        formatValue(doc, col.id)
+              <>
+                {documents.map((doc) => (
+                  <TableRow
+                    key={doc.No}
+                    tabIndex={0}
+                    className="group border-b transition-colors last:border-0 cursor-default outline-none hover:bg-muted/30 focus:bg-primary/10"
+                    onClick={(e) => (e.currentTarget as HTMLElement).focus()}
+                    onKeyDown={(e) => {
+                      if (e.key === "ArrowDown") {
+                        e.preventDefault();
+                        const next = e.currentTarget.nextElementSibling as HTMLElement;
+                        if (next?.tabIndex >= 0) next.focus();
+                      } else if (e.key === "ArrowUp") {
+                        e.preventDefault();
+                        const prev = e.currentTarget.previousElementSibling as HTMLElement;
+                        if (prev?.tabIndex >= 0) prev.focus();
+                      } else if (e.key === "Enter") {
+                        e.preventDefault();
+                        onRowClick(doc);
+                      }
+                    }}
+                  >
+                    {onPrint && (
+                      <TableCell className="p-2 text-center" onClick={(e) => e.stopPropagation()}>
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
+                                onClick={async () => {
+                                  setPrintingDocNo(doc.No);
+                                  try {
+                                    await onPrint(doc);
+                                  } finally {
+                                    setPrintingDocNo(null);
+                                  }
+                                }}
+                                disabled={printingDocNo === doc.No}
+                              >
+                                {printingDocNo === doc.No ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <Printer className="h-4 w-4" />
+                                )}
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Print Report</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </TableCell>
+                    )}
+                    {activeColumns.map((col) => (
+                      <TableCell
+                        key={col.id}
+                        className="text-foreground/90 group-hover:text-foreground p-4 text-xs font-medium whitespace-nowrap"
+                      >
+                        {col.id === "No" ? (
+                          <span
+                            className="text-primary cursor-pointer hover:underline underline-offset-2"
+                            onClick={(e) => { e.stopPropagation(); onRowClick(doc); }}
+                          >
+                            {formatValue(doc, col.id)}
+                          </span>
+                        ) : (
+                          formatValue(doc, col.id)
+                        )}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))}
+                {!isLoading && (
+                  <TableRow ref={sentinelRef}>
+                    <TableCell colSpan={activeColumns.length + (onPrint ? 1 : 0)} className="h-px p-0">
+                      {isLoadingMore && (
+                        <div className="flex justify-center py-4">
+                          <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                        </div>
                       )}
                     </TableCell>
-                  ))}
-                </TableRow>
-              ))
+                  </TableRow>
+                )}
+              </>
             )}
           </TableBody>
         </Table>
+      </div>
     </div>
   );
 }

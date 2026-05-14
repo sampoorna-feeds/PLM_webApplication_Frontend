@@ -269,11 +269,18 @@ export function CustomerSelect({
 
   const allFetched = totalCount > 0 && customers.length >= totalCount;
 
+  const isLoading = useRef(false);
+  const isLoadingMore = useRef(false);
+  const isAllFetched = useRef(false);
+  const pageRef = useRef(0);
+
   // Debounce search
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(searchQuery), DEBOUNCE_MS);
     return () => clearTimeout(t);
   }, [searchQuery]);
+
+  const lastRequestId = useRef(0);
 
   const fetchInitial = useCallback(
     async (
@@ -283,9 +290,14 @@ export function CustomerSelect({
       colFilters: Record<string, string>,
       visCols: string[],
     ) => {
+      const requestId = ++lastRequestId.current;
+      isLoading.current = true;
       setLoading(true);
       setCustomers([]);
       setTotalCount(0);
+      pageRef.current = 0;
+      isAllFetched.current = false;
+      
       if (scrollContainerRef.current) scrollContainerRef.current.scrollTop = 0;
       try {
         const result = await getCustomersForDialog({
@@ -297,22 +309,34 @@ export function CustomerSelect({
           filters: colFilters,
           visibleColumns: visCols,
         });
+
+        if (requestId !== lastRequestId.current) return;
+
         setCustomers(result.value);
         setTotalCount(result.count);
+        isAllFetched.current = result.value.length < PAGE_SIZE;
       } catch (err) {
         console.error("Error loading customers:", err);
       } finally {
-        setLoading(false);
+        if (requestId === lastRequestId.current) {
+          isLoading.current = false;
+          setLoading(false);
+        }
       }
     },
     [],
   );
 
-  const fetchMore = useCallback(async (currentLength: number) => {
+  const fetchMore = useCallback(async () => {
+    if (isLoading.current || isLoadingMore.current || isAllFetched.current) return;
+    
+    const requestId = ++lastRequestId.current;
+    isLoadingMore.current = true;
     setLoadingMore(true);
     try {
+      const nextSkip = (pageRef.current + 1) * PAGE_SIZE;
       const result = await getCustomersForDialog({
-        skip: currentLength,
+        skip: nextSkip,
         top: PAGE_SIZE,
         search: debouncedSearchRef.current || undefined,
         sortColumn: sortColumnRef.current,
@@ -320,15 +344,23 @@ export function CustomerSelect({
         filters: columnFiltersRef.current,
         visibleColumns: visibleColumnsRef.current,
       });
+
+      if (requestId !== lastRequestId.current) return;
+
       setCustomers((prev) => {
         const seen = new Set(prev.map((c) => c.No));
         return [...prev, ...result.value.filter((c) => !seen.has(c.No))];
       });
       setTotalCount(result.count);
+      pageRef.current += 1;
+      isAllFetched.current = result.value.length < PAGE_SIZE;
     } catch (err) {
       console.error("Error loading more customers:", err);
     } finally {
-      setLoadingMore(false);
+      if (requestId === lastRequestId.current) {
+        isLoadingMore.current = false;
+        setLoadingMore(false);
+      }
     }
   }, []);
 
@@ -353,28 +385,24 @@ export function CustomerSelect({
   ]);
 
   useEffect(() => {
+    if (!open) return;
     const sentinel = sentinelRef.current;
     if (!sentinel) return;
 
-    let obs: IntersectionObserver;
-
-    const checkAndFetch = () => {
-      const total = totalCountRef.current;
-      const count = customersLengthRef.current;
-      if ((total > 0 && count >= total) || isFetchingMoreRef.current) return;
-      isFetchingMoreRef.current = true;
-      fetchMore(count).finally(() => {
-        isFetchingMoreRef.current = false;
-      });
-    };
-
-    obs = new IntersectionObserver(
-      (entries) => { if (entries[0].isIntersecting) checkAndFetch(); },
-      { threshold: 0.1 },
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && !isLoading.current && !isLoadingMore.current && !isAllFetched.current) {
+          fetchMore();
+        }
+      },
+      { 
+        threshold: 0.1,
+        root: scrollContainerRef.current
+      },
     );
-    obs.observe(sentinel);
-    return () => obs.disconnect();
-  }, [fetchMore, loading]);
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [open, fetchMore]);
 
   useEffect(() => {
     if (!value) {

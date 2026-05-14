@@ -101,6 +101,12 @@ export function ItemChargeSelectionDialog({
   const allFetched = sourceLines.length >= totalCount && totalCount > 0;
   const canFetchMore = !allFetched && !loading && !loadingMore;
 
+  const isLoadingRef = useRef(false);
+  const isLoadingMoreRef = useRef(false);
+  const isAllFetchedRef = useRef(false);
+  const pageRef = useRef(0);
+  const lastRequestId = useRef(0);
+
   // Debounce search
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearchQuery(searchQuery), 400);
@@ -108,13 +114,19 @@ export function ItemChargeSelectionDialog({
   }, [searchQuery]);
 
   const fetchInitial = useCallback(async () => {
+    const requestId = ++lastRequestId.current;
+    
+    isLoadingRef.current = true;
+    setLoading(true);
+    setSourceLines([]);
+    setTotalCount(0);
+    setSelectedIds(new Set());
+    setIsAllSelected(false);
+    pageRef.current = 0;
+    isAllFetchedRef.current = false;
+
+    if (scrollContainerRef.current) scrollContainerRef.current.scrollTop = 0;
     try {
-      setLoading(true);
-      setSourceLines([]);
-      setTotalCount(0);
-      setSelectedIds(new Set());
-      setIsAllSelected(false);
-      if (scrollContainerRef.current) scrollContainerRef.current.scrollTop = 0;
       const result = await itemChargeAssignmentService.getSourceLines(type, { 
         search: debouncedSearchQuery || undefined, 
         skip: 0, 
@@ -124,46 +136,77 @@ export function ItemChargeSelectionDialog({
         sortColumn,
         sortDirection 
       });
+
+      if (requestId !== lastRequestId.current) return;
+
       setSourceLines(result.value);
       setTotalCount(result.count);
+      isAllFetchedRef.current = result.value.length < PAGE_SIZE;
     } catch (error) {
       console.error(`Failed to fetch ${type} lines:`, error);
     } finally {
-      setLoading(false);
+      if (requestId === lastRequestId.current) {
+        isLoadingRef.current = false;
+        setLoading(false);
+      }
     }
   }, [type, debouncedSearchQuery, extraFilters, columnFilters, sortColumn, sortDirection]);
 
   const fetchMore = useCallback(async () => {
-    if (!canFetchMore) return;
+    if (isLoadingRef.current || isLoadingMoreRef.current || isAllFetchedRef.current) return;
+    
+    const requestId = ++lastRequestId.current;
+    isLoadingMoreRef.current = true;
+    setLoadingMore(true);
     try {
-      setLoadingMore(true);
+      const nextSkip = (pageRef.current + 1) * PAGE_SIZE;
       const result = await itemChargeAssignmentService.getSourceLines(type, { 
         search: debouncedSearchQuery || undefined, 
-        skip: sourceLines.length, 
+        skip: nextSkip, 
         top: PAGE_SIZE, 
         extraFilters,
         columnFilters,
         sortColumn,
         sortDirection
       });
+
+      if (requestId !== lastRequestId.current) return;
+
       setSourceLines((prev) => [...prev, ...result.value]);
       setTotalCount(result.count);
+      pageRef.current += 1;
+      isAllFetchedRef.current = result.value.length < PAGE_SIZE;
     } catch (error) {
       console.error(`Failed to fetch more ${type} lines:`, error);
     } finally {
-      setLoadingMore(false);
+      if (requestId === lastRequestId.current) {
+        isLoadingMoreRef.current = false;
+        setLoadingMore(false);
+      }
     }
-  }, [canFetchMore, type, debouncedSearchQuery, sourceLines.length, extraFilters, columnFilters, sortColumn, sortDirection]);
+  }, [type, debouncedSearchQuery, extraFilters, columnFilters, sortColumn, sortDirection]);
 
   useEffect(() => { if (open) fetchInitial(); }, [open, fetchInitial]);
 
   useEffect(() => {
+    if (!open) return;
     const sentinel = sentinelRef.current;
     if (!sentinel) return;
-    const observer = new IntersectionObserver((entries) => { if (entries[0].isIntersecting) fetchMore(); }, { threshold: 0.1 });
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && !isLoadingRef.current && !isLoadingMoreRef.current && !isAllFetchedRef.current) {
+          fetchMore();
+        }
+      },
+      { 
+        threshold: 0.1,
+        root: scrollContainerRef.current
+      },
+    );
     observer.observe(sentinel);
     return () => observer.disconnect();
-  }, [fetchMore]);
+  }, [open, fetchMore]);
 
   const lineId = (line: ItemChargeSourceLine) => `${line.Document_No}-${line.Line_No}`;
 

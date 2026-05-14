@@ -127,6 +127,8 @@ export function VendorLedgerTable({
     });
   }, [activeColumns, setColumnOrder, saveColumnOrder]);
 
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
   const handleObserver = useCallback(
     (entries: IntersectionObserverEntry[]) => {
       const [target] = entries;
@@ -149,6 +151,7 @@ export function VendorLedgerTable({
     const observer = new IntersectionObserver(handleObserver, {
       threshold: 0.1,
       rootMargin: "100px",
+      root: scrollContainerRef.current,
     });
 
     observer.observe(element);
@@ -451,7 +454,7 @@ export function VendorLedgerTable({
 
   return (
     <div className="relative flex-1 overflow-hidden flex flex-col group/table">
-      <div className="flex-1 overflow-auto">
+      <div ref={scrollContainerRef} className="flex-1 overflow-auto">
         <table 
           className="min-w-full text-sm border-separate border-spacing-0 table-fixed"
           style={{ width: `${totalTableWidth}px` }}

@@ -9,7 +9,6 @@ import { useFormStackContext } from "@/lib/form-stack/form-stack-context";
 import { PurchaseOrdersTable } from "@/components/forms/purchase/purchase-orders-table";
 import { PurchaseOrderFilterBar } from "@/components/forms/purchase/purchase-order-filter-bar";
 import { PurchaseOrderActiveFilters } from "@/components/forms/purchase/active-filters";
-import { PurchaseOrderPaginationControls } from "@/components/forms/purchase/pagination-controls";
 import {
   getPurchaseDocumentConfig,
   type PurchaseDocumentStatusTab,
@@ -53,8 +52,6 @@ export function PurchaseDocumentView({
     isLoading,
     refetch,
     pageSize,
-    currentPage,
-    totalPages,
     totalCount,
     sortColumn,
     sortDirection,
@@ -66,8 +63,6 @@ export function PurchaseDocumentView({
     defaultColumns,
     optionalColumns,
     poType,
-    onPageSizeChange,
-    onPageChange,
     onSort,
     onSearch,
     onColumnFilter,
@@ -78,13 +73,14 @@ export function PurchaseDocumentView({
     onRemoveAdditionalFilter,
     onPoTypeChange,
     onClearFilters,
+    loadMore,
+    hasMore,
+    isLoadingMore,
   } = usePurchaseDocuments({ documentType, statusFilter });
 
   useEffect(() => {
     registerRefetch?.(refetch);
   }, [refetch, registerRefetch]);
-
-  const hasNextPage = currentPage < totalPages;
 
   const handleCreateDocument = () => {
     openTab(config.formType, {
@@ -153,7 +149,7 @@ export function PurchaseDocumentView({
           sortColumn={sortColumn}
           sortDirection={sortDirection}
           pageSize={pageSize}
-          currentPage={currentPage}
+          currentPage={1}
           columnFilters={columnFilters}
           onRowClick={(orderNo) => {
             openTab(config.formType, {
@@ -164,18 +160,11 @@ export function PurchaseDocumentView({
           }}
           onSort={onSort}
           onColumnFilter={onColumnFilter}
+          onLoadMore={loadMore}
+          hasMore={hasMore}
+          isLoadingMore={isLoadingMore}
         />
       </div>
-
-      <PurchaseOrderPaginationControls
-        pageSize={pageSize}
-        currentPage={currentPage}
-        totalPages={totalPages}
-        totalCount={totalCount}
-        hasNextPage={hasNextPage}
-        onPageSizeChange={onPageSizeChange}
-        onPageChange={onPageChange}
-      />
     </div>
   );
 }

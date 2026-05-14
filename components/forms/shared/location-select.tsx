@@ -136,6 +136,11 @@ export function LocationSelect({
   const [focusedIndex, setFocusedIndex] = useState(-1);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  const isLoading = useRef(false);
+  const isLoadingMore = useRef(false);
+  const isAllFetched = useRef(false);
+  const pageRef = useRef(0);
+
   // Debounce search
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(searchQuery), 350);
@@ -146,17 +151,25 @@ export function LocationSelect({
 
   const fetchData = useCallback(
     async (isNextPage = false) => {
-      if (isNextPage && (loading || loadingMore || allFetched)) return;
+      if (isNextPage && (isLoading.current || isLoadingMore.current || isAllFetched.current)) return;
+      if (!isNextPage && isLoading.current) return;
 
       const requestId = ++lastRequestId.current;
-      if (isNextPage) setLoadingMore(true);
-      else {
+      if (isNextPage) {
+        isLoadingMore.current = true;
+        setLoadingMore(true);
+      } else {
+        isLoading.current = true;
         setLoading(true);
-        if (!isNextPage) setLocations([]); // Clear results for fresh search
+        setLocations([]);
+        setPage(0);
+        pageRef.current = 0;
+        isAllFetched.current = false;
+        setAllFetched(false);
       }
 
       try {
-        const nextSkip = isNextPage ? (page + 1) * PAGE_SIZE : 0;
+        const nextSkip = isNextPage ? (pageRef.current + 1) * PAGE_SIZE : 0;
         const res = await getTransferLocationsForDialog({
           skip: nextSkip,
           top: PAGE_SIZE,
@@ -172,42 +185,53 @@ export function LocationSelect({
 
         if (isNextPage) {
           setLocations((prev) => [...prev, ...res.value]);
-          setPage((p) => p + 1);
+          pageRef.current += 1;
+          setPage(pageRef.current);
         } else {
           setLocations(res.value);
+          pageRef.current = 0;
           setPage(0);
         }
 
         setTotalCount(res.count);
-        setAllFetched(res.value.length < PAGE_SIZE);
+        const reachedEnd = res.value.length < PAGE_SIZE;
+        isAllFetched.current = reachedEnd;
+        setAllFetched(reachedEnd);
       } catch (error) {
         console.error("Error fetching locations:", error);
       } finally {
-        setLoading(false);
-        setLoadingMore(false);
+        if (requestId === lastRequestId.current) {
+          isLoading.current = false;
+          setLoading(false);
+          isLoadingMore.current = false;
+          setLoadingMore(false);
+        }
       }
     },
-    [loading, loadingMore, allFetched, page, debouncedSearch, sortColumn, sortDirection, columnFilters, authorizedCodes, branchCode]
+    [debouncedSearch, sortColumn, sortDirection, columnFilters, authorizedCodes, branchCode]
   );
 
   useEffect(() => {
     if (open) fetchData(false);
-  }, [debouncedSearch, sortColumn, sortDirection, columnFilters, open]);
+  }, [debouncedSearch, sortColumn, sortDirection, columnFilters, open, fetchData]);
 
   // Infinite scroll
   useEffect(() => {
     if (!open) return;
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0].isIntersecting && !loading && !loadingMore && !allFetched) {
+        if (entries[0].isIntersecting && !isLoading.current && !isLoadingMore.current && !isAllFetched.current) {
           fetchData(true);
         }
       },
-      { threshold: 0.1 }
+      { 
+        threshold: 0.1,
+        root: scrollContainerRef.current
+      }
     );
     if (sentinelRef.current) observer.observe(sentinelRef.current);
     return () => observer.disconnect();
-  }, [open, loading, loadingMore, allFetched, fetchData]);
+  }, [open, fetchData]);
 
   const handleOpenChange = (newOpen: boolean) => {
     if (disabled) return;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { toast } from "sonner";
 import { toastError } from "@/lib/errors";
 import {
@@ -33,6 +33,11 @@ export function useGLEntry() {
   const [closingBalance, setClosingBalance] = useState(0);
   const [debitSum, setDebitSum] = useState(0);
   const [creditSum, setCreditSum] = useState(0);
+
+  const isLoadingRef = useRef(false);
+  const isFetchingNextPageRef = useRef(false);
+  const lastRequestId = useRef(0);
+  const entriesLengthRef = useRef(0);
 
   const [filters, setFilters] = useState<GLEntryFilters>({
     fromDate: "",
@@ -79,55 +84,71 @@ export function useGLEntry() {
       return;
     }
 
+    const requestId = ++lastRequestId.current;
+
     if (isAppending) {
+      isFetchingNextPageRef.current = true;
       setIsFetchingNextPage(true);
     } else {
+      isLoadingRef.current = true;
       setIsLoading(true);
     }
 
     try {
-      const skip = isAppending ? entries.length : 0;
+      const skip = isAppending ? entriesLengthRef.current : 0;
       
       const [entriesRes, openingBal, closingBal, sums] = await Promise.all([
         getGLEntries(filters, LIMIT, skip),
         !isAppending 
-          ? getGLBalance(filters.accountNo, filters.fromDate, true) 
+          ? getGLBalance(filters.accountNo || "", filters.fromDate, true) 
           : Promise.resolve(openingBalance),
         !isAppending 
-          ? (filters.toDate ? getGLBalance(filters.accountNo, filters.toDate, false) : getGLBalance(filters.accountNo))
+          ? (filters.toDate ? getGLBalance(filters.accountNo || "", filters.toDate, false) : getGLBalance(filters.accountNo || ""))
           : Promise.resolve(closingBalance),
         !isAppending
           ? getGLEntrySums(filters)
           : Promise.resolve({ debitSum, creditSum })
       ]);
 
+      if (requestId !== lastRequestId.current) return;
+
       if (isAppending) {
-        setEntries(prev => [...prev, ...entriesRes.value]);
+        setEntries(prev => {
+          const newEntries = [...prev, ...entriesRes.value];
+          entriesLengthRef.current = newEntries.length;
+          return newEntries;
+        });
       } else {
         setEntries(entriesRes.value);
+        entriesLengthRef.current = entriesRes.value.length;
         setOpeningBalance(openingBal);
         setClosingBalance(closingBal);
         setDebitSum(sums.debitSum);
         setCreditSum(sums.creditSum);
       }
-      setTotalCount(entriesRes["@odata.count"] || entriesRes.value.length);
+      setTotalCount(entriesRes["@odata.count"] || (isAppending ? totalCount : entriesRes.value.length));
     } catch (error) {
+      if (requestId !== lastRequestId.current) return;
       console.error("Error fetching GL entries:", error);
       toastError(error, "Failed to load general ledger entries.");
     } finally {
-      setIsLoading(false);
-      setIsFetchingNextPage(false);
+      if (requestId === lastRequestId.current) {
+        setIsLoading(false);
+        setIsFetchingNextPage(false);
+        isLoadingRef.current = false;
+        isFetchingNextPageRef.current = false;
+      }
     }
-  }, [filters, entries.length, openingBalance, closingBalance, debitSum, creditSum]);
+  }, [filters, LIMIT, totalCount, openingBalance, closingBalance, debitSum, creditSum]);
 
   useEffect(() => {
     fetchEntries(false);
   }, [fetchEntries]);
 
   const loadMore = useCallback(() => {
-    if (!hasMore || isLoading || isFetchingNextPage) return;
+    if (!hasMore || isLoadingRef.current || isFetchingNextPageRef.current) return;
     fetchEntries(true);
-  }, [hasMore, isLoading, isFetchingNextPage, fetchEntries]);
+  }, [hasMore, fetchEntries]);
 
   const handleFilterChange = useCallback((newFilters: Partial<GLEntryFilters>) => {
     setFilters((prev) => ({ 

@@ -75,6 +75,11 @@ export function GenericLookupModal<T>({
   const sentinelRef = useRef<HTMLTableRowElement>(null);
   const lastRequestId = useRef(0);
 
+  const isLoading = useRef(false);
+  const isLoadingMore = useRef(false);
+  const isAllFetched = useRef(false);
+  const pageRef = useRef(0);
+
   // Debounce search
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(searchQuery), 350);
@@ -83,58 +88,77 @@ export function GenericLookupModal<T>({
 
   const loadData = useCallback(
     async (isNextPage = false) => {
-      if (isNextPage && (loading || loadingMore || allFetched)) return;
+      if (isNextPage && (isLoading.current || isLoadingMore.current || isAllFetched.current)) return;
+      if (!isNextPage && isLoading.current) return;
 
       const requestId = ++lastRequestId.current;
-      if (isNextPage) setLoadingMore(true);
-      else {
+      if (isNextPage) {
+        isLoadingMore.current = true;
+        setLoadingMore(true);
+      } else {
+        isLoading.current = true;
         setLoading(true);
         setItems([]);
+        setPage(0);
+        pageRef.current = 0;
+        isAllFetched.current = false;
+        setAllFetched(false);
       }
 
       try {
-        const nextSkip = isNextPage ? (page + 1) * pageSize : 0;
+        const nextSkip = isNextPage ? (pageRef.current + 1) * pageSize : 0;
         const result = await fetchData(nextSkip, debouncedSearch);
 
         if (requestId !== lastRequestId.current) return;
 
         if (isNextPage) {
           setItems((prev) => [...prev, ...result]);
-          setPage((p) => p + 1);
+          pageRef.current += 1;
+          setPage(pageRef.current);
         } else {
           setItems(result);
+          pageRef.current = 0;
           setPage(0);
         }
 
-        setAllFetched(result.length < pageSize);
+        const reachedEnd = result.length < pageSize;
+        isAllFetched.current = reachedEnd;
+        setAllFetched(reachedEnd);
       } catch (error) {
         console.error("Error fetching data for lookup modal:", error);
       } finally {
-        setLoading(false);
-        setLoadingMore(false);
+        if (requestId === lastRequestId.current) {
+          isLoading.current = false;
+          setLoading(false);
+          isLoadingMore.current = false;
+          setLoadingMore(false);
+        }
       }
     },
-    [loading, loadingMore, allFetched, page, debouncedSearch, fetchData, pageSize]
+    [debouncedSearch, fetchData, pageSize]
   );
 
   useEffect(() => {
     if (open) loadData(false);
-  }, [debouncedSearch, open]);
+  }, [debouncedSearch, open, loadData]);
 
   // Infinite scroll
   useEffect(() => {
     if (!open) return;
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0].isIntersecting && !loading && !loadingMore && !allFetched) {
+        if (entries[0].isIntersecting && !isLoading.current && !isLoadingMore.current && !isAllFetched.current) {
           loadData(true);
         }
       },
-      { threshold: 0.1 }
+      { 
+        threshold: 0.1,
+        root: scrollContainerRef.current
+      }
     );
     if (sentinelRef.current) observer.observe(sentinelRef.current);
     return () => observer.disconnect();
-  }, [open, loading, loadingMore, allFetched, loadData]);
+  }, [open, loadData]);
 
   const handleOpenChange = (newOpen: boolean) => {
     if (disabled) return;

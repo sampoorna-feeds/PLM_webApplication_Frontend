@@ -239,6 +239,12 @@ export function SourceNoSelect({
     totalCountRef.current = totalCount;
   }, [totalCount]);
 
+  const isLoadingRef = useRef(false);
+  const isLoadingMoreRef = useRef(false);
+  const isAllFetchedRef = useRef(false);
+  const pageRef = useRef(0);
+  const lastRequestId = useRef(0);
+
   useEffect(() => {
     setVisibleColumns(defaultColumns.map((c) => c.id));
     setColumnFilters({});
@@ -251,6 +257,8 @@ export function SourceNoSelect({
     }
     setSearchQuery("");
     setDebouncedSearch("");
+    isAllFetchedRef.current = false;
+    pageRef.current = 0;
   }, [sourceType, defaultColumns]);
 
   useEffect(() => {
@@ -269,10 +277,14 @@ export function SourceNoSelect({
       colFilters: Record<string, string>,
     ) => {
       if (!sourceType) return;
+      const requestId = ++lastRequestId.current;
 
+      isLoadingRef.current = true;
       setLoading(true);
       setSources([]);
       setTotalCount(0);
+      pageRef.current = 0;
+      isAllFetchedRef.current = false;
 
       if (scrollContainerRef.current) {
         scrollContainerRef.current.scrollTop = 0;
@@ -288,32 +300,44 @@ export function SourceNoSelect({
           sortDirection: sortDir,
           filters: { ...filters, ...colFilters },
         });
+
+        if (requestId !== lastRequestId.current) return;
+
         setSources(result.value || []);
         setTotalCount(result.count || 0);
+        isAllFetchedRef.current = (result.value || []).length < PAGE_SIZE;
       } catch (err) {
         console.error("Error loading source numbers:", err);
       } finally {
-        setLoading(false);
+        if (requestId === lastRequestId.current) {
+          isLoadingRef.current = false;
+          setLoading(false);
+        }
       }
     },
     [sourceType, filters],
   );
 
   const fetchMore = useCallback(
-    async (currentLength: number) => {
-      if (!sourceType) return;
+    async () => {
+      if (!sourceType || isLoadingRef.current || isLoadingMoreRef.current || isAllFetchedRef.current) return;
 
+      const requestId = ++lastRequestId.current;
+      isLoadingMoreRef.current = true;
       setLoadingMore(true);
       try {
+        const nextSkip = (pageRef.current + 1) * PAGE_SIZE;
         const result = await getSourcesForDialog({
           sourceType,
-          skip: currentLength,
+          skip: nextSkip,
           top: PAGE_SIZE,
           search: debouncedSearchRef.current || undefined,
           sortColumn: sortColumnRef.current,
           sortDirection: sortDirectionRef.current,
           filters: { ...filters, ...columnFiltersRef.current },
         });
+
+        if (requestId !== lastRequestId.current) return;
 
         setSources((prev) => {
           const seen = new Set(prev.map((item) => item[idField]));
@@ -323,10 +347,15 @@ export function SourceNoSelect({
           return [...prev, ...deduped];
         });
         setTotalCount(result.count || 0);
+        pageRef.current += 1;
+        isAllFetchedRef.current = (result.value || []).length < PAGE_SIZE;
       } catch (err) {
         console.error("Error loading more source numbers:", err);
       } finally {
-        setLoadingMore(false);
+        if (requestId === lastRequestId.current) {
+          isLoadingMoreRef.current = false;
+          setLoadingMore(false);
+        }
       }
     },
     [sourceType, idField, filters],
@@ -346,32 +375,25 @@ export function SourceNoSelect({
   ]);
 
   useEffect(() => {
+    if (!open) return;
     const sentinel = sentinelRef.current;
-    if (!sentinel || !open || loading) return;
-
-    const checkAndFetch = () => {
-      const total = totalCountRef.current;
-      const count = sourcesLengthRef.current;
-      if ((total > 0 && count >= total) || isFetchingMoreRef.current) return;
-
-      isFetchingMoreRef.current = true;
-      fetchMore(count).finally(() => {
-        isFetchingMoreRef.current = false;
-      });
-    };
+    if (!sentinel) return;
 
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0].isIntersecting) {
-          checkAndFetch();
+        if (entries[0].isIntersecting && !isLoadingRef.current && !isLoadingMoreRef.current && !isAllFetchedRef.current) {
+          fetchMore();
         }
       },
-      { threshold: 0.1 },
+      { 
+        threshold: 0.1,
+        root: scrollContainerRef.current
+      },
     );
 
     observer.observe(sentinel);
     return () => observer.disconnect();
-  }, [open, loading, fetchMore]);
+  }, [open, fetchMore]);
 
   useEffect(() => {
     if (!value) {

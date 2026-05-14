@@ -1,19 +1,23 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { PostedTransferFilterForm, type PostedTransferFilters } from "./posted-transfer-filter-form";
+// Filter interface
+export interface PostedTransferFilters {
+  fromDate?: string;
+  toDate?: string;
+}
 import { PostedTransferTable } from "./posted-transfer-table";
 import { TableFilterBar } from "./table-filter-bar";
 import { PostedTransferPaginationControls } from "./pagination-controls";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, RefreshCcw } from "lucide-react";
+import { RotateCcw, RefreshCcw } from "lucide-react";
 import { type SortDirection, loadVisibleColumns, saveVisibleColumns, getDefaultVisibleColumns, POSTED_TRANSFER_COLUMNS } from "./column-config";
 import { getPostedTransferShipments, getTransferReceipts, getTransferShipmentReport, getDownloadRecordLink, searchPostedTransferShipments, searchTransferReceiptsExtended } from "@/lib/api/services/transfer-orders.service";
 import { toast } from "sonner";
 import { toastError } from "@/lib/errors";
 import { useFormStackContext } from "@/lib/form-stack/form-stack-context";
 import { useAuth } from "@/lib/contexts/auth-context";
-import { getAllLOCsFromUserSetup } from "@/lib/api/services/dimension.service";
+import { getAllBranchesFromUserSetup } from "@/lib/api/services/dimension.service";
 
 interface PostedTransferViewProps {
   type: "shipment" | "receipt";
@@ -21,7 +25,7 @@ interface PostedTransferViewProps {
 
 export function PostedTransferView({ type }: PostedTransferViewProps) {
   const { openTab } = useFormStackContext();
-  const [filters, setFilters] = useState<PostedTransferFilters | null>(null);
+  const [filters, setFilters] = useState<PostedTransferFilters>({});
   const [data, setData] = useState<any[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
@@ -29,7 +33,7 @@ export function PostedTransferView({ type }: PostedTransferViewProps) {
   const [reportPdfUrls, setReportPdfUrls] = useState<Record<string, string>>({});
   
   const { userID } = useAuth();
-  const [authLocations, setAuthLocations] = useState<string[]>([]);
+  const [authBranches, setAuthBranches] = useState<string[]>([]);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
   
   // Filtering/sorting states
@@ -57,21 +61,21 @@ export function PostedTransferView({ type }: PostedTransferViewProps) {
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  // Fetch authorized locations for the current user
+  // Fetch authorized branches for the current user
   useEffect(() => {
-    const loadAuthLocations = async () => {
+    const loadAuthBranches = async () => {
       if (!userID) return;
       setIsAuthLoading(true);
       try {
-        const setup = await getAllLOCsFromUserSetup(userID);
-        setAuthLocations(setup.map(s => s.Code).filter(Boolean));
+        const setup = await getAllBranchesFromUserSetup(userID);
+        setAuthBranches(setup.map(s => s.Code).filter(Boolean));
       } catch (error) {
-        console.error("Error loading user authorized locations:", error);
+        console.error("Error loading user authorized branches:", error);
       } finally {
         setIsAuthLoading(false);
       }
     };
-    loadAuthLocations();
+    loadAuthBranches();
   }, [userID]);
 
   const title = type === "shipment" ? "Posted Transfer Shipment" : "Posted Transfer Receipt";
@@ -82,11 +86,9 @@ export function PostedTransferView({ type }: PostedTransferViewProps) {
     setIsLoading(true);
     try {
       const parts = [];
-      // Initial Date/Location Filters
+      // Initial Date Filters
       if (filters.fromDate) parts.push(`Posting_Date ge ${filters.fromDate}`);
       if (filters.toDate) parts.push(`Posting_Date le ${filters.toDate}`);
-      if (filters.fromLocation) parts.push(`Transfer_from_Code eq '${filters.fromLocation}'`);
-      if (filters.toLocation) parts.push(`Transfer_to_Code eq '${filters.toLocation}'`);
       
       // Column Filters
       Object.entries(columnFilters).forEach(([colId, f]) => {
@@ -107,11 +109,10 @@ export function PostedTransferView({ type }: PostedTransferViewProps) {
         }
       });
 
-      // Mandatory Branch/Location Access Filter
-      if (authLocations.length > 0) {
-        const mainField = type === "shipment" ? "Transfer_from_Code" : "Transfer_to_Code";
-        const branchFilter = authLocations.map(loc => 
-          `${mainField} eq '${loc}'`
+      // Mandatory Branch Access Filter
+      if (authBranches.length > 0) {
+        const branchFilter = authBranches.map(branch => 
+          `Shortcut_Dimension_2_Code eq '${branch}'`
         ).join(" or ");
         parts.push(`(${branchFilter})`);
       } else if (!isAuthLoading) {
@@ -145,7 +146,7 @@ export function PostedTransferView({ type }: PostedTransferViewProps) {
     } finally {
       setIsLoading(false);
     }
-  }, [type, filters, debouncedSearchQuery, columnFilters, sortColumn, sortDirection, pageSize, currentPage, authLocations, isAuthLoading, userID]);
+  }, [type, filters, debouncedSearchQuery, columnFilters, sortColumn, sortDirection, pageSize, currentPage, authBranches, isAuthLoading, userID]);
 
   useEffect(() => {
     fetchData();
@@ -307,34 +308,32 @@ export function PostedTransferView({ type }: PostedTransferViewProps) {
     setCurrentPage(1);
   };
 
-  if (!filters) {
-    return (
-      <PostedTransferFilterForm
-        onApply={(f) => setFilters(f)}
-        title={title}
-        description={description}
-        type={type}
-      />
-    );
-  }
+
 
   return (
     <div className="flex flex-col h-full w-full gap-2">
       <div className="flex items-center justify-between px-4 pt-4">
         <div className="flex flex-col">
           <h1 className="text-xl font-bold">{title} Data</h1>
-          <p className="text-muted-foreground text-xs">
-            Range: {filters.fromDate} to {filters.toDate}
-          </p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={() => fetchData()} disabled={isLoading}>
             <RefreshCcw className={`mr-2 h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
             Refresh
           </Button>
-          <Button variant="ghost" size="sm" onClick={() => { setFilters(null); setData([]); }}>
-            <ChevronLeft className="mr-2 h-4 w-4" />
-            New Search
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={() => { 
+              setFilters({});
+              setSearchQuery("");
+              setDebouncedSearchQuery("");
+              setColumnFilters({});
+              setCurrentPage(1);
+            }}
+          >
+            <RotateCcw className="mr-2 h-4 w-4" />
+            Reset Search
           </Button>
         </div>
       </div>

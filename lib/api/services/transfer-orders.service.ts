@@ -68,6 +68,7 @@ export interface PostedTransferShipment {
   External_Document_No?: string;
   E_Way_Bill_No?: string;
   E_Invoice_No?: string;
+  Shortcut_Dimension_2_Code?: string;
   [key: string]: unknown;
 }
 
@@ -82,6 +83,7 @@ export interface TransferReceipt {
   External_Document_No?: string;
   E_Way_Bill_No?: string;
   E_Invoice_No?: string;
+  Shortcut_Dimension_2_Code?: string;
   [key: string]: unknown;
 }
 
@@ -974,7 +976,7 @@ export async function getTransferAllLocationCodes(
  */
 export async function getPostedTransferShipments(params: GetTransferOrdersParams = {}): Promise<{ orders: PostedTransferShipment[], totalCount: number }> {
   const {
-    $select = "No,Transfer_from_Code,Transfer_to_Code,Posting_Date,Vehicle_No,E_Way_Bill_No",
+    $select = "No,Transfer_from_Code,Transfer_to_Code,Posting_Date,Vehicle_No,E_Way_Bill_No,Shortcut_Dimension_2_Code",
     $filter,
     $orderby = "No desc",
     $top = 10,
@@ -1059,7 +1061,7 @@ export async function getPostedTransferReceiptsByOrder(orderNo: string, postingD
  */
 export async function getTransferReceipts(params: GetTransferOrdersParams = {}): Promise<{ orders: TransferReceipt[], totalCount: number }> {
   const {
-    $select = "No,Transfer_from_Code,Transfer_to_Code,Posting_Date,Vehicle_No",
+    $select = "No,Transfer_from_Code,Transfer_to_Code,Posting_Date,Vehicle_No,Shortcut_Dimension_2_Code",
     $filter,
     $orderby = "No desc",
     $top = 10,

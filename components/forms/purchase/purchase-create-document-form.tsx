@@ -2849,30 +2849,34 @@ export function PurchaseCreateDocumentFormContent({
                     </div>
                     
                     {purchaseTotals && (
-                      <div className="grid grid-cols-2 gap-x-8 gap-y-2 lg:grid-cols-3 xl:grid-cols-6">
-                        <div className="flex flex-col">
-                          <span className="text-muted-foreground text-[9px] font-semibold uppercase tracking-tight">Gross Amount</span>
-                          <span className="text-xs font-medium tabular-nums">{purchaseTotals["Gross Amount"].toFixed(2)}</span>
+                      <div className="grid grid-cols-2 gap-x-8 gap-y-2 lg:grid-cols-3 xl:grid-cols-7">
+                        <div className="flex items-baseline gap-2">
+                          <span className="text-muted-foreground text-[11px] font-semibold uppercase tracking-tight">Gross Amount</span>
+                          <span className="text-sm font-medium tabular-nums">{(purchaseTotals["Gross Amount"] || 0).toFixed(2)}</span>
                         </div>
-                        <div className="flex flex-col border-l pl-4 border-muted/50">
-                          <span className="text-muted-foreground text-[9px] font-semibold uppercase tracking-tight">IGST</span>
-                          <span className="text-xs font-medium tabular-nums">{purchaseTotals.IGST.toFixed(2)}</span>
+                        <div className="flex items-baseline gap-2 border-l pl-4 border-muted/50">
+                          <span className="text-muted-foreground text-[11px] font-semibold uppercase tracking-tight">IGST</span>
+                          <span className="text-sm font-medium tabular-nums">{(purchaseTotals.IGST || 0).toFixed(2)}</span>
                         </div>
-                        <div className="flex flex-col border-l pl-4 border-muted/50">
-                          <span className="text-muted-foreground text-[9px] font-semibold uppercase tracking-tight">CGST</span>
-                          <span className="text-xs font-medium tabular-nums">{purchaseTotals.CGST.toFixed(2)}</span>
+                        <div className="flex items-baseline gap-2 border-l pl-4 border-muted/50">
+                          <span className="text-muted-foreground text-[11px] font-semibold uppercase tracking-tight">CGST</span>
+                          <span className="text-sm font-medium tabular-nums">{(purchaseTotals.CGST || 0).toFixed(2)}</span>
                         </div>
-                        <div className="flex flex-col border-l pl-4 border-muted/50">
-                          <span className="text-muted-foreground text-[9px] font-semibold uppercase tracking-tight">SGST</span>
-                          <span className="text-xs font-medium tabular-nums">{purchaseTotals.SGST.toFixed(2)}</span>
+                        <div className="flex items-baseline gap-2 border-l pl-4 border-muted/50">
+                          <span className="text-muted-foreground text-[11px] font-semibold uppercase tracking-tight">SGST</span>
+                          <span className="text-sm font-medium tabular-nums">{(purchaseTotals.SGST || 0).toFixed(2)}</span>
                         </div>
-                        <div className="flex flex-col border-l pl-4 border-muted/50">
-                          <span className="text-muted-foreground text-[9px] font-semibold uppercase tracking-tight">TDS</span>
-                          <span className="text-xs font-medium tabular-nums">{purchaseTotals.TDS.toFixed(2)}</span>
+                        <div className="flex items-baseline gap-2 border-l pl-4 border-muted/50">
+                          <span className="text-muted-foreground text-[11px] font-semibold uppercase tracking-tight">TDS</span>
+                          <span className="text-sm font-medium tabular-nums">{(purchaseTotals.TDS || 0).toFixed(2)}</span>
                         </div>
-                        <div className="flex flex-col border-l pl-4 border-primary/20 bg-primary/5 rounded px-2 -mx-2">
-                          <span className="text-primary text-[9px] font-bold uppercase tracking-tight">Total Payable</span>
-                          <span className="text-sm font-bold tabular-nums text-primary">{purchaseTotals["Total Amt"].toFixed(2)}</span>
+                        <div className="flex items-baseline gap-2 border-l pl-4 border-muted/50">
+                          <span className="text-muted-foreground text-[11px] font-semibold uppercase tracking-tight">Total Invoice Amt</span>
+                          <span className="text-sm font-medium tabular-nums">{(purchaseTotals["Total Invoice Amt"] || 0).toFixed(2)}</span>
+                        </div>
+                        <div className="flex items-baseline gap-2 border-l pl-4 border-primary/20 bg-primary/5 rounded px-2 -mx-2">
+                          <span className="text-primary text-[11px] font-bold uppercase tracking-tight">Total Payable</span>
+                          <span className="text-base font-bold tabular-nums text-primary">{(purchaseTotals["Total Payable"] || 0).toFixed(2)}</span>
                         </div>
                       </div>
                     )}

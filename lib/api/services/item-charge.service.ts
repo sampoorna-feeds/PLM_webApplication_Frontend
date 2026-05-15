@@ -9,6 +9,7 @@ export interface ItemCharge {
   GST_Group_Code?: string;
   HSN_SAC_Code?: string;
   Exempted?: boolean;
+  Gen_Prod_Posting_Group?: string;
 }
 
 const COMPANY =
@@ -24,7 +25,7 @@ function getBaseFilter(): string {
 
 export async function getItemCharges(top: number = 20): Promise<ItemCharge[]> {
   const query = buildODataQuery({
-    $select: "No,Description,Block,GST_Group_Code,HSN_SAC_Code,Exempted",
+    $select: "No,Description,Block,GST_Group_Code,HSN_SAC_Code,Exempted,Gen_Prod_Posting_Group",
     $filter: getBaseFilter(),
     $orderby: "No",
     $top: top,
@@ -45,7 +46,7 @@ export async function searchItemCharges(query: string): Promise<ItemCharge[]> {
     (async () => {
       const filterByNo = `(${baseFilter}) and contains(No,'${escapedQuery}')`;
       const q = buildODataQuery({
-        $select: "No,Description,Block,GST_Group_Code,HSN_SAC_Code,Exempted",
+        $select: "No,Description,Block,GST_Group_Code,HSN_SAC_Code,Exempted,Gen_Prod_Posting_Group",
         $filter: filterByNo,
         $orderby: "No",
         $top: 30,
@@ -57,7 +58,7 @@ export async function searchItemCharges(query: string): Promise<ItemCharge[]> {
     (async () => {
       const filterByDescription = `(${baseFilter}) and contains(Description,'${escapedQuery}')`;
       const q = buildODataQuery({
-        $select: "No,Description,Block,GST_Group_Code,HSN_SAC_Code,Exempted",
+        $select: "No,Description,Block,GST_Group_Code,HSN_SAC_Code,Exempted,Gen_Prod_Posting_Group",
         $filter: filterByDescription,
         $orderby: "No",
         $top: 30,
@@ -87,7 +88,7 @@ export async function getItemChargesPage(
 
   if (!search || search.length < 2) {
     const query = buildODataQuery({
-      $select: "No,Description,Block,GST_Group_Code,HSN_SAC_Code,Exempted",
+      $select: "No,Description,Block,GST_Group_Code,HSN_SAC_Code,Exempted,Gen_Prod_Posting_Group",
       $filter: baseFilter,
       $orderby: "No",
       $top: top,
@@ -103,7 +104,7 @@ export async function getItemChargesPage(
     (async () => {
       const filterByNo = `(${baseFilter}) and contains(No,'${escapedQuery}')`;
       const q = buildODataQuery({
-        $select: "No,Description,Block,GST_Group_Code,HSN_SAC_Code,Exempted",
+        $select: "No,Description,Block,GST_Group_Code,HSN_SAC_Code,Exempted,Gen_Prod_Posting_Group",
         $filter: filterByNo,
         $orderby: "No",
         $top: top,
@@ -116,7 +117,7 @@ export async function getItemChargesPage(
     (async () => {
       const filterByDescription = `(${baseFilter}) and contains(Description,'${escapedQuery}')`;
       const q = buildODataQuery({
-        $select: "No,Description,Block,GST_Group_Code,HSN_SAC_Code,Exempted",
+        $select: "No,Description,Block,GST_Group_Code,HSN_SAC_Code,Exempted,Gen_Prod_Posting_Group",
         $filter: filterByDescription,
         $orderby: "No",
         $top: top,
@@ -148,7 +149,7 @@ export async function searchItemChargesByField(
   const escapedQuery = escapeODataValue(query);
   const filter = `(${baseFilter}) and contains(${field},'${escapedQuery}')`;
   const q = buildODataQuery({
-    $select: "No,Description,Block,GST_Group_Code,HSN_SAC_Code,Exempted",
+    $select: "No,Description,Block,GST_Group_Code,HSN_SAC_Code,Exempted,Gen_Prod_Posting_Group",
     $filter: filter,
     $orderby: "No",
     $top: 30,

@@ -1038,6 +1038,7 @@ export function PurchaseCreateDocumentFormContent({
       salvageValue: lineItem.salvageValue,
       noOfBags: lineItem.noOfBags,
       gstCredit: lineItem.gstCredit,
+      genProdPostingGroup: lineItem.genProdPostingGroup,
     };
 
     const locationCode = resolvePurchaseLocationCode(formData.locationCode);

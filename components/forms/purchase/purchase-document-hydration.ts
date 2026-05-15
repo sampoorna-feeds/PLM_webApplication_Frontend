@@ -131,5 +131,6 @@ export function mapPurchaseLineToLineItem(line: PurchaseLine): LineItem {
     gstCredit: toStringValue(line.GST_Credit),
     gstAssessableValue: toNumberValue(line.GST_Assessable_Value),
     customDutyAmount: toNumberValue(line.Custom_Duty_Amount),
+    genProdPostingGroup: toStringValue(line.Gen_Prod_Posting_Group),
   };
 }

@@ -125,6 +125,7 @@ export function PurchaseOrderLineEditDialog({
   const [shortcutDimCode4, setShortcutDimCode4] = useState("");
   const [shortcutDimCode5, setShortcutDimCode5] = useState("");
   const [applToItemEntry, setApplToItemEntry] = useState<string>("");
+  const [genProdPostingGroup, setGenProdPostingGroup] = useState("");
   const [ledgerEntries, setLedgerEntries] = useState<ApplyItemLedgerEntry[]>([]);
   const [isLoadingLedger, setIsLoadingLedger] = useState(false);
   const [isApplyItemEntryOpen, setIsApplyItemEntryOpen] = useState(false);
@@ -174,6 +175,7 @@ export function PurchaseOrderLineEditDialog({
     setGstAssessableValue(line.GST_Assessable_Value != null ? String(line.GST_Assessable_Value) : "");
     setCustomDutyAmount(line.Custom_Duty_Amount != null ? String(line.Custom_Duty_Amount) : "");
     setUom(line.Unit_of_Measure_Code || "");
+    setGenProdPostingGroup(line.Gen_Prod_Posting_Group || "");
   }, [line]);
 
   const [tdsOptions, setTdsOptions] = useState<SearchableSelectOption[]>([]);
@@ -467,6 +469,8 @@ export function PurchaseOrderLineEditDialog({
         payload.ShortcutDimCode5 = shortcutDimCode5;
       if (uom !== (line.Unit_of_Measure_Code || ""))
         payload.Unit_of_Measure_Code = uom;
+      if (genProdPostingGroup !== (line.Gen_Prod_Posting_Group || ""))
+        payload.Gen_Prod_Posting_Group = genProdPostingGroup;
 
       const parsedUnitCost = directUnitCost.trim() === "" ? undefined : Number(directUnitCost);
       if (

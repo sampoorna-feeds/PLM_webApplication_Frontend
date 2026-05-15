@@ -401,6 +401,7 @@ export function PurchaseOrderLineDialog({
           ...prev,
           no: account.No,
           description: account.Name || "",
+          genProdPostingGroup: account.Gen_Prod_Posting_Group || prev.genProdPostingGroup || "",
         }));
       }
     },
@@ -456,6 +457,7 @@ export function PurchaseOrderLineDialog({
               cardItem.Sales_Unit_of_Measure ||
               prev.uom,
             noOfBags: isBardanaEnabled ? prev.noOfBags : undefined,
+            genProdPostingGroup: cardItem.Gen_Prod_Posting_Group || prev.genProdPostingGroup || "",
           }));
         }
       })
@@ -518,7 +520,7 @@ export function PurchaseOrderLineDialog({
       gstCredit: formState.gstCredit,
       gstAssessableValue: Number(formState.gstAssessableValue) || 0,
       customDutyAmount: Number(formState.customDutyAmount) || 0,
-      genProdPostingGroup: (formState.type === "G/L Account" || formState.type === "Charge (Item)") ? formState.genProdPostingGroup : undefined,
+      genProdPostingGroup: formState.genProdPostingGroup,
     };
 
     const normalizedLineItemRecord = normalizedLineItem as unknown as Record<
@@ -800,6 +802,7 @@ export function PurchaseOrderLineDialog({
                             gstGroupCode:
                               charge.GST_Group_Code || prev.gstGroupCode,
                             hsnSacCode: charge.HSN_SAC_Code || prev.hsnSacCode,
+                            genProdPostingGroup: charge.Gen_Prod_Posting_Group || prev.genProdPostingGroup || "",
                           }));
                         }}
                         placeholder="Select Charge Item"
@@ -1078,7 +1081,7 @@ export function PurchaseOrderLineDialog({
                     </Select>
                   </ClearableField>
                 </div>
-                {(formState.type === "G/L Account" || formState.type === "Charge (Item)") && (
+                {(formState.type === "Item" || formState.type === "G/L Account" || formState.type === "Charge (Item)") && (
                   <div className="space-y-1">
                     <FieldTitle>Gen Prod. Posting Group</FieldTitle>
                     <ClearableField

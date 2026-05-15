@@ -70,7 +70,7 @@ export function buildCreatePurchaseLinePayload(
   if (lineItem.faLocationCode)
     payload.FA_Location_Code = lineItem.faLocationCode;
   if (lineItem.genProdPostingGroup)
-    payload.GenprodPostingGroup = lineItem.genProdPostingGroup;
+    payload.Gen_Prod_Posting_Group = lineItem.genProdPostingGroup;
 
   return toUpperCaseValues(payload, ["Document_Type", "Type"]);
 }
@@ -110,7 +110,7 @@ export function buildUpdatePurchaseLinePayload(
   if (lineItem.faLocationCode !== undefined)
     payload.FA_Location_Code = lineItem.faLocationCode;
   if (lineItem.genProdPostingGroup !== undefined)
-    payload.GenprodPostingGroup = lineItem.genProdPostingGroup;
+    payload.Gen_Prod_Posting_Group = lineItem.genProdPostingGroup;
 
   return toUpperCaseValues(payload, ["Document_Type", "Type"]);
 }

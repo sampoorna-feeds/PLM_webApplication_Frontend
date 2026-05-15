@@ -299,6 +299,7 @@ export interface PurchaseLine {
   GST_Assessable_Value?: number;
   Custom_Duty_Amount?: number;
   Appl_to_Item_Entry?: number;
+  Gen_Prod_Posting_Group?: string;
   [key: string]: unknown;
 }
 
@@ -659,6 +660,7 @@ export interface AddPurchaseLinePayload {
   Location_Code: string;
   Quantity: number;
   Unit_of_Measure_Code: string;
+  Gen_Prod_Posting_Group?: string;
 }
 
 /**

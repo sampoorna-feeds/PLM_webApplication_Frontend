@@ -978,6 +978,8 @@ export function ProductionOrderForm({
         )
           updatePayload.Shortcut_Dimension_2_Code =
             formState.Shortcut_Dimension_2_Code;
+        if (formState.Gen_Prod_Posting_Group !== orig?.Gen_Prod_Posting_Group)
+          updatePayload.Gen_Prod_Posting_Group = formState.Gen_Prod_Posting_Group;
         await updateProductionOrder(formState.No, updatePayload);
 
         toast.success(`Production Order ${formState.No} updated successfully!`);

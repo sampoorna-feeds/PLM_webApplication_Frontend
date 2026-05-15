@@ -10,6 +10,7 @@ import type { ODataResponse } from "../types";
 export interface GLPostingAccount {
   No: string;
   Name: string;
+  Gen_Prod_Posting_Group?: string;
 }
 
 const COMPANY =
@@ -39,7 +40,7 @@ export async function getGLAccounts(
   top: number = 20,
 ): Promise<GLPostingAccount[]> {
   const query = buildODataQuery({
-    $select: "No,Name",
+    $select: "No,Name,Gen_Prod_Posting_Group",
     $filter: getBaseFilter(),
     $orderby: "No",
     $top: top,
@@ -76,7 +77,7 @@ export async function searchGLAccounts(
     (async () => {
       const filterByNo = `(${baseFilter}) and contains(No,'${escapedQuery}')`;
       const odataQuery = buildODataQuery({
-        $select: "No,Name",
+        $select: "No,Name,Gen_Prod_Posting_Group",
         $filter: filterByNo,
         $orderby: "No",
         $top: 30,
@@ -89,7 +90,7 @@ export async function searchGLAccounts(
     (async () => {
       const filterByName = `(${baseFilter}) and contains(Name,'${escapedQuery}')`;
       const odataQuery = buildODataQuery({
-        $select: "No,Name",
+        $select: "No,Name,Gen_Prod_Posting_Group",
         $filter: filterByName,
         $orderby: "No",
         $top: 30,
@@ -133,7 +134,7 @@ export async function getGLAccountsPage(
   if (!search || search.length < 2) {
     // No search - return paginated results
     const query = buildODataQuery({
-      $select: "No,Name",
+      $select: "No,Name,Gen_Prod_Posting_Group",
       $filter: baseFilter,
       $orderby: "No",
       $top: top,
@@ -153,7 +154,7 @@ export async function getGLAccountsPage(
     (async () => {
       const filterByNo = `(${baseFilter}) and contains(No,'${escapedQuery}')`;
       const odataQuery = buildODataQuery({
-        $select: "No,Name",
+        $select: "No,Name,Gen_Prod_Posting_Group",
         $filter: filterByNo,
         $orderby: "No",
         $top: top,
@@ -167,7 +168,7 @@ export async function getGLAccountsPage(
     (async () => {
       const filterByName = `(${baseFilter}) and contains(Name,'${escapedQuery}')`;
       const odataQuery = buildODataQuery({
-        $select: "No,Name",
+        $select: "No,Name,Gen_Prod_Posting_Group",
         $filter: filterByName,
         $orderby: "No",
         $top: top,
@@ -203,7 +204,7 @@ export async function getGLAccountByNo(
   if (!accountNo) return null;
 
   const query = buildODataQuery({
-    $select: "No,Name",
+    $select: "No,Name,Gen_Prod_Posting_Group",
     $filter: `No eq '${accountNo.replace(/'/g, "''")}' and ${getBaseFilter()}`,
   });
 
@@ -227,7 +228,7 @@ export async function searchGLAccountsByField(
   const filter = `(${baseFilter}) and contains(${field},'${escapedQuery}')`;
 
   const odataQuery = buildODataQuery({
-    $select: "No,Name",
+    $select: "No,Name,Gen_Prod_Posting_Group",
     $filter: filter,
     $orderby: "No",
     $top: 30,

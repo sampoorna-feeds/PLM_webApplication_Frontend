@@ -76,6 +76,7 @@ export interface PurchaseOrderLineItem {
   gstAssessableValue?: number;
   customDutyAmount?: number;
   faLocationCode?: string;
+  genProdPostingGroup?: string;
 }
 
 export interface CreatePurchaseOrderResponse {

@@ -19,6 +19,7 @@ export interface ProductionOrderFormData {
   BOM_Version_No?: string;
   isProdBomFromItem?: boolean;
   Batch_Size?: string;
+  Gen_Prod_Posting_Group?: string;
 }
 
 export interface ValidationError {

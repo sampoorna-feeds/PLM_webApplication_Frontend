@@ -19,6 +19,7 @@ export interface Item {
   Description: string;
   Production_BOM_No?: string;
   Base_Unit_of_Measure?: string;
+  Gen_Prod_Posting_Group?: string;
   [key: string]: unknown;
 }
 
@@ -108,7 +109,7 @@ export async function getItems(
 ): Promise<Item[]> {
   const queryParams: Record<string, any> = {
     $select:
-      "No,Description,Production_BOM_No,Base_Unit_of_Measure,GST_Group_Code,HSN_SAC_Code,Exempted",
+      "No,Description,Production_BOM_No,Base_Unit_of_Measure,GST_Group_Code,HSN_SAC_Code,Exempted,Gen_Prod_Posting_Group",
     $orderby: "No",
     $top: top,
     $skip: skip,
@@ -179,7 +180,7 @@ export async function getItemByNo(itemNo: string): Promise<Item | null> {
   const query = buildODataQuery({
     $filter: filter,
     $select:
-      "No,Description,Production_BOM_No,Base_Unit_of_Measure,GST_Group_Code,HSN_SAC_Code,Exempted",
+      "No,Description,Production_BOM_No,Base_Unit_of_Measure,GST_Group_Code,HSN_SAC_Code,Exempted,Gen_Prod_Posting_Group",
   });
   const endpoint = `/ItemCard?company='${encodeURIComponent(COMPANY)}'&${query}`;
 

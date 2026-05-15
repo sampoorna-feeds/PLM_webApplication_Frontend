@@ -492,6 +492,7 @@ export interface CreateProductionOrderPayload {
   Prod_Bom_No?: string;
   BOM_Version_No?: string;
   Batch_Size?: string;
+  Gen_Prod_Posting_Group?: string;
   SFPL_User_ID?: string;
 }
 
@@ -533,6 +534,11 @@ export async function createProductionOrder(
   // Add Batch_Size if provided
   if (data.Batch_Size) {
     payload.Batch_Size = data.Batch_Size;
+  }
+
+  // Add Gen_Prod_Posting_Group if provided
+  if (data.Gen_Prod_Posting_Group) {
+    payload.Gen_Prod_Posting_Group = data.Gen_Prod_Posting_Group;
   }
 
   return apiPost<ProductionOrder>(endpoint, payload);
@@ -598,6 +604,7 @@ export async function updateProductionOrder(
     Batch_Size?: string;
     Shortcut_Dimension_1_Code?: string;
     Shortcut_Dimension_2_Code?: string;
+    Gen_Prod_Posting_Group?: string;
   },
 ): Promise<void> {
   // Encode the production order number for URL (handles slashes)

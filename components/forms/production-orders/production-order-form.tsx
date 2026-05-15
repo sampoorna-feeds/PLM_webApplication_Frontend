@@ -179,6 +179,7 @@ export function ProductionOrderForm({
     BOM_Version_No: "",
     isProdBomFromItem: false,
     Batch_Size: "" as BatchSize,
+    Gen_Prod_Posting_Group: "",
     ...initialFormData,
   });
 
@@ -213,6 +214,7 @@ export function ProductionOrderForm({
     Batch_Size: BatchSize;
     Shortcut_Dimension_1_Code: string;
     Shortcut_Dimension_2_Code: string;
+    Gen_Prod_Posting_Group: string;
   } | null>(null);
 
   // Order lines and components for view/edit mode
@@ -297,6 +299,7 @@ export function ProductionOrderForm({
             Prod_Bom_No: order.Prod_Bom_No || "",
             BOM_Version_No: order.BOM_Version_No || "",
             Batch_Size: ((order.Batch_Size || "") as BatchSize),
+            Gen_Prod_Posting_Group: order.Gen_Prod_Posting_Group || "",
           };
           originalFormStateRef.current = snapshot;
           setFormState((prev) => ({
@@ -688,6 +691,7 @@ export function ProductionOrderForm({
           Hatching_Date: order.Hatching_Date || "",
           Prod_Bom_No: order.Prod_Bom_No || "",
           BOM_Version_No: order.BOM_Version_No || "",
+          Gen_Prod_Posting_Group: order.Gen_Prod_Posting_Group || "",
         }));
       }
 
@@ -857,6 +861,7 @@ export function ProductionOrderForm({
       BOM_Version_No: formState.BOM_Version_No,
       isProdBomFromItem: formState.isProdBomFromItem,
       Batch_Size: formState.Batch_Size,
+      Gen_Prod_Posting_Group: formState.Gen_Prod_Posting_Group,
     });
 
     if (!showValidationErrors(validationResult)) {
@@ -895,6 +900,7 @@ export function ProductionOrderForm({
               ? formState.BOM_Version_No
               : undefined,
           Batch_Size: formState.Batch_Size || undefined,
+          Gen_Prod_Posting_Group: formState.Gen_Prod_Posting_Group || undefined,
           SFPL_User_ID: creds?.userID || "",
         };
 
@@ -1002,6 +1008,7 @@ export function ProductionOrderForm({
               updatedOrder.Shortcut_Dimension_1_Code || "",
             Shortcut_Dimension_2_Code:
               updatedOrder.Shortcut_Dimension_2_Code || "",
+            Gen_Prod_Posting_Group: updatedOrder.Gen_Prod_Posting_Group || "",
           };
           originalFormStateRef.current = newSnapshot;
           setFormState((prev) => ({

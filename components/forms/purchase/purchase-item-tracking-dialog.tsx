@@ -72,6 +72,7 @@ interface PurchaseItemTrackingDialogProps {
   locationCode: string;
   line: PurchaseLine | null;
   documentType?: PurchaseLineDocumentType;
+  defaultExpirationDate?: string;
 }
 
 export function PurchaseItemTrackingDialog({
@@ -82,6 +83,7 @@ export function PurchaseItemTrackingDialog({
   locationCode,
   line,
   documentType = "order",
+  defaultExpirationDate = "",
 }: PurchaseItemTrackingDialogProps) {
   const sourceSubType = DOC_TYPE_TO_SUBTYPE[documentType];
   const [lotNo, setLotNo] = useState("");
@@ -161,7 +163,13 @@ export function PurchaseItemTrackingDialog({
       };
       fetchLots();
       fetchTrackingLines();
-    } else {
+
+      // Pre-fill expiration date if not already set and not editing
+      if (!editingLine && !expirationDate && defaultExpirationDate) {
+        setExpirationDate(defaultExpirationDate);
+      }
+    } else if (!open) {
+      // Only clear states when the dialog is explicitly closed
       setAvailableLots([]);
       setTrackingLines([]);
       setLotNo("");
@@ -170,7 +178,7 @@ export function PurchaseItemTrackingDialog({
       setEditingLine(null);
       setIsDeleting(null);
     }
-  }, [open, line, orderNo, lineNo, itemNo, locationCode]);
+  }, [open, line, orderNo, lineNo, itemNo, locationCode, defaultExpirationDate]);
 
   const handleLotSelect = (lot: LotAvailability) => {
     setLotNo(lot.LotNo);

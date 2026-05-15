@@ -32,6 +32,7 @@ export interface Item {
   Inventory_Posting_Group?: string;
   Net_Change?: number;
   GST_Credit?: string;
+  Gen_Prod_Posting_Group?: string;
 }
 
 export interface ItemUnitOfMeasure {
@@ -105,8 +106,8 @@ function getBaseFilter(locationCode?: string): string {
   return `(${blockedFilter})`;
 }
 
-const ITEM_LIST_SELECT = "No,Description,Unit_Price,Sales_Unit_of_Measure,Purch_Unit_of_Measure,RM_Bardana_Wt";
-const PRELOAD_SELECT = "No,Description,Unit_Price,Sales_Unit_of_Measure,Purch_Unit_of_Measure,Base_Unit_of_Measure,GST_Group_Code,HSN_SAC_Code,Exempted,Bardana_Generation_Enable,QC_Required,RM_Bardana_Wt";
+const ITEM_LIST_SELECT = "No,Description,Unit_Price,Sales_Unit_of_Measure,Purch_Unit_of_Measure,RM_Bardana_Wt,Gen_Prod_Posting_Group";
+const PRELOAD_SELECT = "No,Description,Unit_Price,Sales_Unit_of_Measure,Purch_Unit_of_Measure,Base_Unit_of_Measure,GST_Group_Code,HSN_SAC_Code,Exempted,Bardana_Generation_Enable,QC_Required,RM_Bardana_Wt,Gen_Prod_Posting_Group";
 
 // Cache for preloaded items by locationCode (key "" for no location)
 const preloadedItemsCache = new Map<string, Item[]>();
@@ -366,7 +367,7 @@ export async function getItemByNo(itemNo: string): Promise<Item | null> {
   const baseFilter = getBaseFilter();
   const query = buildODataQuery({
     $select:
-      "No,Description,GST_Group_Code,HSN_SAC_Code,Exempted,Sales_Unit_of_Measure,Purch_Unit_of_Measure,Bardana_Generation_Enable,QC_Required,Status,RM_Bardana_Item,RM_Bardana_Wt,GST_Credit",
+      "No,Description,GST_Group_Code,HSN_SAC_Code,Exempted,Sales_Unit_of_Measure,Purch_Unit_of_Measure,Bardana_Generation_Enable,QC_Required,Status,RM_Bardana_Item,RM_Bardana_Wt,GST_Credit,Gen_Prod_Posting_Group",
     $filter: `No eq '${escapeODataValue(itemNo)}' and ${baseFilter}`,
   });
   const endpoint = `/ItemCard?company=${encodeURIComponent(COMPANY)}&${query}`;
@@ -392,7 +393,7 @@ export async function getItemsByNos(itemNos: string[]): Promise<Item[]> {
   const filter = `(Blocked eq false) and (${filterConditions.join(" or ")})`;
 
   const query = buildODataQuery({
-    $select: "No,Description,Item_Tracking_Code,Bardana_Generation_Enable,QC_Required,RM_Bardana_Wt",
+    $select: "No,Description,Item_Tracking_Code,Bardana_Generation_Enable,QC_Required,RM_Bardana_Wt,Gen_Prod_Posting_Group",
 
 
     $filter: filter,

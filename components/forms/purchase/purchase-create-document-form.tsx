@@ -3082,6 +3082,7 @@ export function PurchaseCreateDocumentFormContent({
           orderNo={createdOrderNo}
           locationCode={formData.locationCode || ""}
           documentType={documentType}
+          defaultExpirationDate={formData.poExpirationDate}
           onSave={() => {
             void refreshHydratedDocument();
           }}

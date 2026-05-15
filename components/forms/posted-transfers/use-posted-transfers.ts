@@ -10,7 +10,12 @@ import {
   type TransferReceipt
 } from "@/lib/api/services/transfer-orders.service";
 import { type SortDirection } from "./column-config";
-import { type PostedTransferFilters } from "./posted-transfer-filter-form";
+export interface PostedTransferFilters {
+  fromDate?: string;
+  toDate?: string;
+  fromLocation?: string;
+  toLocation?: string;
+}
 
 import { useAuth } from "@/lib/contexts/auth-context";
 import { getAllBranchesFromUserSetup } from "@/lib/api/services/dimension.service";

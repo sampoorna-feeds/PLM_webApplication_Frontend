@@ -1,11 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-// Filter interface
-export interface PostedTransferFilters {
-  fromDate?: string;
-  toDate?: string;
-}
+import { type PostedTransferFilters } from "./use-posted-transfers";
 import { PostedTransferTable } from "./posted-transfer-table";
 import { TableFilterBar } from "./table-filter-bar";
 import { PostedTransferPaginationControls } from "./pagination-controls";

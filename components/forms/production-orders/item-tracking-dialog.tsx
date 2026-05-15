@@ -241,7 +241,19 @@ export function ItemTrackingDialog({
       setAvailableLots([]);
       setTrackingLines([]);
       setLotNo("");
-      setExpirationDate("");
+      // Prefill expiration date as Due Date + 45 days ONLY for production order lines
+      if (line && line.Due_Date) {
+        try {
+          const dueDate = new Date(line.Due_Date);
+          dueDate.setDate(dueDate.getDate() + 45);
+          setExpirationDate(dueDate.toISOString().split("T")[0]);
+        } catch (e) {
+          console.error("Error calculating expiration date:", e);
+          setExpirationDate("");
+        }
+      } else {
+        setExpirationDate("");
+      }
       setQuantity("");
       setEditingLine(null);
       setIsDeleting(null);

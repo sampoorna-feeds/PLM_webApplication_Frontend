@@ -342,7 +342,7 @@ export async function getProductionOrderLines(
 ): Promise<ProductionOrderLine[]> {
   const filter = `Prod_Order_No eq '${prodOrderNo}'`;
   const select =
-    "Item_No,Description,Location_Code,Quantity,Unit_of_Measure_Code,Finished_Quantity,Remaining_Quantity,Line_No,Prod_Order_No";
+    "Item_No,Description,Location_Code,Quantity,Unit_of_Measure_Code,Finished_Quantity,Remaining_Quantity,Line_No,Prod_Order_No,Due_Date";
   const query = buildODataQuery({
     $filter: filter,
     $select: select,

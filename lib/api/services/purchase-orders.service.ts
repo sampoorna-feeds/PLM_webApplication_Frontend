@@ -68,6 +68,7 @@ export interface PurchaseOrder {
   Applies_to_Doc_No?: string;
   Applies_to_ID?: string;
   Completely_Received?: boolean;
+  Amt_Rcd_Not_Invoiced_LCY?: number;
   "@odata.etag"?: string;
   [key: string]: unknown;
 }

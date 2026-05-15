@@ -59,6 +59,7 @@ const ORDER_OPTIONAL_COLUMNS: ColumnConfig[] = [
   { id: "QCType", label: "QC Type", sortable: true, defaultVisible: false, filterType: "enum" },
   { id: "Due_Date", label: "Due Date", sortable: true, defaultVisible: false, filterType: "date" },
   { id: "Completely_Received", label: "Completely Received", sortable: true, defaultVisible: false, filterType: "boolean", filterOptions: [{ value: "true", label: "Yes" }, { value: "false", label: "No" }] },
+  { id: "Amt_Rcd_Not_Invoiced_LCY", label: "Qty Received not Invoiced", sortable: true, defaultVisible: false, filterType: "number" },
 ];
 
 // ---------------------------------------------------------------------------

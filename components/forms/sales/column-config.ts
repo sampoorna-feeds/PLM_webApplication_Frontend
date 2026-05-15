@@ -48,6 +48,7 @@ const ORDER_OPTIONAL_COLUMNS: ColumnConfig[] = [
   { id: "Shortcut_Dimension_2_Code", label: "Branch", sortable: true, defaultVisible: false, filterType: "text", width: "w-24" },
   { id: "Shortcut_Dimension_3_Code", label: "LOC", sortable: true, defaultVisible: false, filterType: "text", width: "w-20" },
   { id: "Salesperson_Code", label: "Salesperson", sortable: true, defaultVisible: false, filterType: "text", width: "w-28" },
+  { id: "Amt_Ship_Not_Inv_LCY_Base", label: "Qty Shipped But Not Invoiced", sortable: true, defaultVisible: false, filterType: "number", width: "w-40" },
 ];
 
 // ---------------------------------------------------------------------------

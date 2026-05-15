@@ -35,6 +35,7 @@ export interface SalesOrder {
   Applies_to_Doc_Type?: string;
   Applies_to_Doc_No?: string;
   Applies_to_ID?: string;
+  Amt_Ship_Not_Inv_LCY_Base?: number;
   "@odata.etag"?: string;
   [key: string]: unknown;
 }

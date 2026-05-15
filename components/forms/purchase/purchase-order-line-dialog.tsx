@@ -122,7 +122,6 @@ function getInitialLineState(lineItem?: LineItem | null): Partial<LineItem> {
     weightQty: lineItem?.weightQty,
      gstCredit: lineItem?.gstCredit || "",
     customDutyAmount: lineItem?.customDutyAmount || 0,
-    faLocationCode: lineItem?.faLocationCode || "",
     genProdPostingGroup: lineItem?.genProdPostingGroup || "",
   };
 }
@@ -356,7 +355,6 @@ export function PurchaseOrderLineDialog({
       qtyToInvoice: 0,
       price: type === "" ? 0 : prev.price,
       unitPrice: type === "" ? 0 : prev.unitPrice,
-      faLocationCode: "",
     }));
   }, []);
 
@@ -520,7 +518,6 @@ export function PurchaseOrderLineDialog({
       gstCredit: formState.gstCredit,
       gstAssessableValue: Number(formState.gstAssessableValue) || 0,
       customDutyAmount: Number(formState.customDutyAmount) || 0,
-      faLocationCode: formState.faLocationCode || undefined,
       genProdPostingGroup: (formState.type === "G/L Account" || formState.type === "Charge (Item)") ? formState.genProdPostingGroup : undefined,
     };
 
@@ -739,7 +736,6 @@ export function PurchaseOrderLineDialog({
                             no: asset.No,
                             description: asset.Description || "",
                             uom: "",
-                            faLocationCode: asset.FA_Location_Code || "",
                           }));
                         }}
                         placeholder="Select Fixed Asset"
@@ -898,9 +894,6 @@ export function PurchaseOrderLineDialog({
                   </ClearableField>
                 </div>
 
-
-
-
                 <div className="space-y-1">
                   <FieldTitle>Unit Price</FieldTitle>
                   <ClearableField
@@ -984,23 +977,6 @@ export function PurchaseOrderLineDialog({
                           value={formatNumericValue(formState.salvageValue)}
                           onValueChange={(v) => handleNumericChange("salvageValue", v)}
                           placeholder="0.00"
-                          className={cn("h-8", fieldInputClass)}
-                        />
-                      </ClearableField>
-                    </div>
-
-                    <div className="space-y-1">
-                      <FieldTitle>FA Location Code</FieldTitle>
-                      <ClearableField
-                        value={formState.faLocationCode || ""}
-                        onClear={() => handleFieldChange("faLocationCode", "")}
-                      >
-                        <Input
-                          value={formState.faLocationCode || ""}
-                          onChange={(e) =>
-                            handleFieldChange("faLocationCode", e.target.value)
-                          }
-                          placeholder="Location Code"
                           className={cn("h-8", fieldInputClass)}
                         />
                       </ClearableField>

@@ -38,6 +38,5 @@ export interface LineItem {
   gstCredit?: string;
   gstAssessableValue?: number;
   customDutyAmount?: number;
-  faLocationCode?: string;
   genProdPostingGroup?: string;
 }

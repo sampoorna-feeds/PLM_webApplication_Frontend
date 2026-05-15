@@ -26,6 +26,11 @@ export interface PaymentMethod {
   Description: string;
 }
 
+export interface GenProdPostingGroup {
+  Code: string;
+  Description: string;
+}
+
 const DEFAULT_PAGE_SIZE = 30;
 
 function escapeODataValue(value: string): string {
@@ -225,5 +230,53 @@ export const purchaseDropdownsService = {
 
   async getPaymentMethods(): Promise<PaymentMethod[]> {
     return this.getPaymentMethodsPage(0, "", 500);
+  },
+
+  async getGenProdPostingGroupsPage(
+    skip: number = 0,
+    search: string = "",
+    top: number = DEFAULT_PAGE_SIZE,
+  ): Promise<GenProdPostingGroup[]> {
+    if (!search.trim()) {
+      const query = buildODataQuery({
+        $select: "Code,Description",
+        $orderby: "Code",
+        $top: top,
+        $skip: skip,
+      });
+      const endpoint = `/GenprodPostingGroup?company='${encodeURIComponent(COMPANY)}'&${query}`;
+      const response = await apiGet<ODataResponse<GenProdPostingGroup>>(endpoint);
+      return response.value || [];
+    }
+
+    const s = escapeODataValue(search.trim());
+    const sLower = s.toLowerCase();
+    const sUpper = s.toUpperCase();
+    
+    const [res1, res2] = await Promise.all([
+      apiGet<ODataResponse<GenProdPostingGroup>>(`/GenprodPostingGroup?company='${encodeURIComponent(COMPANY)}'&${buildODataQuery({
+        $select: "Code,Description",
+        $orderby: "Code",
+        $top: 100,
+        $skip: 0,
+        $filter: `contains(Code,'${s}') or contains(Code,'${sLower}') or contains(Code,'${sUpper}')`
+      })}`).catch(() => ({ value: [] })),
+      apiGet<ODataResponse<GenProdPostingGroup>>(`/GenprodPostingGroup?company='${encodeURIComponent(COMPANY)}'&${buildODataQuery({
+        $select: "Code,Description",
+        $orderby: "Code",
+        $top: 100,
+        $skip: 0,
+        $filter: `contains(Description,'${s}') or contains(Description,'${sLower}') or contains(Description,'${sUpper}')`
+      })}`).catch(() => ({ value: [] }))
+    ]);
+
+    const combined = [...(res1.value || []), ...(res2.value || [])];
+    const uniqueMap = new Map<string, GenProdPostingGroup>();
+    combined.forEach(item => uniqueMap.set(item.Code, item));
+    return Array.from(uniqueMap.values()).slice(skip, skip + top);
+  },
+
+  async getGenProdPostingGroups(): Promise<GenProdPostingGroup[]> {
+    return this.getGenProdPostingGroupsPage(0, "", 500);
   },
 };

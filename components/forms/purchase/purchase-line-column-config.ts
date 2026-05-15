@@ -52,6 +52,7 @@ export function getPurchaseLineColumnConfig(documentType: PurchaseLineDocumentTy
     { id: "gstGroupCode", label: "GST Group", sortable: false, defaultVisible: false },
     { id: "hsnSacCode", label: "HSN/SAC", sortable: false, defaultVisible: false },
     { id: "gstCredit", label: "GST Credit", sortable: false, defaultVisible: false },
+    { id: "genProdPostingGroup", label: "Gen Prod.", sortable: false, defaultVisible: false },
     { id: "exempted", label: "Exempt", sortable: false, defaultVisible: false }
   );
 

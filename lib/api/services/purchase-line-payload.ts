@@ -20,6 +20,7 @@ export interface PurchaseLinePayloadSource {
   gstAssessableValue?: number;
   customDutyAmount?: number;
   faLocationCode?: string;
+  genProdPostingGroup?: string;
 }
 
 export function buildCreatePurchaseLinePayload(
@@ -68,6 +69,8 @@ export function buildCreatePurchaseLinePayload(
     payload.Custom_Duty_Amount = lineItem.customDutyAmount;
   if (lineItem.faLocationCode)
     payload.FA_Location_Code = lineItem.faLocationCode;
+  if (lineItem.genProdPostingGroup)
+    payload.GenprodPostingGroup = lineItem.genProdPostingGroup;
 
   return toUpperCaseValues(payload, ["Document_Type", "Type"]);
 }
@@ -106,6 +109,8 @@ export function buildUpdatePurchaseLinePayload(
     payload.Custom_Duty_Amount = lineItem.customDutyAmount;
   if (lineItem.faLocationCode !== undefined)
     payload.FA_Location_Code = lineItem.faLocationCode;
+  if (lineItem.genProdPostingGroup !== undefined)
+    payload.GenprodPostingGroup = lineItem.genProdPostingGroup;
 
   return toUpperCaseValues(payload, ["Document_Type", "Type"]);
 }

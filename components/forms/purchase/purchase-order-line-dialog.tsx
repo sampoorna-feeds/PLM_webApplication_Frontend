@@ -67,6 +67,7 @@ import {
   getGstGroupCodes,
   getHsnSacCodes,
 } from "@/lib/api/services/purchase-orders.service";
+import { purchaseDropdownsService, type GenProdPostingGroup } from "@/lib/api/services/purchase-dropdowns.service";
 import type { LineItem } from "@/components/forms/purchase/purchase-line-item.type";
 import {
   getPurchaseLineQuantityConfig,
@@ -120,9 +121,9 @@ function getInitialLineState(lineItem?: LineItem | null): Partial<LineItem> {
     challanQty: lineItem?.challanQty,
     weightQty: lineItem?.weightQty,
      gstCredit: lineItem?.gstCredit || "",
-    gstAssessableValue: lineItem?.gstAssessableValue || 0,
     customDutyAmount: lineItem?.customDutyAmount || 0,
     faLocationCode: lineItem?.faLocationCode || "",
+    genProdPostingGroup: lineItem?.genProdPostingGroup || "",
   };
 }
 
@@ -520,6 +521,7 @@ export function PurchaseOrderLineDialog({
       gstAssessableValue: Number(formState.gstAssessableValue) || 0,
       customDutyAmount: Number(formState.customDutyAmount) || 0,
       faLocationCode: formState.faLocationCode || undefined,
+      genProdPostingGroup: (formState.type === "G/L Account" || formState.type === "Charge (Item)") ? formState.genProdPostingGroup : undefined,
     };
 
     const normalizedLineItemRecord = normalizedLineItem as unknown as Record<
@@ -1100,6 +1102,32 @@ export function PurchaseOrderLineDialog({
                     </Select>
                   </ClearableField>
                 </div>
+                {(formState.type === "G/L Account" || formState.type === "Charge (Item)") && (
+                  <div className="space-y-1">
+                    <FieldTitle>Gen Prod. Posting Group</FieldTitle>
+                    <ClearableField
+                      value={formState.genProdPostingGroup || ""}
+                      onClear={() => handleFieldChange("genProdPostingGroup", "")}
+                    >
+                      <MasterSearchableSelect<GenProdPostingGroup>
+                        value={formState.genProdPostingGroup || ""}
+                        onChange={(value) =>
+                          handleFieldChange("genProdPostingGroup", value)
+                        }
+                        placeholder="Select Gen Prod..."
+                        loadInitial={() => purchaseDropdownsService.getGenProdPostingGroups()}
+                        searchItems={(query) => purchaseDropdownsService.getGenProdPostingGroupsPage(0, query)}
+                        loadMore={(skip, search) => purchaseDropdownsService.getGenProdPostingGroupsPage(skip, search)}
+                        getDisplayValue={(item) => `${item.Code} - ${item.Description}`}
+                        getItemValue={(item) => item.Code}
+                        supportsDualSearch={true}
+                        searchByField={(query, field) =>
+                          purchaseDropdownsService.getGenProdPostingGroupsPage(0, query)
+                        }
+                      />
+                    </ClearableField>
+                  </div>
+                )}
               </div>
             </div>
           )}

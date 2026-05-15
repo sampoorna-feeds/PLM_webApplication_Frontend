@@ -836,10 +836,18 @@ export function SalesCreateDocumentFormContent({
           toastError(new Error("No lines selected"), "Select at least one line to delete");
           return;
         }
+        let deletedCount = 0;
         for (const lineNo of selectedDeleteLineNos) {
-          await ops.deleteLine(initialOrderNo, lineNo);
+          try {
+            await ops.deleteLine(initialOrderNo, lineNo);
+            deletedCount++;
+          } catch (err) {
+            console.error(`Failed to delete line ${lineNo}:`, err);
+          }
         }
-        toast.success(`Deleted ${selectedDeleteLineNos.length} line(s)`);
+        if (deletedCount > 0) {
+          toast.success(`Deleted ${deletedCount} line(s)`);
+        }
         setIsDeleteDialogOpen(false);
         refreshLines();
         return;
@@ -848,14 +856,21 @@ export function SalesCreateDocumentFormContent({
         .map((l) => l.Line_No)
         .filter((n): n is number => typeof n === "number");
       for (const lineNo of allLineNos) {
-        await ops.deleteLine(initialOrderNo, lineNo);
+        try {
+          await ops.deleteLine(initialOrderNo, lineNo);
+        } catch (err) {
+          console.error(`Failed to delete line ${lineNo} during document deletion:`, err);
+        }
       }
       await ops.deleteHeader(initialOrderNo);
       toast.success("Document deleted");
       setIsDeleteDialogOpen(false);
       onSuccess("");
     } catch (err) {
+      console.error("Delete operation encountered an error:", err);
       setActionError(getErrorMessage(err, "Failed to delete document."));
+      // Still refresh to show current state
+      refreshLines();
     } finally {
       setIsDeleteLoading(false);
     }

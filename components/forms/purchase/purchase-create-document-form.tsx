@@ -1116,17 +1116,23 @@ export function PurchaseCreateDocumentFormContent({
       for (const lineId of selectedLineIds) {
         const item = lineItems.find((i) => i.id === lineId);
         if (item && item.lineNo) {
-          await config.deleteLine(createdOrderNo, item.lineNo);
-          deletedCount++;
+          try {
+            await config.deleteLine(createdOrderNo, item.lineNo);
+            deletedCount++;
+          } catch (err) {
+            console.error(`Failed to delete line ${item.lineNo}:`, err);
+          }
         }
       }
       await refreshHydratedDocument();
       setSelectedLineIds([]);
-      toast.success(`${deletedCount} line items removed.`);
+      if (deletedCount > 0) {
+        toast.success(`${deletedCount} line items removed.`);
+      }
     } catch (error) {
-      setPlaceOrderError(
-        getErrorMessage(error, "Failed to delete some line items. Please try again."),
-      );
+      console.error("Bulk delete operation encountered an error:", error);
+      // We still attempt to refresh to show current state
+      void refreshHydratedDocument();
     } finally {
       setIsSavingLine(false);
     }
@@ -1240,16 +1246,23 @@ export function PurchaseCreateDocumentFormContent({
         .filter((lineNo): lineNo is number => typeof lineNo === "number");
 
       for (const lineNo of persistedLineNos) {
-        await config.deleteLine(createdOrderNo, lineNo);
+        try {
+          await config.deleteLine(createdOrderNo, lineNo);
+        } catch (err) {
+          console.error(`Failed to delete line ${lineNo} during document deletion:`, err);
+        }
       }
 
       await config.deleteHeader(createdOrderNo);
       toast.success(`${config.displayTitle} deleted successfully.`);
       onSuccess(createdOrderNo);
     } catch (error) {
+      console.error("Failed to delete document header:", error);
       setPlaceOrderError(
         getErrorMessage(error, `Failed to delete ${config.displayTitle}.`),
       );
+      // Refresh to show remaining state
+      void refreshHydratedDocument();
     } finally {
       setIsActionLoading(false);
     }

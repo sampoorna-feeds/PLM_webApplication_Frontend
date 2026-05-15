@@ -106,6 +106,11 @@ export interface GetQCReceiptsParams {
   $count?: boolean;
 }
 
+export interface SearchQCReceiptsParams extends GetQCReceiptsParams {
+  /** term to search across multiple columns */
+  searchTerm?: string;
+}
+
 export interface PaginatedQCReceiptsResponse {
   receipts: QCReceiptHeader[];
   totalCount: number;
@@ -140,6 +145,59 @@ export async function getQCReceiptsWithCount(
     receipts: response.value || [],
     totalCount: response["@odata.count"] ?? 0,
   };
+}
+
+/**
+ * Search QC receipts across multiple fields when the server can't handle OR.
+ */
+export async function searchQCReceipts(
+  params: SearchQCReceiptsParams = {},
+): Promise<PaginatedQCReceiptsResponse> {
+  const { searchTerm, $top, $skip, ...rest } = params;
+  if (!searchTerm || searchTerm.trim() === "") {
+    return getQCReceiptsWithCount(rest as GetQCReceiptsParams);
+  }
+
+  const escaped = searchTerm.replace(/'/g, "''");
+  const fieldsToSearch = [
+    "No",
+    "Purchase_Receipt_No",
+    "Item_No",
+    "Item_Name",
+    "Buy_from_Vendor_Name",
+    "Vehicle_No",
+  ];
+
+  // perform one request per field
+  const responses = await Promise.all(
+    fieldsToSearch.map((field) => {
+      const filterPart = `contains(${field},'${escaped}')`;
+      const filter = rest.$filter
+        ? `${rest.$filter} and ${filterPart}`
+        : filterPart;
+      return getQCReceiptsWithCount({ ...rest, $filter: filter, $top: 500 });
+    }),
+  );
+
+  const map: Record<string, QCReceiptHeader> = {};
+  responses.forEach((res) => {
+    res.receipts.forEach((r) => {
+      map[r.No] = r;
+    });
+  });
+
+  const allReceipts = Object.values(map);
+  const total = allReceipts.length;
+
+  // apply paging after merge
+  let paged = allReceipts;
+  if ($skip !== undefined || $top !== undefined) {
+    const start = $skip || 0;
+    const end = $top != null ? start + $top : undefined;
+    paged = allReceipts.slice(start, end);
+  }
+
+  return { receipts: paged, totalCount: total };
 }
 
 export async function getQCReceiptLines(
@@ -206,6 +264,60 @@ export async function getPostedQCReceiptsWithCount(
     receipts: response.value || [],
     totalCount: response["@odata.count"] ?? 0,
   };
+}
+
+/**
+ * Search posted QC receipts across multiple fields when the server can't handle OR.
+ */
+export async function searchPostedQCReceipts(
+  params: SearchQCReceiptsParams = {},
+): Promise<PaginatedQCReceiptsResponse> {
+  const { searchTerm, $top, $skip, ...rest } = params;
+  if (!searchTerm || searchTerm.trim() === "") {
+    return getPostedQCReceiptsWithCount(rest as GetQCReceiptsParams);
+  }
+
+  const escaped = searchTerm.replace(/'/g, "''");
+  const fieldsToSearch = [
+    "No",
+    "Purchase_Receipt_No",
+    "Item_No",
+    "Item_Name",
+    "Buy_from_Vendor_Name",
+    "Vehicle_No",
+    "Bardana_RPO",
+  ];
+
+  // perform one request per field
+  const responses = await Promise.all(
+    fieldsToSearch.map((field) => {
+      const filterPart = `contains(${field},'${escaped}')`;
+      const filter = rest.$filter
+        ? `${rest.$filter} and ${filterPart}`
+        : filterPart;
+      return getPostedQCReceiptsWithCount({ ...rest, $filter: filter, $top: 500 });
+    }),
+  );
+
+  const map: Record<string, QCReceiptHeader> = {};
+  responses.forEach((res) => {
+    res.receipts.forEach((r) => {
+      map[r.No] = r;
+    });
+  });
+
+  const allReceipts = Object.values(map);
+  const total = allReceipts.length;
+
+  // apply paging after merge
+  let paged = allReceipts;
+  if ($skip !== undefined || $top !== undefined) {
+    const start = $skip || 0;
+    const end = $top != null ? start + $top : undefined;
+    paged = allReceipts.slice(start, end);
+  }
+
+  return { receipts: paged, totalCount: total };
 }
 
 /**

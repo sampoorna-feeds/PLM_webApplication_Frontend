@@ -6,6 +6,8 @@ import {
   getQCReceiptLines,
   getQCReceiptsWithCount,
   postQCReceipt,
+  searchPostedQCReceipts,
+  searchQCReceipts,
   updateQCReceiptHeader,
   updateQCReceiptLine,
   type QCReceiptHeader,
@@ -117,24 +119,8 @@ export function useQCReceipts(initialFilters?: {
         filterParts.push(`Approval_Status eq '${statusFilter}'`);
       }
 
-      // Global search
-      if (searchQuery) {
-        const escaped = searchQuery.replace(/'/g, "''");
-        const searchParts = [
-          `contains(No,'${escaped}')`,
-          `contains(Purchase_Receipt_No,'${escaped}')`,
-          `contains(Item_No,'${escaped}')`,
-          `contains(Item_Name,'${escaped}')`,
-          `contains(Buy_from_Vendor_Name,'${escaped}')`,
-          `contains(Vehicle_No,'${escaped}')`,
-        ];
-
-        if (initialFilters?.isPosted) {
-          searchParts.push(`contains(Bardana_RPO,'${escaped}')`);
-        }
-
-        filterParts.push(`(${searchParts.join(" or ")})`);
-      }
+      // Global search - handled by the service to avoid OData OR restrictions
+      const searchTerm = searchQuery ? searchQuery : undefined;
 
       // Column filters
       const colFilterStr = buildQCReceiptFilterString({ columnFilters });
@@ -181,8 +167,8 @@ export function useQCReceipts(initialFilters?: {
       }
 
       const result = initialFilters?.isPosted
-        ? await getPostedQCReceiptsWithCount(params)
-        : await getQCReceiptsWithCount(params);
+        ? await searchPostedQCReceipts({ ...params, searchTerm })
+        : await searchQCReceipts({ ...params, searchTerm });
 
       setReceipts(result.receipts);
       setTotalCount(result.totalCount);

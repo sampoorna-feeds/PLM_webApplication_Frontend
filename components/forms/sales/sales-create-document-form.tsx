@@ -516,7 +516,7 @@ export function SalesCreateDocumentFormContent({
               driverPhone: (freshHeader.Driver_Mobile_No as string) || "",
               lrRrNumber: (freshHeader.LR_RR_No as string) || "",
               lrRrDate: today,
-              postingDate: freshHeader.Posting_Date || today,
+              postingDate: today,
               externalDocumentNo: freshHeader.External_Document_No || "",
               lineNarration: (freshHeader.Line_Narration1 as string) || "",
               distanceKm: freshHeader.Distance_km
@@ -882,15 +882,15 @@ export function SalesCreateDocumentFormContent({
       toastError(new Error("No post option"), "Select a post option");
       return;
     }
-    let initialDate = "";
     const today = new Date().toISOString().split("T")[0];
+    let initialDate = today;
     if (webUserProfile) {
       const from = webUserProfile.Allow_Posting_From?.split("T")[0];
       const to = webUserProfile.Allow_Posting_To?.split("T")[0];
       const isAfterFrom = !from || from === "0001-01-01" || today >= from;
       const isBeforeTo = !to || to === "0001-01-01" || today <= to;
-      if (isAfterFrom && isBeforeTo) {
-        initialDate = today;
+      if (!isAfterFrom || !isBeforeTo) {
+        initialDate = "";
       }
     }
     setPostDetails((prev) => ({
@@ -947,7 +947,7 @@ export function SalesCreateDocumentFormContent({
         Driver_Mobile_No: "",
         LR_RR_No: "",
         LR_RR_Date: "",
-        Posting_Date: orderHeader?.Posting_Date || today,
+        Posting_Date: today,
         External_Document_No: "",
         Distance_km: 0,
       };

@@ -71,8 +71,8 @@ interface PurchaseItemTrackingDialogProps {
   orderNo: string;
   locationCode: string;
   line: PurchaseLine | null;
-  documentType?: PurchaseLineDocumentType;
   defaultExpirationDate?: string;
+  dueDate?: string;
 }
 
 export function PurchaseItemTrackingDialog({
@@ -84,6 +84,7 @@ export function PurchaseItemTrackingDialog({
   line,
   documentType = "order",
   defaultExpirationDate = "",
+  dueDate = "",
 }: PurchaseItemTrackingDialogProps) {
   const sourceSubType = DOC_TYPE_TO_SUBTYPE[documentType];
   const [lotNo, setLotNo] = useState("");
@@ -163,11 +164,6 @@ export function PurchaseItemTrackingDialog({
       };
       fetchLots();
       fetchTrackingLines();
-
-      // Pre-fill expiration date if not already set and not editing
-      if (!editingLine && !expirationDate && defaultExpirationDate) {
-        setExpirationDate(defaultExpirationDate);
-      }
     } else if (!open) {
       // Only clear states when the dialog is explicitly closed
       setAvailableLots([]);
@@ -189,6 +185,21 @@ export function PurchaseItemTrackingDialog({
       availableForAssignment,
     );
     setQuantity(suggestedQty.toString());
+  };
+
+  const handleFillDueDate = () => {
+    if (!dueDate || dueDate === "0001-01-01") {
+      toast.error("Order Due Date is not available");
+      return;
+    }
+    try {
+      const d = new Date(dueDate);
+      d.setDate(d.getDate() + 45);
+      setExpirationDate(d.toISOString().split("T")[0]);
+    } catch (e) {
+      console.error("Error calculating expiration date:", e);
+      toast.error("Invalid Due Date format");
+    }
   };
 
   const refreshTrackingLines = async () => {
@@ -441,12 +452,25 @@ export function PurchaseItemTrackingDialog({
                     <Label htmlFor="expirationDate" className="text-sm">
                       Expiration Date
                     </Label>
-                    <DateInput
-                      id="expirationDate"
-                      value={expirationDate}
-                      onChange={(val) => setExpirationDate(val)}
-                      className={fieldInputClass}
-                    />
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 min-w-0">
+                        <DateInput
+                          id="expirationDate"
+                          value={expirationDate}
+                          onChange={(val) => setExpirationDate(val)}
+                          className={fieldInputClass}
+                        />
+                      </div>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        className="h-8 px-4 text-[10px] font-bold bg-blue-600 text-white hover:bg-blue-700 shadow-sm border-blue-700"
+                        onClick={handleFillDueDate}
+                      >
+                        FILL
+                      </Button>
+                    </div>
                   </div>
                   <div className="space-y-1.5">
                     <Label htmlFor="quantity" className="text-sm">

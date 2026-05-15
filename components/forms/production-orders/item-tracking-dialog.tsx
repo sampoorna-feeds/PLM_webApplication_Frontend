@@ -237,23 +237,11 @@ export function ItemTrackingDialog({
 
       fetchLots();
       fetchTrackingLines();
-    } else {
+    } else if (!open) {
       setAvailableLots([]);
       setTrackingLines([]);
       setLotNo("");
-      // Prefill expiration date as Due Date + 45 days ONLY for production order lines
-      if (line && line.Due_Date) {
-        try {
-          const dueDate = new Date(line.Due_Date);
-          dueDate.setDate(dueDate.getDate() + 45);
-          setExpirationDate(dueDate.toISOString().split("T")[0]);
-        } catch (e) {
-          console.error("Error calculating expiration date:", e);
-          setExpirationDate("");
-        }
-      } else {
-        setExpirationDate("");
-      }
+      setExpirationDate("");
       setQuantity("");
       setEditingLine(null);
       setIsDeleting(null);
@@ -270,6 +258,31 @@ export function ItemTrackingDialog({
       Math.min(lot.RemainingQty || 0, availableForAssignment),
     );
     setQuantity(suggestedQty.toString());
+  };
+
+  const handleFillDueDate = () => {
+    let baseDate: string | undefined;
+    if (line?.Due_Date) {
+      baseDate = line.Due_Date;
+    } else if (component && "Due_Date" in component && typeof component.Due_Date === "string") {
+      baseDate = component.Due_Date;
+    } else if (journalEntry && "Posting_Date" in journalEntry && typeof journalEntry.Posting_Date === "string") {
+      baseDate = journalEntry.Posting_Date;
+    }
+
+    if (!baseDate || baseDate === "0001-01-01") {
+      toast.error("Date is not available");
+      return;
+    }
+
+    try {
+      const d = new Date(baseDate);
+      d.setDate(d.getDate() + 45);
+      setExpirationDate(d.toISOString().split("T")[0]);
+    } catch (e) {
+      console.error("Error calculating expiration date:", e);
+      toast.error("Invalid Date format");
+    }
   };
 
   const handleSave = async () => {
@@ -607,11 +620,24 @@ export function ItemTrackingDialog({
                       <Label htmlFor="expirationDate" className="text-sm">
                         Expiration Date
                       </Label>
-                    <DateInput
-                      id="expirationDate"
-                      value={expirationDate}
-                      onChange={(val) => setExpirationDate(val)}
-                    />
+                      <div className="flex items-center gap-2">
+                        <div className="flex-1 min-w-0">
+                          <DateInput
+                            id="expirationDate"
+                            value={expirationDate}
+                            onChange={(val) => setExpirationDate(val)}
+                          />
+                        </div>
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          size="sm"
+                          className="h-8 px-4 text-[10px] font-bold bg-blue-600 text-white hover:bg-blue-700 shadow-sm border-blue-700"
+                          onClick={handleFillDueDate}
+                        >
+                          FILL
+                        </Button>
+                      </div>
                     </div>
                     <div className="space-y-1.5">
                       <Label htmlFor="quantity" className="text-sm">

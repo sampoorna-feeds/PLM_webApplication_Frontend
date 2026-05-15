@@ -125,6 +125,8 @@ export interface PurchaseTotals {
   SGST: number;
   TDS: number;
   "Total Amt": number;
+  "Total Invoice Amt"?: number;
+  "Total Payable"?: number;
 }
 
 /**

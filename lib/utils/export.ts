@@ -207,3 +207,86 @@ export function exportSummaryToExcel(
 
   XLSX.writeFile(workbook, `${filename}_${timestamp}.xlsx`);
 }
+
+/**
+ * Exports an array of VoucherEntryResponse entries to an Excel (.xlsx) file.
+ */
+export function exportVouchersToExcel(
+  entries: any[],
+  filename: string = "Voucher_Export",
+) {
+  // Define the ordered columns for the Voucher export based on the UI table.
+  const voucherColumns = [
+    { label: "Doc No", key: "Document_No" },
+    { label: "Posting Date", key: "Posting_Date" },
+    { label: "Template", key: "Journal_Template_Name" },
+    { label: "Doc Type", key: "Document_Type" },
+    { label: "Acc Type", key: "Account_Type" },
+    { label: "Acc No", key: "Account_No" },
+    { label: "Acc Name", key: "AccountName" },
+    { label: "Ext Doc", key: "External_Document_No" },
+    { label: "Description", key: "Description" },
+    { label: "Amount", key: "Amount" },
+    { label: "Bal Type", key: "Bal_Account_Type" },
+    { label: "Bal No", key: "Bal_Account_No" },
+    { label: "Bal Name", key: "BalAccName" },
+    { label: "Narration", key: "Line_Narration1" },
+    { label: "LOB", key: "Shortcut_Dimension_1_Code" },
+    { label: "Branch", key: "Shortcut_Dimension_2_Code" },
+    { label: "LOC", key: "ShortcutDimCode3" },
+    { label: "Employee", key: "ShortcutDimCode4" },
+    { label: "Assignment", key: "ShortcutDimCode5" },
+    { label: "TDS", key: "TDS_Section_Code" },
+    { label: "TCS", key: "TCS_Nature_of_Collection" },
+    { label: "User ID", key: "User_ID" },
+  ];
+
+  // Map raw data into the column layout
+  const exportData = entries.map((entry) => {
+    const row: Record<string, any> = {};
+    voucherColumns.forEach((col) => {
+      let value = entry[col.key];
+      // Format numeric values if necessary
+      if (col.key === "Amount" && typeof value === "number") {
+        row[col.label] = parseFloat(value.toFixed(2));
+      } else {
+        row[col.label] = value || "-";
+      }
+    });
+    return row;
+  });
+
+  // Create a worksheet
+  const worksheet = XLSX.utils.json_to_sheet(exportData);
+
+  // Auto-size columns for readability
+  const colWidths = voucherColumns.map((col) => ({
+    wch: Math.max(col.label.length, 12) + 2,
+  }));
+  worksheet["!cols"] = colWidths;
+
+  // Enable Excel AutoFilter for the data range
+  const range = XLSX.utils.decode_range(worksheet["!ref"] || "A1:A1");
+  worksheet["!autofilter"] = {
+    ref: XLSX.utils.encode_range({
+      s: { c: 0, r: 0 },
+      e: { c: voucherColumns.length - 1, r: range.e.r },
+    }),
+  };
+
+  // Create a new workbook and append the worksheet
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Vouchers");
+
+  // Generate filename with timestamp
+  const now = new Date();
+  const d = String(now.getDate()).padStart(2, "0");
+  const m = String(now.getMonth() + 1).padStart(2, "0");
+  const y = now.getFullYear();
+  const h = String(now.getHours()).padStart(2, "0");
+  const min = String(now.getMinutes()).padStart(2, "0");
+  const s = String(now.getSeconds()).padStart(2, "0");
+  const timestamp = `${d}-${m}-${y}-${h}-${min}-${s}`;
+
+  XLSX.writeFile(workbook, `${filename}_${timestamp}.xlsx`);
+}

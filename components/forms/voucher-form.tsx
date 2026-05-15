@@ -7,7 +7,7 @@
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { z } from "zod";
-import { Pencil, Plus, Trash2, Upload, Info, Loader2, X } from "lucide-react";
+import { Pencil, Plus, Trash2, Upload, Info, Loader2, X, FileSpreadsheet } from "lucide-react";
 
 import {
   voucherSchema,
@@ -84,6 +84,7 @@ import { getWebUser, type WebUser } from "@/lib/api/services/web-user.service";
 import { getCustomerByNo } from "@/lib/api/services/customer.service";
 import { useAuth } from "@/lib/contexts/auth-context";
 import type { ApiError } from "@/lib/api/client";
+import { exportVouchersToExcel } from "@/lib/utils/export";
 
 // Removed VoucherEntry type as staging area is being removed
 
@@ -1213,6 +1214,15 @@ export function VoucherForm() {
   };
 
   // Handle posting vouchers
+  const handleExportToExcel = () => {
+    if (fetchedVouchers.length === 0) {
+      toast.error("No vouchers to export");
+      return;
+    }
+    exportVouchersToExcel(fetchedVouchers);
+    toast.success("Vouchers exported to Excel");
+  };
+
   const handlePostVouchers = async () => {
     setIsPosting(true);
     try {
@@ -2427,19 +2437,36 @@ export function VoucherForm() {
           <div className="text-foreground/80 text-sm font-semibold">
             Vouchers from ERP
           </div>
-          <Button
-            type="button"
-            size="sm"
-            onClick={handlePostVouchers}
-            disabled={isPosting || fetchedVouchers.length === 0}
-            title={
-              fetchedVouchers.length === 0
-                ? "No vouchers to post"
-                : "Post all vouchers"
-            }
-          >
-            {isPosting ? "Posting..." : "Post"}
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleExportToExcel}
+              disabled={fetchedVouchers.length === 0}
+              title={
+                fetchedVouchers.length === 0
+                  ? "No vouchers to export"
+                  : "Export vouchers to Excel"
+              }
+            >
+              <FileSpreadsheet className="mr-2 h-4 w-4" />
+              Export to Excel
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              onClick={handlePostVouchers}
+              disabled={isPosting || fetchedVouchers.length === 0}
+              title={
+                fetchedVouchers.length === 0
+                  ? "No vouchers to post"
+                  : "Post all vouchers"
+              }
+            >
+              {isPosting ? "Posting..." : "Post"}
+            </Button>
+          </div>
         </div>
         {isLoadingVouchers ? (
           <div className="bg-muted/20 text-foreground/70 rounded-md border p-6 text-center">

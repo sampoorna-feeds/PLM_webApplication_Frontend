@@ -3,6 +3,7 @@
 import {
   getPostedQCReceiptLines,
   getPostedQCReceiptsWithCount,
+  getQCReceiptHeader,
   getQCReceiptLines,
   getQCReceiptsWithCount,
   postQCReceipt,
@@ -116,7 +117,11 @@ export function useQCReceipts(initialFilters?: {
 
       // Status filter from tabs
       if (statusFilter) {
-        filterParts.push(`Approval_Status eq '${statusFilter}'`);
+        if (statusFilter === "Approved") {
+          filterParts.push("Approve eq true");
+        } else {
+          filterParts.push(`Approval_Status eq '${statusFilter}'`);
+        }
       }
 
       // Global search - handled by the service to avoid OData OR restrictions
@@ -299,6 +304,31 @@ export function useQCReceipts(initialFilters?: {
     onClearFilters: handleClearFilters,
     refetch: fetchReceipts,
   };
+}
+
+export function useQCReceiptDetail(receiptNo: string | null) {
+  const [receipt, setReceipt] = useState<QCReceiptHeader | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const fetchDetail = useCallback(async () => {
+    if (!receiptNo) return;
+    setIsLoading(true);
+    try {
+      const data = await getQCReceiptHeader(receiptNo);
+      setReceipt(data);
+    } catch (error) {
+      console.error("Error fetching QC receipt detail:", error);
+      toastError(error, "Failed to load QC receipt details.");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [receiptNo]);
+
+  useEffect(() => {
+    fetchDetail();
+  }, [fetchDetail]);
+
+  return { receipt, setReceipt, isLoading, refetch: fetchDetail };
 }
 
 export function useQCReceiptLines(

@@ -17,7 +17,7 @@ import { useFormStackContext } from "@/lib/form-stack/form-stack-context";
 import { Loader2, RotateCcw, Save, Send } from "lucide-react";
 import { useEffect, useState } from "react";
 import { QCReceiptLinesTable } from "./qc-receipt-lines-table";
-import { useQCReceiptLines, useQCReceiptPosting, useQCReceiptUpdate } from "./use-qc-receipts";
+import { useQCReceiptDetail, useQCReceiptLines, useQCReceiptPosting, useQCReceiptUpdate } from "./use-qc-receipts";
 import { formatDate } from "@/lib/utils/date";
 
 interface QCReceiptDetailFormProps {
@@ -31,7 +31,9 @@ export function QCReceiptDetailForm({ tabId, context }: QCReceiptDetailFormProps
   const initialReceipt = context?.receipt as QCReceiptHeader | undefined;
   const isPosted = !!context?.isPosted;
   
-  const [receipt, setReceipt] = useState<QCReceiptHeader | null>(initialReceipt || null);
+  const { receipt, setReceipt, isLoading: isHeaderLoading, refetch: refetchDetail } = useQCReceiptDetail(
+    initialReceipt?.No || null
+  );
   const [editedFields, setEditedFields] = useState<Partial<QCReceiptHeader>>({});
   
   const { lines, setLines, isLoading: isLinesLoading } = useQCReceiptLines(
@@ -47,15 +49,13 @@ export function QCReceiptDetailForm({ tabId, context }: QCReceiptDetailFormProps
   const [userBranch, setUserBranch] = useState<string | undefined>(undefined);
 
   useEffect(() => {
-    if (initialReceipt) setReceipt(initialReceipt);
-    
     const creds = getAuthCredentials();
     if (creds?.userID) {
       getAllBranchesFromUserSetup(creds.userID).then(branches => {
         if (branches.length > 0) setUserBranch(branches[0].Code);
       }).catch(console.error);
     }
-  }, [initialReceipt]);
+  }, []);
 
   useEffect(() => {
     const loadLocations = async () => {
@@ -91,6 +91,15 @@ export function QCReceiptDetailForm({ tabId, context }: QCReceiptDetailFormProps
     }
   }, [receipt?.Location_Code]);
 
+  if (isHeaderLoading && !receipt) {
+    return (
+      <div className="flex h-full items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <span className="ml-2 text-sm text-muted-foreground">Loading details...</span>
+      </div>
+    );
+  }
+
   if (!receipt) {
     return <div className="p-4">No receipt selected</div>;
   }
@@ -119,6 +128,8 @@ export function QCReceiptDetailForm({ tabId, context }: QCReceiptDetailFormProps
         delete next[field];
         return next;
       });
+      // Refresh the entire detail to ensure consistency
+      refetchDetail();
     }
   };
 
@@ -140,6 +151,8 @@ export function QCReceiptDetailForm({ tabId, context }: QCReceiptDetailFormProps
       newLines[index] = updatedLine;
       return newLines;
     });
+    // Refresh header data when a line is updated
+    refetchDetail();
   };
 
   const isHeaderDirty = Object.keys(editedFields).length > 0;
@@ -181,9 +194,10 @@ export function QCReceiptDetailForm({ tabId, context }: QCReceiptDetailFormProps
                 disabled={
                   isPosting ||
                   isLinesLoading ||
+                  isHeaderLoading ||
                   isHeaderDirty ||
                   isHeaderUpdating ||
-                  (receipt.Approval_Status !== "Approved" && receipt.Approval_Status !== "Accepted")
+                  !receipt.Approve
                 }
                 className="gap-2 h-8"
               >

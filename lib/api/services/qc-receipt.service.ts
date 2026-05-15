@@ -200,6 +200,14 @@ export async function searchQCReceipts(
   return { receipts: paged, totalCount: total };
 }
 
+export async function getQCReceiptHeader(
+  receiptNo: string,
+): Promise<QCReceiptHeader> {
+  const escaped = receiptNo.replace(/'/g, "''");
+  const endpoint = `/qcReceiptH('${escaped}')?company='${encodeURIComponent(COMPANY)}'`;
+  return await apiGet<QCReceiptHeader>(endpoint);
+}
+
 export async function getQCReceiptLines(
   receiptNo: string,
 ): Promise<QCReceiptLine[]> {

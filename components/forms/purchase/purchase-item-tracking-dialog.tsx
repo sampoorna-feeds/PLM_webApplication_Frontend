@@ -71,6 +71,7 @@ interface PurchaseItemTrackingDialogProps {
   orderNo: string;
   locationCode: string;
   line: PurchaseLine | null;
+  documentType?: PurchaseLineDocumentType;
   defaultExpirationDate?: string;
   dueDate?: string;
 }

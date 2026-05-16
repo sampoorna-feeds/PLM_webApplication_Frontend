@@ -71,6 +71,8 @@ export async function createSalesReturnOrder(
       Invoice_Type: data.invoiceType || "Bill of Supply",
       Shortcut_Dimension_1_Code: data.lob || "",
       Shortcut_Dimension_2_Code: data.branch || "",
+      Shortcut_Dimension_3_Code: data.locationCode || "",
+      ShortcutDimCode3: data.locationCode || "",
       Responsibility_Center: data.lob || "",
       SFPL_User_ID: data.SFPL_User_ID || "",
     };

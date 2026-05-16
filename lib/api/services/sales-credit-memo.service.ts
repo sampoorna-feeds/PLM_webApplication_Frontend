@@ -68,7 +68,7 @@ export async function createSalesCreditMemo(
       Posting_Date: data.postingDate,
       Document_Date: data.documentDate,
       External_Document_No: data.externalDocumentNo || "",
-      Invoice_Type: data.invoiceType || "Bill of supply",
+      Invoice_Type: data.invoiceType || "Bill of Supply",
       Shortcut_Dimension_1_Code: data.lob || "",
       Shortcut_Dimension_2_Code: data.branch || "",
       Responsibility_Center: data.lob || "",
@@ -76,7 +76,7 @@ export async function createSalesCreditMemo(
     };
     const response = await apiPost<CreateSalesDocumentApiResponse>(
       endpoint,
-      toUpperCaseValues(payload, ["Document_Type", "Type"]),
+      toUpperCaseValues(payload, ["Document_Type", "Type", "Invoice_Type"]),
     );
     if (!response) return { orderId: "", orderNo: "" };
     const orderNo = response.No ?? response.orderNo ?? "";

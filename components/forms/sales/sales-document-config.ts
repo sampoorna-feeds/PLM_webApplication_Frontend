@@ -24,7 +24,7 @@ const STANDARD_INVOICE_TYPE_OPTIONS: InvoiceTypeOption[] = [
   { value: "Supplementary", label: "Supplementary" },
   { value: "Debit Note", label: "Debit Note" },
   { value: "Non-GST", label: "Non-GST" },
-  { value: "Taxable", label: "Taxable" },
+  { value: "Bill of Supply", label: "Bill of Supply" },
 ];
 
 export interface SalesDocumentCapabilities {

@@ -74,7 +74,7 @@ export async function createSalesOrder(
       Document_Date: data.documentDate,
       Order_Date: data.orderDate || data.postingDate,
       External_Document_No: data.externalDocumentNo || "",
-      Invoice_Type: data.invoiceType || "Bill of supply",
+      Invoice_Type: data.invoiceType || "Bill of Supply",
       Shortcut_Dimension_1_Code: data.lob || "",
       Shortcut_Dimension_2_Code: data.branch || "",
       Responsibility_Center: data.lob || "",
@@ -84,7 +84,7 @@ export async function createSalesOrder(
 
     const response = await apiPost<CreateSalesOrderApiResponse>(
       endpoint,
-      toUpperCaseValues(payload, ["Document_Type"]),
+      toUpperCaseValues(payload, ["Document_Type", "Invoice_Type"]),
     );
 
     if (!response) return { orderId: "", orderNo: "" };

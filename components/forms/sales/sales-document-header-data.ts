@@ -82,37 +82,72 @@ export function buildSalesHeaderPatchPayload(
   supportsOrderDate: boolean,
   original?: Record<string, any> | null,
 ): Record<string, unknown> {
-  if (!original) {
+  const getFullPayload = () => {
+    const invoiceType = (formData.invoiceType || "").trim();
+    const finalInvoiceType = invoiceType.toLowerCase() === "taxable" ? "Bill of Supply" : invoiceType;
+
     const payload: Record<string, unknown> = {
-      Sell_to_Customer_No: formData.customerNo || "",
-      Ship_to_Code: formData.shipToCode || "",
-      Salesperson_Code: formData.salesPersonCode || "",
-      Location_Code: formData.locationCode || "",
-      Posting_Date: formData.postingDate,
-      Document_Date: formData.documentDate,
-      External_Document_No: formData.externalDocumentNo || "",
-      Invoice_Type: formData.invoiceType || "",
-      Shortcut_Dimension_1_Code: formData.lob || "",
-      Shortcut_Dimension_2_Code: formData.branch || "",
-      Responsibility_Center: formData.lob || "",
-      Applies_to_Doc_Type: formData.appliesToDocType || "",
-      Applies_to_Doc_No: formData.appliesToDocNo || "",
-      Applies_to_ID: formData.appliesToID || "",
+      sell_to_Customer_No: formData.customerNo || "",
+      ship_to_Code: formData.shipToCode || "",
+      salesperson_Code: formData.salesPersonCode || "",
+      location_Code: formData.locationCode || "",
+      posting_Date: formData.postingDate,
+      document_Date: formData.documentDate,
+      external_Document_No: formData.externalDocumentNo || "",
+      invoice_Type: finalInvoiceType,
+      shortcut_Dimension_1_Code: formData.lob || "",
+      shortcut_Dimension_2_Code: formData.branch || "",
+      shortcut_Dimension_3_Code: formData.locationCode || "",
+      responsibility_Center: formData.lob || "",
+      applies_to_Doc_Type: formData.appliesToDocType || "",
+      applies_to_Doc_No: formData.appliesToDocNo || "",
+      applies_to_ID: formData.appliesToID || "",
     };
 
     if (supportsOrderDate) {
-      payload.Order_Date = formData.orderDate || formData.postingDate;
+      payload.order_Date = formData.orderDate || formData.postingDate;
     }
 
     return payload;
+  };
+
+  if (!original) {
+    return getFullPayload();
+  }
+
+  const invoiceType = (formData.invoiceType || "").trim();
+  const finalInvoiceType =
+    invoiceType.toLowerCase() === "taxable" ? "Bill of Supply" : invoiceType;
+
+  // If customer is changed, send only specific fields to prevent ERP errors
+  const oldCustomer = (original.Sell_to_Customer_No as string) || "";
+  const newCustomer = formData.customerNo || "";
+  if (oldCustomer !== newCustomer) {
+    return {
+      sell_to_Customer_No: formData.customerNo || "",
+      ship_to_Code: formData.shipToCode || "",
+      salesperson_Code: formData.salesPersonCode || "",
+      location_Code: formData.locationCode || "",
+      invoice_Type: finalInvoiceType,
+      shortcut_Dimension_1_Code: formData.lob || "",
+      shortcut_Dimension_2_Code: formData.branch || "",
+      shortcut_Dimension_3_Code: formData.locationCode || "",
+      responsibility_Center: formData.lob || "",
+    };
   }
 
   const patch: Record<string, unknown> = {};
 
   const compareString = (bcField: string, val: string) => {
+    let finalVal = val.trim();
+    if (bcField === "Invoice_Type" && finalVal.toLowerCase() === "taxable") {
+      finalVal = "Bill of Supply";
+    }
+
     const orig = (original[bcField] as string) || "";
-    if (val.trim() !== orig.trim()) {
-      patch[bcField] = val.trim();
+    if (finalVal !== orig.trim()) {
+      const payloadField = bcField.charAt(0).toLowerCase() + bcField.slice(1);
+      patch[payloadField] = finalVal;
     }
   };
 
@@ -121,7 +156,8 @@ export function buildSalesHeaderPatchPayload(
     const orig = origRaw?.split("T")[0] || "";
     const cur = val || "";
     if (cur !== orig && cur !== "") {
-      patch[bcField] = cur;
+      const payloadField = bcField.charAt(0).toLowerCase() + bcField.slice(1);
+      patch[payloadField] = cur;
     }
   };
 
@@ -135,6 +171,7 @@ export function buildSalesHeaderPatchPayload(
   compareString("Invoice_Type", formData.invoiceType || "");
   compareString("Shortcut_Dimension_1_Code", formData.lob || "");
   compareString("Shortcut_Dimension_2_Code", formData.branch || "");
+  compareString("Shortcut_Dimension_3_Code", formData.locationCode || "");
   compareString("Responsibility_Center", formData.lob || "");
   compareString("Applies_to_Doc_Type", formData.appliesToDocType || "");
   compareString("Applies_to_Doc_No", formData.appliesToDocNo || "");

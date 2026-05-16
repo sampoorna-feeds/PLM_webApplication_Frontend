@@ -168,6 +168,22 @@ export async function apiRequest<T>(
 }
 
 /**
+ * Transforms an object or array of objects such that the first letter of every key is lowercase.
+ */
+function transformPayloadKeys(data: any): any {
+  if (data === null || data === undefined) return data;
+  if (Array.isArray(data)) return data.map(transformPayloadKeys);
+  if (typeof data !== "object") return data;
+
+  return Object.fromEntries(
+    Object.entries(data).map(([key, value]) => [
+      key.charAt(0).toLowerCase() + key.slice(1),
+      transformPayloadKeys(value),
+    ]),
+  );
+}
+
+/**
  * GET request helper
  */
 export async function apiGet<T>(endpoint: string): Promise<T> {
@@ -180,7 +196,7 @@ export async function apiGet<T>(endpoint: string): Promise<T> {
 export async function apiPost<T>(endpoint: string, data: unknown): Promise<T> {
   return apiRequest<T>(endpoint, {
     method: "POST",
-    body: JSON.stringify(data),
+    body: JSON.stringify(transformPayloadKeys(data)),
   });
 }
 
@@ -194,7 +210,7 @@ export async function apiPatch<T>(
 ): Promise<T> {
   return apiRequest<T>(endpoint, {
     method: "PATCH",
-    body: JSON.stringify(data),
+    body: JSON.stringify(transformPayloadKeys(data)),
     headers: {
       "Content-Type": "application/json",
       "If-Match": "*", // Default for OData PATCH requests
@@ -227,7 +243,7 @@ export async function apiDelete<T>(
       ...requestOptions.headers,
       "Content-Type": "application/json",
     };
-    requestOptions.body = JSON.stringify(data);
+    requestOptions.body = JSON.stringify(transformPayloadKeys(data));
   }
 
   return apiRequest<T>(endpoint, requestOptions);

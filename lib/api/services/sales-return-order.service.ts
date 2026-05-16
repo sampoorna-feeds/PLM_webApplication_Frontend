@@ -71,6 +71,7 @@ export async function createSalesReturnOrder(
       Invoice_Type: data.invoiceType || "Bill of supply",
       Shortcut_Dimension_1_Code: data.lob || "",
       Shortcut_Dimension_2_Code: data.branch || "",
+      Responsibility_Center: data.lob || "",
       SFPL_User_ID: data.SFPL_User_ID || "",
     };
     const response = await apiPost<CreateSalesDocumentApiResponse>(

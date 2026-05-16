@@ -94,6 +94,7 @@ export function buildSalesHeaderPatchPayload(
       Invoice_Type: formData.invoiceType || "",
       Shortcut_Dimension_1_Code: formData.lob || "",
       Shortcut_Dimension_2_Code: formData.branch || "",
+      Responsibility_Center: formData.lob || "",
       Applies_to_Doc_Type: formData.appliesToDocType || "",
       Applies_to_Doc_No: formData.appliesToDocNo || "",
       Applies_to_ID: formData.appliesToID || "",
@@ -134,6 +135,7 @@ export function buildSalesHeaderPatchPayload(
   compareString("Invoice_Type", formData.invoiceType || "");
   compareString("Shortcut_Dimension_1_Code", formData.lob || "");
   compareString("Shortcut_Dimension_2_Code", formData.branch || "");
+  compareString("Responsibility_Center", formData.lob || "");
   compareString("Applies_to_Doc_Type", formData.appliesToDocType || "");
   compareString("Applies_to_Doc_No", formData.appliesToDocNo || "");
   compareString("Applies_to_ID", formData.appliesToID || "");

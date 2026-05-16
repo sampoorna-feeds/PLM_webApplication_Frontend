@@ -829,9 +829,8 @@ export function PurchaseOrderLineEditDialog({
                           inputMode="decimal"
                           value={salvageValue}
                           onChange={(e) => {
-                            const value = e.target.value;
-                            if (value === "" || /^\d*\.?\d*$/.test(value)) {
-                              setSalvageValue(value);
+                            if (isValidNum(e.target.value)) {
+                              setSalvageValue(e.target.value);
                             }
                           }}
                           placeholder="0.00"

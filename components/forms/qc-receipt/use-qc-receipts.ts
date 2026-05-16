@@ -4,6 +4,7 @@ import {
   getPostedQCReceiptLines,
   getPostedQCReceiptsWithCount,
   getQCReceiptHeader,
+  getPostedQCReceiptHeader,
   getQCReceiptLines,
   getQCReceiptsWithCount,
   postQCReceipt,
@@ -306,7 +307,7 @@ export function useQCReceipts(initialFilters?: {
   };
 }
 
-export function useQCReceiptDetail(receiptNo: string | null) {
+export function useQCReceiptDetail(receiptNo: string | null, isPosted: boolean = false) {
   const [receipt, setReceipt] = useState<QCReceiptHeader | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -314,7 +315,9 @@ export function useQCReceiptDetail(receiptNo: string | null) {
     if (!receiptNo) return;
     setIsLoading(true);
     try {
-      const data = await getQCReceiptHeader(receiptNo);
+      const data = isPosted
+        ? await getPostedQCReceiptHeader(receiptNo)
+        : await getQCReceiptHeader(receiptNo);
       setReceipt(data);
     } catch (error) {
       console.error("Error fetching QC receipt detail:", error);
@@ -322,7 +325,7 @@ export function useQCReceiptDetail(receiptNo: string | null) {
     } finally {
       setIsLoading(false);
     }
-  }, [receiptNo]);
+  }, [receiptNo, isPosted]);
 
   useEffect(() => {
     fetchDetail();

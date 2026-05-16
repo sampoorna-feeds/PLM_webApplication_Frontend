@@ -208,6 +208,14 @@ export async function getQCReceiptHeader(
   return await apiGet<QCReceiptHeader>(endpoint);
 }
 
+export async function getPostedQCReceiptHeader(
+  receiptNo: string,
+): Promise<QCReceiptHeader> {
+  const escaped = receiptNo.replace(/'/g, "''");
+  const endpoint = `/qcReceiptPostedH('${escaped}')?company='${encodeURIComponent(COMPANY)}'`;
+  return await apiGet<QCReceiptHeader>(endpoint);
+}
+
 export async function getQCReceiptLines(
   receiptNo: string,
 ): Promise<QCReceiptLine[]> {

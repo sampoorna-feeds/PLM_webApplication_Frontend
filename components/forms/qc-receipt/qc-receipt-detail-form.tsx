@@ -1,6 +1,16 @@
 "use client";
 
 import { LocationSelect } from "@/components/forms/shared/location-select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DateInput } from "@/components/ui/date-input";
@@ -32,7 +42,8 @@ export function QCReceiptDetailForm({ tabId, context }: QCReceiptDetailFormProps
   const isPosted = !!context?.isPosted;
   
   const { receipt, setReceipt, isLoading: isHeaderLoading, refetch: refetchDetail } = useQCReceiptDetail(
-    initialReceipt?.No || null
+    initialReceipt?.No || null,
+    isPosted
   );
   const [editedFields, setEditedFields] = useState<Partial<QCReceiptHeader>>({});
   
@@ -47,6 +58,7 @@ export function QCReceiptDetailForm({ tabId, context }: QCReceiptDetailFormProps
   const [isLoadingLocations, setIsLoadingLocations] = useState(false);
   const [locationName, setLocationName] = useState("");
   const [userBranch, setUserBranch] = useState<string | undefined>(undefined);
+  const [showConfirmPost, setShowConfirmPost] = useState(false);
 
   useEffect(() => {
     const creds = getAuthCredentials();
@@ -190,14 +202,13 @@ export function QCReceiptDetailForm({ tabId, context }: QCReceiptDetailFormProps
             {!isPosted && (
               <Button
                 size="sm"
-                onClick={handlePost}
+                onClick={() => setShowConfirmPost(true)}
                 disabled={
                   isPosting ||
                   isLinesLoading ||
                   isHeaderLoading ||
                   isHeaderDirty ||
-                  isHeaderUpdating ||
-                  !receipt.Approve
+                  isHeaderUpdating
                 }
                 className="gap-2 h-8"
               >
@@ -282,16 +293,6 @@ export function QCReceiptDetailForm({ tabId, context }: QCReceiptDetailFormProps
                <div className="flex flex-col gap-4 mt-1">
                   <div className="flex items-center space-x-2">
                     <Checkbox 
-                      id="approve" 
-                      checked={receipt.Approve} 
-                      onCheckedChange={(val) => handleFieldCommit("Approve", val)}
-                      disabled={isPosted}
-                    />
-                    <Label htmlFor="approve" className="text-[11px] uppercase font-semibold text-muted-foreground">Approve</Label>
-                  </div>
-
-                  <div className="flex items-center space-x-2">
-                    <Checkbox 
                       id="accepted-with-approval" 
                       checked={receipt.Accepted_With_Approval} 
                       onCheckedChange={(val) => handleFieldCommit("Accepted_With_Approval", val)}
@@ -368,6 +369,26 @@ export function QCReceiptDetailForm({ tabId, context }: QCReceiptDetailFormProps
           </div>
         </div>
       </div>
+
+      <AlertDialog open={showConfirmPost} onOpenChange={setShowConfirmPost}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm Post</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to post QC Receipt {receipt.No}? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handlePost}
+              className="bg-primary text-primary-foreground hover:bg-primary/90"
+            >
+              Post
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

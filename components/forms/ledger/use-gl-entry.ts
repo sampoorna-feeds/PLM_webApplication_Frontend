@@ -50,7 +50,7 @@ export function useGLEntry() {
     sortOrder: "desc"
   });
 
-  const LIMIT = 50;
+  const LIMIT = 200;
 
   const [visibleColumns, setVisibleColumns] = useState<string[]>(() =>
     typeof window !== "undefined"

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { toast } from "sonner";
 import { toastError } from "@/lib/errors";
 import { useAuth } from "@/lib/contexts/auth-context";
@@ -33,9 +33,15 @@ export function useReportLedger() {
   const { userID } = useAuth();
   const [entries, setEntries] = useState<ItemLedgerEntry[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [pageSize, setPageSize] = useState<PageSize>(10);
-  const [currentPage, setCurrentPage] = useState(1);
+  const [isFetchingNextPage, setIsFetchingNextPage] = useState(false);
   const [totalCount, setTotalCount] = useState(0);
+
+  const isLoadingRef = useRef(false);
+  const isFetchingNextPageRef = useRef(false);
+  const lastRequestId = useRef(0);
+  const entriesLengthRef = useRef(0);
+
+  const LIMIT = 200;
 
   // Filters state
   const [filters, setFilters] = useState<ReportLedgerFilters>(EMPTY_FILTERS);
@@ -72,10 +78,10 @@ export function useReportLedger() {
       : getDefaultVisibleColumns(),
   );
 
-  // Calculate total pages
-  const totalPages = useMemo(() => {
-    return Math.max(1, Math.ceil(totalCount / pageSize));
-  }, [totalCount, pageSize]);
+  const hasMore = useMemo(
+    () => entries.length < totalCount,
+    [entries.length, totalCount]
+  );
 
   // ─── Load user's assigned location codes from LocationList filtered by WebUserSetup branches ───
   useEffect(() => {
@@ -271,48 +277,83 @@ export function useReportLedger() {
     return `${sortColumn} ${sortDirection}`;
   }, [sortColumn, sortDirection]);
 
-  const fetchEntries = useCallback(async () => {
+  const fetchEntries = useCallback(async (isAppending = false) => {
     // Only location is required; item and dates are optional
     if (appliedFilters.locationCodes.length === 0) {
       setEntries([]);
       setTotalCount(0);
+      setIsLoading(false);
+      setIsFetchingNextPage(false);
       return;
     }
 
-    setIsLoading(true);
+    const requestId = ++lastRequestId.current;
+
+    if (isAppending) {
+      isFetchingNextPageRef.current = true;
+      setIsFetchingNextPage(true);
+    } else {
+      isLoadingRef.current = true;
+      setIsLoading(true);
+    }
+
     try {
+      const skip = isAppending ? entriesLengthRef.current : 0;
       const params = {
         $select: buildSelectQuery(visibleColumns),
         $filter: buildFilterString(),
         $orderby: getOrderByString(),
-        $top: pageSize,
-        $skip: (currentPage - 1) * pageSize,
+        $top: LIMIT,
+        $skip: skip,
         $count: true,
       };
 
       const result = await getItemLedgerEntries(params);
-      setEntries(result.entries);
+
+      if (requestId !== lastRequestId.current) return;
+
+      if (isAppending) {
+        setEntries(prev => {
+          const newEntries = [...prev, ...result.entries];
+          entriesLengthRef.current = newEntries.length;
+          return newEntries;
+        });
+      } else {
+        setEntries(result.entries);
+        entriesLengthRef.current = result.entries.length;
+      }
       setTotalCount(result.totalCount);
     } catch (error) {
+      if (requestId !== lastRequestId.current) return;
       console.error("Error fetching item ledger entries:", error);
       toastError(error, "Failed to load item ledger entries. Please try again.");
-      setEntries([]);
-      setTotalCount(0);
+      if (!isAppending) {
+        setEntries([]);
+        setTotalCount(0);
+      }
     } finally {
-      setIsLoading(false);
+      if (requestId === lastRequestId.current) {
+        setIsLoading(false);
+        setIsFetchingNextPage(false);
+        isLoadingRef.current = false;
+        isFetchingNextPageRef.current = false;
+      }
     }
   }, [
     appliedFilters,
-    pageSize,
-    currentPage,
     visibleColumns,
     buildFilterString,
     getOrderByString,
   ]);
 
   useEffect(() => {
-    fetchEntries();
+    fetchEntries(false);
   }, [fetchEntries]);
+
+  const loadMore = useCallback(() => {
+    if (!hasMore || isLoadingRef.current || isFetchingNextPageRef.current) return;
+    fetchEntries(true);
+  }, [hasMore, fetchEntries]);
 
   // Handlers
   const handleFiltersChange = useCallback(
@@ -351,7 +392,6 @@ export function useReportLedger() {
             // We just skip applying to state if dates are invalid
           } else {
             setAppliedFilters(next);
-            setCurrentPage(1);
           }
         }
         return next;
@@ -372,7 +412,6 @@ export function useReportLedger() {
     }
 
     setAppliedFilters(filters);
-    setCurrentPage(1);
   }, [filters]);
 
   const handleClearFilters = useCallback(() => {
@@ -385,20 +424,10 @@ export function useReportLedger() {
     setAppliedFilters(EMPTY_FILTERS);
     setEntries([]);
     setTotalCount(0);
-    setCurrentPage(1);
     setItemSearchQuery("");
     setItemPage(1);
     setItemOptions([]);
     setHasMoreItems(false);
-  }, []);
-
-  const handlePageSizeChange = useCallback((size: PageSize) => {
-    setPageSize(size);
-    setCurrentPage(1);
-  }, []);
-
-  const handlePageChange = useCallback((page: number) => {
-    setCurrentPage(page);
   }, []);
 
   const handleSort = useCallback((column: string) => {
@@ -448,18 +477,15 @@ export function useReportLedger() {
     setItemPage((prev) => prev + 1);
   }, [hasMoreItems, isLoadingMoreItems]);
 
-  const hasNextPage = currentPage < totalPages;
-
   return {
     entries,
     isLoading,
-    pageSize,
-    currentPage,
-    totalPages,
+    isFetchingNextPage,
+    hasMore,
+    loadMore,
     totalCount,
     currentFilterString: buildFilterString(),
     humanReadableFilters: buildHumanReadableFilters(),
-    hasNextPage,
     filters,
     appliedFilters,
     locationOptions,
@@ -468,8 +494,6 @@ export function useReportLedger() {
     isLoadingItems,
     isLoadingMoreItems,
     hasMoreItems,
-    onPageSizeChange: handlePageSizeChange,
-    onPageChange: handlePageChange,
     onSort: handleSort,
     // Actions
     handleFiltersChange,
@@ -483,7 +507,7 @@ export function useReportLedger() {
     onColumnToggle: handleColumnToggle,
     onResetColumns: handleResetColumns,
     onShowAllColumns: handleShowAllColumns,
-    refetch: fetchEntries,
+    refetch: () => fetchEntries(false),
     sortColumn,
     sortDirection,
   };

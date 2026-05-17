@@ -56,7 +56,7 @@ export function useVendorLedger(options: UseVendorLedgerOptions = {}) {
 
 
 
-  const LIMIT = 50;
+  const LIMIT = 200;
   const isLoadingRef = useRef(false);
   const isFetchingNextPageRef = useRef(false);
   const lastRequestId = useRef(0);

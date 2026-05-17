@@ -2,22 +2,17 @@
 
 import { useReportLedger } from "./use-report-ledger";
 import { ReportLedgerTable } from "./report-ledger-table";
-import { PaginationControls } from "./pagination-controls";
 import { TableFilterBar } from "./table-filter-bar";
 export function ReportLedgerForm() {
   const {
     entries,
     isLoading,
-    // Pagination
-    pageSize,
-    currentPage,
-    totalPages,
+    isFetchingNextPage,
+    hasMore,
+    loadMore,
     totalCount,
     currentFilterString,
     humanReadableFilters,
-    hasNextPage,
-    onPageSizeChange,
-    onPageChange,
     // Sorting
     sortColumn,
     sortDirection,
@@ -78,25 +73,13 @@ export function ReportLedgerForm() {
           <ReportLedgerTable
             entries={entries}
             isLoading={isLoading}
-            pageSize={pageSize}
-            currentPage={currentPage}
+            isFetchingNextPage={isFetchingNextPage}
+            hasMore={hasMore}
+            loadMore={loadMore}
             visibleColumns={visibleColumns}
             sortColumn={sortColumn}
             sortDirection={sortDirection}
             onSort={onSort}
-          />
-        </div>
-
-        {/* Pagination Controls */}
-        <div className="shrink-0">
-          <PaginationControls
-            pageSize={pageSize}
-            currentPage={currentPage}
-            totalPages={totalPages}
-            totalCount={totalCount}
-            hasNextPage={hasNextPage}
-            onPageSizeChange={onPageSizeChange}
-            onPageChange={onPageChange}
           />
         </div>
       </div>
@@ -105,3 +88,4 @@ export function ReportLedgerForm() {
 }
 
 export default ReportLedgerForm;
+

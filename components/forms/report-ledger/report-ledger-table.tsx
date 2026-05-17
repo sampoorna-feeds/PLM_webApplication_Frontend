@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { ArrowUp, ArrowDown, ArrowUpDown, X } from "lucide-react";
+import { useState, useMemo, useRef, useEffect, useCallback } from "react";
+import { ArrowUp, ArrowDown, ArrowUpDown, X, Loader2 } from "lucide-react";
 import type { ItemLedgerEntry } from "@/lib/api/services/report-ledger.service";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
@@ -17,24 +17,57 @@ import { formatDate } from "@/lib/utils/date";
 interface ReportLedgerTableProps {
   entries: ItemLedgerEntry[];
   isLoading: boolean;
+  isFetchingNextPage: boolean;
+  hasMore: boolean;
+  loadMore: () => void;
   visibleColumns: string[];
   sortColumn: string | null;
   sortDirection: SortDirection;
-  pageSize: number;
-  currentPage: number;
   onSort: (column: string) => void;
 }
 
 export function ReportLedgerTable({
   entries,
   isLoading,
+  isFetchingNextPage,
+  hasMore,
+  loadMore,
   visibleColumns,
   sortColumn,
   sortDirection,
-  pageSize,
-  currentPage,
   onSort,
 }: ReportLedgerTableProps) {
+  const observerTarget = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  const handleObserver = useCallback(
+    (entries: IntersectionObserverEntry[]) => {
+      const [target] = entries;
+      if (
+        target.isIntersecting &&
+        hasMore &&
+        !isFetchingNextPage &&
+        !isLoading
+      ) {
+        loadMore();
+      }
+    },
+    [hasMore, isFetchingNextPage, isLoading, loadMore],
+  );
+
+  useEffect(() => {
+    const element = observerTarget.current;
+    if (!element) return;
+
+    const observer = new IntersectionObserver(handleObserver, {
+      threshold: 0.1,
+      rootMargin: "100px",
+      root: scrollContainerRef.current,
+    });
+
+    observer.observe(element);
+    return () => observer.unobserve(element);
+  }, [handleObserver]);
   // Column filters state (for columns that are NOT synced with top-level filters)
   const [columnFilters, setColumnFilters] = useState<
     Record<string, { value: string; valueTo?: string }>
@@ -43,8 +76,8 @@ export function ReportLedgerTable({
   // Get visible column configs in order
   const columns = ALL_COLUMNS.filter((col) => visibleColumns.includes(col.id));
 
-  // Calculate starting serial number for current page
-  const startingSerialNo = (currentPage - 1) * pageSize;
+  // Starting serial number is 0 for infinite scroll
+  const startingSerialNo = 0;
 
   // Count active column filters
   const activeFilterCount = Object.values(columnFilters).filter(
@@ -190,7 +223,7 @@ export function ReportLedgerTable({
         </div>
       )}
 
-      <div className="flex-1 overflow-auto">
+      <div ref={scrollContainerRef} className="flex-1 overflow-auto">
         <table className="w-full caption-bottom text-sm">
           <thead className="bg-muted sticky top-0 z-10 [&_tr]:border-b">
             <tr className="border-b transition-colors">
@@ -222,13 +255,13 @@ export function ReportLedgerTable({
             {/* Loading state - show skeleton rows */}
             {isLoading && (
               <>
-                {Array.from({ length: pageSize }).map((_, rowIndex) => (
+                {Array.from({ length: 20 }).map((_, rowIndex) => (
                   <tr
                     key={`skeleton-${rowIndex}`}
                     className="border-b transition-colors"
                   >
                     <td className="text-muted-foreground p-2 px-3 py-3 text-center align-middle text-xs whitespace-nowrap">
-                      {startingSerialNo + rowIndex + 1}
+                      {rowIndex + 1}
                     </td>
                     {columns.map((column) => (
                       <td
@@ -263,9 +296,22 @@ export function ReportLedgerTable({
                   key={entry.Entry_No}
                   entry={entry}
                   columns={columns}
-                  serialNo={startingSerialNo + index + 1}
+                  serialNo={index + 1}
                 />
               ))}
+
+            {/* Infinite Load Target */}
+            <tr className="h-10 pointer-events-none border-none">
+              <td colSpan={columns.length + 1} className="p-0 border-none">
+                <div ref={observerTarget} className="h-full w-full" />
+                {isFetchingNextPage && (
+                  <div className="flex items-center justify-center py-4 gap-2 text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span className="text-xs">Loading more...</span>
+                  </div>
+                )}
+              </td>
+            </tr>
           </tbody>
         </table>
       </div>

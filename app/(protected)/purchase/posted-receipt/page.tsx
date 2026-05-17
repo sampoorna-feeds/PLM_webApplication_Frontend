@@ -80,8 +80,8 @@ function PostedPurchaseReceiptContent() {
   }
 
   return (
-    <div className="flex h-full flex-col p-6">
-      <div className="mb-6 flex items-center justify-between gap-2">
+    <div className="flex flex-1 min-h-0 flex-col p-6 overflow-hidden">
+      <div className="mb-6 flex shrink-0 items-center justify-between gap-2">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Posted Purchase Receipt</h1>
           <div className="mt-1 flex items-center gap-2">
@@ -91,6 +91,9 @@ function PostedPurchaseReceiptContent() {
                 {dateFilter.fromDate.split('-').reverse().join('/')} - {dateFilter.toDate.split('-').reverse().join('/')}
               </Badge>
             )}
+            <Badge variant="outline" className="text-[10px] h-5 px-1.5 font-mono">
+              {totalCount} {totalCount === 1 ? "record" : "records"} found
+            </Badge>
           </div>
         </div>
 
@@ -111,7 +114,7 @@ function PostedPurchaseReceiptContent() {
         </div>
       </div>
 
-      <div className="mb-4 flex items-center justify-between gap-4">
+      <div className="mb-4 flex shrink-0 items-center justify-between gap-4">
         <div className="flex flex-1 items-center gap-2">
           <div className="relative w-full max-w-sm">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -137,7 +140,7 @@ function PostedPurchaseReceiptContent() {
         </div>
       </div>
 
-      <div className="flex-1 min-h-0 overflow-auto">
+      <div className="flex flex-1 min-h-0 flex-col overflow-hidden">
         <PostedPurchaseTable
           documents={documents}
           isLoading={isLoading}
@@ -162,8 +165,8 @@ function PostedPurchaseReceiptContent() {
 export default function PostedPurchaseReceiptPage() {
   return (
     <FormStackProvider formScope="posted-purchase-receipt">
-      <div className="flex h-[calc(100vh-5rem)] max-h-[calc(100vh-5rem)] w-full">
-        <div className="flex min-w-0 flex-1 flex-col">
+      <div className="flex h-[calc(100vh-5rem)] max-h-[calc(100vh-5rem)] w-full overflow-hidden">
+        <div className="flex min-w-0 min-h-0 flex-1 flex-col overflow-hidden">
           <PostedPurchaseReceiptContent />
         </div>
         <FormStackPanel />

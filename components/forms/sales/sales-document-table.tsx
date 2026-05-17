@@ -80,8 +80,8 @@ export function SalesDocumentTable({
   }, [hasMore, isLoading, isLoadingMore, onLoadMore]);
 
   return (
-    <div className="bg-card flex h-full flex-1 flex-col overflow-hidden rounded-lg border">
-      <div ref={scrollContainerRef} className="flex-1 overflow-auto">
+    <div className="bg-card flex flex-1 min-h-0 flex-col overflow-hidden rounded-lg border w-full">
+      <div ref={scrollContainerRef} className="flex-1 min-h-0 overflow-auto">
         <table className="w-full caption-bottom text-sm table-auto">
           <colgroup>
             <col className="w-12" />

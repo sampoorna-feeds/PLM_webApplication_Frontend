@@ -211,34 +211,36 @@ export function SalesPostedDocumentView({
   );
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-2">
-      <SalesDocumentFilterBar
-        searchQuery={searchQuery}
-        visibleColumns={visibleColumns}
-        allColumns={allColumns}
-        defaultColumns={defaultColumns}
-        optionalColumns={optionalColumns}
-        columnFilters={columnFilters}
-        additionalFilters={additionalFilters}
-        onSearch={onSearch}
-        onClearFilters={onClearFilters}
-        onColumnToggle={onColumnToggle}
-        onResetColumns={onResetColumns}
-        onShowAllColumns={onShowAllColumns}
-        onAddAdditionalFilter={onAddAdditionalFilter}
-        onRemoveAdditionalFilter={onRemoveAdditionalFilter}
-      />
+    <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden">
+      <div className="flex shrink-0 flex-col gap-2">
+        <SalesDocumentFilterBar
+          searchQuery={searchQuery}
+          visibleColumns={visibleColumns}
+          allColumns={allColumns}
+          defaultColumns={defaultColumns}
+          optionalColumns={optionalColumns}
+          columnFilters={columnFilters}
+          additionalFilters={additionalFilters}
+          onSearch={onSearch}
+          onClearFilters={onClearFilters}
+          onColumnToggle={onColumnToggle}
+          onResetColumns={onResetColumns}
+          onShowAllColumns={onShowAllColumns}
+          onAddAdditionalFilter={onAddAdditionalFilter}
+          onRemoveAdditionalFilter={onRemoveAdditionalFilter}
+        />
 
-      <SalesDocumentActiveFilters
-        searchQuery={searchQuery}
-        columnFilters={columnFilters}
-        allColumns={allColumns}
-        onSearch={onSearch}
-        onColumnFilter={onColumnFilter}
-        onClearFilters={onClearFilters}
-      />
+        <SalesDocumentActiveFilters
+          searchQuery={searchQuery}
+          columnFilters={columnFilters}
+          allColumns={allColumns}
+          onSearch={onSearch}
+          onColumnFilter={onColumnFilter}
+          onClearFilters={onClearFilters}
+        />
+      </div>
 
-      <div className="min-h-0 flex-1 overflow-hidden">
+      <div className="flex flex-1 min-h-0 flex-col overflow-hidden">
         <SalesDocumentTable
           orders={orders as unknown as SalesOrder[]}
           isLoading={isLoading}
@@ -263,15 +265,17 @@ export function SalesPostedDocumentView({
         />
       </div>
 
-      <SalesDocumentPaginationControls
-        pageSize={pageSize}
-        currentPage={currentPage}
-        totalPages={totalPages}
-        totalCount={totalCount}
-        hasNextPage={hasNextPage}
-        onPageSizeChange={onPageSizeChange}
-        onPageChange={onPageChange}
-      />
+      <div className="flex shrink-0">
+        <SalesDocumentPaginationControls
+          pageSize={pageSize}
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalCount={totalCount}
+          hasNextPage={hasNextPage}
+          onPageSizeChange={onPageSizeChange}
+          onPageChange={onPageChange}
+        />
+      </div>
     </div>
   );
 }

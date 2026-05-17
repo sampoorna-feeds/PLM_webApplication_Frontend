@@ -9,7 +9,8 @@ import {
   ItemLedgerEntry,
 } from "@/lib/api/services/report-ledger.service";
 
-import { getAllLOCsFromUserSetup } from "@/lib/api/services/dimension.service";
+import { getAllBranchesFromUserSetup } from "@/lib/api/services/dimension.service";
+import { getLocationsByBranches } from "@/lib/api/services/location.service";
 import { getItems } from "@/lib/api/services/production-order-data.service";
 import {
   type PageSize,
@@ -76,24 +77,27 @@ export function useReportLedger() {
     return Math.max(1, Math.ceil(totalCount / pageSize));
   }, [totalCount, pageSize]);
 
-  // ─── Load user's assigned location codes from WebUserSetup ───
+  // ─── Load user's assigned location codes from LocationList filtered by WebUserSetup branches ───
   useEffect(() => {
     if (!userID) return;
 
     const loadLocations = async () => {
       setIsLoadingLocations(true);
       try {
-        const locs = await getAllLOCsFromUserSetup(userID);
-        const options = locs.map((loc) => ({
+        const branches = await getAllBranchesFromUserSetup(userID);
+        const branchCodes = branches.map((b) => b.Code).filter(Boolean);
+        const locations = await getLocationsByBranches(branchCodes);
+
+        const options = locations.map((loc) => ({
           label: `${loc.Code} - ${loc.Name || ""}`,
           value: loc.Code,
         }));
         setLocationOptions(options);
 
-        // Auto-select all locations by default
+        // Keep all locations deselected by default
         const allCodes = options.map((opt) => opt.value);
         setAllLocationCodes(allCodes);
-        setFilters((prev) => ({ ...prev, locationCodes: allCodes }));
+        setFilters((prev) => ({ ...prev, locationCodes: [] }));
       } catch (error) {
         console.error("Error loading user locations:", error);
         toastError(error, "Failed to load location options");
@@ -372,10 +376,10 @@ export function useReportLedger() {
   }, [filters]);
 
   const handleClearFilters = useCallback(() => {
-    // Reset to all locations selected
+    // Reset to no locations selected
     const resetFilters = {
       ...EMPTY_FILTERS,
-      locationCodes: allLocationCodes,
+      locationCodes: [],
     };
     setFilters(resetFilters);
     setAppliedFilters(EMPTY_FILTERS);
@@ -386,7 +390,7 @@ export function useReportLedger() {
     setItemPage(1);
     setItemOptions([]);
     setHasMoreItems(false);
-  }, [allLocationCodes]);
+  }, []);
 
   const handlePageSizeChange = useCallback((size: PageSize) => {
     setPageSize(size);

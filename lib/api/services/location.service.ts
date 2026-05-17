@@ -105,6 +105,40 @@ export async function getLocationsByBranch(
 }
 
 /**
+ * Fetch all locations for multiple branch codes from the LocationList API.
+ * Results are cached per branch combination for 5 minutes.
+ */
+export async function getLocationsByBranches(
+  branchCodes: string[],
+): Promise<LocationItem[]> {
+  if (!branchCodes || branchCodes.length === 0) return [];
+
+  const validBranches = Array.from(new Set(branchCodes.filter(Boolean)));
+  if (validBranches.length === 0) return [];
+
+  const cacheKey = validBranches.slice().sort().join(",");
+  const cached = getCached(cacheKey);
+  if (cached) return cached;
+
+  const filterString = validBranches
+    .map((code) => `Global_Dimension_2_Code eq '${code.replace(/'/g, "''")}'`)
+    .join(" or ");
+
+  const query = buildODataQuery({
+    $filter: validBranches.length > 1 ? `(${filterString})` : filterString,
+    $select: SELECT_FIELDS,
+    $orderby: "Code asc",
+  });
+
+  const endpoint = `/LocationList?company='${encodeURIComponent(COMPANY)}'&${query}`;
+  const response = await apiGet<ODataResponse<LocationItem>>(endpoint);
+  const data = response.value ?? [];
+
+  setCache(cacheKey, data);
+  return data;
+}
+
+/**
  * Invalidate the cache for a branch code (useful after mutations).
  */
 export function invalidateLocationCache(branchCode?: string): void {

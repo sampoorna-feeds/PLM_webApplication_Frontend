@@ -8,6 +8,7 @@ import {
   Popover,
   PopoverContent,
   PopoverTrigger,
+  PopoverAnchor,
 } from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
 
@@ -114,7 +115,8 @@ export function SearchableSelect({
       },
       { 
         threshold: 0.1,
-        root: listRef.current
+        root: listRef.current,
+        rootMargin: "100px",
       },
     );
 
@@ -177,35 +179,61 @@ export function SearchableSelect({
   };
 
   return (
-    <Popover open={open} onOpenChange={setOpen} modal={false}>
-      <PopoverTrigger asChild>
-        <Button
-          variant="outline"
-          role="combobox"
-          aria-expanded={open}
+    <Popover
+      open={open}
+      onOpenChange={(newOpen) => {
+        setOpen(newOpen);
+        if (!newOpen) {
+          setSearchQuery("");
+          if (onSearch) onSearch("");
+        }
+      }}
+      modal={false}
+    >
+      <PopoverAnchor asChild>
+        <div
+          onClick={() => !disabled && !isLoading && setOpen(true)}
           className={cn(
-            "w-full justify-between font-normal",
-            !value && "text-muted-foreground",
-            className,
+            "flex h-9 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-within:ring-1 focus-within:ring-ring cursor-pointer",
+            (disabled || isLoading) && "opacity-50 cursor-not-allowed",
+            className
           )}
-          disabled={disabled || isLoading}
         >
-          {isLoading ? (
-            <div className="flex items-center gap-2">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              <span>Loading...</span>
+          {isMulti && selectedOptions.length > 0 && !open && !searchQuery ? (
+            <div className="flex flex-1 flex-wrap gap-1 overflow-hidden truncate">
+               <span className="truncate text-sm">{selectedOptions.length} items selected</span>
             </div>
-          ) : isMulti && selectedOptions.length > 0 ? (
-            <div className="flex flex-1 flex-wrap gap-1 overflow-hidden">
-               <span className="truncate">{selectedOptions.length} items selected</span>
-            </div>
-          ) : displayLabel ? (
-            <span className="truncate">{displayLabel}</span>
           ) : (
-            placeholder
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => {
+                handleSearchChange(e.target.value);
+                if (!open) setOpen(true);
+              }}
+              onFocus={() => !disabled && !isLoading && setOpen(true)}
+              onKeyDown={handleKeyDown}
+              placeholder={isLoading && !open ? "Loading..." : (displayLabel || placeholder)}
+              disabled={disabled || (isLoading && !open)}
+              className="w-full bg-transparent focus:outline-none text-sm placeholder:text-foreground/90 truncate cursor-text"
+            />
           )}
-          <div className="flex items-center gap-1 shrink-0">
-            {value && !disabled && !isLoading && (
+          <div className="flex items-center gap-1 shrink-0 ml-2">
+            {isLoading ? (
+              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+            ) : searchQuery ? (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSearchQuery("");
+                  if (onSearch) onSearch("");
+                }}
+                className="hover:text-foreground p-1 text-muted-foreground transition-colors hover:bg-muted rounded-full"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            ) : value && !disabled ? (
               <div
                 role="button"
                 tabIndex={0}
@@ -225,35 +253,28 @@ export function SearchableSelect({
               >
                 <X className="h-3 w-3" />
               </div>
+            ) : (
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  disabled={disabled || isLoading}
+                  className="p-1 text-muted-foreground/50 hover:text-foreground"
+                >
+                  <ChevronsUpDown className="h-4 w-4" />
+                </button>
+              </PopoverTrigger>
             )}
-            <ChevronsUpDown className="h-4 w-4 shrink-0 opacity-50" />
           </div>
-        </Button>
-      </PopoverTrigger>
+        </div>
+      </PopoverAnchor>
       <PopoverContent
-        className="flex max-h-(--radix-popover-content-available-height,80vh) min-h-0 w-(--radix-popover-trigger-width) max-w-[calc(100vw-2rem)] min-w-[320px] flex-col overflow-hidden p-0"
+        className="flex max-h-[260px] min-h-0 w-(--radix-popover-anchor-width) max-w-[calc(100vw-2rem)] min-w-[320px] flex-col overflow-hidden p-0"
         align="start"
         sideOffset={4}
         collisionPadding={8}
         onOpenAutoFocus={(e) => e.preventDefault()}
       >
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-          {/* Search Input */}
-          <div className="flex shrink-0 items-center border-b px-3 py-2">
-            <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
-            <Input
-              placeholder={
-                allowCustomValue
-                  ? `${searchPlaceholder} (Enter to use custom)`
-                  : searchPlaceholder
-              }
-              value={searchQuery}
-              onChange={(e) => handleSearchChange(e.target.value)}
-              onKeyDown={handleKeyDown}
-              className="h-8 border-0 bg-transparent p-0 shadow-none focus-visible:ring-0"
-            />
-          </div>
-
           {/* Options List */}
           <div
             ref={listRef}
@@ -384,20 +405,6 @@ export function SearchableSelect({
                     <span className="text-muted-foreground ml-2 text-xs">
                       Loading more...
                     </span>
-                  </div>
-                )}
-
-                {/* Load More Button - Fallback if observer fails */}
-                {hasMore && !isLoadingMore && (
-                  <div className="py-2 text-center">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="w-auto text-xs"
-                      onClick={onLoadMore}
-                    >
-                      Load More
-                    </Button>
                   </div>
                 )}
               </>

@@ -6,7 +6,7 @@ import {
   getPostedOutwardGateEntries,
   type PostedGateEntryHeader 
 } from "@/lib/api/services/posted-gate-entry.service";
-import { type SortDirection, POSTED_GATE_ENTRY_COLUMNS } from "./column-config";
+import { type SortDirection, POSTED_GATE_ENTRY_COLUMNS, DEFAULT_VISIBLE_COLUMNS } from "./column-config";
 import { toast } from "sonner";
 import { toastError } from "@/lib/errors";
 
@@ -21,6 +21,7 @@ export function usePostedGateEntries(type: "inward" | "outward", initialFilters?
   const [searchQuery, setSearchQuery] = useState("");
   const [columnFilters, setColumnFilters] = useState<Record<string, { value: string; valueTo?: string }>>({});
   const [dateFilter, setDateFilter] = useState<{ fromDate: string; toDate: string } | null>(null);
+  const [visibleColumns, setVisibleColumns] = useState<string[]>(DEFAULT_VISIBLE_COLUMNS);
 
   const skipDateFilter = initialFilters?.skipDateFilter;
 
@@ -112,6 +113,22 @@ export function usePostedGateEntries(type: "inward" | "outward", initialFilters?
     setCurrentPage(1);
   };
 
+  const handleColumnToggle = (columnId: string) => {
+    setVisibleColumns((prev) =>
+      prev.includes(columnId)
+        ? prev.filter((id) => id !== columnId)
+        : [...prev, columnId]
+    );
+  };
+
+  const handleResetColumns = () => {
+    setVisibleColumns(DEFAULT_VISIBLE_COLUMNS);
+  };
+
+  const handleShowAllColumns = () => {
+    setVisibleColumns(POSTED_GATE_ENTRY_COLUMNS.map((col) => col.id));
+  };
+
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
 
   return {
@@ -127,11 +144,15 @@ export function usePostedGateEntries(type: "inward" | "outward", initialFilters?
     columnFilters,
     dateFilter,
     setDateFilter,
+    visibleColumns,
     onPageSizeChange: (size: number) => { setPageSize(size); setCurrentPage(1); },
     onPageChange: setCurrentPage,
     onSort: handleSort,
     onSearch: (q: string) => { setSearchQuery(q); setCurrentPage(1); },
     onColumnFilter: handleColumnFilter,
+    onColumnToggle: handleColumnToggle,
+    onResetColumns: handleResetColumns,
+    onShowAllColumns: handleShowAllColumns,
     onClearFilters: handleClearFilters,
     refetch: fetchEntries,
   };

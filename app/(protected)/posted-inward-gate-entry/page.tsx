@@ -4,7 +4,7 @@ import { FormStackProvider, FormStackPanel, MiniAccessPanel } from "@/components
 import { useFormStackContext } from "@/lib/form-stack/form-stack-context";
 import { usePostedGateEntries } from "@/components/forms/posted-gate-entry/use-posted-gate-entries";
 import { PostedGateEntryTable } from "@/components/forms/posted-gate-entry/posted-gate-entry-table";
-import { DEFAULT_VISIBLE_COLUMNS } from "@/components/forms/posted-gate-entry/column-config";
+import { PostedGateEntryColumnVisibility } from "@/components/forms/posted-gate-entry/column-visibility";
 import { Button } from "@/components/ui/button";
 import { RefreshCcw, Search, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -23,12 +23,18 @@ function PostedInwardGateEntryContent() {
     sortColumn,
     sortDirection,
     searchQuery,
+    columnFilters,
     dateFilter,
     setDateFilter,
+    visibleColumns,
     onPageChange,
     onPageSizeChange,
     onSort,
     onSearch,
+    onColumnFilter,
+    onColumnToggle,
+    onResetColumns,
+    onShowAllColumns,
     onClearFilters,
     refetch,
   } = usePostedGateEntries("inward");
@@ -106,15 +112,25 @@ function PostedInwardGateEntryContent() {
             </Button>
           )}
         </div>
+        <div className="flex items-center gap-2">
+          <PostedGateEntryColumnVisibility
+            visibleColumns={visibleColumns}
+            onColumnToggle={onColumnToggle}
+            onResetColumns={onResetColumns}
+            onShowAllColumns={onShowAllColumns}
+          />
+        </div>
       </div>
 
       <div className="flex-1 min-h-0 overflow-hidden">
         <PostedGateEntryTable
           entries={entries}
           isLoading={isLoading}
-          visibleColumns={DEFAULT_VISIBLE_COLUMNS}
+          visibleColumns={visibleColumns}
           sortColumn={sortColumn}
           sortDirection={sortDirection}
+          columnFilters={columnFilters}
+          onColumnFilter={onColumnFilter}
           onSort={onSort}
           onRowClick={handleRowClick}
         />

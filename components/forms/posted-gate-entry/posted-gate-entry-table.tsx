@@ -12,8 +12,9 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { type PostedGateEntryHeader } from "@/lib/api/services/posted-gate-entry.service";
-import { type SortDirection } from "./column-config";
+import { type SortDirection, POSTED_GATE_ENTRY_COLUMNS } from "./column-config";
 import { format } from "date-fns";
+import { PostedGateEntryColumnFilter } from "./column-filter";
 
 interface PostedGateEntryTableProps {
   entries: PostedGateEntryHeader[];
@@ -21,6 +22,8 @@ interface PostedGateEntryTableProps {
   visibleColumns: string[];
   sortColumn: string | null;
   sortDirection: SortDirection;
+  columnFilters?: Record<string, { value: string; valueTo?: string }>;
+  onColumnFilter?: (columnId: string, value: string, valueTo?: string) => void;
   onSort: (column: string) => void;
   onRowClick: (entry: PostedGateEntryHeader) => void;
 }
@@ -31,17 +34,12 @@ export function PostedGateEntryTable({
   visibleColumns,
   sortColumn,
   sortDirection,
+  columnFilters = {},
+  onColumnFilter,
   onSort,
   onRowClick,
 }: PostedGateEntryTableProps) {
-  const columns = [
-    { id: "No", label: "No." },
-    { id: "Document_Date", label: "Date" },
-    { id: "Vehicle_No", label: "Vehicle No." },
-    { id: "Transporter_Name", label: "Transporter" },
-    { id: "Description", label: "Description" },
-    { id: "Location_Code", label: "Location" },
-  ].filter((col) => visibleColumns.includes(col.id));
+  const columns = POSTED_GATE_ENTRY_COLUMNS.filter((col) => visibleColumns.includes(col.id));
 
   const renderSortIcon = (columnId: string) => {
     if (sortColumn !== columnId) return <ArrowUpDown className="ml-2 h-4 w-4 opacity-50" />;
@@ -68,24 +66,39 @@ export function PostedGateEntryTable({
       <Table>
         <TableHeader>
           <TableRow className="bg-muted/50">
-            {columns.map((col) => (
-              <TableHead
-                key={col.id}
-                className="cursor-pointer whitespace-nowrap text-xs font-bold uppercase text-muted-foreground transition-colors hover:text-foreground"
-                onClick={() => onSort(col.id)}
-              >
-                <div className="flex items-center">
-                  {col.label}
-                  {renderSortIcon(col.id)}
-                </div>
-              </TableHead>
-            ))}
+            {columns.map((col) => {
+              const filter = columnFilters[col.id];
+              return (
+                <TableHead
+                  key={col.id}
+                  className="whitespace-nowrap text-xs font-bold uppercase text-muted-foreground transition-colors hover:text-foreground"
+                >
+                  <div className="flex items-center gap-1">
+                    <div
+                      className="flex items-center cursor-pointer select-none"
+                      onClick={() => onSort(col.id)}
+                    >
+                      {col.label}
+                      {renderSortIcon(col.id)}
+                    </div>
+                    {onColumnFilter && col.filterable && (
+                      <PostedGateEntryColumnFilter
+                        column={col}
+                        value={filter?.value || ""}
+                        valueTo={filter?.valueTo}
+                        onChange={(val, valTo) => onColumnFilter(col.id, val, valTo)}
+                      />
+                    )}
+                  </div>
+                </TableHead>
+              );
+            })}
           </TableRow>
         </TableHeader>
         <TableBody>
           {isLoading ? (
             Array.from({ length: 5 }).map((_, i) => (
-              <TableRow key={i}>
+               <TableRow key={i}>
                 {columns.map((col) => (
                   <TableCell key={col.id}>
                     <Skeleton className="h-4 w-full" />

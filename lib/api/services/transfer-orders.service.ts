@@ -1413,7 +1413,7 @@ export async function getTransferItemsForDialog(params: {
     const finalFilters = [...allFilters, ...extraFilters];
 
     const query = buildODataQuery({
-      $select: "No,Description,Base_Unit_of_Measure,Net_Change",
+      $select: "No,Description,Base_Unit_of_Measure,Net_Change,Gen_Prod_Posting_Group",
       $filter: finalFilters.length > 0 ? finalFilters.join(" and ") : undefined,
       $orderby: params.sortColumn && params.sortDirection ? `${params.sortColumn} ${params.sortDirection}` : "No asc",
       $top: params.search ? 100 : params.top,

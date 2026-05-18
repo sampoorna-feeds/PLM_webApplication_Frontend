@@ -22,6 +22,7 @@ export interface ConsumeInventoryEntry {
   "Branch Code"?: string;
   "Employee Code"?: string;
   "Assignment Code"?: string;
+  Gen_Prod_Posting_Group?: string;
   [key: string]: unknown;
 }
 
@@ -94,7 +95,7 @@ function transformConsumeEntry(
     ShortcutDimCode8: "",
     Description: (entry.Description as string) || "",
     Consumption: true,
-    Consumption_Posting: entry["Consumption Posting"] || "",
+    Consumption_Posting: entry["Consumption Posting"] || entry.Gen_Prod_Posting_Group || "",
     userID: ((entry.UserID as string) || "JOBQUEUE").toUpperCase(),
   };
 

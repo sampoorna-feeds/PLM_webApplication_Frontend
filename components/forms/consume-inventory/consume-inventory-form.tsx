@@ -7,22 +7,7 @@ import { ItemSelect } from "@/components/forms/transfer-orders/item-select";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
 import { DateInput } from "@/components/ui/date-input";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -32,15 +17,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  bulkInsertConsumeInventoryEntries,
+  createConsumeInventoryEntry,
   deleteConsumeInventoryEntry,
   getConsumptionPostingSetup,
   getNextDocumentNo,
@@ -54,15 +31,10 @@ import {
 } from "@/lib/api/services/report-ledger.service";
 import { useAuth } from "@/lib/contexts/auth-context";
 import {
-  Edit2,
-  Info,
   Loader2,
-  MoreVertical,
   Package,
-  Plus,
   Search,
   Send,
-  Trash2,
   X,
 } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -74,11 +46,7 @@ import { LedgerEntryModal } from "./ledger-entry-modal";
 
 export function ConsumeInventoryForm() {
   const { userID } = useAuth();
-  const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [entries, setEntries] = useState<ConsumeInventoryEntry[]>([]);
-  const [selectedIndices, setSelectedIndices] = useState<number[]>([]);
-  const [isConfirmPostOpen, setIsConfirmPostOpen] = useState(false);
   const [consumptionOptions, setConsumptionOptions] = useState<
     ConsumptionPostingSetup[]
   >([]);
@@ -99,6 +67,7 @@ export function ConsumeInventoryForm() {
     "Assignment Code": "",
     "Applies-to Entry": undefined,
     "Applies-from Entry": undefined,
+    Gen_Prod_Posting_Group: "",
   });
 
   const [applyToEntries, setApplyToEntries] = useState<ItemLedgerEntry[]>([]);
@@ -123,10 +92,7 @@ export function ConsumeInventoryForm() {
       }
     };
     loadContext();
-    loadEntries();
   }, [userID]);
-
-
 
   useEffect(() => {
     const fetchOptions = async () => {
@@ -203,23 +169,6 @@ export function ConsumeInventoryForm() {
     fetchApplyFromEntries();
   }, [formState["Item No."]]);
 
-  const loadEntries = () => {
-    if (!userID) return;
-    const stored = localStorage.getItem(
-      `pending_consumption_entries_${userID}`,
-    );
-    if (stored) {
-      try {
-        setEntries(JSON.parse(stored));
-      } catch (err) {
-        console.error("Error loading stored entries:", err);
-        setEntries([]);
-      }
-    } else {
-      setEntries([]);
-    }
-  };
-
   const handleChange = (field: keyof ConsumeInventoryEntry, value: any) => {
     setFormState((prev) => {
       const next = { ...prev, [field]: value };
@@ -245,7 +194,7 @@ export function ConsumeInventoryForm() {
     });
   };
 
-  const handleAddEntry = () => {
+  const handlePostDirectly = async () => {
     if (
       !formState["Item No."] ||
       !formState["Location Code"] ||
@@ -255,133 +204,60 @@ export function ConsumeInventoryForm() {
       return;
     }
 
-    if (!isPostingDateValid(formState["Posting Date"], webUserProfile)) return;
+    const postingDate = formState["Posting Date"] || new Date().toISOString().split("T")[0];
+    if (!isPostingDateValid(postingDate, webUserProfile)) return;
 
-    const newEntry = { ...formState, UserID: userID } as ConsumeInventoryEntry;
-    const updatedEntries = [...entries, newEntry];
-
-    setEntries(updatedEntries);
-    localStorage.setItem(
-      `pending_consumption_entries_${userID}`,
-      JSON.stringify(updatedEntries),
-    );
-
-    toast.success("Entry added to pending list");
-    setFormState((prev) => ({
-      ...prev,
-      "Item No.": "",
-      Description: "",
-      Quantity: 0,
-      "Unit of Measure Code": "",
-      "Applies-to Entry": undefined,
-      "Applies-from Entry": undefined,
-    }));
-  };
-
-  const handleDeleteEntry = (index: number) => {
-    const updatedEntries = entries.filter((_, i) => i !== index);
-    setEntries(updatedEntries);
-    setSelectedIndices((prev) =>
-      prev.filter((i) => i !== index).map((i) => (i > index ? i - 1 : i)),
-    );
-    localStorage.setItem(
-      `pending_consumption_entries_${userID}`,
-      JSON.stringify(updatedEntries),
-    );
-    toast.success("Entry removed from list");
-  };
-
-  const handleEditEntry = (entry: ConsumeInventoryEntry, index: number) => {
-    setFormState({ ...entry });
-    handleDeleteEntry(index);
-    toast.info("Entry loaded into form for editing");
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  };
-
-  const toggleSelectAll = () => {
-    if (selectedIndices.length === entries.length) {
-      setSelectedIndices([]);
-    } else {
-      setSelectedIndices(entries.map((_, i) => i));
-    }
-  };
-
-  const toggleSelectRow = (index: number) => {
-    setSelectedIndices((prev) =>
-      prev.includes(index) ? prev.filter((i) => i !== index) : [...prev, index],
-    );
-  };
-
-  const handlePost = () => {
-    if (selectedIndices.length === 0) {
-      toastError(new Error("Please select at least one entry to post"));
-      return;
-    }
-    setIsConfirmPostOpen(true);
-  };
-
-  const executePost = async () => {
-    setIsConfirmPostOpen(false);
     setSubmitting(true);
+    let createdEntry: ConsumeInventoryEntry | null = null;
+
     try {
-      const selectedEntries = selectedIndices.map((i) => entries[i]);
-      if (selectedEntries.length === 0) return;
-
-      const entriesWithDocNo: ConsumeInventoryEntry[] = [];
-
-      // Fetch unique Doc No for each entry sequentially to ensure number series integrity
-      for (const entry of selectedEntries) {
-        const postingDate = entry["Posting Date"] || new Date().toISOString().split("T")[0];
-        
-        if (!isPostingDateValid(postingDate, webUserProfile)) {
-          setSubmitting(false);
-          return;
-        }
-
-        try {
-          const generatedDocNo = await getNextDocumentNo(postingDate);
-          entriesWithDocNo.push({
-            ...entry,
-            "Document No.": generatedDocNo
-          });
-        } catch (error) {
-          console.error(`Error generating Doc No for item ${entry["Item No."]}:`, error);
-          throw new Error(`Failed to generate Document No for ${entry["Item No."]}`);
-        }
+      // 1. Generate unique Document No sequentially to ensure number series integrity
+      let generatedDocNo = "";
+      try {
+        generatedDocNo = await getNextDocumentNo(postingDate);
+      } catch (error) {
+        console.error("Error generating Doc No:", error);
+        throw new Error("Failed to generate Document No");
       }
 
-      // Bulk insert selected entries with their unique Doc Nos
-      const createdEntries = await bulkInsertConsumeInventoryEntries(entriesWithDocNo);
+      const entryToInsert = {
+        ...formState,
+        "Document No.": generatedDocNo,
+        UserID: userID,
+      } as ConsumeInventoryEntry;
 
+      // 2. Insert the entry to NAV/BC
+      createdEntry = await createConsumeInventoryEntry(entryToInsert);
+
+      // 3. Post the entry in ERP
       try {
-        // Then trigger the post API
         const result = await postConsumeInventory(userID!);
         toast.success(result || "Posted successfully");
 
-        // Remove posted entries from state and local storage
-        const remainingEntries = entries.filter(
-          (_, i) => !selectedIndices.includes(i),
-        );
-        setEntries(remainingEntries);
-        setSelectedIndices([]);
-        localStorage.setItem(
-          `pending_consumption_entries_${userID}`,
-          JSON.stringify(remainingEntries),
-        );
+        // Clear only non-persistent fields
+        setFormState((prev) => ({
+          ...prev,
+          "Item No.": "",
+          Description: "",
+          Quantity: 0,
+          "Unit of Measure Code": "",
+          "Applies-to Entry": undefined,
+          "Applies-from Entry": undefined,
+          Gen_Prod_Posting_Group: "",
+        }));
       } catch (postError: any) {
-        console.error("Posting failed, rolling back entries...", postError);
+        console.error("Posting failed, rolling back entry...", postError);
         toastError(postError, "Posting failed. Rolling back...");
         
-        // Rollback: Delete the entries we just created
-        for (const entry of createdEntries) {
+        // Rollback: Delete the entry we just created
+        if (createdEntry) {
           try {
-            await deleteConsumeInventoryEntry(entry);
+            await deleteConsumeInventoryEntry(createdEntry);
           } catch (delError) {
-            console.error(`Failed to delete entry Line_No ${entry.Line_No}:`, delError);
+            console.error(`Failed to delete entry Line_No ${createdEntry.Line_No}:`, delError);
           }
         }
-        
-        throw postError; // Re-throw to be caught by outer catch
+        throw postError;
       }
     } catch (error: any) {
       toastError(error, "Failed to post");
@@ -405,7 +281,7 @@ export function ConsumeInventoryForm() {
                   New Consumption Entry
                 </CardTitle>
                 <p className="text-muted-foreground mt-0.5 text-xs font-medium">
-                  Add items to the pending list for posting
+                  Enter consumption details to directly post to the ERP
                 </p>
               </div>
             </div>
@@ -415,11 +291,11 @@ export function ConsumeInventoryForm() {
                   variant="secondary"
                   className="bg-primary/10 text-primary animate-pulse border-none"
                 >
-                  Processing...
+                  Posting...
                 </Badge>
               )}
               <Button
-                onClick={handleAddEntry}
+                onClick={handlePostDirectly}
                 disabled={submitting}
                 className="font-bold"
                 size="sm"
@@ -427,9 +303,9 @@ export function ConsumeInventoryForm() {
                 {submitting ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 ) : (
-                  <Plus className="mr-2 h-4 w-4" />
+                  <Send className="mr-2 h-4 w-4" />
                 )}
-                Add to List
+                Post Consumption
               </Button>
             </div>
           </div>
@@ -535,6 +411,7 @@ export function ConsumeInventoryForm() {
                     "Item No.": v,
                     Description: item?.Description || "",
                     "Unit of Measure Code": item?.Base_Unit_of_Measure || "",
+                    Gen_Prod_Posting_Group: (item as any)?.Gen_Prod_Posting_Group || "",
                     "Applies-to Entry": undefined,
                     "Applies-from Entry": undefined,
                   }));
@@ -793,287 +670,6 @@ export function ConsumeInventoryForm() {
           />
         </CardContent>
       </Card>
-
-      <Card className="bg-background/40 border-border/50 flex min-h-[500px] flex-1 flex-col overflow-hidden border border-none shadow-2xl backdrop-blur-xl">
-        <CardHeader className="bg-muted/20 flex flex-row items-center justify-between border-b px-6 py-5">
-          <div className="flex items-center gap-3">
-            <div className="bg-primary/10 rounded-lg p-2">
-              <Info className="text-primary h-5 w-5" />
-            </div>
-            <div>
-              <CardTitle className="text-xl font-bold tracking-tight">
-                Pending List
-              </CardTitle>
-              <p className="text-muted-foreground text-xs font-medium">
-                {selectedIndices.length} of {entries.length} items selected for
-                posting
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            {selectedIndices.length > 0 && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setSelectedIndices([])}
-                className="text-xs font-bold"
-              >
-                Clear Selection
-              </Button>
-            )}
-            <Button
-              variant="default"
-              size="lg"
-              onClick={handlePost}
-              disabled={submitting || selectedIndices.length === 0}
-              className="px-8 font-bold"
-            >
-              {submitting ? (
-                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-              ) : (
-                <Send className="mr-2 h-5 w-5" />
-              )}
-              Post Consumption ({selectedIndices.length})
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent className="flex-1 overflow-x-auto p-0">
-          <Table className="min-w-[1500px]">
-            <TableHeader className="bg-muted/40 sticky top-0 z-10 backdrop-blur-sm">
-              <TableRow className="border-b-2 hover:bg-transparent">
-                <TableHead className="w-[50px] py-4 text-center">
-                  <Checkbox
-                    checked={
-                      entries.length > 0 &&
-                      selectedIndices.length === entries.length
-                    }
-                    onCheckedChange={toggleSelectAll}
-                    aria-label="Select all"
-                  />
-                </TableHead>
-                <TableHead className="py-4 text-xs font-bold tracking-wider uppercase">
-                  Posting Date
-                </TableHead>
-                <TableHead className="py-4 text-xs font-bold tracking-wider uppercase">
-                  Type
-                </TableHead>
-                <TableHead className="py-4 text-xs font-bold tracking-wider uppercase">
-                  Doc No.
-                </TableHead>
-                <TableHead className="py-4 text-xs font-bold tracking-wider uppercase">
-                  Cons. Post
-                </TableHead>
-                <TableHead className="py-4 text-xs font-bold tracking-wider uppercase">
-                  LOB
-                </TableHead>
-                <TableHead className="py-4 text-xs font-bold tracking-wider uppercase">
-                  Branch
-                </TableHead>
-                <TableHead className="py-4 text-xs font-bold tracking-wider uppercase">
-                  Location
-                </TableHead>
-                <TableHead className="py-4 text-xs font-bold tracking-wider uppercase">
-                  UOM
-                </TableHead>
-                <TableHead className="py-4 text-xs font-bold tracking-wider uppercase">
-                  Item No.
-                </TableHead>
-                <TableHead className="py-4 text-right text-xs font-bold tracking-wider uppercase">
-                  Quantity
-                </TableHead>
-                <TableHead className="py-4 text-xs font-bold tracking-wider uppercase">
-                  Employee
-                </TableHead>
-                <TableHead className="py-4 text-xs font-bold tracking-wider uppercase">
-                  Assignment
-                </TableHead>
-                <TableHead className="py-4 text-xs font-bold tracking-wider uppercase">
-                  Applies-to
-                </TableHead>
-                <TableHead className="py-4 text-xs font-bold tracking-wider uppercase">
-                  Applies-from
-                </TableHead>
-                <TableHead className="w-[60px] py-4 text-center uppercase">
-                  Actions
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {loading ? (
-                <TableRow>
-                  <TableCell colSpan={16} className="h-64 text-center">
-                    <div className="text-muted-foreground flex flex-col items-center gap-3">
-                      <Loader2 className="text-primary/40 h-10 w-10 animate-spin" />
-                      <p className="text-sm font-medium">
-                        Fetching pending entries...
-                      </p>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ) : entries.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={16} className="h-64 text-center">
-                    <div className="text-muted-foreground/50 flex flex-col items-center gap-4">
-                      <Package className="h-16 w-16 opacity-20" />
-                      <p className="text-base font-medium italic">
-                        No entries in the pending list
-                      </p>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ) : (
-                entries.map((entry, index) => (
-                  <TableRow
-                    key={index}
-                    className={`group border-b transition-colors last:border-none ${
-                      selectedIndices.includes(index)
-                        ? "bg-primary/[0.04]"
-                        : "hover:bg-primary/[0.02]"
-                    }`}
-                  >
-                    <TableCell className="text-center">
-                      <Checkbox
-                        checked={selectedIndices.includes(index)}
-                        onCheckedChange={() => toggleSelectRow(index)}
-                        aria-label={`Select row ${index + 1}`}
-                      />
-                    </TableCell>
-                    <TableCell className="text-xs font-medium">
-                      {entry["Posting Date"]}
-                    </TableCell>
-                    <TableCell>
-                      <Badge
-                        variant={
-                          entry["Entry Type"] === "Issue"
-                            ? "destructive"
-                            : "outline"
-                        }
-                        className="text-[10px] uppercase"
-                      >
-                        {entry["Entry Type"]}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="font-mono text-xs">
-                      {entry["Document No."] || "—"}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground text-[10px] font-bold">
-                      {entry["Consumption Posting"] || "—"}
-                    </TableCell>
-                    <TableCell className="text-xs font-bold">
-                      {entry["Lob Code"]}
-                    </TableCell>
-                    <TableCell className="text-xs">
-                      {entry["Branch Code"]}
-                    </TableCell>
-                    <TableCell>
-                      <Badge
-                        variant="secondary"
-                        className="bg-primary/5 text-primary border-none text-[10px]"
-                      >
-                        {entry["Location Code"]}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground text-[10px] font-bold">
-                      {entry["Unit of Measure Code"]}
-                    </TableCell>
-                    <TableCell className="text-sm font-bold">
-                      {entry["Item No."]}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <span className="text-primary font-mono text-base font-black">
-                        {entry.Quantity?.toLocaleString()}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-[11px]">
-                      {entry["Employee Code"] || "—"}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground text-[11px]">
-                      {entry["Assignment Code"] || "—"}
-                    </TableCell>
-                    <TableCell className="font-mono text-[11px] text-blue-400">
-                      {entry["Applies-to Entry"] || "—"}
-                    </TableCell>
-                    <TableCell className="font-mono text-[11px] text-green-400">
-                      {entry["Applies-from Entry"] || "—"}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="text-muted-foreground hover:text-primary h-8 w-8"
-                          >
-                            <MoreVertical className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-32">
-                          <DropdownMenuItem
-                            onClick={() => handleEditEntry(entry, index)}
-                            className="cursor-pointer"
-                          >
-                            <Edit2 className="mr-2 h-4 w-4" />
-                            <span>Edit</span>
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => handleDeleteEntry(index)}
-                            className="text-destructive focus:text-destructive cursor-pointer"
-                          >
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            <span>Delete</span>
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-
-      <Dialog open={isConfirmPostOpen} onOpenChange={setIsConfirmPostOpen}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <div className="bg-primary/10 mb-4 flex h-12 w-12 items-center justify-center rounded-full">
-              <Send className="text-primary h-6 w-6" />
-            </div>
-            <DialogTitle className="text-xl font-bold">
-              Confirm Posting
-            </DialogTitle>
-            <DialogDescription className="py-2 text-sm leading-relaxed">
-              Are you sure you want to post the{" "}
-              <span className="text-foreground font-bold">
-                {selectedIndices.length} selected items
-              </span>{" "}
-              to the inventory? This action will update the inventory ledgers
-              and cannot be undone.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="mt-6 flex gap-2 sm:justify-end">
-            <Button
-              variant="outline"
-              onClick={() => setIsConfirmPostOpen(false)}
-              className="font-semibold"
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={executePost}
-              className="px-8 font-bold"
-              disabled={submitting}
-            >
-              {submitting ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Send className="mr-2 h-4 w-4" />
-              )}
-              Confirm & Post
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

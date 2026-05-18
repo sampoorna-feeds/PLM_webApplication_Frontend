@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { 
   getInwardGateEntriesWithCount, 
   searchInwardGateEntries,
@@ -13,7 +13,6 @@ import {
   type SortDirection 
 } from "./column-config";
 import { InwardGateEntryColumnVisibility } from "./column-visibility";
-import { InwardGateEntryPaginationControls } from "./pagination-controls";
 import { useFormStackContext } from "@/lib/form-stack/form-stack-context";
 import { Button } from "@/components/ui/button";
 import { Plus, RefreshCcw, Search, X } from "lucide-react";
@@ -24,29 +23,43 @@ import { buildGateEntryFilterString } from "./utils/filter-builder";
 export function InwardGateEntryPageContent() {
   const [entries, setEntries] = useState<InwardGateEntryHeader[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [sortColumn, setSortColumn] = useState<string | null>("No");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
-  const [pageSize, setPageSize] = useState(20);
+  const [pageSize, setPageSize] = useState(200);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
   const [columnFilters, setColumnFilters] = useState<Record<string, { value: string; valueTo?: string }>>({});
   const [visibleColumns, setVisibleColumns] = useState<string[]>(DEFAULT_VISIBLE_COLUMNS);
   
+  const isLoadingRef = useRef(false);
+  const isLoadingMoreRef = useRef(false);
+  const lastRequestId = useRef(0);
+  const pageRef = useRef(1);
+
   const { openTab } = useFormStackContext();
 
   // Debounce search query
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearchQuery(searchQuery);
-      setCurrentPage(1);
     }, 500);
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  const fetchEntries = useCallback(async () => {
-    setIsLoading(true);
+  const fetchEntries = useCallback(async (reset = false) => {
+    const requestId = ++lastRequestId.current;
+    if (reset) {
+      pageRef.current = 1;
+      isLoadingRef.current = true;
+      setIsLoading(true);
+    } else {
+      isLoadingMoreRef.current = true;
+      setIsLoadingMore(true);
+    }
     try {
       const filter = buildGateEntryFilterString({ 
         columnFilters, 
@@ -55,7 +68,7 @@ export function InwardGateEntryPageContent() {
 
       const params = {
         $top: pageSize,
-        $skip: (currentPage - 1) * pageSize,
+        $skip: (pageRef.current - 1) * pageSize,
         $orderby: sortColumn && sortDirection ? `${sortColumn} ${sortDirection}` : undefined,
         $filter: filter,
         searchTerm: debouncedSearchQuery || undefined,
@@ -65,30 +78,54 @@ export function InwardGateEntryPageContent() {
         ? await searchInwardGateEntries(params)
         : await getInwardGateEntriesWithCount(params);
 
-      setEntries(result.entries);
-      setTotalCount(result.totalCount);
+      if (requestId !== lastRequestId.current) return;
+
+      if (pageRef.current === 1) {
+        setEntries(result.entries || []);
+      } else {
+        setEntries(prev => [...prev, ...(result.entries || [])]);
+      }
+      setTotalCount(result.totalCount ?? result.entries?.length ?? 0);
+      setHasMore(pageRef.current * pageSize < (result.totalCount ?? 0));
+      setCurrentPage(pageRef.current);
     } catch (error) {
+      if (requestId !== lastRequestId.current) return;
       console.error("Error fetching inward gate entries:", error);
+      if (pageRef.current === 1) {
+        setEntries([]);
+        setTotalCount(0);
+      }
     } finally {
-      setIsLoading(false);
+      if (requestId === lastRequestId.current) {
+        setIsLoading(false);
+        setIsLoadingMore(false);
+        isLoadingRef.current = false;
+        isLoadingMoreRef.current = false;
+      }
     }
-  }, [currentPage, pageSize, sortColumn, sortDirection, debouncedSearchQuery, columnFilters]);
+  }, [pageSize, sortColumn, sortDirection, debouncedSearchQuery, columnFilters]);
+
+  const loadMore = useCallback(() => {
+    if (isLoadingRef.current || isLoadingMoreRef.current || !hasMore) return;
+    pageRef.current += 1;
+    fetchEntries(false);
+  }, [hasMore, fetchEntries]);
 
   useEffect(() => {
-    fetchEntries();
+    fetchEntries(true);
   }, [fetchEntries]);
 
   const handleRowClick = (entry: InwardGateEntryHeader) => {
     openTab("inward-gate-entry", {
       title: `Gate Entry: ${entry.No}`,
-      context: { entry, mode: "view", refetch: fetchEntries },
+      context: { entry, mode: "view", refetch: () => fetchEntries(true) },
     });
   };
 
   const handleCreate = () => {
     openTab("inward-gate-entry", {
       title: "New Gate Entry",
-      context: { mode: "create", refetch: fetchEntries },
+      context: { mode: "create", refetch: () => fetchEntries(true) },
     });
   };
 
@@ -101,7 +138,6 @@ export function InwardGateEntryPageContent() {
       setSortColumn(column);
       setSortDirection("asc");
     }
-    setCurrentPage(1);
   };
 
   const handleColumnFilter = (columnId: string, value: string, valueTo?: string) => {
@@ -114,7 +150,6 @@ export function InwardGateEntryPageContent() {
       }
       return next;
     });
-    setCurrentPage(1);
   };
 
   const handleColumnToggle = (columnId: string) => {
@@ -132,19 +167,21 @@ export function InwardGateEntryPageContent() {
     setSearchQuery("");
     setDebouncedSearchQuery("");
     setColumnFilters({});
-    setCurrentPage(1);
   };
 
-  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
-  const hasNextPage = currentPage < totalPages;
   const activeFiltersCount = Object.keys(columnFilters).length + (searchQuery ? 1 : 0);
 
   return (
     <div className="flex h-full flex-col p-6 [overflow-anchor:none]">
       <div className="mb-6 flex items-center justify-between gap-2">
-        <h1 className="text-2xl font-bold tracking-tight">Inward Gate Entry</h1>
+        <div className="flex items-center gap-3">
+          <h1 className="text-2xl font-bold tracking-tight">Inward Gate Entry</h1>
+          <Badge variant="outline" className="text-[10px] h-5 px-1.5 font-mono">
+            {totalCount} {totalCount === 1 ? "record" : "records"} found
+          </Badge>
+        </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={fetchEntries} disabled={isLoading}>
+          <Button variant="outline" size="sm" onClick={() => fetchEntries(true)} disabled={isLoading}>
             <RefreshCcw className={`mr-2 h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
             Refresh
           </Button>
@@ -192,7 +229,7 @@ export function InwardGateEntryPageContent() {
         />
       </div>
 
-      <div className="flex-1 min-h-0">
+      <div className="flex-1 min-h-0 flex flex-col">
         <InwardGateEntryTable
           entries={entries}
           isLoading={isLoading}
@@ -206,21 +243,11 @@ export function InwardGateEntryPageContent() {
           onSort={handleSort}
           onRowClick={handleRowClick}
           onColumnFilter={handleColumnFilter}
+          onLoadMore={loadMore}
+          hasMore={hasMore}
+          isLoadingMore={isLoadingMore}
         />
       </div>
-
-      <InwardGateEntryPaginationControls
-        pageSize={pageSize}
-        currentPage={currentPage}
-        totalPages={totalPages}
-        totalCount={totalCount}
-        hasNextPage={hasNextPage}
-        onPageSizeChange={(size) => {
-          setPageSize(size);
-          setCurrentPage(1);
-        }}
-        onPageChange={setCurrentPage}
-      />
     </div>
   );
 }

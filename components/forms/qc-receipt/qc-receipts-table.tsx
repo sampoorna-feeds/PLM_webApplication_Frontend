@@ -1,6 +1,7 @@
 "use client";
 
-import { ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
+import { useEffect, useRef } from "react";
+import { ArrowUp, ArrowDown, ArrowUpDown, Loader2 } from "lucide-react";
 import type { QCReceiptHeader } from "@/lib/api/services/qc-receipt.service";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -24,6 +25,9 @@ interface QCReceiptsTableProps {
   onSort: (column: string) => void;
   onFilter: (columnId: string, value: string, valueTo?: string) => void;
   isPosted: boolean;
+  onLoadMore?: () => void;
+  hasMore?: boolean;
+  isLoadingMore?: boolean;
 }
 
 export function QCReceiptsTable({
@@ -39,6 +43,9 @@ export function QCReceiptsTable({
   onSort,
   onFilter,
   isPosted,
+  onLoadMore,
+  hasMore,
+  isLoadingMore,
 }: QCReceiptsTableProps) {
   const columns = ALL_COLUMNS.filter((col) => {
     if (col.id === "Bardana_RPO" && !isPosted) return false;
@@ -46,11 +53,42 @@ export function QCReceiptsTable({
   });
   const startingSerialNo = (currentPage - 1) * pageSize;
 
+  const sentinelRef = useRef<HTMLTableRowElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!hasMore || isLoading || isLoadingMore) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          onLoadMore?.();
+        }
+      },
+      { 
+        threshold: 0.1, 
+        rootMargin: "100px",
+        root: scrollContainerRef.current
+      },
+    );
+
+    const currentSentinel = sentinelRef.current;
+    if (currentSentinel) {
+      observer.observe(currentSentinel);
+    }
+
+    return () => {
+      if (currentSentinel) {
+        observer.unobserve(currentSentinel);
+      }
+    };
+  }, [hasMore, isLoading, isLoadingMore, onLoadMore]);
+
   return (
-    <div className="bg-card flex h-full flex-1 flex-col overflow-hidden rounded-lg border">
-      <div className="flex-1 overflow-auto">
+    <div className="bg-card flex h-full flex-1 flex-col overflow-hidden rounded-lg border shadow-sm">
+      <div ref={scrollContainerRef} className="flex-1 overflow-auto">
         <table className="w-full caption-bottom text-sm">
-          <thead className="bg-muted sticky top-0 z-10 [&_tr]:border-b">
+          <thead className="bg-muted sticky top-0 z-10 shadow-sm [&_tr]:border-b">
             <tr className="border-b transition-colors">
               <th className="text-foreground h-10 w-12 px-3 py-3 text-center align-middle text-xs font-semibold whitespace-nowrap">
                 S.No
@@ -72,9 +110,9 @@ export function QCReceiptsTable({
             </tr>
           </thead>
           <tbody className="[&_tr:last-child]:border-0">
-            {isLoading && (
+            {isLoading ? (
               <>
-                {Array.from({ length: receipts.length || 10 }).map((_, rowIndex) => (
+                {Array.from({ length: 5 }).map((_, rowIndex) => (
                   <tr
                     key={`skeleton-${rowIndex}`}
                     className="border-b transition-colors"
@@ -87,14 +125,13 @@ export function QCReceiptsTable({
                         key={column.id}
                         className="p-2 px-3 py-3 align-middle whitespace-nowrap"
                       >
-                        <Skeleton className="h-4 w-full" />
+                        <Skeleton className="h-4 w-full opacity-50" />
                       </td>
                     ))}
                   </tr>
                 ))}
               </>
-            )}
-            {!isLoading && receipts.length === 0 && (
+            ) : receipts.length === 0 ? (
               <tr className="border-b transition-colors">
                 <td
                   colSpan={columns.length + 1}
@@ -103,18 +140,30 @@ export function QCReceiptsTable({
                   No QC receipts found
                 </td>
               </tr>
+            ) : (
+              <>
+                {receipts.map((receipt, index) => (
+                  <QCReceiptRow
+                    key={receipt.No}
+                    receipt={receipt}
+                    columns={columns}
+                    serialNo={startingSerialNo + index + 1}
+                    onClick={onRowClick ? () => onRowClick(receipt) : undefined}
+                  />
+                ))}
+                {!isLoading && (
+                  <tr ref={sentinelRef}>
+                    <td colSpan={columns.length + 1} className="h-px p-0">
+                      {isLoadingMore && (
+                        <div className="flex justify-center py-4">
+                          <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                )}
+              </>
             )}
-            {!isLoading &&
-              receipts.length > 0 &&
-              receipts.map((receipt, index) => (
-                <QCReceiptRow
-                  key={receipt.No}
-                  receipt={receipt}
-                  columns={columns}
-                  serialNo={startingSerialNo + index + 1}
-                  onClick={onRowClick ? () => onRowClick(receipt) : undefined}
-                />
-              ))}
           </tbody>
         </table>
       </div>

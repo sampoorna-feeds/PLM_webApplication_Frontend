@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Search, X, RotateCcw, Calendar } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { QCReceiptColumnVisibility } from "./column-visibility";
 
 interface QCReceiptFilterBarProps {
@@ -17,6 +18,7 @@ interface QCReceiptFilterBarProps {
   onShowAllColumns: () => void;
   onRefresh: () => void;
   onDateFilterChange: () => void;
+  totalCount: number;
 }
 
 export function QCReceiptFilterBar({
@@ -30,6 +32,7 @@ export function QCReceiptFilterBar({
   onShowAllColumns,
   onRefresh,
   onDateFilterChange,
+  totalCount,
 }: QCReceiptFilterBarProps) {
   const [localSearch, setLocalSearch] = useState(searchQuery);
 
@@ -81,6 +84,10 @@ export function QCReceiptFilterBar({
         <Calendar className="h-4 w-4" />
         Date Filter
       </Button>
+
+      <Badge variant="outline" className="text-[10px] h-8 px-2 font-mono flex items-center">
+        {totalCount} {totalCount === 1 ? "record" : "records"} found
+      </Badge>
 
       {hasActiveFilters && (
         <Button

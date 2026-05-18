@@ -16,6 +16,8 @@ function PostedOutwardGateEntryContent() {
   const {
     entries,
     isLoading,
+    isLoadingMore,
+    hasMore,
     pageSize,
     currentPage,
     totalCount,
@@ -37,6 +39,7 @@ function PostedOutwardGateEntryContent() {
     onShowAllColumns,
     onClearFilters,
     refetch,
+    loadMore,
   } = usePostedGateEntries("outward");
 
   const { openTab } = useFormStackContext();
@@ -74,6 +77,9 @@ function PostedOutwardGateEntryContent() {
                 {dateFilter.fromDate.split('-').reverse().join('/')} - {dateFilter.toDate.split('-').reverse().join('/')}
               </Badge>
             )}
+            <Badge variant="outline" className="text-[10px] h-5 px-1.5 font-mono">
+              {totalCount} {totalCount === 1 ? "record" : "records"} found
+            </Badge>
           </div>
         </div>
 
@@ -122,7 +128,7 @@ function PostedOutwardGateEntryContent() {
         </div>
       </div>
 
-      <div className="flex-1 min-h-0 overflow-hidden">
+      <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
         <PostedGateEntryTable
           entries={entries}
           isLoading={isLoading}
@@ -133,28 +139,10 @@ function PostedOutwardGateEntryContent() {
           onColumnFilter={onColumnFilter}
           onSort={onSort}
           onRowClick={handleRowClick}
+          onLoadMore={loadMore}
+          hasMore={hasMore}
+          isLoadingMore={isLoadingMore}
         />
-      </div>
-
-      <div className="mt-4 flex items-center justify-between border-t pt-4">
-        <div className="flex items-center gap-2">
-          <p className="text-xs text-muted-foreground">
-            Showing <span className="font-medium text-foreground">{(currentPage - 1) * pageSize + 1}</span> to{" "}
-            <span className="font-medium text-foreground">{Math.min(currentPage * pageSize, totalCount)}</span> of{" "}
-            <span className="font-medium text-foreground">{totalCount}</span> results
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => onPageChange(currentPage - 1)} disabled={currentPage === 1}>
-            Previous
-          </Button>
-          <div className="text-xs font-medium">
-            Page {currentPage} of {totalPages}
-          </div>
-          <Button variant="outline" size="sm" onClick={() => onPageChange(currentPage + 1)} disabled={currentPage >= totalPages}>
-            Next
-          </Button>
-        </div>
       </div>
     </div>
   );

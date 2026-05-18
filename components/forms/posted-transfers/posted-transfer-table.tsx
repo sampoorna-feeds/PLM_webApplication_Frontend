@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Eye, Loader2, ArrowUp, ArrowDown, ArrowUpDown, Download, Printer } from "lucide-react";
@@ -23,6 +24,9 @@ interface PostedTransferTableProps {
   onDownloadRecord?: (docNo: string, docType: string, reportName: string) => void;
   onPrintRecord?: (docNo: string, docType: string, reportName: string) => void;
   type?: "shipment" | "receipt";
+  onLoadMore?: () => void;
+  hasMore?: boolean;
+  isLoadingMore?: boolean;
 }
 
 export function PostedTransferTable({ 
@@ -39,7 +43,10 @@ export function PostedTransferTable({
   onColumnFilter,
   onDownloadRecord,
   onPrintRecord,
-  type = "shipment"
+  type = "shipment",
+  onLoadMore,
+  hasMore,
+  isLoadingMore,
 }: PostedTransferTableProps) {
   const columns = visibleColumns 
     ? POSTED_TRANSFER_COLUMNS.filter(col => visibleColumns.includes(col.id))
@@ -50,9 +57,40 @@ export function PostedTransferTable({
     ? columns.filter(col => col.id !== "E_Invoice_No")
     : columns;
 
+  const sentinelRef = useRef<HTMLTableRowElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!hasMore || isLoading || isLoadingMore) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          onLoadMore?.();
+        }
+      },
+      { 
+        threshold: 0.1, 
+        rootMargin: "100px",
+        root: scrollContainerRef.current
+      },
+    );
+
+    const currentSentinel = sentinelRef.current;
+    if (currentSentinel) {
+      observer.observe(currentSentinel);
+    }
+
+    return () => {
+      if (currentSentinel) {
+        observer.unobserve(currentSentinel);
+      }
+    };
+  }, [hasMore, isLoading, isLoadingMore, onLoadMore]);
+
   return (
-    <div className="bg-card flex h-full flex-1 flex-col overflow-hidden rounded-lg border shadow-sm">
-      <div className="flex-1 overflow-auto">
+    <div className="bg-card flex h-full flex-1 flex-col overflow-hidden rounded-lg border shadow-sm w-full">
+      <div ref={scrollContainerRef} className="flex-1 min-h-0 overflow-auto">
         <table className="w-full caption-bottom text-sm">
           <thead className="bg-muted sticky top-0 z-10 border-b">
             <tr>
@@ -113,20 +151,33 @@ export function PostedTransferTable({
                 </td>
               </tr>
             ) : (
-              data.map((row, index) => (
-                <TransferOrderRow 
-                  key={row.No}
-                  row={row}
-                  index={index}
-                  type={type}
-                  onRowClick={onRowClick}
-                  onViewReport={onViewReport}
-                  activeReportId={activeReportId}
-                  columns={filteredColumns}
-                  onDownloadRecord={onDownloadRecord}
-                  onPrintRecord={onPrintRecord}
-                />
-              ))
+              <>
+                {data.map((row, index) => (
+                  <TransferOrderRow 
+                    key={row.No}
+                    row={row}
+                    index={index}
+                    type={type}
+                    onRowClick={onRowClick}
+                    onViewReport={onViewReport}
+                    activeReportId={activeReportId}
+                    columns={filteredColumns}
+                    onDownloadRecord={onDownloadRecord}
+                    onPrintRecord={onPrintRecord}
+                  />
+                ))}
+                {!isLoading && (
+                  <tr ref={sentinelRef}>
+                    <td colSpan={filteredColumns.length + (onViewReport ? 2 : 1)} className="h-px p-0">
+                      {isLoadingMore && (
+                        <div className="flex justify-center py-4">
+                          <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                )}
+              </>
             )}
             </tbody>
           </table>

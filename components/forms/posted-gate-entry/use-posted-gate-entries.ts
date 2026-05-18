@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { 
   getPostedInwardGateEntries, 
   getPostedOutwardGateEntries,
@@ -13,9 +13,11 @@ import { toastError } from "@/lib/errors";
 export function usePostedGateEntries(type: "inward" | "outward", initialFilters?: { skipDateFilter?: boolean }) {
   const [entries, setEntries] = useState<PostedGateEntryHeader[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [pageSize, setPageSize] = useState(20);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [pageSize, setPageSize] = useState(200);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
   const [sortColumn, setSortColumn] = useState<string | null>("No");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
   const [searchQuery, setSearchQuery] = useState("");
@@ -23,15 +25,30 @@ export function usePostedGateEntries(type: "inward" | "outward", initialFilters?
   const [dateFilter, setDateFilter] = useState<{ fromDate: string; toDate: string } | null>(null);
   const [visibleColumns, setVisibleColumns] = useState<string[]>(DEFAULT_VISIBLE_COLUMNS);
 
+  const isLoadingRef = useRef(false);
+  const isLoadingMoreRef = useRef(false);
+  const lastRequestId = useRef(0);
+  const pageRef = useRef(1);
+
   const skipDateFilter = initialFilters?.skipDateFilter;
 
-  const fetchEntries = useCallback(async () => {
+  const fetchEntries = useCallback(async (reset = false) => {
     if (!skipDateFilter && !dateFilter) {
       setIsLoading(false);
       return;
     }
 
-    setIsLoading(true);
+    const requestId = ++lastRequestId.current;
+
+    if (reset) {
+      pageRef.current = 1;
+      isLoadingRef.current = true;
+      setIsLoading(true);
+    } else {
+      isLoadingMoreRef.current = true;
+      setIsLoadingMore(true);
+    }
+
     try {
       const filterParts: string[] = [];
 
@@ -63,7 +80,7 @@ export function usePostedGateEntries(type: "inward" | "outward", initialFilters?
 
       const params: any = {
         $top: pageSize,
-        $skip: (currentPage - 1) * pageSize,
+        $skip: (pageRef.current - 1) * pageSize,
         $orderby: sortColumn && sortDirection ? `${sortColumn} ${sortDirection}` : "No desc",
         $filter: filter,
         $count: true,
@@ -73,18 +90,42 @@ export function usePostedGateEntries(type: "inward" | "outward", initialFilters?
         ? await getPostedInwardGateEntries(params)
         : await getPostedOutwardGateEntries(params);
 
-      setEntries(result.value || []);
+      if (requestId !== lastRequestId.current) return;
+
+      if (pageRef.current === 1) {
+        setEntries(result.value || []);
+      } else {
+        setEntries((prev) => [...prev, ...(result.value || [])]);
+      }
       setTotalCount(result["@odata.count"] ?? result.value?.length ?? 0);
+      setHasMore(pageRef.current * pageSize < (result["@odata.count"] ?? 0));
+      setCurrentPage(pageRef.current);
     } catch (error) {
+      if (requestId !== lastRequestId.current) return;
       console.error(`Error fetching posted ${type} gate entries:`, error);
       toastError(error, `Failed to load posted ${type} gate entries.`);
+      if (pageRef.current === 1) {
+        setEntries([]);
+        setTotalCount(0);
+      }
     } finally {
-      setIsLoading(false);
+      if (requestId === lastRequestId.current) {
+        setIsLoading(false);
+        setIsLoadingMore(false);
+        isLoadingRef.current = false;
+        isLoadingMoreRef.current = false;
+      }
     }
-  }, [type, currentPage, pageSize, sortColumn, sortDirection, searchQuery, columnFilters, dateFilter, skipDateFilter]);
+  }, [type, pageSize, sortColumn, sortDirection, searchQuery, columnFilters, dateFilter, skipDateFilter]);
+
+  const loadMore = useCallback(() => {
+    if (isLoadingRef.current || isLoadingMoreRef.current || !hasMore) return;
+    pageRef.current += 1;
+    fetchEntries(false);
+  }, [hasMore, fetchEntries]);
 
   useEffect(() => {
-    fetchEntries();
+    fetchEntries(true);
   }, [fetchEntries]);
 
   const handleSort = (column: string) => {
@@ -94,7 +135,6 @@ export function usePostedGateEntries(type: "inward" | "outward", initialFilters?
       setSortColumn(column);
       setSortDirection("asc");
     }
-    setCurrentPage(1);
   };
 
   const handleColumnFilter = (columnId: string, value: string, valueTo?: string) => {
@@ -104,13 +144,11 @@ export function usePostedGateEntries(type: "inward" | "outward", initialFilters?
       else next[columnId] = { value, valueTo };
       return next;
     });
-    setCurrentPage(1);
   };
 
   const handleClearFilters = () => {
     setSearchQuery("");
     setColumnFilters({});
-    setCurrentPage(1);
   };
 
   const handleColumnToggle = (columnId: string) => {
@@ -134,6 +172,8 @@ export function usePostedGateEntries(type: "inward" | "outward", initialFilters?
   return {
     entries,
     isLoading,
+    isLoadingMore,
+    hasMore,
     pageSize,
     currentPage,
     totalCount,
@@ -145,15 +185,16 @@ export function usePostedGateEntries(type: "inward" | "outward", initialFilters?
     dateFilter,
     setDateFilter,
     visibleColumns,
-    onPageSizeChange: (size: number) => { setPageSize(size); setCurrentPage(1); },
+    onPageSizeChange: (size: number) => { setPageSize(size); },
     onPageChange: setCurrentPage,
     onSort: handleSort,
-    onSearch: (q: string) => { setSearchQuery(q); setCurrentPage(1); },
+    onSearch: (q: string) => { setSearchQuery(q); },
     onColumnFilter: handleColumnFilter,
     onColumnToggle: handleColumnToggle,
     onResetColumns: handleResetColumns,
     onShowAllColumns: handleShowAllColumns,
     onClearFilters: handleClearFilters,
-    refetch: fetchEntries,
+    refetch: () => fetchEntries(true),
+    loadMore,
   };
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { toast } from "sonner";
 import { toastError } from "@/lib/errors";
 import { 
@@ -29,10 +29,17 @@ export function usePostedTransfers({ type, initialFilters }: UsePostedTransfersO
   const { userID } = useAuth();
   const [data, setData] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [pageSize, setPageSize] = useState(20);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [pageSize, setPageSize] = useState(200);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
   const [userBranchCodes, setUserBranchCodes] = useState<string[]>([]);
+
+  const isLoadingRef = useRef(false);
+  const isLoadingMoreRef = useRef(false);
+  const lastRequestId = useRef(0);
+  const pageRef = useRef(1);
 
   useEffect(() => {
     if (!userID) return;
@@ -71,10 +78,29 @@ export function usePostedTransfers({ type, initialFilters }: UsePostedTransfersO
     if (initialFilters.fromLocation) parts.push(`Transfer_from_Code eq '${initialFilters.fromLocation}'`);
     if (initialFilters.toLocation) parts.push(`Transfer_to_Code eq '${initialFilters.toLocation}'`);
 
-    return parts.join(" and ");
-  }, [initialFilters, userBranchCodes]);
+    if (searchQuery) {
+      const escaped = searchQuery.replace(/'/g, "''");
+      parts.push(`(contains(No,'${escaped}') or contains(Transfer_from_Code,'${escaped}') or contains(Transfer_to_Code,'${escaped}'))`);
+    }
 
-  const fetchData = useCallback(async () => {
+    Object.entries(columnFilters).forEach(([col, filter]) => {
+      if (filter.value) {
+        const escaped = filter.value.replace(/'/g, "''");
+        if (escaped.includes(",")) {
+          const vals = escaped.split(",").map(v => v.trim()).filter(Boolean);
+          if (vals.length > 0) {
+            parts.push(`(${vals.map(v => `contains(${col},'${v}')`).join(" or ")})`);
+          }
+        } else {
+          parts.push(`contains(${col},'${escaped}')`);
+        }
+      }
+    });
+
+    return parts.join(" and ");
+  }, [initialFilters, userBranchCodes, searchQuery, columnFilters]);
+
+  const fetchData = useCallback(async (reset = false) => {
     if (!initialFilters) return;
 
     if (userBranchCodes.length === 0) {
@@ -84,13 +110,22 @@ export function usePostedTransfers({ type, initialFilters }: UsePostedTransfersO
       return;
     }
     
-    setIsLoading(true);
+    const requestId = ++lastRequestId.current;
+    if (reset) {
+      pageRef.current = 1;
+      isLoadingRef.current = true;
+      setIsLoading(true);
+    } else {
+      isLoadingMoreRef.current = true;
+      setIsLoadingMore(true);
+    }
+
     try {
       const filter = buildFilterString();
       const params = {
         $filter: filter,
         $top: pageSize,
-        $skip: (currentPage - 1) * pageSize,
+        $skip: (pageRef.current - 1) * pageSize,
         $orderby: sortColumn && sortDirection ? `${sortColumn} ${sortDirection}` : "No desc",
       };
 
@@ -98,25 +133,46 @@ export function usePostedTransfers({ type, initialFilters }: UsePostedTransfersO
         ? await getPostedTransferShipments(params)
         : await getTransferReceipts(params);
       
-      setData(result.orders);
+      if (requestId !== lastRequestId.current) return;
+
+      if (pageRef.current === 1) {
+        setData(result.orders);
+      } else {
+        setData(prev => [...prev, ...result.orders]);
+      }
       setTotalCount(result.totalCount);
+      setHasMore(pageRef.current * pageSize < result.totalCount);
+      setCurrentPage(pageRef.current);
     } catch (error) {
+      if (requestId !== lastRequestId.current) return;
       console.error(`Error fetching posted transfer ${type}s:`, error);
       toastError(error, `Failed to load posted ${type}s.`);
-      setData([]);
-      setTotalCount(0);
+      if (pageRef.current === 1) {
+        setData([]);
+        setTotalCount(0);
+      }
     } finally {
-      setIsLoading(false);
+      if (requestId === lastRequestId.current) {
+        setIsLoading(false);
+        setIsLoadingMore(false);
+        isLoadingRef.current = false;
+        isLoadingMoreRef.current = false;
+      }
     }
-  }, [type, initialFilters, pageSize, currentPage, sortColumn, sortDirection, buildFilterString, userBranchCodes]);
+  }, [type, initialFilters, pageSize, sortColumn, sortDirection, buildFilterString, userBranchCodes]);
+
+  const loadMore = useCallback(() => {
+    if (isLoadingRef.current || isLoadingMoreRef.current || !hasMore) return;
+    pageRef.current += 1;
+    fetchData(false);
+  }, [hasMore, fetchData]);
 
   useEffect(() => {
-    fetchData();
+    fetchData(true);
   }, [fetchData]);
 
   const handlePageSizeChange = useCallback((size: number) => {
     setPageSize(size);
-    setCurrentPage(1);
   }, []);
 
   const handlePageChange = useCallback((page: number) => {
@@ -130,33 +186,31 @@ export function usePostedTransfers({ type, initialFilters }: UsePostedTransfersO
       setSortColumn(column);
       setSortDirection("asc");
     }
-    setCurrentPage(1);
   }, [sortColumn]);
 
   const handleSearch = useCallback((query: string) => {
     setSearchQuery(query);
-    setCurrentPage(1);
-    // Note: Real OData search would need to be integrated into buildFilterString
   }, []);
 
   const handleColumnFilter = useCallback((columnId: string, value: string, valueTo?: string) => {
-    setColumnFilters(prev => ({
-      ...prev,
-      [columnId]: { value, valueTo }
-    }));
-    setCurrentPage(1);
-    // Note: Real OData column filtering would need to be integrated into buildFilterString
+    setColumnFilters(prev => {
+      const next = { ...prev };
+      if (!value && !valueTo) delete next[columnId];
+      else next[columnId] = { value, valueTo };
+      return next;
+    });
   }, []);
 
   const handleClearFilters = useCallback(() => {
     setSearchQuery("");
     setColumnFilters({});
-    setCurrentPage(1);
   }, []);
 
   return {
     data,
     isLoading,
+    isLoadingMore,
+    hasMore,
     pageSize,
     currentPage,
     totalPages,
@@ -171,6 +225,7 @@ export function usePostedTransfers({ type, initialFilters }: UsePostedTransfersO
     onSearch: handleSearch,
     onColumnFilter: handleColumnFilter,
     onClearFilters: handleClearFilters,
-    refetch: fetchData,
+    refetch: () => fetchData(true),
+    loadMore,
   };
 }

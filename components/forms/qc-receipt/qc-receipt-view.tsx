@@ -21,6 +21,8 @@ export function QCReceiptView({ statusFilter, isPosted, skipDateFilter }: QCRece
   const {
     receipts,
     isLoading,
+    isLoadingMore,
+    hasMore,
     pageSize,
     currentPage,
     totalCount,
@@ -42,6 +44,7 @@ export function QCReceiptView({ statusFilter, isPosted, skipDateFilter }: QCRece
     onResetColumns,
     onShowAllColumns,
     refetch,
+    loadMore,
   } = useQCReceipts({ statusFilter, isPosted, skipDateFilter });
 
   const handleRowClick = (receipt: QCReceiptHeader) => {
@@ -66,7 +69,7 @@ export function QCReceiptView({ statusFilter, isPosted, skipDateFilter }: QCRece
   }
 
   return (
-    <div className="flex h-full flex-col gap-2">
+    <div className="flex h-full flex-col gap-2 [overflow-anchor:none]">
       {/* Filter Bar */}
       <QCReceiptFilterBar
         searchQuery={searchQuery}
@@ -79,6 +82,7 @@ export function QCReceiptView({ statusFilter, isPosted, skipDateFilter }: QCRece
         onShowAllColumns={onShowAllColumns}
         onRefresh={refetch}
         onDateFilterChange={() => setDateFilter(null)}
+        totalCount={totalCount}
       />
 
       {/* Active Filters Chips */}
@@ -91,7 +95,7 @@ export function QCReceiptView({ statusFilter, isPosted, skipDateFilter }: QCRece
       />
 
       {/* Main Table */}
-      <div className="min-h-0 flex-1 overflow-hidden">
+      <div className="min-h-0 flex-1 overflow-hidden flex flex-col">
         <QCReceiptsTable
           receipts={receipts}
           isLoading={isLoading}
@@ -105,71 +109,10 @@ export function QCReceiptView({ statusFilter, isPosted, skipDateFilter }: QCRece
           onFilter={onColumnFilter}
           onRowClick={handleRowClick}
           isPosted={!!isPosted}
+          onLoadMore={loadMore}
+          hasMore={hasMore}
+          isLoadingMore={isLoadingMore}
         />
-      </div>
-
-      {/* Pagination Container */}
-      <div className="flex items-center justify-between border-t bg-muted/20 px-4 py-3">
-        <div className="flex items-center gap-4">
-          <p className="text-xs text-muted-foreground whitespace-nowrap">
-            Showing <span className="font-semibold text-foreground">{(currentPage - 1) * pageSize + 1}</span> to{" "}
-            <span className="font-semibold text-foreground">{Math.min(currentPage * pageSize, totalCount)}</span> of{" "}
-            <span className="font-semibold text-foreground">{totalCount}</span> results
-          </p>
-          
-          <select 
-            className="bg-transparent text-xs font-medium border rounded px-1 py-0.5 outline-none focus:ring-1 ring-primary/50"
-            value={pageSize}
-            onChange={(e) => onPageSizeChange(Number(e.target.value))}
-          >
-            {[10, 20, 50, 100].map(size => (
-              <option key={size} value={size}>{size} per page</option>
-            ))}
-          </select>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8 w-8 p-0"
-            onClick={() => onPageChange(1)}
-            disabled={currentPage === 1}
-          >
-            {"<<"}
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8 px-3 text-xs"
-            onClick={() => onPageChange(currentPage - 1)}
-            disabled={currentPage === 1}
-          >
-            Previous
-          </Button>
-          <div className="flex items-center gap-1 mx-2">
-            <span className="text-xs font-semibold">Page {currentPage}</span>
-            <span className="text-xs text-muted-foreground">of {totalPages}</span>
-          </div>
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8 px-3 text-xs"
-            onClick={() => onPageChange(currentPage + 1)}
-            disabled={currentPage >= totalPages}
-          >
-            Next
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8 w-8 p-0"
-            onClick={() => onPageChange(totalPages)}
-            disabled={currentPage === totalPages}
-          >
-            {">>"}
-          </Button>
-        </div>
       </div>
     </div>
   );

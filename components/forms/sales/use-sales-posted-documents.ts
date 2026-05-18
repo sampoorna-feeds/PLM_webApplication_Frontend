@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { toast } from "sonner";
 import { toastError } from "@/lib/errors";
 import { useAuth } from "@/lib/contexts/auth-context";
@@ -113,9 +113,11 @@ export function useSalesPostedDocuments(documentType: SalesPostedDocumentType) {
 
   const [orders, setOrders] = useState<Record<string, unknown>[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [pageSize, setPageSize] = useState(10);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [pageSize, setPageSize] = useState(200);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
   const [isSetupLoaded, setIsSetupLoaded] = useState(false);
   const [userBranchCodes, setUserBranchCodes] = useState<string[]>([]);
   const [sortColumn, setSortColumn] = useState<string | null>("Posting_Date");
@@ -131,6 +133,11 @@ export function useSalesPostedDocuments(documentType: SalesPostedDocumentType) {
       ? columnConfig.loadVisibleColumns()
       : columnConfig.getDefaultVisibleColumns(),
   );
+
+  const isLoadingRef = useRef(false);
+  const isLoadingMoreRef = useRef(false);
+  const lastRequestId = useRef(0);
+  const pageRef = useRef(1);
 
   const totalPages = useMemo(
     () => Math.max(1, Math.ceil(totalCount / pageSize)),
@@ -152,7 +159,7 @@ export function useSalesPostedDocuments(documentType: SalesPostedDocumentType) {
     fetchSetup();
   }, [userID]);
 
-  const fetchOrders = useCallback(async () => {
+  const fetchOrders = useCallback(async (reset = false) => {
     if (!isSetupLoaded) return;
 
     if (userBranchCodes.length === 0) {
@@ -162,7 +169,16 @@ export function useSalesPostedDocuments(documentType: SalesPostedDocumentType) {
       return;
     }
 
-    setIsLoading(true);
+    const requestId = ++lastRequestId.current;
+    if (reset) {
+      pageRef.current = 1;
+      isLoadingRef.current = true;
+      setIsLoading(true);
+    } else {
+      isLoadingMoreRef.current = true;
+      setIsLoadingMore(true);
+    }
+
     try {
       const allIds = columnConfig.allColumns.map((c) => c.id);
       const filter = buildFilterString(
@@ -181,7 +197,7 @@ export function useSalesPostedDocuments(documentType: SalesPostedDocumentType) {
         $filter: filter,
         $orderby: orderby,
         $top: pageSize,
-        $skip: (currentPage - 1) * pageSize,
+        $skip: (pageRef.current - 1) * pageSize,
         searchTerm: searchQuery || undefined,
       };
 
@@ -190,20 +206,35 @@ export function useSalesPostedDocuments(documentType: SalesPostedDocumentType) {
           ? await searchPostedShipments(params)
           : await searchPostedInvoices(params);
 
-      setOrders(result.orders as unknown as Record<string, unknown>[]);
+      if (requestId !== lastRequestId.current) return;
+
+      if (pageRef.current === 1) {
+        setOrders(result.orders as unknown as Record<string, unknown>[]);
+      } else {
+        setOrders(prev => [...prev, ...(result.orders as unknown as Record<string, unknown>[])]);
+      }
       setTotalCount(result.totalCount);
+      setHasMore(pageRef.current * pageSize < result.totalCount);
+      setCurrentPage(pageRef.current);
     } catch (error) {
+      if (requestId !== lastRequestId.current) return;
       toastError(error, "Failed to load documents. Please try again.");
-      setOrders([]);
-      setTotalCount(0);
+      if (pageRef.current === 1) {
+        setOrders([]);
+        setTotalCount(0);
+      }
     } finally {
-      setIsLoading(false);
+      if (requestId === lastRequestId.current) {
+        setIsLoading(false);
+        setIsLoadingMore(false);
+        isLoadingRef.current = false;
+        isLoadingMoreRef.current = false;
+      }
     }
   }, [
     additionalFilters,
     columnConfig,
     columnFilters,
-    currentPage,
     documentType,
     isSetupLoaded,
     pageSize,
@@ -214,13 +245,18 @@ export function useSalesPostedDocuments(documentType: SalesPostedDocumentType) {
     visibleColumns,
   ]);
 
+  const loadMore = useCallback(() => {
+    if (isLoadingRef.current || isLoadingMoreRef.current || !hasMore) return;
+    pageRef.current += 1;
+    fetchOrders(false);
+  }, [hasMore, fetchOrders]);
+
   useEffect(() => {
-    fetchOrders();
-  }, [fetchOrders]);
+    fetchOrders(true);
+  }, [fetchOrders, sortColumn, sortDirection, searchQuery, columnFilters, additionalFilters, visibleColumns, pageSize]);
 
   const handlePageSizeChange = useCallback((size: number) => {
     setPageSize(size);
-    setCurrentPage(1);
   }, []);
 
   const handlePageChange = useCallback((page: number) => {
@@ -236,12 +272,10 @@ export function useSalesPostedDocuments(documentType: SalesPostedDocumentType) {
       setSortDirection("asc");
       return column;
     });
-    setCurrentPage(1);
   }, []);
 
   const handleSearch = useCallback((query: string) => {
     setSearchQuery(query);
-    setCurrentPage(1);
   }, []);
 
   const handleColumnFilter = useCallback(
@@ -253,7 +287,6 @@ export function useSalesPostedDocuments(documentType: SalesPostedDocumentType) {
         }
         return { ...prev, [columnId]: { value, valueTo } };
       });
-      setCurrentPage(1);
     },
     [],
   );
@@ -285,12 +318,10 @@ export function useSalesPostedDocuments(documentType: SalesPostedDocumentType) {
 
   const handleAddAdditionalFilter = useCallback((filter: FilterCondition) => {
     setAdditionalFilters((prev) => [...prev, filter]);
-    setCurrentPage(1);
   }, []);
 
   const handleRemoveAdditionalFilter = useCallback((index: number) => {
     setAdditionalFilters((prev) => prev.filter((_, i) => i !== index));
-    setCurrentPage(1);
   }, []);
 
   const handleClearFilters = useCallback(() => {
@@ -299,12 +330,13 @@ export function useSalesPostedDocuments(documentType: SalesPostedDocumentType) {
     setAdditionalFilters([]);
     setSortColumn("Posting_Date");
     setSortDirection("desc");
-    setCurrentPage(1);
   }, []);
 
   return {
     orders,
     isLoading,
+    isLoadingMore,
+    hasMore,
     pageSize,
     currentPage,
     totalPages,
@@ -329,6 +361,7 @@ export function useSalesPostedDocuments(documentType: SalesPostedDocumentType) {
     onAddAdditionalFilter: handleAddAdditionalFilter,
     onRemoveAdditionalFilter: handleRemoveAdditionalFilter,
     onClearFilters: handleClearFilters,
-    refetch: fetchOrders,
+    refetch: () => fetchOrders(true),
+    loadMore,
   };
 }

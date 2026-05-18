@@ -11,7 +11,6 @@ import { Button } from "@/components/ui/button";
 import { SalesDocumentTable } from "./sales-document-table";
 import { SalesDocumentFilterBar } from "./sales-document-filter-bar";
 import { SalesDocumentActiveFilters } from "./sales-document-active-filters";
-import { SalesDocumentPaginationControls } from "./sales-document-pagination-controls";
 import { useSalesPostedDocuments } from "./use-sales-posted-documents";
 import {
   POSTED_DOCUMENT_CONFIGS,
@@ -48,6 +47,8 @@ export function SalesPostedDocumentView({
   const {
     orders,
     isLoading,
+    isLoadingMore,
+    hasMore,
     refetch,
     pageSize,
     currentPage,
@@ -73,13 +74,12 @@ export function SalesPostedDocumentView({
     onAddAdditionalFilter,
     onRemoveAdditionalFilter,
     onClearFilters,
+    loadMore,
   } = useSalesPostedDocuments(documentType);
 
   useEffect(() => {
     registerRefetch?.(refetch);
   }, [refetch, registerRefetch]);
-
-  const hasNextPage = currentPage < totalPages;
 
   // PDF URL cache: docNo → object URL
   const pdfUrlsRef = useRef<Record<string, string>>({});
@@ -211,7 +211,7 @@ export function SalesPostedDocumentView({
   );
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden">
+    <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden [overflow-anchor:none]">
       <div className="flex shrink-0 flex-col gap-2">
         <SalesDocumentFilterBar
           searchQuery={searchQuery}
@@ -228,7 +228,13 @@ export function SalesPostedDocumentView({
           onShowAllColumns={onShowAllColumns}
           onAddAdditionalFilter={onAddAdditionalFilter}
           onRemoveAdditionalFilter={onRemoveAdditionalFilter}
-        />
+        >
+          <div className="flex items-center gap-4">
+            <span className="text-muted-foreground text-xs font-medium">
+              Total: {totalCount.toLocaleString()}
+            </span>
+          </div>
+        </SalesDocumentFilterBar>
 
         <SalesDocumentActiveFilters
           searchQuery={searchQuery}
@@ -262,18 +268,9 @@ export function SalesPostedDocumentView({
           onSort={onSort}
           onColumnFilter={onColumnFilter}
           renderRowAction={renderRowAction}
-        />
-      </div>
-
-      <div className="flex shrink-0">
-        <SalesDocumentPaginationControls
-          pageSize={pageSize}
-          currentPage={currentPage}
-          totalPages={totalPages}
-          totalCount={totalCount}
-          hasNextPage={hasNextPage}
-          onPageSizeChange={onPageSizeChange}
-          onPageChange={onPageChange}
+          onLoadMore={loadMore}
+          hasMore={hasMore}
+          isLoadingMore={isLoadingMore}
         />
       </div>
     </div>

@@ -1,19 +1,16 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { type PostedTransferFilters } from "./use-posted-transfers";
+import { useState, useEffect } from "react";
+import { usePostedTransfers, type PostedTransferFilters } from "./use-posted-transfers";
 import { PostedTransferTable } from "./posted-transfer-table";
 import { TableFilterBar } from "./table-filter-bar";
-import { PostedTransferPaginationControls } from "./pagination-controls";
 import { Button } from "@/components/ui/button";
 import { RotateCcw, RefreshCcw } from "lucide-react";
-import { type SortDirection, loadVisibleColumns, saveVisibleColumns, getDefaultVisibleColumns, POSTED_TRANSFER_COLUMNS } from "./column-config";
-import { getPostedTransferShipments, getTransferReceipts, getTransferShipmentReport, getDownloadRecordLink, searchPostedTransferShipments, searchTransferReceiptsExtended } from "@/lib/api/services/transfer-orders.service";
+import { loadVisibleColumns, saveVisibleColumns, getDefaultVisibleColumns, POSTED_TRANSFER_COLUMNS } from "./column-config";
+import { getTransferShipmentReport, getDownloadRecordLink } from "@/lib/api/services/transfer-orders.service";
 import { toast } from "sonner";
 import { toastError } from "@/lib/errors";
 import { useFormStackContext } from "@/lib/form-stack/form-stack-context";
-import { useAuth } from "@/lib/contexts/auth-context";
-import { getAllBranchesFromUserSetup } from "@/lib/api/services/dimension.service";
 
 interface PostedTransferViewProps {
   type: "shipment" | "receipt";
@@ -22,131 +19,33 @@ interface PostedTransferViewProps {
 export function PostedTransferView({ type }: PostedTransferViewProps) {
   const { openTab } = useFormStackContext();
   const [filters, setFilters] = useState<PostedTransferFilters>({});
-  const [data, setData] = useState<any[]>([]);
-  const [totalCount, setTotalCount] = useState(0);
-  const [isLoading, setIsLoading] = useState(false);
   const [activeReportDocNo, setActiveReportDocNo] = useState<string | null>(null);
   const [reportPdfUrls, setReportPdfUrls] = useState<Record<string, string>>({});
   
-  const { userID } = useAuth();
-  const [authBranches, setAuthBranches] = useState<string[]>([]);
-  const [isAuthLoading, setIsAuthLoading] = useState(true);
-  
-  // Filtering/sorting states
-  const [searchQuery, setSearchQuery] = useState("");
-  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
-  const [columnFilters, setColumnFilters] = useState<Record<string, { value: string; valueTo?: string }>>({});
-  const [sortColumn, setSortColumn] = useState<string | null>("No");
-  const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
-
-  // Pagination states
-  const [pageSize, setPageSize] = useState(10);
-  const [currentPage, setCurrentPage] = useState(1);
+  const {
+    data,
+    isLoading,
+    isLoadingMore,
+    hasMore,
+    totalCount,
+    sortColumn,
+    sortDirection,
+    searchQuery,
+    columnFilters,
+    onSort,
+    onSearch,
+    onColumnFilter,
+    onClearFilters,
+    refetch,
+    loadMore,
+  } = usePostedTransfers({ type, initialFilters: filters });
 
   // Column Visibility state
   const [visibleColumns, setVisibleColumns] = useState<string[]>(() => 
     typeof window !== "undefined" ? loadVisibleColumns() : getDefaultVisibleColumns()
   );
 
-  // Debounce search query
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedSearchQuery(searchQuery);
-      setCurrentPage(1);
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [searchQuery]);
-
-  // Fetch authorized branches for the current user
-  useEffect(() => {
-    const loadAuthBranches = async () => {
-      if (!userID) return;
-      setIsAuthLoading(true);
-      try {
-        const setup = await getAllBranchesFromUserSetup(userID);
-        setAuthBranches(setup.map(s => s.Code).filter(Boolean));
-      } catch (error) {
-        console.error("Error loading user authorized branches:", error);
-      } finally {
-        setIsAuthLoading(false);
-      }
-    };
-    loadAuthBranches();
-  }, [userID]);
-
   const title = type === "shipment" ? "Posted Transfer Shipment" : "Posted Transfer Receipt";
-  const description = `Enter details to find posted transfer ${type}s.`;
-
-  const fetchData = useCallback(async () => {
-    if (!filters || (userID && isAuthLoading)) return;
-    setIsLoading(true);
-    try {
-      const parts = [];
-      // Initial Date Filters
-      if (filters.fromDate) parts.push(`Posting_Date ge ${filters.fromDate}`);
-      if (filters.toDate) parts.push(`Posting_Date le ${filters.toDate}`);
-      
-      // Column Filters
-      Object.entries(columnFilters).forEach(([colId, f]) => {
-        const { value, valueTo } = f;
-        if (!value && !valueTo) return;
-        
-        if (colId === "Posting_Date") {
-           if (value) parts.push(`Posting_Date ge ${value}`);
-           if (valueTo) parts.push(`Posting_Date le ${valueTo}`);
-        } else {
-          const config = POSTED_TRANSFER_COLUMNS.find(c => c.id === colId);
-          if (config?.filterType === "text" || config?.filterType === "enum") {
-            const escaped = value.replace(/'/g, "''");
-            parts.push(`contains(${colId},'${escaped}')`);
-          } else if (config?.filterType === "number" && !isNaN(Number(value))) {
-            parts.push(`${colId} eq ${value}`);
-          }
-        }
-      });
-
-      // Mandatory Branch Access Filter
-      if (authBranches.length > 0) {
-        const branchFilter = authBranches.map(branch => 
-          `Shortcut_Dimension_2_Code eq '${branch}'`
-        ).join(" or ");
-        parts.push(`(${branchFilter})`);
-      } else if (!isAuthLoading) {
-        parts.push("No eq 'NONE'");
-      }
-
-      const filter = parts.join(" and ");
-      const orderby = sortColumn && sortDirection 
-        ? `${sortColumn} ${sortDirection}` 
-        : "No desc";
-        
-      const params = { 
-        $filter: filter || undefined, 
-        $orderby: orderby, 
-        $top: pageSize, 
-        $skip: (currentPage - 1) * pageSize, 
-        searchTerm: debouncedSearchQuery || undefined 
-      };
-
-      const result = type === "shipment" 
-        ? await searchPostedTransferShipments(params)
-        : await searchTransferReceiptsExtended(params);
-      
-      setData(result.orders);
-      setTotalCount(result.totalCount);
-    } catch (error) {
-      console.error(`Error fetching posted transfer ${type}s:`, error);
-      toastError(error, `Failed to load posted ${type}s.`);
-      setData([]);
-      setTotalCount(0);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [type, filters, debouncedSearchQuery, columnFilters, sortColumn, sortDirection, pageSize, currentPage, authBranches, isAuthLoading, userID]);
-
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
 
   useEffect(() => {
     return () => {
@@ -248,26 +147,6 @@ export function PostedTransferView({ type }: PostedTransferViewProps) {
     }
   };
 
-
-  const handleSort = (column: string) => {
-    if (sortColumn === column) {
-      setSortDirection(prev => prev === "asc" ? "desc" : prev === "desc" ? null : "asc");
-      if (sortDirection === "desc") setSortColumn(null);
-    } else {
-      setSortColumn(column);
-      setSortDirection("asc");
-    }
-    setCurrentPage(1);
-  };
-
-  const handleColumnFilter = (columnId: string, value: string, valueTo?: string) => {
-    setColumnFilters(prev => ({
-      ...prev,
-      [columnId]: { value, valueTo }
-    }));
-    setCurrentPage(1);
-  };
-
   const handleColumnToggle = (columnId: string) => {
     setVisibleColumns(prev => {
       const newColumns = prev.includes(columnId)
@@ -292,28 +171,15 @@ export function PostedTransferView({ type }: PostedTransferViewProps) {
 
   const hasActiveFilters = searchQuery !== "" || Object.values(columnFilters).some(f => f.value || f.valueTo);
 
-  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
-  const hasNextPage = currentPage < totalPages;
-
-  const handlePageChange = (page: number) => {
-    setCurrentPage(page);
-  };
-
-  const handlePageSizeChange = (size: number) => {
-    setPageSize(size);
-    setCurrentPage(1);
-  };
-
-
-
   return (
-    <div className="flex flex-col h-full w-full gap-2">
+    <div className="flex flex-col h-full w-full gap-2 [overflow-anchor:none]">
       <div className="flex items-center justify-between px-4 pt-4">
         <div className="flex flex-col">
           <h1 className="text-xl font-bold">{title} Data</h1>
+          <span className="text-xs text-muted-foreground mt-0.5">Total: {totalCount.toLocaleString()} records</span>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={() => fetchData()} disabled={isLoading}>
+          <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isLoading}>
             <RefreshCcw className={`mr-2 h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
             Refresh
           </Button>
@@ -322,10 +188,7 @@ export function PostedTransferView({ type }: PostedTransferViewProps) {
             size="sm" 
             onClick={() => { 
               setFilters({});
-              setSearchQuery("");
-              setDebouncedSearchQuery("");
-              setColumnFilters({});
-              setCurrentPage(1);
+              onClearFilters();
             }}
           >
             <RotateCcw className="mr-2 h-4 w-4" />
@@ -336,12 +199,10 @@ export function PostedTransferView({ type }: PostedTransferViewProps) {
       
       <TableFilterBar 
         searchQuery={searchQuery}
-        onSearch={(q) => setSearchQuery(q)}
+        onSearch={onSearch}
         onClearFilters={() => {
           setSearchQuery("");
-          setDebouncedSearchQuery("");
-          setColumnFilters({});
-          setCurrentPage(1);
+          onClearFilters();
         }}
         hasActiveFilters={hasActiveFilters}
         visibleColumns={visibleColumns}
@@ -360,29 +221,22 @@ export function PostedTransferView({ type }: PostedTransferViewProps) {
           activeReportId={activeReportDocNo}
           sortColumn={sortColumn}
           sortDirection={sortDirection}
-          onSort={handleSort}
+          onSort={onSort}
           columnFilters={columnFilters}
-          onColumnFilter={handleColumnFilter}
-           onRowClick={(id) => {
-              openTab(`posted-transfer-${type}-detail`, {
-                title: `${type === "shipment" ? "Shipment" : "Receipt"} ${id}`,
-                context: { no: id, type }
-              });
-           }}
-           onDownloadRecord={handleGetRecordLink}
-           onPrintRecord={handlePrintRecord}
+          onColumnFilter={onColumnFilter}
+          onRowClick={(id) => {
+            openTab(`posted-transfer-${type}-detail`, {
+              title: `${type === "shipment" ? "Shipment" : "Receipt"} ${id}`,
+              context: { no: id, type }
+            });
+          }}
+          onDownloadRecord={handleGetRecordLink}
+          onPrintRecord={handlePrintRecord}
+          onLoadMore={loadMore}
+          hasMore={hasMore}
+          isLoadingMore={isLoadingMore}
         />
       </div>
-
-      <PostedTransferPaginationControls
-        pageSize={pageSize}
-        currentPage={currentPage}
-        totalPages={totalPages}
-        totalCount={totalCount}
-        hasNextPage={hasNextPage}
-        onPageSizeChange={handlePageSizeChange}
-        onPageChange={handlePageChange}
-      />
     </div>
   );
 }

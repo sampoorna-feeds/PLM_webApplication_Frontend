@@ -759,7 +759,6 @@ export function SalesCreateDocumentFormContent({
   // ── Create mode: submit ───────────────────────────────────────────────────
   const handleCreateHeader = async () => {
     if (!isHeaderValid()) return;
-    if (!isPostingDateValid(formData.postingDate, webUserProfile)) return;
 
     setIsSubmitting(true);
     setActionError(null);
@@ -780,7 +779,6 @@ export function SalesCreateDocumentFormContent({
   // ── Edit mode: save header ────────────────────────────────────────────────
   const handleUpdateHeader = async () => {
     if (!initialOrderNo) return;
-    if (!isPostingDateValid(formData.postingDate, webUserProfile)) return;
 
     setIsSubmitting(true);
     setActionError(null);
@@ -1409,12 +1407,6 @@ export function SalesCreateDocumentFormContent({
                 <DateInput
                   value={formData.postingDate}
                   onChange={(val) => handleInputChange("postingDate", val)}
-                  max={
-                    webUserProfile?.Allow_Posting_To &&
-                    webUserProfile.Allow_Posting_To !== "0001-01-01"
-                      ? webUserProfile.Allow_Posting_To.split("T")[0]
-                      : undefined
-                  }
                   className="h-8"
                   disabled={isGeneralReadOnly}
                 />

@@ -245,8 +245,6 @@ export function InwardGateEntryForm({
   };
 
   async function handleSave() {
-    if (!isPostingDateValid(entry.Posting_Date, webUserProfile)) return;
-
     setIsSaving(true);
     try {
       const cleanPayload = Object.entries(entry).reduce((acc, [key, value]) => {

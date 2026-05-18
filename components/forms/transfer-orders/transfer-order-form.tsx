@@ -558,8 +558,6 @@ export function TransferOrderForm({
       return;
     }
 
-    if (!isPostingDateValid(formState.Posting_Date, webUserProfile)) return;
-
     setIsSubmitting(true);
     try {
       // Send all form fields except system/internal ones
@@ -639,8 +637,6 @@ export function TransferOrderForm({
       toast.info("No changes to update");
       return;
     }
-
-    if (!isPostingDateValid(formState.Posting_Date, webUserProfile)) return;
 
     setIsSubmitting(true);
     try {
@@ -1837,18 +1833,6 @@ export function TransferOrderForm({
                         : ""
                     }
                     onChange={(val) => handleChange("Posting_Date", val)}
-                    min={
-                      webUserProfile?.Allow_Posting_From &&
-                        webUserProfile.Allow_Posting_From !== "0001-01-01"
-                        ? webUserProfile.Allow_Posting_From.split("T")[0]
-                        : undefined
-                    }
-                    max={
-                      webUserProfile?.Allow_Posting_To &&
-                        webUserProfile.Allow_Posting_To !== "0001-01-01"
-                        ? webUserProfile.Allow_Posting_To.split("T")[0]
-                        : undefined
-                    }
                     className="border-border h-9 focus:border-green-600/50"
                   />
                 </div>

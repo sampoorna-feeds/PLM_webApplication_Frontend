@@ -206,7 +206,6 @@ export function ConsumeInventoryForm() {
 
     const postingDate = formState["Posting Date"] || new Date().toISOString().split("T")[0];
     if (!isPostingDateValid(postingDate, webUserProfile)) return;
-
     setSubmitting(true);
     let createdEntry: ConsumeInventoryEntry | null = null;
 

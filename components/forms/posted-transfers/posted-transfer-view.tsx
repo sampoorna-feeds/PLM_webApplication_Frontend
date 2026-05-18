@@ -201,7 +201,7 @@ export function PostedTransferView({ type }: PostedTransferViewProps) {
         searchQuery={searchQuery}
         onSearch={onSearch}
         onClearFilters={() => {
-          setSearchQuery("");
+          onSearch("");
           onClearFilters();
         }}
         hasActiveFilters={hasActiveFilters}

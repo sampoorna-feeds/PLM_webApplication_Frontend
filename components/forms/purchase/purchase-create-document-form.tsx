@@ -902,8 +902,6 @@ export function PurchaseCreateDocumentFormContent({
       return;
     }
 
-    if (!isPostingDateValid(formData.postingDate, webUserProfile)) return;
-
     setIsCreatingHeader(true);
     try {
       const baseData = buildOrderData();
@@ -1212,8 +1210,6 @@ export function PurchaseCreateDocumentFormContent({
       setPlaceOrderError("Please fill all mandatory fields before updating.");
       return;
     }
-
-    if (!isPostingDateValid(formData.postingDate, webUserProfile)) return;
 
     setIsUpdatingHeader(true);
     setPlaceOrderError(null);
@@ -2039,18 +2035,6 @@ export function PurchaseCreateDocumentFormContent({
                           value={formData.postingDate}
                           onChange={(val) =>
                             handleInputChange("postingDate", val)
-                          }
-                          min={
-                            webUserProfile?.Allow_Posting_From &&
-                            webUserProfile.Allow_Posting_From !== "0001-01-01"
-                              ? webUserProfile.Allow_Posting_From.split("T")[0]
-                              : undefined
-                          }
-                          max={
-                            webUserProfile?.Allow_Posting_To &&
-                            webUserProfile.Allow_Posting_To !== "0001-01-01"
-                              ? webUserProfile.Allow_Posting_To.split("T")[0]
-                              : undefined
                           }
                           className="h-8"
                         />

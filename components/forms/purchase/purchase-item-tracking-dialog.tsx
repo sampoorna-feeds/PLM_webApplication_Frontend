@@ -7,7 +7,7 @@
  */
 
 import { useState, useEffect, useMemo } from "react";
-import { Loader2, Calendar, Pencil, Trash2, X } from "lucide-react";
+import { Loader2, Calendar, Pencil, Trash2, X, Calculator } from "lucide-react";
 import { toast } from "sonner";
 import { toastError } from "@/lib/errors";
 import {
@@ -466,10 +466,11 @@ export function PurchaseItemTrackingDialog({
                         type="button"
                         variant="secondary"
                         size="sm"
-                        className="h-8 px-4 text-[10px] font-bold bg-blue-600 text-white hover:bg-blue-700 shadow-sm border-blue-700"
+                        className="h-8 px-4 text-[10px] font-bold bg-blue-600 text-white hover:bg-blue-700 shadow-sm border-blue-700 flex items-center gap-1.5"
                         onClick={handleFillDueDate}
                       >
-                        FILL
+                        <Calculator className="h-3.5 w-3.5" />
+                        Calculate
                       </Button>
                     </div>
                   </div>

@@ -96,15 +96,52 @@ export function usePostedSales(initialFilters?: { skipDateFilter?: boolean }) {
 
       // Column filters
       Object.entries(columnFilters).forEach(([col, filter]) => {
-        if (filter.value) {
-          const escaped = filter.value.replace(/'/g, "''");
-          if (escaped.includes(",")) {
-            const vals = escaped.split(",").map(v => v.trim()).filter(Boolean);
-            if (vals.length > 0) {
-              filterParts.push(`(${vals.map(v => `contains(${col},'${v}')`).join(" or ")})`);
+        const column = POSTED_SALES_COLUMNS.find((c) => c.id === col);
+        if (!column) return;
+
+        if (column.filterType === "date") {
+          if (filter.value) {
+            filterParts.push(`${col} ge ${filter.value}`);
+          }
+          if (filter.valueTo) {
+            filterParts.push(`${col} le ${filter.valueTo}`);
+          }
+        } else if (column.filterType === "number") {
+          if (filter.valueTo) {
+            if (filter.value) filterParts.push(`${col} ge ${filter.value}`);
+            filterParts.push(`${col} le ${filter.valueTo}`);
+          } else if (filter.value) {
+            const [operator, numValue] = filter.value.includes(":")
+              ? filter.value.split(":")
+              : ["eq", filter.value];
+            switch (operator) {
+              case "gt":
+                filterParts.push(`${col} gt ${numValue}`);
+                break;
+              case "lt":
+                filterParts.push(`${col} lt ${numValue}`);
+                break;
+              case "ge":
+                filterParts.push(`${col} ge ${numValue}`);
+                break;
+              case "le":
+                filterParts.push(`${col} le ${numValue}`);
+                break;
+              default:
+                filterParts.push(`${col} eq ${numValue}`);
             }
-          } else {
-            filterParts.push(`contains(${col},'${escaped}')`);
+          }
+        } else {
+          if (filter.value) {
+            const escaped = filter.value.replace(/'/g, "''");
+            if (escaped.includes(",")) {
+              const vals = escaped.split(",").map(v => v.trim()).filter(Boolean);
+              if (vals.length > 0) {
+                filterParts.push(`(${vals.map(v => `contains(${col},'${v}')`).join(" or ")})`);
+              }
+            } else {
+              filterParts.push(`contains(${col},'${escaped}')`);
+            }
           }
         }
       });

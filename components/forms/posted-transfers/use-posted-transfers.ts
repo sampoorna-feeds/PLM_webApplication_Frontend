@@ -9,7 +9,7 @@ import {
   type PostedTransferShipment,
   type TransferReceipt
 } from "@/lib/api/services/transfer-orders.service";
-import { type SortDirection } from "./column-config";
+import { type SortDirection, POSTED_TRANSFER_COLUMNS } from "./column-config";
 export interface PostedTransferFilters {
   fromDate?: string;
   toDate?: string;
@@ -83,16 +83,53 @@ export function usePostedTransfers({ type, initialFilters }: UsePostedTransfersO
       parts.push(`(contains(No,'${escaped}') or contains(Transfer_from_Code,'${escaped}') or contains(Transfer_to_Code,'${escaped}'))`);
     }
 
-    Object.entries(columnFilters).forEach(([col, filter]) => {
-      if (filter.value) {
-        const escaped = filter.value.replace(/'/g, "''");
-        if (escaped.includes(",")) {
-          const vals = escaped.split(",").map(v => v.trim()).filter(Boolean);
-          if (vals.length > 0) {
-            parts.push(`(${vals.map(v => `contains(${col},'${v}')`).join(" or ")})`);
+    Object.entries(columnFilters).forEach(([colId, filter]) => {
+      const column = POSTED_TRANSFER_COLUMNS.find((c) => c.id === colId);
+      if (!column) return;
+
+      if (column.filterType === "date") {
+        if (filter.value) {
+          parts.push(`${colId} ge ${filter.value}`);
+        }
+        if (filter.valueTo) {
+          parts.push(`${colId} le ${filter.valueTo}`);
+        }
+      } else if (column.filterType === "number") {
+        if (filter.valueTo) {
+          if (filter.value) parts.push(`${colId} ge ${filter.value}`);
+          parts.push(`${colId} le ${filter.valueTo}`);
+        } else if (filter.value) {
+          const [operator, numValue] = filter.value.includes(":")
+            ? filter.value.split(":")
+            : ["eq", filter.value];
+          switch (operator) {
+            case "gt":
+              parts.push(`${colId} gt ${numValue}`);
+              break;
+            case "lt":
+              parts.push(`${colId} lt ${numValue}`);
+              break;
+            case "ge":
+              parts.push(`${colId} ge ${numValue}`);
+              break;
+            case "le":
+              parts.push(`${colId} le ${numValue}`);
+              break;
+            default:
+              parts.push(`${colId} eq ${numValue}`);
           }
-        } else {
-          parts.push(`contains(${col},'${escaped}')`);
+        }
+      } else {
+        if (filter.value) {
+          const escaped = filter.value.replace(/'/g, "''");
+          if (escaped.includes(",")) {
+            const vals = escaped.split(",").map(v => v.trim()).filter(Boolean);
+            if (vals.length > 0) {
+              parts.push(`(${vals.map(v => `contains(${colId},'${v}')`).join(" or ")})`);
+            }
+          } else {
+            parts.push(`contains(${colId},'${escaped}')`);
+          }
         }
       }
     });

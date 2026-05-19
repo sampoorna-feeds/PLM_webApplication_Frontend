@@ -101,23 +101,58 @@ export function usePostedPurchase(type: PostedPurchaseType, initialFilters?: { s
 
       // Column filters
       Object.entries(columnFilters).forEach(([col, filter]) => {
-        if (filter.value) {
-          const escaped = filter.value.replace(/'/g, "''");
-          
-          // Dynamic column mapping for Vendor No
-          let targetCol = col;
-          if (col === "Buy_from_Vendor_No" && (type === "invoice" || type === "credit-memo")) {
-            targetCol = "Pay_to_Vendor_No";
-          }
+        const column = POSTED_PURCHASE_COLUMNS.find((c) => c.id === col);
+        if (!column) return;
 
-          // Handle comma separated values as OR within the same field
-          if (escaped.includes(",")) {
-            const vals = escaped.split(",").map(v => v.trim()).filter(Boolean);
-            if (vals.length > 0) {
-              filterParts.push(`(${vals.map(v => `contains(${targetCol},'${v}')`).join(" or ")})`);
+        // Dynamic column mapping for Vendor No
+        let targetCol = col;
+        if (col === "Buy_from_Vendor_No" && (type === "invoice" || type === "credit-memo")) {
+          targetCol = "Pay_to_Vendor_No";
+        }
+
+        if (column.filterType === "date") {
+          if (filter.value) {
+            filterParts.push(`${targetCol} ge ${filter.value}`);
+          }
+          if (filter.valueTo) {
+            filterParts.push(`${targetCol} le ${filter.valueTo}`);
+          }
+        } else if (column.filterType === "number") {
+          if (filter.valueTo) {
+            if (filter.value) filterParts.push(`${targetCol} ge ${filter.value}`);
+            filterParts.push(`${targetCol} le ${filter.valueTo}`);
+          } else if (filter.value) {
+            const [operator, numValue] = filter.value.includes(":")
+              ? filter.value.split(":")
+              : ["eq", filter.value];
+            switch (operator) {
+              case "gt":
+                filterParts.push(`${targetCol} gt ${numValue}`);
+                break;
+              case "lt":
+                filterParts.push(`${targetCol} lt ${numValue}`);
+                break;
+              case "ge":
+                filterParts.push(`${targetCol} ge ${numValue}`);
+                break;
+              case "le":
+                filterParts.push(`${targetCol} le ${numValue}`);
+                break;
+              default:
+                filterParts.push(`${targetCol} eq ${numValue}`);
             }
-          } else {
-            filterParts.push(`contains(${targetCol},'${escaped}')`);
+          }
+        } else {
+          if (filter.value) {
+            const escaped = filter.value.replace(/'/g, "''");
+            if (escaped.includes(",")) {
+              const vals = escaped.split(",").map(v => v.trim()).filter(Boolean);
+              if (vals.length > 0) {
+                filterParts.push(`(${vals.map(v => `contains(${targetCol},'${v}')`).join(" or ")})`);
+              }
+            } else {
+              filterParts.push(`contains(${targetCol},'${escaped}')`);
+            }
           }
         }
       });

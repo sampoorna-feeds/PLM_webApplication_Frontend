@@ -68,11 +68,48 @@ export function usePostedGateEntries(type: "inward" | "outward", initialFilters?
         );
       }
 
-      // Column filters (simplified)
-      Object.entries(columnFilters).forEach(([col, filter]) => {
-        if (filter.value) {
-          const escaped = filter.value.replace(/'/g, "''");
-          filterParts.push(`contains(${col},'${escaped}')`);
+      // Column filters
+      Object.entries(columnFilters).forEach(([colId, filter]) => {
+        const column = POSTED_GATE_ENTRY_COLUMNS.find((c) => c.id === colId);
+        if (!column) return;
+
+        if (column.type === "date") {
+          if (filter.value) {
+            filterParts.push(`${colId} ge ${filter.value}`);
+          }
+          if (filter.valueTo) {
+            filterParts.push(`${colId} le ${filter.valueTo}`);
+          }
+        } else if (column.type === "number") {
+          if (filter.valueTo) {
+            if (filter.value) filterParts.push(`${colId} ge ${filter.value}`);
+            filterParts.push(`${colId} le ${filter.valueTo}`);
+          } else if (filter.value) {
+            const [operator, numValue] = filter.value.includes(":")
+              ? filter.value.split(":")
+              : ["eq", filter.value];
+            switch (operator) {
+              case "gt":
+                filterParts.push(`${colId} gt ${numValue}`);
+                break;
+              case "lt":
+                filterParts.push(`${colId} lt ${numValue}`);
+                break;
+              case "ge":
+                filterParts.push(`${colId} ge ${numValue}`);
+                break;
+              case "le":
+                filterParts.push(`${colId} le ${numValue}`);
+                break;
+              default:
+                filterParts.push(`${colId} eq ${numValue}`);
+            }
+          }
+        } else {
+          if (filter.value) {
+            const escaped = filter.value.replace(/'/g, "''");
+            filterParts.push(`contains(${colId},'${escaped}')`);
+          }
         }
       });
 

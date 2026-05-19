@@ -328,29 +328,6 @@ export function ConsumeInventoryForm() {
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-3">
-              {submitting && (
-                <Badge
-                  variant="secondary"
-                  className="bg-primary/10 text-primary animate-pulse border-none"
-                >
-                  Saving...
-                </Badge>
-              )}
-              <Button
-                onClick={handleSaveToERP}
-                disabled={submitting}
-                className="font-bold"
-                size="sm"
-              >
-                {submitting ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <Plus className="mr-2 h-4 w-4" />
-                )}
-                Save to ERP
-              </Button>
-            </div>
           </div>
         </CardHeader>
         <CardContent>
@@ -689,6 +666,30 @@ export function ConsumeInventoryForm() {
                 className="h-10"
               />
             </div>
+          </div>
+
+          <div className="mt-5 flex justify-end items-center gap-3 border-t border-border/50 pt-4">
+            {submitting && (
+              <Badge
+                variant="secondary"
+                className="bg-primary/10 text-primary animate-pulse border-none"
+              >
+                Saving...
+              </Badge>
+            )}
+            <Button
+              onClick={handleSaveToERP}
+              disabled={submitting}
+              className="font-bold bg-primary text-primary-foreground shadow-lg hover:shadow-primary/20 transition-all px-6"
+              size="sm"
+            >
+              {submitting ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Plus className="mr-2 h-4 w-4" />
+              )}
+              Save
+            </Button>
           </div>
 
           <LedgerEntryModal

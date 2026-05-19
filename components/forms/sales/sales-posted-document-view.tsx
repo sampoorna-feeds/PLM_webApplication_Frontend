@@ -129,7 +129,7 @@ export function SalesPostedDocumentView({
 
     const today = new Date();
     const todayDate = today.toISOString().split("T")[0]; // YYYY-MM-DD
-    const printdateTime = today.toISOString(); // ISO 8601 datetime
+    const printdateTime = today.toISOString().split("T")[0];
     const resolvedUserID = userID ?? "";
     const documentPostingDate = String(rawRow.Posting_Date || todayDate).trim();
 

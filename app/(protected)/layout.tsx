@@ -150,6 +150,12 @@ export default function ProtectedLayout({
       }
       return [{ label: "Settings", href: null }];
     }
+    if (pathname === "/consume-inventory") {
+      return [
+        { label: "Forms", href: "#" },
+        { label: "Consume Inventory", href: null },
+      ];
+    }
     // Add more routes as needed
     return [];
   };

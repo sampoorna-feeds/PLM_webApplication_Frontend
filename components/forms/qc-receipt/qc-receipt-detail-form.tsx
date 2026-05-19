@@ -24,10 +24,10 @@ import type { QCReceiptHeader, QCReceiptLine } from "@/lib/api/services/qc-recei
 import { getTransferAllLocationCodes, type TransferLocationCode } from "@/lib/api/services/transfer-orders.service";
 import { getAuthCredentials } from "@/lib/auth/storage";
 import { useFormStackContext } from "@/lib/form-stack/form-stack-context";
-import { Loader2, RotateCcw, Save, Send, Trash2 } from "lucide-react";
+import { Loader2, RotateCcw, Save, Send, Trash2, Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";
 import { QCReceiptLinesTable } from "./qc-receipt-lines-table";
-import { useQCReceiptDetail, useQCReceiptLines, useQCReceiptPosting, useQCReceiptUpdate, useQCReceiptDeletion } from "./use-qc-receipts";
+import { useQCReceiptDetail, useQCReceiptLines, useQCReceiptPosting, useQCReceiptUpdate, useQCReceiptDeletion, useQCReceiptBardana } from "./use-qc-receipts";
 import { formatDate } from "@/lib/utils/date";
 
 interface QCReceiptDetailFormProps {
@@ -54,6 +54,7 @@ export function QCReceiptDetailForm({ tabId, context }: QCReceiptDetailFormProps
   const { postReceipt, isPosting } = useQCReceiptPosting();
   const { updateHeader, isUpdating: isHeaderUpdating } = useQCReceiptUpdate();
   const { deleteReceipt, isDeleting } = useQCReceiptDeletion();
+  const { generate: generateBardana, isGenerating } = useQCReceiptBardana();
   
   const [locations, setLocations] = useState<TransferLocationCode[]>([]);
   const [isLoadingLocations, setIsLoadingLocations] = useState(false);
@@ -170,6 +171,11 @@ export function QCReceiptDetailForm({ tabId, context }: QCReceiptDetailFormProps
     }
   };
 
+  const handleGenerateBardana = async () => {
+    if (!receipt) return;
+    await generateBardana(receipt.No);
+  };
+
   const handleLineUpdate = (index: number, updatedLine: QCReceiptLine) => {
     setLines(prev => {
       const newLines = [...prev];
@@ -247,6 +253,22 @@ export function QCReceiptDetailForm({ tabId, context }: QCReceiptDetailFormProps
                   Post QC Receipt
                 </Button>
               </>
+            )}
+
+            {isPosted && (
+              <Button
+                size="sm"
+                onClick={handleGenerateBardana}
+                disabled={isGenerating || isHeaderLoading}
+                className="gap-2 h-8 font-bold bg-green-600 hover:bg-indigo-700 text-white shadow-md hover:shadow-indigo-600/20 transition-all"
+              >
+                {isGenerating ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Sparkles className="h-4 w-4" />
+                )}
+                Generate Bardana
+              </Button>
             )}
           </div>
         </div>

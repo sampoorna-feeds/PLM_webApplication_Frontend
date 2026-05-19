@@ -13,6 +13,7 @@ import {
   updateQCReceiptHeader,
   updateQCReceiptLine,
   deleteQCReceiptHeader,
+  generateBardana,
   type QCReceiptHeader,
   type QCReceiptLine,
 } from "@/lib/api/services/qc-receipt.service";
@@ -512,4 +513,28 @@ export function useQCReceiptDeletion() {
   );
 
   return { deleteReceipt, isDeleting };
+}
+
+export function useQCReceiptBardana() {
+  const [isGenerating, setIsGenerating] = useState(false);
+
+  const generate = useCallback(
+    async (receiptNo: string) => {
+      setIsGenerating(true);
+      try {
+        await generateBardana(receiptNo);
+        toast.success("Bardana generated successfully!");
+        return true;
+      } catch (error: any) {
+        console.error("Error generating bardana:", error);
+        toastError(error, "Failed to generate Bardana");
+        return false;
+      } finally {
+        setIsGenerating(false);
+      }
+    },
+    [],
+  );
+
+  return { generate, isGenerating };
 }

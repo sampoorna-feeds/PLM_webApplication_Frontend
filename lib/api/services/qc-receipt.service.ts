@@ -434,3 +434,17 @@ export async function deleteQCReceiptHeader(
   const endpoint = `/qcReceiptH('${escaped}')?company='${encodeURIComponent(COMPANY)}'`;
   await apiDelete(endpoint);
 }
+
+export async function generateBardana(receiptNo: string): Promise<void> {
+  const endpoint = `/QCcode_Generatebardana?company='${encodeURIComponent(COMPANY)}'`;
+  const payload = {
+    docNo: receiptNo,
+  };
+
+  try {
+    await apiPost(endpoint, payload);
+  } catch (error: any) {
+    console.error("Error generating bardana:", error);
+    throw error;
+  }
+}

@@ -10,6 +10,7 @@ export type SortDirection = "asc" | "desc" | null;
 
 export const POSTED_GATE_ENTRY_COLUMNS: Column[] = [
   { id: "No", label: "No.", sortable: true, filterable: true, type: "text" },
+  { id: "Posting_Date", label: "Posting Date", sortable: true, filterable: true, type: "date" },
   { id: "Entry_Type", label: "Entry Type", sortable: true, filterable: true, type: "text" },
   { id: "Location_Code", label: "Location", sortable: true, filterable: true, type: "text" },
   { id: "Station_From_To", label: "Station From/To", sortable: true, filterable: true, type: "text" },
@@ -23,6 +24,7 @@ export const POSTED_GATE_ENTRY_COLUMNS: Column[] = [
 
 export const DEFAULT_VISIBLE_COLUMNS = [
   "No",
+  "Posting_Date",
   "Document_Date",
   "Vehicle_No",
   "Transporter_Name",

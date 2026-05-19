@@ -13,6 +13,7 @@ export interface PostedGateEntryHeader {
   Description?: string;
   Item_Description?: string;
   Document_Date?: string;
+  Posting_Date?: string;
   Vehicle_No?: string;
   LR_RR_No?: string;
   [key: string]: unknown;

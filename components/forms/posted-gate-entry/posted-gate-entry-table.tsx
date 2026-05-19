@@ -89,7 +89,7 @@ export function PostedGateEntryTable({
   const formatValue = (entry: PostedGateEntryHeader, columnId: string) => {
     const value = entry[columnId];
     if (value === null || value === undefined) return "-";
-    if (columnId === "Document_Date") {
+    if (columnId === "Document_Date" || columnId === "Posting_Date") {
       try {
         return format(new Date(value as string), "dd/MM/yyyy");
       } catch {

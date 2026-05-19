@@ -51,6 +51,8 @@ import {
   Send,
   Trash2,
   X,
+  Edit,
+  Save,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -95,6 +97,7 @@ export function ConsumeInventoryForm() {
   const [entries, setEntries] = useState<ConsumeInventoryEntry[]>([]);
   const [loadingEntries, setLoadingEntries] = useState(false);
   const [posting, setPosting] = useState(false);
+  const [editingEntry, setEditingEntry] = useState<ConsumeInventoryEntry | null>(null);
 
   const fetchEntries = async () => {
     if (!userID) return;
@@ -242,13 +245,19 @@ export function ConsumeInventoryForm() {
     setSubmitting(true);
 
     try {
-      // 1. Generate unique Document No sequentially to ensure number series integrity
+      // 1. Generate unique Document No sequentially to ensure number series integrity (unless editing)
       let generatedDocNo = "";
-      try {
-        generatedDocNo = await getNextDocumentNo(postingDate);
-      } catch (error) {
-        console.error("Error generating Doc No:", error);
-        throw new Error("Failed to generate Document No");
+      if (editingEntry) {
+        generatedDocNo = (editingEntry.Document_No as string) || (editingEntry["Document No."] as string) || "";
+        // Delete old entry in the backend first
+        await deleteConsumeInventoryEntry(editingEntry);
+      } else {
+        try {
+          generatedDocNo = await getNextDocumentNo(postingDate);
+        } catch (error) {
+          console.error("Error generating Doc No:", error);
+          throw new Error("Failed to generate Document No");
+        }
       }
 
       const entryToInsert = {
@@ -259,7 +268,8 @@ export function ConsumeInventoryForm() {
 
       // 2. Insert the entry to NAV/BC
       await createConsumeInventoryEntry(entryToInsert);
-      toast.success("Entry saved to ERP successfully!");
+      toast.success(editingEntry ? "Entry updated in ERP successfully!" : "Entry saved to ERP successfully!");
+      setEditingEntry(null);
 
       // 3. Clear only non-persistent fields
       setFormState((prev) => ({
@@ -276,7 +286,7 @@ export function ConsumeInventoryForm() {
       // 4. Refresh entries list
       await fetchEntries();
     } catch (error: any) {
-      toastError(error, "Failed to save entry");
+      toastError(error, editingEntry ? "Failed to update entry" : "Failed to save entry");
     } finally {
       setSubmitting(false);
     }
@@ -309,6 +319,43 @@ export function ConsumeInventoryForm() {
     }
   };
 
+  const handleEditEntry = (entry: ConsumeInventoryEntry) => {
+    setEditingEntry(entry);
+    setFormState({
+      "Posting Date": (entry.Posting_Date as string) || (entry["Posting Date"] as string) || new Date().toISOString().split("T")[0],
+      "Entry Type": (entry.EntryType as string) || (entry["Entry Type"] as string) || "Issue",
+      "Item No.": (entry.Item_No as string) || (entry["Item No."] as string) || "",
+      Consumption: entry.Consumption !== undefined ? !!entry.Consumption : true,
+      "Consumption Posting": (entry.Consumption_Posting as string) || (entry["Consumption Posting"] as string) || "",
+      Description: (entry.Description as string) || "",
+      "Location Code": (entry.Location_Code as string) || (entry["Location Code"] as string) || "",
+      Quantity: Number(entry.Quantity) || 0,
+      "Unit of Measure Code": (entry.Unit_of_Measure_Code as string) || (entry.Unit_of_Measure as string) || (entry["Unit of Measure Code"] as string) || "",
+      "Lob Code": (entry.Shortcut_Dimension_1_Code as string) || (entry["Lob Code"] as string) || "",
+      "Branch Code": (entry.Shortcut_Dimension_2_Code as string) || (entry["Branch Code"] as string) || "",
+      "Employee Code": (entry.ShortcutDimCode4 as string) || (entry["Employee Code"] as string) || "",
+      "Assignment Code": (entry.ShortcutDimCode5 as string) || (entry["Assignment Code"] as string) || "",
+      "Applies-to Entry": (entry.Applies_to_Entry as number) || (entry["Applies-to Entry"] as number) || undefined,
+      "Applies-from Entry": (entry.Applies_from_Entry as number) || (entry["Applies-from Entry"] as number) || undefined,
+      Gen_Prod_Posting_Group: (entry.Gen_Prod_Posting_Group as string) || "",
+    });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleCancelEdit = () => {
+    setEditingEntry(null);
+    setFormState((prev) => ({
+      ...prev,
+      "Item No.": "",
+      Description: "",
+      Quantity: 0,
+      "Unit of Measure Code": "",
+      "Applies-to Entry": undefined,
+      "Applies-from Entry": undefined,
+      Gen_Prod_Posting_Group: "",
+    }));
+  };
+
   return (
     <div className="flex flex-col gap-6">
       <Card className="from-background via-background to-primary/5 border-primary/10 overflow-hidden border border-none bg-gradient-to-br shadow-2xl">
@@ -320,11 +367,11 @@ export function ConsumeInventoryForm() {
                 <Package className="text-primary h-5 w-5" />
               </div>
               <div>
-                <CardTitle className="text-xl font-bold tracking-tight">
-                  New Consumption Entry
+                <CardTitle className="text-xl font-bold tracking-tight text-primary">
+                  {editingEntry ? `Edit Consumption Entry: ${editingEntry.Document_No || editingEntry["Document No."]}` : "New Consumption Entry"}
                 </CardTitle>
                 <p className="text-muted-foreground mt-0.5 text-xs font-medium">
-                  Enter consumption details to save to the ERP backend
+                  {editingEntry ? "Modify the saved entry details below and update" : "Enter consumption details to save to the ERP backend"}
                 </p>
               </div>
             </div>
@@ -674,21 +721,35 @@ export function ConsumeInventoryForm() {
                 variant="secondary"
                 className="bg-primary/10 text-primary animate-pulse border-none"
               >
-                Saving...
+                {editingEntry ? "Updating..." : "Saving..."}
               </Badge>
+            )}
+            {editingEntry && (
+              <Button
+                variant="outline"
+                onClick={handleCancelEdit}
+                disabled={submitting}
+                className="h-9 font-semibold border-border hover:bg-muted"
+                size="sm"
+              >
+                <X className="mr-2 h-4 w-4" />
+                Cancel Edit
+              </Button>
             )}
             <Button
               onClick={handleSaveToERP}
               disabled={submitting}
-              className="font-bold bg-primary text-primary-foreground shadow-lg hover:shadow-primary/20 transition-all px-6"
+              className="font-bold bg-primary text-primary-foreground shadow-lg hover:shadow-primary/20 transition-all px-6 animate-shimmer"
               size="sm"
             >
               {submitting ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : editingEntry ? (
+                <Save className="mr-2 h-4 w-4" />
               ) : (
                 <Plus className="mr-2 h-4 w-4" />
               )}
-              Save
+              {editingEntry ? "Update" : "Save"}
             </Button>
           </div>
 
@@ -813,14 +874,24 @@ export function ConsumeInventoryForm() {
                       <TableCell className="text-xs">{String(entry.ShortcutDimCode4 || "-")}</TableCell>
                       <TableCell className="text-xs">{String(entry.ShortcutDimCode5 || "-")}</TableCell>
                       <TableCell className="text-right">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleDeleteEntry(entry)}
-                          className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        <div className="flex items-center justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleEditEntry(entry)}
+                            className="h-8 w-8 text-muted-foreground hover:text-primary hover:bg-primary/10"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleDeleteEntry(entry)}
+                            className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}

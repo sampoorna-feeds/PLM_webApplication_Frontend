@@ -24,10 +24,10 @@ import type { QCReceiptHeader, QCReceiptLine } from "@/lib/api/services/qc-recei
 import { getTransferAllLocationCodes, type TransferLocationCode } from "@/lib/api/services/transfer-orders.service";
 import { getAuthCredentials } from "@/lib/auth/storage";
 import { useFormStackContext } from "@/lib/form-stack/form-stack-context";
-import { Loader2, RotateCcw, Save, Send } from "lucide-react";
+import { Loader2, RotateCcw, Save, Send, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { QCReceiptLinesTable } from "./qc-receipt-lines-table";
-import { useQCReceiptDetail, useQCReceiptLines, useQCReceiptPosting, useQCReceiptUpdate } from "./use-qc-receipts";
+import { useQCReceiptDetail, useQCReceiptLines, useQCReceiptPosting, useQCReceiptUpdate, useQCReceiptDeletion } from "./use-qc-receipts";
 import { formatDate } from "@/lib/utils/date";
 
 interface QCReceiptDetailFormProps {
@@ -53,12 +53,14 @@ export function QCReceiptDetailForm({ tabId, context }: QCReceiptDetailFormProps
   );
   const { postReceipt, isPosting } = useQCReceiptPosting();
   const { updateHeader, isUpdating: isHeaderUpdating } = useQCReceiptUpdate();
+  const { deleteReceipt, isDeleting } = useQCReceiptDeletion();
   
   const [locations, setLocations] = useState<TransferLocationCode[]>([]);
   const [isLoadingLocations, setIsLoadingLocations] = useState(false);
   const [locationName, setLocationName] = useState("");
   const [userBranch, setUserBranch] = useState<string | undefined>(undefined);
   const [showConfirmPost, setShowConfirmPost] = useState(false);
+  const [showConfirmDelete, setShowConfirmDelete] = useState(false);
 
   useEffect(() => {
     const creds = getAuthCredentials();
@@ -157,6 +159,17 @@ export function QCReceiptDetailForm({ tabId, context }: QCReceiptDetailFormProps
     }
   };
 
+  const handleDelete = async () => {
+    if (!receipt) return;
+    const success = await deleteReceipt(receipt.No);
+    if (success) {
+      if (context?.onSuccess) {
+        context.onSuccess();
+      }
+      closeTab(tabId);
+    }
+  };
+
   const handleLineUpdate = (index: number, updatedLine: QCReceiptLine) => {
     setLines(prev => {
       const newLines = [...prev];
@@ -200,21 +213,40 @@ export function QCReceiptDetailForm({ tabId, context }: QCReceiptDetailFormProps
               </div>
 
             {!isPosted && (
-              <Button
-                size="sm"
-                onClick={() => setShowConfirmPost(true)}
-                disabled={
-                  isPosting ||
-                  isLinesLoading ||
-                  isHeaderLoading ||
-                  isHeaderDirty ||
-                  isHeaderUpdating
-                }
-                className="gap-2 h-8"
-              >
-                {isPosting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                Post QC Receipt
-              </Button>
+              <>
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  onClick={() => setShowConfirmDelete(true)}
+                  disabled={
+                    isDeleting ||
+                    isPosting ||
+                    isLinesLoading ||
+                    isHeaderLoading ||
+                    isHeaderDirty ||
+                    isHeaderUpdating
+                  }
+                  className="gap-2 h-8 font-bold shadow-md hover:shadow-destructive/20 transition-all"
+                >
+                  {isDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                  Delete
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => setShowConfirmPost(true)}
+                  disabled={
+                    isPosting ||
+                    isLinesLoading ||
+                    isHeaderLoading ||
+                    isHeaderDirty ||
+                    isHeaderUpdating
+                  }
+                  className="gap-2 h-8"
+                >
+                  {isPosting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                  Post QC Receipt
+                </Button>
+              </>
             )}
           </div>
         </div>
@@ -385,6 +417,28 @@ export function QCReceiptDetailForm({ tabId, context }: QCReceiptDetailFormProps
               className="bg-primary text-primary-foreground hover:bg-primary/90"
             >
               Post
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={showConfirmDelete} onOpenChange={setShowConfirmDelete}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-destructive flex items-center gap-2">
+              <Trash2 className="h-5 w-5" /> Delete QC Receipt
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete QC Receipt <strong>{receipt.No}</strong>? This will permanently delete the header and all associated line items from the system. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete Permanently
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

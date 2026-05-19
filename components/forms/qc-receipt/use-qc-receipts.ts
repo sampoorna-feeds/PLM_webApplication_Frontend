@@ -12,6 +12,7 @@ import {
   searchQCReceipts,
   updateQCReceiptHeader,
   updateQCReceiptLine,
+  deleteQCReceiptHeader,
   type QCReceiptHeader,
   type QCReceiptLine,
 } from "@/lib/api/services/qc-receipt.service";
@@ -487,4 +488,28 @@ export function useQCReceiptUpdate() {
   );
 
   return { updateHeader, isUpdating };
+}
+
+export function useQCReceiptDeletion() {
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const deleteReceipt = useCallback(
+    async (receiptNo: string) => {
+      setIsDeleting(true);
+      try {
+        await deleteQCReceiptHeader(receiptNo);
+        toast.success("QC Receipt deleted successfully!");
+        return true;
+      } catch (error: any) {
+        console.error("Error deleting QC receipt:", error);
+        toastError(error, "Failed to delete QC Receipt");
+        return false;
+      } finally {
+        setIsDeleting(false);
+      }
+    },
+    [],
+  );
+
+  return { deleteReceipt, isDeleting };
 }

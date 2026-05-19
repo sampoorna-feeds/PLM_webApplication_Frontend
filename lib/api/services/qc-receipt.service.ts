@@ -1,4 +1,4 @@
-import { apiGet, apiPost, apiPatch } from "../client";
+import { apiGet, apiPost, apiPatch, apiDelete } from "../client";
 import { buildODataQuery } from "../endpoints";
 import type { ODataResponse } from "../types";
 
@@ -425,4 +425,12 @@ export async function updateQCReceiptHeader(
   return await apiPatch<QCReceiptHeader>(endpoint, data, {
     headers: { "If-Match": etag },
   });
+}
+
+export async function deleteQCReceiptHeader(
+  receiptNo: string,
+): Promise<void> {
+  const escaped = receiptNo.replace(/'/g, "''");
+  const endpoint = `/qcReceiptH('${escaped}')?company='${encodeURIComponent(COMPANY)}'`;
+  await apiDelete(endpoint);
 }

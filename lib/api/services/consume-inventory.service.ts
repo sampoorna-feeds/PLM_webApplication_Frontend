@@ -95,7 +95,7 @@ function transformConsumeEntry(
     ShortcutDimCode8: "",
     Description: (entry.Description as string) || "",
     Consumption: true,
-    Consumption_Posting: entry["Consumption Posting"] || entry.Gen_Prod_Posting_Group || "",
+    Consumption_Posting: entry["Consumption Posting"] || "",
     userID: ((entry.UserID as string) || "JOBQUEUE").toUpperCase(),
   };
 

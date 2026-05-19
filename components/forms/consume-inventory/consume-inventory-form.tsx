@@ -17,8 +17,17 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
   createConsumeInventoryEntry,
   deleteConsumeInventoryEntry,
+  getConsumeInventoryEntries,
   getConsumptionPostingSetup,
   getNextDocumentNo,
   postConsumeInventory,
@@ -29,19 +38,22 @@ import {
   getItemLedgerEntries,
   type ItemLedgerEntry,
 } from "@/lib/api/services/report-ledger.service";
+import { getWebUser, type WebUser } from "@/lib/api/services/web-user.service";
 import { useAuth } from "@/lib/contexts/auth-context";
+import { toastError } from "@/lib/errors";
+import { isPostingDateValid } from "@/lib/utils/posting-date";
 import {
   Loader2,
   Package,
+  Plus,
+  RefreshCw,
   Search,
   Send,
+  Trash2,
   X,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { toastError } from "@/lib/errors";
-import { getWebUser, type WebUser } from "@/lib/api/services/web-user.service";
-import { isPostingDateValid } from "@/lib/utils/posting-date";
 import { LedgerEntryModal } from "./ledger-entry-modal";
 
 export function ConsumeInventoryForm() {
@@ -79,6 +91,27 @@ export function ConsumeInventoryForm() {
   const [isApplyToModalOpen, setIsApplyToModalOpen] = useState(false);
   const [isApplyFromModalOpen, setIsApplyFromModalOpen] = useState(false);
   const [webUserProfile, setWebUserProfile] = useState<WebUser | null>(null);
+
+  const [entries, setEntries] = useState<ConsumeInventoryEntry[]>([]);
+  const [loadingEntries, setLoadingEntries] = useState(false);
+  const [posting, setPosting] = useState(false);
+
+  const fetchEntries = async () => {
+    if (!userID) return;
+    setLoadingEntries(true);
+    try {
+      const data = await getConsumeInventoryEntries(userID);
+      setEntries(data);
+    } catch (error) {
+      console.error("Failed to fetch consume inventory entries:", error);
+    } finally {
+      setLoadingEntries(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchEntries();
+  }, [userID]);
 
   useEffect(() => {
     const loadContext = async () => {
@@ -194,7 +227,7 @@ export function ConsumeInventoryForm() {
     });
   };
 
-  const handlePostDirectly = async () => {
+  const handleSaveToERP = async () => {
     if (
       !formState["Item No."] ||
       !formState["Location Code"] ||
@@ -207,7 +240,6 @@ export function ConsumeInventoryForm() {
     const postingDate = formState["Posting Date"] || new Date().toISOString().split("T")[0];
     if (!isPostingDateValid(postingDate, webUserProfile)) return;
     setSubmitting(true);
-    let createdEntry: ConsumeInventoryEntry | null = null;
 
     try {
       // 1. Generate unique Document No sequentially to ensure number series integrity
@@ -226,42 +258,54 @@ export function ConsumeInventoryForm() {
       } as ConsumeInventoryEntry;
 
       // 2. Insert the entry to NAV/BC
-      createdEntry = await createConsumeInventoryEntry(entryToInsert);
+      await createConsumeInventoryEntry(entryToInsert);
+      toast.success("Entry saved to ERP successfully!");
 
-      // 3. Post the entry in ERP
-      try {
-        const result = await postConsumeInventory(userID!);
-        toast.success(result || "Posted successfully");
+      // 3. Clear only non-persistent fields
+      setFormState((prev) => ({
+        ...prev,
+        "Item No.": "",
+        Description: "",
+        Quantity: 0,
+        "Unit of Measure Code": "",
+        "Applies-to Entry": undefined,
+        "Applies-from Entry": undefined,
+        Gen_Prod_Posting_Group: "",
+      }));
 
-        // Clear only non-persistent fields
-        setFormState((prev) => ({
-          ...prev,
-          "Item No.": "",
-          Description: "",
-          Quantity: 0,
-          "Unit of Measure Code": "",
-          "Applies-to Entry": undefined,
-          "Applies-from Entry": undefined,
-          Gen_Prod_Posting_Group: "",
-        }));
-      } catch (postError: any) {
-        console.error("Posting failed, rolling back entry...", postError);
-        toastError(postError, "Posting failed. Rolling back...");
-        
-        // Rollback: Delete the entry we just created
-        if (createdEntry) {
-          try {
-            await deleteConsumeInventoryEntry(createdEntry);
-          } catch (delError) {
-            console.error(`Failed to delete entry Line_No ${createdEntry.Line_No}:`, delError);
-          }
-        }
-        throw postError;
-      }
+      // 4. Refresh entries list
+      await fetchEntries();
     } catch (error: any) {
-      toastError(error, "Failed to post");
+      toastError(error, "Failed to save entry");
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handlePostConsumption = async () => {
+    if (entries.length === 0) {
+      toast.error("No entries to post");
+      return;
+    }
+    setPosting(true);
+    try {
+      const result = await postConsumeInventory(userID!);
+      toast.success(result || "Posted successfully");
+      await fetchEntries();
+    } catch (error: any) {
+      toastError(error, "Failed to post consumption");
+    } finally {
+      setPosting(false);
+    }
+  };
+
+  const handleDeleteEntry = async (entry: ConsumeInventoryEntry) => {
+    try {
+      await deleteConsumeInventoryEntry(entry);
+      toast.success("Entry deleted successfully");
+      await fetchEntries();
+    } catch (error: any) {
+      toastError(error, "Failed to delete entry");
     }
   };
 
@@ -280,7 +324,7 @@ export function ConsumeInventoryForm() {
                   New Consumption Entry
                 </CardTitle>
                 <p className="text-muted-foreground mt-0.5 text-xs font-medium">
-                  Enter consumption details to directly post to the ERP
+                  Enter consumption details to save to the ERP backend
                 </p>
               </div>
             </div>
@@ -290,11 +334,11 @@ export function ConsumeInventoryForm() {
                   variant="secondary"
                   className="bg-primary/10 text-primary animate-pulse border-none"
                 >
-                  Posting...
+                  Saving...
                 </Badge>
               )}
               <Button
-                onClick={handlePostDirectly}
+                onClick={handleSaveToERP}
                 disabled={submitting}
                 className="font-bold"
                 size="sm"
@@ -302,9 +346,9 @@ export function ConsumeInventoryForm() {
                 {submitting ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 ) : (
-                  <Send className="mr-2 h-4 w-4" />
+                  <Plus className="mr-2 h-4 w-4" />
                 )}
-                Post Consumption
+                Save to ERP
               </Button>
             </div>
           </div>
@@ -411,6 +455,7 @@ export function ConsumeInventoryForm() {
                     Description: item?.Description || "",
                     "Unit of Measure Code": item?.Base_Unit_of_Measure || "",
                     Gen_Prod_Posting_Group: (item as any)?.Gen_Prod_Posting_Group || "",
+                    "Consumption Posting": "",
                     "Applies-to Entry": undefined,
                     "Applies-from Entry": undefined,
                   }));
@@ -667,6 +712,121 @@ export function ConsumeInventoryForm() {
             title={`Select Apply-from Entry for ${formState["Item No."]}`}
             isLoading={loadingApplyFrom}
           />
+        </CardContent>
+      </Card>
+
+      {/* Saved Consumption Entries Card */}
+      <Card className="from-background via-background to-primary/5 border-primary/10 overflow-hidden border border-none bg-gradient-to-br shadow-2xl">
+        <div className="from-primary/20 via-primary to-primary/20 absolute top-0 left-0 h-1 w-full bg-gradient-to-r" />
+        <CardHeader className="pb-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="bg-primary/10 rounded-lg p-2">
+                <Package className="text-primary h-5 w-5" />
+              </div>
+              <div>
+                <CardTitle className="text-xl font-bold tracking-tight">
+                  Saved Consumption Entries
+                </CardTitle>
+                <p className="text-muted-foreground mt-0.5 text-xs font-medium">
+                  Review and post your saved inventory consumption entries to the ERP
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={fetchEntries}
+                disabled={loadingEntries || posting}
+                className="h-9 px-3"
+              >
+                <RefreshCw className={`h-4 w-4 ${loadingEntries ? "animate-spin" : ""}`} />
+              </Button>
+              <Button
+                onClick={handlePostConsumption}
+                disabled={posting || entries.length === 0}
+                className="font-bold bg-green-600 hover:bg-green-700 text-white shadow-lg hover:shadow-green-900/30 transition-all animate-shimmer"
+                size="sm"
+              >
+                {posting ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Send className="mr-2 h-4 w-4" />
+                )}
+                Post Consumption
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="pt-4">
+          {loadingEntries ? (
+            <div className="flex h-32 items-center justify-center gap-2 text-muted-foreground">
+              <Loader2 className="h-6 w-6 animate-spin" />
+              <span>Loading entries from ERP...</span>
+            </div>
+          ) : entries.length === 0 ? (
+            <div className="flex h-32 flex-col items-center justify-center text-muted-foreground">
+              <Package className="h-8 w-8 opacity-20 mb-2" />
+              <span className="text-sm font-medium">No saved entries found in ERP</span>
+              <span className="text-xs opacity-60">Fill the form above to add a new consumption entry</span>
+            </div>
+          ) : (
+            <div className="overflow-x-auto rounded-lg border border-border bg-card/50">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/40 hover:bg-muted/40">
+                    <TableHead className="font-semibold text-xs tracking-wider uppercase">Doc No</TableHead>
+                    <TableHead className="font-semibold text-xs tracking-wider uppercase">Posting Date</TableHead>
+                    <TableHead className="font-semibold text-xs tracking-wider uppercase">Type</TableHead>
+                    <TableHead className="font-semibold text-xs tracking-wider uppercase">Item No.</TableHead>
+                    <TableHead className="font-semibold text-xs tracking-wider uppercase">Description</TableHead>
+                    <TableHead className="font-semibold text-xs tracking-wider uppercase">Quantity</TableHead>
+                    <TableHead className="font-semibold text-xs tracking-wider uppercase">UOM</TableHead>
+                    <TableHead className="font-semibold text-xs tracking-wider uppercase">Location</TableHead>
+                    <TableHead className="font-semibold text-xs tracking-wider uppercase">LOB</TableHead>
+                    <TableHead className="font-semibold text-xs tracking-wider uppercase">Branch</TableHead>
+                    <TableHead className="font-semibold text-xs tracking-wider uppercase">Employee</TableHead>
+                    <TableHead className="font-semibold text-xs tracking-wider uppercase">Assignment</TableHead>
+                    <TableHead className="font-semibold text-xs tracking-wider uppercase text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {entries.map((entry, idx) => (
+                    <TableRow key={idx} className="hover:bg-muted/20 transition-colors">
+                      <TableCell className="font-mono text-xs font-semibold">{String(entry.Document_No)}</TableCell>
+                      <TableCell className="text-xs">{String(entry.Posting_Date)}</TableCell>
+                      <TableCell className="text-xs font-semibold">
+                        <Badge variant="secondary" className="px-1.5 py-0.5 text-[10px] font-bold">
+                          {String(entry.EntryType)}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="font-mono text-xs text-primary">{String(entry.Item_No)}</TableCell>
+                      <TableCell className="text-xs max-w-[200px] truncate">{String(entry.Description || "-")}</TableCell>
+                      <TableCell className="font-mono text-xs font-bold text-green-400">{Number(entry.Quantity)}</TableCell>
+                      <TableCell className="text-xs font-medium">{String(entry.Unit_of_Measure_Code || entry.Unit_of_Measure || "-")}</TableCell>
+                      <TableCell className="font-mono text-xs">{String(entry.Location_Code)}</TableCell>
+                      <TableCell className="text-xs">{String(entry.Shortcut_Dimension_1_Code || "-")}</TableCell>
+                      <TableCell className="text-xs">{String(entry.Shortcut_Dimension_2_Code || "-")}</TableCell>
+                      <TableCell className="text-xs">{String(entry.ShortcutDimCode4 || "-")}</TableCell>
+                      <TableCell className="text-xs">{String(entry.ShortcutDimCode5 || "-")}</TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleDeleteEntry(entry)}
+                          className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

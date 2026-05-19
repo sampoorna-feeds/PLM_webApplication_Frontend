@@ -2016,10 +2016,7 @@ export function SalesCreateDocumentFormContent({
                 />
 
                 {lines.length > 0 && (
-                  <div className="bg-muted/20 flex items-center justify-between rounded-lg border px-4 py-2.5">
-                    <span className="text-muted-foreground text-[10px] font-bold tracking-wider uppercase">
-                      {lines.length} Line{lines.length !== 1 ? "s" : ""}
-                    </span>
+                  <div className="bg-muted/20 flex items-center justify-end rounded-lg border px-4 py-2.5">
                     <div className="flex items-baseline gap-2">
                       <span className="text-muted-foreground text-xs">
                         Total Amount

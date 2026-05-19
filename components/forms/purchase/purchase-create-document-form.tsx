@@ -453,6 +453,15 @@ export interface PurchaseCreateDocumentFormContentProps {
   persistFormData?: (data: Record<string, any>) => void;
 }
 
+const formatAmount = (val: number | undefined): string => {
+  if (val == null) return "0.00";
+  return val.toLocaleString("en-IN", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+};
+
+
 export function PurchaseCreateDocumentFormContent({
   documentType,
   mode = "create",
@@ -812,7 +821,7 @@ export function PurchaseCreateDocumentFormContent({
     if (createdOrderNo) {
       void refreshPurchaseTotals();
     }
-  }, [lineItems.length, createdOrderNo]);
+  }, [createdOrderNo]);
 
   // Vendor change handler — also fetches GST / PAN and resets order address
   const handleVendorChange = async (
@@ -1181,6 +1190,8 @@ export function PurchaseCreateDocumentFormContent({
     setPurchaseLines(lines);
     setDocumentStatus(status);
     if (!createdOrderNo && docNo) setCreatedOrderNo(docNo);
+
+    void refreshPurchaseTotals(docNo);
 
     persist({
       ...mappedFormData,
@@ -2837,47 +2848,38 @@ export function PurchaseCreateDocumentFormContent({
                   </div>
                 )}
 
-                {createdOrderNo && (
+                {createdOrderNo && purchaseTotals && (
                   <div className="bg-muted/20 flex flex-col gap-3 rounded-lg border px-4 py-3">
-                    <div className="flex items-center justify-between border-b pb-2">
-                      <span className="text-muted-foreground text-[10px] font-bold tracking-wider uppercase">
-                        {lineItems.length} Line{lineItems.length !== 1 ? "s" : ""}
-                      </span>
-
-                    </div>
-                    
-                    {purchaseTotals && (
-                      <div className="grid grid-cols-2 gap-x-8 gap-y-2 lg:grid-cols-3 xl:grid-cols-7">
-                        <div className="flex items-baseline gap-2">
-                          <span className="text-muted-foreground text-[11px] font-semibold uppercase tracking-tight">Gross Amount</span>
-                          <span className="text-sm font-medium tabular-nums">{(purchaseTotals["Gross Amount"] || 0).toFixed(2)}</span>
-                        </div>
-                        <div className="flex items-baseline gap-2 border-l pl-4 border-muted/50">
-                          <span className="text-muted-foreground text-[11px] font-semibold uppercase tracking-tight">IGST</span>
-                          <span className="text-sm font-medium tabular-nums">{(purchaseTotals.IGST || 0).toFixed(2)}</span>
-                        </div>
-                        <div className="flex items-baseline gap-2 border-l pl-4 border-muted/50">
-                          <span className="text-muted-foreground text-[11px] font-semibold uppercase tracking-tight">CGST</span>
-                          <span className="text-sm font-medium tabular-nums">{(purchaseTotals.CGST || 0).toFixed(2)}</span>
-                        </div>
-                        <div className="flex items-baseline gap-2 border-l pl-4 border-muted/50">
-                          <span className="text-muted-foreground text-[11px] font-semibold uppercase tracking-tight">SGST</span>
-                          <span className="text-sm font-medium tabular-nums">{(purchaseTotals.SGST || 0).toFixed(2)}</span>
-                        </div>
-                        <div className="flex items-baseline gap-2 border-l pl-4 border-muted/50">
-                          <span className="text-muted-foreground text-[11px] font-semibold uppercase tracking-tight">TDS</span>
-                          <span className="text-sm font-medium tabular-nums">{(purchaseTotals.TDS || 0).toFixed(2)}</span>
-                        </div>
-                        <div className="flex items-baseline gap-2 border-l pl-4 border-muted/50">
-                          <span className="text-muted-foreground text-[11px] font-semibold uppercase tracking-tight">Total Invoice Amt</span>
-                          <span className="text-sm font-medium tabular-nums">{(purchaseTotals["Total Invoice Amt"] || 0).toFixed(2)}</span>
-                        </div>
-                        <div className="flex items-baseline gap-2 border-l pl-4 border-primary/20 bg-primary/5 rounded px-2 -mx-2">
-                          <span className="text-primary text-[11px] font-bold uppercase tracking-tight">Total Payable</span>
-                          <span className="text-base font-bold tabular-nums text-primary">{(purchaseTotals["Total Payable"] || 0).toFixed(2)}</span>
-                        </div>
+                    <div className="grid grid-cols-2 gap-x-8 gap-y-2 lg:grid-cols-3 xl:grid-cols-7">
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-muted-foreground text-[11px] font-semibold uppercase tracking-tight">Gross Amount</span>
+                        <span className="text-sm font-medium tabular-nums">{formatAmount(purchaseTotals["Gross Amount"])}</span>
                       </div>
-                    )}
+                      <div className="flex items-baseline gap-2 border-l pl-4 border-muted/50">
+                        <span className="text-muted-foreground text-[11px] font-semibold uppercase tracking-tight">IGST</span>
+                        <span className="text-sm font-medium tabular-nums">{formatAmount(purchaseTotals.IGST)}</span>
+                      </div>
+                      <div className="flex items-baseline gap-2 border-l pl-4 border-muted/50">
+                        <span className="text-muted-foreground text-[11px] font-semibold uppercase tracking-tight">CGST</span>
+                        <span className="text-sm font-medium tabular-nums">{formatAmount(purchaseTotals.CGST)}</span>
+                      </div>
+                      <div className="flex items-baseline gap-2 border-l pl-4 border-muted/50">
+                        <span className="text-muted-foreground text-[11px] font-semibold uppercase tracking-tight">SGST</span>
+                        <span className="text-sm font-medium tabular-nums">{formatAmount(purchaseTotals.SGST)}</span>
+                      </div>
+                      <div className="flex items-baseline gap-2 border-l pl-4 border-muted/50">
+                        <span className="text-muted-foreground text-[11px] font-semibold uppercase tracking-tight">TDS</span>
+                        <span className="text-sm font-medium tabular-nums">{formatAmount(purchaseTotals.TDS)}</span>
+                      </div>
+                      <div className="flex items-baseline gap-2 border-l pl-4 border-muted/50">
+                        <span className="text-muted-foreground text-[11px] font-semibold uppercase tracking-tight">Total Invoice Amt</span>
+                        <span className="text-sm font-medium tabular-nums">{formatAmount(purchaseTotals["Total Invoice Amt"])}</span>
+                      </div>
+                      <div className="flex items-baseline gap-2 border-l pl-4 border-primary/20 bg-primary/5 rounded px-2 -mx-2">
+                        <span className="text-primary text-[11px] font-bold uppercase tracking-tight">Total Payable</span>
+                        <span className="text-base font-bold tabular-nums text-primary">{formatAmount(purchaseTotals["Total Payable"])}</span>
+                      </div>
+                    </div>
                   </div>
                 )}
               </section>

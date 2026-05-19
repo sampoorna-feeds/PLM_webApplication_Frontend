@@ -38,6 +38,14 @@ import {
 } from "./purchase-line-quantity-config";
 import { TaxInfoPopover } from "./tax-info-popover";
 
+const formatAmount = (val: number | undefined): string => {
+  if (val == null) return "0.00";
+  return val.toLocaleString("en-IN", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+};
+
 function getQuantityDisplayValue(
   item: LineItem,
   key: PurchaseLineQuantityKey,
@@ -514,7 +522,7 @@ export function PurchaseLineItemsTable({
                 )}
                 {isVisible("unitPrice") && (
                   <TableCell className="text-right">
-                    {item.unitPrice || 0}
+                    {formatAmount(item.unitPrice)}
                   </TableCell>
                 )}
                 {isVisible("discount") && (
@@ -524,7 +532,7 @@ export function PurchaseLineItemsTable({
                 )}
                 {isVisible("amount") && (
                   <TableCell className="text-right font-bold">
-                    {item.amount || 0}
+                    {formatAmount(item.amount)}
                   </TableCell>
                 )}
                 {isVisible("gstGroupCode") && <TableCell>{item.gstGroupCode || "-"}</TableCell>}

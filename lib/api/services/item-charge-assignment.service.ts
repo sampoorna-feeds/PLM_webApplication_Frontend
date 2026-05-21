@@ -108,6 +108,7 @@ export interface PagedResult<T> {
 export interface ColumnFilterValue {
   value: string;
   valueTo?: string;
+  operator?: "lt" | "gt" | "eq";
 }
 
 export type ColumnFilters = Record<string, ColumnFilterValue>;
@@ -268,7 +269,13 @@ export const itemChargeAssignmentService = {
           field = "Shipment_Date";
         }
 
-        if (filter.valueTo || colId === "Posting_Date") {
+        if (colId === "Quantity") {
+          const val = Number(filter.value);
+          if (!isNaN(val)) {
+            const op = filter.operator || "eq";
+            filters.push(`${field} ${op} ${val}`);
+          }
+        } else if (filter.valueTo || colId === "Posting_Date") {
           // Date range or explicit range
           if (filter.value) filters.push(`${field} ge ${filter.value}`);
           if (filter.valueTo) filters.push(`${field} le ${filter.valueTo}`);

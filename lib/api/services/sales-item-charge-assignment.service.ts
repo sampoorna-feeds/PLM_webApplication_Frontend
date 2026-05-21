@@ -234,7 +234,13 @@ export const salesItemChargeAssignmentService = {
            if (type === "SalesShipment") field = "Posting_Date";
         }
 
-        if (filter.valueTo || colId === "Posting_Date") {
+        if (colId === "Quantity") {
+          const val = Number(filter.value);
+          if (!isNaN(val)) {
+            const op = filter.operator || "eq";
+            filters.push(`${field} ${op} ${val}`);
+          }
+        } else if (filter.valueTo || colId === "Posting_Date") {
           if (filter.value) filters.push(`${field} ge ${filter.value}`);
           if (filter.valueTo) filters.push(`${field} le ${filter.valueTo}`);
         } else {

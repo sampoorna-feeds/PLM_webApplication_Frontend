@@ -82,6 +82,7 @@ const SELECTION_COLUMNS: ColumnConfig[] = [
     id: "Quantity",
     label: "Quantity",
     sortable: true,
+    filterType: "number",
     width: "100px",
     align: "right",
   },
@@ -136,7 +137,7 @@ export function SalesItemChargeSelectionDialog({
 
   const [sortColumn, setSortColumn] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>(null);
-  const [columnFilters, setColumnFilters] = useState<Record<string, { value: string; valueTo?: string }>>(
+  const [columnFilters, setColumnFilters] = useState<Record<string, { value: string; valueTo?: string; operator?: "lt" | "gt" | "eq" }>>(
     {},
   );
 
@@ -348,13 +349,13 @@ export function SalesItemChargeSelectionDialog({
     }
   };
 
-  const handleColumnFilter = (columnId: string, value: string, valueTo?: string) => {
+  const handleColumnFilter = (columnId: string, value: string, valueTo?: string, operator?: "lt" | "gt" | "eq") => {
     setColumnFilters((prev) => {
       if (!value && !valueTo) {
         const { [columnId]: _, ...rest } = prev;
         return rest;
       }
-      return { ...prev, [columnId]: { value, valueTo } };
+      return { ...prev, [columnId]: { value, valueTo, operator } };
     });
   };
 
@@ -445,7 +446,7 @@ export function SalesItemChargeSelectionDialog({
                     column={col}
                     isActive={sortColumn === col.id}
                     sortDirection={sortColumn === col.id ? sortDirection : null}
-                    filterValue={columnFilters[col.id] ?? ""}
+                    filterValue={columnFilters[col.id] ?? { value: "" }}
                     onSort={handleSort}
                     onFilter={handleColumnFilter}
                   />
@@ -626,9 +627,9 @@ interface SelectionTableHeadProps {
   column: ColumnConfig;
   isActive: boolean;
   sortDirection: SortDirection;
-  filterValue: { value: string; valueTo?: string };
+  filterValue: { value: string; valueTo?: string; operator?: "lt" | "gt" | "eq" };
   onSort: (id: string) => void;
-  onFilter: (id: string, value: string, valueTo?: string) => void;
+  onFilter: (id: string, value: string, valueTo?: string, operator?: "lt" | "gt" | "eq") => void;
 }
 
 function SelectionTableHead({
@@ -684,7 +685,8 @@ function SelectionTableHead({
             column={column}
             value={filterValue.value}
             valueTo={filterValue.valueTo}
-            onChange={(v, vt) => onFilter(column.id, v, vt)}
+            operator={filterValue.operator}
+            onChange={(v, vt, op) => onFilter(column.id, v, vt, op)}
           />
         )}
       </div>
@@ -696,23 +698,27 @@ interface SelectionColumnFilterProps {
   column: ColumnConfig;
   value: string;
   valueTo?: string;
-  onChange: (value: string, valueTo?: string) => void;
+  operator?: "lt" | "gt" | "eq";
+  onChange: (value: string, valueTo?: string, operator?: "lt" | "gt" | "eq") => void;
 }
 
 function SelectionColumnFilter({
   column,
   value,
   valueTo,
+  operator,
   onChange,
 }: SelectionColumnFilterProps) {
   const [open, setOpen] = useState(false);
   const [local, setLocal] = useState(value);
   const [localTo, setLocalTo] = useState(valueTo || "");
+  const [localOperator, setLocalOperator] = useState<"lt" | "gt" | "eq">(operator || "eq");
 
   useEffect(() => {
     setLocal(value);
     setLocalTo(valueTo || "");
-  }, [value, valueTo]);
+    setLocalOperator(operator || "eq");
+  }, [value, valueTo, operator]);
 
   const hasFilter = !!value || !!valueTo;
 
@@ -759,6 +765,37 @@ function SelectionColumnFilter({
                 />
               </div>
             </div>
+          ) : column.filterType === "number" ? (
+            <div className="space-y-2">
+              <div className="space-y-1">
+                <Label className="text-[10px] text-muted-foreground">Operator</Label>
+                <select
+                  value={localOperator}
+                  onChange={(e) => setLocalOperator(e.target.value as "lt" | "gt" | "eq")}
+                  className="flex h-7 w-full rounded-md border border-input bg-background px-3 py-1 text-xs ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <option value="eq">Exact Match (=)</option>
+                  <option value="gt">More Than (&gt;)</option>
+                  <option value="lt">Less Than (&lt;)</option>
+                </select>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-[10px] text-muted-foreground">Quantity</Label>
+                <Input
+                  type="number"
+                  placeholder="Enter quantity..."
+                  value={local}
+                  onChange={(e) => setLocal(e.target.value)}
+                  className="h-7 text-xs"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      onChange(local, localTo, localOperator);
+                      setOpen(false);
+                    }
+                  }}
+                />
+              </div>
+            </div>
           ) : (
             <Input
               placeholder="Search..."
@@ -767,7 +804,7 @@ function SelectionColumnFilter({
               className="h-7 text-xs"
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
-                  onChange(local, localTo);
+                  onChange(local, localTo, localOperator);
                   setOpen(false);
                 }
               }}
@@ -779,7 +816,7 @@ function SelectionColumnFilter({
             size="sm"
             className="h-7 flex-1 text-xs"
             onClick={() => {
-              onChange(local, localTo);
+              onChange(local, localTo, localOperator);
               setOpen(false);
             }}
           >
@@ -793,7 +830,8 @@ function SelectionColumnFilter({
               onClick={() => {
                 setLocal("");
                 setLocalTo("");
-                onChange("", "");
+                setLocalOperator("eq");
+                onChange("", "", "eq");
                 setOpen(false);
               }}
             >

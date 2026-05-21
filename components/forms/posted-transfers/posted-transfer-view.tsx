@@ -7,7 +7,7 @@ import { TableFilterBar } from "./table-filter-bar";
 import { Button } from "@/components/ui/button";
 import { RotateCcw, RefreshCcw } from "lucide-react";
 import { loadVisibleColumns, saveVisibleColumns, getDefaultVisibleColumns, POSTED_TRANSFER_COLUMNS } from "./column-config";
-import { getTransferShipmentReport, getDownloadRecordLink } from "@/lib/api/services/transfer-orders.service";
+import { getTransferShipmentReport, getTransferReceiptReport, getDownloadRecordLink } from "@/lib/api/services/transfer-orders.service";
 import { toast } from "sonner";
 import { toastError } from "@/lib/errors";
 import { useFormStackContext } from "@/lib/form-stack/form-stack-context";
@@ -63,26 +63,28 @@ export function PostedTransferView({ type }: PostedTransferViewProps) {
     return new Blob([new Uint8Array(byteNumbers)], { type: "application/pdf" });
   };
 
-  const getReportPdfUrl = async (shipmentNo: string) => {
-    if (reportPdfUrls[shipmentNo]) return reportPdfUrls[shipmentNo];
+  const getReportPdfUrl = async (docNo: string) => {
+    if (reportPdfUrls[docNo]) return reportPdfUrls[docNo];
 
-    setActiveReportDocNo(shipmentNo);
+    setActiveReportDocNo(docNo);
     try {
-      const base64Data = await getTransferShipmentReport(shipmentNo);
+      const base64Data = type === "receipt"
+        ? await getTransferReceiptReport(docNo)
+        : await getTransferShipmentReport(docNo);
       if (!base64Data) throw new Error("No PDF content returned.");
 
       const blob = base64ToPdfBlob(base64Data);
       const url = window.URL.createObjectURL(blob);
-      setReportPdfUrls(prev => ({ ...prev, [shipmentNo]: url }));
+      setReportPdfUrls(prev => ({ ...prev, [docNo]: url }));
       return url;
     } finally {
       setActiveReportDocNo(null);
     }
   };
 
-  const handlePreviewReport = async (shipmentNo: string) => {
+  const handlePreviewReport = async (docNo: string) => {
     try {
-      const url = await getReportPdfUrl(shipmentNo);
+      const url = await getReportPdfUrl(docNo);
       window.open(url, "_blank", "noopener,noreferrer");
     } catch (err: any) {
       toastError(err, "Failed to preview report");
@@ -119,6 +121,18 @@ export function PostedTransferView({ type }: PostedTransferViewProps) {
   const handlePrintRecord = async (docNo: string, docType: string, reportName: string) => {
     setActiveReportDocNo(docNo);
     try {
+      if (type === "receipt") {
+        const url = await getReportPdfUrl(docNo);
+        const iframe = document.createElement("iframe");
+        iframe.style.display = "none";
+        iframe.src = url;
+        document.body.appendChild(iframe);
+        iframe.onload = () => {
+          iframe.contentWindow?.print();
+        };
+        return;
+      }
+
       const url = await getDownloadRecordLink({ documentType: docType, documentNo: docNo });
       if (!url) {
         toast.info(`No URL returned for ${reportName}`);

@@ -258,23 +258,48 @@ export function PostedTransferTable({
                 </Tooltip>
               </TooltipProvider>
 
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-8 w-8 p-0 hover:bg-primary/20 hover:text-primary transition-colors"
-                      onClick={() => onPrintRecord?.(row.No, "Transfer", "E-way Bill")}
-                    >
-                      <Printer className="h-4 w-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="right">
-                    <p>Print E-way Bill</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+              {type === "shipment" ? (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 w-8 p-0 hover:bg-primary/20 hover:text-primary transition-colors"
+                        onClick={() => onPrintRecord?.(row.No, "Transfer", "E-way Bill")}
+                      >
+                        <Printer className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="right">
+                      <p>Print E-way Bill</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              ) : (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 w-8 p-0 hover:bg-primary/20 hover:text-primary transition-colors"
+                        onClick={() => onPrintRecord?.(row.No, "Transfer", "Receipt Report")}
+                        disabled={activeReportId === row.No}
+                      >
+                        {activeReportId === row.No ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Printer className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="right">
+                      <p>Print Receipt Report</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
             </div>
           </td>
         )}

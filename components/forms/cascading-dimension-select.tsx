@@ -273,7 +273,7 @@ export function CascadingDimensionSelect({
             }
             disabled={isFieldDisabled}
             className={cn(
-              "h-9 w-full pr-10 text-sm font-normal shadow-sm",
+              "h-9 w-full pr-16 text-sm font-normal shadow-sm",
               !value && !isOpen && "text-muted-foreground",
               className,
               errorClass,

@@ -16,7 +16,7 @@ export function PublicGuard({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!isLoading && isAuthenticated) {
-      const redirect = searchParams.get("redirect") || "/voucher-form";
+      const redirect = searchParams.get("redirect") || "/";
       router.push(redirect);
     }
   }, [isAuthenticated, isLoading, router, searchParams]);

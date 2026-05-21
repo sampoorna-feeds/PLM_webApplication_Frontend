@@ -113,7 +113,7 @@ export function LoginForm({
 
       // Store credentials in localStorage/sessionStorage
       setAuthCredentials(
-        formData.username,
+        formData.username.toUpperCase(),
         formData.password,
         formData.rememberMe,
       );
@@ -122,7 +122,7 @@ export function LoginForm({
       await refreshAuth();
 
       // Redirect to intended page or default
-      const redirect = searchParams.get("redirect") || "/voucher-form";
+      const redirect = searchParams.get("redirect") || "/";
       router.replace(redirect);
     } catch (err) {
       console.error("Login error:", err);

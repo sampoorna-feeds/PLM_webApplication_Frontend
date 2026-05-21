@@ -18,9 +18,10 @@ import {
 } from "@/components/ui/select";
 import { useAuth } from "@/lib/contexts/auth-context";
 import {
-  getAllLOCsFromUserSetup,
+  getAllBranchesFromUserSetup,
   DimensionValue,
 } from "@/lib/api/services/dimension.service";
+import { getLocationsByBranches } from "@/lib/api/services/location.service";
 import { getSalesPlanningReport } from "@/lib/api/services/sales-orders.service";
 import { downloadExcelFromBase64 } from "@/lib/file-utils";
 import { toast } from "sonner";
@@ -46,10 +47,21 @@ export function SalesPlanningModal({
       const fetchLocations = async () => {
         setIsFetchingLocations(true);
         try {
-          const locs = await getAllLOCsFromUserSetup(userID);
-          setLocations(locs);
-          if (locs.length > 0) {
-            setSelectedLocation(locs[0].Code);
+          const branches = await getAllBranchesFromUserSetup(userID);
+          const branchCodes = branches.map((b) => b.Code).filter(Boolean);
+          
+          if (branchCodes.length > 0) {
+            const locItems = await getLocationsByBranches(branchCodes);
+            const locs: DimensionValue[] = locItems.map((loc) => ({
+              Code: loc.Code,
+              Name: loc.Name,
+            }));
+            setLocations(locs);
+            if (locs.length > 0) {
+              setSelectedLocation(locs[0].Code);
+            }
+          } else {
+            setLocations([]);
           }
         } catch (error) {
           console.error("Failed to fetch locations:", error);

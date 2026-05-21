@@ -516,66 +516,6 @@ export function ConsumeInventoryForm() {
             </div>
 
             <div className="space-y-1">
-              <label className="text-muted-foreground ml-1 text-[11px] font-bold tracking-wider uppercase">
-                Consumption Posting
-              </label>
-              <div className="group relative">
-                <Select
-                  value={formState["Consumption Posting"] || "none"}
-                  onValueChange={(v) =>
-                    handleChange("Consumption Posting", v === "none" ? "" : v)
-                  }
-                  disabled={fetchingOptions}
-                >
-                  <SelectTrigger className="h-10 pr-8 shadow-sm focus:ring-1">
-                    <SelectValue
-                      placeholder={
-                        fetchingOptions
-                          ? "Loading..."
-                          : !formState["Item No."]
-                            ? "Select Item first"
-                            : consumptionOptions.length === 0
-                              ? "No options found"
-                              : "Select Type"
-                      }
-                    />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">None</SelectItem>
-                    {!formState["Item No."] && (
-                      <div className="text-muted-foreground px-2 py-4 text-center text-[10px] italic">
-                        Please select an item first
-                      </div>
-                    )}
-                    {consumptionOptions.map((opt, i) => (
-                      <SelectItem key={i} value={opt.Posting_Group}>
-                        <div className="flex flex-col">
-                          <span className="font-bold">{opt.Posting_Group}</span>
-                          <span className="text-muted-foreground text-[10px]">
-                            {opt.Name}
-                          </span>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {formState["Consumption Posting"] && (
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      handleChange("Consumption Posting", "");
-                    }}
-                    className="text-muted-foreground hover:text-foreground hover:bg-muted absolute top-1/2 right-11 -translate-y-1/2 rounded-full p-1 transition-colors"
-                  >
-                    <X className="h-3 w-3" />
-                  </button>
-                )}
-              </div>
-            </div>
-
-            <div className="space-y-1">
               <label className="text-muted-foreground ml-1 text-[11px] font-bold tracking-wider text-blue-400 uppercase">
                 Apply to Entry
               </label>
@@ -689,6 +629,66 @@ export function ConsumeInventoryForm() {
                 disabled
                 placeholder="Auto-filled"
               />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-muted-foreground ml-1 text-[11px] font-bold tracking-wider uppercase">
+                Consumption Posting
+              </label>
+              <div className="group relative">
+                <Select
+                  value={formState["Consumption Posting"] || "none"}
+                  onValueChange={(v) =>
+                    handleChange("Consumption Posting", v === "none" ? "" : v)
+                  }
+                  disabled={fetchingOptions}
+                >
+                  <SelectTrigger className="h-10 pr-8 shadow-sm focus:ring-1">
+                    <SelectValue
+                      placeholder={
+                        fetchingOptions
+                          ? "Loading..."
+                          : !formState["Item No."]
+                            ? "Select Item first"
+                            : consumptionOptions.length === 0
+                              ? "No options found"
+                              : "Select Type"
+                      }
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">None</SelectItem>
+                    {!formState["Item No."] && (
+                      <div className="text-muted-foreground px-2 py-4 text-center text-[10px] italic">
+                        Please select an item first
+                      </div>
+                    )}
+                    {consumptionOptions.map((opt, i) => (
+                      <SelectItem key={i} value={opt.Posting_Group}>
+                        <div className="flex flex-col">
+                          <span className="font-bold">{opt.Posting_Group}</span>
+                          <span className="text-muted-foreground text-[10px]">
+                            {opt.Name}
+                          </span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {formState["Consumption Posting"] && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleChange("Consumption Posting", "");
+                    }}
+                    className="text-muted-foreground hover:text-foreground hover:bg-muted absolute top-1/2 right-11 -translate-y-1/2 rounded-full p-1 transition-colors"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                )}
+              </div>
             </div>
 
             <div className="space-y-1">
@@ -846,6 +846,7 @@ export function ConsumeInventoryForm() {
                     <TableHead className="font-semibold text-xs tracking-wider uppercase">Description</TableHead>
                     <TableHead className="font-semibold text-xs tracking-wider uppercase">Quantity</TableHead>
                     <TableHead className="font-semibold text-xs tracking-wider uppercase">UOM</TableHead>
+                    <TableHead className="font-semibold text-xs tracking-wider uppercase">Consumption Posting</TableHead>
                     <TableHead className="font-semibold text-xs tracking-wider uppercase">Location</TableHead>
                     <TableHead className="font-semibold text-xs tracking-wider uppercase">LOB</TableHead>
                     <TableHead className="font-semibold text-xs tracking-wider uppercase">Branch</TableHead>
@@ -868,6 +869,7 @@ export function ConsumeInventoryForm() {
                       <TableCell className="text-xs max-w-[200px] truncate">{String(entry.Description || "-")}</TableCell>
                       <TableCell className="font-mono text-xs font-bold text-green-400">{Number(entry.Quantity)}</TableCell>
                       <TableCell className="text-xs font-medium">{String(entry.Unit_of_Measure_Code || entry.Unit_of_Measure || "-")}</TableCell>
+                      <TableCell className="text-xs font-semibold">{String(entry.Consumption_Posting || entry["Consumption Posting"] || "-")}</TableCell>
                       <TableCell className="font-mono text-xs">{String(entry.Location_Code)}</TableCell>
                       <TableCell className="text-xs">{String(entry.Shortcut_Dimension_1_Code || "-")}</TableCell>
                       <TableCell className="text-xs">{String(entry.Shortcut_Dimension_2_Code || "-")}</TableCell>

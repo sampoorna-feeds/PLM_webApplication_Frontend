@@ -16,6 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Table,
   TableBody,
@@ -98,6 +99,7 @@ export function ConsumeInventoryForm() {
   const [loadingEntries, setLoadingEntries] = useState(false);
   const [posting, setPosting] = useState(false);
   const [editingEntry, setEditingEntry] = useState<ConsumeInventoryEntry | null>(null);
+  const [selectedEntries, setSelectedEntries] = useState<string[]>([]);
 
   const fetchEntries = async () => {
     if (!userID) return;
@@ -105,6 +107,7 @@ export function ConsumeInventoryForm() {
     try {
       const data = await getConsumeInventoryEntries(userID);
       setEntries(data);
+      setSelectedEntries(data.map(e => String(e.Line_No)));
     } catch (error) {
       console.error("Failed to fetch consume inventory entries:", error);
     } finally {
@@ -293,14 +296,33 @@ export function ConsumeInventoryForm() {
   };
 
   const handlePostConsumption = async () => {
-    if (entries.length === 0) {
-      toast.error("No entries to post");
+    if (selectedEntries.length === 0) {
+      toast.error("No entries selected to post");
       return;
     }
     setPosting(true);
     try {
+      const selectedLineNos = selectedEntries;
+      const unselected = entries.filter(e => !selectedLineNos.includes(String(e.Line_No)));
+
+      // If there are unselected entries, temporarily delete them so they aren't posted in this batch
+      if (unselected.length > 0) {
+        for (const entry of unselected) {
+          await deleteConsumeInventoryEntry(entry);
+        }
+      }
+
+      // Post the remaining batch (selected entries)
       const result = await postConsumeInventory(userID!);
       toast.success(result || "Posted successfully");
+
+      // Restore the unselected entries back to ERP
+      if (unselected.length > 0) {
+        for (const entry of unselected) {
+          await createConsumeInventoryEntry(entry);
+        }
+      }
+
       await fetchEntries();
     } catch (error: any) {
       toastError(error, "Failed to post consumption");
@@ -808,7 +830,7 @@ export function ConsumeInventoryForm() {
               </Button>
               <Button
                 onClick={handlePostConsumption}
-                disabled={posting || entries.length === 0}
+                disabled={posting || selectedEntries.length === 0}
                 className="font-bold bg-green-600 hover:bg-green-700 text-white shadow-lg hover:shadow-green-900/30 transition-all animate-shimmer"
                 size="sm"
               >
@@ -817,7 +839,7 @@ export function ConsumeInventoryForm() {
                 ) : (
                   <Send className="mr-2 h-4 w-4" />
                 )}
-                Post Consumption
+                {selectedEntries.length > 0 ? `Post Selected (${selectedEntries.length})` : "Post Consumption"}
               </Button>
             </div>
           </div>
@@ -839,6 +861,19 @@ export function ConsumeInventoryForm() {
               <Table>
                 <TableHeader>
                   <TableRow className="bg-muted/40 hover:bg-muted/40">
+                    <TableHead className="w-[40px] px-3 py-3">
+                      <Checkbox
+                        checked={entries.length > 0 && selectedEntries.length === entries.length}
+                        onCheckedChange={(checked) => {
+                          if (checked) {
+                            setSelectedEntries(entries.map(e => String(e.Line_No)));
+                          } else {
+                            setSelectedEntries([]);
+                          }
+                        }}
+                        className="translate-y-[2px]"
+                      />
+                    </TableHead>
                     <TableHead className="font-semibold text-xs tracking-wider uppercase">Doc No</TableHead>
                     <TableHead className="font-semibold text-xs tracking-wider uppercase">Posting Date</TableHead>
                     <TableHead className="font-semibold text-xs tracking-wider uppercase">Type</TableHead>
@@ -858,6 +893,19 @@ export function ConsumeInventoryForm() {
                 <TableBody>
                   {entries.map((entry, idx) => (
                     <TableRow key={idx} className="hover:bg-muted/20 transition-colors">
+                      <TableCell className="w-[40px] px-3 py-3">
+                        <Checkbox
+                          checked={selectedEntries.includes(String(entry.Line_No))}
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              setSelectedEntries(prev => [...prev, String(entry.Line_No)]);
+                            } else {
+                              setSelectedEntries(prev => prev.filter(id => id !== String(entry.Line_No)));
+                            }
+                          }}
+                          className="translate-y-[2px]"
+                        />
+                      </TableCell>
                       <TableCell className="font-mono text-xs font-semibold">{String(entry.Document_No)}</TableCell>
                       <TableCell className="text-xs">{String(entry.Posting_Date)}</TableCell>
                       <TableCell className="text-xs font-semibold">

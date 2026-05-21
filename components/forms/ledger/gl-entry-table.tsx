@@ -1,4 +1,5 @@
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Popover,
   PopoverContent,
@@ -6,9 +7,12 @@ import {
 } from "@/components/ui/popover";
 import { TableCell } from "@/components/ui/table";
 import type { GLEntry } from "@/lib/api/services/gl-entry.service";
+import { getVoucherReportPdf } from "@/lib/api/services/voucher.service";
+import { viewPdfFromBase64 } from "@/lib/pdf-utils";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
-import { ArrowUpDown, ChevronDown, ChevronUp, Loader2, MoreHorizontal } from "lucide-react";
+import { ArrowUpDown, ChevronDown, ChevronUp, Loader2, MoreHorizontal, Printer } from "lucide-react";
 import { useCallback, useEffect, useRef, useMemo, useState } from "react";
 import { 
   ALL_COLUMNS, 
@@ -77,6 +81,26 @@ export function GLEntryTable({
   toDate,
 }: GLEntryTableProps) {
   const observerTarget = useRef<HTMLDivElement>(null);
+  const [printingDoc, setPrintingDoc] = useState<string | null>(null);
+
+  const handlePrintVoucher = async (docNo: string, postingDate: string) => {
+    if (!docNo) return;
+    setPrintingDoc(docNo);
+    try {
+      const base64 = await getVoucherReportPdf(docNo, postingDate);
+      if (!base64) {
+        toast.error("No voucher report data received from server.");
+        return;
+      }
+      viewPdfFromBase64(base64, `Voucher_${docNo}`);
+      toast.success("Voucher generated successfully.");
+    } catch (error: any) {
+      console.error("Voucher print error:", error);
+      toast.error(error.message || "Failed to generate voucher report.");
+    } finally {
+      setPrintingDoc(null);
+    }
+  };
 
   const activeColumns = useMemo(() => {
     let base = ALL_COLUMNS.filter((col) => visibleColumns.includes(col.id));
@@ -342,7 +366,7 @@ export function GLEntryTable({
   const totalTableWidth = useMemo(() => {
     return activeColumns.reduce((acc, col) => {
       return acc + (columnWidths[col.id] || 150);
-    }, 0);
+    }, 60);
   }, [activeColumns, columnWidths]);
 
   const closingBalanceColumnId = useMemo(() => {
@@ -418,6 +442,9 @@ export function GLEntryTable({
         >
           <thead className="bg-muted sticky top-0 z-50">
             <tr>
+              <th className="bg-muted border-b px-3 py-3 text-center align-middle text-xs font-bold sticky top-0 z-50 transition-all overflow-hidden select-none w-[60px] min-w-[60px] max-w-[60px]">
+                Print
+              </th>
               {activeColumns.map((col) => (
                 <HeaderCell key={col.id} field={col.id} label={col.label} />
               ))}
@@ -427,6 +454,7 @@ export function GLEntryTable({
             {/* Opening Balance Row */}
             {!isLoading && entries.length > 0 && (
               <tr className="bg-muted/30 font-medium">
+                <td className="w-[60px] min-w-[60px] max-w-[60px] border-b" />
                 {balancePrefixColSpan > 0 && (
                   <td
                     colSpan={balancePrefixColSpan}
@@ -469,13 +497,28 @@ export function GLEntryTable({
                   index % 2 === 1 ? "bg-muted/10" : "bg-background"
                 )}
               >
+                <td className="w-[60px] min-w-[60px] max-w-[60px] text-center p-0 align-middle border-b">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-muted-foreground hover:text-primary hover:bg-accent/50 rounded-full"
+                    onClick={() => handlePrintVoucher(entry.Document_No, entry.Posting_Date)}
+                    disabled={printingDoc === entry.Document_No}
+                  >
+                    {printingDoc === entry.Document_No ? (
+                      <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                    ) : (
+                      <Printer className="h-4 w-4" />
+                    )}
+                  </Button>
+                </td>
                 {activeColumns.map((col) => renderCell(col, entry, index))}
               </tr>
             ))}
 
             {/* Infinite Load Target */}
             <tr className="h-10 pointer-events-none border-none">
-              <td colSpan={activeColumns.length} className="p-0 border-none">
+              <td colSpan={activeColumns.length + 1} className="p-0 border-none">
                 <div ref={observerTarget} className="h-full w-full" />
                 {isFetchingNextPage && (
                   <div className="flex items-center justify-center py-4 gap-2 text-muted-foreground">
@@ -489,6 +532,7 @@ export function GLEntryTable({
             {/* Summary Row */}
             {!isLoading && entries.length > 0 && (
               <tr className="bg-muted sticky bottom-0 z-40 border-t shadow-sm font-bold">
+                <td className="w-[60px] min-w-[60px] max-w-[60px]" />
                 {balancePrefixColSpan > 0 && (
                   <td
                     colSpan={balancePrefixColSpan}

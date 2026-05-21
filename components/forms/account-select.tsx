@@ -239,7 +239,11 @@ export function AccountSelect({
   // Handle dropdown open
   const handleOpenChange = (open: boolean) => {
     setIsOpen(open);
-    if (open) {
+  };
+
+  // Load initial items when dropdown opens
+  useEffect(() => {
+    if (isOpen) {
       setFocusedIndex(-1);
       // Always load items when opening, even if we have some, to ensure value is in list
       if (
@@ -248,13 +252,12 @@ export function AccountSelect({
       ) {
         loadInitialItems();
       }
-    }
-    if (!open) {
+    } else {
       setSearchQuery("");
       setSkip(0);
       setHasMore(true);
     }
-  };
+  }, [isOpen, loadInitialItems, value]);
 
   // Handle scroll for pagination
   useEffect(() => {

@@ -384,3 +384,22 @@ export async function getTaxComponentsInJson(
     return [];
   }
 }
+
+/**
+ * Fetches a voucher PDF report as a base64 string.
+ * @param docNo - The document number
+ * @param postingDate - The posting date of the document
+ * @returns A promise resolving to the base64 encoded PDF string
+ */
+export async function getVoucherReportPdf(
+  docNo: string,
+  postingDate: string,
+): Promise<string> {
+  const endpoint = `/API_GetVoucher?company='${encodeURIComponent(COMPANY)}'`;
+  const response = await apiPost<{ value?: string }>(endpoint, {
+    docNo,
+    postingdate: postingDate,
+  });
+  return response?.value || "";
+}
+

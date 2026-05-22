@@ -123,13 +123,7 @@ export function PostedTransferView({ type }: PostedTransferViewProps) {
     try {
       if (type === "receipt") {
         const url = await getReportPdfUrl(docNo);
-        const iframe = document.createElement("iframe");
-        iframe.style.display = "none";
-        iframe.src = url;
-        document.body.appendChild(iframe);
-        iframe.onload = () => {
-          iframe.contentWindow?.print();
-        };
+        window.open(url, "_blank");
         return;
       }
 

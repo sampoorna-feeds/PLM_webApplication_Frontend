@@ -35,7 +35,9 @@ interface POAttachmentDialogProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   orderNo: string;
-  documentType?: "Order" | "Invoice" | "Credit Memo" | "Return Order";
+  documentType?: string;
+  tableId?: number;
+  readOnly?: boolean;
 }
 
 function readFileAsBase64(file: File): Promise<string> {
@@ -57,6 +59,8 @@ export function POAttachmentDialog({
   onOpenChange,
   orderNo,
   documentType = "Order",
+  tableId = 38,
+  readOnly = false,
 }: POAttachmentDialogProps) {
   const [entries, setEntries] = useState<FileEntry[]>([]);
   const [existingAttachments, setExistingAttachments] = useState<PurchaseAttachment[]>([]);
@@ -70,14 +74,14 @@ export function POAttachmentDialog({
     if (!orderNo) return;
     setIsLoadingExisting(true);
     try {
-      const list = await getPurchaseAttachments(orderNo, documentType);
+      const list = await getPurchaseAttachments(orderNo, documentType, tableId);
       setExistingAttachments(list);
     } catch (err) {
       console.error("Failed to load existing attachments:", err);
     } finally {
       setIsLoadingExisting(false);
     }
-  }, [orderNo, documentType]);
+  }, [orderNo, documentType, tableId]);
 
   useEffect(() => {
     if (isOpen && orderNo) {
@@ -240,129 +244,133 @@ export function POAttachmentDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Paperclip className="h-4 w-4" />
-            Attachments — {orderNo} ({documentType})
+            Attachments — {orderNo} {documentType ? `(${documentType})` : ""}
           </DialogTitle>
         </DialogHeader>
 
-        {/* Drop Zone */}
-        <div
-          className={`flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed p-8 text-center transition-colors ${
-            isDragging
-              ? "border-primary bg-primary/5"
-              : "border-border hover:border-primary/50 hover:bg-muted/30"
-          } cursor-pointer`}
-          onClick={() => inputRef.current?.click()}
-          onDragOver={(e) => {
-            e.preventDefault();
-            setIsDragging(true);
-          }}
-          onDragLeave={() => setIsDragging(false)}
-          onDrop={handleDrop}
-        >
-          <UploadCloud className="text-muted-foreground h-8 w-8" />
-          <div>
-            <p className="text-sm font-medium">Drop PDFs or Images here or click to browse</p>
-            <p className="text-muted-foreground text-xs">PDF, JPG, JPEG, and PNG files are accepted</p>
-          </div>
-          <input
-            ref={inputRef}
-            type="file"
-            accept=".pdf,application/pdf,.jpg,.jpeg,image/jpeg,.png,image/png"
-            multiple
-            className="hidden"
-            onChange={handleInputChange}
-          />
-        </div>
-
-        {/* File List */}
-        {entries.length > 0 && (
-          <div className="space-y-1.5">
-            {entries.map((entry) => (
-              <div
-                key={entry.id}
-                className="bg-muted/40 flex items-center gap-2 rounded-md border px-3 py-2"
-              >
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium">{entry.file.name}</p>
-                  <p className="text-muted-foreground text-xs">
-                    {(entry.file.size / 1024).toFixed(1)} KB
-                  </p>
-                  {entry.status === "error" && (
-                    <p className="text-destructive text-xs">{entry.error}</p>
-                  )}
-                </div>
-
-                {entry.status === "uploading" && (
-                  <Loader2 className="text-primary h-4 w-4 shrink-0 animate-spin" />
-                )}
-                {entry.status === "success" && (
-                  <CheckCircle2 className="h-4 w-4 shrink-0 text-green-500" />
-                )}
-                {entry.status === "error" && (
-                  <AlertCircle className="text-destructive h-4 w-4 shrink-0" />
-                )}
-
-                {entry.status !== "uploading" && entry.status !== "success" && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7 shrink-0"
-                    onClick={() => uploadEntry(entry.id)}
-                  >
-                    <UploadCloud className="h-3.5 w-3.5" />
-                  </Button>
-                )}
-
-                {entry.status !== "uploading" && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="text-muted-foreground hover:text-destructive h-7 w-7 shrink-0"
-                    onClick={() => removeEntry(entry.id)}
-                  >
-                    <X className="h-3.5 w-3.5" />
-                  </Button>
-                )}
+        {!readOnly && (
+          <>
+            {/* Drop Zone */}
+            <div
+              className={`flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed p-8 text-center transition-colors ${
+                isDragging
+                  ? "border-primary bg-primary/5"
+                  : "border-border hover:border-primary/50 hover:bg-muted/30"
+              } cursor-pointer`}
+              onClick={() => inputRef.current?.click()}
+              onDragOver={(e) => {
+                e.preventDefault();
+                setIsDragging(true);
+              }}
+              onDragLeave={() => setIsDragging(false)}
+              onDrop={handleDrop}
+            >
+              <UploadCloud className="text-muted-foreground h-8 w-8" />
+              <div>
+                <p className="text-sm font-medium">Drop PDFs or Images here or click to browse</p>
+                <p className="text-muted-foreground text-xs">PDF, JPG, JPEG, and PNG files are accepted</p>
               </div>
-            ))}
-          </div>
-        )}
+              <input
+                ref={inputRef}
+                type="file"
+                accept=".pdf,application/pdf,.jpg,.jpeg,image/jpeg,.png,image/png"
+                multiple
+                className="hidden"
+                onChange={handleInputChange}
+              />
+            </div>
 
-        {/* Actions */}
-        {pendingCount > 0 && (
-          <Button
-            type="button"
-            onClick={uploadAll}
-            disabled={isAnyUploading}
-            className="w-full"
-          >
-            {isAnyUploading ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Uploading…
-              </>
-            ) : (
-              <>
-                <UploadCloud className="mr-2 h-4 w-4" />
-                Upload {pendingCount} file{pendingCount !== 1 ? "s" : ""}
-              </>
+            {/* File List */}
+            {entries.length > 0 && (
+              <div className="space-y-1.5">
+                {entries.map((entry) => (
+                  <div
+                    key={entry.id}
+                    className="bg-muted/40 flex items-center gap-2 rounded-md border px-3 py-2"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium">{entry.file.name}</p>
+                      <p className="text-muted-foreground text-xs">
+                        {(entry.file.size / 1024).toFixed(1)} KB
+                      </p>
+                      {entry.status === "error" && (
+                        <p className="text-destructive text-xs">{entry.error}</p>
+                      )}
+                    </div>
+
+                    {entry.status === "uploading" && (
+                      <Loader2 className="text-primary h-4 w-4 shrink-0 animate-spin" />
+                    )}
+                    {entry.status === "success" && (
+                      <CheckCircle2 className="h-4 w-4 shrink-0 text-green-500" />
+                    )}
+                    {entry.status === "error" && (
+                      <AlertCircle className="text-destructive h-4 w-4 shrink-0" />
+                    )}
+
+                    {entry.status !== "uploading" && entry.status !== "success" && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 shrink-0"
+                        onClick={() => uploadEntry(entry.id)}
+                      >
+                        <UploadCloud className="h-3.5 w-3.5" />
+                      </Button>
+                    )}
+
+                    {entry.status !== "uploading" && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="text-muted-foreground hover:text-destructive h-7 w-7 shrink-0"
+                        onClick={() => removeEntry(entry.id)}
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </Button>
+                    )}
+                  </div>
+                ))}
+              </div>
             )}
-          </Button>
-        )}
 
-        {entries.length === 0 && (
-          <p className="text-muted-foreground text-center text-xs">
-            No files selected yet.
-          </p>
+            {/* Actions */}
+            {pendingCount > 0 && (
+              <Button
+                type="button"
+                onClick={uploadAll}
+                disabled={isAnyUploading}
+                className="w-full"
+              >
+                {isAnyUploading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Uploading…
+                  </>
+                ) : (
+                  <>
+                    <UploadCloud className="mr-2 h-4 w-4" />
+                    Upload {pendingCount} file{pendingCount !== 1 ? "s" : ""}
+                  </>
+                )}
+              </Button>
+            )}
+
+            {entries.length === 0 && (
+              <p className="text-muted-foreground text-center text-xs">
+                No files selected yet.
+              </p>
+            )}
+          </>
         )}
 
         {/* Previously Added Attachments Section */}
-        <div className="space-y-2 border-t pt-4 mt-2">
+        <div className={`space-y-2 ${readOnly ? "" : "border-t pt-4 mt-2"}`}>
           <h3 className="text-sm font-semibold flex items-center gap-1.5 text-foreground/80">
             <Paperclip className="h-4 w-4 text-muted-foreground" />
-            Previously Added Attachments
+            {readOnly ? "Attachments" : "Previously Added Attachments"}
           </h3>
 
           {isLoadingExisting ? (
@@ -372,10 +380,10 @@ export function POAttachmentDialog({
             </div>
           ) : existingAttachments.length === 0 ? (
             <p className="text-center text-xs text-muted-foreground py-4 bg-muted/20 rounded-md border border-dashed">
-              No previously added attachments found.
+              No attachments found.
             </p>
           ) : (
-            <div className="max-h-[160px] overflow-y-auto space-y-1.5 pr-1">
+            <div className={`${readOnly ? "max-h-[350px]" : "max-h-[160px]"} overflow-y-auto space-y-1.5 pr-1`}>
               {existingAttachments.map((att) => (
                 <div
                   key={att.ID}
@@ -410,21 +418,23 @@ export function POAttachmentDialog({
                       )}
                     </Button>
 
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 shrink-0 hover:text-destructive hover:bg-destructive/5 text-muted-foreground hover:text-destructive"
-                      disabled={downloadingId === att.ID || deletingId === att.ID}
-                      onClick={() => handleDelete(att)}
-                      title="Delete Attachment"
-                    >
-                      {deletingId === att.ID ? (
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      ) : (
-                        <Trash2 className="h-3.5 w-3.5" />
-                      )}
-                    </Button>
+                    {!readOnly && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 shrink-0 hover:text-destructive hover:bg-destructive/5 text-muted-foreground hover:text-destructive"
+                        disabled={downloadingId === att.ID || deletingId === att.ID}
+                        onClick={() => handleDelete(att)}
+                        title="Delete Attachment"
+                      >
+                        {deletingId === att.ID ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <Trash2 className="h-3.5 w-3.5" />
+                        )}
+                      </Button>
+                    )}
                   </div>
                 </div>
               ))}

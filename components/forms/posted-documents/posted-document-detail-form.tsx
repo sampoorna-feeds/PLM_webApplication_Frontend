@@ -29,7 +29,7 @@ import { viewPdfFromBase64 } from "@/lib/pdf-utils";
 import { useFormStackContext } from "@/lib/form-stack/form-stack-context";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Loader2, Package, Printer, Undo2, ClipboardCheck, Zap } from "lucide-react";
+import { Loader2, Package, Printer, Undo2, ClipboardCheck, Zap, Paperclip } from "lucide-react";
 
 
 import { toast } from "sonner";
@@ -42,6 +42,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { PostedBardanaDialog } from "./posted-bardana-dialog";
+import { POAttachmentDialog } from "../purchase/po-attachment-dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -214,6 +215,7 @@ export function PostedDocumentDetailForm({
   const [lines, setLines] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isPrinting, setIsPrinting] = useState(false);
+  const [isAttachmentDialogOpen, setIsAttachmentDialogOpen] = useState(false);
   const [undoingLine, setUndoingLine] = useState<number | null>(null);
   const [generatingQCLine, setGeneratingQCLine] = useState<number | null>(null);
   const [qcDialog, setQcDialog] = useState<{ isOpen: boolean; line: any; qty: string } | null>(null);
@@ -445,6 +447,18 @@ export function PostedDocumentDetailForm({
               <Printer className="h-3.5 w-3.5" />
             )}
             {isPrinting ? "Generating..." : "Print Report"}
+          </Button>
+        )}
+
+        {(formType === "posted-purchase-invoice" || formType === "posted-purchase-credit-memo") && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-7 gap-1.5 px-3 text-[10px] font-bold tracking-wider uppercase"
+            onClick={() => setIsAttachmentDialogOpen(true)}
+          >
+            <Paperclip className="h-3.5 w-3.5" />
+            Attachments
           </Button>
         )}
       </div>
@@ -905,6 +919,17 @@ export function PostedDocumentDetailForm({
           itemNo={bardanaConfig.line.No}
           itemDescription={bardanaConfig.line.Description || bardanaConfig.line.Item_Description}
           orderNo={doc.Order_No}
+        />
+      )}
+
+      {isAttachmentDialogOpen && (
+        <POAttachmentDialog
+          isOpen={isAttachmentDialogOpen}
+          onOpenChange={setIsAttachmentDialogOpen}
+          orderNo={doc.No}
+          documentType=""
+          tableId={formType === "posted-purchase-invoice" ? 122 : 124}
+          readOnly={true}
         />
       )}
 

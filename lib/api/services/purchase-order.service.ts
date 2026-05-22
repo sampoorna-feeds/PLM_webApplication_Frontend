@@ -327,9 +327,12 @@ export interface PurchaseAttachment {
 export async function getPurchaseAttachments(
   documentNo: string,
   documentType: string,
+  tableId: number = 38,
 ): Promise<PurchaseAttachment[]> {
   const escapedNo = documentNo.replace(/'/g, "''");
-  const filter = `Table_ID eq 38 and Document_Type eq '${documentType}' and No eq '${escapedNo}'`;
+  const filter = tableId === 38
+    ? `Table_ID eq ${tableId} and Document_Type eq '${documentType}' and No eq '${escapedNo}'`
+    : `Table_ID eq ${tableId} and No eq '${escapedNo}'`;
   const select = `No,Name,File_Extension,ID,Document_Type,Table_ID`;
   const query = `?company='${encodeURIComponent(COMPANY)}'&$filter=${encodeURIComponent(filter)}&$select=${encodeURIComponent(select)}`;
   const endpoint = `/Attachment${query}`;

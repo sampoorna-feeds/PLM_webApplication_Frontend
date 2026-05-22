@@ -141,19 +141,16 @@ export function PostedTransferView({ type }: PostedTransferViewProps) {
 
       const response = await fetch(url);
       if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-      const blob = await response.blob();
-      const blobUrl = window.URL.createObjectURL(blob);
+      const arrayBuffer = await response.arrayBuffer();
+      const pdfBlob = new Blob([arrayBuffer], { type: "application/pdf" });
+      const blobUrl = window.URL.createObjectURL(pdfBlob);
       
-      const link = document.createElement("a");
-      link.href = blobUrl;
-      link.download = `${docNo}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      // Open the Blob URL directly in a new tab to view
+      window.open(blobUrl, "_blank");
       
       setTimeout(() => {
         window.URL.revokeObjectURL(blobUrl);
-      }, 5000);
+      }, 10000);
     } catch (err: any) {
       toastError(err, `Failed to print ${reportName}`);
     } finally {

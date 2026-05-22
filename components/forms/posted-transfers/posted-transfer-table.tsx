@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { Eye, Loader2, ArrowUp, ArrowDown, ArrowUpDown, Download, Printer } from "lucide-react";
+import { Eye, Loader2, ArrowUp, ArrowDown, ArrowUpDown, Download, Printer, FileText } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { POSTED_TRANSFER_COLUMNS, type SortDirection } from "./column-config";
 import { ColumnFilter } from "./column-filter";
@@ -268,11 +268,11 @@ export function PostedTransferTable({
                         className="h-8 w-8 p-0 hover:bg-primary/20 hover:text-primary transition-colors"
                         onClick={() => onPrintRecord?.(row.No, "Transfer", "E-way Bill")}
                       >
-                        <Printer className="h-4 w-4" />
+                        <FileText className="h-4 w-4" />
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent side="right">
-                      <p>Print E-way Bill</p>
+                      <p>View E-way Bill</p>
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>

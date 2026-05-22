@@ -37,6 +37,39 @@ export function FormStackPanel() {
   const currentFormType = currentTab?.formType;
   const currentTabId = currentTab?.id;
 
+  const getPanelWidthClass = () => {
+    const formType = currentTab?.formType;
+    if (formType === "transfer-order" || formType === "transfer-order-detail") {
+      return "w-screen lg:w-[80vw]";
+    }
+    if (formType === "posted-transfer-shipment-detail" || formType === "posted-transfer-receipt-detail") {
+      return "w-screen lg:w-[70vw]";
+    }
+    if (formType === "finished-production-order-detail") {
+      return "w-screen md:w-[60vw]";
+    }
+    if (
+      formType === "purchase-document" ||
+      formType === "sales-document" ||
+      formType === "production-order" ||
+      formType === "qc-receipt-detail" ||
+      formType === "sales-posted-shipment-detail" ||
+      formType === "sales-posted-invoice-detail" ||
+      formType === "inward-gate-entry" ||
+      formType === "outward-gate-entry" ||
+      formType === "posted-inward-gate-entry" ||
+      formType === "posted-outward-gate-entry" ||
+      formType === "posted-purchase-receipt" ||
+      formType === "posted-purchase-invoice" ||
+      formType === "posted-purchase-return-shipment" ||
+      formType === "posted-purchase-credit-memo" ||
+      formType === "posted-sales-credit-memo"
+    ) {
+      return "w-screen lg:w-[80vw]";
+    }
+    return "w-screen md:w-[65vw] lg:w-[50vw]";
+  };
+
   useEffect(() => {
     if (!currentFormType) {
       setFormComponent(null);
@@ -120,31 +153,7 @@ export function FormStackPanel() {
       <div
         className={cn(
           "bg-background border-border fixed top-0 right-0 z-50 flex h-full flex-col border-l shadow-xl",
-          currentTab?.formType === "transfer-order" ||
-            currentTab?.formType === "transfer-order-detail"
-            ? "w-screen lg:w-[80vw]"
-            : currentTab?.formType === "posted-transfer-shipment-detail" ||
-              currentTab?.formType === "posted-transfer-receipt-detail"
-              ? "w-screen lg:w-[70vw]"
-              : currentTab?.formType === "finished-production-order-detail"
-                ? "w-screen md:w-[60vw]"
-                : currentTab?.formType === "purchase-document" ||
-                    currentTab?.formType === "sales-document" ||
-                    currentTab?.formType === "production-order" ||
-                    currentTab?.formType === "qc-receipt-detail" ||
-                    currentTab?.formType === "sales-posted-shipment-detail" ||
-                    currentTab?.formType === "sales-posted-invoice-detail" ||
-                    currentTab?.formType === "inward-gate-entry" ||
-                    currentTab?.formType === "outward-gate-entry" ||
-                    currentTab?.formType === "posted-inward-gate-entry" ||
-                    currentTab?.formType === "posted-outward-gate-entry" ||
-                    currentTab?.formType === "posted-purchase-receipt" ||
-                    currentTab?.formType === "posted-purchase-invoice" ||
-                    currentTab?.formType === "posted-purchase-return-shipment" ||
-                    currentTab?.formType === "posted-purchase-credit-memo" ||
-                    currentTab?.formType === "posted-sales-credit-memo"
-                  ? "w-screen lg:w-[80vw]"
-                  : "w-screen md:w-[65vw] lg:w-[50vw]",
+          getPanelWidthClass(),
         )}
       >
         {/* Tabs - Always show at top */}

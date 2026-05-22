@@ -1245,6 +1245,7 @@ export function ProductionOrderForm({
               branchCode={formState.Shortcut_Dimension_2_Code}
               disabled={isViewMode}
               placeholder="Select Location"
+              size="sm"
             />
           </div>
           {/* Order No - only show in view mode (auto-generated) */}

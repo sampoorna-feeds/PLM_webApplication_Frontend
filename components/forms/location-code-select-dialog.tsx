@@ -43,6 +43,7 @@ interface LocationCodeSelectDialogProps {
   hasError?: boolean;
   className?: string;
   placeholder?: string;
+  size?: "sm" | "lg";
 }
 
 type SortDirection = "asc" | "desc";
@@ -118,6 +119,7 @@ export function LocationCodeSelectDialog({
   hasError = false,
   className,
   placeholder = "Select Location",
+  size = "lg",
 }: LocationCodeSelectDialogProps) {
   const [open, setOpen] = useState(false);
   const [locations, setLocations] = useState<LocationItem[]>([]);
@@ -208,7 +210,15 @@ export function LocationCodeSelectDialog({
 
   // Build active columns list
   const activeColumns: ColumnConfig[] = [
-    ...MANDATORY_COLUMNS,
+    ...MANDATORY_COLUMNS.map((col) => {
+      if (size === "sm") {
+        if (col.id === "Code") return { ...col, width: "55px" };
+        if (col.id === "Name") return { ...col, flex: false, width: "80px" };
+        if (col.id === "Address") return { ...col, width: "100px" };
+        if (col.id === "City") return { ...col, width: "85px" };
+      }
+      return col;
+    }),
     ...OPTIONAL_COLUMNS.filter((c) => visibleOptional.has(c.id as string)),
   ];
 
@@ -288,7 +298,11 @@ export function LocationCodeSelectDialog({
       <Dialog open={open} onOpenChange={handleOpenChange}>
         <DialogContent
           className="flex flex-col gap-0 p-0"
-          style={{ width: "min(920px, 92vw)", maxWidth: "none", height: "80vh" }}
+          style={{
+            width: size === "sm" ? "min(450px, 92vw)" : "min(920px, 92vw)",
+            maxWidth: "none",
+            height: size === "sm" ? "55vh" : "80vh",
+          }}
         >
           {/* Header */}
           <DialogHeader className="shrink-0 border-b px-5 py-3">
@@ -473,11 +487,20 @@ export function LocationCodeSelectDialog({
                             {col.render ? (
                               col.render(loc)
                             ) : col.id === "Code" ? (
-                              <span className="font-mono font-semibold">
+                              <span
+                                className="font-mono font-semibold truncate block"
+                                style={size === "sm" && !col.flex ? { maxWidth: col.width } : undefined}
+                              >
                                 {String(loc[col.id] ?? "—")}
                               </span>
                             ) : (
-                              <span className={col.id === "Name" ? "font-medium" : ""}>
+                              <span
+                                className={cn(
+                                  "block truncate",
+                                  col.id === "Name" && "font-medium"
+                                )}
+                                style={size === "sm" && !col.flex ? { maxWidth: col.width } : undefined}
+                              >
                                 {String(loc[col.id] ?? "") || (
                                   <span className="text-muted-foreground">—</span>
                                 )}

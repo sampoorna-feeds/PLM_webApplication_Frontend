@@ -303,6 +303,7 @@ export function ProductionOrderFormFields({
             branchCode={data.Shortcut_Dimension_2_Code}
             disabled={isReadOnly}
             placeholder="Select Location"
+            size="sm"
           />
         </div>
       </FormSection>

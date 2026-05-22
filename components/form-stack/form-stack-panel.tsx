@@ -123,25 +123,28 @@ export function FormStackPanel() {
           currentTab?.formType === "transfer-order" ||
             currentTab?.formType === "transfer-order-detail"
             ? "w-screen lg:w-[80vw]"
-            : currentTab?.formType === "finished-production-order-detail"
-              ? "w-screen md:w-[60vw]"
-              : currentTab?.formType === "purchase-document" ||
-                  currentTab?.formType === "sales-document" ||
-                  currentTab?.formType === "production-order" ||
-                  currentTab?.formType === "qc-receipt-detail" ||
-                  currentTab?.formType === "sales-posted-shipment-detail" ||
-                  currentTab?.formType === "sales-posted-invoice-detail" ||
-                  currentTab?.formType === "inward-gate-entry" ||
-                  currentTab?.formType === "outward-gate-entry" ||
-                  currentTab?.formType === "posted-inward-gate-entry" ||
-                  currentTab?.formType === "posted-outward-gate-entry" ||
-                  currentTab?.formType === "posted-purchase-receipt" ||
-                  currentTab?.formType === "posted-purchase-invoice" ||
-                  currentTab?.formType === "posted-purchase-return-shipment" ||
-                  currentTab?.formType === "posted-purchase-credit-memo" ||
-                  currentTab?.formType === "posted-sales-credit-memo"
-                ? "w-screen lg:w-[80vw]"
-                : "w-screen md:w-[65vw] lg:w-[50vw]",
+            : currentTab?.formType === "posted-transfer-shipment-detail" ||
+              currentTab?.formType === "posted-transfer-receipt-detail"
+              ? "w-screen lg:w-[70vw]"
+              : currentTab?.formType === "finished-production-order-detail"
+                ? "w-screen md:w-[60vw]"
+                : currentTab?.formType === "purchase-document" ||
+                    currentTab?.formType === "sales-document" ||
+                    currentTab?.formType === "production-order" ||
+                    currentTab?.formType === "qc-receipt-detail" ||
+                    currentTab?.formType === "sales-posted-shipment-detail" ||
+                    currentTab?.formType === "sales-posted-invoice-detail" ||
+                    currentTab?.formType === "inward-gate-entry" ||
+                    currentTab?.formType === "outward-gate-entry" ||
+                    currentTab?.formType === "posted-inward-gate-entry" ||
+                    currentTab?.formType === "posted-outward-gate-entry" ||
+                    currentTab?.formType === "posted-purchase-receipt" ||
+                    currentTab?.formType === "posted-purchase-invoice" ||
+                    currentTab?.formType === "posted-purchase-return-shipment" ||
+                    currentTab?.formType === "posted-purchase-credit-memo" ||
+                    currentTab?.formType === "posted-sales-credit-memo"
+                  ? "w-screen lg:w-[80vw]"
+                  : "w-screen md:w-[65vw] lg:w-[50vw]",
         )}
       >
         {/* Tabs - Always show at top */}

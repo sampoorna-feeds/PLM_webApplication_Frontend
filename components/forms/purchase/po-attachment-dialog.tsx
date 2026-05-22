@@ -8,7 +8,7 @@
  */
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Loader2, Paperclip, UploadCloud, X, CheckCircle2, AlertCircle, Download, FileText } from "lucide-react";
+import { Loader2, Paperclip, UploadCloud, X, CheckCircle2, AlertCircle, Eye, FileText } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -161,7 +161,7 @@ export function POAttachmentDialog({
     });
   };
 
-  const handleDownload = async (attachment: PurchaseAttachment) => {
+  const handleView = async (attachment: PurchaseAttachment) => {
     setDownloadingId(attachment.ID);
     try {
       const base64 = await downloadPurchaseAttachment(
@@ -174,7 +174,7 @@ export function POAttachmentDialog({
         throw new Error("No file content received.");
       }
 
-      // Convert base64 to blob and trigger download
+      // Convert base64 to blob and open in a new tab
       const byteCharacters = atob(base64);
       const byteNumbers = new Array(byteCharacters.length);
       for (let i = 0; i < byteCharacters.length; i++) {
@@ -195,16 +195,11 @@ export function POAttachmentDialog({
       const blob = new Blob([byteArray], { type: contentType });
       const url = URL.createObjectURL(blob);
       
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${attachment.Name || "attachment"}.${attachment.File_Extension}`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      // Open the Blob URL directly in a new tab
+      window.open(url, "_blank");
     } catch (err) {
-      console.error("Failed to download attachment:", err);
-      alert("Failed to download attachment. Please try again.");
+      console.error("Failed to view attachment:", err);
+      alert("Failed to view attachment. Please try again.");
     } finally {
       setDownloadingId(null);
     }
@@ -380,12 +375,13 @@ export function POAttachmentDialog({
                     size="icon"
                     className="h-8 w-8 shrink-0 hover:text-primary hover:bg-primary/5"
                     disabled={downloadingId === att.ID}
-                    onClick={() => handleDownload(att)}
+                    onClick={() => handleView(att)}
+                    title="View Attachment"
                   >
                     {downloadingId === att.ID ? (
                       <Loader2 className="h-3.5 w-3.5 animate-spin" />
                     ) : (
-                      <Download className="h-3.5 w-3.5" />
+                      <Eye className="h-3.5 w-3.5" />
                     )}
                   </Button>
                 </div>

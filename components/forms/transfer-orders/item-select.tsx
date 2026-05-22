@@ -50,6 +50,7 @@ interface ItemSelectProps {
   locationCode?: string;
   dateFilter?: string;
   customFilter?: string;
+  size?: "sm" | "lg";
 }
 
 type SortDirection = "asc" | "desc" | null;
@@ -96,6 +97,7 @@ export function ItemSelect({
   locationCode,
   dateFilter,
   customFilter,
+  size = "lg",
 }: ItemSelectProps) {
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<Item[]>([]);
@@ -284,8 +286,11 @@ export function ItemSelect({
 
       <Dialog open={open} onOpenChange={handleOpenChange}>
         <DialogContent
-          className="flex h-[85vh] flex-col gap-0 p-0"
-          style={{ width: "min(700px, 92vw)", maxWidth: "none" }}
+          className={cn(
+            "flex flex-col gap-0 p-0",
+            size === "sm" ? "h-[55vh]" : "h-[85vh]"
+          )}
+          style={{ width: size === "sm" ? "min(500px, 92vw)" : "min(700px, 92vw)", maxWidth: "none" }}
         >
           <DialogHeader className="shrink-0 border-b px-5 py-3">
             <div className="flex items-center justify-between">

@@ -435,10 +435,11 @@ export async function deleteQCReceiptHeader(
   await apiDelete(endpoint);
 }
 
-export async function generateBardana(receiptNo: string): Promise<void> {
+export async function generateBardana(receiptNo: string, userID: string): Promise<void> {
   const endpoint = `/QCcode_Generatebardana?company='${encodeURIComponent(COMPANY)}'`;
   const payload = {
     docNo: receiptNo,
+    sFPLUserID: userID.toUpperCase(),
   };
 
   try {
@@ -448,3 +449,4 @@ export async function generateBardana(receiptNo: string): Promise<void> {
     throw error;
   }
 }
+

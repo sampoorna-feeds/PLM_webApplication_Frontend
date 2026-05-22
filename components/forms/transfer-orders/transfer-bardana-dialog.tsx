@@ -178,6 +178,7 @@ export function TransferBardanaDialog({
             locationCode={locationCode}
             placeholder="Search bardana items…"
             customFilter="(Blocked eq false) and (Status eq 'Approved') and (RM_Bardana_Item eq true)"
+            size="sm"
           />
 
           {/* UOM — read-only, auto-filled from selected item */}

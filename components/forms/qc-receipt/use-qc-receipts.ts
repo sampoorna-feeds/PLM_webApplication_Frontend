@@ -517,12 +517,13 @@ export function useQCReceiptDeletion() {
 
 export function useQCReceiptBardana() {
   const [isGenerating, setIsGenerating] = useState(false);
+  const { userID } = useAuth();
 
   const generate = useCallback(
     async (receiptNo: string) => {
       setIsGenerating(true);
       try {
-        await generateBardana(receiptNo);
+        await generateBardana(receiptNo, userID || "");
         toast.success("Bardana generated successfully!");
         return true;
       } catch (error: any) {
@@ -533,7 +534,7 @@ export function useQCReceiptBardana() {
         setIsGenerating(false);
       }
     },
-    [],
+    [userID],
   );
 
   return { generate, isGenerating };

@@ -1424,7 +1424,7 @@ export async function getTransferItemsForDialog(params: {
     return apiGet<ODataResponse<TransferItem>>(endpoint);
   };
 
-  if (params.skip === 0 && !params.search?.trim() && (!params.filters || Object.keys(params.filters).length === 0)) {
+  if (params.skip === 0 && !params.search?.trim() && (!params.filters || Object.keys(params.filters).length === 0) && !params.customFilter) {
     const preloaded = await preloadItems(params.locationCode);
     if (preloaded.length > 0) {
       // Map Item to TransferItem

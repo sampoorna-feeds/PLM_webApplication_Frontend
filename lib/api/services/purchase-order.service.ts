@@ -373,6 +373,27 @@ export async function downloadPurchaseAttachment(
 }
 
 /**
+ * Delete a specific purchase attachment.
+ */
+export async function deletePurchaseAttachment(
+  id: number,
+  tableId: number,
+  no: string,
+  documentType: string,
+  lineNo: number = 0,
+): Promise<void> {
+  const escapedNo = no.replace(/'/g, "''");
+  const endpoint = `/company('${encodeURIComponent(COMPANY)}')/Attachment(ID=${id},Table_ID=${tableId},No='${escapedNo}',Document_Type='${documentType}',Line_No=${lineNo})`;
+
+  try {
+    await apiDelete(endpoint);
+  } catch (error) {
+    console.error("Error deleting purchase attachment:", error);
+    throw error as ApiError;
+  }
+}
+
+/**
  * Add a bardana line for a purchase order line item.
  */
 export async function addBardanaLine(

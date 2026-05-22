@@ -8,7 +8,7 @@
  */
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Loader2, Paperclip, UploadCloud, X, CheckCircle2, AlertCircle, Eye, FileText } from "lucide-react";
+import { Loader2, Paperclip, UploadCloud, X, CheckCircle2, AlertCircle, Eye, FileText, Trash2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -20,6 +20,7 @@ import {
   uploadPurchaseAttachment,
   getPurchaseAttachments,
   downloadPurchaseAttachment,
+  deletePurchaseAttachment,
   type PurchaseAttachment,
 } from "@/lib/api/services/purchase-order.service";
 
@@ -61,6 +62,7 @@ export function POAttachmentDialog({
   const [existingAttachments, setExistingAttachments] = useState<PurchaseAttachment[]>([]);
   const [isLoadingExisting, setIsLoadingExisting] = useState(false);
   const [downloadingId, setDownloadingId] = useState<number | null>(null);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -202,6 +204,28 @@ export function POAttachmentDialog({
       alert("Failed to view attachment. Please try again.");
     } finally {
       setDownloadingId(null);
+    }
+  };
+
+  const handleDelete = async (attachment: PurchaseAttachment) => {
+    if (!window.confirm(`Are you sure you want to delete "${attachment.Name}"?`)) {
+      return;
+    }
+    setDeletingId(attachment.ID);
+    try {
+      await deletePurchaseAttachment(
+        attachment.ID,
+        attachment.Table_ID,
+        attachment.No,
+        attachment.Document_Type,
+        attachment.Line_No
+      );
+      void loadExistingAttachments();
+    } catch (err) {
+      console.error("Failed to delete attachment:", err);
+      alert("Failed to delete attachment. Please try again.");
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -369,21 +393,39 @@ export function POAttachmentDialog({
                     </div>
                   </div>
 
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 shrink-0 hover:text-primary hover:bg-primary/5"
-                    disabled={downloadingId === att.ID}
-                    onClick={() => handleView(att)}
-                    title="View Attachment"
-                  >
-                    {downloadingId === att.ID ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    ) : (
-                      <Eye className="h-3.5 w-3.5" />
-                    )}
-                  </Button>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 shrink-0 hover:text-primary hover:bg-primary/5"
+                      disabled={downloadingId === att.ID || deletingId === att.ID}
+                      onClick={() => handleView(att)}
+                      title="View Attachment"
+                    >
+                      {downloadingId === att.ID ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <Eye className="h-3.5 w-3.5" />
+                      )}
+                    </Button>
+
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 shrink-0 hover:text-destructive hover:bg-destructive/5 text-muted-foreground hover:text-destructive"
+                      disabled={downloadingId === att.ID || deletingId === att.ID}
+                      onClick={() => handleDelete(att)}
+                      title="Delete Attachment"
+                    >
+                      {deletingId === att.ID ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <Trash2 className="h-3.5 w-3.5" />
+                      )}
+                    </Button>
+                  </div>
                 </div>
               ))}
             </div>

@@ -1,6 +1,7 @@
 import { apiGet, apiPost, apiPatch, apiDelete } from "../client";
 import { buildODataQuery } from "../endpoints";
 import type { ODataResponse } from "../types";
+import { getAuthCredentials } from "../../auth/storage";
 
 const COMPANY =
   process.env.NEXT_PUBLIC_API_COMPANY || "Sampoorna Feeds Pvt. Ltd";
@@ -205,10 +206,11 @@ export async function deleteInwardGateEntryHeader(id: string): Promise<void> {
   await apiDelete(endpoint);
 }
 
-export async function postInwardGateEntry(docNo: string): Promise<string> {
+export async function postInwardGateEntry(docNo: string, userId?: string): Promise<string> {
   const encodedCompany = encodeURIComponent(COMPANY);
   const endpoint = `/API_PostGateEntry?company='${encodedCompany}'`;
-  const response = await apiPost<{ value: string }>(endpoint, { docNo });
+  const finalUserId = userId || getAuthCredentials()?.userID || "";
+  const response = await apiPost<{ value: string }>(endpoint, { docNo, sFPL_User_ID: finalUserId });
   return response.value;
 }
 

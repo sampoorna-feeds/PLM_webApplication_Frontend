@@ -2,6 +2,7 @@ import { apiGet, apiPost, apiPatch, apiDelete } from "../client";
 import { buildODataQuery } from "../endpoints";
 import type { ODataResponse } from "../types";
 import { preloadItems } from "./item.service";
+import { getAuthCredentials } from "../../auth/storage";
 
 export interface TransferItem {
   No: string;
@@ -494,10 +495,16 @@ export async function postTransferOrder(data: {
   quantity?: number;
   qtytoHandle?: number;
   sourceSubType?: number;
+  sFPL_User_ID?: string;
 }): Promise<void> {
   const encodedCompany = encodeURIComponent(COMPANY);
   const endpoint = `/API_PostTransferOrder?company='${encodedCompany}'`;
-  return apiPost<void>(endpoint, data);
+  const finalUserId = (data.sFPL_User_ID || getAuthCredentials()?.userID || "").toUpperCase();
+  const payload = {
+    ...data,
+    sFPL_User_ID: finalUserId,
+  };
+  return apiPost<void>(endpoint, payload);
 }
 
 /**

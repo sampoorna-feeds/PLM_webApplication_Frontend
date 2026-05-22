@@ -24,6 +24,7 @@ export interface PurchaseOrder {
   Vendor_Order_No?: string;
   Vendor_Invoice_No?: string;
   Status?: string;
+  Amount?: number;
   Location_Code?: string;
   Invoice_Type?: string;
   Shortcut_Dimension_1_Code?: string;
@@ -165,7 +166,7 @@ export async function getPurchaseOrdersWithCount(
   params: GetPurchaseOrdersParams = {},
 ): Promise<PaginatedPurchaseOrdersResponse> {
   const {
-    $select = "No,Buy_from_Vendor_No,Buy_from_Vendor_Name,Order_Date,Posting_Date,Document_Date,Vendor_Order_No,Status,PO_Type,Completely_Received",
+    $select = "No,Buy_from_Vendor_No,Buy_from_Vendor_Name,Order_Date,Posting_Date,Document_Date,Vendor_Order_No,Status,Amount,PO_Type,Completely_Received",
     $filter,
     $orderby = "No desc",
     $top = 10,

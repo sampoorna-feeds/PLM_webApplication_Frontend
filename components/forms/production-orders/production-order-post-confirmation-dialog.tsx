@@ -48,7 +48,7 @@ export function ProductionOrderPostConfirmationDialog({
   prodOrderNo,
   onSuccess,
 }: ProductionOrderPostConfirmationDialogProps) {
-  const [postingDate, setPostingDate] = useState<string>("");
+  const [postingDate, setPostingDate] = useState<string>(() => formatDate(new Date()));
   const [isPosting, setIsPosting] = useState(false);
   const [apiError, setApiError] = useState<ApiErrorState | null>(null);
   const [webUserProfile, setWebUserProfile] = useState<WebUser | null>(null);
@@ -61,19 +61,10 @@ export function ProductionOrderPostConfirmationDialog({
   }, []);
 
   useEffect(() => {
-    if (open && webUserProfile) {
-      const today = new Date().toISOString().split("T")[0];
-      const from = webUserProfile.Allow_Posting_From?.split("T")[0];
-      const to = webUserProfile.Allow_Posting_To?.split("T")[0];
-      const isAfterFrom = !from || from === "0001-01-01" || today >= from;
-      const isBeforeTo = !to || to === "0001-01-01" || today <= to;
-      if (isAfterFrom && isBeforeTo) {
-        setPostingDate(today);
-      } else {
-        setPostingDate("");
-      }
+    if (open) {
+      setPostingDate(formatDate(new Date()));
     }
-  }, [open, webUserProfile]);
+  }, [open]);
 
   const handlePost = async () => {
     // Validate posting date

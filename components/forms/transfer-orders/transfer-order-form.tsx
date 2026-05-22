@@ -790,6 +790,7 @@ export function TransferOrderForm({
         docNo: formState.No,
         postShipment: postSelection === "ship" ? "True" : "False",
         postReceipt: postSelection === "receive" ? "True" : "False",
+        sFPL_User_ID: userId,
       });
 
       // Refresh page data to reflect changes (quantities, status etc)

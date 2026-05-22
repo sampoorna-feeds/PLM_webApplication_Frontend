@@ -364,7 +364,7 @@ export function InwardGateEntryForm({
       });
 
       // 2. Perform the actual posting
-      const result = await postInwardGateEntry(docNo);
+      const result = await postInwardGateEntry(docNo, authUserId);
       toast.success(result || "Gate entry posted successfully");
 
       handleInputChange("Status", "Posted");

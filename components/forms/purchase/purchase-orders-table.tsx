@@ -270,8 +270,17 @@ function PurchaseOrderRow({
     }
 
     // Format numbers (amount)
-    if (columnId === "Amt_to_Vendor" && typeof value === "number") {
-      return String(value);
+    if (
+      (columnId === "Amount") &&
+      (typeof value === "number" || typeof value === "string")
+    ) {
+      const num = Number(value);
+      if (!isNaN(num)) {
+        return num.toLocaleString("en-IN", {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        });
+      }
     }
 
     return String(value);

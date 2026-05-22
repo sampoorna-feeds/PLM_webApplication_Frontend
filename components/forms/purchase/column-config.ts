@@ -35,6 +35,7 @@ const ORDER_DEFAULT_COLUMNS: ColumnConfig[] = [
   { id: "Posting_Date", label: "Posting Date", sortable: true, defaultVisible: true, filterType: "date" },
   { id: "Document_Date", label: "Document Date", sortable: true, defaultVisible: true, filterType: "date" },
   { id: "Status", label: "Status", sortable: true, defaultVisible: true, filterType: "enum" },
+  { id: "Amount", label: "Amount", sortable: true, defaultVisible: true, filterType: "number" },
 ];
 
 const ORDER_OPTIONAL_COLUMNS: ColumnConfig[] = [
@@ -168,7 +169,7 @@ const COLUMN_CONFIG_REGISTRY: Record<PurchaseDocColumnType, DocTypeColumnRegistr
   order: {
     defaultColumns: ORDER_DEFAULT_COLUMNS,
     optionalColumns: ORDER_OPTIONAL_COLUMNS,
-    storageKey: "purchaseOrdersVisibleColumns_v2",
+    storageKey: "purchaseOrdersVisibleColumns_v3",
   },
   invoice: {
     defaultColumns: INVOICE_DEFAULT_COLUMNS,

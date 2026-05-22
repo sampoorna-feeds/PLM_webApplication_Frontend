@@ -68,6 +68,11 @@ export function useQCReceipts(initialFilters?: {
   const isLoadingMoreRef = useRef(false);
   const lastRequestId = useRef(0);
   const pageRef = useRef(1);
+  const receiptsRef = useRef<QCReceiptHeader[]>([]);
+
+  useEffect(() => {
+    receiptsRef.current = receipts;
+  }, [receipts]);
 
   const statusFilter = initialFilters?.statusFilter;
   const skipDateFilter = initialFilters?.skipDateFilter;
@@ -194,12 +199,19 @@ export function useQCReceipts(initialFilters?: {
       if (requestId !== lastRequestId.current) return;
 
       if (pageRef.current === 1) {
-        setReceipts(result.receipts || []);
+        const list = result.receipts || [];
+        setReceipts(list);
+        setTotalCount(result.totalCount && result.totalCount > 0 ? result.totalCount : list.length);
       } else {
-        setReceipts(prev => [...prev, ...(result.receipts || [])]);
+        const list = result.receipts || [];
+        setReceipts(prev => [...prev, ...list]);
+        setTotalCount(result.totalCount && result.totalCount > 0 ? result.totalCount : receiptsRef.current.length + list.length);
       }
-      setTotalCount(result.totalCount ?? result.receipts?.length ?? 0);
-      setHasMore(pageRef.current * pageSize < (result.totalCount ?? 0));
+      
+      const hasMoreData = result.totalCount && result.totalCount > 0
+        ? pageRef.current * pageSize < result.totalCount
+        : ((result.receipts?.length || 0) === pageSize);
+      setHasMore(hasMoreData);
       setCurrentPage(pageRef.current);
     } catch (error) {
       if (requestId !== lastRequestId.current) return;

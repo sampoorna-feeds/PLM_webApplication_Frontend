@@ -51,7 +51,6 @@ export function QCReceiptsTable({
     if (col.id === "Bardana_RPO" && !isPosted) return false;
     return visibleColumns.includes(col.id);
   });
-  const startingSerialNo = (currentPage - 1) * pageSize;
 
   const sentinelRef = useRef<HTMLTableRowElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -118,7 +117,7 @@ export function QCReceiptsTable({
                     className="border-b transition-colors"
                   >
                     <td className="text-muted-foreground p-2 px-3 py-3 text-center align-middle text-xs whitespace-nowrap">
-                      {startingSerialNo + rowIndex + 1}
+                      {rowIndex + 1}
                     </td>
                     {columns.map((column) => (
                       <td
@@ -147,7 +146,7 @@ export function QCReceiptsTable({
                     key={receipt.No}
                     receipt={receipt}
                     columns={columns}
-                    serialNo={startingSerialNo + index + 1}
+                    serialNo={index + 1}
                     onClick={onRowClick ? () => onRowClick(receipt) : undefined}
                   />
                 ))}

@@ -123,7 +123,7 @@ export async function getQCReceiptsWithCount(
     $select,
     $filter,
     $orderby = "No desc",
-    $top = 10,
+    $top = 200,
     $skip,
   } = params;
 
@@ -155,7 +155,7 @@ export async function searchQCReceipts(
 ): Promise<PaginatedQCReceiptsResponse> {
   const { searchTerm, $top, $skip, ...rest } = params;
   if (!searchTerm || searchTerm.trim() === "") {
-    return getQCReceiptsWithCount(rest as GetQCReceiptsParams);
+    return getQCReceiptsWithCount(params as GetQCReceiptsParams);
   }
 
   const escaped = searchTerm.replace(/'/g, "''");
@@ -258,7 +258,7 @@ export async function getPostedQCReceiptsWithCount(
     $select,
     $filter,
     $orderby = "No desc",
-    $top = 10,
+    $top = 200,
     $skip,
   } = params;
 
@@ -290,7 +290,7 @@ export async function searchPostedQCReceipts(
 ): Promise<PaginatedQCReceiptsResponse> {
   const { searchTerm, $top, $skip, ...rest } = params;
   if (!searchTerm || searchTerm.trim() === "") {
-    return getPostedQCReceiptsWithCount(rest as GetQCReceiptsParams);
+    return getPostedQCReceiptsWithCount(params as GetQCReceiptsParams);
   }
 
   const escaped = searchTerm.replace(/'/g, "''");

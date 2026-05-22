@@ -4,7 +4,7 @@ import { ConsumptionReportForm } from "@/components/forms/ledger-reports/consump
 
 export default function ConsumptionReportPage() {
   return (
-    <div className="flex h-[calc(100vh-5rem)] max-h-[calc(100vh-5rem)] w-full overflow-y-auto px-4 py-6">
+    <div className="flex h-full max-h-full w-full overflow-y-auto px-4 py-6">
       <div className="flex min-w-0 flex-1 flex-col">
         <div className="mb-6">
           <h1 className="text-2xl font-semibold tracking-tight">Ledger Reports</h1>

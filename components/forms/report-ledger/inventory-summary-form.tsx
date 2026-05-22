@@ -38,7 +38,7 @@ export function InventorySummaryForm() {
 
   return (
     <div className="flex h-full w-full flex-col overflow-hidden">
-      <div className="flex min-h-0 flex-1 flex-col space-y-2 overflow-auto">
+      <div className="flex min-h-0 flex-1 flex-col space-y-2 overflow-hidden">
         {/* Filter Bar */}
         <div className="shrink-0">
           <SummaryFilterBar

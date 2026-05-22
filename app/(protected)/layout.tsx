@@ -269,7 +269,7 @@ export default function ProtectedLayout({
     <AuthGuard>
       <SidebarProvider defaultOpen={true}>
         <AppSidebar />
-        <SidebarInset>
+        <SidebarInset className="h-svh max-h-svh overflow-hidden">
           <header className="flex h-16 shrink-0 items-center gap-4 border-b px-4">
             <SidebarTrigger />
             {breadcrumbs.length > 0 && (

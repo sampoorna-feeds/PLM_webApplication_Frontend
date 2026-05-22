@@ -3,7 +3,7 @@
  * Handles creating purchase orders and adding line items
  */
 
-import { apiGet, apiPost, apiPatch, apiDelete } from "../client";
+import { apiGet, apiPost, apiPatch, apiDelete, apiRequest } from "../client";
 import type { ApiError } from "../client";
 import type { ODataResponse } from "../types";
 import { buildPurchaseHeaderPayload } from "./purchase-header-payload";
@@ -304,6 +304,70 @@ export async function uploadPurchaseAttachment(
     });
   } catch (error) {
     console.error("Error uploading purchase attachment:", error);
+    throw error as ApiError;
+  }
+}
+
+export interface PurchaseAttachment {
+  Table_ID: number;
+  No: string;
+  Document_Type: string;
+  Line_No: number;
+  ID: number;
+  Name: string;
+  File_Extension: string;
+  File_Type: string;
+  User?: string;
+  Attached_Date?: string;
+}
+
+/**
+ * Fetch the list of currently added attachments for a purchase document.
+ */
+export async function getPurchaseAttachments(
+  documentNo: string,
+  documentType: string,
+): Promise<PurchaseAttachment[]> {
+  const escapedNo = documentNo.replace(/'/g, "''");
+  const filter = `Table_ID eq 38 and Document_Type eq '${documentType}' and No eq '${escapedNo}'`;
+  const select = `No,Name,File_Extension,ID,Document_Type,Table_ID`;
+  const query = `?company='${encodeURIComponent(COMPANY)}'&$filter=${encodeURIComponent(filter)}&$select=${encodeURIComponent(select)}`;
+  const endpoint = `/Attachment${query}`;
+
+  try {
+    const response = await apiGet<ODataResponse<PurchaseAttachment>>(endpoint);
+    return response.value || [];
+  } catch (error) {
+    console.error("Error fetching purchase attachments:", error);
+    throw error as ApiError;
+  }
+}
+
+/**
+ * Fetch a specific attachment's base64 content.
+ */
+export async function downloadPurchaseAttachment(
+  recID: number,
+  recNo: string,
+  fileExtension: string,
+): Promise<string> {
+  const endpoint = `/API_InitiateDownloadFilePurchase?company='${encodeURIComponent(COMPANY)}'`;
+  try {
+    const response = await apiRequest<{ value: string }>(endpoint, {
+      method: "POST",
+      body: JSON.stringify({
+        recID,
+        recNo,
+        fileExtension,
+      }),
+      headers: {
+        "Content-Type": "application/json",
+        "If-Match": "*",
+      },
+    });
+    return response.value || "";
+  } catch (error) {
+    console.error("Error downloading purchase attachment:", error);
     throw error as ApiError;
   }
 }

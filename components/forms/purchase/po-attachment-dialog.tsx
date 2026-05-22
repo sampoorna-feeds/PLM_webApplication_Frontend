@@ -2,12 +2,13 @@
 
 /**
  * PO Attachment Dialog
- * Allows uploading PDF files to an existing purchase order.
+ * Allows uploading PDF/JPG/PNG files to an existing purchase order or other purchase documents.
  * Files are base64-encoded client-side before being sent to the API.
+ * Also fetches currently added attachments and allows downloading them.
  */
 
-import React, { useCallback, useRef, useState } from "react";
-import { Loader2, Paperclip, UploadCloud, X, CheckCircle2, AlertCircle } from "lucide-react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { Loader2, Paperclip, UploadCloud, X, CheckCircle2, AlertCircle, Download, FileText } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -15,7 +16,12 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { uploadPurchaseAttachment } from "@/lib/api/services/purchase-order.service";
+import {
+  uploadPurchaseAttachment,
+  getPurchaseAttachments,
+  downloadPurchaseAttachment,
+  type PurchaseAttachment,
+} from "@/lib/api/services/purchase-order.service";
 
 interface FileEntry {
   id: string;
@@ -28,6 +34,7 @@ interface POAttachmentDialogProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   orderNo: string;
+  documentType?: "Order" | "Invoice" | "Credit Memo" | "Return Order";
 }
 
 function readFileAsBase64(file: File): Promise<string> {
@@ -48,19 +55,50 @@ export function POAttachmentDialog({
   isOpen,
   onOpenChange,
   orderNo,
+  documentType = "Order",
 }: POAttachmentDialogProps) {
   const [entries, setEntries] = useState<FileEntry[]>([]);
+  const [existingAttachments, setExistingAttachments] = useState<PurchaseAttachment[]>([]);
+  const [isLoadingExisting, setIsLoadingExisting] = useState(false);
+  const [downloadingId, setDownloadingId] = useState<number | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  const loadExistingAttachments = useCallback(async () => {
+    if (!orderNo) return;
+    setIsLoadingExisting(true);
+    try {
+      const list = await getPurchaseAttachments(orderNo, documentType);
+      setExistingAttachments(list);
+    } catch (err) {
+      console.error("Failed to load existing attachments:", err);
+    } finally {
+      setIsLoadingExisting(false);
+    }
+  }, [orderNo, documentType]);
+
+  useEffect(() => {
+    if (isOpen && orderNo) {
+      loadExistingAttachments();
+      setEntries([]);
+    }
+  }, [isOpen, orderNo, loadExistingAttachments]);
+
   const addFiles = useCallback((files: FileList | File[]) => {
-    const pdfs = Array.from(files).filter(
-      (f) => f.type === "application/pdf" || f.name.toLowerCase().endsWith(".pdf"),
+    const validFiles = Array.from(files).filter(
+      (f) =>
+        f.type === "application/pdf" ||
+        f.type === "image/jpeg" ||
+        f.type === "image/png" ||
+        f.name.toLowerCase().endsWith(".pdf") ||
+        f.name.toLowerCase().endsWith(".jpg") ||
+        f.name.toLowerCase().endsWith(".jpeg") ||
+        f.name.toLowerCase().endsWith(".png"),
     );
-    if (pdfs.length === 0) return;
+    if (validFiles.length === 0) return;
     setEntries((prev) => [
       ...prev,
-      ...pdfs.map((f) => ({
+      ...validFiles.map((f) => ({
         id: `${f.name}-${Date.now()}-${Math.random()}`,
         file: f,
         status: "idle" as const,
@@ -103,6 +141,7 @@ export function POAttachmentDialog({
       setEntries((prev) =>
         prev.map((e) => (e.id === id ? { ...e, status: "success" } : e)),
       );
+      void loadExistingAttachments();
     } catch (err) {
       const msg =
         err && typeof (err as any).message === "string"
@@ -122,6 +161,55 @@ export function POAttachmentDialog({
     });
   };
 
+  const handleDownload = async (attachment: PurchaseAttachment) => {
+    setDownloadingId(attachment.ID);
+    try {
+      const base64 = await downloadPurchaseAttachment(
+        attachment.ID,
+        attachment.No,
+        attachment.File_Extension,
+      );
+
+      if (!base64) {
+        throw new Error("No file content received.");
+      }
+
+      // Convert base64 to blob and trigger download
+      const byteCharacters = atob(base64);
+      const byteNumbers = new Array(byteCharacters.length);
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      }
+      const byteArray = new Uint8Array(byteNumbers);
+      
+      let contentType = "application/octet-stream";
+      const ext = attachment.File_Extension.toLowerCase();
+      if (ext === "pdf") {
+        contentType = "application/pdf";
+      } else if (ext === "jpg" || ext === "jpeg") {
+        contentType = "image/jpeg";
+      } else if (ext === "png") {
+        contentType = "image/png";
+      }
+
+      const blob = new Blob([byteArray], { type: contentType });
+      const url = URL.createObjectURL(blob);
+      
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${attachment.Name || "attachment"}.${attachment.File_Extension}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Failed to download attachment:", err);
+      alert("Failed to download attachment. Please try again.");
+    } finally {
+      setDownloadingId(null);
+    }
+  };
+
   const pendingCount = entries.filter(
     (e) => e.status === "idle" || e.status === "error",
   ).length;
@@ -133,7 +221,7 @@ export function POAttachmentDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Paperclip className="h-4 w-4" />
-            Attachments — {orderNo}
+            Attachments — {orderNo} ({documentType})
           </DialogTitle>
         </DialogHeader>
 
@@ -154,13 +242,13 @@ export function POAttachmentDialog({
         >
           <UploadCloud className="text-muted-foreground h-8 w-8" />
           <div>
-            <p className="text-sm font-medium">Drop PDFs here or click to browse</p>
-            <p className="text-muted-foreground text-xs">Only PDF files are accepted</p>
+            <p className="text-sm font-medium">Drop PDFs or Images here or click to browse</p>
+            <p className="text-muted-foreground text-xs">PDF, JPG, JPEG, and PNG files are accepted</p>
           </div>
           <input
             ref={inputRef}
             type="file"
-            accept=".pdf,application/pdf"
+            accept=".pdf,application/pdf,.jpg,.jpeg,image/jpeg,.png,image/png"
             multiple
             className="hidden"
             onChange={handleInputChange}
@@ -250,6 +338,61 @@ export function POAttachmentDialog({
             No files selected yet.
           </p>
         )}
+
+        {/* Previously Added Attachments Section */}
+        <div className="space-y-2 border-t pt-4 mt-2">
+          <h3 className="text-sm font-semibold flex items-center gap-1.5 text-foreground/80">
+            <Paperclip className="h-4 w-4 text-muted-foreground" />
+            Previously Added Attachments
+          </h3>
+
+          {isLoadingExisting ? (
+            <div className="flex items-center justify-center py-6 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              Loading attachments...
+            </div>
+          ) : existingAttachments.length === 0 ? (
+            <p className="text-center text-xs text-muted-foreground py-4 bg-muted/20 rounded-md border border-dashed">
+              No previously added attachments found.
+            </p>
+          ) : (
+            <div className="max-h-[160px] overflow-y-auto space-y-1.5 pr-1">
+              {existingAttachments.map((att) => (
+                <div
+                  key={att.ID}
+                  className="bg-muted/40 hover:bg-muted/60 flex items-center justify-between gap-2 rounded-md border px-3 py-1.5 transition-colors"
+                >
+                  <div className="min-w-0 flex-1 flex items-center gap-2">
+                    <FileText className="h-4 w-4 shrink-0 text-primary/70" />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium text-foreground" title={att.Name}>
+                        {att.Name}
+                      </p>
+                      <p className="text-muted-foreground text-[10px] uppercase">
+                        {att.File_Extension}
+                      </p>
+                    </div>
+                  </div>
+
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 shrink-0 hover:text-primary hover:bg-primary/5"
+                    disabled={downloadingId === att.ID}
+                    onClick={() => handleDownload(att)}
+                  >
+                    {downloadingId === att.ID ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Download className="h-3.5 w-3.5" />
+                    )}
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </DialogContent>
     </Dialog>
   );

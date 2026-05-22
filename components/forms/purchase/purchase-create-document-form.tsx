@@ -3039,6 +3039,15 @@ export function PurchaseCreateDocumentFormContent({
           isOpen={isAttachmentDialogOpen}
           onOpenChange={setIsAttachmentDialogOpen}
           orderNo={createdOrderNo}
+          documentType={
+            (
+              {
+                order: "Order",
+                invoice: "Invoice",
+                "credit-memo": "Credit Memo",
+              } as Record<string, "Order" | "Invoice" | "Credit Memo">
+            )[documentType]
+          }
         />
       )}
 

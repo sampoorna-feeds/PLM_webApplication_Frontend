@@ -130,8 +130,10 @@ export function LocationCodeSelectDialog({
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
   const [visibleOptional, setVisibleOptional] = useState<Set<string>>(new Set());
   const [columnPopoverOpen, setColumnPopoverOpen] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(-1);
 
   const selectedItemRef = useRef<LocationItem | undefined>(undefined);
+  const triggerRef = useRef<HTMLButtonElement>(null);
 
   const isDisabled = disabled || readOnly;
   const noBranch = !branchCode;
@@ -174,6 +176,9 @@ export function LocationCodeSelectDialog({
     if (!newOpen) {
       setSearchQuery("");
       setColumnPopoverOpen(false);
+      setActiveIndex(-1);
+    } else {
+      setActiveIndex(-1);
     }
   };
 
@@ -181,6 +186,7 @@ export function LocationCodeSelectDialog({
     selectedItemRef.current = item;
     onChange(item.Code, item);
     setOpen(false);
+    setActiveIndex(-1);
   };
 
   const handleClear = (e: React.MouseEvent) => {
@@ -241,6 +247,21 @@ export function LocationCodeSelectDialog({
         : bVal.localeCompare(aVal);
     });
 
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setActiveIndex((prev) => Math.min(prev + 1, filtered.length - 1));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setActiveIndex((prev) => Math.max(prev - 1, 0));
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      if (activeIndex >= 0 && activeIndex < filtered.length) {
+        handleSelect(filtered[activeIndex]);
+      }
+    }
+  };
+
   // Find selected item for display
   const selectedItem =
     locations.find((l) => l.Code === value) ?? selectedItemRef.current;
@@ -252,6 +273,7 @@ export function LocationCodeSelectDialog({
       {/* Trigger button + selected location name */}
       <div className="space-y-1">
         <Button
+          ref={triggerRef}
           type="button"
           variant="outline"
           onClick={() => !triggerDisabled && setOpen(true)}
@@ -344,7 +366,11 @@ export function LocationCodeSelectDialog({
                 <Input
                   placeholder="Search by Code, Name or City…"
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    setActiveIndex(-1);
+                  }}
+                  onKeyDown={handleKeyDown}
                   className="h-9 bg-background pl-9 pr-9 text-sm focus-visible:ring-1"
                   autoFocus
                 />
@@ -464,14 +490,18 @@ export function LocationCodeSelectDialog({
                 ) : (
                   filtered.map((loc, idx) => {
                     const isSelected = value === loc.Code;
+                    const isFocused = activeIndex === idx;
                     return (
                       <tr
                         key={loc.Code}
+                        onMouseDown={(e) => e.preventDefault()}
+                        onMouseEnter={() => setActiveIndex(idx)}
                         onClick={() => handleSelect(loc)}
                         className={cn(
                           "cursor-pointer border-b transition-colors hover:bg-primary/5",
                           idx % 2 === 0 ? "bg-background" : "bg-muted/20",
-                          isSelected && "bg-primary/10 hover:bg-primary/10",
+                          isFocused && "bg-accent",
+                          isSelected && (isFocused ? "bg-primary/10" : "bg-primary/5"),
                         )}
                       >
                         <td className="w-8 px-2 py-2.5 text-center">

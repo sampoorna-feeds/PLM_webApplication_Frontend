@@ -20,11 +20,10 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  Popover,
+  PopoverContent,
+  PopoverAnchor,
+} from "@/components/ui/popover";
 import {
   getSalesItemsForDialog,
   type Item,
@@ -78,6 +77,7 @@ export function SalesItemSelectDialog({
   const [allFetched, setAllFetched] = useState(false);
   const [sortColumn, setSortColumn] = useState<string>("No");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+  const [activeIndex, setActiveIndex] = useState(-1);
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const sentinelRef = useRef<HTMLTableRowElement>(null);
@@ -184,11 +184,27 @@ export function SalesItemSelectDialog({
     return () => observer.disconnect();
   }, [open, fetchData]);
 
+  // Scroll active item into view
+  useEffect(() => {
+    if (open && activeIndex >= 0 && scrollContainerRef.current) {
+      const container = scrollContainerRef.current;
+      const activeElement = container.querySelector(
+        `[data-row-index="${activeIndex}"]`
+      ) as HTMLElement;
+      if (activeElement) {
+        activeElement.scrollIntoView({ block: "nearest" });
+      }
+    }
+  }, [activeIndex, open]);
+
   const handleOpenChange = (newOpen: boolean) => {
     if (disabled) return;
     setOpen(newOpen);
     if (!newOpen) {
       setSearchQuery("");
+      setActiveIndex(-1);
+    } else {
+      setActiveIndex(-1);
     }
   };
 
@@ -201,6 +217,31 @@ export function SalesItemSelectDialog({
       onChange(item.No, item);
     }
     setOpen(false);
+    setActiveIndex(-1);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      if (!open) setOpen(true);
+      setActiveIndex((prev) => Math.min(prev + 1, items.length - 1));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      if (!open) setOpen(true);
+      setActiveIndex((prev) => Math.max(prev - 1, 0));
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      if (open && activeIndex >= 0 && activeIndex < items.length) {
+        handleSelect(items[activeIndex]);
+      } else if (!open) {
+        setOpen(true);
+      }
+    } else if (e.key === "Escape") {
+      if (open) {
+        e.preventDefault();
+        setOpen(false);
+      }
+    }
   };
 
   const handleSort = (colId: string) => {
@@ -219,103 +260,102 @@ export function SalesItemSelectDialog({
       ? value
       : "";
 
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [isFocused, setIsFocused] = useState(false);
+
   return (
-    <>
-      <Button
-        type="button"
-        variant="outline"
-        onClick={() => setOpen(true)}
-        disabled={disabled}
-        className={cn(
-          "h-8 w-full justify-between px-3 text-left font-normal border-border/50",
-          !value && "text-muted-foreground",
-          hasError && "border-destructive/50 ring-destructive/20",
-          className,
-        )}
-      >
-        <span className="max-w-[92%] truncate text-xs">
-          {displayLabel || placeholder}
-        </span>
-        <div className="flex shrink-0 items-center gap-1">
-          {value && !disabled && (
-            <div
-              role="button"
-              tabIndex={0}
-              className="rounded-full p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                selectedItemRef.current = undefined;
+    <Popover open={open} onOpenChange={handleOpenChange}>
+      <PopoverAnchor asChild>
+        <div className="relative w-full">
+          <Input
+            ref={inputRef}
+            value={isFocused ? searchQuery : displayLabel}
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+              setActiveIndex(-1);
+              if (!open) setOpen(true);
+              if (value) {
                 onChange("", undefined);
-              }}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
+                selectedItemRef.current = undefined;
+              }
+            }}
+            onFocus={(e) => {
+              setIsFocused(true);
+              setSearchQuery(displayLabel);
+              setTimeout(() => e.target.select(), 0);
+            }}
+            onBlur={() => {
+              setIsFocused(false);
+              setSearchQuery("");
+            }}
+            onKeyDown={handleKeyDown}
+            placeholder={placeholder}
+            disabled={disabled}
+            className={cn(
+              "h-8 w-full bg-background pr-8 text-xs font-medium",
+              hasError && "border-destructive focus-visible:ring-destructive",
+              className
+            )}
+            onClick={() => {
+              if (!open && !disabled) setOpen(true);
+            }}
+          />
+          <div className="absolute right-0 top-0 flex h-full items-center gap-1.5 px-3">
+            {value && !disabled && (
+              <div
+                role="button"
+                tabIndex={0}
+                className="hover:text-foreground p-1 text-muted-foreground transition-colors hover:bg-muted rounded-full pointer-events-auto"
+                onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
                   onChange("", undefined);
-                }
-              }}
-            >
-              <X className="h-3 w-3" />
+                  setTimeout(() => inputRef.current?.focus(), 0);
+                }}
+              >
+                <X className="h-3 w-3" />
+              </div>
+            )}
+            {loading && items.length === 0 ? (
+              <Loader2 className="h-4 w-4 animate-spin opacity-50" />
+            ) : (
+              <ChevronDownIcon className="h-4 w-4 opacity-40" />
+            )}
+          </div>
+        </div>
+      </PopoverAnchor>
+
+      <PopoverContent
+        className="flex flex-col gap-0 p-0 shadow-xl"
+        style={{ width: "min(900px, 92vw)", height: "400px" }}
+        align="start"
+        sideOffset={4}
+        onCloseAutoFocus={(e) => {
+          e.preventDefault();
+          inputRef.current?.focus();
+        }}
+        onOpenAutoFocus={(e) => {
+          e.preventDefault();
+        }}
+      >
+        <div className="flex shrink-0 items-center justify-between border-b px-3 py-2 bg-muted/30">
+          <div className="flex items-center gap-2">
+            <Package className="h-3.5 w-3.5 text-muted-foreground" />
+            <span className="text-xs font-semibold">Items</span>
+            {!loading && totalCount > 0 && (
+              <Badge variant="secondary" className="h-4 rounded-[4px] px-1 text-[9px]">
+                {totalCount.toLocaleString()}
+              </Badge>
+            )}
+          </div>
+          {locationCode && (
+            <div className="rounded border border-primary/20 bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
+              Loc: {locationCode}
             </div>
           )}
-          <ChevronDownIcon className="h-4 w-4 shrink-0 opacity-40" />
         </div>
-      </Button>
 
-      <Dialog open={open} onOpenChange={handleOpenChange}>
-        <DialogContent
-          className="flex h-[85vh] flex-col gap-0 p-0"
-          style={{ width: "min(900px, 92vw)", maxWidth: "none" }}
-        >
-          {/* Header */}
-          <DialogHeader className="shrink-0 border-b px-5 py-3">
-            <div className="flex items-center gap-2.5">
-              <Package className="h-4 w-4 text-muted-foreground" />
-              <DialogTitle className="text-[15px] font-semibold">
-                Select Item
-              </DialogTitle>
-              {!loading && totalCount > 0 && (
-                <Badge
-                  variant="secondary"
-                  className="h-5 rounded-sm px-1.5 text-[10px] font-bold"
-                >
-                  {totalCount.toLocaleString()}
-                </Badge>
-              )}
-            </div>
-          </DialogHeader>
-
-          {/* Search bar */}
-          <div className="shrink-0 border-b bg-muted/30 px-5 py-2.5">
-            <div className="flex items-center gap-2">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  placeholder="Search by No. or Description…"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="h-9 bg-background pl-9 pr-9 text-sm focus-visible:ring-1"
-                  autoFocus
-                />
-                {searchQuery && (
-                  <button
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                    onClick={() => setSearchQuery("")}
-                  >
-                    <X className="h-3.5 w-3.5" />
-                  </button>
-                )}
-              </div>
-              {locationCode && (
-                <div className="rounded-md border border-primary/20 bg-primary/10 px-3 py-1 text-[11px] font-semibold text-primary">
-                  Location: {locationCode}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Table */}
+        {/* Table */}
           <div ref={scrollContainerRef} className="min-h-0 flex-1 overflow-auto">
             <table className="w-full border-collapse text-sm">
               <thead className="sticky top-0 z-10 bg-muted">
@@ -363,16 +403,23 @@ export function SalesItemSelectDialog({
                     </td>
                   </tr>
                 ) : (
-                  items.map((item, idx) => (
-                    <tr
-                      key={item.No}
-                      onClick={() => handleSelect(item)}
-                      className={cn(
-                        "group cursor-pointer border-b transition-colors hover:bg-primary/5",
-                        idx % 2 === 0 ? "bg-background" : "bg-muted/20",
-                        value === item.No && "bg-primary/10",
-                      )}
-                    >
+                  items.map((item, idx) => {
+                    const isFocused = activeIndex === idx;
+                    const isSelected = value === item.No;
+                    return (
+                      <tr
+                        key={item.No}
+                        data-row-index={idx}
+                        onMouseDown={(e) => e.preventDefault()}
+                        onMouseEnter={() => setActiveIndex(idx)}
+                        onClick={() => handleSelect(item)}
+                        className={cn(
+                          "group cursor-pointer border-b transition-colors hover:bg-primary/5",
+                          idx % 2 === 0 ? "bg-background" : "bg-muted/20",
+                          isFocused && "bg-accent",
+                          isSelected && (isFocused ? "bg-primary/10" : "bg-primary/5"),
+                        )}
+                      >
                       <td className="w-10 px-3 py-2.5 text-center">
                         {value === item.No && (
                           <Check className="mx-auto h-3.5 w-3.5 text-primary" />
@@ -406,8 +453,9 @@ export function SalesItemSelectDialog({
                         {item.Net_Change?.toLocaleString() ?? "0"}
                       </td>
                     </tr>
-                  ))
-                )}
+                  );
+                })
+              )}
                 {!loading && (
                   <tr ref={sentinelRef}>
                     <td colSpan={COLUMNS.length + 1} className="h-px">
@@ -422,8 +470,13 @@ export function SalesItemSelectDialog({
               </tbody>
             </table>
           </div>
-        </DialogContent>
-      </Dialog>
-    </>
+          {/* Footer / Status */}
+          <div className="flex shrink-0 items-center justify-between border-t bg-muted/20 px-3 py-1.5 text-[10px] text-muted-foreground">
+            <span>
+              Showing <b>{items.length}</b> of <b>{totalCount}</b> items
+            </span>
+          </div>
+        </PopoverContent>
+      </Popover>
   );
 }

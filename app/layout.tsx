@@ -41,7 +41,7 @@ export default function RootLayout({
       <body
         className={cn(
           // `${geistSans.variable} ${geistMono.variable}`,
-          `overflow-y-auto antialiased`,
+          `overflow-hidden antialiased`,
         )}
       >
         <ThemeProvider

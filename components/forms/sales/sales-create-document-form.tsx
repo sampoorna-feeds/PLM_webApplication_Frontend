@@ -731,6 +731,16 @@ export function SalesCreateDocumentFormContent({
       gstRegistrationNo: customer?.GST_Registration_No || "",
       panNo: customer?.P_A_N_No || "",
     }));
+
+    if (nextSalesPersonCode && nextSalesPersonCode !== formData.salesPersonCode) {
+      getSalesPersonByCode(nextSalesPersonCode)
+        .then((sp) => {
+          if (sp?.Name) {
+            setFormData((prev) => ({ ...prev, salesPersonName: sp.Name }));
+          }
+        })
+        .catch((err) => console.error("Failed to fetch salesperson name", err));
+    }
   };
 
   const handleShipToChange = (shipToCode: string, shipTo?: ShipToAddress) => {
@@ -1206,52 +1216,37 @@ export function SalesCreateDocumentFormContent({
           <div className="grid grid-cols-2 gap-x-4 gap-y-4 sm:grid-cols-3 lg:grid-cols-6">
             <div className={fieldClass}>
               <label className={labelClass}>LOB</label>
-              <ClearableField
-                readOnly={isGeneralReadOnly}
+              <CascadingDimensionSelect
+                dimensionType="LOB"
                 value={formData.lob}
-                onClear={() => {
-                  handleInputChange("lob", "");
-                  handleInputChange("locationCode", "");
-                }}
-              >
-                <CascadingDimensionSelect
-                  dimensionType="LOB"
-                  value={formData.lob}
-                  onChange={(v) => {
-                    handleInputChange("lob", v);
+                onChange={(v) => {
+                  handleInputChange("lob", v);
+                  if (v !== formData.lob) {
+                    handleInputChange("branch", "");
                     handleInputChange("locationCode", "");
-                  }}
-                  placeholder="Select LOB"
-                  userId={userId}
-                  compactWhenSingle
-                  disabled={isGeneralReadOnly}
-                />
-              </ClearableField>
+                  }
+                }}
+                placeholder="Select LOB"
+                userId={userId}
+                compactWhenSingle
+                disabled={isGeneralReadOnly}
+              />
             </div>
             <div className={fieldClass}>
               <label className={labelClass}>Branch</label>
-              <ClearableField
-                readOnly={isGeneralReadOnly}
+              <CascadingDimensionSelect
+                dimensionType="BRANCH"
                 value={formData.branch}
-                onClear={() => {
-                  handleInputChange("branch", "");
+                onChange={(v) => {
+                  handleInputChange("branch", v);
                   handleInputChange("locationCode", "");
                 }}
-              >
-                <CascadingDimensionSelect
-                  dimensionType="BRANCH"
-                  value={formData.branch}
-                  onChange={(v) => {
-                    handleInputChange("branch", v);
-                    handleInputChange("locationCode", "");
-                  }}
-                  placeholder="Select Branch"
-                  lobValue={formData.lob}
-                  userId={userId}
-                  compactWhenSingle
-                  disabled={isGeneralReadOnly}
-                />
-              </ClearableField>
+                placeholder="Select Branch"
+                lobValue={formData.lob}
+                userId={userId}
+                compactWhenSingle
+                disabled={isGeneralReadOnly}
+              />
               {branchName && (
                 <p className="text-muted-foreground text-xs">{branchName}</p>
               )}
@@ -1338,6 +1333,7 @@ export function SalesCreateDocumentFormContent({
               >
                 <SalesPersonSelect
                   value={formData.salesPersonCode}
+                  salesPersonName={formData.salesPersonName}
                   onChange={(v, sp) =>
                     setFormData((p) => ({
                       ...p,
@@ -1381,21 +1377,15 @@ export function SalesCreateDocumentFormContent({
             {/* GST No | PAN No */}
             <div className={fieldClass}>
               <label className={labelClass}>GST Reg. No.</label>
-              <Input
-                value={formData.gstRegistrationNo || ""}
-                disabled
-                className="bg-muted h-8 font-mono text-[11px]"
-                readOnly
-              />
+              <div className="flex h-8 items-center font-mono text-[11px] text-muted-foreground">
+                {formData.gstRegistrationNo || "-"}
+              </div>
             </div>
             <div className={fieldClass}>
               <label className={labelClass}>PAN No.</label>
-              <Input
-                value={formData.panNo || ""}
-                disabled
-                className="bg-muted h-8 font-mono text-[11px]"
-                readOnly
-              />
+              <div className="flex h-8 items-center font-mono text-[11px] text-muted-foreground">
+                {formData.panNo || "-"}
+              </div>
             </div>
             <div className={fieldClass}>
               <label className={labelClass}>Posting Date</label>
@@ -1462,6 +1452,12 @@ export function SalesCreateDocumentFormContent({
                   onChange={(e) =>
                     handleInputChange("externalDocumentNo", e.target.value)
                   }
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      document.getElementById("submit-header-button")?.focus();
+                    }
+                  }}
                   placeholder="Optional"
                   className="h-8"
                   disabled={isGeneralReadOnly}
@@ -1875,49 +1871,7 @@ export function SalesCreateDocumentFormContent({
                   </Button>
                 )}
 
-              {/* Edit mode buttons */}
-              {isEditMode && onCancelEdit && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="h-8"
-                  onClick={onCancelEdit}
-                  disabled={isSubmitting}
-                >
-                  Cancel
-                </Button>
-              )}
-              {isEditMode && (
-                <Button
-                  type="button"
-                  size="sm"
-                  className="h-8"
-                  onClick={handleUpdateHeader}
-                  disabled={isSubmitting}
-                >
-                  {isSubmitting && (
-                    <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-                  )}
-                  Update Header
-                </Button>
-              )}
 
-              {/* Create mode button */}
-              {isCreateMode && (
-                <Button
-                  type="button"
-                  size="sm"
-                  className="h-8"
-                  onClick={handleCreateHeader}
-                  disabled={isSubmitting || !isHeaderValid()}
-                >
-                  {isSubmitting && (
-                    <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-                  )}
-                  {config.createHeaderButtonLabel}
-                </Button>
-              )}
             </>
           )}
         </div>
@@ -1940,6 +1894,54 @@ export function SalesCreateDocumentFormContent({
             <div className="flex flex-col gap-6 px-6 py-4">
               {/* Header fields */}
               {renderHeaderFields()}
+
+              {/* Header Actions (Create / Update) */}
+              {(isCreateMode || isEditMode) && (
+                <div className="flex items-center justify-end gap-2 pt-2">
+                  {isEditMode && onCancelEdit && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-8"
+                      onClick={onCancelEdit}
+                      disabled={isSubmitting}
+                    >
+                      Cancel
+                    </Button>
+                  )}
+                  {isEditMode && (
+                    <Button
+                      id="submit-header-button"
+                      type="button"
+                      size="sm"
+                      className="h-8"
+                      onClick={handleUpdateHeader}
+                      disabled={isSubmitting}
+                    >
+                      {isSubmitting && (
+                        <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                      )}
+                      Update Header
+                    </Button>
+                  )}
+                  {isCreateMode && (
+                    <Button
+                      id="submit-header-button"
+                      type="button"
+                      size="sm"
+                      className="h-8"
+                      onClick={handleCreateHeader}
+                      disabled={isSubmitting || !isHeaderValid()}
+                    >
+                      {isSubmitting && (
+                        <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                      )}
+                      {config.createHeaderButtonLabel}
+                    </Button>
+                  )}
+                </div>
+              )}
 
               {/* Lines section — always visible, Add Line disabled until header created */}
               <section className="space-y-3 border-t pt-4">

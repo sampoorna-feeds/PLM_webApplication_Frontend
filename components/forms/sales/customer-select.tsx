@@ -244,7 +244,9 @@ export function CustomerSelect({
     DEFAULT_COLUMNS.map((c) => c.id),
   );
   const [displayLabel, setDisplayLabel] = useState("");
+  const [activeIndex, setActiveIndex] = useState(-1);
 
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const debouncedSearchRef = useRef(debouncedSearch);
@@ -423,6 +425,9 @@ export function CustomerSelect({
       setSortColumn(null);
       setSortDirection(null);
       debouncedSearchRef.current = "";
+      setActiveIndex(-1);
+    } else {
+      setActiveIndex(-1);
     }
     setOpen(next);
   };
@@ -466,9 +471,37 @@ export function CustomerSelect({
     visibleColumns.includes(col.id),
   );
 
+  const selectedCustomer = value ? customers.find((c) => c.No === value) : null;
+  const restCustomers = selectedCustomer ? customers.filter((c) => c.No !== value) : customers;
+  const displayCustomers = selectedCustomer ? [selectedCustomer, ...restCustomers] : customers;
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setActiveIndex((prev) => Math.min(prev + 1, displayCustomers.length - 1));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setActiveIndex((prev) => Math.max(prev - 1, 0));
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      if (activeIndex >= 0 && activeIndex < displayCustomers.length) {
+        handleSelect(displayCustomers[activeIndex]);
+      }
+    } else if (e.key === "ArrowRight" && !e.shiftKey) {
+      if (scrollContainerRef.current) {
+        scrollContainerRef.current.scrollBy({ left: 150, behavior: "smooth" });
+      }
+    } else if (e.key === "ArrowLeft" && !e.shiftKey) {
+      if (scrollContainerRef.current) {
+        scrollContainerRef.current.scrollBy({ left: -150, behavior: "smooth" });
+      }
+    }
+  };
+
   return (
     <>
       <Button
+        ref={triggerRef}
         type="button"
         variant="outline"
         role="combobox"
@@ -500,6 +533,10 @@ export function CustomerSelect({
         <DialogContent
           className="flex h-[88vh] flex-col gap-0 p-0"
           style={{ width: "min(1160px, 92vw)", maxWidth: "none" }}
+          onCloseAutoFocus={(e) => {
+            e.preventDefault();
+            triggerRef.current?.focus();
+          }}
         >
           {/* ── Header ────────────────────────────────────────────────── */}
           <DialogHeader className="shrink-0 border-b px-5 py-3.5">
@@ -543,7 +580,11 @@ export function CustomerSelect({
                 <Input
                   placeholder="Search by No. or Customer Name…"
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    setActiveIndex(-1);
+                  }}
+                  onKeyDown={handleKeyDown}
                   className="border-border/60 bg-background h-9 rounded-md pr-9 pl-9 text-sm shadow-none focus-visible:ring-1"
                   autoFocus
                 />
@@ -633,33 +674,28 @@ export function CustomerSelect({
                   </tr>
                 ) : (
                   (() => {
-                    // Split: selected customer first (sticky), rest below
-                    const selectedCustomer = value
-                      ? customers.find((c) => c.No === value)
-                      : null;
-                    const restCustomers = selectedCustomer
-                      ? customers.filter((c) => c.No !== value)
-                      : customers;
-
                     const renderRow = (
                       customer: Customer,
                       idx: number,
                       isSticky = false,
                     ) => {
                       const isSelected = value === customer.No;
+                      const isFocused = activeIndex === idx;
                       return (
                         <tr
                           key={customer.No}
+                          onMouseDown={(e) => e.preventDefault()}
+                          onMouseEnter={() => setActiveIndex(idx)}
                           onClick={() => handleSelect(customer)}
                           className={cn(
                             "group cursor-pointer border-b transition-colors",
                             isSticky
-                              ? "hover:brightness-95"
+                              ? isFocused ? "brightness-90" : "hover:brightness-95"
                               : cn(
                                   idx % 2 === 0
                                     ? "bg-background"
                                     : "bg-muted/20",
-                                  "hover:bg-primary/5",
+                                  isFocused ? "bg-accent" : "hover:bg-primary/5",
                                 ),
                           )}
                           style={
@@ -682,19 +718,21 @@ export function CustomerSelect({
                           {currentColumns.map((col) => {
                             if (col.id === "No") {
                               return (
-                                <td
-                                  key={col.id}
-                                  className={cn(
-                                    "px-3 py-2.5 font-mono text-xs font-semibold whitespace-nowrap",
-                                    isSelected
-                                      ? "text-primary"
+                              <td
+                                key={col.id}
+                                className={cn(
+                                  "px-3 py-2.5 font-mono text-xs font-semibold whitespace-nowrap",
+                                  isSelected
+                                    ? "text-primary"
+                                    : isFocused
+                                      ? "text-accent-foreground"
                                       : "text-foreground",
-                                  )}
-                                >
-                                  {(customer as unknown as Record<string, unknown>)[col.id] as string || (
-                                    <span className="opacity-30">—</span>
-                                  )}
-                                </td>
+                                )}
+                              >
+                                {(customer as unknown as Record<string, unknown>)[col.id] as string || (
+                                  <span className="opacity-30">—</span>
+                                )}
+                              </td>
                               );
                             }
                             if (col.id === "Name") {
@@ -705,7 +743,9 @@ export function CustomerSelect({
                                       "w-full text-sm font-medium whitespace-nowrap",
                                       isSelected
                                         ? "text-foreground font-semibold"
-                                        : "text-foreground/90",
+                                        : isFocused
+                                          ? "text-accent-foreground"
+                                          : "text-foreground/90",
                                     )}
                                   >
                                     {(customer as unknown as Record<string, unknown>)[col.id] as string || (
@@ -723,7 +763,9 @@ export function CustomerSelect({
                                   "px-3 py-2.5 text-xs whitespace-nowrap",
                                   isSelected
                                     ? "text-foreground/80 font-medium"
-                                    : "text-muted-foreground",
+                                    : isFocused
+                                      ? "text-accent-foreground/80"
+                                      : "text-muted-foreground",
                                 )}
                               >
                                 {(customer as unknown as Record<string, unknown>)[col.id] as string || (
@@ -738,10 +780,8 @@ export function CustomerSelect({
 
                     return (
                       <>
-                        {selectedCustomer &&
-                          renderRow(selectedCustomer, 0, true)}
-                        {restCustomers.map((customer, idx) =>
-                          renderRow(customer, idx),
+                        {displayCustomers.map((customer, idx) =>
+                          renderRow(customer, idx, selectedCustomer !== null && idx === 0)
                         )}
                       </>
                     );

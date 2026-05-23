@@ -140,7 +140,7 @@ export function PurchaseDocumentView({
         onClearFilters={onClearFilters}
       />
 
-      <div className="min-h-0 flex-1 overflow-hidden">
+      <div className="min-h-0 flex-1 overflow-hidden flex flex-col">
         <PurchaseOrdersTable
           orders={orders}
           isLoading={isLoading}

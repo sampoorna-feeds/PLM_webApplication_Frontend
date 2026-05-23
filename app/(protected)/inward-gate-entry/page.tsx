@@ -6,7 +6,7 @@ import { InwardGateEntryPageContent } from "@/components/forms/inward-gate-entry
 export default function InwardGateEntryPage() {
   return (
     <FormStackProvider formScope="inward-gate-entry">
-      <div className="flex h-[calc(100vh-5rem)] max-h-[calc(100vh-5rem)] w-full">
+      <div className="flex h-full max-h-full w-full overflow-hidden">
         <div className="flex min-w-0 flex-1 flex-col">
           <InwardGateEntryPageContent />
         </div>

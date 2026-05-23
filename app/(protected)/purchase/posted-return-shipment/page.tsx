@@ -164,7 +164,7 @@ function PostedPurchaseReturnShipmentContent() {
 export default function PostedPurchaseReturnShipmentPage() {
   return (
     <FormStackProvider formScope="posted-purchase-return-shipment">
-      <div className="flex h-[calc(100vh-5rem)] max-h-[calc(100vh-5rem)] w-full overflow-hidden">
+      <div className="flex h-full max-h-full w-full overflow-hidden">
         <div className="flex min-w-0 min-h-0 flex-1 flex-col overflow-hidden">
           <PostedPurchaseReturnShipmentContent />
         </div>

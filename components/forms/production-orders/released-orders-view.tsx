@@ -95,7 +95,7 @@ export function ReleasedOrdersView() {
       </div>
 
       {/* Main content area with scrolling */}
-      <div className="flex min-h-0 flex-1 flex-col space-y-3 overflow-auto">
+      <div className="flex min-h-0 flex-1 flex-col space-y-3 overflow-hidden">
         {/* Filter Bar */}
         <div className="shrink-0">
           <TableFilterBar
@@ -125,7 +125,7 @@ export function ReleasedOrdersView() {
         />
 
         {/* Table container */}
-        <div className="min-h-0 flex-1">
+        <div className="min-h-0 flex-1 flex flex-col">
           <ProductionOrdersTable
             orders={orders}
             isLoading={isLoading}

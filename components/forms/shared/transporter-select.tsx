@@ -140,6 +140,7 @@ export function TransporterSelect({
   const [totalCount, setTotalCount] = useState(0);
   const [page, setPage] = useState(0);
   const [allFetched, setAllFetched] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(-1);
   
   const [sortColumn, setSortColumn] = useState<string | null>("No");
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
@@ -258,6 +259,9 @@ export function TransporterSelect({
       setColumnFilters({});
       setSortColumn("No");
       setSortDirection("asc");
+      setActiveIndex(-1);
+    } else {
+      setActiveIndex(-1);
     }
   };
 
@@ -268,6 +272,22 @@ export function TransporterSelect({
       onChange(t.No, t);
     }
     setOpen(false);
+    setActiveIndex(-1);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setActiveIndex((prev) => Math.min(prev + 1, transporters.length - 1));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setActiveIndex((prev) => Math.max(prev - 1, 0));
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      if (activeIndex >= 0 && activeIndex < transporters.length) {
+        handleSelect(transporters[activeIndex]);
+      }
+    }
   };
 
   const handleSort = (id: string) => {
@@ -304,9 +324,12 @@ export function TransporterSelect({
   const selectedTransporter = transporters.find(t => t.No === value);
   const displayLabel = selectedTransporter ? `${selectedTransporter.No} - ${selectedTransporter.Name}` : value;
 
+  const triggerRef = useRef<HTMLButtonElement>(null);
+
   return (
     <>
       <Button
+        ref={triggerRef}
         type="button"
         variant="outline"
         onClick={() => setOpen(true)}
@@ -331,12 +354,14 @@ export function TransporterSelect({
                 e.preventDefault();
                 e.stopPropagation();
                 onChange("", undefined);
+                setTimeout(() => triggerRef.current?.focus(), 0);
               }}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' || e.key === ' ') {
                   e.preventDefault();
                   e.stopPropagation();
                   onChange("", undefined);
+                  setTimeout(() => triggerRef.current?.focus(), 0);
                 }
               }}
             >
@@ -351,6 +376,10 @@ export function TransporterSelect({
         <DialogContent
           className="flex h-[88vh] flex-col gap-0 p-0"
           style={{ width: "min(1160px, 92vw)", maxWidth: "none" }}
+          onCloseAutoFocus={(e) => {
+            e.preventDefault();
+            triggerRef.current?.focus();
+          }}
         >
           <DialogHeader className="shrink-0 border-b px-5 py-3.5">
             <div className="flex items-center justify-between">
@@ -369,7 +398,7 @@ export function TransporterSelect({
                 <button
                   type="button"
                   onClick={() => setColumnFilters({})}
-                  className="text-primary hover:text-primary/80 flex items-center gap-1 text-[11px] font-medium"
+                  className="text-primary hover:text-primary/80 flex items-center gap-1 text-[11px] font-medium pr-6"
                 >
                   <span>{activeFilterCount} filter{activeFilterCount > 1 ? "s" : ""} active</span>
                   <X className="h-3 w-3" />
@@ -385,7 +414,11 @@ export function TransporterSelect({
                 <Input
                   placeholder="Search by No. or Name …"
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    setActiveIndex(-1);
+                  }}
+                  onKeyDown={handleKeyDown}
                   className="bg-background h-9 pl-9 pr-9 text-sm focus-visible:ring-1"
                   autoFocus
                 />
@@ -440,27 +473,34 @@ export function TransporterSelect({
                     </td>
                   </tr>
                 ) : (
-                  transporters.map((t, idx) => (
-                    <tr
-                      key={t.No}
-                      onClick={() => handleSelect(t)}
-                      className={cn(
-                        "group cursor-pointer border-b transition-colors hover:bg-primary/5",
-                        idx % 2 === 0 ? "bg-background" : "bg-muted/20",
-                        value === t.No && "bg-primary/10"
-                      )}
-                    >
-                      <td className="w-10 px-3 py-2.5 text-center">
-                        {value === t.No && <Check className="mx-auto h-3.5 w-3.5 text-primary" />}
-                      </td>
+                  transporters.map((t, idx) => {
+                    const isSelected = value === t.No;
+                    const isFocused = activeIndex === idx;
+                    return (
+                      <tr
+                        key={t.No}
+                        onMouseDown={(e) => e.preventDefault()}
+                        onMouseEnter={() => setActiveIndex(idx)}
+                        onClick={() => handleSelect(t)}
+                        className={cn(
+                          "group cursor-pointer border-b transition-colors hover:bg-primary/5",
+                          idx % 2 === 0 ? "bg-background" : "bg-muted/20",
+                          isFocused && "bg-accent",
+                          isSelected && (isFocused ? "bg-primary/10" : "bg-primary/5")
+                        )}
+                      >
+                        <td className="w-10 px-3 py-2.5 text-center">
+                          {isSelected && <Check className="mx-auto h-3.5 w-3.5 text-primary" />}
+                        </td>
                       {currentColumns.map((col) => (
                         <td key={col.id} className={cn("px-3 py-2.5 text-xs whitespace-nowrap", col.id === "No" && "font-mono font-semibold")}>
                           {(t as any)[col.id] || <span className="opacity-30">—</span>}
                         </td>
                       ))}
                     </tr>
-                  ))
-                )}
+                  );
+                })
+              )}
                 {!loading && <tr ref={sentinelRef}><td colSpan={currentColumns.length + 1} className="h-px" /></tr>}
                 {loadingMore && (
                   <tr>

@@ -1834,23 +1834,15 @@ export function PurchaseCreateDocumentFormContent({
                     </div>
                     <div className={fieldClass}>
                       <label className={labelClass}>Vendor GST No.</label>
-                      <Input
-                        value={formData.vendorGstRegNo}
-                        disabled
-                        className="bg-muted/50 h-9 text-sm shadow-none"
-                        placeholder="Auto"
-                        readOnly
-                      />
+                      <div className="flex h-9 items-center text-sm text-muted-foreground">
+                        {formData.vendorGstRegNo || "-"}
+                      </div>
                     </div>
                     <div className={fieldClass}>
                       <label className={labelClass}>Vendor PAN</label>
-                      <Input
-                        value={formData.vendorPanNo}
-                        disabled
-                        className="bg-muted/50 h-9 text-sm shadow-none"
-                        placeholder="Auto"
-                        readOnly
-                      />
+                      <div className="flex h-9 items-center text-sm text-muted-foreground">
+                        {formData.vendorPanNo || "-"}
+                      </div>
                     </div>
                     <div className={fieldClass}>
                       <label className={labelClass}>

@@ -11,7 +11,7 @@ export default function QCReceiptPage() {
 
   return (
     <FormStackProvider formScope="qc-receipt">
-      <div className="flex h-[calc(100vh-5rem)] max-h-[calc(100vh-5rem)] w-full">
+      <div className="flex h-full max-h-full w-full overflow-hidden">
         <div className="flex min-w-0 flex-1 flex-col">
           <div className="flex shrink-0 flex-col px-4 pt-4">
             <h1 className="text-2xl font-semibold tracking-tight">

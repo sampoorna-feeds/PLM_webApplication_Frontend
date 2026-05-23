@@ -61,6 +61,7 @@ export function ShipToSelect({
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [activeIndex, setActiveIndex] = useState(-1);
   const onChangeRef = useRef(onChange);
 
   // Get FormStack context to access openTab
@@ -122,6 +123,7 @@ export function ShipToSelect({
       return;
     }
     setIsOpen(false);
+    setActiveIndex(-1);
     formStackContext.openTab("add-shipto", {
       title: "Add Ship-To Address",
       formData: {
@@ -141,6 +143,7 @@ export function ShipToSelect({
         return;
       }
       setIsOpen(false);
+      setActiveIndex(-1);
       formStackContext.openTab("add-shipto", {
         title: "Edit Ship-To Address",
         formData: {
@@ -222,11 +225,30 @@ export function ShipToSelect({
   const handleSelect = (item: ShipToAddress) => {
     onChange(item.Code, item);
     setIsOpen(false);
+    setActiveIndex(-1);
   };
 
-   return (
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setActiveIndex((prev) => Math.min(prev + 1, filteredItems.length - 1));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setActiveIndex((prev) => Math.max(prev - 1, 0));
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      if (activeIndex >= 0 && activeIndex < filteredItems.length) {
+        handleSelect(filteredItems[activeIndex]);
+      }
+    }
+  };
+
+  const triggerRef = useRef<HTMLButtonElement>(null);
+
+  return (
     <>
       <Button
+        ref={triggerRef}
         type="button"
         variant="outline"
         role="combobox"
@@ -254,10 +276,23 @@ export function ShipToSelect({
         <ChevronDownIcon className="ml-2 h-4 w-4 shrink-0 opacity-40" />
       </Button>
 
-      <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      <Dialog 
+        open={isOpen} 
+        onOpenChange={(open) => {
+          setIsOpen(open);
+          if (!open) {
+            setActiveIndex(-1);
+            setSearchTerm("");
+          }
+        }}
+      >
         <DialogContent
           className="flex h-[80vh] flex-col gap-0 p-0"
           style={{ width: "min(1000px, 92vw)", maxWidth: "none" }}
+          onCloseAutoFocus={(e) => {
+            e.preventDefault();
+            triggerRef.current?.focus();
+          }}
         >
           {/* Header */}
           <DialogHeader className="shrink-0 border-b px-5 py-3.5">
@@ -281,7 +316,7 @@ export function ShipToSelect({
                   variant="ghost"
                   size="sm"
                   onClick={handleAddNew}
-                  className="h-8 px-2 text-xs"
+                  className="h-8 px-2 text-xs mr-6"
                 >
                   <Plus className="mr-1 h-3.5 w-3.5" />
                   Add New
@@ -297,7 +332,11 @@ export function ShipToSelect({
               <Input
                 placeholder="Search by Code, Name, Address or City…"
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  setActiveIndex(-1);
+                }}
+                onKeyDown={handleKeyDown}
                 className="border-border/60 bg-background h-9 rounded-md pr-9 pl-9 text-sm shadow-none focus-visible:ring-1"
                 autoFocus
               />
@@ -350,30 +389,33 @@ export function ShipToSelect({
                 ) : (
                   filteredItems.map((item, idx) => {
                     const isSelected = value === item.Code;
+                    const isFocused = activeIndex === idx;
                     return (
                       <tr
                         key={item.Code}
+                        onMouseDown={(e) => e.preventDefault()}
+                        onMouseEnter={() => setActiveIndex(idx)}
                         onClick={() => handleSelect(item)}
                         className={cn(
                           "group cursor-pointer border-b transition-colors",
                           idx % 2 === 0 ? "bg-background" : "bg-muted/20",
-                          "hover:bg-primary/5",
-                          isSelected && "bg-primary/5"
+                          isFocused ? "bg-accent" : "hover:bg-primary/5",
+                          isSelected && (isFocused ? "bg-primary/10" : "bg-primary/5")
                         )}
                       >
                         <td className="w-10 px-3 py-2.5 text-center">
                           {isSelected && <CheckIcon className="text-primary mx-auto h-3.5 w-3.5" />}
                         </td>
-                        <td className={cn("px-3 py-2.5 font-mono text-xs font-semibold whitespace-nowrap", isSelected ? "text-primary" : "text-foreground")}>
+                        <td className={cn("px-3 py-2.5 font-mono text-xs font-semibold whitespace-nowrap", isSelected ? "text-primary" : isFocused ? "text-accent-foreground" : "text-foreground")}>
                           {item.Code}
                         </td>
-                        <td className="px-3 py-2.5 text-sm font-medium text-foreground/90">
+                        <td className={cn("px-3 py-2.5 text-sm font-medium", isFocused ? "text-accent-foreground" : "text-foreground/90")}>
                           {item.Name}
                         </td>
-                        <td className="px-3 py-2.5 text-xs text-muted-foreground">
+                        <td className={cn("px-3 py-2.5 text-xs", isFocused ? "text-accent-foreground/80" : "text-muted-foreground")}>
                           {item.Address || <span className="opacity-30">—</span>}
                         </td>
-                        <td className="px-3 py-2.5 text-xs text-muted-foreground">
+                        <td className={cn("px-3 py-2.5 text-xs", isFocused ? "text-accent-foreground/80" : "text-muted-foreground")}>
                           {item.City || <span className="opacity-30">—</span>}
                         </td>
                         {formStackContext && (

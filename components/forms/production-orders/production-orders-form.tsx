@@ -96,8 +96,7 @@ function ProductionOrdersContent() {
   return (
     <div
       className={cn(
-        "flex w-full",
-        "h-[calc(100vh-5rem)] max-h-[calc(100vh-5rem)]",
+        "flex w-full h-full max-h-full overflow-hidden",
       )}
     >
       {/* Main Content Area */}
@@ -122,14 +121,14 @@ function ProductionOrdersContent() {
         <Tabs
           value={activeTab}
           onValueChange={setActiveTab}
-          className="shrink-0"
+          className="flex flex-col flex-1 min-h-0"
         >
           <TabsList>
             <TabsTrigger value="released">Released</TabsTrigger>
             <TabsTrigger value="finished">Finished</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="released" className="mt-0 space-y-3">
+          <TabsContent value="released" className="mt-0 flex flex-col flex-1 min-h-0 overflow-hidden space-y-3">
             {/* Filter Bar */}
             <div className="shrink-0">
               <TableFilterBar
@@ -155,7 +154,7 @@ function ProductionOrdersContent() {
             />
 
             {/* Table container */}
-            <div className="min-h-0 flex-1">
+            <div className="min-h-0 flex-1 flex flex-col">
               <ProductionOrdersTable
                 orders={orders}
                 isLoading={isLoading}
@@ -186,7 +185,7 @@ function ProductionOrdersContent() {
             </div>
           </TabsContent>
 
-          <TabsContent value="finished" className="mt-0 space-y-3">
+          <TabsContent value="finished" className="mt-0 flex flex-col flex-1 min-h-0 overflow-hidden space-y-3">
             {/* Filter Bar */}
             <div className="shrink-0">
               <TableFilterBar
@@ -212,7 +211,7 @@ function ProductionOrdersContent() {
             />
 
             {/* Table container */}
-            <div className="min-h-0 flex-1">
+            <div className="min-h-0 flex-1 flex flex-col">
               <ProductionOrdersTable
                 orders={orders}
                 isLoading={isLoading}

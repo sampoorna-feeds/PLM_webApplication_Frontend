@@ -7,14 +7,14 @@
  */
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Loader2, ChevronDownIcon, CheckIcon } from "lucide-react";
+import { Loader2, ChevronDownIcon, CheckIcon, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Popover,
   PopoverContent,
-  PopoverTrigger,
+  PopoverAnchor,
 } from "@/components/ui/popover";
 
 export interface SearchableItem {
@@ -81,6 +81,7 @@ export function SearchableSelect<T extends SearchableItem>({
   const [searchQuery, setSearchQuery] = useState("");
   const [hasMore, setHasMore] = useState(true);
   const [skip, setSkip] = useState(0);
+  const [activeIndex, setActiveIndex] = useState(-1);
 
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const listRef = useRef<HTMLDivElement | null>(null);
@@ -242,12 +243,14 @@ export function SearchableSelect<T extends SearchableItem>({
   const handleOpenChange = (open: boolean) => {
     setIsOpen(open);
     if (open) {
+      setActiveIndex(-1);
       // Only load if items are empty
       if (items.length === 0) {
         loadInitialItems();
       }
     } else {
       setSearchQuery("");
+      setActiveIndex(-1);
     }
   };
 
@@ -305,53 +308,126 @@ export function SearchableSelect<T extends SearchableItem>({
         })
       : items;
 
+  // Scroll active item into view
+  useEffect(() => {
+    if (isOpen && activeIndex >= 0 && listRef.current) {
+      const listElement = listRef.current;
+      const itemElements = listElement.querySelectorAll('[role="option"]');
+      const activeElement = itemElements[activeIndex] as HTMLElement;
+      if (activeElement) {
+        activeElement.scrollIntoView({ block: "nearest" });
+      }
+    }
+  }, [activeIndex, isOpen]);
+
+  const [isFocused, setIsFocused] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      if (!isOpen) {
+        setIsOpen(true);
+      } else {
+        setActiveIndex((prev) => Math.min(prev + 1, filteredItems.length - 1));
+      }
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      if (!isOpen) {
+        setIsOpen(true);
+      } else {
+        setActiveIndex((prev) => Math.max(prev - 1, 0));
+      }
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      if (isOpen && activeIndex >= 0 && activeIndex < filteredItems.length) {
+        const item = filteredItems[activeIndex];
+        onChange(getItemValue(item), item);
+        setIsOpen(false);
+        setSearchQuery("");
+        setIsFocused(false);
+      }
+    }
+  };
+
   return (
     <Popover open={isOpen} onOpenChange={handleOpenChange}>
-      <PopoverTrigger asChild>
-        <Button
-          variant="outline"
-          role="combobox"
-          aria-expanded={isOpen}
-          className={cn(
-            "w-full justify-between font-normal",
-            !value && "text-muted-foreground",
-            hasError && (errorClass || "border-destructive"),
-            className,
-          )}
-          disabled={disabled}
-        >
-          <span className="truncate">{displayValue || placeholder}</span>
-          <ChevronDownIcon className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-        </Button>
-      </PopoverTrigger>
+      <PopoverAnchor asChild>
+        <div className="relative w-full">
+          <Input
+            ref={inputRef}
+            value={isFocused ? searchQuery : displayValue}
+            onChange={(e) => {
+              const query = e.target.value;
+              setSearchQuery(query);
+              setActiveIndex(-1);
+              if (!isOpen) setIsOpen(true);
+              if (value) {
+                onChange("", undefined);
+              }
+              performSearch(query);
+            }}
+            onFocus={(e) => {
+              setIsFocused(true);
+              setSearchQuery(displayValue);
+              if (!isOpen && !disabled) setIsOpen(true);
+              setTimeout(() => e.target.select(), 0);
+            }}
+            onBlur={() => {
+              if (!isOpen) {
+                setIsFocused(false);
+                setSearchQuery("");
+              }
+            }}
+            onKeyDown={handleKeyDown}
+            placeholder={placeholder}
+            disabled={disabled}
+            className={cn(
+              "h-8 w-full bg-background pr-8 text-xs font-medium",
+              hasError && (errorClass || "border-destructive focus-visible:ring-destructive"),
+              className
+            )}
+            onClick={() => {
+              if (!isOpen && !disabled) setIsOpen(true);
+            }}
+          />
+          <div className="absolute right-0 top-0 flex h-full items-center gap-1.5 px-3">
+            {value && !disabled && (
+              <div
+                role="button"
+                tabIndex={0}
+                className="hover:text-foreground p-1 text-muted-foreground transition-colors hover:bg-muted rounded-full pointer-events-auto"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onChange("", undefined);
+                  setTimeout(() => inputRef.current?.focus(), 0);
+                }}
+              >
+                <X className="h-3 w-3" />
+              </div>
+            )}
+            {isLoading && items.length === 0 ? (
+              <Loader2 className="h-4 w-4 animate-spin opacity-50" />
+            ) : (
+              <ChevronDownIcon className="h-4 w-4 opacity-40" />
+            )}
+          </div>
+        </div>
+      </PopoverAnchor>
       <PopoverContent
-        className="flex max-h-(--radix-popover-content-available-height,80vh) min-h-0 w-(--radix-popover-trigger-width) max-w-[calc(100vw-2rem)] min-w-[320px] flex-col overflow-hidden p-0"
+        className="flex max-h-(--radix-popover-content-available-height,80vh) min-h-0 w-(--radix-popover-trigger-width) max-w-[calc(100vw-2rem)] min-w-[320px] flex-col overflow-hidden p-0 shadow-xl"
         align="start"
         collisionPadding={8}
-        onOpenAutoFocus={(e) => {
-          // Prevent auto-focus from scrolling
+        onCloseAutoFocus={(e) => {
           e.preventDefault();
         }}
-        onCloseAutoFocus={(e) => {
-          // Prevent auto-focus from scrolling
+        onOpenAutoFocus={(e) => {
           e.preventDefault();
         }}
       >
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-          {/* Search Input */}
-          <div className="shrink-0 border-b p-2">
-            <Input
-              placeholder="Search..."
-              value={searchQuery}
-              onChange={(e) => {
-                const query = e.target.value;
-                setSearchQuery(query);
-                performSearch(query);
-              }}
-              className="h-8"
-              autoFocus={false}
-            />
-          </div>
+          {/* Items List */}
 
           {/* Items List */}
           <div
@@ -372,17 +448,22 @@ export function SearchableSelect<T extends SearchableItem>({
               </div>
             ) : (
               <>
-                {filteredItems.map((item) => {
+                {filteredItems.map((item, idx) => {
                   const itemValue = getItemValue(item);
                   const isSelected = value === itemValue;
+                  const isFocused = activeIndex === idx;
                   return (
                     <div
                       key={itemValue}
+                      role="option"
+                      aria-selected={isSelected}
+                      onMouseDown={(e) => e.preventDefault()}
+                      onMouseEnter={() => setActiveIndex(idx)}
                       className={cn(
                         "relative flex cursor-default items-start rounded-sm px-2 py-2 text-sm outline-none select-none",
                         isSelected
                           ? "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
-                          : "hover:bg-muted hover:text-foreground",
+                          : isFocused ? "bg-accent text-accent-foreground" : "hover:bg-muted hover:text-foreground",
                       )}
                       onClick={(e) => {
                         e.preventDefault();
@@ -393,24 +474,24 @@ export function SearchableSelect<T extends SearchableItem>({
                         setSearchQuery("");
                       }}
                     >
-                      <div className="min-w-0 flex-1">
+                      <div className="min-w-0 flex-1 text-left">
                         {/* Two-line format: No on first line, Description/Name on second */}
                         {item.No && (item.Description || item.Name) ? (
                           <div className="flex flex-col">
-                            <span className="text-foreground font-medium">
+                            <span className={cn("font-medium", isSelected ? "text-primary-foreground" : "text-foreground")}>
                               {item.No}
                             </span>
-                            <span className="text-muted-foreground text-xs wrap-break-word">
+                            <span className={cn("text-xs wrap-break-word", isSelected ? "text-primary-foreground/80" : isFocused ? "text-accent-foreground/80" : "text-muted-foreground")}>
                               {item.Description || item.Name || ""}
                             </span>
                             {item.FA_Location_Code && (
-                              <span className="text-primary mt-0.5 text-[10px] font-medium uppercase">
+                              <span className={cn("mt-0.5 text-[10px] font-medium uppercase", isSelected ? "text-primary-foreground/70" : isFocused ? "text-accent-foreground/70" : "text-primary")}>
                                 FA Location Code: {item.FA_Location_Code}
                               </span>
                             )}
                           </div>
                         ) : (
-                          <span className="wrap-break-word">
+                          <span className={cn("wrap-break-word font-medium", isSelected ? "text-primary-foreground" : "text-foreground")}>
                             {getDisplayValue(item)}
                           </span>
                         )}

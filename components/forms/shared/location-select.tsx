@@ -447,6 +447,7 @@ export function LocationSelect({
                   locations.map((l, idx) => (
                     <tr
                       key={l.Code}
+                      onMouseDown={(e) => e.preventDefault()}
                       onClick={() => handleSelect(l)}
                       onMouseEnter={() => setFocusedIndex(idx)}
                       className={cn(

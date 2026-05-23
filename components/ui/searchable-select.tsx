@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import {
   Popover,
   PopoverContent,
-  PopoverTrigger,
   PopoverAnchor,
 } from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
@@ -57,6 +56,7 @@ export function SearchableSelect({
 }: SearchableSelectProps) {
   const [open, setOpen] = React.useState(false);
   const [searchQuery, setSearchQuery] = React.useState("");
+  const [activeIndex, setActiveIndex] = React.useState(-1);
   const listRef = React.useRef<HTMLDivElement>(null);
   const sentinelRef = React.useRef<HTMLDivElement>(null);
   const searchTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
@@ -142,15 +142,83 @@ export function SearchableSelect({
     target.scrollTop += e.deltaY;
   };
 
-  // Reset search when popover closes - REMOVED to keep search persistent
-  // React.useEffect(() => {
-  //   if (!open) {
-  //     setSearchQuery("");
-  //     if (onSearch) {
-  //       onSearch("");
-  //     }
-  //   }
-  // }, [open, onSearch]);
+  // Reset active item when search or options change
+  React.useEffect(() => {
+    setActiveIndex(-1);
+  }, [searchQuery, options]);
+
+  // Scroll active item into view
+  React.useEffect(() => {
+    if (open && activeIndex >= 0 && listRef.current) {
+      const listElement = listRef.current;
+      const itemElements = listElement.querySelectorAll('[role="option"]');
+      const activeElement = itemElements[activeIndex] as HTMLElement;
+      if (activeElement) {
+        activeElement.scrollIntoView({ block: "nearest" });
+      }
+    }
+  }, [activeIndex, open]);
+
+  // Handle Enter key for custom value submission
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    const hasCustomValueOption = !!(allowCustomValue && searchQuery.trim());
+    const totalOptions = filteredOptions.length + (hasCustomValueOption ? 1 : 0);
+
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setActiveIndex((prev) => Math.min(prev + 1, totalOptions - 1));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setActiveIndex((prev) => Math.max(prev - 1, 0));
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      
+      if (activeIndex === 0 && hasCustomValueOption) {
+        // Custom value is selected
+        const trimmedVal = searchQuery.trim();
+        if (isMulti) {
+          const newValues = values.includes(trimmedVal)
+            ? values.filter((v) => v !== trimmedVal)
+            : [...values, trimmedVal];
+          onValueChange(newValues.join("|"));
+        } else {
+          onValueChange(trimmedVal);
+          setOpen(false);
+          setIsFocused(false);
+        }
+      } else if (activeIndex >= 0) {
+        // Find which option was selected
+        const optionIndex = hasCustomValueOption ? activeIndex - 1 : activeIndex;
+        if (optionIndex >= 0 && optionIndex < filteredOptions.length) {
+          const option = filteredOptions[optionIndex];
+          if (isMulti) {
+            const isSelected = values.includes(option.value);
+            const newValues = isSelected
+              ? values.filter((v) => v !== option.value)
+              : [...values, option.value];
+            onValueChange(newValues.join("|"));
+          } else {
+            onValueChange(values.includes(option.value) ? "" : option.value);
+            setOpen(false);
+            setIsFocused(false);
+          }
+        }
+      } else if (hasCustomValueOption) {
+        // Fallback
+        const trimmedVal = searchQuery.trim();
+        if (isMulti) {
+          const newValues = values.includes(trimmedVal)
+            ? values.filter((v) => v !== trimmedVal)
+            : [...values, trimmedVal];
+          onValueChange(newValues.join("|"));
+        } else {
+          onValueChange(trimmedVal);
+          setOpen(false);
+          setIsFocused(false);
+        }
+      }
+    }
+  };
 
   // Cleanup timeout on unmount
   React.useEffect(() => {
@@ -161,29 +229,16 @@ export function SearchableSelect({
     };
   }, []);
 
-  // Handle Enter key for custom value submission
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter" && allowCustomValue && searchQuery.trim()) {
-      e.preventDefault();
-      const trimmedVal = searchQuery.trim();
-      if (isMulti) {
-        const newValues = values.includes(trimmedVal)
-          ? values.filter((v) => v !== trimmedVal)
-          : [...values, trimmedVal];
-        onValueChange(newValues.join("|"));
-      } else {
-        onValueChange(trimmedVal);
-        setOpen(false);
-      }
-    }
-  };
+  const [isFocused, setIsFocused] = React.useState(false);
+  const inputRef = React.useRef<HTMLInputElement>(null);
 
   return (
     <Popover
       open={open}
-      onOpenChange={(newOpen) => {
-        setOpen(newOpen);
-        if (!newOpen) {
+      onOpenChange={(val) => {
+        setOpen(val);
+        if (!val) {
+          setIsFocused(false);
           setSearchQuery("");
           if (onSearch) onSearch("");
         }
@@ -191,88 +246,78 @@ export function SearchableSelect({
       modal={false}
     >
       <PopoverAnchor asChild>
-        <div
-          onClick={() => !disabled && !isLoading && setOpen(true)}
-          className={cn(
-            "flex h-9 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-within:ring-1 focus-within:ring-ring cursor-pointer",
-            (disabled || isLoading) && "opacity-50 cursor-not-allowed",
-            className
-          )}
-        >
-          {isMulti && selectedOptions.length > 0 && !open && !searchQuery ? (
-            <div className="flex flex-1 flex-wrap gap-1 overflow-hidden truncate">
-               <span className="truncate text-sm">{selectedOptions.length} items selected</span>
-            </div>
-          ) : (
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => {
-                handleSearchChange(e.target.value);
-                if (!open) setOpen(true);
-              }}
-              onFocus={() => !disabled && !isLoading && setOpen(true)}
-              onKeyDown={handleKeyDown}
-              placeholder={isLoading && !open ? "Loading..." : (displayLabel || placeholder)}
-              disabled={disabled || (isLoading && !open)}
-              className="w-full bg-transparent focus:outline-none text-sm placeholder:text-foreground/90 truncate cursor-text"
-            />
-          )}
-          <div className="flex items-center gap-1 shrink-0 ml-2">
-            {isLoading ? (
-              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-            ) : searchQuery ? (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setSearchQuery("");
-                  if (onSearch) onSearch("");
-                }}
-                className="hover:text-foreground p-1 text-muted-foreground transition-colors hover:bg-muted rounded-full"
-              >
-                <X className="h-3 w-3" />
-              </button>
-            ) : value && !disabled ? (
+        <div className="relative w-full">
+          <Input
+            ref={inputRef}
+            value={isFocused ? searchQuery : (displayLabel || "")}
+            onChange={(e) => {
+              const query = e.target.value;
+              handleSearchChange(query);
+              setActiveIndex(-1);
+              if (!open) setOpen(true);
+              if (!isMulti && value && !allowCustomValue) {
+                onValueChange("");
+              }
+            }}
+            onFocus={(e) => {
+              setIsFocused(true);
+              setSearchQuery(displayLabel || "");
+              if (!open && !disabled && !isLoading) setOpen(true);
+              setTimeout(() => e.target.select(), 0);
+            }}
+            onBlur={() => {
+              if (!open) {
+                setIsFocused(false);
+                setSearchQuery("");
+              }
+            }}
+            onKeyDown={handleKeyDown}
+            placeholder={placeholder}
+            disabled={disabled || isLoading}
+            className={cn(
+              "h-8 w-full bg-background pr-10 text-xs font-medium truncate",
+              className
+            )}
+            onClick={() => {
+              if (!open && !disabled && !isLoading) setOpen(true);
+            }}
+          />
+          <div className="absolute right-0 top-0 flex h-full items-center gap-1 px-3">
+            {value && !disabled && !isLoading && (
               <div
                 role="button"
                 tabIndex={0}
-                className="hover:text-foreground p-1 text-muted-foreground transition-colors hover:bg-muted rounded-full"
+                className="hover:text-foreground p-1 text-muted-foreground transition-colors hover:bg-muted rounded-full pointer-events-auto cursor-pointer"
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
                   onValueChange("");
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    onValueChange("");
-                  }
+                  if (onSearch) onSearch("");
+                  setTimeout(() => inputRef.current?.focus(), 0);
                 }}
               >
                 <X className="h-3 w-3" />
               </div>
+            )}
+            {isLoading ? (
+              <Loader2 className="h-4 w-4 animate-spin opacity-50 pointer-events-none" />
             ) : (
-              <PopoverTrigger asChild>
-                <button
-                  type="button"
-                  disabled={disabled || isLoading}
-                  className="p-1 text-muted-foreground/50 hover:text-foreground"
-                >
-                  <ChevronsUpDown className="h-4 w-4" />
-                </button>
-              </PopoverTrigger>
+              <ChevronsUpDown className="h-4 w-4 shrink-0 opacity-50 pointer-events-none" />
             )}
           </div>
         </div>
       </PopoverAnchor>
       <PopoverContent
-        className="flex max-h-[260px] min-h-0 w-(--radix-popover-anchor-width) max-w-[calc(100vw-2rem)] min-w-[320px] flex-col overflow-hidden p-0"
+        className="flex max-h-(--radix-popover-content-available-height,80vh) min-h-0 w-(--radix-popover-anchor-width) max-w-[calc(100vw-2rem)] min-w-[320px] flex-col overflow-hidden p-0 shadow-xl"
         align="start"
         sideOffset={4}
         collisionPadding={8}
-        onOpenAutoFocus={(e) => e.preventDefault()}
+        onCloseAutoFocus={(e) => {
+          e.preventDefault();
+        }}
+        onOpenAutoFocus={(e) => {
+          e.preventDefault();
+        }}
       >
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
           {/* Options List */}
@@ -292,7 +337,12 @@ export function SearchableSelect({
               <div className="py-2">
                 {allowCustomValue && searchQuery.trim() ? (
                   <div
-                    className="hover:bg-accent hover:text-accent-foreground bg-primary/10 relative flex cursor-pointer items-center rounded-sm px-2 py-1.5 text-sm font-medium transition-colors outline-none select-none"
+                    role="option"
+                    aria-selected={values.includes(searchQuery.trim())}
+                    onMouseDown={(e) => e.preventDefault()}
+                    className={cn("relative flex cursor-pointer items-center rounded-sm px-2 py-1.5 text-sm font-medium transition-colors outline-none select-none",
+                      activeIndex === 0 ? "bg-accent text-accent-foreground" : "bg-primary/10 hover:bg-accent hover:text-accent-foreground"
+                    )}
                     onClick={() => {
                       const trimmedVal = searchQuery.trim();
                       if (isMulti) {
@@ -329,7 +379,14 @@ export function SearchableSelect({
                 {/* Custom value option - ALWAYS shown at top when typing with allowCustomValue */}
                 {allowCustomValue && searchQuery.trim() && (
                   <div
-                    className="hover:bg-accent hover:text-accent-foreground bg-primary/10 relative mb-1 flex cursor-pointer items-center rounded-sm border-b px-2 py-1.5 text-sm font-medium transition-colors outline-none select-none"
+                    role="option"
+                    aria-selected={values.includes(searchQuery.trim())}
+                    onMouseDown={(e) => e.preventDefault()}
+                    onMouseEnter={() => setActiveIndex(0)}
+                    className={cn(
+                      "relative mb-1 flex cursor-pointer items-center rounded-sm border-b px-2 py-1.5 text-sm font-medium transition-colors outline-none select-none",
+                      activeIndex === 0 ? "bg-accent text-accent-foreground" : "bg-primary/10 hover:bg-accent hover:text-accent-foreground"
+                    )}
                     onClick={() => {
                       const trimmedVal = searchQuery.trim();
                       if (isMulti) {
@@ -356,16 +413,22 @@ export function SearchableSelect({
                     </span>
                   </div>
                 )}
-                {filteredOptions.map((option) => {
+                {filteredOptions.map((option, idx) => {
                   const isSelected = values.includes(option.value);
+                  const optionIndex = (allowCustomValue && searchQuery.trim() ? 1 : 0) + idx;
+                  const isFocused = activeIndex === optionIndex;
                   return (
                     <div
                       key={option.value}
+                      role="option"
+                      aria-selected={isSelected}
+                      onMouseDown={(e) => e.preventDefault()}
+                      onMouseEnter={() => setActiveIndex(optionIndex)}
                       className={cn(
                         "group relative flex cursor-pointer items-start rounded-sm px-2 py-1.5 text-sm transition-colors outline-none select-none",
                         isSelected
                           ? "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
-                          : "hover:bg-accent hover:text-accent-foreground",
+                          : isFocused ? "bg-accent text-accent-foreground" : "hover:bg-accent hover:text-accent-foreground",
                       )}
                       onClick={() => {
                         if (isMulti) {
@@ -385,12 +448,28 @@ export function SearchableSelect({
                           isSelected ? "opacity-100" : "opacity-0",
                         )}
                       />
-                      <span
-                        className="block w-full truncate text-left group-hover:wrap-break-word group-hover:whitespace-normal"
-                        title={option.label}
-                      >
-                        {option.label}
-                      </span>
+                      <div className="flex min-w-0 flex-1 flex-col text-left">
+                        <span
+                          className={cn(
+                            "block w-full truncate font-medium group-hover:wrap-break-word group-hover:whitespace-normal",
+                            isSelected ? "text-primary-foreground" : "text-foreground"
+                          )}
+                          title={option.label}
+                        >
+                          {option.label}
+                        </span>
+                        {option.description && (
+                          <span
+                            className={cn(
+                              "text-xs truncate group-hover:wrap-break-word group-hover:whitespace-normal",
+                              isSelected ? "text-primary-foreground/80" : isFocused ? "text-accent-foreground/80" : "text-muted-foreground"
+                            )}
+                            title={option.description}
+                          >
+                            {option.description}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   );
                 })}

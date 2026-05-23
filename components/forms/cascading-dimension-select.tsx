@@ -349,6 +349,7 @@ export function CascadingDimensionSelect({
                     id={`cascading-option-${item.Code}`}
                     role="option"
                     aria-selected={value === item.Code}
+                    onMouseDown={(e) => e.preventDefault()}
                     className={cn(
                       "relative flex cursor-default items-start rounded-sm px-2 py-2 text-sm outline-none select-none",
                       value === item.Code && "bg-muted",

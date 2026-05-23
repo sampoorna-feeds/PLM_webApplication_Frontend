@@ -1167,6 +1167,10 @@ export function PurchaseCreateDocumentFormContent({
     });
   };
 
+  const hasHeaderChanges = (): boolean => {
+    return Object.keys(buildHeaderPatchPayload()).length > 0;
+  };
+
   const refreshHydratedDocument = async (overrideDocNo?: string) => {
     const docNo = overrideDocNo || createdOrderNo;
     if (!docNo) return;
@@ -2651,7 +2655,7 @@ export function PurchaseCreateDocumentFormContent({
                     size="sm"
                     className="h-8"
                     onClick={handleUpdateDocument}
-                    disabled={isUpdatingHeader}
+                    disabled={isUpdatingHeader || !hasHeaderChanges()}
                   >
                     {isUpdatingHeader ? "Updating..." : "Update"}
                   </Button>

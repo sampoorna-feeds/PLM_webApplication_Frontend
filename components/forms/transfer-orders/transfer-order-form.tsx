@@ -109,6 +109,28 @@ const calculateDiff = (
   return diff;
 };
 
+const ALLOWED_TRANSFER_FIELDS = [
+  "Transporter_Code",
+  "Transporter_Name",
+  "External_Document_No",
+  "Posting_Date",
+  "Vehicle_No",
+  "LR_RR_No",
+  "LR_RR_Date",
+  "Distance_Km",
+  "Freight_Value",
+  "Transfer_from_Code",
+  "Transfer_to_Code",
+  "Shortcut_Dimension_1_Code",
+  "Shortcut_Dimension_2_Code",
+  "In_Transit_Code",
+  "SFPL_User_ID",
+  "Shipment_Date",
+  "Receipt_Date",
+  "Shipping_Advice",
+  "Mode_of_Transport",
+];
+
 export function TransferOrderForm({
   tabId,
   formData: initialFormData,
@@ -159,6 +181,11 @@ export function TransferOrderForm({
   const [originalState, setOriginalState] = useState<Partial<TransferOrder>>(
     {},
   );
+
+  const hasHeaderChanges =
+    Object.keys(
+      calculateDiff(formState, originalState, ALLOWED_TRANSFER_FIELDS),
+    ).length > 0;
 
   // Lines state
   const [lines, setLines] = useState<TransferLine[]>([]);
@@ -608,30 +635,7 @@ export function TransferOrderForm({
   const handleUpdateHeader = async () => {
     if (!formState.No) return;
 
-    // Calculate diff for allowed fields only
-    const allowedToUpdate = [
-      "Transporter_Code",
-      "Transporter_Name",
-      "External_Document_No",
-      "Posting_Date",
-      "Vehicle_No",
-      "LR_RR_No",
-      "LR_RR_Date",
-      "Distance_Km",
-      "Freight_Value",
-      "Transfer_from_Code",
-      "Transfer_to_Code",
-      "Shortcut_Dimension_1_Code",
-      "Shortcut_Dimension_2_Code",
-      "In_Transit_Code",
-      "SFPL_User_ID",
-      "Shipment_Date",
-      "Receipt_Date",
-      "Shipping_Advice",
-      "Mode_of_Transport",
-    ];
-
-    const diff = calculateDiff(formState, originalState, allowedToUpdate);
+    const diff = calculateDiff(formState, originalState, ALLOWED_TRANSFER_FIELDS);
 
     if (Object.keys(diff).length === 0) {
       toast.info("No changes to update");
@@ -1289,7 +1293,7 @@ export function TransferOrderForm({
                       onClick={handleUpdateHeader}
                       variant="default"
                       size="sm"
-                      disabled={isSubmitting}
+                      disabled={isSubmitting || !hasHeaderChanges}
                       className="font-bold shadow-md transition-all hover:scale-105 active:scale-95"
                     >
                       {isSubmitting ? (

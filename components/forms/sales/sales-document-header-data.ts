@@ -84,7 +84,7 @@ export function buildSalesHeaderPatchPayload(
 ): Record<string, unknown> {
   const getFullPayload = () => {
     const invoiceType = (formData.invoiceType || "").trim();
-    const finalInvoiceType = invoiceType.toLowerCase() === "taxable" ? "Bill of Supply" : invoiceType;
+    const finalInvoiceType = invoiceType;
 
     const payload: Record<string, unknown> = {
       sell_to_Customer_No: formData.customerNo || "",
@@ -117,8 +117,7 @@ export function buildSalesHeaderPatchPayload(
   }
 
   const invoiceType = (formData.invoiceType || "").trim();
-  const finalInvoiceType =
-    invoiceType.toLowerCase() === "taxable" ? "Bill of Supply" : invoiceType;
+  const finalInvoiceType = invoiceType;
 
   // If customer is changed, send only specific fields to prevent ERP errors
   const oldCustomer = (original.Sell_to_Customer_No as string) || "";
@@ -142,9 +141,6 @@ export function buildSalesHeaderPatchPayload(
 
   const compareString = (bcField: string, val: string) => {
     let finalVal = val.trim();
-    if (bcField === "Invoice_Type" && finalVal.toLowerCase() === "taxable") {
-      finalVal = "Bill of Supply";
-    }
 
     const orig = (original[bcField] as string) || "";
     if (finalVal !== orig.trim()) {

@@ -799,6 +799,7 @@ export function SalesCreateDocumentFormContent({
         orderHeader,
       );
       await ops.patchHeader(initialOrderNo, patch);
+      await loadDocument();
       toast.success("Header updated");
       onSuccess(initialOrderNo);
     } catch (err) {
@@ -806,6 +807,15 @@ export function SalesCreateDocumentFormContent({
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const hasHeaderChanges = (): boolean => {
+    const patch = buildSalesHeaderPatchPayload(
+      formData,
+      caps.supportsOrderDate,
+      orderHeader,
+    );
+    return Object.keys(patch).length > 0;
   };
 
   // ── Document status actions ───────────────────────────────────────────────
@@ -1917,7 +1927,7 @@ export function SalesCreateDocumentFormContent({
                       size="sm"
                       className="h-8"
                       onClick={handleUpdateHeader}
-                      disabled={isSubmitting}
+                      disabled={isSubmitting || !hasHeaderChanges()}
                     >
                       {isSubmitting && (
                         <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />

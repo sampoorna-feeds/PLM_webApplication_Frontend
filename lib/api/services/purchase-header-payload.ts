@@ -92,6 +92,14 @@ function normalizeQcType(value: string | undefined): string | undefined {
   return value;
 }
 
+function normalizeInvoiceType(value: string | undefined): string | undefined {
+  if (value === "_none") {
+    return "";
+  }
+
+  return value;
+}
+
 function getRequiredFieldValue(
   source: PurchaseHeaderPayloadSource,
   field: RequiredPurchaseHeaderField,
@@ -256,7 +264,7 @@ export function buildPurchaseHeaderPayload(
   }
 
   if (options.includeInvoiceType) {
-    payload.Invoice_Type = source.invoiceType;
+    payload.Invoice_Type = normalizeInvoiceType(source.invoiceType);
   }
 
   if (options.includeVendorInvoiceNo) {

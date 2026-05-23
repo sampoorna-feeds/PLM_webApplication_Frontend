@@ -633,6 +633,8 @@ export async function patchPurchaseOrderHeader(
   const payload = toUpperCaseValues(stripNullish(body), [
     "Document_Type",
     "Type",
+    "Invoice_Type",
+    "invoice_Type",
   ]);
   return apiPatch<unknown>(endpoint, payload);
 }

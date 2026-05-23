@@ -210,7 +210,12 @@ export async function patchPurchaseDocumentHeaderByNo(
   const config = PURCHASE_DOCUMENT_ADAPTER_CONFIG[documentType];
   const escapedNo = documentNo.replace(/'/g, "''");
   const endpoint = `/${config.headerEntity}(Document_Type='${config.documentTypeValue}',No='${encodeURIComponent(escapedNo)}')?company='${encodeURIComponent(COMPANY)}'`;
-  const payload = toUpperCaseValues(stripNullish(body), ["Document_Type", "Type"]);
+  const payload = toUpperCaseValues(stripNullish(body), [
+    "Document_Type",
+    "Type",
+    "Invoice_Type",
+    "invoice_Type",
+  ]);
   return apiPatch<unknown>(endpoint, payload);
 }
 

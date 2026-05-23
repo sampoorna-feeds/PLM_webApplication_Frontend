@@ -1285,10 +1285,10 @@ export async function deleteTransferBardanaLine(
 /**
  * Post a bardana line for a transfer order.
  */
-export async function postTransferBardana(docNo: string, lineNo: number): Promise<void> {
+export async function postTransferBardana(docNo: string, lineNo: number, userID: string): Promise<void> {
   const endpoint = `/QCcode_PostBardana?company='${encodeURIComponent(COMPANY)}'`;
   try {
-    await apiPost(endpoint, { docNo, lineNo });
+    await apiPost(endpoint, { docNo, lineNo, sFPLUserID: userID.toUpperCase() });
   } catch (error: any) {
     console.error("Error posting transfer bardana:", error);
     throw error;

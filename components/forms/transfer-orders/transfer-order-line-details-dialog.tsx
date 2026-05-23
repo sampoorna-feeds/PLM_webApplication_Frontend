@@ -39,6 +39,7 @@ import { Loader2, Package, Search, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { toastError } from "@/lib/errors";
+import { useAuth } from "@/lib/contexts/auth-context";
 import { TransferBardanaDialog } from "./transfer-bardana-dialog";
 import { TransferOrderItemTrackingDialog } from "./transfer-order-item-tracking-dialog";
 
@@ -61,6 +62,7 @@ export function TransferOrderLineDetailsDialog({
   onSuccess,
   isReadOnly = false,
 }: TransferOrderLineDetailsDialogProps) {
+  const { userID } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [hasTracking, setHasTracking] = useState(false);
   const [isLoadingTracking, setIsLoadingTracking] = useState(false);
@@ -200,7 +202,7 @@ export function TransferOrderLineDetailsDialog({
 
     setIsPostingBardana(true);
     try {
-      await postTransferBardana(line.Document_No, line.Line_No);
+      await postTransferBardana(line.Document_No, line.Line_No, userID || "");
       toast.success("Bardana posted successfully");
       fetchExistingBardanas();
     } catch (err: any) {

@@ -159,7 +159,7 @@ export function TransferOrderItemTrackingDialog({
     const expDate = lot.Expiration_Date?.split("T")[0] || "";
     setExpirationDate(expDate);
     const suggestedQty = Math.min(lot.RemainingQty || 0, availableForAssignment);
-    setQuantity(suggestedQty.toString());
+    setQuantity(truncateTo5Decimals(suggestedQty));
   };
 
   const refreshTrackingLines = async () => {
@@ -181,7 +181,10 @@ export function TransferOrderItemTrackingDialog({
   const handleSave = async () => {
     if (!line) return;
 
-    const quantityValue = parseFloat(quantity) || 0;
+    // Sanitize, parse, and truncate quantity to 5 decimal places
+    const truncatedQtyStr = truncateTo5Decimals(quantity);
+    const quantityValue = parseFloat(truncatedQtyStr) || 0;
+
     if (!lotNo.trim()) {
       toastError(new Error("Lot No. is required"));
       return;
@@ -192,7 +195,7 @@ export function TransferOrderItemTrackingDialog({
     }
     
     if (quantityValue > availableForAssignment && !editingLine) {
-        toastError(new Error(`Quantity exceeds available amount. Available: ${availableForAssignment.toLocaleString()}`));
+        toastError(new Error(`Quantity exceeds available amount. Available: ${availableForAssignment.toLocaleString(undefined, { maximumFractionDigits: 5 })}`));
         return;
     }
 
@@ -265,7 +268,8 @@ export function TransferOrderItemTrackingDialog({
     setEditingLine(l);
     setLotNo(l.Lot_No || "");
     setExpirationDate(l.Expiration_Date?.split("T")[0] || "");
-    setQuantity(Math.abs(l.Quantity_Base || 0).toString());
+    const qtyBase = Math.abs(l.Quantity_Base || 0);
+    setQuantity(truncateTo5Decimals(qtyBase));
   };
 
   const handleCancelEdit = () => {
@@ -304,8 +308,8 @@ export function TransferOrderItemTrackingDialog({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="flex max-h-[90vh] max-w-[95vw] flex-col gap-0 p-0 sm:max-w-[85vw] md:max-w-4xl lg:max-w-6xl bg-background border-border overflow-hidden rounded-2xl">
-          <DialogHeader className="border-b border-border px-4 py-4 sm:px-6 md:px-8">
+        <DialogContent className="flex max-h-[85vh] max-w-[95vw] flex-col gap-0 p-0 sm:max-w-[80vw] md:max-w-2xl lg:max-w-4xl bg-background border-border overflow-hidden rounded-xl">
+          <DialogHeader className="border-b border-border px-4 py-3 sm:px-6">
             <DialogTitle className="text-lg font-semibold">
               {editingLine
                 ? "Edit Item Tracking (Transfer Line)"
@@ -313,10 +317,10 @@ export function TransferOrderItemTrackingDialog({
             </DialogTitle>
           </DialogHeader>
 
-          <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-6 md:px-8 scrollbar-hide">
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-8">
+          <div className="flex-1 overflow-y-auto px-4 py-3 sm:px-6 scrollbar-hide">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-6">
               {/* Left Side: Available Lots */}
-              <div className="flex h-[400px] flex-col overflow-hidden rounded-xl border border-border bg-muted/20">
+              <div className="flex h-[280px] flex-col overflow-hidden rounded-xl border border-border bg-muted/20">
                 <div className="bg-muted border-b border-border px-4 py-3 font-medium text-sm">
                   Available Lots
                 </div>
@@ -353,7 +357,7 @@ export function TransferOrderItemTrackingDialog({
                               </div>
                             </TableCell>
                             <TableCell className="py-2.5 text-right text-sm font-semibold">
-                              {(lot.RemainingQty || 0).toLocaleString()}
+                              {(lot.RemainingQty || 0).toLocaleString(undefined, { maximumFractionDigits: 5 })}
                             </TableCell>
                           </TableRow>
                         ))}
@@ -420,8 +424,17 @@ export function TransferOrderItemTrackingDialog({
                       value={quantity}
                       onChange={(e) => {
                         const val = e.target.value;
-                        if (val === "" || /^[0-9]*\.?[0-9]*$/.test(val)) {
-                          setQuantity(val);
+                        // Strip any non-numeric/non-decimal characters immediately
+                        let cleaned = val.replace(/[^0-9.]/g, "");
+                        const parts = cleaned.split(".");
+                        if (parts.length > 2) {
+                          cleaned = parts[0] + "." + parts.slice(1).join("");
+                        }
+                        setQuantity(cleaned);
+                      }}
+                      onBlur={() => {
+                        if (quantity) {
+                          setQuantity(truncateTo5Decimals(quantity));
                         }
                       }}
                       placeholder="Enter quantity"
@@ -430,17 +443,17 @@ export function TransferOrderItemTrackingDialog({
                     <div className="bg-muted/20 p-3 rounded-xl border border-border mt-3 space-y-1.5 text-xs">
                       <p className="flex justify-between">
                         <span className="text-muted-foreground">Total to Track:</span>
-                        <span className="font-bold">{totalQuantity.toLocaleString()}</span>
+                        <span className="font-bold">{totalQuantity.toLocaleString(undefined, { maximumFractionDigits: 5 })}</span>
                       </p>
                       <p className="flex justify-between">
                         <span className="text-muted-foreground">Already Assigned:</span>
-                        <span className="font-bold">{assignedQuantity.toLocaleString()}</span>
+                        <span className="font-bold">{assignedQuantity.toLocaleString(undefined, { maximumFractionDigits: 5 })}</span>
                       </p>
                       <div className="h-px bg-border my-1" />
                       <p className="flex justify-between">
                         <span className="font-semibold">Available to Assign:</span>
                         <span className={availableForAssignment > 0 ? "font-bold text-green-500" : "font-bold text-red-500"}>
-                          {availableForAssignment.toLocaleString()}
+                          {availableForAssignment.toLocaleString(undefined, { maximumFractionDigits: 5 })}
                         </span>
                       </p>
                     </div>
@@ -450,8 +463,8 @@ export function TransferOrderItemTrackingDialog({
             </div>
 
             {/* Bottom Section: Existing Lines */}
-            <div className="mt-8 space-y-3">
-              <h3 className="text-sm font-semibold flex items-center gap-2">
+            <div className="mt-4 space-y-2">
+              <h3 className="text-xs font-semibold flex items-center gap-2">
                 Existing Item Tracking Lines
                 {trackingLines.length > 0 && (
                     <span className="bg-red-500/10 text-red-500 text-[10px] px-2 py-0.5 rounded-full border border-red-500/20">
@@ -459,7 +472,7 @@ export function TransferOrderItemTrackingDialog({
                     </span>
                 )}
               </h3>
-              <div className="max-h-60 overflow-auto rounded-xl border border-border bg-muted/10 scrollbar-hide">
+              <div className="max-h-40 overflow-auto rounded-xl border border-border bg-muted/10 scrollbar-hide">
                 {isLoadingTrackingLines ? (
                   <div className="flex items-center justify-center py-12">
                     <Loader2 className="text-muted-foreground h-6 w-6 animate-spin" />
@@ -503,7 +516,7 @@ export function TransferOrderItemTrackingDialog({
                             <TableCell className="py-2.5 text-xs font-bold">{l.Lot_No || "-"}</TableCell>
                             <TableCell className="py-2.5 text-xs">{l.Location_Code || "-"}</TableCell>
                             <TableCell className="py-2.5 text-xs text-right font-bold">
-                              {Math.abs(l.Quantity_Base || 0).toLocaleString()}
+                              {Math.abs(l.Quantity_Base || 0).toLocaleString(undefined, { maximumFractionDigits: 5 })}
                             </TableCell>
                             <TableCell className="py-2.5 text-xs">
                               {l.Expiration_Date ? l.Expiration_Date.split("T")[0] : "-"}
@@ -544,7 +557,7 @@ export function TransferOrderItemTrackingDialog({
             </div>
           </div>
 
-          <DialogFooter className="border-t border-border px-4 py-4 sm:px-6 md:px-8 bg-background">
+          <DialogFooter className="border-t border-border px-4 py-3 sm:px-6 bg-background">
             <Button 
                 variant="outline" 
                 onClick={() => onOpenChange(false)}
@@ -603,4 +616,18 @@ export function TransferOrderItemTrackingDialog({
 
 function cn(...inputs: any[]) {
     return inputs.filter(Boolean).join(" ");
+}
+
+function truncateTo5Decimals(val: string | number): string {
+  const str = typeof val === "number" ? val.toFixed(10) : val;
+  const cleanStr = str.replace(/[^0-9.]/g, "");
+  const parts = cleanStr.split(".");
+  if (parts.length > 1) {
+    const decimal = parts.slice(1).join("").substring(0, 5);
+    const truncated = `${parts[0]}.${decimal}`;
+    const parsed = parseFloat(truncated);
+    return isNaN(parsed) ? "" : parsed.toString();
+  }
+  const parsed = parseFloat(cleanStr);
+  return isNaN(parsed) ? "" : parsed.toString();
 }

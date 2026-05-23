@@ -22,6 +22,7 @@ import {
 } from "@/lib/api/services/transfer-orders.service";
 import { Loader2, Package } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
+import { useAuth } from "@/lib/contexts/auth-context";
 import { ItemSelect } from "./item-select";
 
 interface TransferBardanaDialogProps {
@@ -46,6 +47,7 @@ export function TransferBardanaDialog({
   locationCode,
   onSuccess,
 }: TransferBardanaDialogProps) {
+  const { userID } = useAuth();
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
   const [uom, setUom] = useState("");
   const [quantity, setQuantity] = useState<string>("");
@@ -119,7 +121,7 @@ export function TransferBardanaDialog({
     setIsPosting(true);
     setError(null);
     try {
-      await postTransferBardana(documentNo, lineNo);
+      await postTransferBardana(documentNo, lineNo, userID || "");
       onSuccess?.();
       onOpenChange(false);
     } catch (err) {

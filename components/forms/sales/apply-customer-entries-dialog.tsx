@@ -5,6 +5,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -392,7 +393,7 @@ export function ApplyCustomerEntriesDialog({
           </table>
         </div>
 
-        <div className="bg-muted/10 flex shrink-0 items-center justify-between border-t px-5 py-3.5">
+        <DialogFooter className="bg-muted/10 flex shrink-0 items-center justify-between border-t px-5 py-3.5">
           <div className="flex items-center gap-2">
             <span className="text-muted-foreground bg-muted rounded px-2 py-1 text-xs">{totalCount} total entries</span>
             <span className="bg-primary/10 text-primary border-primary/20 rounded border px-2 py-1 text-xs font-semibold">{selectedEntryMap.size} selected</span>
@@ -404,7 +405,7 @@ export function ApplyCustomerEntriesDialog({
               Apply Selected
             </Button>
           </div>
-        </div>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

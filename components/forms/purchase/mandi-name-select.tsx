@@ -11,6 +11,7 @@ interface MandiNameSelectProps {
   disabled?: boolean;
   className?: string;
   hasError?: boolean;
+  hideClearButton?: boolean;
 }
 
 export function MandiNameSelect({
@@ -19,6 +20,7 @@ export function MandiNameSelect({
   disabled,
   className,
   hasError,
+  hideClearButton = true,
 }: MandiNameSelectProps) {
   const fetchData = useCallback(async (skip: number, search: string) => {
     return await purchaseDropdownsService.getMandiMastersPage(skip, search, 30);
@@ -41,6 +43,7 @@ export function MandiNameSelect({
         { id: "Code", label: "Code", width: "150px" },
         { id: "Description", label: "Description" },
       ]}
+      hideClearButton={hideClearButton}
     />
   );
 }

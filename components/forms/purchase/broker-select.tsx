@@ -882,6 +882,7 @@ export function BrokerSelect({
   );
   const [displayLabel, setDisplayLabel] = useState("");
 
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const debouncedSearchRef = useRef(debouncedSearch);
@@ -1061,6 +1062,9 @@ export function BrokerSelect({
       setSortColumn(null);
       setSortDirection(null);
       debouncedSearchRef.current = "";
+      setTimeout(() => {
+        triggerRef.current?.focus();
+      }, 0);
     }
     setOpen(next);
   };
@@ -1084,7 +1088,7 @@ export function BrokerSelect({
 
   const handleSelect = (vendor: Vendor) => {
     onChange(vendor.No, vendor);
-    setOpen(false);
+    handleOpenChange(false);
   };
 
   const hasActiveFilters = Object.values(columnFilters).some(Boolean);
@@ -1104,9 +1108,57 @@ export function BrokerSelect({
     visibleColumns.includes(col.id),
   );
 
+  const handleDialogKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    const activeEl = document.activeElement;
+    if (
+      activeEl &&
+      (activeEl.tagName === "INPUT" ||
+        activeEl.tagName === "TEXTAREA" ||
+        activeEl.tagName === "SELECT")
+    ) {
+      return;
+    }
+
+    if (e.ctrlKey || e.altKey || e.metaKey) return;
+    if (
+      e.key === "Tab" ||
+      e.key === "Shift" ||
+      e.key === "Enter" ||
+      e.key === " " ||
+      e.key === "Escape" ||
+      e.key === "ArrowUp" ||
+      e.key === "ArrowDown" ||
+      e.key === "ArrowLeft" ||
+      e.key === "ArrowRight" ||
+      e.key === "Delete"
+    ) {
+      return;
+    }
+
+    if (e.key === "Backspace") {
+      const searchInput = document.getElementById("broker-search-input") as HTMLInputElement | null;
+      if (searchInput) {
+        e.preventDefault();
+        searchInput.focus();
+        setSearchQuery((prev) => prev.slice(0, -1));
+      }
+      return;
+    }
+
+    if (e.key.length === 1) {
+      const searchInput = document.getElementById("broker-search-input") as HTMLInputElement | null;
+      if (searchInput) {
+        e.preventDefault();
+        searchInput.focus();
+        setSearchQuery((prev) => prev + e.key);
+      }
+    }
+  };
+
   return (
     <>
       <Button
+        ref={triggerRef}
         type="button"
         variant="outline"
         role="combobox"
@@ -1137,6 +1189,7 @@ export function BrokerSelect({
         <DialogContent
           className="flex h-[88vh] flex-col gap-0 p-0"
           style={{ width: "min(1160px, 92vw)", maxWidth: "none" }}
+          onKeyDown={handleDialogKeyDown}
         >
           {/* ── Header ────────────────────────────────────────────────── */}
           <DialogHeader className="shrink-0 border-b px-5 py-3.5">
@@ -1178,11 +1231,19 @@ export function BrokerSelect({
               <div className="relative flex-1">
                 <Search className="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
                 <Input
+                  id="broker-search-input"
                   placeholder="Search by broker No., Name, PAN No. or GST No. …"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="border-border/60 bg-background h-9 rounded-md pr-9 pl-9 text-sm shadow-none focus-visible:ring-1"
                   autoFocus
+                  onKeyDown={(e) => {
+                    if (e.key === "ArrowDown") {
+                      e.preventDefault();
+                      const firstRow = scrollContainerRef.current?.querySelector('tbody tr[tabindex="0"]') as HTMLElement;
+                      firstRow?.focus();
+                    }
+                  }}
                 />
                 {searchQuery ? (
                   <button
@@ -1287,9 +1348,10 @@ export function BrokerSelect({
                       return (
                         <tr
                           key={vendor.No}
+                          tabIndex={0}
                           onClick={() => handleSelect(vendor)}
                           className={cn(
-                            "group cursor-pointer border-b transition-colors",
+                            "group cursor-pointer border-b transition-colors outline-none focus:bg-primary/10",
                             isSticky
                               ? "hover:brightness-95"
                               : cn(
@@ -1309,6 +1371,27 @@ export function BrokerSelect({
                                 }
                               : undefined
                           }
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              handleSelect(vendor);
+                            } else if (e.key === "ArrowDown") {
+                              e.preventDefault();
+                              const next = e.currentTarget.nextElementSibling as HTMLElement;
+                              if (next && next.tabIndex === 0) {
+                                next.focus();
+                              }
+                            } else if (e.key === "ArrowUp") {
+                              e.preventDefault();
+                              const prev = e.currentTarget.previousElementSibling as HTMLElement;
+                              if (prev && prev.tabIndex === 0) {
+                                prev.focus();
+                              } else {
+                                const searchInput = document.getElementById("broker-search-input") as HTMLElement;
+                                searchInput?.focus();
+                              }
+                            }
+                          }}
                         >
                           {/* Checkmark gutter */}
                           <td className="w-10 px-3 py-2.5 text-center">

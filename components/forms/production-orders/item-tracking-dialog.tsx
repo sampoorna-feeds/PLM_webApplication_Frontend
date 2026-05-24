@@ -533,8 +533,23 @@ export function ItemTrackingDialog({
                           {availableLots.map((lot, index) => (
                             <TableRow
                               key={`${lot.LotNo}-${index}`}
-                              className="hover:bg-muted/50 cursor-pointer"
+                              tabIndex={0}
+                              className="hover:bg-muted/50 cursor-pointer outline-none focus:bg-primary/10"
                               onClick={() => handleLotSelect(lot)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter" || e.key === " ") {
+                                  e.preventDefault();
+                                  handleLotSelect(lot);
+                                } else if (e.key === "ArrowDown") {
+                                  e.preventDefault();
+                                  const next = e.currentTarget.nextElementSibling as HTMLElement;
+                                  if (next && next.tabIndex === 0) next.focus();
+                                } else if (e.key === "ArrowUp") {
+                                  e.preventDefault();
+                                  const prev = e.currentTarget.previousElementSibling as HTMLElement;
+                                  if (prev && prev.tabIndex === 0) prev.focus();
+                                }
+                              }}
                             >
                               <TableCell className="py-2 font-medium">
                                 {lot.LotNo}

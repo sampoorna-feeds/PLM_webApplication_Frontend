@@ -347,31 +347,42 @@ export function ProductionOrderComponentDialog({
             </div>
           </div>
 
-          <DialogFooter className="pt-2">
-            <Button variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleSave} disabled={isSaving}>
-              {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Save
-            </Button>
-          </DialogFooter>
-
-          {/* Tracking Action - only shown for items with tracking codes */}
-          {hasTracking && (
-            <div className="mt-3 border-t pt-4 pb-2">
+          <DialogFooter className="flex items-center justify-between border-t pt-3 gap-2 shrink-0">
+            <div>
+              {hasTracking && onAssignTracking && (
+                <Button
+                  variant="outline"
+                  type="button"
+                  className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 h-8"
+                  onClick={() => {
+                    onAssignTracking();
+                    onOpenChange(false); // Close this dialog to open the next one
+                  }}
+                >
+                  Item Tracking
+                </Button>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
               <Button
                 variant="outline"
-                className="w-full justify-center border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
-                onClick={() => {
-                  onAssignTracking();
-                  onOpenChange(false); // Close this dialog to open the next one
-                }}
+                size="sm"
+                className="h-8"
+                onClick={() => onOpenChange(false)}
               >
-                Item Tracking
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                className="h-8"
+                onClick={handleSave}
+                disabled={isSaving}
+              >
+                {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Save
               </Button>
             </div>
-          )}
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 

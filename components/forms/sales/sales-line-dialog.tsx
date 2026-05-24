@@ -213,30 +213,31 @@ export function SalesLineDialog({
             </div>
           </div>
 
-          <DialogFooter>
-            <Button variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleSave} disabled={isSaving}>
-              {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Save
-            </Button>
-          </DialogFooter>
-
-          {hasTracking && onAssignTracking && (
-            <div className="mt-3 border-t pt-4 pb-2">
-              <Button
-                variant="outline"
-                className="w-full justify-center border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
-                onClick={() => {
-                  onAssignTracking();
-                  onOpenChange(false);
-                }}
-              >
-                Item Tracking
+          <DialogFooter className="flex items-center justify-between border-t pt-3 gap-2 shrink-0">
+            <div>
+              {hasTracking && onAssignTracking && (
+                <Button
+                  variant="outline"
+                  className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 h-8"
+                  onClick={() => {
+                    onAssignTracking();
+                    onOpenChange(false);
+                  }}
+                >
+                  Item Tracking
+                </Button>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" className="h-8" onClick={() => onOpenChange(false)}>
+                Cancel
+              </Button>
+              <Button size="sm" className="h-8" onClick={handleSave} disabled={isSaving}>
+                {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Save
               </Button>
             </div>
-          )}
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 

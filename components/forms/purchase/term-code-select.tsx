@@ -11,6 +11,7 @@ interface TermCodeSelectProps {
   disabled?: boolean;
   className?: string;
   hasError?: boolean;
+  hideClearButton?: boolean;
 }
 
 export function TermCodeSelect({
@@ -19,6 +20,7 @@ export function TermCodeSelect({
   disabled,
   className,
   hasError,
+  hideClearButton = true,
 }: TermCodeSelectProps) {
   const fetchData = useCallback(async (skip: number, search: string) => {
     return await purchaseDropdownsService.getTermsAndConditionsPage(skip, search, 30);
@@ -41,6 +43,7 @@ export function TermCodeSelect({
         { id: "Terms", label: "Terms", width: "150px" },
         { id: "Conditions", label: "Conditions" },
       ]}
+      hideClearButton={hideClearButton}
     />
   );
 }

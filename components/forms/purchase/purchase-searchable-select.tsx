@@ -49,6 +49,58 @@ export function PurchaseSearchableSelect({
   const [isLoadingMore, setIsLoadingMore] = React.useState(false);
   const [hasMore, setHasMore] = React.useState(Boolean(loadMore));
   const debounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const triggerRef = React.useRef<HTMLButtonElement>(null);
+
+  const handlePopoverKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    const activeEl = document.activeElement;
+    if (
+      activeEl &&
+      (activeEl.tagName === "INPUT" ||
+        activeEl.tagName === "TEXTAREA" ||
+        activeEl.tagName === "SELECT")
+    ) {
+      return;
+    }
+
+    if (e.ctrlKey || e.altKey || e.metaKey) return;
+    if (
+      e.key === "Tab" ||
+      e.key === "Shift" ||
+      e.key === "Enter" ||
+      e.key === " " ||
+      e.key === "Escape" ||
+      e.key === "ArrowUp" ||
+      e.key === "ArrowDown" ||
+      e.key === "ArrowLeft" ||
+      e.key === "ArrowRight" ||
+      e.key === "Delete"
+    ) {
+      return;
+    }
+
+    if (e.key === "Backspace") {
+      const searchInput = document.getElementById("purchase-searchable-select-search-input") as HTMLInputElement | null;
+      if (searchInput) {
+        e.preventDefault();
+        searchInput.focus();
+        const nextVal = search.slice(0, -1);
+        setSearch(nextVal);
+        handleSearchChange(nextVal);
+      }
+      return;
+    }
+
+    if (e.key.length === 1) {
+      const searchInput = document.getElementById("purchase-searchable-select-search-input") as HTMLInputElement | null;
+      if (searchInput) {
+        e.preventDefault();
+        searchInput.focus();
+        const nextVal = search + e.key;
+        setSearch(nextVal);
+        handleSearchChange(nextVal);
+      }
+    }
+  };
 
   React.useEffect(() => {
     if (loadMore) {
@@ -154,6 +206,7 @@ export function PurchaseSearchableSelect({
     <Popover open={open} onOpenChange={handleOpenChange}>
       <PopoverTrigger asChild>
         <Button
+          ref={triggerRef}
           variant="outline"
           role="combobox"
           className={cn(
@@ -173,15 +226,28 @@ export function PurchaseSearchableSelect({
         className="flex max-h-(--radix-popover-content-available-height,80vh) min-h-0 w-(--radix-popover-trigger-width) min-w-55 flex-col overflow-hidden p-0"
         align="start"
         collisionPadding={8}
-        onOpenAutoFocus={(e) => e.preventDefault()}
+        onCloseAutoFocus={(e) => {
+          e.preventDefault();
+          triggerRef.current?.focus();
+        }}
+        onKeyDown={handlePopoverKeyDown}
       >
         <div className="border-b p-2">
           <Input
+            id="purchase-searchable-select-search-input"
             placeholder="Search..."
             value={search}
             onChange={(e) => handleSearchChange(e.target.value)}
             className={cn("h-8", searchInputClassName)}
             autoFocus
+            onKeyDown={(e) => {
+              if (e.key === "ArrowDown") {
+                e.preventDefault();
+                const container = e.currentTarget.parentElement?.nextElementSibling;
+                const firstOption = container?.querySelector('button') as HTMLElement;
+                firstOption?.focus();
+              }
+            }}
           />
         </div>
         <div
@@ -201,13 +267,31 @@ export function PurchaseSearchableSelect({
               className={cn(
                 "group relative flex w-full cursor-default items-start rounded-sm py-1.5 pr-8 pl-2 text-sm outline-none select-none",
                 value === opt.value
-                  ? "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
-                  : "hover:bg-muted hover:text-foreground",
+                  ? "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground focus:bg-primary/90 focus:text-primary-foreground focus:outline-none"
+                  : "hover:bg-muted hover:text-foreground focus:bg-muted focus:text-foreground focus:outline-none",
               )}
               onClick={() => {
                 onChange(opt.value);
                 setOpen(false);
                 setSearch("");
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "ArrowDown") {
+                  e.preventDefault();
+                  const next = e.currentTarget.nextElementSibling as HTMLElement;
+                  if (next && next.tagName === "BUTTON") {
+                    next.focus();
+                  }
+                } else if (e.key === "ArrowUp") {
+                  e.preventDefault();
+                  const prev = e.currentTarget.previousElementSibling as HTMLElement;
+                  if (prev && prev.tagName === "BUTTON") {
+                    prev.focus();
+                  } else {
+                    const searchInput = document.getElementById("purchase-searchable-select-search-input") as HTMLElement;
+                    searchInput?.focus();
+                  }
+                }
               }}
             >
               <span

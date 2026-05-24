@@ -44,6 +44,7 @@ export interface GenericLookupModalProps<T> {
   displayValueExtractor: (item: T) => string;
   icon?: React.ReactNode;
   pageSize?: number;
+  hideClearButton?: boolean;
 }
 
 export function GenericLookupModal<T>({
@@ -60,6 +61,7 @@ export function GenericLookupModal<T>({
   displayValueExtractor,
   icon = <List className="text-muted-foreground h-4 w-4" />,
   pageSize = 30,
+  hideClearButton = false,
 }: GenericLookupModalProps<T>) {
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<T[]>([]);
@@ -179,6 +181,53 @@ export function GenericLookupModal<T>({
     setOpen(false);
   };
 
+  const handleDialogKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    const activeEl = document.activeElement;
+    if (
+      activeEl &&
+      (activeEl.tagName === "INPUT" ||
+        activeEl.tagName === "TEXTAREA" ||
+        activeEl.tagName === "SELECT")
+    ) {
+      return;
+    }
+
+    if (e.ctrlKey || e.altKey || e.metaKey) return;
+    if (
+      e.key === "Tab" ||
+      e.key === "Shift" ||
+      e.key === "Enter" ||
+      e.key === " " ||
+      e.key === "Escape" ||
+      e.key === "ArrowUp" ||
+      e.key === "ArrowDown" ||
+      e.key === "ArrowLeft" ||
+      e.key === "ArrowRight" ||
+      e.key === "Delete"
+    ) {
+      return;
+    }
+
+    if (e.key === "Backspace") {
+      const searchInput = document.getElementById("generic-lookup-search-input") as HTMLInputElement | null;
+      if (searchInput) {
+        e.preventDefault();
+        searchInput.focus();
+        setSearchQuery((prev) => prev.slice(0, -1));
+      }
+      return;
+    }
+
+    if (e.key.length === 1) {
+      const searchInput = document.getElementById("generic-lookup-search-input") as HTMLInputElement | null;
+      if (searchInput) {
+        e.preventDefault();
+        searchInput.focus();
+        setSearchQuery((prev) => prev + e.key);
+      }
+    }
+  };
+
   const selectedItem = items.find((t) => keyExtractor(t) === value);
   const displayLabel = selectedItem ? displayValueExtractor(selectedItem) : value;
 
@@ -206,7 +255,7 @@ export function GenericLookupModal<T>({
           </span>
         </div>
         <div className="flex items-center gap-1 shrink-0">
-          {value && !disabled && (
+          {value && !disabled && !hideClearButton && (
             <div
               role="button"
               tabIndex={0}
@@ -240,6 +289,7 @@ export function GenericLookupModal<T>({
             e.preventDefault();
             triggerRef.current?.focus();
           }}
+          onKeyDown={handleDialogKeyDown}
         >
           <div id="generic-lookup-modal-description" className="sr-only">
             Select an option from the list. Use the search field to filter options.
@@ -265,11 +315,19 @@ export function GenericLookupModal<T>({
               <div className="relative flex-1">
                 <Search className="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
                 <Input
+                  id="generic-lookup-search-input"
                   placeholder="Search..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="bg-background h-8 pl-9 pr-9 text-sm focus-visible:ring-1"
                   autoFocus
+                  onKeyDown={(e) => {
+                    if (e.key === "ArrowDown") {
+                      e.preventDefault();
+                      const firstRow = scrollContainerRef.current?.querySelector('tbody tr[tabindex="0"]') as HTMLElement;
+                      firstRow?.focus();
+                    }
+                  }}
                 />
                 {searchQuery && (
                   <button type="button" onClick={() => setSearchQuery("")} className="absolute top-1/2 right-3 -translate-y-1/2">
@@ -317,12 +375,34 @@ export function GenericLookupModal<T>({
                     return (
                       <tr
                         key={itemValue}
+                        tabIndex={0}
                         onClick={() => handleSelect(item)}
                         className={cn(
-                          "group cursor-pointer border-b transition-colors hover:bg-primary/5",
+                          "group cursor-pointer border-b transition-colors outline-none focus:bg-primary/10 hover:bg-primary/5",
                           idx % 2 === 0 ? "bg-background" : "bg-muted/20",
                           value === itemValue && "bg-primary/10"
                         )}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            handleSelect(item);
+                          } else if (e.key === "ArrowDown") {
+                            e.preventDefault();
+                            const next = e.currentTarget.nextElementSibling as HTMLElement;
+                            if (next && next.tabIndex === 0) {
+                              next.focus();
+                            }
+                          } else if (e.key === "ArrowUp") {
+                            e.preventDefault();
+                            const prev = e.currentTarget.previousElementSibling as HTMLElement;
+                            if (prev && prev.tabIndex === 0) {
+                              prev.focus();
+                            } else {
+                              const searchInput = document.getElementById("generic-lookup-search-input") as HTMLElement;
+                              searchInput?.focus();
+                            }
+                          }
+                        }}
                       >
                         <td className="w-10 px-3 py-2.5 text-center">
                           {value === itemValue && <Check className="mx-auto h-3.5 w-3.5 text-primary" />}

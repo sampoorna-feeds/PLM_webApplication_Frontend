@@ -11,6 +11,7 @@ interface CreditorTypeSelectProps {
   disabled?: boolean;
   className?: string;
   hasError?: boolean;
+  hideClearButton?: boolean;
 }
 
 interface CreditorTypeItem {
@@ -24,6 +25,7 @@ export function CreditorTypeSelect({
   disabled,
   className,
   hasError,
+  hideClearButton = false,
 }: CreditorTypeSelectProps) {
   const fetchData = useCallback(async (skip: number, search: string) => {
     // Client-side search and pagination for static data
@@ -51,6 +53,7 @@ export function CreditorTypeSelect({
         { id: "no", label: "No.", width: "80px", render: (_, idx) => idx + 1 },
         { id: "label", label: "Creditor Type" },
       ]}
+      hideClearButton={hideClearButton}
     />
   );
 }

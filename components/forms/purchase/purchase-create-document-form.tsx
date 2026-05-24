@@ -2209,6 +2209,7 @@ export function PurchaseCreateDocumentFormContent({
                             handleInputChange("creditorType", value)
                           }
                           disabled={areFieldsReadOnly}
+                          hideClearButton={true}
                         />
                       </ClearableField>
                     </div>
@@ -2408,6 +2409,26 @@ export function PurchaseCreateDocumentFormContent({
               </AccordionItem>
             )}
           </Accordion>
+
+          {isCreateMode && !createdOrderNo && (
+            <div className="mt-6 mb-8 flex justify-end gap-3 border-t pt-4">
+              <Button
+                type="button"
+                className="h-9 px-4 font-semibold shadow-sm"
+                onClick={handleCreateOrderHeader}
+                disabled={!isStep1Valid() || isCreatingHeader}
+              >
+                {isCreatingHeader ? (
+                  <>
+                    <LoaderCircleIcon className="mr-1.5 h-4 w-4 animate-spin" />
+                    Creating...
+                  </>
+                ) : (
+                  config.createHeaderButtonLabel
+                )}
+              </Button>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -2676,27 +2697,7 @@ export function PurchaseCreateDocumentFormContent({
                   Copy Document
                 </Button>
               )}
-              {isCreateMode &&
-                !createdOrderNo &&
-                (documentType !== "order" ||
-                  webUserProfile?.Access_Purchase_Order === "Edit") && (
-                  <Button
-                    type="button"
-                    size="sm"
-                    className="h-8"
-                    onClick={handleCreateOrderHeader}
-                    disabled={!isStep1Valid() || isCreatingHeader}
-                  >
-                    {isCreatingHeader ? (
-                      <>
-                        <LoaderCircleIcon className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-                        Creating...
-                      </>
-                    ) : (
-                      config.createHeaderButtonLabel
-                    )}
-                  </Button>
-                )}
+
             </>
           )}
         </div>

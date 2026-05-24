@@ -239,11 +239,26 @@ export function SalesLineItemsTable({
               return (
                 <TableRow
                   key={line.Line_No}
+                  tabIndex={0}
                   className={cn(
-                    "hover:bg-muted/50 cursor-pointer",
-                    hasTracking && "bg-red-50 hover:bg-red-100",
+                    "hover:bg-muted/50 cursor-pointer outline-none focus:bg-primary/10",
+                    hasTracking && "bg-red-50 hover:bg-red-100 focus:bg-red-100/80",
                   )}
                   onClick={() => onRowClick?.(line)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      onRowClick?.(line);
+                    } else if (e.key === "ArrowDown") {
+                      e.preventDefault();
+                      const next = e.currentTarget.nextElementSibling as HTMLElement;
+                      if (next && next.tabIndex === 0) next.focus();
+                    } else if (e.key === "ArrowUp") {
+                      e.preventDefault();
+                      const prev = e.currentTarget.previousElementSibling as HTMLElement;
+                      if (prev && prev.tabIndex === 0) prev.focus();
+                    }
+                  }}
                 >
                   <TableCell
                     className="text-center"

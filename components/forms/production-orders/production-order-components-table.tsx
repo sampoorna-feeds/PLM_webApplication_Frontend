@@ -118,15 +118,30 @@ export function ProductionOrderComponentsTable({
             return (
               <TableRow
                 key={`${component.Prod_Order_No}-${component.Prod_Order_Line_No}-${component.Line_No}`}
+                tabIndex={0}
                 className={cn(
+                  "hover:bg-muted/50 cursor-pointer outline-none focus:bg-primary/10",
                   isAssigned
-                    ? "text-green-600"
+                    ? "text-green-600 bg-green-50/50 hover:bg-green-100/70 focus:bg-green-100"
                     : hasTracking
-                      ? "text-red-600"
+                      ? "text-red-600 bg-red-50 hover:bg-red-100 focus:bg-red-100/80"
                       : "",
-                  "hover:bg-muted/50 cursor-pointer",
                 )}
                 onClick={() => onRowClick?.(component, hasTracking)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    onRowClick?.(component, hasTracking);
+                  } else if (e.key === "ArrowDown") {
+                    e.preventDefault();
+                    const next = e.currentTarget.nextElementSibling as HTMLElement;
+                    if (next && next.tabIndex === 0) next.focus();
+                  } else if (e.key === "ArrowUp") {
+                    e.preventDefault();
+                    const prev = e.currentTarget.previousElementSibling as HTMLElement;
+                    if (prev && prev.tabIndex === 0) prev.focus();
+                  }
+                }}
               >
                 <TableCell>{component.Line_No}</TableCell>
                 <TableCell>{component.Prod_Order_Line_No}</TableCell>

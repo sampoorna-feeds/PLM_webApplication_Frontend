@@ -104,11 +104,26 @@ export function ProductionOrderLinesTable({
               return (
                 <TableRow
                   key={`${line.Prod_Order_No}-${line.Line_No}`}
+                  tabIndex={0}
                   className={cn(
-                    hasTracking && "text-red-600",
-                    "hover:bg-muted/50 cursor-pointer",
+                    "hover:bg-muted/50 cursor-pointer outline-none focus:bg-primary/10",
+                    hasTracking && "text-red-600 bg-red-50 hover:bg-red-100 focus:bg-red-100/80",
                   )}
                   onClick={() => onRowClick?.(line, hasTracking)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      onRowClick?.(line, hasTracking);
+                    } else if (e.key === "ArrowDown") {
+                      e.preventDefault();
+                      const next = e.currentTarget.nextElementSibling as HTMLElement;
+                      if (next && next.tabIndex === 0) next.focus();
+                    } else if (e.key === "ArrowUp") {
+                      e.preventDefault();
+                      const prev = e.currentTarget.previousElementSibling as HTMLElement;
+                      if (prev && prev.tabIndex === 0) prev.focus();
+                    }
+                  }}
                 >
                   <TableCell>{line.Line_No}</TableCell>
                   <TableCell className="font-medium">

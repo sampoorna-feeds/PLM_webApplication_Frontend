@@ -11,6 +11,7 @@ interface PaymentTermSelectProps {
   disabled?: boolean;
   className?: string;
   hasError?: boolean;
+  hideClearButton?: boolean;
 }
 
 export function PaymentTermSelect({
@@ -19,6 +20,7 @@ export function PaymentTermSelect({
   disabled,
   className,
   hasError,
+  hideClearButton = true,
 }: PaymentTermSelectProps) {
   const fetchData = useCallback(async (skip: number, search: string) => {
     return await purchaseDropdownsService.getPaymentTermsPage(skip, search, 30);
@@ -41,6 +43,7 @@ export function PaymentTermSelect({
         { id: "Code", label: "Code", width: "150px" },
         { id: "Description", label: "Description" },
       ]}
+      hideClearButton={hideClearButton}
     />
   );
 }

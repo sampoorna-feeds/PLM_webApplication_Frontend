@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
   ChevronsUpDown,
   Check,
@@ -49,6 +49,9 @@ export function OrderAddressSelect({
   const [editAddress, setEditAddress] = useState<OrderAddress | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
 
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
   const loadAddresses = useCallback(async () => {
     if (!vendorNo) {
       setAddresses([]);
@@ -88,21 +91,83 @@ export function OrderAddressSelect({
     );
   });
 
+  const handleDialogKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    const activeEl = document.activeElement;
+    if (
+      activeEl &&
+      (activeEl.tagName === "INPUT" ||
+        activeEl.tagName === "TEXTAREA" ||
+        activeEl.tagName === "SELECT")
+    ) {
+      return;
+    }
+
+    if (e.ctrlKey || e.altKey || e.metaKey) return;
+    if (
+      e.key === "Tab" ||
+      e.key === "Shift" ||
+      e.key === "Enter" ||
+      e.key === " " ||
+      e.key === "Escape" ||
+      e.key === "ArrowUp" ||
+      e.key === "ArrowDown" ||
+      e.key === "ArrowLeft" ||
+      e.key === "ArrowRight" ||
+      e.key === "Delete"
+    ) {
+      return;
+    }
+
+    if (e.key === "Backspace") {
+      const searchInput = document.getElementById("order-address-search-input") as HTMLInputElement | null;
+      if (searchInput) {
+        e.preventDefault();
+        searchInput.focus();
+        setSearchTerm((prev) => prev.slice(0, -1));
+      }
+      return;
+    }
+
+    if (e.key.length === 1) {
+      const searchInput = document.getElementById("order-address-search-input") as HTMLInputElement | null;
+      if (searchInput) {
+        e.preventDefault();
+        searchInput.focus();
+        setSearchTerm((prev) => prev + e.key);
+      }
+    }
+  };
+
+  const handleOpenChange = useCallback((next: boolean) => {
+    if (disabled) return;
+    if (!next) {
+      setSearchTerm("");
+      setTimeout(() => {
+        triggerRef.current?.focus();
+      }, 0);
+    }
+    setOpen(next);
+  }, [disabled]);
+
   const handleSelect = (addr: OrderAddress) => {
     onChange(addr.Code, addr);
-    setOpen(false);
+    handleOpenChange(false);
   };
 
   const handleDialogSaved = () => {
     loadAddresses();
     setDialogOpen(false);
     setEditAddress(null);
+    setTimeout(() => {
+      triggerRef.current?.focus();
+    }, 0);
   };
 
   return (
     <>
       <div className="flex items-center gap-1">
         <Button
+          ref={triggerRef}
           type="button"
           variant="outline"
           role="combobox"
@@ -127,17 +192,15 @@ export function OrderAddressSelect({
 
         <Dialog
           open={open}
-          onOpenChange={(val) => {
-            if (!disabled) setOpen(val);
-            if (!val) setSearchTerm("");
-          }}
+          onOpenChange={handleOpenChange}
         >
           <DialogContent
             className="flex h-[80vh] flex-col gap-0 p-0"
             style={{ width: "min(1000px, 92vw)", maxWidth: "none" }}
+            onKeyDown={handleDialogKeyDown}
           >
             {/* Header */}
-            <DialogHeader className="shrink-0 border-b px-5 py-3.5">
+            <DialogHeader className="shrink-0 border-b px-5 pr-16 py-3.5">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
                   <MapPin className="text-muted-foreground h-4 w-4" />
@@ -154,14 +217,14 @@ export function OrderAddressSelect({
                   )}
                 </div>
                 <Button
-                  variant="ghost"
+                  variant="outline"
                   size="sm"
                   onClick={() => {
-                    setOpen(false);
+                    handleOpenChange(false);
                     setEditAddress(null);
                     setDialogOpen(true);
                   }}
-                  className="h-8 px-2 text-xs"
+                  className="h-8 px-3 text-xs border-primary/30 text-primary hover:bg-primary/5 hover:text-primary font-medium flex items-center gap-1"
                 >
                   <Plus className="mr-1 h-3.5 w-3.5" />
                   Create New
@@ -174,11 +237,19 @@ export function OrderAddressSelect({
               <div className="relative flex-1">
                 <Search className="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
                 <Input
+                  id="order-address-search-input"
                   placeholder="Search by Code, Name, Address or City…"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="border-border/60 bg-background h-9 rounded-md pr-9 pl-9 text-sm shadow-none focus-visible:ring-1"
                   autoFocus
+                  onKeyDown={(e) => {
+                    if (e.key === "ArrowDown") {
+                      e.preventDefault();
+                      const firstRow = scrollContainerRef.current?.querySelector('tbody tr[tabindex="0"]') as HTMLElement;
+                      firstRow?.focus();
+                    }
+                  }}
                 />
                 {searchTerm && (
                   <button
@@ -193,7 +264,7 @@ export function OrderAddressSelect({
             </div>
 
             {/* Table Content */}
-            <div className="min-h-0 flex-1 overflow-auto">
+            <div ref={scrollContainerRef} className="min-h-0 flex-1 overflow-auto">
               <table className="w-full border-collapse text-sm">
                 <thead className="sticky top-0 z-10 bg-muted">
                   <tr>
@@ -232,13 +303,35 @@ export function OrderAddressSelect({
                       return (
                         <tr
                           key={addr.Code}
+                          tabIndex={0}
                           onClick={() => handleSelect(addr)}
                           className={cn(
-                            "group cursor-pointer border-b transition-colors",
+                            "group cursor-pointer border-b transition-colors outline-none focus:bg-primary/10",
                             idx % 2 === 0 ? "bg-background" : "bg-muted/20",
                             "hover:bg-primary/5",
                             isSelected && "bg-primary/5"
                           )}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              handleSelect(addr);
+                            } else if (e.key === "ArrowDown") {
+                              e.preventDefault();
+                              const next = e.currentTarget.nextElementSibling as HTMLElement;
+                              if (next && next.tabIndex === 0) {
+                                next.focus();
+                              }
+                            } else if (e.key === "ArrowUp") {
+                              e.preventDefault();
+                              const prev = e.currentTarget.previousElementSibling as HTMLElement;
+                              if (prev && prev.tabIndex === 0) {
+                                prev.focus();
+                              } else {
+                                const searchInput = document.getElementById("order-address-search-input") as HTMLElement;
+                                searchInput?.focus();
+                              }
+                            }
+                          }}
                         >
                           <td className="w-10 px-3 py-2.5 text-center">
                             {isSelected && <Check className="text-primary mx-auto h-3.5 w-3.5" />}

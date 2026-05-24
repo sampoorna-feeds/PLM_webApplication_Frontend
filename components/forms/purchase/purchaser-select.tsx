@@ -23,6 +23,7 @@ interface PurchaserSelectProps {
   className?: string;
   hasError?: boolean;
   errorClass?: string;
+  hideClearButton?: boolean;
 }
 
 export function PurchaserSelect({
@@ -33,6 +34,7 @@ export function PurchaserSelect({
   className,
   hasError = false,
   errorClass = "",
+  hideClearButton = true,
 }: PurchaserSelectProps) {
   const fetchData = useCallback(
     async (skip: number, search: string) => {
@@ -60,6 +62,7 @@ export function PurchaserSelect({
         { id: "Code", label: "Code", width: "120px" },
         { id: "Name", label: "Name" },
       ]}
+      hideClearButton={hideClearButton}
     />
   );
 }

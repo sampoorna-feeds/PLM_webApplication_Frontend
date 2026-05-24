@@ -43,6 +43,7 @@ import {
   SearchableSelect,
   type SearchableSelectOption,
 } from "@/components/ui/searchable-select";
+import { DropdownSearchableSelect } from "@/components/ui/dropdown-searchable-select";
 import {
   ApiErrorDialog,
   extractApiError,
@@ -371,7 +372,7 @@ export function SalesOrderLineEditDialog({
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent showCloseButton={false} className="sm:max-w-3xl max-h-[90vh] flex flex-col">
-          <DialogHeader className="flex-row items-center justify-between border-b pb-3 space-y-0">
+          <DialogHeader className="border-b pb-3">
             <DialogTitle className={cn("text-base font-semibold", hasTracking ? "text-red-600" : "")}>
               Edit Sales Line
               {hasTracking && (
@@ -380,50 +381,6 @@ export function SalesOrderLineEditDialog({
                 </span>
               )}
             </DialogTitle>
-            <div className="flex items-center gap-2">
-              {onDelete && line?.Line_No && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-destructive hover:bg-destructive/10 hover:text-destructive h-8 px-2 mr-2"
-                  onClick={handleDelete}
-                  disabled={isDeleting || isSaving || isReleased}
-                >
-                  {isDeleting ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  ) : (
-                    <Trash2 className="h-3.5 w-3.5" />
-                  )}
-                  <span className="ml-2 hidden sm:inline">Delete</span>
-                </Button>
-              )}
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="h-8 px-3"
-                onClick={() => onOpenChange(false)}
-                disabled={isSaving || isDeleting}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                className="h-8 px-3"
-                onClick={handleSave}
-                disabled={isSaving || isDeleting}
-              >
-                {isSaving ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Saving...
-                  </>
-                ) : (
-                  "Save"
-                )}
-              </Button>
-            </div>
           </DialogHeader>
 
 
@@ -506,7 +463,7 @@ export function SalesOrderLineEditDialog({
                     UOM
                   </Label>
                   <ClearableField value={uom} onClear={() => setUom("")} disabled={isReleased}>
-                    <SearchableSelect
+                    <DropdownSearchableSelect
                       value={uom}
                       onValueChange={setUom}
                       options={uomOptions}
@@ -561,7 +518,7 @@ export function SalesOrderLineEditDialog({
                     }}
                     disabled={isReleased}
                   >
-                    <SearchableSelect
+                    <DropdownSearchableSelect
                       value={gstGroupCode}
                       onValueChange={(val) => {
                         setGstGroupCode(val);
@@ -571,7 +528,6 @@ export function SalesOrderLineEditDialog({
                       isLoading={loadingOptions.gst}
                       placeholder="Select GST Group..."
                       searchPlaceholder="Search GST Groups..."
-                      allowCustomValue={true}
                       disabled={isReleased}
                     />
                   </ClearableField>
@@ -584,7 +540,7 @@ export function SalesOrderLineEditDialog({
                     onClear={() => setHsnSacCode("")}
                     disabled={!gstGroupCode || isReleased}
                   >
-                    <SearchableSelect
+                    <DropdownSearchableSelect
                       value={hsnSacCode}
                       onValueChange={setHsnSacCode}
                       options={hsnOptions}
@@ -592,7 +548,6 @@ export function SalesOrderLineEditDialog({
                       placeholder={gstGroupCode ? "Select HSN/SAC..." : "Select GST Group first"}
                       searchPlaceholder="Search HSN/SAC Codes..."
                       disabled={!gstGroupCode || isReleased}
-                      allowCustomValue={true}
                     />
                   </ClearableField>
                 </div>
@@ -675,6 +630,55 @@ export function SalesOrderLineEditDialog({
           )}
 
           </div>
+
+          <DialogFooter className="border-t pt-3 flex items-center justify-between gap-2 shrink-0">
+            <div>
+              {onDelete && line?.Line_No && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-destructive hover:bg-destructive/10 hover:text-destructive h-8 px-2"
+                  onClick={handleDelete}
+                  disabled={isDeleting || isSaving || isReleased}
+                >
+                  {isDeleting ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Trash2 className="h-3.5 w-3.5" />
+                  )}
+                  <span className="ml-2 hidden sm:inline">Delete</span>
+                </Button>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-8 px-3"
+                onClick={() => onOpenChange(false)}
+                disabled={isSaving || isDeleting}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                className="h-8 px-3"
+                onClick={handleSave}
+                disabled={isSaving || isDeleting}
+              >
+                {isSaving ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  "Save"
+                )}
+              </Button>
+            </div>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 

@@ -485,6 +485,7 @@ export function AccountSelect({
         onCloseAutoFocus={(e) => {
           // Prevent auto-focus from scrolling
           e.preventDefault();
+          inputRef.current?.focus();
         }}
       >
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">

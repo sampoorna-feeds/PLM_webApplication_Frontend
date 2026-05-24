@@ -74,6 +74,7 @@ export function GenericLookupModal<T>({
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const sentinelRef = useRef<HTMLTableRowElement>(null);
   const lastRequestId = useRef(0);
+  const triggerRef = useRef<HTMLButtonElement>(null);
 
   const isLoading = useRef(false);
   const isLoadingMore = useRef(false);
@@ -184,6 +185,7 @@ export function GenericLookupModal<T>({
   return (
     <>
       <Button
+        ref={triggerRef}
         type="button"
         variant="outline"
         onClick={() => setOpen(true)}
@@ -234,6 +236,10 @@ export function GenericLookupModal<T>({
           className="flex h-[70vh] flex-col gap-0 p-0"
           style={{ width: "min(600px, 95vw)", maxWidth: "none" }}
           aria-describedby="generic-lookup-modal-description"
+          onCloseAutoFocus={(e) => {
+            e.preventDefault();
+            triggerRef.current?.focus();
+          }}
         >
           <div id="generic-lookup-modal-description" className="sr-only">
             Select an option from the list. Use the search field to filter options.

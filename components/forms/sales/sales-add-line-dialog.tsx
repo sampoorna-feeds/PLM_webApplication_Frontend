@@ -29,6 +29,7 @@ import {
   SearchableSelect as AppSearchableSelect,
   type SearchableSelectOption,
 } from "@/components/ui/searchable-select";
+import { DropdownSearchableSelect } from "@/components/ui/dropdown-searchable-select";
 import {
   getItemUnitOfMeasures,
   getItemByNo,
@@ -471,36 +472,8 @@ export function SalesAddLineDialog({
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent showCloseButton={false} className="sm:max-w-3xl max-h-[90vh] flex flex-col">
-          <DialogHeader className="flex-row items-center justify-between border-b pb-3 space-y-0">
+          <DialogHeader className="border-b pb-3">
             <DialogTitle>Add Line Item</DialogTitle>
-            <div className="flex items-center gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="h-8 px-3"
-                onClick={() => onOpenChange(false)}
-                disabled={isSaving}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                className="h-8 px-3"
-                onClick={handleSubmit}
-                disabled={isSaving}
-              >
-                {isSaving ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Adding...
-                  </>
-                ) : (
-                  "Add Line"
-                )}
-              </Button>
-            </div>
           </DialogHeader>
 
           <div className="space-y-4 overflow-y-auto flex-1 pr-1 -mr-1 mt-4">
@@ -622,7 +595,7 @@ export function SalesAddLineDialog({
 
                   <div className="space-y-1 sm:col-span-3">
                     <FieldTitle>UOM</FieldTitle>
-                    <AppSearchableSelect
+                    <DropdownSearchableSelect
                       value={form.uom}
                       onValueChange={(v) => set("uom", v)}
                       options={uomOptions}
@@ -843,7 +816,7 @@ export function SalesAddLineDialog({
 
                   <div className="space-y-1">
                     <FieldTitle>GST Group Code</FieldTitle>
-                    <AppSearchableSelect
+                    <DropdownSearchableSelect
                       value={form.gstGroupCode}
                       onValueChange={(v) => {
                         set("gstGroupCode", v);
@@ -858,7 +831,7 @@ export function SalesAddLineDialog({
 
                   <div className="space-y-1">
                     <FieldTitle>HSN/SAC Code</FieldTitle>
-                    <AppSearchableSelect
+                    <DropdownSearchableSelect
                       value={form.hsnSacCode}
                       onValueChange={(v) => set("hsnSacCode", v)}
                       options={hsnOptions}
@@ -880,6 +853,35 @@ export function SalesAddLineDialog({
               <p className="text-destructive text-xs mt-2">{validationError}</p>
             )}
           </div>
+
+          <DialogFooter className="border-t pt-3 flex items-center justify-end gap-2 shrink-0">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-8 px-3"
+              onClick={() => onOpenChange(false)}
+              disabled={isSaving}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              className="h-8 px-3"
+              onClick={handleSubmit}
+              disabled={isSaving}
+            >
+              {isSaving ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Adding...
+                </>
+              ) : (
+                "Add Line"
+              )}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 

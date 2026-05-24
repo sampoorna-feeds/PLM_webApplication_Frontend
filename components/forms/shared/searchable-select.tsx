@@ -421,6 +421,7 @@ export function SearchableSelect<T extends SearchableItem>({
         collisionPadding={8}
         onCloseAutoFocus={(e) => {
           e.preventDefault();
+          inputRef.current?.focus();
         }}
         onOpenAutoFocus={(e) => {
           e.preventDefault();

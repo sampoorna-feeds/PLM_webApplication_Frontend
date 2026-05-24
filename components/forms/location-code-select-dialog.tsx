@@ -325,6 +325,10 @@ export function LocationCodeSelectDialog({
             maxWidth: "none",
             height: size === "sm" ? "55vh" : "80vh",
           }}
+          onCloseAutoFocus={(e) => {
+            e.preventDefault();
+            triggerRef.current?.focus();
+          }}
         >
           {/* Header */}
           <DialogHeader className="shrink-0 border-b px-5 py-3">

@@ -387,7 +387,10 @@ export function LocationSelect({
         className="flex max-h-[var(--radix-popover-content-available-height,80vh)] min-h-0 w-auto max-w-[95vw] min-w-[320px] flex-col overflow-hidden p-0"
         align="start"
         onOpenAutoFocus={(e) => e.preventDefault()}
-        onCloseAutoFocus={(e) => e.preventDefault()}
+        onCloseAutoFocus={(e) => {
+          e.preventDefault();
+          inputRef.current?.focus();
+        }}
       >
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden" style={{ width: "min(800px, 92vw)" }}>
           <div className="flex items-center justify-between border-b px-3 py-2 bg-muted/30">

@@ -9,13 +9,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { useAuth } from "@/lib/contexts/auth-context";
 import {
   getAllBranchesFromUserSetup,
@@ -107,32 +101,21 @@ export function SalesPlanningModal({
         <div className="grid gap-4 py-4">
           <div className="flex flex-col gap-2">
             <label className="text-sm font-medium">Select Location</label>
-            <Select
+            <SearchableSelect
               value={selectedLocation}
               onValueChange={setSelectedLocation}
               disabled={isLoading || isFetchingLocations}
-            >
-              <SelectTrigger>
-                <SelectValue
-                  placeholder={
-                    isFetchingLocations ? "Loading..." : "Select a location"
-                  }
-                />
-              </SelectTrigger>
-              <SelectContent>
-                {locations.length === 0 && !isFetchingLocations ? (
-                  <div className="p-2 text-center text-sm text-muted-foreground">
-                    No locations found
-                  </div>
-                ) : (
-                  locations.map((loc) => (
-                    <SelectItem key={loc.Code} value={loc.Code}>
-                      {loc.Name ? `${loc.Code} - ${loc.Name}` : loc.Code}
-                    </SelectItem>
-                  ))
-                )}
-              </SelectContent>
-            </Select>
+              isLoading={isFetchingLocations}
+              options={locations.map((loc) => ({
+                value: loc.Code,
+                label: loc.Name ? `${loc.Code} - ${loc.Name}` : loc.Code,
+              }))}
+              placeholder={
+                isFetchingLocations ? "Loading..." : "Select a location"
+              }
+              searchPlaceholder="Search location..."
+              className="h-9 text-sm"
+            />
           </div>
         </div>
         <DialogFooter>

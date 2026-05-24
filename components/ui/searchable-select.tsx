@@ -249,7 +249,7 @@ export function SearchableSelect({
         <div className="relative w-full">
           <Input
             ref={inputRef}
-            value={isFocused ? searchQuery : (displayLabel || "")}
+            value={(isFocused || open) ? searchQuery : (displayLabel || "")}
             onChange={(e) => {
               const query = e.target.value;
               handleSearchChange(query);
@@ -321,6 +321,21 @@ export function SearchableSelect({
         }}
       >
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+          {searchQuery && (
+            <div className="bg-muted/40 border-b px-2.5 py-1.5 text-[10px] text-muted-foreground flex items-center justify-between shrink-0">
+              <span className="truncate">Searching for: <span className="font-semibold text-foreground">"{searchQuery}"</span></span>
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchQuery("");
+                  if (onSearch) onSearch("");
+                }}
+                className="text-[9px] hover:text-foreground text-muted-foreground ml-2 shrink-0 transition-colors"
+              >
+                Clear
+              </button>
+            </div>
+          )}
           {/* Options List */}
           <div
             ref={listRef}
@@ -370,8 +385,8 @@ export function SearchableSelect({
                     </span>
                   </div>
                 ) : (
-                  <div className="text-muted-foreground py-4 text-center text-sm">
-                    {emptyText}
+                  <div className="text-muted-foreground py-4 text-center text-sm px-2">
+                    {searchQuery ? `No results found for "${searchQuery}"` : emptyText}
                   </div>
                 )}
               </div>

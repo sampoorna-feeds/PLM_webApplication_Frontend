@@ -356,7 +356,7 @@ export function SearchableSelect<T extends SearchableItem>({
         <div className="relative w-full">
           <Input
             ref={inputRef}
-            value={isFocused ? searchQuery : displayValue}
+            value={(isFocused || isOpen) ? searchQuery : displayValue}
             onChange={(e) => {
               const query = e.target.value;
               setSearchQuery(query);
@@ -428,6 +428,21 @@ export function SearchableSelect<T extends SearchableItem>({
         }}
       >
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+          {searchQuery && (
+            <div className="bg-muted/40 border-b px-2.5 py-1.5 text-[10px] text-muted-foreground flex items-center justify-between shrink-0">
+              <span className="truncate">Searching for: <span className="font-semibold text-foreground">"{searchQuery}"</span></span>
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchQuery("");
+                  performSearch("");
+                }}
+                className="text-[9px] hover:text-foreground text-muted-foreground ml-2 shrink-0 transition-colors"
+              >
+                Clear
+              </button>
+            </div>
+          )}
           {/* Items List */}
 
           {/* Items List */}
@@ -442,10 +457,10 @@ export function SearchableSelect<T extends SearchableItem>({
                 <Loader2 className="text-muted-foreground h-4 w-4 animate-spin" />
               </div>
             ) : filteredItems.length === 0 ? (
-              <div className="text-muted-foreground py-6 text-center text-sm">
+              <div className="text-muted-foreground py-6 text-center text-sm px-2">
                 {searchQuery.length < minSearchLength
                   ? `Type at least ${minSearchLength} characters to search`
-                  : "No items found"}
+                  : `No items found for "${searchQuery}"`}
               </div>
             ) : (
               <>

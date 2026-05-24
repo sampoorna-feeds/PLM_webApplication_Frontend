@@ -4,7 +4,8 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { toast } from "sonner";
 import { toastError } from "@/lib/errors";
 import { useAuth } from "@/lib/contexts/auth-context";
-import { getAllLOCsFromUserSetup } from "@/lib/api/services/dimension.service";
+import { getAllBranchesFromUserSetup } from "@/lib/api/services/dimension.service";
+import { getLocationsByBranches } from "@/lib/api/services/location.service";
 import {
   getOpeningBalancePerItem,
   getIncreasesPerItem,
@@ -100,27 +101,31 @@ export function useInventorySummary() {
   const [loadingPhase, setLoadingPhase] = useState<LoadingPhase>("idle");
   const [currentPage, setCurrentPage] = useState(1);
 
-  // ─── Load locations ───
-
+  // ─── Load user's assigned location codes from LocationList filtered by WebUserSetup branches ───
   useEffect(() => {
     if (!userID) return;
 
     const loadLocations = async () => {
       setIsLoadingLocations(true);
       try {
-        const locs = await getAllLOCsFromUserSetup(userID);
-        const options = locs.map((loc) => ({
+        const branches = await getAllBranchesFromUserSetup(userID);
+        const branchCodes = branches.map((b) => b.Code).filter(Boolean);
+        const locations = await getLocationsByBranches(branchCodes);
+
+        const options = locations.map((loc) => ({
           label: `${loc.Code} - ${loc.Name || ""}`,
           value: loc.Code,
         }));
         setLocationOptions(options);
 
+        // Keep all locations deselected by default
         const allCodes = options.map((opt) => opt.value);
         setAllLocationCodes(allCodes);
-        setFilters((prev) => ({ ...prev, locationCodes: allCodes }));
+        setFilters((prev) => ({ ...prev, locationCodes: [] }));
       } catch (error) {
-        console.error("Error loading locations:", error);
+        console.error("Error loading user locations:", error);
         toastError(error, "Failed to load location options");
+        setLocationOptions([]);
       } finally {
         setIsLoadingLocations(false);
       }
@@ -498,7 +503,7 @@ export function useInventorySummary() {
         if (
           "locationCodes" in newFilters &&
           JSON.stringify(newFilters.locationCodes) !==
-            JSON.stringify(prev.locationCodes)
+          JSON.stringify(prev.locationCodes)
         ) {
           next.itemNo = "";
           setItemSearchQuery("");
@@ -536,7 +541,7 @@ export function useInventorySummary() {
   const handleClearFilters = useCallback(() => {
     const resetFilters = {
       ...EMPTY_SUMMARY_FILTERS,
-      locationCodes: allLocationCodes,
+      locationCodes: [],
     };
     setFilters(resetFilters);
     setAppliedFilters(EMPTY_SUMMARY_FILTERS);
@@ -547,7 +552,7 @@ export function useInventorySummary() {
     setItemPage(1);
     setItemOptions([]);
     setHasMoreItems(false);
-  }, [allLocationCodes]);
+  }, []);
 
   const handlePageChange = useCallback((page: number) => {
     setCurrentPage(page);

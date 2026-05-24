@@ -11,6 +11,7 @@ import {
   Popover,
   PopoverContent,
   PopoverTrigger,
+  PopoverAnchor,
 } from "@/components/ui/popover";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import type { SummaryFilters } from "./use-inventory-summary";
@@ -55,6 +56,7 @@ export function SummaryFilterBar({
   onExport,
 }: SummaryFilterBarProps) {
   const [locPopoverOpen, setLocPopoverOpen] = useState(false);
+  const [locationSearch, setLocationSearch] = useState("");
 
   const hasActiveFilters =
     filters.locationCodes.length > 0 ||
@@ -62,17 +64,17 @@ export function SummaryFilterBar({
     filters.postingDateTo ||
     (filters.additionalFilters && filters.additionalFilters.length > 0);
 
+  // Filter location options based on search query
+  const filteredLocationOptions = locationOptions.filter(
+    (opt) =>
+      opt.label.toLowerCase().includes(locationSearch.toLowerCase()) ||
+      opt.value.toLowerCase().includes(locationSearch.toLowerCase()),
+  );
+
   // Location multi-select helpers
-  const knownCodes = new Set(locationOptions.map((opt) => opt.value));
-  const standardSelected = filters.locationCodes.filter((c) =>
-    knownCodes.has(c),
-  );
-  const customSelected = filters.locationCodes.filter(
-    (c) => !knownCodes.has(c),
-  );
   const allSelected =
     locationOptions.length > 0 &&
-    standardSelected.length === locationOptions.length;
+    filters.locationCodes.length === locationOptions.length;
   const noneSelected = filters.locationCodes.length === 0;
 
   const toggleLocation = (code: string) => {
@@ -84,14 +86,19 @@ export function SummaryFilterBar({
   };
 
   const selectAllLocations = () => {
-    // Keep custom codes, add all standard ones
-    const allStandard = locationOptions.map((opt) => opt.value);
-    const merged = [...new Set([...customSelected, ...allStandard])];
+    const filteredCodes = filteredLocationOptions.map((opt) => opt.value);
+    const merged = [...new Set([...filters.locationCodes, ...filteredCodes])];
     onFiltersChange({ locationCodes: merged });
   };
 
   const deselectAllLocations = () => {
-    onFiltersChange({ locationCodes: [] });
+    if (locationSearch.trim()) {
+      const filteredCodes = new Set(filteredLocationOptions.map((opt) => opt.value));
+      const remaining = filters.locationCodes.filter((c) => !filteredCodes.has(c));
+      onFiltersChange({ locationCodes: remaining });
+    } else {
+      onFiltersChange({ locationCodes: [] });
+    }
   };
 
   const handleAddAdditionalFilter = (filter: FilterCondition) => {
@@ -106,21 +113,14 @@ export function SummaryFilterBar({
     });
   };
 
-  // Location trigger text — distinguish custom vs standard
+  // Location trigger text
   const locationTriggerText = (() => {
     if (isLoadingLocations) return "Loading...";
     if (noneSelected) return "Select locations...";
-    const parts: string[] = [];
-    if (customSelected.length > 0)
-      parts.push(`${customSelected.length} custom`);
     if (allSelected) {
-      parts.push(`all ${locationOptions.length} selected`);
-    } else {
-      parts.push(
-        `${standardSelected.length}/${locationOptions.length} selected`,
-      );
+      return `all ${locationOptions.length} selected`;
     }
-    return parts.join(", ");
+    return `${filters.locationCodes.length}/${locationOptions.length} selected`;
   })();
 
   return (
@@ -131,28 +131,63 @@ export function SummaryFilterBar({
           <Label className="text-xs font-medium">
             Location Code <span className="text-destructive">*</span>
           </Label>
-          <Popover open={locPopoverOpen} onOpenChange={setLocPopoverOpen}>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                role="combobox"
-                aria-expanded={locPopoverOpen}
+          <Popover
+            open={locPopoverOpen}
+            onOpenChange={(open) => {
+              setLocPopoverOpen(open);
+              if (!open) setLocationSearch("");
+            }}
+          >
+            <PopoverAnchor asChild>
+              <div
+                onClick={() => !isLoadingLocations && setLocPopoverOpen(true)}
                 className={cn(
-                  "w-full justify-between font-normal",
-                  noneSelected && "text-muted-foreground",
+                  "flex h-9 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-within:ring-1 focus-within:ring-ring cursor-pointer",
+                  isLoadingLocations && "opacity-50 cursor-not-allowed"
                 )}
-                disabled={isLoadingLocations}
               >
-                <span className="truncate">{locationTriggerText}</span>
-                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-              </Button>
-            </PopoverTrigger>
+                <input
+                  type="text"
+                  value={locationSearch}
+                  onChange={(e) => {
+                    setLocationSearch(e.target.value);
+                    if (!locPopoverOpen) setLocPopoverOpen(true);
+                  }}
+                  onFocus={() => !isLoadingLocations && setLocPopoverOpen(true)}
+                  placeholder={locationTriggerText}
+                  disabled={isLoadingLocations}
+                  className="w-full bg-transparent focus:outline-none text-sm placeholder:text-foreground/80 truncate cursor-text"
+                />
+                {locationSearch ? (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setLocationSearch("");
+                    }}
+                    className="ml-2 shrink-0 text-muted-foreground hover:text-foreground"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                ) : (
+                  <PopoverTrigger asChild>
+                    <button
+                      type="button"
+                      disabled={isLoadingLocations}
+                      className="ml-2 shrink-0 text-muted-foreground/50 hover:text-foreground"
+                    >
+                      <ChevronsUpDown className="h-4 w-4" />
+                    </button>
+                  </PopoverTrigger>
+                )}
+              </div>
+            </PopoverAnchor>
             <PopoverContent
-              className="w-[--radix-popover-trigger-width] min-w-[240px] p-0"
+              className="w-[--radix-popover-anchor-width] min-w-[240px] p-0"
               align="start"
             >
               {/* Select All / Deselect All */}
-              <div className="flex items-center justify-between border-b px-3 py-2">
+              <div className="flex items-center justify-between border-b px-3 py-1.5">
                 <Button
                   variant="ghost"
                   size="sm"
@@ -172,7 +207,7 @@ export function SummaryFilterBar({
               </div>
               {/* Checkbox List */}
               <div className="max-h-[200px] overflow-y-auto p-1">
-                {locationOptions.map((option) => {
+                {filteredLocationOptions.map((option) => {
                   const isChecked = filters.locationCodes.includes(
                     option.value,
                   );
@@ -189,44 +224,11 @@ export function SummaryFilterBar({
                     </label>
                   );
                 })}
-                {locationOptions.length === 0 && !isLoadingLocations && (
+                {filteredLocationOptions.length === 0 && !isLoadingLocations && (
                   <div className="text-muted-foreground py-4 text-center text-sm">
                     No locations available
                   </div>
                 )}
-              </div>
-              {/* Temporary: custom value input for testing */}
-              <div className="border-t px-3 py-2">
-                <form
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    const input = (
-                      e.target as HTMLFormElement
-                    ).elements.namedItem("customLoc") as HTMLInputElement;
-                    const val = input.value.trim().toUpperCase();
-                    if (val && !filters.locationCodes.includes(val)) {
-                      onFiltersChange({
-                        locationCodes: [...filters.locationCodes, val],
-                      });
-                    }
-                    input.value = "";
-                  }}
-                  className="flex items-center gap-1.5"
-                >
-                  <input
-                    name="customLoc"
-                    placeholder="Custom code..."
-                    className="border-input bg-background h-7 flex-1 rounded border px-2 text-xs"
-                  />
-                  <Button
-                    type="submit"
-                    variant="outline"
-                    size="sm"
-                    className="h-7 text-xs"
-                  >
-                    Add
-                  </Button>
-                </form>
               </div>
             </PopoverContent>
           </Popover>

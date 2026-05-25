@@ -489,9 +489,9 @@ export function SalesAddLineDialog({
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent showCloseButton={false} className="sm:max-w-3xl max-h-[90vh] flex flex-col p-4">
-          <div className="space-y-3 overflow-y-auto flex-1 pr-1 -mr-1">
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-12 px-1">
-              <div className="space-y-1 sm:col-span-3">
+          <div className="space-y-2.5 overflow-y-auto flex-1 pr-1 -mr-1">
+            <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-12 px-1">
+              <div className={cn("space-y-1", form.type === "" ? "sm:col-span-3" : "sm:col-span-2")}>
                 <FieldTitle>Type</FieldTitle>
                 <div className="relative">
                   <Select
@@ -514,131 +514,138 @@ export function SalesAddLineDialog({
                 </div>
               </div>
 
-              {form.type !== "" && (
+              {form.type !== "" ? (
                 <>
-                  <div className="space-y-1 sm:col-span-6">
+                  <div className="space-y-1 sm:col-span-4">
                     <FieldTitle>Select Item</FieldTitle>
-                       {form.type === "G/L Account" ? (
-                        <MasterSearchableSelect<GLPostingAccount>
-                          key="ms-gl"
-                          value={form.no}
-                          onChange={handleGLChange}
-                          placeholder="Select GL Account"
-                          loadInitial={() => getGLAccounts(50)}
-                          searchItems={searchGLAccounts}
-                          loadMore={(skip, search) =>
-                            getGLAccountsPage(skip, search, 50)
-                          }
-                          initialLoadCount={50}
-                          pageSize={50}
-                          getDisplayValue={(item) => item.No}
-                          getItemValue={(item) => item.No}
-                          supportsDualSearch
-                          searchByField={(q, field) =>
-                            searchGLAccountsByField(q, field === "No" ? "No" : "Name")
-                          }
-                        />
-                      ) : form.type === "Fixed Asset" ? (
-                        <MasterSearchableSelect<FixedAsset>
-                          key="ms-fa"
-                          value={form.no}
-                          onChange={handleFixedAssetChange}
-                          placeholder="Select Fixed Asset"
-                          loadInitial={() => getFixedAssets(50)}
-                          searchItems={searchFixedAssets}
-                          loadMore={(skip, search) =>
-                            getFixedAssetsPage(skip, search, 50)
-                          }
-                          initialLoadCount={50}
-                          pageSize={50}
-                          getDisplayValue={(asset) => asset.No}
-                          getItemValue={(a) => a.No}
-                          supportsDualSearch
-                          searchByField={(q, field) =>
-                            searchFixedAssetsByField(
-                              q,
-                              field === "No" ? "No" : "Description",
-                            )
-                          }
-                        />
-                      ) : form.type === "Charge (Item)" ? (
-                        <MasterSearchableSelect<ItemCharge>
-                          key="ms-charge"
-                          value={form.no}
-                          onChange={handleChargeChange}
-                          placeholder="Select Charge Item"
-                          loadInitial={() => getItemCharges(50)}
-                          searchItems={searchItemCharges}
-                          loadMore={(skip, search) =>
-                            getItemChargesPage(skip, search, 50)
-                          }
-                          initialLoadCount={50}
-                          pageSize={50}
-                          getDisplayValue={(c) => c.No}
-                          getItemValue={(c) => c.No}
-                          supportsDualSearch
-                          searchByField={(q, field) =>
-                            searchItemChargesByField(
-                              q,
-                              field === "No" ? "No" : "Description",
-                            )
-                          }
-                        />
-                      ) : (
-                        <SalesItemSelectDialog
-                          key="sel-item"
-                          value={form.no}
-                          onChange={handleItemChange}
-                          placeholder="Select Item"
-                          locationCode={locationCode || undefined}
-                        />
-                      )}
-                    {form.description && (
-                      <p className="mt-1 pl-1 text-xs font-medium text-green-600 max-w-[220px] break-words">
-                        {form.description}
-                      </p>
+                    {form.type === "G/L Account" ? (
+                      <MasterSearchableSelect<GLPostingAccount>
+                        key="ms-gl"
+                        value={form.no}
+                        onChange={handleGLChange}
+                        placeholder="Select GL Account"
+                        loadInitial={() => getGLAccounts(50)}
+                        searchItems={searchGLAccounts}
+                        loadMore={(skip, search) =>
+                          getGLAccountsPage(skip, search, 50)
+                        }
+                        initialLoadCount={50}
+                        pageSize={50}
+                        getDisplayValue={(item) => item.No}
+                        getItemValue={(item) => item.No}
+                        supportsDualSearch
+                        searchByField={(q, field) =>
+                          searchGLAccountsByField(q, field === "No" ? "No" : "Name")
+                        }
+                      />
+                    ) : form.type === "Fixed Asset" ? (
+                      <MasterSearchableSelect<FixedAsset>
+                        key="ms-fa"
+                        value={form.no}
+                        onChange={handleFixedAssetChange}
+                        placeholder="Select Fixed Asset"
+                        loadInitial={() => getFixedAssets(50)}
+                        searchItems={searchFixedAssets}
+                        loadMore={(skip, search) =>
+                          getFixedAssetsPage(skip, search, 50)
+                        }
+                        initialLoadCount={50}
+                        pageSize={50}
+                        getDisplayValue={(asset) => asset.No}
+                        getItemValue={(a) => a.No}
+                        supportsDualSearch
+                        searchByField={(q, field) =>
+                          searchFixedAssetsByField(
+                            q,
+                            field === "No" ? "No" : "Description",
+                          )
+                        }
+                      />
+                    ) : form.type === "Charge (Item)" ? (
+                      <MasterSearchableSelect<ItemCharge>
+                        key="ms-charge"
+                        value={form.no}
+                        onChange={handleChargeChange}
+                        placeholder="Select Charge Item"
+                        loadInitial={() => getItemCharges(50)}
+                        searchItems={searchItemCharges}
+                        loadMore={(skip, search) =>
+                          getItemChargesPage(skip, search, 50)
+                        }
+                        initialLoadCount={50}
+                        pageSize={50}
+                        getDisplayValue={(c) => c.No}
+                        getItemValue={(c) => c.No}
+                        supportsDualSearch
+                        searchByField={(q, field) =>
+                          searchItemChargesByField(
+                            q,
+                            field === "No" ? "No" : "Description",
+                          )
+                        }
+                      />
+                    ) : (
+                      <SalesItemSelectDialog
+                        key="sel-item"
+                        value={form.no}
+                        onChange={handleItemChange}
+                        placeholder="Select Item"
+                        locationCode={locationCode || undefined}
+                      />
                     )}
                   </div>
 
-                  <div className="space-y-1 sm:col-span-3">
+                  <div className="space-y-1 sm:col-span-4">
+                    <FieldTitle>
+                      Description <span className="text-red-500">*</span>
+                    </FieldTitle>
+                    <Input
+                      value={form.description}
+                      onChange={(e) => set("description", e.target.value)}
+                      placeholder="Enter description"
+                      className="h-8 text-xs font-medium"
+                    />
+                  </div>
+
+                  <div className="space-y-1 sm:col-span-2">
                     <FieldTitle>UOM</FieldTitle>
-                      <DropdownSearchableSelect
-                        value={form.uom}
-                        onValueChange={(v) => set("uom", v)}
-                        options={uomOptions}
-                        isLoading={loadingOptions.uom}
-                        placeholder="Select UOM"
-                        searchPlaceholder="Search UOM..."
-                        hideChevron
-                        hideClear
-                      />
-                    {uomDesc && (
-                      <p className="mt-1 pl-1 text-[11px] font-medium text-green-600 max-w-[120px] break-words">
-                        {uomDesc}
-                      </p>
-                    )}
+                    <DropdownSearchableSelect
+                      value={form.uom}
+                      onValueChange={(v) => set("uom", v)}
+                      options={uomOptions}
+                      isLoading={loadingOptions.uom}
+                      placeholder="Select UOM"
+                      searchPlaceholder="Search UOM..."
+                      hideChevron
+                      hideClear
+                    />
                   </div>
                 </>
+              ) : (
+                <div className="space-y-1 sm:col-span-9">
+                  <FieldTitle>
+                    Description <span className="text-red-500">*</span>
+                  </FieldTitle>
+                  <Input
+                    value={form.description}
+                    onChange={(e) => set("description", e.target.value)}
+                    placeholder="Enter description"
+                    className="h-8 text-xs font-medium"
+                  />
+                </div>
               )}
-            </div>
-
-            <div className="space-y-1 px-1 pt-1">
-              <FieldTitle>
-                Description <span className="text-red-500">*</span>
-              </FieldTitle>
-                <Input
-                  value={form.description}
-                  onChange={(e) => set("description", e.target.value)}
-                  placeholder="Enter description"
-                  className="h-8 text-xs font-medium"
-                />
             </div>
 
             {/* ── Pricing ── */}
             {form.type !== "" && (
-              <div className="space-y-2 border-t pt-2">
+              <div className="space-y-1.5 border-t pt-1.5">
                 <h3 className="text-foreground text-xs font-medium">Pricing</h3>
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                <div className={cn(
+                  "grid grid-cols-2 gap-2",
+                  form.type === "Fixed Asset"
+                    ? "sm:grid-cols-6"
+                    : (documentType === "order" && form.type === "Item" ? "sm:grid-cols-5" : "sm:grid-cols-4")
+                )}>
                   <div className="space-y-1">
                     <FieldTitle>Quantity</FieldTitle>
                       <ClearableField

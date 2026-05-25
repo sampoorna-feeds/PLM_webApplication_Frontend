@@ -280,15 +280,7 @@ export function SearchableSelect<T extends SearchableItem>({
     return () => observer.disconnect();
   }, [isOpen, hasMore, loadMore, loadMoreItems]);
 
-  const handleListWheel = (e: React.WheelEvent<HTMLDivElement>) => {
-    const element = e.currentTarget;
-    if (element.scrollHeight <= element.clientHeight) return;
 
-    // Ensure wheel/trackpad scroll works even when parent overlays intercept scroll.
-    e.preventDefault();
-    e.stopPropagation();
-    element.scrollTop += e.deltaY;
-  };
 
   // Find selected item display value
   const selectedItem = items.find((item) => getItemValue(item) === value);
@@ -352,8 +344,18 @@ export function SearchableSelect<T extends SearchableItem>({
     }
   };
 
+  const handleListWheel = (e: React.WheelEvent<HTMLDivElement>) => {
+    const element = e.currentTarget;
+    if (element.scrollHeight <= element.clientHeight) return;
+
+    // Ensure wheel/trackpad scroll works even when parent overlays intercept scroll.
+    e.preventDefault();
+    e.stopPropagation();
+    element.scrollTop += e.deltaY;
+  };
+
   return (
-    <Popover open={isOpen} onOpenChange={handleOpenChange}>
+    <Popover open={isOpen} onOpenChange={handleOpenChange} modal={false}>
       <PopoverAnchor asChild>
         <div className="relative w-full">
           <Input
@@ -452,6 +454,7 @@ export function SearchableSelect<T extends SearchableItem>({
             ref={listRef}
             className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto p-1"
             style={{ WebkitOverflowScrolling: "touch" }}
+            data-scroll-lock-ignore
             onWheel={handleListWheel}
           >
             {isLoading && items.length === 0 ? (

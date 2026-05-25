@@ -46,6 +46,7 @@ export function DropdownSearchableSelect({
   const [searchQuery, setSearchQuery] = useState("");
   const [showSearch, setShowSearch] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
+  const isKeyboardActionRef = useRef(false);
 
   const triggerRef = useRef<HTMLButtonElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -59,6 +60,7 @@ export function DropdownSearchableSelect({
       setShowSearch(false);
       setActiveIndex(-1);
     }
+    isKeyboardActionRef.current = false;
   }, [open]);
 
   // Focus management on open
@@ -123,9 +125,11 @@ export function DropdownSearchableSelect({
 
     if (e.key === "ArrowDown") {
       e.preventDefault();
+      isKeyboardActionRef.current = true;
       setActiveIndex((prev) => Math.min(prev + 1, filteredOptions.length - 1));
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
+      isKeyboardActionRef.current = true;
       setActiveIndex((prev) => Math.max(prev - 1, 0));
     } else if (e.key === "Enter") {
       e.preventDefault();
@@ -145,9 +149,11 @@ export function DropdownSearchableSelect({
   const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "ArrowDown") {
       e.preventDefault();
+      isKeyboardActionRef.current = true;
       setActiveIndex((prev) => Math.min(prev + 1, filteredOptions.length - 1));
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
+      isKeyboardActionRef.current = true;
       setActiveIndex((prev) => Math.max(prev - 1, 0));
     } else if (e.key === "Enter") {
       e.preventDefault();
@@ -174,7 +180,7 @@ export function DropdownSearchableSelect({
 
   // Scroll active option into view
   useEffect(() => {
-    if (open && activeIndex >= 0 && listRef.current) {
+    if (open && activeIndex >= 0 && listRef.current && isKeyboardActionRef.current) {
       const listElement = listRef.current;
       const optionElements = listElement.querySelectorAll('[role="option"]');
       const activeElement = optionElements[activeIndex] as HTMLElement;
@@ -184,11 +190,19 @@ export function DropdownSearchableSelect({
     }
   }, [activeIndex, open]);
 
+  const handleListWheel = (e: React.WheelEvent<HTMLDivElement>) => {
+    const element = e.currentTarget;
+    if (element.scrollHeight <= element.clientHeight) return;
+    e.preventDefault();
+    e.stopPropagation();
+    element.scrollTop += e.deltaY;
+  };
+
   const selectedOption = options.find((opt) => opt.value === value);
   const displayLabel = selectedOption ? selectedOption.label : value || placeholder;
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={setOpen} modal={false}>
       <PopoverAnchor asChild>
         <div className="relative w-full">
           <Button
@@ -271,10 +285,11 @@ export function DropdownSearchableSelect({
             </div>
           )}
 
-          {/* Options List */}
           <div
             ref={listRef}
             className="min-h-0 flex-1 overflow-y-auto p-1"
+            data-scroll-lock-ignore
+            onWheel={handleListWheel}
           >
             {filteredOptions.length === 0 ? (
               <div className="text-muted-foreground py-4 text-center text-xs">
@@ -302,7 +317,6 @@ export function DropdownSearchableSelect({
                       setOpen(false);
                       triggerRef.current?.focus();
                     }}
-                    onMouseEnter={() => setActiveIndex(idx)}
                   >
                     <Check
                       className={cn(

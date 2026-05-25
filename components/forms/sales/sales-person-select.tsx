@@ -59,6 +59,7 @@ export function SalesPersonSelect({
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const listRef = useRef<HTMLDivElement | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const isKeyboardActionRef = useRef(false);
 
   // Load initial items when dropdown opens
   const loadInitialItems = useCallback(async () => {
@@ -161,6 +162,7 @@ export function SalesPersonSelect({
   // Handle dropdown open
   const handleOpenChange = (open: boolean) => {
     setIsOpen(open);
+    isKeyboardActionRef.current = false;
     if (open) {
       setActiveIndex(-1);
       setSearchQuery(displayValue);
@@ -206,7 +208,7 @@ export function SalesPersonSelect({
 
   // Scroll active item into view
   useEffect(() => {
-    if (isOpen && activeIndex >= 0 && listRef.current) {
+    if (isOpen && activeIndex >= 0 && listRef.current && isKeyboardActionRef.current) {
       const listElement = listRef.current;
       const itemElements = listElement.querySelectorAll('[role="option"]');
       const activeElement = itemElements[activeIndex] as HTMLElement;
@@ -224,11 +226,13 @@ export function SalesPersonSelect({
       if (!isOpen) {
         setIsOpen(true);
       } else {
+        isKeyboardActionRef.current = true;
         setActiveIndex((prev) => Math.min(prev + 1, filteredItems.length - 1));
       }
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
       if (isOpen) {
+        isKeyboardActionRef.current = true;
         setActiveIndex((prev) => Math.max(prev - 1, 0));
       }
     } else if (e.key === "Enter") {
@@ -251,10 +255,18 @@ export function SalesPersonSelect({
     }
   };
 
+  const handleListWheel = (e: React.WheelEvent<HTMLDivElement>) => {
+    const element = e.currentTarget;
+    if (element.scrollHeight <= element.clientHeight) return;
+    e.preventDefault();
+    e.stopPropagation();
+    element.scrollTop += e.deltaY;
+  };
+
   const inputRef = useRef<HTMLInputElement>(null);
 
   return (
-    <Popover open={isOpen} onOpenChange={handleOpenChange}>
+    <Popover open={isOpen} onOpenChange={handleOpenChange} modal={false}>
       <PopoverAnchor asChild>
         <div className="relative w-full">
           <Input
@@ -308,6 +320,8 @@ export function SalesPersonSelect({
           <div
             ref={listRef}
             className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto"
+            data-scroll-lock-ignore
+            onWheel={handleListWheel}
           >
             {isLoading && items.length === 0 ? (
               <div className="flex items-center justify-center p-4">
@@ -330,7 +344,6 @@ export function SalesPersonSelect({
                       role="option"
                       aria-selected={isSelected}
                       onMouseDown={(e) => e.preventDefault()}
-                      onMouseEnter={() => setActiveIndex(idx)}
                       className={cn(
                         "relative flex cursor-default items-center rounded-sm px-2 py-2 text-sm outline-none select-none",
                         isSelected ? "bg-muted" : "hover:bg-muted/50",

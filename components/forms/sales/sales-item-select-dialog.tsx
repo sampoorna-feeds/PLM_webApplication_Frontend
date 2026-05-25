@@ -50,7 +50,6 @@ interface ColumnConfig {
 const COLUMNS: ColumnConfig[] = [
   { id: "No", label: "No.", sortable: true, width: "140px" },
   { id: "Description", label: "Description", sortable: true, flex: true },
-  { id: "Unit_Price", label: "Unit Price", sortable: true, width: "110px" },
   { id: "Sales_Unit_of_Measure", label: "UOM", width: "80px" },
   { id: "Net_Change", label: "Net Change", sortable: true, width: "110px" },
 ];
@@ -88,6 +87,7 @@ export function SalesItemSelectDialog({
   const isLoadingMore = useRef(false);
   const isAllFetched = useRef(false);
   const pageRef = useRef(0);
+  const isKeyboardActionRef = useRef(false);
 
   // Debounce search
   useEffect(() => {
@@ -189,7 +189,7 @@ export function SalesItemSelectDialog({
 
   // Scroll active item into view
   useEffect(() => {
-    if (open && activeIndex >= 0 && scrollContainerRef.current) {
+    if (open && activeIndex >= 0 && scrollContainerRef.current && isKeyboardActionRef.current) {
       const container = scrollContainerRef.current;
       const activeElement = container.querySelector(
         `[data-row-index="${activeIndex}"]`
@@ -203,6 +203,7 @@ export function SalesItemSelectDialog({
   const handleOpenChange = (newOpen: boolean) => {
     if (disabled) return;
     setOpen(newOpen);
+    isKeyboardActionRef.current = false;
     if (!newOpen) {
       setSearchQuery("");
       setActiveIndex(-1);
@@ -227,10 +228,12 @@ export function SalesItemSelectDialog({
     if (e.key === "ArrowDown") {
       e.preventDefault();
       if (!open) setOpen(true);
+      isKeyboardActionRef.current = true;
       setActiveIndex((prev) => Math.min(prev + 1, filteredItems.length - 1));
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
       if (!open) setOpen(true);
+      isKeyboardActionRef.current = true;
       setActiveIndex((prev) => Math.max(prev - 1, 0));
     } else if (e.key === "Enter") {
       e.preventDefault();
@@ -256,13 +259,21 @@ export function SalesItemSelectDialog({
     }
   };
 
+  const handleListWheel = (e: React.WheelEvent<HTMLDivElement>) => {
+    const element = e.currentTarget;
+    if (element.scrollHeight <= element.clientHeight) return;
+    e.preventDefault();
+    e.stopPropagation();
+    element.scrollTop += e.deltaY;
+  };
+
   const displayLabel = value || "";
 
   const inputRef = useRef<HTMLInputElement>(null);
   const [isFocused, setIsFocused] = useState(false);
 
   return (
-    <Popover open={open} onOpenChange={handleOpenChange}>
+    <Popover open={open} onOpenChange={handleOpenChange} modal={false}>
       <PopoverAnchor asChild>
         <div className="relative w-full">
           <Input
@@ -325,7 +336,7 @@ export function SalesItemSelectDialog({
 
       <PopoverContent
         className="flex flex-col gap-0 p-0 shadow-xl"
-        style={{ width: "min(900px, 92vw)", height: "400px" }}
+        style={{ width: "min(620px, 92vw)", height: "400px" }}
         align="start"
         sideOffset={4}
         onCloseAutoFocus={(e) => {
@@ -354,7 +365,12 @@ export function SalesItemSelectDialog({
         </div>
 
         {/* Table */}
-          <div ref={scrollContainerRef} className="min-h-0 flex-1 overflow-auto">
+          <div
+            ref={scrollContainerRef}
+            className="min-h-0 flex-1 overflow-auto"
+            data-scroll-lock-ignore
+            onWheel={handleListWheel}
+          >
             <table className="w-full border-collapse text-sm">
               <thead className="sticky top-0 z-10 bg-muted">
                 <tr>
@@ -409,7 +425,6 @@ export function SalesItemSelectDialog({
                         key={item.No}
                         data-row-index={idx}
                         onMouseDown={(e) => e.preventDefault()}
-                        onMouseEnter={() => setActiveIndex(idx)}
                         onClick={() => handleSelect(item)}
                         className={cn(
                           "group cursor-pointer border-b transition-colors hover:bg-primary/5",
@@ -427,14 +442,6 @@ export function SalesItemSelectDialog({
                         {item.No}
                       </td>
                       <td className="px-3 py-2 text-xs">{item.Description}</td>
-                      <td className="px-3 py-2 text-xs tabular-nums">
-                        {item.Unit_Price != null
-                          ? item.Unit_Price.toLocaleString("en-IN", {
-                              minimumFractionDigits: 2,
-                              maximumFractionDigits: 2,
-                            })
-                          : "—"}
-                      </td>
                       <td className="px-3 py-2 text-xs text-muted-foreground">
                         {item.Sales_Unit_of_Measure ||
                           item.Base_Unit_of_Measure ||

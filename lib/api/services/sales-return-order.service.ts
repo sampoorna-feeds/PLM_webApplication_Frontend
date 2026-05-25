@@ -53,6 +53,24 @@ function stripNullish(obj: Record<string, unknown>): Record<string, unknown> {
   );
 }
 
+export function stripEmptyValues(
+  obj: Record<string, unknown>,
+): Record<string, unknown> {
+  return Object.entries(obj).reduce(
+    (acc, [key, value]) => {
+      if (
+        value !== undefined &&
+        value !== null &&
+        !(typeof value === "string" && value.trim() === "")
+      ) {
+        acc[key] = value;
+      }
+      return acc;
+    },
+    {} as Record<string, unknown>,
+  );
+}
+
 /** Create a new sales return order header. */
 export async function createSalesReturnOrder(
   data: SalesDocumentHeaderData,
@@ -62,23 +80,23 @@ export async function createSalesReturnOrder(
     const payload = {
       Document_Type: DOCUMENT_TYPE,
       Sell_to_Customer_No: data.customerNo,
-      Ship_to_Code: data.shipToCode || "",
-      Salesperson_Code: data.salesPersonCode || "",
-      Location_Code: data.locationCode || "",
+      Ship_to_Code: data.shipToCode,
+      Salesperson_Code: data.salesPersonCode,
+      Location_Code: data.locationCode,
       Posting_Date: data.postingDate,
       Document_Date: data.documentDate,
-      External_Document_No: data.externalDocumentNo || "",
+      External_Document_No: data.externalDocumentNo,
       Invoice_Type: data.invoiceType || "Bill of Supply",
-      Shortcut_Dimension_1_Code: data.lob || "",
-      Shortcut_Dimension_2_Code: data.branch || "",
-      Shortcut_Dimension_3_Code: data.locationCode || "",
-      ShortcutDimCode3: data.locationCode || "",
-      Responsibility_Center: data.lob || "",
-      SFPL_User_ID: data.SFPL_User_ID || "",
+      Shortcut_Dimension_1_Code: data.lob,
+      Shortcut_Dimension_2_Code: data.branch,
+      Shortcut_Dimension_3_Code: data.locationCode,
+      Responsibility_Center: data.lob,
+      SFPL_User_ID: data.SFPL_User_ID,
     };
+    const cleanedPayload = stripEmptyValues(payload);
     const response = await apiPost<CreateSalesDocumentApiResponse>(
       endpoint,
-      toUpperCaseValues(payload, ["Document_Type", "Type", "Invoice_Type"]),
+      toUpperCaseValues(cleanedPayload, ["Document_Type", "Type", "Invoice_Type"]),
     );
     if (!response) return { orderId: "", orderNo: "" };
     const orderNo = response.No ?? response.orderNo ?? "";
@@ -102,11 +120,12 @@ export async function createSalesReturnOrderCopyHeader(
       Shortcut_Dimension_1_Code: lobCode,
       Shortcut_Dimension_2_Code: branchCode,
       Shortcut_Dimension_3_Code: locationCode,
-      sFPL_User_ID: userID?.toUpperCase() || "",
+      sFPL_User_ID: userID?.toUpperCase(),
     };
+    const cleanedPayload = stripEmptyValues(payload);
     const response = await apiPost<CreateSalesDocumentApiResponse>(
       endpoint,
-      toUpperCaseValues(payload, ["Document_Type", "Type"]),
+      toUpperCaseValues(cleanedPayload, ["Document_Type", "Type"]),
     );
     if (!response) return { orderId: "", orderNo: "" };
     const orderNo = response.No ?? response.orderNo ?? "";
@@ -125,21 +144,18 @@ export async function addSalesReturnOrderLineItems(
   if (!documentNo || lineItems.length === 0) return;
   const endpoint = `/${LINE_ENTITY}?company='${encodeURIComponent(COMPANY)}'`;
   for (const item of lineItems) {
-    const linePayload: Record<string, unknown> = toUpperCaseValues(
-      {
-        Document_No: documentNo,
-        Type: item.type,
-        No: item.no,
-        Quantity: item.quantity,
-      },
-      ["Document_Type", "Type"],
-    );
+    const linePayload: Record<string, unknown> = {
+      Document_No: documentNo,
+      Type: item.type,
+      No: item.no,
+      Quantity: item.quantity,
+    };
     if (locationCode) {
       linePayload.Location_Code = locationCode;
-      linePayload.ShortcutDimCode3 = locationCode;
     }
     if (item.uom) linePayload.Unit_of_Measure_Code = item.uom;
-    await apiPost(endpoint, linePayload);
+    const cleanedPayload = stripEmptyValues(linePayload);
+    await apiPost(endpoint, toUpperCaseValues(cleanedPayload, ["Document_Type", "Type"]));
   }
 }
 
@@ -158,7 +174,6 @@ export async function addSingleSalesReturnOrderLine(
   };
   if (locationCode) {
     payload.Location_Code = locationCode;
-    payload.ShortcutDimCode3 = locationCode;
   }
   if (line.uom) payload.Unit_of_Measure_Code = line.uom;
   if (line.description != null) payload.Description = line.description;
@@ -169,9 +184,10 @@ export async function addSingleSalesReturnOrderLine(
   if (line.hsnSacCode) payload.HSN_SAC_Code = line.hsnSacCode;
   if (line.foc != null) payload.FOC = line.foc;
   if (line.faPostingType) payload.FA_Posting_Type = line.faPostingType;
+  const cleanedPayload = stripEmptyValues(payload);
   const result = await apiPost<{ Line_No: number;[key: string]: unknown }>(
     endpoint,
-    toUpperCaseValues(payload, ["Document_Type", "Type"]),
+    toUpperCaseValues(cleanedPayload, ["Document_Type", "Type"]),
   );
   return result ?? { Line_No: 0 };
 }

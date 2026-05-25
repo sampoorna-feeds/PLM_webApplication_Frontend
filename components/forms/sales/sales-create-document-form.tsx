@@ -1256,9 +1256,12 @@ export function SalesCreateDocumentFormContent({
                 userId={userId}
                 compactWhenSingle
                 disabled={isGeneralReadOnly}
+                showCodeOnly
               />
               {branchName && (
-                <p className="text-muted-foreground text-xs">{branchName}</p>
+                <p className="mt-1 pl-1 text-sm font-medium text-green-600">
+                  {branchName}
+                </p>
               )}
             </div>
             <div className={fieldClass}>
@@ -1269,6 +1272,7 @@ export function SalesCreateDocumentFormContent({
                 branchCode={formData.branch}
                 disabled={isGeneralReadOnly}
                 placeholder="Select Location"
+                nameClassName="mt-1 pl-1 text-sm font-medium text-green-600"
               />
             </div>
 
@@ -1323,7 +1327,7 @@ export function SalesCreateDocumentFormContent({
                 />
               </ClearableField>
               {formData.customerName && (
-                <p className="mt-1 pl-1 text-[10px] font-medium text-green-600">
+                <p className="mt-1 pl-1 text-sm font-medium text-green-600">
                   {formData.customerName}
                 </p>
               )}
@@ -1356,7 +1360,7 @@ export function SalesCreateDocumentFormContent({
                 />
               </ClearableField>
               {formData.salesPersonName && (
-                <p className="mt-1 pl-1 text-[10px] font-medium text-green-600">
+                <p className="mt-1 pl-1 text-sm font-medium text-green-600">
                   {formData.salesPersonName}
                 </p>
               )}
@@ -1379,7 +1383,7 @@ export function SalesCreateDocumentFormContent({
                 />
               </ClearableField>
               {(formData as unknown as Record<string, string>).shipToName && (
-                <p className="mt-1 pl-1 text-[10px] font-medium text-green-600">
+                <p className="mt-1 pl-1 text-sm font-medium text-green-600">
                   {(formData as unknown as Record<string, string>).shipToName}
                 </p>
               )}

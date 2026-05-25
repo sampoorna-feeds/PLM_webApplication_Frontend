@@ -55,7 +55,7 @@ const COLUMNS: ColumnConfig[] = [
   { id: "Net_Change", label: "Net Change", sortable: true, width: "110px" },
 ];
 
-const PAGE_SIZE = 30;
+const PAGE_SIZE = 50;
 
 export function SalesItemSelectDialog({
   value,
@@ -95,6 +95,9 @@ export function SalesItemSelectDialog({
     return () => clearTimeout(t);
   }, [searchQuery]);
 
+  // Client-side filtering is no longer needed since we search on the backend for all query lengths
+  const filteredItems = items;
+
   const fetchData = useCallback(
     async (isNextPage = false) => {
       if (isNextPage && (isLoading.current || isLoadingMore.current || isAllFetched.current)) return;
@@ -119,7 +122,7 @@ export function SalesItemSelectDialog({
         const res = await getSalesItemsForDialog({
           skip: nextSkip,
           top: PAGE_SIZE,
-          search: debouncedSearch,
+          search: debouncedSearch === value ? "" : debouncedSearch,
           sortColumn,
           sortDirection,
           locationCode,
@@ -152,7 +155,7 @@ export function SalesItemSelectDialog({
         }
       }
     },
-    [debouncedSearch, sortColumn, sortDirection, locationCode]
+    [debouncedSearch, sortColumn, sortDirection, locationCode, value]
   );
 
   // Refetch when search/sort/open changes
@@ -224,15 +227,15 @@ export function SalesItemSelectDialog({
     if (e.key === "ArrowDown") {
       e.preventDefault();
       if (!open) setOpen(true);
-      setActiveIndex((prev) => Math.min(prev + 1, items.length - 1));
+      setActiveIndex((prev) => Math.min(prev + 1, filteredItems.length - 1));
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
       if (!open) setOpen(true);
       setActiveIndex((prev) => Math.max(prev - 1, 0));
     } else if (e.key === "Enter") {
       e.preventDefault();
-      if (open && activeIndex >= 0 && activeIndex < items.length) {
-        handleSelect(items[activeIndex]);
+      if (open && activeIndex >= 0 && activeIndex < filteredItems.length) {
+        handleSelect(filteredItems[activeIndex]);
       } else if (!open) {
         setOpen(true);
       }
@@ -253,12 +256,7 @@ export function SalesItemSelectDialog({
     }
   };
 
-  const selectedItem = items.find((i) => i.No === value);
-  const displayLabel = selectedItem
-    ? `${selectedItem.No} - ${selectedItem.Description}`
-    : value
-      ? value
-      : "";
+  const displayLabel = value || "";
 
   const inputRef = useRef<HTMLInputElement>(null);
   const [isFocused, setIsFocused] = useState(false);
@@ -393,7 +391,7 @@ export function SalesItemSelectDialog({
                       <Loader2 className="mx-auto h-6 w-6 animate-spin text-muted-foreground" />
                     </td>
                   </tr>
-                ) : items.length === 0 ? (
+                ) : filteredItems.length === 0 ? (
                   <tr>
                     <td
                       colSpan={COLUMNS.length + 1}
@@ -403,7 +401,7 @@ export function SalesItemSelectDialog({
                     </td>
                   </tr>
                 ) : (
-                  items.map((item, idx) => {
+                  filteredItems.map((item, idx) => {
                     const isFocused = activeIndex === idx;
                     const isSelected = value === item.No;
                     return (
@@ -473,7 +471,7 @@ export function SalesItemSelectDialog({
           {/* Footer / Status */}
           <div className="flex shrink-0 items-center justify-between border-t bg-muted/20 px-3 py-1.5 text-[10px] text-muted-foreground">
             <span>
-              Showing <b>{items.length}</b> of <b>{totalCount}</b> items
+              Showing <b>{filteredItems.length}</b> of <b>{totalCount}</b> items
             </span>
           </div>
         </PopoverContent>

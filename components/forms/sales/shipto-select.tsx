@@ -206,10 +206,7 @@ export function ShipToSelect({
   }, [formStackContext?.tabs.length, tabId, customerNo, formStackContext]);
 
   // Find selected item display value
-  const selectedItem = items.find((item) => item.Code === value);
-  const displayValue = selectedItem
-    ? `${selectedItem.Code} - ${selectedItem.Name}`
-    : value || "";
+  const displayValue = value || "";
 
   // Filter items based on search term
   const filteredItems = items.filter((item) => {

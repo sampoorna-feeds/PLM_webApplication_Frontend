@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { Loader2, Link2, Trash2, Search, X } from "lucide-react";
 import { toast } from "sonner";
 import { toastError } from "@/lib/errors";
@@ -114,11 +114,27 @@ export function SalesOrderLineEditDialog({
   const [hsnOptions, setHsnOptions] = useState<SearchableSelectOption[]>([]);
   const [uom, setUom] = useState("");
   const [uomOptions, setUomOptions] = useState<SearchableSelectOption[]>([]);
+  const [globalUoms, setGlobalUoms] = useState<UOM[]>([]);
   const [loadingOptions, setLoadingOptions] = useState({
     gst: false,
     hsn: false,
     uom: false,
   });
+
+  // Load global UOM list for description lookup
+  useEffect(() => {
+    if (!open) {
+      setGlobalUoms([]);
+      return;
+    }
+    getUOMs().then((data) => setGlobalUoms(data)).catch(() => {});
+  }, [open]);
+
+  const uomDesc = useMemo(() => {
+    if (!uom) return "";
+    const matched = globalUoms.find((u) => u.Code.toLowerCase() === uom.toLowerCase());
+    return matched?.Description || "";
+  }, [uom, globalUoms]);
 
   const fieldInputClass =
     "disabled:opacity-100 disabled:text-foreground font-medium text-xs disabled:pointer-events-none";
@@ -201,7 +217,8 @@ export function SalesOrderLineEditDialog({
             setUomOptions(
               uoms.map((u) => ({
                 value: u.Code,
-                label: `${u.Code} - ${u.Description}`,
+                label: u.Code,
+                description: u.Description,
               })),
             );
           }
@@ -371,7 +388,7 @@ export function SalesOrderLineEditDialog({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent showCloseButton={false} className="sm:max-w-3xl max-h-[90vh] flex flex-col">
+        <DialogContent showCloseButton={false} className="sm:max-w-lg max-h-[90vh] flex flex-col">
           <DialogHeader className="border-b pb-3">
             <DialogTitle className={cn("text-base font-semibold", hasTracking ? "text-red-600" : "")}>
               Edit Sales Line
@@ -390,15 +407,17 @@ export function SalesOrderLineEditDialog({
               <Label htmlFor="sl-description" className="text-xs">
                 Description <span className="text-red-500">*</span>
               </Label>
-              <ClearableField value={description} onClear={() => setDescription("")} disabled={isReleased}>
-                <Input
-                  id="sl-description"
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  className={fieldInputClass}
-                  disabled={isReleased}
-                />
-              </ClearableField>
+              <div className="max-w-[380px]">
+                <ClearableField value={description} onClear={() => setDescription("")} disabled={isReleased}>
+                  <Input
+                    id="sl-description"
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    className={fieldInputClass}
+                    disabled={isReleased}
+                  />
+                </ClearableField>
+              </div>
             </div>
 
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
@@ -409,51 +428,57 @@ export function SalesOrderLineEditDialog({
                   <Label htmlFor="sl-qty" className="text-xs">
                     Quantity
                   </Label>
-                  <ClearableField value={quantity} onClear={() => setQuantity("")} disabled={isReleased}>
-                    <CalculatorInput
-                      id="sl-qty"
-                      value={quantity}
-                      onValueChange={(v) => {
-                        if (isValidNum(v)) setQuantity(v);
-                      }}
-                      className={fieldInputClass}
-                      disabled={isReleased}
-                    />
-                  </ClearableField>
+                  <div className="max-w-[100px]">
+                    <ClearableField value={quantity} onClear={() => setQuantity("")} disabled={isReleased}>
+                      <CalculatorInput
+                        id="sl-qty"
+                        value={quantity}
+                        onValueChange={(v) => {
+                          if (isValidNum(v)) setQuantity(v);
+                        }}
+                        className={fieldInputClass}
+                        disabled={isReleased}
+                      />
+                    </ClearableField>
+                  </div>
                 </div>
 
                 <div className="space-y-1">
                   <Label htmlFor="sl-unit-price" className="text-xs">
                     Unit Price
                   </Label>
-                  <ClearableField value={unitPrice} onClear={() => setUnitPrice("")} disabled={isReleased}>
-                    <CalculatorInput
-                      id="sl-unit-price"
-                      value={unitPrice}
-                      onValueChange={(v) => {
-                        if (isValidNum(v)) setUnitPrice(v);
-                      }}
-                      className={fieldInputClass}
-                      disabled={isReleased}
-                    />
-                  </ClearableField>
+                  <div className="max-w-[100px]">
+                    <ClearableField value={unitPrice} onClear={() => setUnitPrice("")} disabled={isReleased}>
+                      <CalculatorInput
+                        id="sl-unit-price"
+                        value={unitPrice}
+                        onValueChange={(v) => {
+                          if (isValidNum(v)) setUnitPrice(v);
+                        }}
+                        className={fieldInputClass}
+                        disabled={isReleased}
+                      />
+                    </ClearableField>
+                  </div>
                 </div>
 
                 <div className="space-y-1">
                   <Label htmlFor="sl-discount" className="text-xs">
                     Discount %
                   </Label>
-                  <ClearableField value={discountPct} onClear={() => setDiscountPct("")} disabled={isReleased}>
-                    <CalculatorInput
-                      id="sl-discount"
-                      value={discountPct}
-                      onValueChange={(v) => {
-                        if (isValidNum(v)) setDiscountPct(v);
-                      }}
-                      className={fieldInputClass}
-                      disabled={isReleased}
-                    />
-                  </ClearableField>
+                  <div className="max-w-[100px]">
+                    <ClearableField value={discountPct} onClear={() => setDiscountPct("")} disabled={isReleased}>
+                      <CalculatorInput
+                        id="sl-discount"
+                        value={discountPct}
+                        onValueChange={(v) => {
+                          if (isValidNum(v)) setDiscountPct(v);
+                        }}
+                        className={fieldInputClass}
+                        disabled={isReleased}
+                      />
+                    </ClearableField>
+                  </div>
                 </div>
 
 
@@ -462,7 +487,7 @@ export function SalesOrderLineEditDialog({
                   <Label htmlFor="sl-uom" className="text-xs">
                     UOM
                   </Label>
-                  <ClearableField value={uom} onClear={() => setUom("")} disabled={isReleased}>
+                  <div className="max-w-[120px]">
                     <DropdownSearchableSelect
                       value={uom}
                       onValueChange={setUom}
@@ -471,8 +496,15 @@ export function SalesOrderLineEditDialog({
                       placeholder="Select UOM"
                       searchPlaceholder="Search UOM..."
                       disabled={isReleased}
+                      hideChevron
+                      hideClear
                     />
-                  </ClearableField>
+                  </div>
+                  {uomDesc && (
+                    <p className="mt-1 pl-1 text-[11px] font-medium text-green-600 max-w-[120px] break-words">
+                      {uomDesc}
+                    </p>
+                  )}
                 </div>
               </>
             )}
@@ -510,92 +542,98 @@ export function SalesOrderLineEditDialog({
 
                 <div className="space-y-1">
                   <Label className="text-xs font-medium">GST Group Code</Label>
-                  <ClearableField
-                    value={gstGroupCode}
-                    onClear={() => {
-                      setGstGroupCode("");
-                      setHsnSacCode("");
-                    }}
-                    disabled={isReleased}
-                  >
-                    <DropdownSearchableSelect
+                  <div className="max-w-[120px]">
+                    <ClearableField
                       value={gstGroupCode}
-                      onValueChange={(val) => {
-                        setGstGroupCode(val);
+                      onClear={() => {
+                        setGstGroupCode("");
                         setHsnSacCode("");
                       }}
-                      options={gstOptions}
-                      isLoading={loadingOptions.gst}
-                      placeholder="Select GST Group..."
-                      searchPlaceholder="Search GST Groups..."
                       disabled={isReleased}
-                    />
-                  </ClearableField>
+                    >
+                      <DropdownSearchableSelect
+                        value={gstGroupCode}
+                        onValueChange={(val) => {
+                          setGstGroupCode(val);
+                          setHsnSacCode("");
+                        }}
+                        options={gstOptions}
+                        isLoading={loadingOptions.gst}
+                        placeholder="Select GST Group..."
+                        searchPlaceholder="Search GST Groups..."
+                        disabled={isReleased}
+                      />
+                    </ClearableField>
+                  </div>
                 </div>
 
                 <div className="space-y-1">
                   <Label className="text-xs font-medium">HSN/SAC Code</Label>
-                  <ClearableField
-                    value={hsnSacCode}
-                    onClear={() => setHsnSacCode("")}
-                    disabled={!gstGroupCode || isReleased}
-                  >
-                    <DropdownSearchableSelect
+                  <div className="max-w-[120px]">
+                    <ClearableField
                       value={hsnSacCode}
-                      onValueChange={setHsnSacCode}
-                      options={hsnOptions}
-                      isLoading={loadingOptions.hsn}
-                      placeholder={gstGroupCode ? "Select HSN/SAC..." : "Select GST Group first"}
-                      searchPlaceholder="Search HSN/SAC Codes..."
+                      onClear={() => setHsnSacCode("")}
                       disabled={!gstGroupCode || isReleased}
-                    />
-                  </ClearableField>
+                    >
+                      <DropdownSearchableSelect
+                        value={hsnSacCode}
+                        onValueChange={setHsnSacCode}
+                        options={hsnOptions}
+                        isLoading={loadingOptions.hsn}
+                        placeholder={gstGroupCode ? "Select HSN/SAC..." : "Select GST Group first"}
+                        searchPlaceholder="Search HSN/SAC Codes..."
+                        disabled={!gstGroupCode || isReleased}
+                      />
+                    </ClearableField>
+                  </div>
                 </div>
               </div>
 
               {lineType === "Item" && lineLocationCode && (
                 <div className="space-y-1">
                   <Label className="text-xs font-medium">Applies to Item Entry</Label>
-                  <div className="group relative">
-                    <Input
-                      readOnly
-                      value={(() => {
-                        if (!applToItemEntry) return "";
-                        const e = ledgerEntries.find((e) => String(e.Entry_No) === applToItemEntry);
-                        return e
-                          ? `#${e.Entry_No} · ${e.Document_No} · Rem: ${e.Remaining_Quantity ?? 0}`
-                          : `Entry #${applToItemEntry}`;
-                      })()}
-                      placeholder={isLoadingLedger ? "Loading entries..." : "Click to select (optional)"}
-                      className="bg-muted/30 h-8 cursor-pointer border-dashed pr-10 font-medium text-xs"
-                      onClick={() => !isLoadingLedger && setIsApplyItemEntryOpen(true)}
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="text-muted-foreground hover:text-primary absolute top-0 right-0 h-8 w-9"
-                      onClick={() => !isLoadingLedger && setIsApplyItemEntryOpen(true)}
-                      disabled={isLoadingLedger}
-                    >
-                      {isLoadingLedger ? (
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      ) : (
-                        <Search className="h-3.5 w-3.5" />
-                      )}
-                    </Button>
-                    {applToItemEntry && (
-                      <button
+                  <div className="max-w-[280px]">
+                    <div className="group relative">
+                      <Input
+                        readOnly
+                        value={(() => {
+                          if (!applToItemEntry) return "";
+                          const e = ledgerEntries.find((e) => String(e.Entry_No) === applToItemEntry);
+                          return e
+                            ? `#${e.Entry_No} · ${e.Document_No} · Rem: ${e.Remaining_Quantity ?? 0}`
+                            : `Entry #${applToItemEntry}`;
+                        })()}
+                        placeholder={isLoadingLedger ? "Loading entries..." : "Click to select (optional)"}
+                        className="bg-muted/30 h-8 cursor-pointer border-dashed pr-10 font-medium text-xs"
+                        onClick={() => !isLoadingLedger && setIsApplyItemEntryOpen(true)}
+                      />
+                      <Button
                         type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setApplToItemEntry("");
-                        }}
-                        className="text-muted-foreground hover:text-foreground absolute top-1/2 right-9 -translate-y-1/2 p-1 opacity-0 transition-opacity group-hover:opacity-100"
+                        variant="ghost"
+                        size="icon"
+                        className="text-muted-foreground hover:text-primary absolute top-0 right-0 h-8 w-9"
+                        onClick={() => !isLoadingLedger && setIsApplyItemEntryOpen(true)}
+                        disabled={isLoadingLedger}
                       >
-                        <X className="h-3.5 w-3.5" />
-                      </button>
-                    )}
+                        {isLoadingLedger ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <Search className="h-3.5 w-3.5" />
+                        )}
+                      </Button>
+                      {applToItemEntry && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setApplToItemEntry("");
+                          }}
+                          className="text-muted-foreground hover:text-foreground absolute top-1/2 right-9 -translate-y-1/2 p-1 opacity-0 transition-opacity group-hover:opacity-100"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               )}

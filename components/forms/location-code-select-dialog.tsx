@@ -44,6 +44,7 @@ interface LocationCodeSelectDialogProps {
   className?: string;
   placeholder?: string;
   size?: "sm" | "lg";
+  nameClassName?: string;
 }
 
 type SortDirection = "asc" | "desc";
@@ -120,6 +121,7 @@ export function LocationCodeSelectDialog({
   className,
   placeholder = "Select Location",
   size = "lg",
+  nameClassName,
 }: LocationCodeSelectDialogProps) {
   const [open, setOpen] = useState(false);
   const [locations, setLocations] = useState<LocationItem[]>([]);
@@ -312,7 +314,7 @@ export function LocationCodeSelectDialog({
           </div>
         </Button>
         {selectedItem?.Name && (
-          <p className="text-muted-foreground text-xs">{selectedItem.Name}</p>
+          <p className={nameClassName || "text-muted-foreground text-xs"}>{selectedItem.Name}</p>
         )}
       </div>
 

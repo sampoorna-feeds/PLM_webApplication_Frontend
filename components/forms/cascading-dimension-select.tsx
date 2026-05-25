@@ -44,6 +44,8 @@ interface CascadingDimensionSelectProps {
   lobValue?: string;
   branchValue?: string;
   userId?: string;
+  /** When true, only show the code in the selected display value instead of 'Code - Name' */
+  showCodeOnly?: boolean;
 }
 
 const DEBOUNCE_MS = 300;
@@ -63,6 +65,7 @@ export function CascadingDimensionSelect({
   lobValue,
   branchValue,
   userId,
+  showCodeOnly = false,
 }: CascadingDimensionSelectProps) {
   const [items, setItems] = useState<DimensionValue[]>([]);
   const [isOpen, setIsOpen] = useState(false);
@@ -173,7 +176,9 @@ export function CascadingDimensionSelect({
   const selectedItem = items.find((item) => item.Code === value);
   const displayValue = selectedItem
     ? selectedItem.Name
-      ? `${selectedItem.Code} - ${selectedItem.Name}`
+      ? showCodeOnly
+        ? selectedItem.Code
+        : `${selectedItem.Code} - ${selectedItem.Name}`
       : selectedItem.Code
     : disabled && value
       ? "None"
@@ -246,7 +251,7 @@ export function CascadingDimensionSelect({
   if (showAsLabel) {
     return (
       <span className={cn("text-foreground inline text-sm", className)}>
-        {items[0].Name ? `${items[0].Code} - ${items[0].Name}` : items[0].Code}
+        {items[0].Name && !showCodeOnly ? `${items[0].Code} - ${items[0].Name}` : items[0].Code}
       </span>
     );
   }

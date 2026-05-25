@@ -26,6 +26,8 @@ interface DropdownSearchableSelectProps {
   disabled?: boolean;
   isLoading?: boolean;
   className?: string;
+  hideClear?: boolean;
+  hideChevron?: boolean;
 }
 
 export function DropdownSearchableSelect({
@@ -37,6 +39,8 @@ export function DropdownSearchableSelect({
   disabled = false,
   isLoading = false,
   className,
+  hideClear = false,
+  hideChevron = false,
 }: DropdownSearchableSelectProps) {
   const [open, setOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -198,14 +202,18 @@ export function DropdownSearchableSelect({
             onClick={() => setOpen((prev) => !prev)}
             className={cn(
               "h-8 w-full justify-between bg-background px-3 text-xs font-medium text-left truncate shadow-none border border-input hover:bg-accent/50",
+              (hideClear || !value) && "pr-3",
+              (!hideClear && value) && "pr-8",
               !value && "text-muted-foreground",
               className
             )}
           >
             <span className="truncate">{displayLabel}</span>
-            <ChevronDown className="h-4 w-4 shrink-0 opacity-40 ml-2" />
+            {!hideChevron && (
+              <ChevronDown className="h-4 w-4 shrink-0 opacity-40 ml-2" />
+            )}
           </Button>
-          {value && !disabled && (
+          {value && !disabled && !hideClear && (
             <button
               type="button"
               onClick={(e) => {

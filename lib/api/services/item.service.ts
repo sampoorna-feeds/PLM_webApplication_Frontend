@@ -173,7 +173,7 @@ function buildItemListEndpoint(
  * Initial load - Get first batch of items from ItemList (optionally filtered by location)
  */
 export async function getItems(
-  top: number = 20,
+  top: number = 50,
   locationCode?: string,
 ): Promise<Item[]> {
   const filter = getBaseFilter(locationCode);
@@ -194,8 +194,8 @@ export async function searchItems(
   query: string,
   locationCode?: string,
 ): Promise<Item[]> {
-  if (query.length < 2) {
-    return [];
+  if (!query || !query.trim()) {
+    return getItems(50, locationCode);
   }
 
   const cacheKey = `search_${locationCode ?? "none"}_${query.toLowerCase()}`;
@@ -251,8 +251,8 @@ export async function searchItemsByField(
   field: "No" | "Name",
   locationCode?: string,
 ): Promise<Item[]> {
-  if (query.length < 2) {
-    return [];
+  if (!query || !query.trim()) {
+    return getItems(50, locationCode);
   }
 
   const baseFilter = getBaseFilter(locationCode);
@@ -275,20 +275,20 @@ export async function searchItemsByField(
 export async function getItemsPage(
   skip: number,
   search?: string,
-  top: number = 30,
+  top: number = 50,
   locationCode?: string,
 ): Promise<Item[]> {
   const baseFilter = getBaseFilter(locationCode);
 
   // Use preloaded items if possible (first page, no search)
-  if (skip === 0 && (!search || search.length < 2)) {
+  if (skip === 0 && (!search || !search.trim())) {
     const items = await preloadItems();
     if (items.length > 0) {
       return items.slice(0, top);
     }
   }
 
-  if (!search || search.length < 2) {
+  if (!search || !search.trim()) {
     const endpoint = buildItemListEndpoint(baseFilter, {
       top,
       skip,
@@ -468,19 +468,21 @@ export async function getSalesItemsForDialog(params: {
     return apiGet<ODataResponse<Item>>(endpoint);
   };
 
-  if (params.skip === 0 && !params.search?.trim() && (!params.filters || Object.keys(params.filters).length === 0)) {
+  const isSearchValid = !!(params.search && params.search.trim().length > 0);
+
+  if (params.skip === 0 && !isSearchValid && (!params.filters || Object.keys(params.filters).length === 0)) {
     const preloaded = getPreloadedItems(params.locationCode);
     if (preloaded.length > 0) {
       return { value: preloaded.slice(0, params.top), count: preloaded.length };
     }
   }
 
-  if (!params.search?.trim()) {
+  if (!isSearchValid) {
     const res = await fetchBatch();
     return { value: res.value || [], count: res["@odata.count"] ?? res.value?.length ?? 0 };
   }
 
-  const s = params.search.trim().replace(/'/g, "''");
+  const s = (params.search || "").trim().replace(/'/g, "''");
   const sL = s.toLowerCase();
   const sU = s.toUpperCase();
 
@@ -595,7 +597,7 @@ export async function getBardanaItemsPage(
   const select = "No,Description,Sales_Unit_of_Measure,Base_Unit_of_Measure,RM_Bardana_Wt";
 
 
-  if (!search || search.trim().length < 2) {
+  if (!search || !search.trim()) {
     const endpoint = buildItemListEndpoint(base, {
       top,
       skip,
@@ -642,7 +644,7 @@ export async function getBardanaItemsPage(
  * Search bardana-enabled items by No or Description.
  */
 export async function searchBardanaItems(query: string): Promise<Item[]> {
-  if (query.length < 2) return [];
+  if (!query || !query.trim()) return getBardanaItems(50);
 
   const escapedQuery = escapeODataValue(query);
   const base = `(Blocked eq false) and (Status eq 'Approved') and (RM_Bardana_Item eq true)`;

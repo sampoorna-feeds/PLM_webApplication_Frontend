@@ -23,7 +23,7 @@ function getBaseFilter(): string {
   return "Block eq false";
 }
 
-export async function getItemCharges(top: number = 20): Promise<ItemCharge[]> {
+export async function getItemCharges(top: number = 50): Promise<ItemCharge[]> {
   const query = buildODataQuery({
     $select: "No,Description,Block,GST_Group_Code,HSN_SAC_Code,Exempted,Gen_Prod_Posting_Group",
     $filter: getBaseFilter(),
@@ -37,7 +37,7 @@ export async function getItemCharges(top: number = 20): Promise<ItemCharge[]> {
 }
 
 export async function searchItemCharges(query: string): Promise<ItemCharge[]> {
-  if (query.length < 2) return [];
+  if (!query || !query.trim()) return getItemCharges(50);
 
   const escapedQuery = escapeODataValue(query);
   const baseFilter = getBaseFilter();
@@ -82,11 +82,11 @@ export async function searchItemCharges(query: string): Promise<ItemCharge[]> {
 export async function getItemChargesPage(
   skip: number,
   search?: string,
-  top: number = 30,
+  top: number = 50,
 ): Promise<ItemCharge[]> {
   const baseFilter = getBaseFilter();
 
-  if (!search || search.length < 2) {
+  if (!search || !search.trim()) {
     const query = buildODataQuery({
       $select: "No,Description,Block,GST_Group_Code,HSN_SAC_Code,Exempted,Gen_Prod_Posting_Group",
       $filter: baseFilter,
@@ -143,7 +143,7 @@ export async function searchItemChargesByField(
   query: string,
   field: "No" | "Description",
 ): Promise<ItemCharge[]> {
-  if (query.length < 2) return [];
+  if (!query || !query.trim()) return getItemCharges(50);
 
   const baseFilter = getBaseFilter();
   const escapedQuery = escapeODataValue(query);

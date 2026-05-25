@@ -15,7 +15,7 @@ function escapeODataValue(value: string): string {
   return value.replace(/'/g, "''");
 }
 
-export async function getFixedAssets(top: number = 20): Promise<FixedAsset[]> {
+export async function getFixedAssets(top: number = 50): Promise<FixedAsset[]> {
   const query = buildODataQuery({
     $select: "No,Description,FA_Location_Code",
     $orderby: "No",
@@ -28,7 +28,7 @@ export async function getFixedAssets(top: number = 20): Promise<FixedAsset[]> {
 }
 
 export async function searchFixedAssets(query: string): Promise<FixedAsset[]> {
-  if (query.length < 2) return [];
+  if (!query || !query.trim()) return getFixedAssets(50);
 
   const escapedQuery = escapeODataValue(query);
 
@@ -72,9 +72,9 @@ export async function searchFixedAssets(query: string): Promise<FixedAsset[]> {
 export async function getFixedAssetsPage(
   skip: number,
   search?: string,
-  top: number = 30,
+  top: number = 50,
 ): Promise<FixedAsset[]> {
-  if (!search || search.length < 2) {
+  if (!search || !search.trim()) {
     const query = buildODataQuery({
       $select: "No,Description,FA_Location_Code",
       $orderby: "No",
@@ -130,7 +130,7 @@ export async function searchFixedAssetsByField(
   query: string,
   field: "No" | "Description",
 ): Promise<FixedAsset[]> {
-  if (query.length < 2) return [];
+  if (!query || !query.trim()) return getFixedAssets(50);
 
   const escapedQuery = escapeODataValue(query);
   const filter = `contains(${field},'${escapedQuery}')`;

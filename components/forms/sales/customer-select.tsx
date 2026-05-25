@@ -412,7 +412,7 @@ export function CustomerSelect({
       return;
     }
     const found = customers.find((c) => c.No === value);
-    if (found) setDisplayLabel(`${found.No} – ${found.Name}`);
+    if (found) setDisplayLabel(found.No);
     else if (!displayLabel) setDisplayLabel(value);
   }, [value, customers]); // eslint-disable-line react-hooks/exhaustive-deps
 

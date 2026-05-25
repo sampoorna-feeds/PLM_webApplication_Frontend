@@ -121,12 +121,7 @@ export function SalesPersonSelect({
   );
 
   // Find selected item display value
-  const selectedItem = items.find((item) => item.Code === value);
-  const displayValue = selectedItem
-    ? `${selectedItem.Code} - ${selectedItem.Name}`
-    : value && salesPersonName
-      ? `${value} - ${salesPersonName}`
-      : value || "";
+  const displayValue = value || "";
 
   // Load more items (pagination on scroll)
   const loadMore = useCallback(async () => {

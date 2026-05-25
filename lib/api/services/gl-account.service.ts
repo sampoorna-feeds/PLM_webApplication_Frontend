@@ -37,7 +37,7 @@ function getBaseFilter(): string {
  * Initial load - Get first batch of GL accounts (no search)
  */
 export async function getGLAccounts(
-  top: number = 20,
+  top: number = 50,
 ): Promise<GLPostingAccount[]> {
   const query = buildODataQuery({
     $select: "No,Name,Gen_Prod_Posting_Group",
@@ -58,8 +58,8 @@ export async function getGLAccounts(
 export async function searchGLAccounts(
   query: string,
 ): Promise<GLPostingAccount[]> {
-  if (query.length < 2) {
-    return [];
+  if (!query || !query.trim()) {
+    return getGLAccounts(50);
   }
 
   // Check cache first
@@ -127,11 +127,11 @@ export async function searchGLAccounts(
 export async function getGLAccountsPage(
   skip: number,
   search?: string,
-  top: number = 30,
+  top: number = 50,
 ): Promise<GLPostingAccount[]> {
   const baseFilter = getBaseFilter();
 
-  if (!search || search.length < 2) {
+  if (!search || !search.trim()) {
     // No search - return paginated results
     const query = buildODataQuery({
       $select: "No,Name,Gen_Prod_Posting_Group",
@@ -221,7 +221,7 @@ export async function searchGLAccountsByField(
   query: string,
   field: "No" | "Name",
 ): Promise<GLPostingAccount[]> {
-  if (query.length < 2) return [];
+  if (!query || !query.trim()) return getGLAccounts(50);
 
   const baseFilter = getBaseFilter();
   const escapedQuery = escapeODataValue(query);

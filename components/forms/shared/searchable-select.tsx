@@ -51,9 +51,9 @@ interface SearchableSelectProps<T extends SearchableItem> {
 }
 
 const DEFAULT_DEBOUNCE_MS = 300;
-const DEFAULT_MIN_SEARCH_LENGTH = 2;
-const DEFAULT_INITIAL_LOAD_COUNT = 20;
-const DEFAULT_PAGE_SIZE = 30;
+const DEFAULT_MIN_SEARCH_LENGTH = 0;
+const DEFAULT_INITIAL_LOAD_COUNT = 50;
+const DEFAULT_PAGE_SIZE = 50;
 
 export function SearchableSelect<T extends SearchableItem>({
   value,
@@ -119,12 +119,9 @@ export function SearchableSelect<T extends SearchableItem>({
   // Search with debounce
   const performSearch = useCallback(
     async (query: string) => {
-      if (query.length < minSearchLength) {
-        setSearchQuery(query);
-        // Load initial items if search is too short
-        if (query.length === 0) {
-          loadInitialItems();
-        }
+      if (!query || !query.trim()) {
+        setSearchQuery("");
+        loadInitialItems();
         return;
       }
 
@@ -300,13 +297,18 @@ export function SearchableSelect<T extends SearchableItem>({
     : value || "";
 
   // Filter items based on search query (client-side filtering for display)
-  const filteredItems =
-    searchQuery.length >= minSearchLength
-      ? items.filter((item) => {
-          const display = getDisplayValue(item).toLowerCase();
-          return display.includes(searchQuery.toLowerCase());
-        })
-      : items;
+  const filteredItems = (() => {
+    const trimmed = searchQuery.trim();
+    if (trimmed === displayValue || trimmed === value || !trimmed) {
+      return items;
+    }
+    const lower = trimmed.toLowerCase();
+    return items.filter((item) => {
+      const code = (item.Code || item.No || "").toLowerCase();
+      const name = (item.Name || item.Description || "").toLowerCase();
+      return code.includes(lower) || name.includes(lower);
+    });
+  })();
 
   // Scroll active item into view
   useEffect(() => {
@@ -458,9 +460,7 @@ export function SearchableSelect<T extends SearchableItem>({
               </div>
             ) : filteredItems.length === 0 ? (
               <div className="text-muted-foreground py-6 text-center text-sm px-2">
-                {searchQuery.length < minSearchLength
-                  ? `Type at least ${minSearchLength} characters to search`
-                  : `No items found for "${searchQuery}"`}
+                No items found
               </div>
             ) : (
               <>

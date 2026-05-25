@@ -676,9 +676,12 @@ export function SalesCopyDocumentDialog({
                   lobValue={lobCode}
                   userId={userId}
                   compactWhenSingle
+                  showCodeOnly
                 />
                 {branchName && (
-                  <p className="text-muted-foreground text-xs">{branchName}</p>
+                  <p className="mt-1 pl-1 text-sm font-medium text-green-600">
+                    {branchName}
+                  </p>
                 )}
               </div>
             )}

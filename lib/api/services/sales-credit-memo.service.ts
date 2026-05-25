@@ -43,10 +43,18 @@ export interface SalesDocumentLineItem {
   faPostingType?: string;
 }
 
-function stripNullish(obj: Record<string, unknown>): Record<string, unknown> {
+export function stripEmptyValues(
+  obj: Record<string, unknown>,
+): Record<string, unknown> {
   return Object.entries(obj).reduce(
     (acc, [key, value]) => {
-      if (value !== undefined && value !== null) acc[key] = value;
+      if (
+        value !== undefined &&
+        value !== null &&
+        !(typeof value === "string" && value.trim() === "")
+      ) {
+        acc[key] = value;
+      }
       return acc;
     },
     {} as Record<string, unknown>,
@@ -72,13 +80,13 @@ export async function createSalesCreditMemo(
       Shortcut_Dimension_1_Code: data.lob || "",
       Shortcut_Dimension_2_Code: data.branch || "",
       Shortcut_Dimension_3_Code: data.locationCode || "",
-      ShortcutDimCode3: data.locationCode || "",
       Responsibility_Center: data.lob || "",
       SFPL_User_ID: data.SFPL_User_ID || "",
     };
+    const cleanedPayload = stripEmptyValues(payload);
     const response = await apiPost<CreateSalesDocumentApiResponse>(
       endpoint,
-      toUpperCaseValues(payload, ["Document_Type", "Type", "Invoice_Type"]),
+      toUpperCaseValues(cleanedPayload, ["Document_Type", "Type", "Invoice_Type"]),
     );
     if (!response) return { orderId: "", orderNo: "" };
     const orderNo = response.No ?? response.orderNo ?? "";
@@ -104,9 +112,10 @@ export async function createSalesCreditMemoCopyHeader(
       Shortcut_Dimension_3_Code: locationCode,
       sFPL_User_ID: userID?.toUpperCase() || "",
     };
+    const cleanedPayload = stripEmptyValues(payload);
     const response = await apiPost<CreateSalesDocumentApiResponse>(
       endpoint,
-      toUpperCaseValues(payload, ["Document_Type", "Type"]),
+      toUpperCaseValues(cleanedPayload, ["Document_Type", "Type"]),
     );
     if (!response) return { orderId: "", orderNo: "" };
     const orderNo = response.No ?? response.orderNo ?? "";
@@ -125,21 +134,19 @@ export async function addSalesCreditMemoLineItems(
   if (!documentNo || lineItems.length === 0) return;
   const endpoint = `/${LINE_ENTITY}?company='${encodeURIComponent(COMPANY)}'`;
   for (const item of lineItems) {
-    const linePayload: Record<string, unknown> = toUpperCaseValues(
-      {
-        Document_No: documentNo,
-        Type: item.type,
-        No: item.no,
-        Quantity: item.quantity,
-      },
-      ["Document_Type", "Type"],
-    );
+    const linePayload: Record<string, unknown> = {
+      Document_No: documentNo,
+      Type: item.type,
+      No: item.no,
+      Quantity: item.quantity,
+    };
     if (locationCode) {
       linePayload.Location_Code = locationCode;
       linePayload.ShortcutDimCode3 = locationCode;
     }
     if (item.uom) linePayload.Unit_of_Measure_Code = item.uom;
-    await apiPost(endpoint, linePayload);
+    const cleanedPayload = stripEmptyValues(linePayload);
+    await apiPost(endpoint, toUpperCaseValues(cleanedPayload, ["Document_Type", "Type"]));
   }
 }
 
@@ -169,9 +176,10 @@ export async function addSingleSalesCreditMemoLine(
   if (line.hsnSacCode) payload.HSN_SAC_Code = line.hsnSacCode;
   if (line.foc != null) payload.FOC = line.foc;
   if (line.faPostingType) payload.FA_Posting_Type = line.faPostingType;
+  const cleanedPayload = stripEmptyValues(payload);
   const result = await apiPost<{ Line_No: number;[key: string]: unknown }>(
     endpoint,
-    toUpperCaseValues(payload, ["Document_Type", "Type"]),
+    toUpperCaseValues(cleanedPayload, ["Document_Type", "Type"]),
   );
   return result ?? { Line_No: 0 };
 }
@@ -184,7 +192,7 @@ export async function updateSingleSalesCreditMemoLine(
 ): Promise<{ Line_No: number;[key: string]: unknown }> {
   const escapedNo = documentNo.replace(/'/g, "''");
   const endpoint = `/${LINE_ENTITY}(Document_Type='${encodeURIComponent(DOCUMENT_TYPE)}',Document_No='${encodeURIComponent(escapedNo)}',Line_No=${lineNo})?company='${encodeURIComponent(COMPANY)}'`;
-  const payload = stripNullish(body as Record<string, unknown>);
+  const payload = stripEmptyValues(body as Record<string, unknown>);
   const result = await apiPatch<{ Line_No: number;[key: string]: unknown }>(
     endpoint,
     toUpperCaseValues(payload, ["Document_Type", "Type"]),

@@ -114,27 +114,11 @@ export function SalesOrderLineEditDialog({
   const [hsnOptions, setHsnOptions] = useState<SearchableSelectOption[]>([]);
   const [uom, setUom] = useState("");
   const [uomOptions, setUomOptions] = useState<SearchableSelectOption[]>([]);
-  const [globalUoms, setGlobalUoms] = useState<UOM[]>([]);
   const [loadingOptions, setLoadingOptions] = useState({
     gst: false,
     hsn: false,
     uom: false,
   });
-
-  // Load global UOM list for description lookup
-  useEffect(() => {
-    if (!open) {
-      setGlobalUoms([]);
-      return;
-    }
-    getUOMs().then((data) => setGlobalUoms(data)).catch(() => {});
-  }, [open]);
-
-  const uomDesc = useMemo(() => {
-    if (!uom) return "";
-    const matched = globalUoms.find((u) => u.Code.toLowerCase() === uom.toLowerCase());
-    return matched?.Description || "";
-  }, [uom, globalUoms]);
 
   const fieldInputClass =
     "disabled:opacity-100 disabled:text-foreground font-medium text-xs disabled:pointer-events-none";
@@ -500,11 +484,6 @@ export function SalesOrderLineEditDialog({
                       hideClear
                     />
                   </div>
-                  {uomDesc && (
-                    <p className="mt-1 pl-1 text-[11px] font-medium text-green-600 max-w-[120px] break-words">
-                      {uomDesc}
-                    </p>
-                  )}
                 </div>
               </>
             )}

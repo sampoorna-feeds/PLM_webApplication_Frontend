@@ -360,7 +360,7 @@ export function SearchableSelect<T extends SearchableItem>({
         <div className="relative w-full">
           <Input
             ref={inputRef}
-            value={(isFocused || isOpen) ? searchQuery : displayValue}
+            value={isOpen ? searchQuery : displayValue}
             onChange={(e) => {
               const query = e.target.value;
               setSearchQuery(query);

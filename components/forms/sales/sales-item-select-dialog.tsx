@@ -278,7 +278,7 @@ export function SalesItemSelectDialog({
         <div className="relative w-full">
           <Input
             ref={inputRef}
-            value={isFocused ? searchQuery : displayLabel}
+            value={open ? searchQuery : displayLabel}
             onChange={(e) => {
               setSearchQuery(e.target.value);
               setActiveIndex(-1);

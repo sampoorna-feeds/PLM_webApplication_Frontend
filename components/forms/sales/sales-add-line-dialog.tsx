@@ -142,7 +142,6 @@ export function SalesAddLineDialog({
 }: SalesAddLineDialogProps) {
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [uomOptions, setUomOptions] = useState<SearchableSelectOption[]>([]);
-  const [globalUoms, setGlobalUoms] = useState<UOM[]>([]);
   const [gstOptions, setGstOptions] = useState<SearchableSelectOption[]>([]);
   const [hsnOptions, setHsnOptions] = useState<SearchableSelectOption[]>([]);
   const [loadingOptions, setLoadingOptions] = useState({
@@ -153,21 +152,6 @@ export function SalesAddLineDialog({
   const [isSaving, setIsSaving] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
   const [apiError, setApiError] = useState<ApiErrorState | null>(null);
-
-  // Load global UOM list for description lookup
-  useEffect(() => {
-    if (!open) {
-      setGlobalUoms([]);
-      return;
-    }
-    getUOMs().then((data) => setGlobalUoms(data)).catch(() => {});
-  }, [open]);
-
-  const uomDesc = useMemo(() => {
-    if (!form.uom) return "";
-    const matched = globalUoms.find((u) => u.Code.toLowerCase() === form.uom.toLowerCase());
-    return matched?.Description || "";
-  }, [form.uom, globalUoms]);
 
   // Reset on close
   useEffect(() => {
@@ -491,7 +475,7 @@ export function SalesAddLineDialog({
         <DialogContent showCloseButton={false} className="sm:max-w-3xl max-h-[90vh] flex flex-col p-4">
           <div className="space-y-2.5 overflow-y-auto flex-1 pr-1 -mr-1">
             <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-12 px-1">
-              <div className={cn("space-y-1", form.type === "" ? "sm:col-span-3" : "sm:col-span-2")}>
+              <div className="space-y-1 sm:col-span-3">
                 <FieldTitle>Type</FieldTitle>
                 <div className="relative">
                   <Select
@@ -514,9 +498,9 @@ export function SalesAddLineDialog({
                 </div>
               </div>
 
-              {form.type !== "" ? (
+              {form.type !== "" && (
                 <>
-                  <div className="space-y-1 sm:col-span-4">
+                  <div className="space-y-1 sm:col-span-6">
                     <FieldTitle>Select Item</FieldTitle>
                     {form.type === "G/L Account" ? (
                       <MasterSearchableSelect<GLPostingAccount>
@@ -595,19 +579,7 @@ export function SalesAddLineDialog({
                     )}
                   </div>
 
-                  <div className="space-y-1 sm:col-span-4">
-                    <FieldTitle>
-                      Description <span className="text-red-500">*</span>
-                    </FieldTitle>
-                    <Input
-                      value={form.description}
-                      onChange={(e) => set("description", e.target.value)}
-                      placeholder="Enter description"
-                      className="h-8 text-xs font-medium"
-                    />
-                  </div>
-
-                  <div className="space-y-1 sm:col-span-2">
+                  <div className="space-y-1 sm:col-span-3">
                     <FieldTitle>UOM</FieldTitle>
                     <DropdownSearchableSelect
                       value={form.uom}
@@ -621,19 +593,19 @@ export function SalesAddLineDialog({
                     />
                   </div>
                 </>
-              ) : (
-                <div className="space-y-1 sm:col-span-9">
-                  <FieldTitle>
-                    Description <span className="text-red-500">*</span>
-                  </FieldTitle>
-                  <Input
-                    value={form.description}
-                    onChange={(e) => set("description", e.target.value)}
-                    placeholder="Enter description"
-                    className="h-8 text-xs font-medium"
-                  />
-                </div>
               )}
+
+              <div className="space-y-1 sm:col-span-12">
+                <FieldTitle>
+                  Description <span className="text-red-500">*</span>
+                </FieldTitle>
+                <Input
+                  value={form.description}
+                  onChange={(e) => set("description", e.target.value)}
+                  placeholder="Enter description"
+                  className="h-8 text-xs font-medium"
+                />
+              </div>
             </div>
 
             {/* ── Pricing ── */}

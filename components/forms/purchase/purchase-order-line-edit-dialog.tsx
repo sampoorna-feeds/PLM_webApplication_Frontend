@@ -567,83 +567,92 @@ export function PurchaseOrderLineEditDialog({
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="sm:max-w-3xl [&>button]:hidden">
-          <DialogHeader className="flex flex-row items-center justify-between border-b pb-4 mb-4">
-            <DialogTitle className={hasTracking ? "text-red-600" : ""}>
-              Edit Purchase Line
-              {hasTracking && (
-                <span className="ml-2 text-sm font-normal text-red-500">
-                  (Has Tracking)
-                </span>
-              )}
-            </DialogTitle>
-            <div className="flex items-center gap-2">
-              {onDelete && line.Line_No && (
-                <Button
-                  variant="outline"
-                  className={cn(
-                    "border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive h-8 px-3 text-xs",
-                  )}
-                  onClick={handleDelete}
-                  disabled={isDeleting || isSaving}
-                >
-                  {isDeleting ? (
-                    <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
-                  ) : (
-                    <Trash2 className="mr-2 h-3.5 w-3.5" />
-                  )}
-                  Delete
-                </Button>
-              )}
-
-              {canAddBardana && line.Line_No && (
-                <Button
-                  variant="outline"
-                  className="h-8 px-3 text-xs"
-                  onClick={() => setIsBardanaOpen(true)}
-                >
-                  <Package className="mr-2 h-3.5 w-3.5" />
-                  Add Bardana
-                </Button>
-              )}
-
-              {(line.Type || "").trim() === "Charge (Item)" && line.Line_No && onOpenItemCharge && (
-                <Button
-                  variant="outline"
-                  className="h-8 px-3 text-xs"
-                  onClick={() => onOpenItemCharge(line)}
-                >
-                  <Link2 className="mr-2 h-3.5 w-3.5" />
-                  Item Charge
-                </Button>
-              )}
-
-              {hasTracking && onAssignTracking && (
-                <Button
-                  variant="outline"
-                  className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 h-8 px-3 text-xs"
-                  onClick={() => {
-                    onAssignTracking(line);
-                  }}
-                >
-                  Item Tracking
-                </Button>
-              )}
-              <Button variant="outline" size="sm" onClick={() => onOpenChange(false)} className="h-8 text-xs">
-                Cancel
-              </Button>
-              <Button size="sm" onClick={handleSave} disabled={isSaving || isDeleting} className="h-8 text-xs">
-                {(isSaving || isDeleting) && (
-                  <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleSave();
+            }}
+            className="flex flex-col space-y-4"
+          >
+            <DialogHeader className="flex flex-row items-center justify-between border-b pb-4 mb-4">
+              <DialogTitle className={hasTracking ? "text-red-600" : ""}>
+                Edit Purchase Line
+                {hasTracking && (
+                  <span className="ml-2 text-sm font-normal text-red-500">
+                    (Has Tracking)
+                  </span>
                 )}
-                Save
-              </Button>
-            </div>
-          </DialogHeader>
+              </DialogTitle>
+              <div className="flex items-center gap-2">
+                {onDelete && line.Line_No && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className={cn(
+                      "border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive h-8 px-3 text-xs",
+                    )}
+                    onClick={handleDelete}
+                    disabled={isDeleting || isSaving}
+                  >
+                    {isDeleting ? (
+                      <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Trash2 className="mr-2 h-3.5 w-3.5" />
+                    )}
+                    Delete
+                  </Button>
+                )}
 
+                {canAddBardana && line.Line_No && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-8 px-3 text-xs"
+                    onClick={() => setIsBardanaOpen(true)}
+                  >
+                    <Package className="mr-2 h-3.5 w-3.5" />
+                    Add Bardana
+                  </Button>
+                )}
 
+                {(line.Type || "").trim() === "Charge (Item)" && line.Line_No && onOpenItemCharge && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-8 px-3 text-xs"
+                    onClick={() => onOpenItemCharge(line)}
+                  >
+                    <Link2 className="mr-2 h-3.5 w-3.5" />
+                    Item Charge
+                  </Button>
+                )}
 
-          {/* ── Editable fields ── */}
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                {hasTracking && onAssignTracking && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 h-8 px-3 text-xs"
+                    onClick={() => {
+                      onAssignTracking(line);
+                    }}
+                  >
+                    Item Tracking
+                  </Button>
+                )}
+                <Button type="button" variant="outline" size="sm" onClick={() => onOpenChange(false)} className="h-8 text-xs">
+                  Cancel
+                </Button>
+                <Button type="submit" size="sm" disabled={isSaving || isDeleting} className="h-8 text-xs">
+                  {(isSaving || isDeleting) && (
+                    <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                  )}
+                  Save
+                </Button>
+              </div>
+            </DialogHeader>
+
+            {/* ── Editable fields ── */}
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
             {/* Description — always first, takes 2 columns to leave room for Applies to Item Entry */}
             <div className="space-y-1 sm:col-span-2 lg:col-span-2">
               <Label htmlFor="po-line-description" className="text-xs">
@@ -1115,6 +1124,7 @@ export function PurchaseOrderLineEditDialog({
               </>
             )}
           </div>
+          </form>
         </DialogContent>
       </Dialog>
 

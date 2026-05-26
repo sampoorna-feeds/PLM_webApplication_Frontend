@@ -1200,8 +1200,8 @@ export function SalesCreateDocumentFormContent({
     isViewMode || (isReleased && documentType !== "order");
 
   // ── Render helpers ─────────────────────────────────────────────────────────
-  const fieldClass = "min-w-0 space-y-1.5";
-  const labelClass = "text-muted-foreground block text-xs font-medium";
+  const fieldClass = "min-w-0 space-y-1";
+  const labelClass = "text-[10px] font-bold uppercase tracking-wider text-muted-foreground/85 block";
 
   const renderHeaderFields = () => (
     <Accordion
@@ -1211,8 +1211,8 @@ export function SalesCreateDocumentFormContent({
     >
       {/* ── General ── */}
       <AccordionItem value="general" className="border-none">
-        <AccordionTrigger className="py-0 hover:no-underline [&>svg]:size-4">
-          <h3 className="px-2 py-1 text-left text-xs font-bold tracking-wider uppercase">
+        <AccordionTrigger className="py-0 hover:no-underline [&>svg]:size-3.5">
+          <h3 className="px-2 py-1 text-left text-[10px] font-bold tracking-wider uppercase text-muted-foreground/90">
             General
           </h3>
         </AccordionTrigger>
@@ -1222,8 +1222,8 @@ export function SalesCreateDocumentFormContent({
             areFieldsReadOnly && "pointer-events-none",
           )}
         >
-          <Separator className="mb-3" />
-          <div className="grid grid-cols-2 gap-x-4 gap-y-4 sm:grid-cols-3 lg:grid-cols-6">
+          <Separator className="mb-2.5" />
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
             <div className={fieldClass}>
               <label className={labelClass}>LOB</label>
               <CascadingDimensionSelect
@@ -1294,7 +1294,7 @@ export function SalesCreateDocumentFormContent({
                       )
                     }
                   >
-                    <SelectTrigger className="h-9">
+                    <SelectTrigger className="h-8">
                       <SelectValue placeholder="None" />
                     </SelectTrigger>
                     <SelectContent>
@@ -1485,8 +1485,8 @@ export function SalesCreateDocumentFormContent({
       {/* ── Application Detail ── */}
       {caps.supportsAppliesToFields && (
         <AccordionItem value="application-detail" className="border-none">
-          <AccordionTrigger className="py-0 hover:no-underline [&>svg]:size-4">
-            <h3 className="px-2 py-1 text-left text-xs font-bold tracking-wider uppercase">
+          <AccordionTrigger className="py-0 hover:no-underline [&>svg]:size-3.5">
+            <h3 className="px-2 py-1 text-left text-[10px] font-bold tracking-wider uppercase text-muted-foreground/90">
               Application Detail
             </h3>
           </AccordionTrigger>
@@ -1496,8 +1496,8 @@ export function SalesCreateDocumentFormContent({
             areFieldsReadOnly && "pointer-events-none",
           )}
           >
-            <Separator className="mb-3" />
-            <div className="grid grid-cols-2 gap-x-4 gap-y-4 sm:grid-cols-3 lg:grid-cols-6">
+            <Separator className="mb-2.5" />
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
               <div className={fieldClass}>
                 <label className={labelClass}>Applies to Doc Type</label>
                 <ClearableField
@@ -1515,7 +1515,7 @@ export function SalesCreateDocumentFormContent({
                       )
                     }
                   >
-                    <SelectTrigger className="h-9">
+                    <SelectTrigger className="h-8">
                       <SelectValue placeholder="Select" />
                     </SelectTrigger>
                     <SelectContent>

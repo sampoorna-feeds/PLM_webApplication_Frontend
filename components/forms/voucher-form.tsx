@@ -1642,16 +1642,16 @@ export function VoucherForm() {
   const validationSummaryMessage = getValidationSummaryMessage();
 
   const colHead =
-    "px-2 py-1.5 text-xs font-semibold text-foreground/80 bg-muted/30";
+    "px-2 py-1 text-[11px] font-bold uppercase tracking-wider text-muted-foreground bg-muted/30";
   const colCell = "p-1.5 align-top";
-  const control = "h-9 text-sm shadow-sm";
-  const tableClass = "min-w-max";
+  const control = "h-8 text-xs shadow-xs rounded-[var(--radius)]";
+  const tableClass = "min-w-max border-collapse";
   const excelWrap = cn(
-    "rounded-md border bg-background",
+    "rounded-[var(--radius)] border bg-background",
   );
 
   return (
-    <div className="flex h-full w-full min-w-0 flex-col gap-3 p-4 overflow-hidden">
+    <div className="flex h-full w-full min-w-0 flex-col gap-2.5 px-6 py-4 overflow-hidden bg-background">
       <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <div className="text-foreground/80 text-sm font-medium">
@@ -1672,6 +1672,13 @@ export function VoucherForm() {
           {voucherToEdit?.Line_No})
         </div>
       )}
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          isEditingVoucher ? setShowUpdateVoucherWarning(true) : handleSubmitDirectly();
+        }}
+        className="w-full"
+      >
       <div
         ref={formTableRef}
         data-form-card
@@ -2394,10 +2401,9 @@ export function VoucherForm() {
                   Cancel
                 </Button>
                 <Button
-                  type="button"
+                  type="submit"
                   size="sm"
                   className="h-9"
-                  onClick={() => setShowUpdateVoucherWarning(true)}
                   disabled={isUpdatingVoucher}
                 >
                   <Pencil className="mr-2 h-4 w-4" />
@@ -2406,10 +2412,9 @@ export function VoucherForm() {
               </>
             ) : (
               <Button 
-                type="button" 
+                type="submit" 
                 size="sm" 
                 className="h-9" 
-                onClick={handleSubmitDirectly}
                 disabled={isSubmitting}
               >
                 {isSubmitting ? (
@@ -2428,6 +2433,7 @@ export function VoucherForm() {
           </div>
         </div>
       </div>
+      </form>
 
       {/* Staging area removed */}
 

@@ -337,7 +337,7 @@ export function LocationSelect({
               setSearchQuery(query);
               if (!open) setOpen(true);
             }}
-            onFocus={() => {
+            onClick={() => {
               if (!open) {
                 setSearchQuery("");
                 setOpen(true);

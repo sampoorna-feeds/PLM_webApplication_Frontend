@@ -372,7 +372,14 @@ export function SalesOrderLineEditDialog({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent showCloseButton={false} className="sm:max-w-lg max-h-[90vh] flex flex-col">
+        <DialogContent showCloseButton={false} className="sm:max-w-lg max-h-[90vh] flex flex-col p-0 overflow-hidden">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleSave();
+            }}
+            className="flex flex-col flex-1 max-h-[90vh] p-4"
+          >
           <DialogHeader className="border-b pb-3">
             <DialogTitle className={cn("text-base font-semibold", hasTracking ? "text-red-600" : "")}>
               Edit Sales Line
@@ -679,10 +686,9 @@ export function SalesOrderLineEditDialog({
                 Cancel
               </Button>
               <Button
-                type="button"
+                type="submit"
                 size="sm"
                 className="h-8 px-3"
-                onClick={handleSave}
                 disabled={isSaving || isDeleting}
               >
                 {isSaving ? (
@@ -696,6 +702,7 @@ export function SalesOrderLineEditDialog({
               </Button>
             </div>
           </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
 

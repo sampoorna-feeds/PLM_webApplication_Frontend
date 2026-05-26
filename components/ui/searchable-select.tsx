@@ -275,7 +275,7 @@ export function SearchableSelect({
             placeholder={placeholder}
             disabled={disabled || isLoading}
             className={cn(
-              "h-8 w-full bg-background pr-10 text-xs font-medium truncate",
+              "h-8 w-full bg-background pr-10 text-[13px] font-medium truncate",
               className
             )}
             onClick={() => {
@@ -322,7 +322,7 @@ export function SearchableSelect({
       >
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
           {searchQuery && (
-            <div className="bg-muted/40 border-b px-2.5 py-1.5 text-[10px] text-muted-foreground flex items-center justify-between shrink-0">
+            <div className="bg-muted/40 border-b px-2.5 py-1.5 text-[11px] text-muted-foreground flex items-center justify-between shrink-0">
               <span className="truncate">Searching for: <span className="font-semibold text-foreground">"{searchQuery}"</span></span>
               <button
                 type="button"
@@ -330,7 +330,7 @@ export function SearchableSelect({
                   setSearchQuery("");
                   if (onSearch) onSearch("");
                 }}
-                className="text-[9px] hover:text-foreground text-muted-foreground ml-2 shrink-0 transition-colors"
+                className="text-[10px] hover:text-foreground text-muted-foreground ml-2 shrink-0 transition-colors"
               >
                 Clear
               </button>
@@ -345,7 +345,7 @@ export function SearchableSelect({
             {isLoading ? (
               <div className="flex items-center justify-center py-6">
                 <Loader2 className="h-4 w-4 animate-spin" />
-                <span className="text-muted-foreground ml-2 text-sm">
+                <span className="text-muted-foreground ml-2 text-[15px]">
                   Loading...
                 </span>
               </div>
@@ -356,7 +356,7 @@ export function SearchableSelect({
                     role="option"
                     aria-selected={values.includes(searchQuery.trim())}
                     onMouseDown={(e) => e.preventDefault()}
-                    className={cn("relative flex cursor-pointer items-center rounded-sm px-2 py-1.5 text-sm font-medium transition-colors outline-none select-none",
+                    className={cn("relative flex cursor-pointer items-center rounded-sm px-2 py-1.5 text-[15px] font-medium transition-colors outline-none select-none",
                       activeIndex === 0 ? "bg-accent text-accent-foreground" : "bg-primary/10 hover:bg-accent hover:text-accent-foreground"
                     )}
                     onClick={() => {
@@ -385,7 +385,7 @@ export function SearchableSelect({
                     </span>
                   </div>
                 ) : (
-                  <div className="text-muted-foreground py-4 text-center text-sm px-2">
+                  <div className="text-muted-foreground py-4 text-center text-[15px] px-2">
                     {searchQuery ? `No results found for "${searchQuery}"` : emptyText}
                   </div>
                 )}
@@ -400,7 +400,7 @@ export function SearchableSelect({
                     onMouseDown={(e) => e.preventDefault()}
                     onMouseEnter={() => setActiveIndex(0)}
                     className={cn(
-                      "relative mb-1 flex cursor-pointer items-center rounded-sm border-b px-2 py-1.5 text-sm font-medium transition-colors outline-none select-none",
+                      "relative mb-1 flex cursor-pointer items-center rounded-sm border-b px-2 py-1.5 text-[15px] font-medium transition-colors outline-none select-none",
                       activeIndex === 0 ? "bg-accent text-accent-foreground" : "bg-primary/10 hover:bg-accent hover:text-accent-foreground"
                     )}
                     onClick={() => {
@@ -441,7 +441,7 @@ export function SearchableSelect({
                       onMouseDown={(e) => e.preventDefault()}
                       onMouseEnter={() => setActiveIndex(optionIndex)}
                       className={cn(
-                        "group relative flex cursor-pointer items-start rounded-sm px-2 py-1.5 text-sm transition-colors outline-none select-none",
+                        "group relative flex cursor-pointer items-start rounded-sm px-2 py-1.5 text-[15px] transition-colors outline-none select-none",
                         isSelected
                           ? "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
                           : isFocused ? "bg-accent text-accent-foreground" : "hover:bg-accent hover:text-accent-foreground",
@@ -477,7 +477,7 @@ export function SearchableSelect({
                         {option.description && (
                           <span
                             className={cn(
-                              "text-xs truncate group-hover:wrap-break-word group-hover:whitespace-normal",
+                              "text-[13px] truncate group-hover:wrap-break-word group-hover:whitespace-normal",
                               isSelected ? "text-primary-foreground/80" : isFocused ? "text-accent-foreground/80" : "text-muted-foreground"
                             )}
                             title={option.description}
@@ -497,7 +497,7 @@ export function SearchableSelect({
                 {isLoadingMore && (
                   <div className="flex items-center justify-center py-2">
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    <span className="text-muted-foreground ml-2 text-xs">
+                    <span className="text-muted-foreground ml-2 text-[13px]">
                       Loading more...
                     </span>
                   </div>

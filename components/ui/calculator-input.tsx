@@ -88,8 +88,6 @@ export const CalculatorInput = React.forwardRef<
         lastCommittedValue.current = result;
         onCommit?.(result);
       }
-      // Prevent form submission if inside a form
-      e.preventDefault();
     }
     onKeyDown?.(e);
   };

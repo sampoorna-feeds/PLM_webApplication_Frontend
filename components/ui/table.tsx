@@ -18,7 +18,7 @@ function Table({ className, containerClassName, containerRef, ...props }: TableP
     >
       <table
         data-slot="table"
-        className={cn("w-full caption-bottom text-sm", className)}
+        className={cn("w-full caption-bottom text-[15px]", className)}
         {...props}
       />
     </div>
@@ -63,7 +63,7 @@ function TableRow({ className, ...props }: React.ComponentProps<"tr">) {
     <tr
       data-slot="table-row"
       className={cn(
-        "hover:bg-muted/50 data-[state=selected]:bg-muted border-b transition-colors",
+        "hover:bg-muted/30 dark:hover:bg-muted/20 data-[state=selected]:bg-muted/50 border-b border-border/50 transition-colors",
         className,
       )}
       {...props}
@@ -76,7 +76,7 @@ function TableHead({ className, ...props }: React.ComponentProps<"th">) {
     <th
       data-slot="table-head"
       className={cn(
-        "text-foreground h-10 px-2 text-left align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0",
+        "text-muted-foreground h-8 px-2.5 text-left align-middle font-bold text-[12px] uppercase tracking-wider whitespace-nowrap [&:has([role=checkbox])]:pr-0",
         className,
       )}
       {...props}
@@ -89,7 +89,7 @@ function TableCell({ className, ...props }: React.ComponentProps<"td">) {
     <td
       data-slot="table-cell"
       className={cn(
-        "p-2 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0",
+        "p-1.5 px-2.5 align-middle text-[13px] whitespace-nowrap [&:has([role=checkbox])]:pr-0 text-foreground/90",
         className,
       )}
       {...props}
@@ -104,7 +104,7 @@ function TableCaption({
   return (
     <caption
       data-slot="table-caption"
-      className={cn("text-muted-foreground mt-4 text-sm", className)}
+      className={cn("text-muted-foreground mt-4 text-[15px]", className)}
       {...props}
     />
   );

@@ -555,7 +555,14 @@ export function PurchaseOrderLineDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent showCloseButton={false} className="sm:max-w-3xl max-h-[90vh] flex flex-col">
+      <DialogContent showCloseButton={false} className="sm:max-w-3xl max-h-[90vh] flex flex-col p-0 overflow-hidden">
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleSubmit();
+          }}
+          className="flex flex-col flex-1 max-h-[90vh] p-4"
+        >
         <DialogHeader className="flex-row items-center justify-between border-b pb-3 space-y-0">
           <DialogTitle>
             {isEdit ? "Edit Line Item" : "Add Line Item"}
@@ -599,10 +606,9 @@ export function PurchaseOrderLineDialog({
               Cancel
             </Button>
             <Button
-              type="button"
+              type="submit"
               size="sm"
               className="h-8 px-3"
-              onClick={handleSubmit}
               disabled={isSaving || isRemoving}
             >
               {isSaving ? (
@@ -1157,6 +1163,7 @@ export function PurchaseOrderLineDialog({
             <p className="text-destructive text-xs mt-2">{validationError}</p>
           )}
         </div>
+        </form>
       </DialogContent>
     </Dialog>
   );

@@ -166,6 +166,9 @@ export function SalesPersonSelect({
     if (open) {
       setActiveIndex(-1);
       setSearchQuery(displayValue);
+      if (items.length === 0) {
+        loadInitialItems();
+      }
     } else {
       setActiveIndex(-1);
     }
@@ -276,13 +279,20 @@ export function SalesPersonSelect({
               const query = e.target.value;
               setSearchQuery(query);
               setActiveIndex(-1);
-              performSearch(query, displayValue);
+              if (query === "") {
+                loadInitialItems();
+              } else {
+                performSearch(query, displayValue);
+              }
               if (!isOpen) setIsOpen(true);
             }}
             onFocus={(e) => {
               if (!isOpen) {
                 setSearchQuery(displayValue);
                 setIsOpen(true);
+                if (items.length === 0) {
+                  loadInitialItems();
+                }
               }
               e.target.select();
             }}

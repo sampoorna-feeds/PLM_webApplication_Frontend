@@ -215,7 +215,7 @@ export function DropdownSearchableSelect({
             onKeyDown={handleTriggerKeyDown}
             onClick={() => setOpen((prev) => !prev)}
             className={cn(
-              "h-8 w-full justify-between bg-background px-3 text-xs font-medium text-left truncate shadow-none border border-input hover:bg-accent/50",
+              "h-8 w-full justify-between bg-background px-3 text-[13px] font-medium text-left truncate shadow-none border border-input hover:bg-accent/50",
               (hideClear || !value) && "pr-3",
               (!hideClear && value) && "pr-8",
               !value && "text-muted-foreground",
@@ -270,7 +270,7 @@ export function DropdownSearchableSelect({
                 }}
                 onKeyDown={handleInputKeyDown}
                 placeholder={searchPlaceholder}
-                className="h-7 text-xs bg-background pr-6 border-none focus-visible:ring-0"
+                className="h-7 text-[13px] bg-background pr-6 border-none focus-visible:ring-0"
               />
               <button
                 type="button"
@@ -292,7 +292,7 @@ export function DropdownSearchableSelect({
             onWheel={handleListWheel}
           >
             {filteredOptions.length === 0 ? (
-              <div className="text-muted-foreground py-4 text-center text-xs">
+              <div className="text-muted-foreground py-4 text-center text-[13px]">
                 No results found
               </div>
             ) : (
@@ -305,7 +305,7 @@ export function DropdownSearchableSelect({
                     role="option"
                     aria-selected={isSelected}
                     className={cn(
-                      "group relative flex cursor-pointer items-start rounded-sm px-2 py-1.5 text-xs transition-colors outline-none select-none",
+                      "group relative flex cursor-pointer items-start rounded-sm px-2 py-1.5 text-[13px] transition-colors outline-none select-none",
                       isSelected
                         ? "bg-primary text-primary-foreground hover:bg-primary/95"
                         : isFocused
@@ -331,7 +331,7 @@ export function DropdownSearchableSelect({
                       {option.description && (
                         <span
                           className={cn(
-                            "text-[10px] truncate",
+                            "text-[11px] truncate",
                             isSelected
                               ? "text-primary-foreground/80"
                               : isFocused

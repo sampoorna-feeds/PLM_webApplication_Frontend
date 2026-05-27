@@ -147,6 +147,11 @@ export function DropdownSearchableSelect({
 
   // Key handler for search input inside popover
   const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    // Prevent event from bubbling up to contentRef onKeyDown handler which also maps these navigation keys.
+    if (["ArrowDown", "ArrowUp", "Enter", "Escape"].includes(e.key)) {
+      e.stopPropagation();
+    }
+
     if (e.key === "ArrowDown") {
       e.preventDefault();
       isKeyboardActionRef.current = true;
@@ -216,30 +221,32 @@ export function DropdownSearchableSelect({
             onClick={() => setOpen((prev) => !prev)}
             className={cn(
               "h-8 w-full justify-between bg-background px-3 text-[13px] font-medium text-left truncate shadow-none border border-input hover:bg-accent/50",
-              (hideClear || !value) && "pr-3",
-              (!hideClear && value) && "pr-8",
+              (!hideClear && value && !disabled) ? "pr-12" : "pr-8",
               !value && "text-muted-foreground",
               className
             )}
           >
             <span className="truncate">{displayLabel}</span>
-            {!hideChevron && (
-              <ChevronDown className="h-4 w-4 shrink-0 opacity-40 ml-2" />
-            )}
           </Button>
-          {value && !disabled && !hideClear && (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                onValueChange("");
-              }}
-              className="absolute right-8 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-1 transition-colors rounded-full"
-            >
-              <X className="h-3 w-3" />
-            </button>
-          )}
+          <div className="absolute right-0 top-0 flex h-full items-center gap-1.5 px-3 pointer-events-none">
+            {value && !disabled && !hideClear && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onValueChange("");
+                  setTimeout(() => triggerRef.current?.focus(), 0);
+                }}
+                className="text-muted-foreground hover:text-foreground p-1 transition-colors rounded-full pointer-events-auto"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            )}
+            {!hideChevron && (
+              <ChevronDown className="h-4 w-4 shrink-0 opacity-40" />
+            )}
+          </div>
         </div>
       </PopoverAnchor>
 

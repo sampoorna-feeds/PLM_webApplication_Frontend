@@ -236,20 +236,23 @@ export function SearchableSelect<T extends SearchableItem>({
     }
   }, [hasMore, skip, searchQuery, loadMore, pageSize]);
 
-  // Handle dropdown open
+  // Handle dropdown open/close events from Radix Popover
   const handleOpenChange = (open: boolean) => {
     setIsOpen(open);
-    if (open) {
+  };
+
+  // Trigger loading when dropdown opens (handles both Radix and programmatic triggers)
+  useEffect(() => {
+    if (isOpen) {
       setActiveIndex(-1);
-      // Only load if items are empty
-      if (items.length === 0) {
+      if (items.length === 0 && !isLoadingRef.current) {
         loadInitialItems();
       }
     } else {
       setSearchQuery("");
       setActiveIndex(-1);
     }
-  };
+  }, [isOpen, items.length, loadInitialItems]);
 
   // Handle scroll for pagination
   useEffect(() => {

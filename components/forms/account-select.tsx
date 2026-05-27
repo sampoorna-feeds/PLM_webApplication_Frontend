@@ -221,7 +221,12 @@ export function AccountSelect({
           // Filter out duplicates by No
           const existingNos = new Set(prev.map((item) => item.No));
           const newItems = result.filter((item) => !existingNos.has(item.No));
-          return [...prev, ...newItems];
+          const merged = [...prev, ...newItems];
+          // Keep the list alphabetically sorted by Name for Vendor type
+          if (accountType === "Vendor") {
+            merged.sort((a, b) => (a.Name || "").localeCompare(b.Name || ""));
+          }
+          return merged;
         });
         setSkip((prev) => prev + result.length);
         setHasMore(result.length >= PAGE_SIZE);
@@ -371,7 +376,9 @@ export function AccountSelect({
     ? `${selectedItem.No} - ${selectedItem.Name}`
     : value || "";
 
-  const filteredItems = items.filter((item) => !excludeValue || item.No !== excludeValue);
+  const filteredItems = items.filter(
+    (item) => !excludeValue || item.No !== excludeValue,
+  );
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (disabled || !accountType) return;
@@ -381,8 +388,8 @@ export function AccountSelect({
       if (!isOpen) {
         setIsOpen(true);
       } else {
-        setFocusedIndex((prev) => 
-          prev < filteredItems.length - 1 ? prev + 1 : prev
+        setFocusedIndex((prev) =>
+          prev < filteredItems.length - 1 ? prev + 1 : prev,
         );
       }
     } else if (e.key === "ArrowUp") {
@@ -465,7 +472,7 @@ export function AccountSelect({
             )}
             data-field-error={hasError}
           />
-          <div className="absolute right-0 top-0 flex h-full items-center px-3 pointer-events-none">
+          <div className="pointer-events-none absolute top-0 right-0 flex h-full items-center px-3">
             {isLoading ? (
               <Loader2 className="h-4 w-4 animate-spin opacity-50" />
             ) : (
@@ -499,7 +506,8 @@ export function AccountSelect({
               </div>
             ) : filteredItems.length === 0 ? (
               <div className="text-muted-foreground p-4 text-center text-sm">
-                {searchQuery.length < MIN_SEARCH_LENGTH && searchQuery.length > 0
+                {searchQuery.length < MIN_SEARCH_LENGTH &&
+                searchQuery.length > 0
                   ? `Type at least ${MIN_SEARCH_LENGTH} characters to search`
                   : "No accounts found"}
               </div>
@@ -511,7 +519,8 @@ export function AccountSelect({
                     className={cn(
                       "relative flex cursor-default items-start rounded-sm px-2 py-2 text-sm outline-none select-none",
                       value === item.No && "bg-muted",
-                      focusedIndex === index && "bg-accent text-accent-foreground",
+                      focusedIndex === index &&
+                        "bg-accent text-accent-foreground",
                     )}
                     onClick={() => {
                       onChange(item.No);
@@ -529,18 +538,37 @@ export function AccountSelect({
                       )}
                     />
                     <div className="min-w-0 flex-1">
-                      <div className={cn(
-                        "text-foreground font-medium",
-                        focusedIndex === index && "text-accent-foreground"
-                      )}>
+                      <div
+                        className={cn(
+                          "text-foreground font-medium",
+                          focusedIndex === index && "text-accent-foreground",
+                        )}
+                      >
                         {item.No}
                       </div>
-                      <div className={cn(
-                        "text-muted-foreground mt-0.5 text-xs break-words",
-                        focusedIndex === index && "text-accent-foreground/80"
-                      )}>
+                      <div
+                        className={cn(
+                          "text-muted-foreground mt-0.5 text-xs break-words",
+                          focusedIndex === index && "text-accent-foreground/80",
+                        )}
+                      >
                         {item.Name}
                       </div>
+                      {accountType === "Vendor" &&
+                        "P_A_N_No" in item &&
+                        item.P_A_N_No && (
+                          <div className="mt-1 flex items-center gap-1.5">
+                            <span
+                              className={cn(
+                                "bg-muted/60 text-muted-foreground border-border/40 inline-flex items-center rounded border px-1.5 py-0.5 font-mono text-[10px] font-medium tracking-wider",
+                                focusedIndex === index &&
+                                  "bg-accent-foreground/15 text-accent-foreground/90 border-accent-foreground/30",
+                              )}
+                            >
+                              PAN: {item.P_A_N_No}
+                            </span>
+                          </div>
+                        )}
                     </div>
                   </div>
                 ))}

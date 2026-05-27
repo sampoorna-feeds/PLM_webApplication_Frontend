@@ -147,6 +147,8 @@ export function PurchaseOrderLineDialog({
   const [tdsOptions, setTdsOptions] = useState<SearchableSelectOption[]>([]);
   const [gstOptions, setGstOptions] = useState<SearchableSelectOption[]>([]);
   const [hsnOptions, setHsnOptions] = useState<SearchableSelectOption[]>([]);
+  const [genProdPostingGroups, setGenProdPostingGroups] = useState<GenProdPostingGroup[]>([]);
+  const [loadingGenProd, setLoadingGenProd] = useState(false);
   const [loadingOptions, setLoadingOptions] = useState({
     tds: false,
     gst: false,
@@ -245,6 +247,42 @@ export function PurchaseOrderLineDialog({
         setLoadingOptions((prev) => ({ ...prev, gst: false }));
       });
   }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    let mounted = true;
+    setLoadingGenProd(true);
+    purchaseDropdownsService.getGenProdPostingGroups()
+      .then((rows) => {
+        if (mounted) {
+          setGenProdPostingGroups(rows);
+        }
+      })
+      .catch((error) => {
+        console.error("Error loading Gen Prod Posting Groups:", error);
+        if (mounted) {
+          setGenProdPostingGroups([]);
+        }
+      })
+      .finally(() => {
+        if (mounted) {
+          setLoadingGenProd(false);
+        }
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, [isOpen]);
+
+  const genProdOptions = useMemo(() => {
+    return genProdPostingGroups.map((g) => ({
+      value: g.Code,
+      label: g.Code,
+      description: g.Description,
+    }));
+  }, [genProdPostingGroups]);
 
   useEffect(() => {
     if (!isOpen || !formState.gstGroupCode) {
@@ -1087,30 +1125,34 @@ export function PurchaseOrderLineDialog({
                     </Select>
                   </ClearableField>
                 </div>
-                {(formState.type === "Item" || formState.type === "G/L Account" || formState.type === "Charge (Item)") && (
+                {(formState.type === "G/L Account" || formState.type === "Charge (Item)") && (
                   <div className="space-y-1">
                     <FieldTitle>Gen Prod. Posting Group</FieldTitle>
                     <ClearableField
                       value={formState.genProdPostingGroup || ""}
                       onClear={() => handleFieldChange("genProdPostingGroup", "")}
                     >
-                      <MasterSearchableSelect<GenProdPostingGroup>
+                      <AppSearchableSelect
                         value={formState.genProdPostingGroup || ""}
-                        onChange={(value) =>
+                        onValueChange={(value) =>
                           handleFieldChange("genProdPostingGroup", value)
                         }
+                        options={genProdOptions}
+                        isLoading={loadingGenProd}
                         placeholder="Select Gen Prod..."
-                        loadInitial={() => purchaseDropdownsService.getGenProdPostingGroups()}
-                        searchItems={(query) => purchaseDropdownsService.getGenProdPostingGroupsPage(0, query)}
-                        loadMore={(skip, search) => purchaseDropdownsService.getGenProdPostingGroupsPage(skip, search)}
-                        getDisplayValue={(item) => `${item.Code} - ${item.Description}`}
-                        getItemValue={(item) => item.Code}
-                        supportsDualSearch={true}
-                        searchByField={(query, field) =>
-                          purchaseDropdownsService.getGenProdPostingGroupsPage(0, query)
-                        }
+                        searchPlaceholder="Search Gen Prod..."
                       />
                     </ClearableField>
+                    {(() => {
+                      const desc = genProdPostingGroups.find(
+                        (g) => g.Code === formState.genProdPostingGroup
+                      )?.Description;
+                      return desc ? (
+                        <p className="text-[11px] text-muted-foreground mt-1">
+                          {desc}
+                        </p>
+                      ) : null;
+                    })()}
                   </div>
                 )}
               </div>

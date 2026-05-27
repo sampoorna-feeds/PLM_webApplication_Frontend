@@ -324,6 +324,11 @@ export function PurchaseLineItemsTable({
                   GST Credit
                 </TableHead>
               )}
+              {isVisible("genProdPostingGroup") && (
+                <TableHead className="text-primary w-32 text-[11px] font-bold tracking-wider uppercase">
+                  Gen Prod.
+                </TableHead>
+              )}
               {isVisible("exempted") && (
                 <TableHead className="text-primary w-24 text-center text-[11px] font-bold tracking-wider uppercase">
                   Exempt
@@ -538,6 +543,9 @@ export function PurchaseLineItemsTable({
                 {isVisible("gstGroupCode") && <TableCell>{item.gstGroupCode || "-"}</TableCell>}
                 {isVisible("hsnSacCode") && <TableCell>{item.hsnSacCode || "-"}</TableCell>}
                 {isVisible("gstCredit") && <TableCell>{item.gstCredit || "-"}</TableCell>}
+                {isVisible("genProdPostingGroup") && (
+                  <TableCell>{item.genProdPostingGroup || "-"}</TableCell>
+                )}
                 {isVisible("exempted") && (
                   <TableCell className="text-center">
                     {item.exempted ? "Yes" : "No"}

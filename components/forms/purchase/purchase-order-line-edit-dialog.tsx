@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Loader2, Package, Trash2, Link2, Search, X, User, Briefcase } from "lucide-react";
 import { toast } from "sonner";
 import { toastError } from "@/lib/errors";
@@ -39,6 +39,7 @@ import {
   type ApplyItemLedgerEntry,
 } from "@/lib/api/services/purchase-orders.service";
 import { getVendorTDSGroupCodes } from "@/lib/api/services/tds.service";
+import { purchaseDropdownsService, type GenProdPostingGroup } from "@/lib/api/services/purchase-dropdowns.service";
 import {
   type DimensionValue,
   getEmployeesPage,
@@ -178,9 +179,11 @@ export function PurchaseOrderLineEditDialog({
     setGenProdPostingGroup(line.Gen_Prod_Posting_Group || "");
   }, [line]);
 
-  const [tdsOptions, setTdsOptions] = useState<SearchableSelectOption[]>([]);
+   const [tdsOptions, setTdsOptions] = useState<SearchableSelectOption[]>([]);
   const [gstOptions, setGstOptions] = useState<SearchableSelectOption[]>([]);
   const [hsnOptions, setHsnOptions] = useState<SearchableSelectOption[]>([]);
+  const [genProdPostingGroups, setGenProdPostingGroups] = useState<GenProdPostingGroup[]>([]);
+  const [loadingGenProd, setLoadingGenProd] = useState(false);
   const [loadingOptions, setLoadingOptions] = useState({
     tds: false,
     gst: false,
@@ -330,6 +333,33 @@ export function PurchaseOrderLineEditDialog({
       mounted = false;
     };
   }, [open, vendorNo]);
+
+  useEffect(() => {
+    if (!open) return;
+
+    let mounted = true;
+    setLoadingGenProd(true);
+    purchaseDropdownsService.getGenProdPostingGroups()
+      .then((res) => {
+        if (mounted) setGenProdPostingGroups(res);
+      })
+      .catch(console.error)
+      .finally(() => {
+        if (mounted) setLoadingGenProd(false);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, [open]);
+
+  const genProdOptions = useMemo(() => {
+    return genProdPostingGroups.map((g) => ({
+      value: g.Code,
+      label: g.Code,
+      description: g.Description,
+    }));
+  }, [genProdPostingGroups]);
 
   // Load HSN based on selected GST Group Code
   useEffect(() => {
@@ -952,6 +982,37 @@ export function PurchaseOrderLineEditDialog({
                     </Select>
                   </ClearableField>
                 </div>
+
+                {((line.Type || "").trim() === "G/L Account" || (line.Type || "").trim() === "Charge (Item)") && (
+                  <div className="space-y-1 overflow-hidden">
+                    <Label htmlFor="po-line-gen-prod-posting-group" className="text-xs">
+                      Gen Prod. Posting Group
+                    </Label>
+                    <ClearableField
+                      value={genProdPostingGroup}
+                      onClear={() => setGenProdPostingGroup("")}
+                    >
+                      <SearchableSelect
+                        value={genProdPostingGroup}
+                        onValueChange={(value) => setGenProdPostingGroup(value)}
+                        options={genProdOptions}
+                        isLoading={loadingGenProd}
+                        placeholder="Select Gen Prod..."
+                        searchPlaceholder="Search Gen Prod..."
+                      />
+                    </ClearableField>
+                    {(() => {
+                      const desc = genProdPostingGroups.find(
+                        (g) => g.Code === genProdPostingGroup
+                      )?.Description;
+                      return desc ? (
+                        <p className="text-[11px] text-muted-foreground mt-1">
+                          {desc}
+                        </p>
+                      ) : null;
+                    })()}
+                  </div>
+                )}
 
                 {/* Dimension Row */}
                 <div className="space-y-1 overflow-hidden">

@@ -46,6 +46,7 @@ import { PaymentTermSelect } from "./payment-term-select";
 import { PaymentMethodSelect } from "./payment-method-select";
 import { InvoiceTypeSelect } from "./invoice-type-select";
 import { MandiNameSelect } from "./mandi-name-select";
+import { purchaseDropdownsService } from "@/lib/api/services/purchase-dropdowns.service";
 import { CreditorTypeSelect } from "./creditor-type-select";
 import {
   resolvePurchaseDocumentMode,
@@ -525,6 +526,9 @@ export function PurchaseCreateDocumentFormContent({
 
   const [userId, setUserId] = useState<string | undefined>(undefined);
   const [branchName, setBranchName] = useState<string>("");
+  const [termCodeDescription, setTermCodeDescription] = useState<string>("");
+  const [paymentTermDescription, setPaymentTermDescription] = useState<string>("");
+  const [mandiNameDescription, setMandiNameDescription] = useState<string>("");
 
   useEffect(() => {
     if (!formData.branch || !userId) {
@@ -537,6 +541,39 @@ export function PurchaseCreateDocumentFormContent({
       setBranchName(name && name !== formData.branch ? name : "");
     });
   }, [formData.branch, userId]);
+
+  useEffect(() => {
+    if (!formData.termCode) {
+      setTermCodeDescription("");
+      return;
+    }
+    purchaseDropdownsService.getTermsAndConditionsPage(0, formData.termCode, 10).then((items) => {
+      const found = items.find((item) => item.Terms === formData.termCode);
+      setTermCodeDescription(found ? found.Conditions : "");
+    });
+  }, [formData.termCode]);
+
+  useEffect(() => {
+    if (!formData.paymentTermCode) {
+      setPaymentTermDescription("");
+      return;
+    }
+    purchaseDropdownsService.getPaymentTermsPage(0, formData.paymentTermCode, 10).then((items) => {
+      const found = items.find((item) => item.Code === formData.paymentTermCode);
+      setPaymentTermDescription(found ? found.Description : "");
+    });
+  }, [formData.paymentTermCode]);
+
+  useEffect(() => {
+    if (!formData.mandiName) {
+      setMandiNameDescription("");
+      return;
+    }
+    purchaseDropdownsService.getMandiMastersPage(0, formData.mandiName, 10).then((items) => {
+      const found = items.find((item) => item.Code === formData.mandiName);
+      setMandiNameDescription(found ? found.Description : "");
+    });
+  }, [formData.mandiName]);
   const [lineItems, setLineItems] = useState<LineItem[]>(
     Array.isArray(initialFormData?.lineItems) ? initialFormData.lineItems : [],
   );
@@ -1731,54 +1768,38 @@ export function PurchaseCreateDocumentFormContent({
                     {/* Dimensions */}
                     <div className={fieldClass}>
                       <label className={labelClass}>LOB</label>
-                      <ClearableField
-                        readOnly={areFieldsReadOnly}
+                      <CascadingDimensionSelect
+                        dimensionType="LOB"
                         value={formData.lob}
-                        onClear={() => {
-                          handleInputChange("lob", "");
-                          handleInputChange("branch", "");
-                          handleInputChange("locationCode", "");
+                        onChange={(value) => {
+                          handleInputChange("lob", value);
+                          if (value !== formData.lob) {
+                            handleInputChange("branch", "");
+                            handleInputChange("locationCode", "");
+                          }
                         }}
-                      >
-                        <CascadingDimensionSelect
-                          dimensionType="LOB"
-                          value={formData.lob}
-                          onChange={(value) => {
-                            handleInputChange("lob", value);
-                            if (value !== formData.lob) {
-                              handleInputChange("branch", "");
-                              handleInputChange("locationCode", "");
-                            }
-                          }}
-                          placeholder="Select LOB"
-                          userId={userId}
-                          compactWhenSingle
-                        />
-                      </ClearableField>
+                        placeholder="Select LOB"
+                        userId={userId}
+                        compactWhenSingle
+                        disabled={areFieldsReadOnly}
+                      />
                     </div>
                     <div className={fieldClass}>
                       <label className={labelClass}>Branch</label>
-                      <ClearableField
-                        readOnly={areFieldsReadOnly}
+                      <CascadingDimensionSelect
+                        dimensionType="BRANCH"
                         value={formData.branch}
-                        onClear={() => {
-                          handleInputChange("branch", "");
+                        onChange={(value) => {
+                          handleInputChange("branch", value);
                           handleInputChange("locationCode", "");
                         }}
-                      >
-                        <CascadingDimensionSelect
-                          dimensionType="BRANCH"
-                          value={formData.branch}
-                          onChange={(value) => {
-                            handleInputChange("branch", value);
-                            handleInputChange("locationCode", "");
-                          }}
-                          placeholder="Select Branch"
-                          lobValue={formData.lob}
-                          userId={userId}
-                          compactWhenSingle
-                        />
-                      </ClearableField>
+                        placeholder="Select Branch"
+                        lobValue={formData.lob}
+                        userId={userId}
+                        compactWhenSingle
+                        disabled={areFieldsReadOnly}
+                        showCodeOnly
+                      />
                       {branchName && (
                         <p className="text-muted-foreground/90 mt-0.5 pl-1 text-[11px] leading-tight font-medium italic">
                           {branchName}
@@ -1828,6 +1849,7 @@ export function PurchaseCreateDocumentFormContent({
                           value={formData.vendorNo}
                           onChange={handleVendorChange}
                           placeholder="Select Vendor"
+                          showCodeOnly={true}
                         />
                       </ClearableField>
                       {formData.vendorName && (
@@ -1956,6 +1978,7 @@ export function PurchaseCreateDocumentFormContent({
                               brokerName: broker?.Name || "",
                             }))
                           }
+                          showCodeOnly={true}
                         />
                       </ClearableField>
                       <p className="text-primary mt-0.5 truncate pl-1 text-[11px] leading-tight font-semibold italic">
@@ -2025,6 +2048,7 @@ export function PurchaseCreateDocumentFormContent({
                             }));
                           }}
                           placeholder="Select Purchaser"
+                          showCodeOnly={true}
                         />
                       </ClearableField>
                       <p className="text-primary mt-0.5 truncate pl-1 text-[11px] leading-tight font-semibold italic">
@@ -2253,8 +2277,14 @@ export function PurchaseCreateDocumentFormContent({
                             handleInputChange("termCode", value)
                           }
                           disabled={areFieldsReadOnly}
+                          showCodeOnly={true}
                         />
                       </ClearableField>
+                      {termCodeDescription && (
+                        <p className="text-muted-foreground/90 mt-0.5 pl-1 text-[11px] leading-tight font-medium italic break-words whitespace-normal">
+                          {termCodeDescription}
+                        </p>
+                      )}
                     </div>
                     <div className={fieldClass}>
                       <label className={labelClass}>Payment Term</label>
@@ -2269,8 +2299,14 @@ export function PurchaseCreateDocumentFormContent({
                             handleInputChange("paymentTermCode", value)
                           }
                           disabled={areFieldsReadOnly}
+                          showCodeOnly={true}
                         />
                       </ClearableField>
+                      {paymentTermDescription && (
+                        <p className="text-muted-foreground/90 mt-0.5 pl-1 text-[11px] leading-tight font-medium italic break-words whitespace-normal">
+                          {paymentTermDescription}
+                        </p>
+                      )}
                     </div>
                     <div className={fieldClass}>
                       <label className={labelClass}>Payment Method Code</label>
@@ -2303,8 +2339,14 @@ export function PurchaseCreateDocumentFormContent({
                             handleInputChange("mandiName", value)
                           }
                           disabled={areFieldsReadOnly}
+                          showCodeOnly={true}
                         />
                       </ClearableField>
+                      {mandiNameDescription && (
+                        <p className="text-muted-foreground/90 mt-0.5 pl-1 text-[11px] leading-tight font-medium italic break-words whitespace-normal">
+                          {mandiNameDescription}
+                        </p>
+                      )}
                     </div>
                   </div>
                 </section>

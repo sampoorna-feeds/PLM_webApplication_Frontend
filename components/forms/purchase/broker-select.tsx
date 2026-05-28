@@ -55,6 +55,7 @@ interface BrokerSelectProps {
   className?: string;
   hasError?: boolean;
   errorClass?: string;
+  showCodeOnly?: boolean;
 }
 
 type SortDirection = "asc" | "desc" | null;
@@ -864,6 +865,7 @@ export function BrokerSelect({
   className,
   hasError = false,
   errorClass = "",
+  showCodeOnly = false,
 }: BrokerSelectProps) {
   const [open, setOpen] = useState(false);
   const [vendors, setVendors] = useState<Vendor[]>([]);
@@ -1049,9 +1051,12 @@ export function BrokerSelect({
       return;
     }
     const found = vendors.find((v) => v.No === value);
-    if (found) setDisplayLabel(`${found.No} – ${found.Name}`);
-    else if (!displayLabel) setDisplayLabel(value);
-  }, [value, vendors]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (found) {
+      setDisplayLabel(showCodeOnly ? found.No : `${found.No} - ${found.Name}`);
+    } else {
+      setDisplayLabel(value);
+    }
+  }, [value, vendors, showCodeOnly]);
 
   const handleOpenChange = (next: boolean) => {
     if (disabled) return;

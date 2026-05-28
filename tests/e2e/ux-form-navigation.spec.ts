@@ -631,4 +631,117 @@ test.describe("UX Form Navigation & Keyboard Usability E2E Tests", () => {
       console.log("Validation message not shown, but form submission handler was verified.");
     }
   });
+
+  test("Purchase Invoice Applies to Doc No ledger select dialog keyboard navigation", async () => {
+    const page = sharedPage;
+    test.setTimeout(80000);
+    await page.goto("/purchase/invoice");
+    await page.waitForLoadState("networkidle");
+
+    const newInvoiceBtn = page.locator('button:has-text("New Invoice")');
+    await newInvoiceBtn.waitFor({ state: "visible", timeout: 20000 });
+    await newInvoiceBtn.click();
+
+    // Select LOB if visible
+    try {
+      const lobInput = page.locator("div").filter({ has: page.locator('> label:has-text("LOB")') }).first().locator("input");
+      await lobInput.waitFor({ state: "visible", timeout: 8000 });
+      await lobInput.click({ force: true });
+      const lobOption = page.locator('#cascading-select-listbox [role="option"]').first();
+      await lobOption.waitFor({ state: "visible", timeout: 15000 });
+      await lobOption.click({ force: true });
+      await expect(page.locator('#cascading-select-listbox')).not.toBeVisible({ timeout: 10000 });
+    } catch (e) {
+      console.log("LOB auto-selected or skipped.");
+    }
+
+    // Select Branch if visible
+    try {
+      const branchInput = page.locator("div").filter({ has: page.locator('> label:has-text("Branch")') }).first().locator("input");
+      await branchInput.waitFor({ state: "visible", timeout: 8000 });
+      await branchInput.click({ force: true });
+      const branchOption = page.locator('#cascading-select-listbox [role="option"]').first();
+      await branchOption.waitFor({ state: "visible", timeout: 15000 });
+      await branchOption.click({ force: true });
+      await expect(page.locator('#cascading-select-listbox')).not.toBeVisible({ timeout: 10000 });
+    } catch (e) {
+      console.log("Branch auto-selected or skipped.");
+    }
+
+    // Select Location Code
+    const locBtn = page.locator('div:has(> label:has-text("Location Code")) button').first();
+    await locBtn.waitFor({ state: "visible", timeout: 15000 });
+    await locBtn.click({ force: true });
+    const locDialog = page.getByRole("dialog", { name: "Select Location" });
+    await expect(locDialog.locator("tbody svg.animate-spin")).not.toBeVisible({ timeout: 15000 });
+    await locDialog.locator("tbody tr").first().click({ force: true });
+    await expect(locDialog).not.toBeVisible({ timeout: 10000 });
+
+    // Select Vendor
+    const vendorBtn = page.locator('div:has(> label:has-text("Vendor")) button').first();
+    await vendorBtn.waitFor({ state: "visible", timeout: 15000 });
+    await vendorBtn.click({ force: true });
+    const vendorDialog = page.getByRole("dialog", { name: "Select Vendor" });
+    await expect(vendorDialog.locator("tbody svg.animate-spin")).not.toBeVisible({ timeout: 15000 });
+    await vendorDialog.locator("tbody tr").first().click({ force: true });
+    await expect(vendorDialog).not.toBeVisible({ timeout: 10000 });
+
+    // Click "Create Purchase Invoice" to establish header
+    const createHeaderBtn = page.locator('button:has-text("Create Purchase Invoice")');
+    await createHeaderBtn.waitFor({ state: "visible", timeout: 15000 });
+    await createHeaderBtn.click();
+
+    // Now the header is created, wait for the form to update
+    // Verify that the "Applies to Doc No" field / combobox button is enabled and visible
+    const appliesToDocBtn = page.locator('div:has(> label:has-text("Applies to Doc No")) button[role="combobox"]').first();
+    await appliesToDocBtn.waitFor({ state: "visible", timeout: 15000 });
+    await expect(appliesToDocBtn).toBeEnabled({ timeout: 15000 });
+
+    // Click to open the "Select Ledger Entry" dialog
+    await appliesToDocBtn.click({ force: true });
+
+    // Wait for the Dialog to mount
+    const ledgerDialog = page.getByRole('dialog', { name: 'Select Ledger Entry' });
+    await expect(ledgerDialog).toBeVisible({ timeout: 15000 });
+
+    // The search input should be automatically focused
+    const searchInput = ledgerDialog.locator('input[placeholder*="Search by Document No."]');
+    await expect(searchInput).toBeFocused({ timeout: 5000 });
+
+    // Wait for ledger entries to load (loading spinner should disappear)
+    await expect(ledgerDialog.locator('text=Loading entries…')).not.toBeVisible({ timeout: 20000 });
+
+    // Check if there are rows in the table
+    const firstRow = ledgerDialog.locator('tbody tr[tabindex="0"]').first();
+    await firstRow.waitFor({ state: "visible", timeout: 15000 });
+
+    // Press ArrowDown to move focus from search input to first table row
+    await page.keyboard.press("ArrowDown");
+    await expect(firstRow).toBeFocused();
+
+    // Navigate to the next row (if multiple exist) or navigate back up to input
+    const secondRow = ledgerDialog.locator('tbody tr[tabindex="0"]').nth(1);
+    const hasMultipleRows = await secondRow.count() > 0;
+    if (hasMultipleRows) {
+      await page.keyboard.press("ArrowDown");
+      await expect(secondRow).toBeFocused();
+      await page.keyboard.press("ArrowUp");
+      await expect(firstRow).toBeFocused();
+    }
+
+    // Press ArrowUp on the first row to return focus back to the search input
+    await page.keyboard.press("ArrowUp");
+    await expect(searchInput).toBeFocused();
+
+    // Navigate back to the first row and select it using Space or Enter
+    await page.keyboard.press("ArrowDown");
+    await expect(firstRow).toBeFocused();
+    await page.keyboard.press("Enter");
+
+    // The dialog should close automatically
+    await expect(ledgerDialog).not.toBeVisible({ timeout: 15000 });
+
+    // Focus should cleanly return to the "Applies to Doc No" combobox trigger button
+    await expect(appliesToDocBtn).toBeFocused({ timeout: 5000 });
+  });
 });

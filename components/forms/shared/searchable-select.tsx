@@ -390,7 +390,8 @@ export function SearchableSelect<T extends SearchableItem>({
             placeholder={placeholder}
             disabled={disabled}
             className={cn(
-              "h-8 w-full bg-background pr-8 text-xs font-medium",
+              "h-8 w-full bg-background text-xs font-medium",
+              (value && !disabled) ? "pr-16" : "pr-8",
               hasError && (errorClass || "border-destructive focus-visible:ring-destructive"),
               className
             )}

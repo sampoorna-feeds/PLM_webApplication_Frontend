@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/table";
 import type { ApplyItemLedgerEntry } from "@/lib/api/services/purchase-orders.service";
 import { Pin, Search } from "lucide-react";
-import { useState } from "react";
+import { useState, useRef } from "react";
 
 interface ApplyItemEntryModalProps {
   isOpen: boolean;
@@ -40,6 +40,8 @@ export function ApplyItemEntryModal({
   selectedEntryNo,
 }: ApplyItemEntryModalProps) {
   const [searchTerm, setSearchTerm] = useState("");
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const tableBodyRef = useRef<HTMLTableSectionElement>(null);
 
   const filtered = entries.filter((entry) => {
     const s = searchTerm.toLowerCase();
@@ -67,15 +69,25 @@ export function ApplyItemEntryModal({
           <div className="relative mt-4">
             <Search className="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
             <Input
+              ref={searchInputRef}
               placeholder="Search by Entry No, Document No, Item No, or Vehicle No..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-9"
               autoFocus
+              onKeyDown={(e) => {
+                if (e.key === "ArrowDown") {
+                  e.preventDefault();
+                  const firstRow = tableBodyRef.current?.querySelector(
+                    'tr[tabindex="0"]'
+                  ) as HTMLElement | null;
+                  firstRow?.focus();
+                }
+              }}
             />
           </div>
         </DialogHeader>
-
+ 
         <div className="flex-1 overflow-auto p-6 pt-2">
           {isLoading ? (
             <div className="flex flex-col items-center justify-center gap-4 py-24">
@@ -128,7 +140,7 @@ export function ApplyItemEntryModal({
                     </TableHead>
                   </TableRow>
                 </TableHeader>
-                <TableBody>
+                <TableBody ref={tableBodyRef}>
                   {sorted.map((entry) => {
                     const isPinned =
                       selectedEntryNo !== undefined &&
@@ -136,7 +148,8 @@ export function ApplyItemEntryModal({
                     return (
                       <TableRow
                         key={entry.Entry_No}
-                        className={`group cursor-pointer border-b transition-colors last:border-0 ${
+                        tabIndex={0}
+                        className={`group cursor-pointer border-b transition-colors last:border-0 outline-none focus:bg-primary/[0.12] focus:ring-1 focus:ring-primary ${
                           isPinned
                             ? "bg-primary/[0.06] hover:bg-primary/[0.10]"
                             : "hover:bg-primary/[0.08]"
@@ -144,6 +157,27 @@ export function ApplyItemEntryModal({
                         onClick={() => {
                           onSelect(entry);
                           onClose();
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            onSelect(entry);
+                            onClose();
+                          } else if (e.key === "ArrowDown") {
+                            e.preventDefault();
+                            const next = e.currentTarget.nextElementSibling as HTMLElement | null;
+                            if (next && next.tabIndex === 0) {
+                              next.focus();
+                            }
+                          } else if (e.key === "ArrowUp") {
+                            e.preventDefault();
+                            const prev = e.currentTarget.previousElementSibling as HTMLElement | null;
+                            if (prev && prev.tabIndex === 0) {
+                              prev.focus();
+                            } else {
+                              searchInputRef.current?.focus();
+                            }
+                          }
                         }}
                       >
                         <TableCell className="px-4 py-3 font-mono text-sm font-medium">

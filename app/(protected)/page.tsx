@@ -78,14 +78,14 @@ export default function DashboardPage() {
     <div className="flex h-[calc(100vh-3rem)] max-h-[calc(100vh-3rem)] w-full flex-col overflow-y-auto bg-linear-to-b from-zinc-50/50 via-background to-background dark:from-zinc-950/20 dark:via-background dark:to-background px-6 py-6">
       
       {/* Sleek Observable Hero Header */}
-      <div className="relative mb-5 overflow-hidden rounded-[var(--radius)] border border-primary/20 bg-linear-to-r from-emerald-500/10 via-primary/5 to-transparent dark:from-emerald-500/15 dark:via-primary/5 dark:to-transparent px-6 py-4 flex items-center text-foreground shadow-xs">
+      <div className="relative mb-5 overflow-hidden rounded-[var(--radius)] border border-primary/20 bg-linear-to-r from-emerald-500/10 via-primary/5 to-transparent dark:from-emerald-500/15 dark:via-primary/5 dark:to-transparent px-6 py-6 md:py-8 flex items-center text-foreground shadow-xs">
         <div className="absolute right-0 bottom-0 translate-x-12 translate-y-12 opacity-5 text-muted-foreground">
           <LayoutGrid className="h-48 w-48" />
         </div>
         
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between w-full z-10">
           <div className="flex flex-col justify-center">
-            <h1 className="text-2xl md:text-3xl font-semibold tracking-tight text-foreground flex items-center gap-2">
+            <h1 className="text-2xl md:text-3xl font-semibold tracking-tight text-foreground flex flex-wrap items-center gap-x-2 gap-y-1">
               <span>{greeting},</span> 
               <span className="text-primary font-extrabold">{username ? username.toUpperCase() : "GUEST"}</span>
             </h1>

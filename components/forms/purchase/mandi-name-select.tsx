@@ -12,6 +12,7 @@ interface MandiNameSelectProps {
   className?: string;
   hasError?: boolean;
   hideClearButton?: boolean;
+  showCodeOnly?: boolean;
 }
 
 export function MandiNameSelect({
@@ -21,6 +22,7 @@ export function MandiNameSelect({
   className,
   hasError,
   hideClearButton = true,
+  showCodeOnly = false,
 }: MandiNameSelectProps) {
   const fetchData = useCallback(async (skip: number, search: string) => {
     return await purchaseDropdownsService.getMandiMastersPage(skip, search, 30);
@@ -38,7 +40,9 @@ export function MandiNameSelect({
       className={className}
       hasError={hasError}
       keyExtractor={(item) => item.Code}
-      displayValueExtractor={(item) => `${item.Code} - ${item.Description}`}
+      displayValueExtractor={(item) => 
+        showCodeOnly ? item.Code : `${item.Code} - ${item.Description}`
+      }
       columns={[
         { id: "Code", label: "Code", width: "150px" },
         { id: "Description", label: "Description" },

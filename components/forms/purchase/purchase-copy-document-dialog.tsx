@@ -630,7 +630,7 @@ export function PurchaseCopyDocumentDialog({
       <DialogContent
         className={cn(
           "w-[95vw] overflow-hidden",
-          step === 1 ? "max-h-[90vh] sm:max-w-2xl" : "h-[90vh] sm:max-w-7xl",
+          step === 1 ? "max-h-[90vh] sm:max-w-md" : "h-[90vh] sm:max-w-4xl",
         )}
       >
         <DialogHeader>

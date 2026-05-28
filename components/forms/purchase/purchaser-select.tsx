@@ -24,6 +24,7 @@ interface PurchaserSelectProps {
   hasError?: boolean;
   errorClass?: string;
   hideClearButton?: boolean;
+  showCodeOnly?: boolean;
 }
 
 export function PurchaserSelect({
@@ -35,6 +36,7 @@ export function PurchaserSelect({
   hasError = false,
   errorClass = "",
   hideClearButton = true,
+  showCodeOnly = false,
 }: PurchaserSelectProps) {
   const fetchData = useCallback(
     async (skip: number, search: string) => {
@@ -56,7 +58,9 @@ export function PurchaserSelect({
       hasError={hasError}
       keyExtractor={(item) => item.Code}
       displayValueExtractor={(item) => 
-        item.Name ? `${item.Code} - ${item.Name}` : item.Code
+        showCodeOnly 
+          ? item.Code 
+          : (item.Name ? `${item.Code} - ${item.Name}` : item.Code)
       }
       columns={[
         { id: "Code", label: "Code", width: "120px" },

@@ -20,8 +20,6 @@ import {
   Dialog,
   DialogContent,
   DialogFooter,
-  DialogHeader,
-  DialogTitle,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { SearchableSelect as MasterSearchableSelect } from "@/components/forms/shared/searchable-select";
@@ -29,6 +27,7 @@ import {
   SearchableSelect as AppSearchableSelect,
   type SearchableSelectOption,
 } from "@/components/ui/searchable-select";
+import { DropdownSearchableSelect } from "@/components/ui/dropdown-searchable-select";
 import {
   getItems,
   searchItems,
@@ -601,111 +600,33 @@ export function PurchaseOrderLineDialog({
           }}
           className="flex flex-col flex-1 max-h-[90vh] p-4"
         >
-        <DialogHeader className="flex-row items-center justify-between border-b pb-3 space-y-0">
-          <DialogTitle>
-            {isEdit ? "Edit Line Item" : "Add Line Item"}
-          </DialogTitle>
-          <div className="flex items-center gap-2">
-            {isEdit && onRemove && (
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="text-destructive hover:bg-destructive/10 hover:text-destructive h-8 px-2 mr-2"
-                onClick={async () => {
-                  if (lineItem) {
-                    setIsRemoving(true);
-                    try {
-                      await onRemove(lineItem);
-                      onOpenChange(false);
-                    } finally {
-                      setIsRemoving(false);
-                    }
-                  }
-                }}
-                disabled={isSaving || isRemoving}
-              >
-                {isRemoving ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <Trash2 className="h-3.5 w-3.5" />
-                )}
-                <span className="ml-2 hidden sm:inline">Delete</span>
-              </Button>
-            )}
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="h-8 px-3"
-              onClick={() => onOpenChange(false)}
-              disabled={isSaving || isRemoving}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              size="sm"
-              className="h-8 px-3"
-              disabled={isSaving || isRemoving}
-            >
-              {isSaving ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Saving...
-                </>
-              ) : isEdit ? (
-                "Update Item"
-              ) : (
-                "Add Item"
-              )}
-            </Button>
-          </div>
-        </DialogHeader>
 
         <div className="space-y-4 overflow-y-auto flex-1 pr-1 -mr-1">
-          <div className="space-y-1 px-1">
-            <FieldTitle>
-              Description <span className="text-red-500">*</span>
-            </FieldTitle>
-            <Input
-              value={formState.description || ""}
-              onChange={(e) => handleFieldChange("description", e.target.value)}
-              placeholder="Enter description"
-              className="h-8 text-xs font-medium"
-            />
-          </div>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-12">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-12 px-1">
             <div className="space-y-1 sm:col-span-2">
               <FieldTitle>Type</FieldTitle>
-              <ClearableField
-                value={formState.type}
-                onClear={() => handleTypeChange("Item")}
+              <Select
+                value={
+                  formState.type === "" ? "None" : formState.type || "Item"
+                }
+                onValueChange={(value) =>
+                  handleTypeChange(
+                    value === "None" ? "" : (value as LineType),
+                  )
+                }
                 disabled={isEdit}
               >
-                <Select
-                  value={
-                    formState.type === "" ? "None" : formState.type || "Item"
-                  }
-                  onValueChange={(value) =>
-                    handleTypeChange(
-                      value === "None" ? "" : (value as LineType),
-                    )
-                  }
-                  disabled={isEdit}
-                >
-                  <SelectTrigger className={cn("h-8", fieldInputClass)}>
-                    <SelectValue placeholder="Select type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="G/L Account">G/L Account</SelectItem>
-                    <SelectItem value="Item">Item</SelectItem>
-                    <SelectItem value="Fixed Asset">Fixed Asset</SelectItem>
-                    <SelectItem value="Charge (Item)">Charge Item</SelectItem>
-                    <SelectItem value="None">None</SelectItem>
-                  </SelectContent>
-                </Select>
-              </ClearableField>
+                <SelectTrigger className={cn("h-8", fieldInputClass)}>
+                  <SelectValue placeholder="Select type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="G/L Account">G/L Account</SelectItem>
+                  <SelectItem value="Item">Item</SelectItem>
+                  <SelectItem value="Fixed Asset">Fixed Asset</SelectItem>
+                  <SelectItem value="Charge (Item)">Charge Item</SelectItem>
+                  <SelectItem value="None">None</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             {formState.type !== "" && (
@@ -713,213 +634,167 @@ export function PurchaseOrderLineDialog({
                 <div className="space-y-1 sm:col-span-4">
                   <FieldTitle>Select Item</FieldTitle>
                   {formState.type === "G/L Account" ? (
-                    <ClearableField
-                      key="line-selector-gl-account"
-                      value={formState.no}
-                      onClear={() => handleGLAccountChange("", undefined)}
-                    >
-                      <MasterSearchableSelect<GLPostingAccount>
-                        key="master-select-gl-account"
-                        value={formState.no || ""}
-                        onChange={handleGLAccountChange}
-                        placeholder="Select GL Account"
-                        loadInitial={() => getGLAccounts(20)}
-                        searchItems={searchGLAccounts}
-                        loadMore={(skip, search) =>
-                          getGLAccountsPage(skip, search)
-                        }
-                        getDisplayValue={(item) => `${item.No} - ${item.Name}`}
-                        getItemValue={(item) => item.No}
-                        supportsDualSearch={true}
-                        searchByField={(query, field) =>
-                          searchGLAccountsByField(
-                            query,
-                            field === "No" ? "No" : "Name",
-                          )
-                        }
-                      />
-                    </ClearableField>
+                    <MasterSearchableSelect<GLPostingAccount>
+                      key="master-select-gl-account"
+                      value={formState.no || ""}
+                      onChange={handleGLAccountChange}
+                      placeholder="Select GL Account"
+                      loadInitial={() => getGLAccounts(20)}
+                      searchItems={searchGLAccounts}
+                      loadMore={(skip, search) =>
+                        getGLAccountsPage(skip, search)
+                      }
+                      getDisplayValue={(item) => item.No}
+                      getItemValue={(item) => item.No}
+                      supportsDualSearch={true}
+                      searchByField={(query, field) =>
+                        searchGLAccountsByField(
+                          query,
+                          field === "No" ? "No" : "Name",
+                        )
+                      }
+                    />
                   ) : formState.type === "Fixed Asset" ? (
-                    <ClearableField
-                      key="line-selector-fixed-asset"
-                      value={formState.no}
-                      onClear={() => {
-                        setFormState((prev) => ({
-                          ...prev,
-                          no: "",
-                          description: "",
-                          uom: "",
-                          exempted: false,
-                          gstGroupCode: "",
-                          hsnSacCode: "",
-                          faPostingType: "",
-                          salvageValue: undefined,
-                        }));
-                      }}
-                    >
-                      <MasterSearchableSelect<FixedAsset>
-                        key="master-select-fixed-asset"
-                        value={formState.no || ""}
-                        onChange={(value, asset) => {
-                          if (value === "" && !asset) {
-                            setFormState((prev) => ({
-                              ...prev,
-                              no: "",
-                              description: "",
-                              uom: "",
-                              exempted: false,
-                              gstGroupCode: "",
-                              hsnSacCode: "",
-                              faPostingType: "",
-                              salvageValue: undefined,
-                            }));
-                            return;
-                          }
-
-                          if (!asset) return;
+                    <MasterSearchableSelect<FixedAsset>
+                      key="master-select-fixed-asset"
+                      value={formState.no || ""}
+                      onChange={(value, asset) => {
+                        if (value === "" && !asset) {
                           setFormState((prev) => ({
                             ...prev,
-                            no: asset.No,
-                            description: asset.Description || "",
+                            no: "",
+                            description: "",
                             uom: "",
+                            exempted: false,
+                            gstGroupCode: "",
+                            hsnSacCode: "",
+                            faPostingType: "",
+                            salvageValue: undefined,
                           }));
-                        }}
-                        placeholder="Select Fixed Asset"
-                        loadInitial={() => getFixedAssets(20)}
-                        searchItems={searchFixedAssets}
-                        loadMore={(skip, search) =>
-                          getFixedAssetsPage(skip, search)
+                          return;
                         }
-                        getDisplayValue={(asset) =>
-                          `${asset.No} - ${asset.Description}`
-                        }
-                        getItemValue={(asset) => asset.No}
-                        supportsDualSearch={true}
-                        searchByField={(query, field) =>
-                          searchFixedAssetsByField(
-                            query,
-                            field === "No" ? "No" : "Description",
-                          )
-                        }
-                      />
-                    </ClearableField>
+
+                        if (!asset) return;
+                        setFormState((prev) => ({
+                          ...prev,
+                          no: asset.No,
+                          description: asset.Description || "",
+                          uom: "",
+                        }));
+                      }}
+                      placeholder="Select Fixed Asset"
+                      loadInitial={() => getFixedAssets(20)}
+                      searchItems={searchFixedAssets}
+                      loadMore={(skip, search) =>
+                        getFixedAssetsPage(skip, search)
+                      }
+                      getDisplayValue={(asset) => asset.No}
+                      getItemValue={(asset) => asset.No}
+                      supportsDualSearch={true}
+                      searchByField={(query, field) =>
+                        searchFixedAssetsByField(
+                          query,
+                          field === "No" ? "No" : "Description",
+                        )
+                      }
+                    />
                   ) : formState.type === "Charge (Item)" ? (
-                    <ClearableField
-                      key="line-selector-charge-item"
-                      value={formState.no}
-                      onClear={() => {
-                        setFormState((prev) => ({
-                          ...prev,
-                          no: "",
-                          description: "",
-                          uom: "",
-                          exempted: false,
-                          gstGroupCode: "",
-                          hsnSacCode: "",
-                        }));
-                      }}
-                    >
-                      <MasterSearchableSelect<ItemCharge>
-                        key="master-select-charge-item"
-                        value={formState.no || ""}
-                        onChange={(value, charge) => {
-                          if (value === "" && !charge) {
-                            setFormState((prev) => ({
-                              ...prev,
-                              no: "",
-                              description: "",
-                              uom: "",
-                              exempted: false,
-                              gstGroupCode: "",
-                              hsnSacCode: "",
-                            }));
-                            return;
-                          }
-
-                          if (!charge) return;
+                    <MasterSearchableSelect<ItemCharge>
+                      key="master-select-charge-item"
+                      value={formState.no || ""}
+                      onChange={(value, charge) => {
+                        if (value === "" && !charge) {
                           setFormState((prev) => ({
                             ...prev,
-                            no: charge.No,
-                            description: charge.Description || "",
+                            no: "",
+                            description: "",
                             uom: "",
-                            exempted: charge.Exempted ?? prev.exempted,
-                            gstGroupCode:
-                              charge.GST_Group_Code || prev.gstGroupCode,
-                            hsnSacCode: charge.HSN_SAC_Code || prev.hsnSacCode,
-                            genProdPostingGroup: charge.Gen_Prod_Posting_Group || prev.genProdPostingGroup || "",
+                            exempted: false,
+                            gstGroupCode: "",
+                            hsnSacCode: "",
                           }));
-                        }}
-                        placeholder="Select Charge Item"
-                        loadInitial={() => getItemCharges(20)}
-                        searchItems={searchItemCharges}
-                        loadMore={(skip, search) =>
-                          getItemChargesPage(skip, search)
+                          return;
                         }
-                        getDisplayValue={(charge) =>
-                          `${charge.No} - ${charge.Description || ""}`
-                        }
-                        getItemValue={(charge) => charge.No}
-                        supportsDualSearch={true}
-                        searchByField={(query, field) =>
-                          searchItemChargesByField(
-                            query,
-                            field === "No" ? "No" : "Description",
-                          )
-                        }
-                      />
-                    </ClearableField>
+
+                        if (!charge) return;
+                        setFormState((prev) => ({
+                          ...prev,
+                          no: charge.No,
+                          description: charge.Description || "",
+                          uom: "",
+                          exempted: charge.Exempted ?? prev.exempted,
+                          gstGroupCode:
+                            charge.GST_Group_Code || prev.gstGroupCode,
+                          hsnSacCode: charge.HSN_SAC_Code || prev.hsnSacCode,
+                          genProdPostingGroup: charge.Gen_Prod_Posting_Group || prev.genProdPostingGroup || "",
+                        }));
+                      }}
+                      placeholder="Select Charge Item"
+                      loadInitial={() => getItemCharges(20)}
+                      searchItems={searchItemCharges}
+                      loadMore={(skip, search) =>
+                        getItemChargesPage(skip, search)
+                      }
+                      getDisplayValue={(charge) => charge.No}
+                      getItemValue={(charge) => charge.No}
+                      supportsDualSearch={true}
+                      searchByField={(query, field) =>
+                        searchItemChargesByField(
+                          query,
+                          field === "No" ? "No" : "Description",
+                        )
+                      }
+                    />
                   ) : (
-                    <ClearableField
-                      key="line-selector-item"
-                      value={formState.no}
-                      onClear={() => handleItemChange("", undefined)}
-                    >
-                      <ItemSelect
-                        value={formState.no || ""}
-                        onChange={handleItemChange}
-                        locationCode={locationCode}
-                      />
-                    </ClearableField>
+                    <ItemSelect
+                      value={formState.no || ""}
+                      onChange={handleItemChange}
+                      locationCode={locationCode}
+                    />
                   )}
                 </div>
 
                 <div className="space-y-1 sm:col-span-3">
                   <FieldTitle>UOM</FieldTitle>
-                  <ClearableField
-                    value={formState.uom}
-                    onClear={() => handleFieldChange("uom", "")}
-                  >
-                    <AppSearchableSelect
-                      value={formState.uom || ""}
-                      onValueChange={(value) => handleFieldChange("uom", value)}
-                      options={uomOptions}
-                      isLoading={loadingOptions.uom}
-                      placeholder="Select UOM"
-                      searchPlaceholder="Search UOM..."
-                    />
-                  </ClearableField>
+                  <DropdownSearchableSelect
+                    value={formState.uom || ""}
+                    onValueChange={(value) => handleFieldChange("uom", value)}
+                    options={uomOptions}
+                    isLoading={loadingOptions.uom}
+                    placeholder="Select UOM"
+                    searchPlaceholder="Search UOM..."
+                    hideChevron
+                    hideClear
+                  />
                 </div>
 
                 <div className="space-y-1 sm:col-span-3">
                   <FieldTitle>TDS Section</FieldTitle>
-                  <ClearableField
+                  <DropdownSearchableSelect
                     value={formState.tdsSectionCode || ""}
-                    onClear={() => handleFieldChange("tdsSectionCode", "")}
-                  >
-                    <AppSearchableSelect
-                      value={formState.tdsSectionCode || ""}
-                      onValueChange={(value) =>
-                        handleFieldChange("tdsSectionCode", value)
-                      }
-                      options={tdsOptions}
-                      isLoading={loadingOptions.tds}
-                      placeholder="Select TDS Section"
-                      searchPlaceholder="Search TDS Section..."
-                    />
-                  </ClearableField>
+                    onValueChange={(value) =>
+                      handleFieldChange("tdsSectionCode", value)
+                    }
+                    options={tdsOptions}
+                    isLoading={loadingOptions.tds}
+                    placeholder="Select TDS Section"
+                    searchPlaceholder="Search TDS Section..."
+                  />
                 </div>
               </>
             )}
+
+            <div className="space-y-1 sm:col-span-12">
+              <FieldTitle>
+                Description <span className="text-red-500">*</span>
+              </FieldTitle>
+              <Input
+                value={formState.description || ""}
+                onChange={(e) => handleFieldChange("description", e.target.value)}
+                placeholder="Enter description"
+                className="h-8 text-xs font-medium"
+              />
+            </div>
           </div>
 
           {formState.type !== "" && (
@@ -1057,49 +932,35 @@ export function PurchaseOrderLineDialog({
                 </div>
                 <div className="space-y-1">
                   <FieldTitle>GST Group Code</FieldTitle>
-                  <ClearableField
+                  <DropdownSearchableSelect
                     value={formState.gstGroupCode || ""}
-                    onClear={() => {
-                      handleFieldChange("gstGroupCode", "");
+                    onValueChange={(value) => {
+                      handleFieldChange("gstGroupCode", value);
                       handleFieldChange("hsnSacCode", "");
                     }}
-                  >
-                    <AppSearchableSelect
-                      value={formState.gstGroupCode || ""}
-                      onValueChange={(value) => {
-                        handleFieldChange("gstGroupCode", value);
-                        handleFieldChange("hsnSacCode", "");
-                      }}
-                      options={gstOptions}
-                      isLoading={loadingOptions.gst}
-                      placeholder="Select GST Group..."
-                      searchPlaceholder="Search GST Group..."
-                    />
-                  </ClearableField>
+                    options={gstOptions}
+                    isLoading={loadingOptions.gst}
+                    placeholder="Select GST Group..."
+                    searchPlaceholder="Search GST Group..."
+                  />
                 </div>
                 <div className="space-y-1">
                   <FieldTitle>HSN/SAC Code</FieldTitle>
-                  <ClearableField
+                  <DropdownSearchableSelect
                     value={formState.hsnSacCode || ""}
-                    onClear={() => handleFieldChange("hsnSacCode", "")}
+                    onValueChange={(value) =>
+                      handleFieldChange("hsnSacCode", value)
+                    }
+                    options={hsnOptions}
+                    isLoading={loadingOptions.hsn}
+                    placeholder={
+                      formState.gstGroupCode
+                        ? "Select HSN/SAC..."
+                        : "Select GST Group first"
+                    }
+                    searchPlaceholder="Search HSN/SAC..."
                     disabled={!formState.gstGroupCode}
-                  >
-                    <AppSearchableSelect
-                      value={formState.hsnSacCode || ""}
-                      onValueChange={(value) =>
-                        handleFieldChange("hsnSacCode", value)
-                      }
-                      options={hsnOptions}
-                      isLoading={loadingOptions.hsn}
-                      placeholder={
-                        formState.gstGroupCode
-                          ? "Select HSN/SAC..."
-                          : "Select GST Group first"
-                      }
-                      searchPlaceholder="Search HSN/SAC..."
-                      disabled={!formState.gstGroupCode}
-                    />
-                  </ClearableField>
+                  />
                 </div>
                 <div className="space-y-1">
                   <FieldTitle>GST Credit</FieldTitle>
@@ -1128,21 +989,16 @@ export function PurchaseOrderLineDialog({
                 {(formState.type === "G/L Account" || formState.type === "Charge (Item)") && (
                   <div className="space-y-1">
                     <FieldTitle>Gen Prod. Posting Group</FieldTitle>
-                    <ClearableField
+                    <DropdownSearchableSelect
                       value={formState.genProdPostingGroup || ""}
-                      onClear={() => handleFieldChange("genProdPostingGroup", "")}
-                    >
-                      <AppSearchableSelect
-                        value={formState.genProdPostingGroup || ""}
-                        onValueChange={(value) =>
-                          handleFieldChange("genProdPostingGroup", value)
-                        }
-                        options={genProdOptions}
-                        isLoading={loadingGenProd}
-                        placeholder="Select Gen Prod..."
-                        searchPlaceholder="Search Gen Prod..."
-                      />
-                    </ClearableField>
+                      onValueChange={(value) =>
+                        handleFieldChange("genProdPostingGroup", value)
+                      }
+                      options={genProdOptions}
+                      isLoading={loadingGenProd}
+                      placeholder="Select Gen Prod..."
+                      searchPlaceholder="Search Gen Prod..."
+                    />
                     {(() => {
                       const desc = genProdPostingGroups.find(
                         (g) => g.Code === formState.genProdPostingGroup
@@ -1205,6 +1061,62 @@ export function PurchaseOrderLineDialog({
             <p className="text-destructive text-xs mt-2">{validationError}</p>
           )}
         </div>
+        <DialogFooter className="border-t pt-3 flex items-center justify-end gap-2 shrink-0">
+          {isEdit && onRemove && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="text-destructive hover:bg-destructive/10 hover:text-destructive h-8 px-2 mr-auto"
+              onClick={async () => {
+                if (lineItem) {
+                  setIsRemoving(true);
+                  try {
+                    await onRemove(lineItem);
+                    onOpenChange(false);
+                  } finally {
+                    setIsRemoving(false);
+                  }
+                }
+              }}
+              disabled={isSaving || isRemoving}
+            >
+              {isRemoving ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Trash2 className="h-3.5 w-3.5" />
+              )}
+              <span className="ml-2 hidden sm:inline">Delete</span>
+            </Button>
+          )}
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-8 px-3"
+            onClick={() => onOpenChange(false)}
+            disabled={isSaving || isRemoving}
+          >
+            Cancel
+          </Button>
+          <Button
+            type="submit"
+            size="sm"
+            className="h-8 px-3"
+            disabled={isSaving || isRemoving}
+          >
+            {isSaving ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Saving...
+              </>
+            ) : isEdit ? (
+              "Update Line"
+            ) : (
+              "Add Line"
+            )}
+          </Button>
+        </DialogFooter>
         </form>
       </DialogContent>
     </Dialog>

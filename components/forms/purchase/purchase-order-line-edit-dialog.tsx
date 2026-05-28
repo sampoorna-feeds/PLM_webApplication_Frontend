@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { Loader2, Package, Trash2, Link2, Search, X, User, Briefcase } from "lucide-react";
 import { toast } from "sonner";
 import { toastError } from "@/lib/errors";
@@ -44,11 +44,12 @@ import {
   type DimensionValue,
   getEmployeesPage,
   getAssignmentsPage,
+  getDimensionValueName,
 } from "@/lib/api/services/dimension.service";
 import {
-  SearchableSelect,
   type SearchableSelectOption,
 } from "@/components/ui/searchable-select";
+import { DropdownSearchableSelect } from "@/components/ui/dropdown-searchable-select";
 import { getItemByNo, getItemUnitOfMeasures } from "@/lib/api/services/item.service";
 import { getUOMs, type UOM } from "@/lib/api/services/uom.service";
 import {
@@ -138,6 +139,38 @@ export function PurchaseOrderLineEditDialog({
   const [existingBardanas, setExistingBardanas] = useState<BardanaLine[]>([]);
   const [isLoadingBardanas, setIsLoadingBardanas] = useState(false);
   const [isDeletingBardana, setIsDeletingBardana] = useState<number | null>(null);
+  const [employeeName, setEmployeeName] = useState("");
+  const [assignmentName, setAssignmentName] = useState("");
+  const applToItemEntryRef = useRef<HTMLInputElement>(null);
+
+  // Load Employee and Assignment names when codes change
+  useEffect(() => {
+    let mounted = true;
+    if (shortcutDimCode4) {
+      getDimensionValueName("EMPLOYEE", shortcutDimCode4).then((name) => {
+        if (mounted) setEmployeeName(name);
+      });
+    } else {
+      setEmployeeName("");
+    }
+    return () => {
+      mounted = false;
+    };
+  }, [shortcutDimCode4]);
+
+  useEffect(() => {
+    let mounted = true;
+    if (shortcutDimCode5) {
+      getDimensionValueName("ASSIGNMENT", shortcutDimCode5).then((name) => {
+        if (mounted) setAssignmentName(name);
+      });
+    } else {
+      setAssignmentName("");
+    }
+    return () => {
+      mounted = false;
+    };
+  }, [shortcutDimCode5]);
 
   const fieldInputClass =
     "h-8 disabled:opacity-100 disabled:text-foreground font-medium text-xs disabled:pointer-events-none";
@@ -708,6 +741,7 @@ export function PurchaseOrderLineEditDialog({
                     <Label className="text-xs">Applies to Item Entry</Label>
                     <div className="group relative">
                       <Input
+                        ref={applToItemEntryRef}
                         readOnly
                         value={(() => {
                           if (!applToItemEntry) return "";
@@ -776,17 +810,16 @@ export function PurchaseOrderLineEditDialog({
                   <Label htmlFor="po-line-uom" className="text-xs">
                     UOM
                   </Label>
-                  <ClearableField value={uom} onClear={() => setUom("")}>
-                    <SearchableSelect
-                      value={uom}
-                      onValueChange={setUom}
-                      options={uomOptions}
-                      isLoading={loadingUoms}
-                      placeholder="Select UOM"
-                      searchPlaceholder="Search UOM..."
-                      className={fieldInputClass}
-                    />
-                  </ClearableField>
+                  <DropdownSearchableSelect
+                    value={uom}
+                    onValueChange={setUom}
+                    options={uomOptions}
+                    isLoading={loadingUoms}
+                    placeholder="Select UOM"
+                    searchPlaceholder="Search UOM..."
+                    hideChevron
+                    hideClear
+                  />
                 </div>
 
                 <div className="space-y-1">
@@ -889,54 +922,36 @@ export function PurchaseOrderLineEditDialog({
                   <Label htmlFor="po-line-gst-group" className="text-xs">
                     GST Group Code
                   </Label>
-                  <ClearableField
+                  <DropdownSearchableSelect
                     value={gstGroupCode}
-                    onClear={() => {
-                      setGstGroupCode("");
+                    onValueChange={(val) => {
+                      setGstGroupCode(val);
                       setHsnSacCode("");
                     }}
-                  >
-                    <SearchableSelect
-                      value={gstGroupCode}
-                      onValueChange={(val) => {
-                        setGstGroupCode(val);
-                        setHsnSacCode("");
-                      }}
-                      options={gstOptions}
-                      isLoading={loadingOptions.gst}
-                      placeholder="Select GST Group..."
-                      searchPlaceholder="Search GST Groups..."
-                      allowCustomValue={true}
-                      className={fieldInputClass}
-                    />
-                  </ClearableField>
+                    options={gstOptions}
+                    isLoading={loadingOptions.gst}
+                    placeholder="Select GST Group..."
+                    searchPlaceholder="Search GST Groups..."
+                  />
                 </div>
 
                 <div className="space-y-1 overflow-hidden">
                   <Label htmlFor="po-line-hsn" className="text-xs">
                     HSN/SAC Code
                   </Label>
-                  <ClearableField
+                  <DropdownSearchableSelect
                     value={hsnSacCode}
-                    onClear={() => setHsnSacCode("")}
+                    onValueChange={setHsnSacCode}
+                    options={hsnOptions}
+                    isLoading={loadingOptions.hsn}
+                    placeholder={
+                      gstGroupCode
+                        ? "Select HSN/SAC..."
+                        : "Select GST Group first"
+                    }
+                    searchPlaceholder="Search HSN/SAC Codes..."
                     disabled={!gstGroupCode}
-                  >
-                    <SearchableSelect
-                      value={hsnSacCode}
-                      onValueChange={setHsnSacCode}
-                      options={hsnOptions}
-                      isLoading={loadingOptions.hsn}
-                      placeholder={
-                        gstGroupCode
-                          ? "Select HSN/SAC..."
-                          : "Select GST Group first"
-                      }
-                      searchPlaceholder="Search HSN/SAC Codes..."
-                      disabled={!gstGroupCode}
-                      allowCustomValue={true}
-                      className={fieldInputClass}
-                    />
-                  </ClearableField>
+                  />
                 </div>
 
                 {/* Row 4 */}
@@ -944,21 +959,14 @@ export function PurchaseOrderLineEditDialog({
                   <Label htmlFor="po-line-tds-section" className="text-xs">
                     TDS Section
                   </Label>
-                  <ClearableField
+                  <DropdownSearchableSelect
                     value={tdsSection}
-                    onClear={() => setTdsSection("")}
-                  >
-                    <SearchableSelect
-                      value={tdsSection}
-                      onValueChange={setTdsSection}
-                      options={tdsOptions}
-                      isLoading={loadingOptions.tds}
-                      placeholder="Select TDS Section..."
-                      searchPlaceholder="Search TDS Section..."
-                      allowCustomValue={true}
-                      className={fieldInputClass}
-                    />
-                  </ClearableField>
+                    onValueChange={setTdsSection}
+                    options={tdsOptions}
+                    isLoading={loadingOptions.tds}
+                    placeholder="Select TDS Section..."
+                    searchPlaceholder="Search TDS Section..."
+                  />
                 </div>
 
                 <div className="space-y-1 overflow-hidden">
@@ -988,19 +996,14 @@ export function PurchaseOrderLineEditDialog({
                     <Label htmlFor="po-line-gen-prod-posting-group" className="text-xs">
                       Gen Prod. Posting Group
                     </Label>
-                    <ClearableField
+                    <DropdownSearchableSelect
                       value={genProdPostingGroup}
-                      onClear={() => setGenProdPostingGroup("")}
-                    >
-                      <SearchableSelect
-                        value={genProdPostingGroup}
-                        onValueChange={(value) => setGenProdPostingGroup(value)}
-                        options={genProdOptions}
-                        isLoading={loadingGenProd}
-                        placeholder="Select Gen Prod..."
-                        searchPlaceholder="Search Gen Prod..."
-                      />
-                    </ClearableField>
+                      onValueChange={(value) => setGenProdPostingGroup(value)}
+                      options={genProdOptions}
+                      isLoading={loadingGenProd}
+                      placeholder="Select Gen Prod..."
+                      searchPlaceholder="Search Gen Prod..."
+                    />
                     {(() => {
                       const desc = genProdPostingGroups.find(
                         (g) => g.Code === genProdPostingGroup
@@ -1021,7 +1024,11 @@ export function PurchaseOrderLineEditDialog({
                   </Label>
                   <GenericLookupModal<DimensionValue>
                     value={shortcutDimCode4}
-                    onChange={(val) => setShortcutDimCode4(String(val))}
+                    onChange={(val, item) => {
+                      setShortcutDimCode4(String(val));
+                      if (item) setEmployeeName(item.Name || "");
+                      else setEmployeeName("");
+                    }}
                     fetchData={getEmployeesPage}
                     columns={[
                       { id: "Code", label: "Code", width: "100px" },
@@ -1031,10 +1038,13 @@ export function PurchaseOrderLineEditDialog({
                     title="Select Employee"
                     placeholder="Select Employee..."
                     keyExtractor={(item) => item.Code}
-                    displayValueExtractor={(item) =>
-                      item.Name ? `${item.Code} - ${item.Name}` : item.Code
-                    }
+                    displayValueExtractor={(item) => item.Code}
                   />
+                  {employeeName && (
+                    <p className="text-[11px] text-muted-foreground mt-1">
+                      {employeeName}
+                    </p>
+                  )}
                 </div>
 
                 <div className="space-y-1 overflow-hidden">
@@ -1043,7 +1053,11 @@ export function PurchaseOrderLineEditDialog({
                   </Label>
                   <GenericLookupModal<DimensionValue>
                     value={shortcutDimCode5}
-                    onChange={(val) => setShortcutDimCode5(String(val))}
+                    onChange={(val, item) => {
+                      setShortcutDimCode5(String(val));
+                      if (item) setAssignmentName(item.Name || "");
+                      else setAssignmentName("");
+                    }}
                     fetchData={getAssignmentsPage}
                     columns={[
                       { id: "Code", label: "Code", width: "100px" },
@@ -1053,10 +1067,13 @@ export function PurchaseOrderLineEditDialog({
                     title="Select Assignment"
                     placeholder="Select Assignment..."
                     keyExtractor={(item) => item.Code}
-                    displayValueExtractor={(item) =>
-                      item.Name ? `${item.Code} - ${item.Name}` : item.Code
-                    }
+                    displayValueExtractor={(item) => item.Code}
                   />
+                  {assignmentName && (
+                    <p className="text-[11px] text-muted-foreground mt-1">
+                      {assignmentName}
+                    </p>
+                  )}
                 </div>
 
                 {gstVendorType === "Import" && (
@@ -1191,7 +1208,10 @@ export function PurchaseOrderLineEditDialog({
 
       <ApplyItemEntryModal
         isOpen={isApplyItemEntryOpen}
-        onClose={() => setIsApplyItemEntryOpen(false)}
+        onClose={() => {
+          setIsApplyItemEntryOpen(false);
+          setTimeout(() => applToItemEntryRef.current?.focus(), 50);
+        }}
         entries={ledgerEntries}
         onSelect={(entry) => setApplToItemEntry(String(entry.Entry_No))}
         title={`Select Applies-to Item Entry — ${line?.No ?? ""}`}

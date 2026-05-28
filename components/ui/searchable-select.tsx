@@ -275,7 +275,8 @@ export function SearchableSelect({
             placeholder={placeholder}
             disabled={disabled || isLoading}
             className={cn(
-              "h-8 w-full bg-background pr-10 text-[13px] font-medium truncate",
+              "h-8 w-full bg-background text-[13px] font-medium truncate",
+              (value && !disabled && !isLoading) ? "pr-16" : "pr-8",
               className
             )}
             onClick={() => {

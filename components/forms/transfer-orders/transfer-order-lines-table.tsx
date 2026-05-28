@@ -200,13 +200,13 @@ export function TransferOrderLinesTable({
                 {line.Appl_to_Item_Entry || "-"}
               </TableCell>
               <TableCell className="text-right font-medium">
-                {line.Quantity?.toLocaleString() ?? "0"}
+                {line.Quantity?.toLocaleString(undefined, { maximumFractionDigits: 5 }) ?? "0"}
               </TableCell>
               <TableCell className="text-right">
-                {line.Transfer_Price != null ? line.Transfer_Price.toLocaleString(undefined, { minimumFractionDigits: 2 }) : "0.00"}
+                {line.Transfer_Price != null ? line.Transfer_Price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 5 }) : "0.00"}
               </TableCell>
               <TableCell className="text-right font-bold text-primary">
-                {line.Amount != null ? line.Amount.toLocaleString(undefined, { minimumFractionDigits: 2 }) : "0.00"}
+                {line.Amount != null ? line.Amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 5 }) : "0.00"}
               </TableCell>
               <TableCell className="p-1 min-w-[110px]" onClick={(e) => e.stopPropagation()}>
                 <div className="relative">
@@ -273,10 +273,10 @@ export function TransferOrderLinesTable({
               </TableCell>
 
               <TableCell className="text-right">
-                {line.Quantity_Shipped?.toLocaleString() ?? "0"}
+                {line.Quantity_Shipped?.toLocaleString(undefined, { maximumFractionDigits: 5 }) ?? "0"}
               </TableCell>
               <TableCell className="text-right">
-                {line.Quantity_Received?.toLocaleString() ?? "0"}
+                {line.Quantity_Received?.toLocaleString(undefined, { maximumFractionDigits: 5 }) ?? "0"}
               </TableCell>
               <TableCell>
                 {line.GST_Group_Code || "-"}

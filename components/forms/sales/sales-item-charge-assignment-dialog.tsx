@@ -795,19 +795,19 @@ export function SalesItemChargeAssignmentDialog({
                       <tbody>
                         <tr>
                           <td className="text-foreground px-4 py-0.5 text-[11px] font-bold">Total (Qty.)</td>
-                          <td className="px-4 py-0.5 text-right text-[12px] font-black tabular-nums">{totals.assignableQty.toLocaleString()}</td>
-                          <td className="px-4 py-0.5 text-right text-[12px] font-black tabular-nums">{totals.toAssignQty.toLocaleString()}</td>
-                          <td className={cn("px-4 py-0.5 text-right text-[12px] font-black tabular-nums", totals.remToAssignQty !== 0 ? "text-destructive" : "text-green-600")}>{totals.remToAssignQty.toLocaleString()}</td>
-                          <td className="px-4 py-0.5 text-right text-[12px] font-black tabular-nums">{totals.toHandleQty.toLocaleString()}</td>
-                          <td className={cn("px-4 py-0.5 text-right text-[12px] font-black tabular-nums", totals.remToHandleQty !== 0 ? "text-destructive" : "text-green-600")}>{totals.remToHandleQty.toLocaleString()}</td>
+                          <td className="px-4 py-0.5 text-right text-[12px] font-black tabular-nums">{totals.assignableQty.toLocaleString(undefined, { maximumFractionDigits: 5 })}</td>
+                          <td className="px-4 py-0.5 text-right text-[12px] font-black tabular-nums">{totals.toAssignQty.toLocaleString(undefined, { maximumFractionDigits: 5 })}</td>
+                          <td className={cn("px-4 py-0.5 text-right text-[12px] font-black tabular-nums", totals.remToAssignQty !== 0 ? "text-destructive" : "text-green-600")}>{totals.remToAssignQty.toLocaleString(undefined, { maximumFractionDigits: 5 })}</td>
+                          <td className="px-4 py-0.5 text-right text-[12px] font-black tabular-nums">{totals.toHandleQty.toLocaleString(undefined, { maximumFractionDigits: 5 })}</td>
+                          <td className={cn("px-4 py-0.5 text-right text-[12px] font-black tabular-nums", totals.remToHandleQty !== 0 ? "text-destructive" : "text-green-600")}>{totals.remToHandleQty.toLocaleString(undefined, { maximumFractionDigits: 5 })}</td>
                         </tr>
                         <tr>
                           <td className="text-foreground px-4 py-0.5 text-[11px] font-bold">Total (Amount)</td>
-                          <td className="px-4 py-0.5 text-right text-[12px] font-black tabular-nums">{totals.assignableAmt.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
-                          <td className="px-4 py-0.5 text-right text-[12px] font-black tabular-nums">{totals.toAssignAmt.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
-                          <td className={cn("px-4 py-0.5 text-right text-[12px] font-black tabular-nums", totals.remToAssignAmt !== 0 ? "text-destructive" : "text-green-600")}>{totals.remToAssignAmt.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
-                          <td className="px-4 py-0.5 text-right text-[12px] font-black tabular-nums">{totals.toHandleAmt.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
-                          <td className={cn("px-4 py-0.5 text-right text-[12px] font-black tabular-nums", totals.remToHandleAmt !== 0 ? "text-destructive" : "text-green-600")}>{totals.remToHandleAmt.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                          <td className="px-4 py-0.5 text-right text-[12px] font-black tabular-nums">{totals.assignableAmt.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 5 })}</td>
+                          <td className="px-4 py-0.5 text-right text-[12px] font-black tabular-nums">{totals.toAssignAmt.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 5 })}</td>
+                          <td className={cn("px-4 py-0.5 text-right text-[12px] font-black tabular-nums", totals.remToAssignAmt !== 0 ? "text-destructive" : "text-green-600")}>{totals.remToAssignAmt.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 5 })}</td>
+                          <td className="px-4 py-0.5 text-right text-[12px] font-black tabular-nums">{totals.toHandleAmt.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 5 })}</td>
+                          <td className={cn("px-4 py-0.5 text-right text-[12px] font-black tabular-nums", totals.remToHandleAmt !== 0 ? "text-destructive" : "text-green-600")}>{totals.remToHandleAmt.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 5 })}</td>
                         </tr>
                       </tbody>
                     </table>

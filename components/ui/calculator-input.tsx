@@ -49,7 +49,7 @@ export const CalculatorInput = React.forwardRef<
         const result = new Function(`return ${cleaned}`)();
         if (typeof result === "number" && isFinite(result)) {
           // Format to a reasonable number of decimals if needed, or keep as is
-          const finalResult = String(Number(result.toFixed(4)));
+          const finalResult = String(Number(result.toFixed(5)));
           return finalResult;
         }
       }

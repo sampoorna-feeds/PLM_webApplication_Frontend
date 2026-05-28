@@ -704,7 +704,7 @@ export function OutwardGateEntryForm({
                 Net Weight
               </label>
               <div className="bg-muted/30 text-muted-foreground flex h-8 items-center rounded border border-dashed px-3 font-mono text-xs">
-                {((entry.Net_Weight as number) || 0).toFixed(2)}
+                {((entry.Net_Weight as number) || 0).toFixed(5)}
               </div>
             </div>
 

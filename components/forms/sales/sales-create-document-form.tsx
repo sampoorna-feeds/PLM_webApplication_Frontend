@@ -336,7 +336,7 @@ function formatAmount(val: number | undefined): string {
   if (val == null) return "-";
   return val.toLocaleString("en-IN", {
     minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
+    maximumFractionDigits: 5,
   });
 }
 
@@ -2661,7 +2661,7 @@ export function SalesCreateDocumentFormContent({
                   <div className="space-y-1">
                     <Label className="text-muted-foreground">Net Weight</Label>
                     <Input
-                      value={netWeight.toFixed(2)}
+                      value={netWeight.toFixed(5)}
                       disabled
                       className="bg-muted h-9"
                     />

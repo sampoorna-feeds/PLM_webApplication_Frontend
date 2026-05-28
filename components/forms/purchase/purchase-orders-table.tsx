@@ -278,7 +278,7 @@ function PurchaseOrderRow({
       if (!isNaN(num)) {
         return num.toLocaleString("en-IN", {
           minimumFractionDigits: 2,
-          maximumFractionDigits: 2,
+          maximumFractionDigits: 5,
         });
       }
     }

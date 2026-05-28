@@ -360,7 +360,7 @@ export function VendorLedgerTable({
               numValue < 0 ? "text-destructive" : numValue > 0 ? "text-primary" : "text-muted-foreground/40",
             )}
           >
-            {numValue === 0 ? "-" : numValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            {numValue === 0 ? "-" : numValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 5 })}
           </TableCell>
 
         );
@@ -421,7 +421,7 @@ export function VendorLedgerTable({
   const formatAmount = useCallback((value: number) => {
     return value.toLocaleString(undefined, {
       minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
+      maximumFractionDigits: 5,
     });
   }, []);
 
@@ -525,7 +525,7 @@ export function VendorLedgerTable({
 
                         {openingBalance.toLocaleString(undefined, {
                           minimumFractionDigits: 2,
-                          maximumFractionDigits: 2,
+                          maximumFractionDigits: 5,
                         })}
                       </td>
                     );

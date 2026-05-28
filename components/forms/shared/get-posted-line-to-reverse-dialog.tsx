@@ -555,7 +555,7 @@ export function GetPostedLineToReverseDialog({
                         </td>
                         <td className="px-3 py-2 text-right text-[11px] tabular-nums">
                           {row.Quantity != null
-                            ? row.Quantity.toLocaleString()
+                            ? row.Quantity.toLocaleString(undefined, { maximumFractionDigits: 5 })
                             : "—"}
                         </td>
                         <td className="px-3 py-2 text-center text-[10px]">
@@ -565,7 +565,7 @@ export function GetPostedLineToReverseDialog({
                           {row.Amount != null
                             ? row.Amount.toLocaleString(undefined, {
                               minimumFractionDigits: 2,
-                              maximumFractionDigits: 2,
+                              maximumFractionDigits: 5,
                             })
                             : "—"}
                         </td>

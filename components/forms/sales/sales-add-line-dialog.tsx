@@ -302,11 +302,9 @@ export function SalesAddLineDialog({
 
   const handleTypeChange = useCallback((type: LineType) => {
     setUomOptions([]);
-    setForm((p) => ({
+    setForm(() => ({
       ...EMPTY_FORM,
       type,
-      gstGroupCode: p.gstGroupCode,
-      hsnSacCode: p.hsnSacCode,
     }));
   }, []);
 
@@ -691,7 +689,7 @@ export function SalesAddLineDialog({
                     <FieldTitle>Amount</FieldTitle>
                       <Input
                         type="text"
-                        value={form.unitPrice !== "" ? amount.toFixed(2) : ""}
+                        value={form.unitPrice !== "" ? amount.toFixed(5) : ""}
                         disabled
                         readOnly
                         className={cn("bg-muted h-8 font-medium", fieldInputClass)}

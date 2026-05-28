@@ -283,13 +283,13 @@ export function PostedTransferDetailForm({
                     >
                       <td className="px-4 py-3 font-medium">{line.Item_No || "-"}</td>
                       <td className="px-4 py-3">{line.Description || "-"}</td>
-                      <td className="px-4 py-3 text-right font-medium">{line.Quantity?.toLocaleString() || 0}</td>
+                      <td className="px-4 py-3 text-right font-medium">{line.Quantity?.toLocaleString(undefined, { maximumFractionDigits: 5 }) || 0}</td>
                       <td className="px-4 py-3">{line.Unit_of_Measure || "-"}</td>
-                      <td className="px-4 py-3 text-right">{line.GSTBaseAmt?.toLocaleString(undefined, { minimumFractionDigits: 2 }) || "0.00"}</td>
+                      <td className="px-4 py-3 text-right">{line.GSTBaseAmt?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 5 }) || "0.00"}</td>
                       <td className="px-4 py-3 text-right">{line.GSTPer || 0}%</td>
-                      <td className="px-4 py-3 text-right font-medium">{line.TotalGSTAMt?.toLocaleString(undefined, { minimumFractionDigits: 2 }) || "0.00"}</td>
+                      <td className="px-4 py-3 text-right font-medium">{line.TotalGSTAMt?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 5 }) || "0.00"}</td>
                       {type === "shipment" && (
-                        <td className="px-4 py-3 text-right font-medium">{line.Amount != null ? line.Amount.toLocaleString(undefined, { minimumFractionDigits: 2 }) : "-"}</td>
+                        <td className="px-4 py-3 text-right font-medium">{line.Amount != null ? line.Amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 5 }) : "-"}</td>
                       )}
                     </tr>
                   ))

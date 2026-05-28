@@ -162,7 +162,7 @@ export function TransferOrderLineDialog({
   };
 
   const handleCalcAmount = (qty: number, price: number) => {
-    return Number((qty * price).toFixed(2));
+    return Number((qty * price).toFixed(5));
   };
 
   const handleChange = (field: string, value: any) => {
@@ -416,10 +416,10 @@ export function TransferOrderLineDialog({
                           </TableCell>
                           <TableCell>{entry.Document_No}</TableCell>
                           <TableCell className="text-right">
-                            {entry.Quantity?.toLocaleString()}
+                            {entry.Quantity?.toLocaleString(undefined, { maximumFractionDigits: 5 })}
                           </TableCell>
                           <TableCell className="text-right font-medium text-green-600">
-                            {entry.Remaining_Quantity?.toLocaleString()}
+                            {entry.Remaining_Quantity?.toLocaleString(undefined, { maximumFractionDigits: 5 })}
                           </TableCell>
                           <TableCell className="text-xs">{entry.Lot_No || "-"}</TableCell>
                         </TableRow>

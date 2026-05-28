@@ -2750,7 +2750,7 @@ export function VoucherForm() {
                             {voucher.Description || "-"}
                           </TableCell>
                           <TableCell className="px-1 py-0.5 text-right text-xs tabular-nums">
-                            {voucher.Amount?.toFixed(2) || "0.00"}
+                            {voucher.Amount != null ? parseFloat(voucher.Amount.toFixed(5)).toString() : "0"}
                           </TableCell>
                           <TableCell className="px-1 py-0.5 text-xs">
                             {voucher.Bal_Account_Type}

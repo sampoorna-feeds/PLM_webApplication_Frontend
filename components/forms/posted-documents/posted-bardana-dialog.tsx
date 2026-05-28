@@ -511,11 +511,11 @@ export function PostedBardanaDialog({
                               ((Number(editValues.Weight_Per) || 0) *
                                 (Number(editValues.Quantity) || 0)) /
                               1000
-                            ).toFixed(2)}
+                            ).toFixed(5)}
                           </span>
                         ) : (
                           <span className="font-mono">
-                            {Number(line.Total_Weight).toFixed(2)}
+                            {Number(line.Total_Weight).toFixed(5)}
                           </span>
                         )}
                       </TableCell>

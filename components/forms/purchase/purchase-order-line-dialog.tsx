@@ -374,24 +374,9 @@ export function PurchaseOrderLineDialog({
   const handleTypeChange = useCallback((type: LineType) => {
     setUomOptions([]);
     setCanAddBardana(false);
-    setFormState((prev) => ({
-      ...prev,
+    setFormState(() => ({
+      ...getInitialLineState(null),
       type,
-      no: "",
-      description: "",
-      uom: type === "Item" ? prev.uom : "",
-      noOfBags: undefined,
-      faPostingType: "",
-      salvageValue: undefined,
-      exempted: false,
-      gstGroupCode: "",
-      hsnSacCode: "",
-      quantity: type === "" ? 0 : prev.quantity,
-      qtyToReceive: 0,
-      returnQtyToShip: 0,
-      qtyToInvoice: 0,
-      price: type === "" ? 0 : prev.price,
-      unitPrice: type === "" ? 0 : prev.unitPrice,
     }));
   }, []);
 
@@ -597,6 +582,18 @@ export function PurchaseOrderLineDialog({
           onSubmit={(e) => {
             e.preventDefault();
             handleSubmit();
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              const target = e.target as HTMLElement;
+              if (
+                target.tagName === "INPUT" ||
+                target.tagName === "SELECT" ||
+                target.getAttribute("role") === "combobox"
+              ) {
+                e.preventDefault();
+              }
+            }
           }}
           className="flex flex-col flex-1 max-h-[90vh] p-4"
         >
@@ -850,7 +847,7 @@ export function PurchaseOrderLineDialog({
                   <FieldTitle>Amount</FieldTitle>
                   <Input
                     type="text"
-                    value={amount > 0 ? amount.toFixed(2) : ""}
+                    value={amount > 0 ? amount.toFixed(5) : ""}
                     disabled
                     className={cn("bg-muted h-8 font-medium", fieldInputClass)}
                     readOnly

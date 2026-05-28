@@ -42,7 +42,7 @@ const formatAmount = (val: number | undefined): string => {
   if (val == null) return "0.00";
   return val.toLocaleString("en-IN", {
     minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
+    maximumFractionDigits: 5,
   });
 };
 

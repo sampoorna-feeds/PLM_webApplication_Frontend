@@ -296,7 +296,7 @@ function formatValue(value: any, columnId: string): string {
 
   if (typeof value === "number") {
     if (columnId.includes("Weight") || columnId.includes("Amount") || columnId.includes("Charges")) {
-      return value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      return value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 5 });
     }
     return value.toString();
   }

@@ -635,6 +635,18 @@ export function PurchaseOrderLineEditDialog({
               e.preventDefault();
               handleSave();
             }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                const target = e.target as HTMLElement;
+                if (
+                  target.tagName === "INPUT" ||
+                  target.tagName === "SELECT" ||
+                  target.getAttribute("role") === "combobox"
+                ) {
+                  e.preventDefault();
+                }
+              }
+            }}
             className="flex flex-col space-y-4"
           >
             <DialogHeader className="flex flex-row items-center justify-between border-b pb-4 mb-4">

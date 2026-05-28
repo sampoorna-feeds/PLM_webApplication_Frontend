@@ -379,6 +379,18 @@ export function SalesOrderLineEditDialog({
               e.preventDefault();
               handleSave();
             }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                const target = e.target as HTMLElement;
+                if (
+                  target.tagName === "INPUT" ||
+                  target.tagName === "SELECT" ||
+                  target.getAttribute("role") === "combobox"
+                ) {
+                  e.preventDefault();
+                }
+              }
+            }}
             className="flex flex-col flex-1 max-h-[90vh] p-4"
           >
           <DialogHeader className="border-b pb-3">

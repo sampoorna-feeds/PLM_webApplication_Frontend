@@ -134,7 +134,25 @@ export function ProductionOrderLineDialog({
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="p-0 sm:max-w-150 overflow-hidden">
-          <form onSubmit={(e) => { e.preventDefault(); handleSave(); }} className="flex flex-col gap-4 p-8">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleSave();
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                const target = e.target as HTMLElement;
+                if (
+                  target.tagName === "INPUT" ||
+                  target.tagName === "SELECT" ||
+                  target.getAttribute("role") === "combobox"
+                ) {
+                  e.preventDefault();
+                }
+              }
+            }}
+            className="flex flex-col gap-4 p-8"
+          >
             <DialogHeader>
               <DialogTitle
                 className={cn("text-lg", hasTracking && "text-red-600")}

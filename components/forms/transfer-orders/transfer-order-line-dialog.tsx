@@ -213,7 +213,25 @@ export function TransferOrderLineDialog({
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent showCloseButton={false} className="sm:max-w-3xl max-h-[90vh] flex flex-col p-0 overflow-hidden">
-        <form onSubmit={(e) => { e.preventDefault(); handleSubmit(); }} className="flex flex-col h-full p-6">
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleSubmit();
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              const target = e.target as HTMLElement;
+              if (
+                target.tagName === "INPUT" ||
+                target.tagName === "SELECT" ||
+                target.getAttribute("role") === "combobox"
+              ) {
+                e.preventDefault();
+              }
+            }
+          }}
+          className="flex flex-col h-full p-6"
+        >
           <DialogHeader className="flex-row items-center justify-between border-b pb-3 space-y-0">
             <DialogTitle>{isEdit ? "Edit Line Item" : "Add Line Item"}</DialogTitle>
             <div className="flex items-center gap-2">

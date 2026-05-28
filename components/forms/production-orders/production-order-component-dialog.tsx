@@ -228,7 +228,25 @@ export function ProductionOrderComponentDialog({
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-w-[95vw] sm:max-w-160 p-0 overflow-hidden">
-          <form onSubmit={(e) => { e.preventDefault(); handleSave(); }} className="flex flex-col gap-4 p-4 sm:p-6 md:p-8">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleSave();
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                const target = e.target as HTMLElement;
+                if (
+                  target.tagName === "INPUT" ||
+                  target.tagName === "SELECT" ||
+                  target.getAttribute("role") === "combobox"
+                ) {
+                  e.preventDefault();
+                }
+              }
+            }}
+            className="flex flex-col gap-4 p-4 sm:p-6 md:p-8"
+          >
             <DialogHeader>
               <DialogTitle
                 className={cn("text-lg", hasTracking && "text-red-600")}

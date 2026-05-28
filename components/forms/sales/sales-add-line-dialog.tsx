@@ -476,6 +476,18 @@ export function SalesAddLineDialog({
               e.preventDefault();
               handleSubmit();
             }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                const target = e.target as HTMLElement;
+                if (
+                  target.tagName === "INPUT" ||
+                  target.tagName === "SELECT" ||
+                  target.getAttribute("role") === "combobox"
+                ) {
+                  e.preventDefault();
+                }
+              }
+            }}
             className="flex flex-col flex-1 max-h-[90vh] p-4"
           >
             <div className="space-y-2.5 overflow-y-auto flex-1 pr-1 -mr-1">

@@ -169,7 +169,7 @@ export async function getPurchaseOrdersWithCount(
     $select = "No,Buy_from_Vendor_No,Buy_from_Vendor_Name,Order_Date,Posting_Date,Document_Date,Vendor_Order_No,Status,Amount,PO_Type,Completely_Received",
     $filter,
     $orderby = "No desc",
-    $top = 10,
+    $top = 200,
     $skip,
   } = params;
 
@@ -205,11 +205,13 @@ export async function searchPurchaseOrders(
 ): Promise<PaginatedPurchaseOrdersResponse> {
   const { searchTerm, $top, $skip, ...rest } = params;
   if (!searchTerm || searchTerm.trim() === "") {
-    return getPurchaseOrdersWithCount(rest as GetPurchaseOrdersParams);
+    return getPurchaseOrdersWithCount(params);
   }
 
   const escaped = searchTerm.replace(/'/g, "''");
   const fieldsToSearch = ["No", "Buy_from_Vendor_No", "Buy_from_Vendor_Name"];
+
+  const limit = Math.max(($skip || 0) + ($top || 200), 200);
 
   // perform one request per field
   const responses = await Promise.all(
@@ -218,7 +220,7 @@ export async function searchPurchaseOrders(
       const filter = rest.$filter
         ? `${rest.$filter} and ${filterPart}`
         : filterPart;
-      return getPurchaseOrdersWithCount({ ...rest, $filter: filter });
+      return getPurchaseOrdersWithCount({ ...rest, $filter: filter, $top: limit });
     }),
   );
 
@@ -230,7 +232,8 @@ export async function searchPurchaseOrders(
   });
 
   const allOrders = Object.values(map);
-  const total = allOrders.length;
+  const hasMoreOnServer = responses.some((res) => res.totalCount > limit);
+  const totalCount = hasMoreOnServer ? Math.max(allOrders.length, limit + 1) : allOrders.length;
 
   // apply paging after merge
   let paged = allOrders;
@@ -240,7 +243,7 @@ export async function searchPurchaseOrders(
     paged = allOrders.slice(start, end);
   }
 
-  return { orders: paged, totalCount: total };
+  return { orders: paged, totalCount };
 }
 
 /**

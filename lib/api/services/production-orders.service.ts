@@ -140,7 +140,7 @@ export async function getProductionOrders(
     $select = "No,Description,Source_No,Quantity,Location_Code",
     $filter,
     $orderby,
-    $top = 10,
+    $top = 200,
     $skip,
     $count,
   } = params;
@@ -178,7 +178,7 @@ export async function getProductionOrdersWithCount(
     $select = "No,Description,Source_No,Quantity,Location_Code",
     $filter,
     $orderby,
-    $top = 10,
+    $top = 200,
     $skip,
   } = params;
 
@@ -268,7 +268,7 @@ export async function getFinishedProductionOrders(
     $select = "No,Description,Source_No,Quantity,Location_Code",
     $filter,
     $orderby,
-    $top = 10,
+    $top = 200,
     $skip,
     $count,
   } = params;
@@ -305,7 +305,7 @@ export async function getFinishedProductionOrdersWithCount(
     $select = "No,Description,Source_No,Quantity,Location_Code",
     $filter,
     $orderby,
-    $top = 10,
+    $top = 200,
     $skip,
   } = params;
 

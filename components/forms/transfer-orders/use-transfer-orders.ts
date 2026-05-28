@@ -175,7 +175,10 @@ export function useTransferOrders(options: UseTransferOrdersOptions = {}) {
         setOrders((prev) => [...prev, ...result.orders]);
       }
       setTotalCount(result.totalCount);
-      setHasMore(pageRef.current * pageSize < result.totalCount);
+      const hasMoreData = result.totalCount && result.totalCount > 0
+        ? pageRef.current * pageSize < result.totalCount
+        : ((result.orders?.length || 0) === pageSize);
+      setHasMore(hasMoreData);
       setCurrentPage(pageRef.current);
     } catch (error) {
       if (requestId !== lastRequestId.current) return;

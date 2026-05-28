@@ -86,7 +86,10 @@ export function InwardGateEntryPageContent() {
         setEntries(prev => [...prev, ...(result.entries || [])]);
       }
       setTotalCount(result.totalCount ?? result.entries?.length ?? 0);
-      setHasMore(pageRef.current * pageSize < (result.totalCount ?? 0));
+      const hasMoreData = (result.totalCount && result.totalCount > 0)
+        ? pageRef.current * pageSize < result.totalCount
+        : ((result.entries?.length || 0) === pageSize);
+      setHasMore(hasMoreData);
       setCurrentPage(pageRef.current);
     } catch (error) {
       if (requestId !== lastRequestId.current) return;

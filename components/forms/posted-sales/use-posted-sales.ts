@@ -159,11 +159,12 @@ export function usePostedSales(initialFilters?: { skipDateFilter?: boolean }) {
         const escaped = searchQuery.replace(/'/g, "''");
         const searchFields = ["No", "Sell_to_Customer_No", "Sell_to_Customer_Name", "Location_Code"];
         
+        const limit = Math.max(pageRef.current * pageSize, 200);
         const responses = await Promise.all(
           searchFields.map(async (field) => {
             const fieldFilter = `contains(${field},'${escaped}')`;
             const combinedFilter = filter ? `(${filter}) and (${fieldFilter})` : fieldFilter;
-            const params = { ...baseParams, $filter: combinedFilter, $top: 100 };
+            const params = { ...baseParams, $filter: combinedFilter, $top: limit };
             
             try {
               return await getPostedSalesCreditMemos(params);
@@ -190,9 +191,12 @@ export function usePostedSales(initialFilters?: { skipDateFilter?: boolean }) {
         const start = (pageRef.current - 1) * pageSize;
         const paged = merged.slice(start, start + pageSize);
         
+        const hasMoreOnServer = responses.some(resp => (resp?.["@odata.count"] ?? 0) > limit);
+        const searchTotalCount = hasMoreOnServer ? Math.max(merged.length, limit + 1) : merged.length;
+
         result = {
           value: paged,
-          "@odata.count": merged.length
+          "@odata.count": searchTotalCount
         };
       } else {
         const params = {
@@ -210,7 +214,11 @@ export function usePostedSales(initialFilters?: { skipDateFilter?: boolean }) {
         setDocuments((prev) => [...prev, ...(result.value || [])]);
       }
       setTotalCount(result["@odata.count"] ?? result.value?.length ?? 0);
-      setHasMore(pageRef.current * pageSize < (result["@odata.count"] ?? 0));
+      const count = result["@odata.count"];
+      const hasMoreData = count && count > 0
+        ? pageRef.current * pageSize < count
+        : ((result.value?.length || 0) === pageSize);
+      setHasMore(hasMoreData);
       setCurrentPage(pageRef.current);
     } catch (error) {
       if (requestId !== lastRequestId.current) return;

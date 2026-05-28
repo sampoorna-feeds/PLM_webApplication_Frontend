@@ -76,7 +76,7 @@ export interface PaginatedPostedInvoicesResponse {
 export async function getPostedInvoicesWithCount(
   params: GetPostedInvoicesParams = {},
 ): Promise<PaginatedPostedInvoicesResponse> {
-  const { $select, $filter, $orderby = "No desc", $top = 10, $skip } = params;
+  const { $select, $filter, $orderby = "No desc", $top = 200, $skip } = params;
   const queryParams: Record<string, unknown> = { $top, $count: true };
   if ($select) queryParams.$select = $select;
   if ($filter) queryParams.$filter = $filter;
@@ -98,26 +98,30 @@ export async function searchPostedInvoices(
   params: GetPostedInvoicesParams & { searchTerm?: string },
 ): Promise<PaginatedPostedInvoicesResponse> {
   const { searchTerm, $top, $skip, ...rest } = params;
-  if (!searchTerm?.trim()) return getPostedInvoicesWithCount({ ...rest, $top, $skip });
+  if (!searchTerm?.trim()) return getPostedInvoicesWithCount(params);
 
   const escaped = searchTerm.replace(/'/g, "''");
   const fields = ["No", "Sell_to_Customer_No", "Sell_to_Customer_Name", "Order_No"];
+  const limit = Math.max(($skip || 0) + ($top || 200), 200);
+
   const responses = await Promise.all(
     fields.map((field) => {
       const filterPart = `contains(${field},'${escaped}')`;
       const filter = rest.$filter
         ? `${rest.$filter} and ${filterPart}`
         : filterPart;
-      return getPostedInvoicesWithCount({ ...rest, $filter: filter });
+      return getPostedInvoicesWithCount({ ...rest, $filter: filter, $top: limit });
     }),
   );
 
   const map: Record<string, PostedSalesInvoiceHeader> = {};
   responses.forEach((res) => res.orders.forEach((o) => { map[o.No] = o; }));
   const all = Object.values(map);
+  const hasMoreOnServer = responses.some((res) => res.totalCount > limit);
+  const totalCount = hasMoreOnServer ? Math.max(all.length, limit + 1) : all.length;
   const start = $skip || 0;
   const end = $top != null ? start + $top : undefined;
-  return { orders: all.slice(start, end), totalCount: all.length };
+  return { orders: all.slice(start, end), totalCount };
 }
 
 export async function getPostedInvoiceByNo(

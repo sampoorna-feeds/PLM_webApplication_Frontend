@@ -168,6 +168,8 @@ export async function searchQCReceipts(
     "Vehicle_No",
   ];
 
+  const limit = Math.max(($skip || 0) + ($top || 200), 200);
+
   // perform one request per field
   const responses = await Promise.all(
     fieldsToSearch.map((field) => {
@@ -175,7 +177,7 @@ export async function searchQCReceipts(
       const filter = rest.$filter
         ? `${rest.$filter} and ${filterPart}`
         : filterPart;
-      return getQCReceiptsWithCount({ ...rest, $filter: filter, $top: 500 });
+      return getQCReceiptsWithCount({ ...rest, $filter: filter, $top: limit });
     }),
   );
 
@@ -304,6 +306,8 @@ export async function searchPostedQCReceipts(
     "Bardana_RPO",
   ];
 
+  const limit = Math.max(($skip || 0) + ($top || 200), 200);
+
   // perform one request per field
   const responses = await Promise.all(
     fieldsToSearch.map((field) => {
@@ -311,7 +315,7 @@ export async function searchPostedQCReceipts(
       const filter = rest.$filter
         ? `${rest.$filter} and ${filterPart}`
         : filterPart;
-      return getPostedQCReceiptsWithCount({ ...rest, $filter: filter, $top: 500 });
+      return getPostedQCReceiptsWithCount({ ...rest, $filter: filter, $top: limit });
     }),
   );
 

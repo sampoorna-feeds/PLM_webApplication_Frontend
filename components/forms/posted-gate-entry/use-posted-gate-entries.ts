@@ -135,7 +135,11 @@ export function usePostedGateEntries(type: "inward" | "outward", initialFilters?
         setEntries((prev) => [...prev, ...(result.value || [])]);
       }
       setTotalCount(result["@odata.count"] ?? result.value?.length ?? 0);
-      setHasMore(pageRef.current * pageSize < (result["@odata.count"] ?? 0));
+      const count = result["@odata.count"];
+      const hasMoreData = count && count > 0
+        ? pageRef.current * pageSize < count
+        : ((result.value?.length || 0) === pageSize);
+      setHasMore(hasMoreData);
       setCurrentPage(pageRef.current);
     } catch (error) {
       if (requestId !== lastRequestId.current) return;

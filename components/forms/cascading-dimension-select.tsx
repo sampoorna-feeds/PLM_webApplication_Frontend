@@ -78,6 +78,7 @@ export function CascadingDimensionSelect({
   const abortControllerRef = useRef<AbortController | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const prevItemsRef = useRef<DimensionValue[]>(items);
+  const closeReasonRef = useRef<"select" | "escape" | "tab" | "clickOutside" | null>(null);
 
   // Load items based on dimension type and parent values
   const loadItems = useCallback(async () => {
@@ -159,6 +160,7 @@ export function CascadingDimensionSelect({
     if (disabled) return;
     setIsOpen(open);
     if (open) {
+      closeReasonRef.current = null;
       setFocusedIndex(-1);
       if (items.length === 0) {
         loadItems();
@@ -218,6 +220,7 @@ export function CascadingDimensionSelect({
     } else if (e.key === "Enter") {
       if (isOpen && focusedIndex >= 0) {
         e.preventDefault();
+        closeReasonRef.current = "select";
         const item = filteredItems[focusedIndex];
         if (item) {
           onChange(item.Code);
@@ -227,9 +230,11 @@ export function CascadingDimensionSelect({
         }
       }
     } else if (e.key === "Escape") {
+      closeReasonRef.current = "escape";
       setIsOpen(false);
       setSearchQuery("");
     } else if (e.key === "Tab") {
+      closeReasonRef.current = "tab";
       setIsOpen(false);
     }
   };
@@ -322,7 +327,14 @@ export function CascadingDimensionSelect({
         onOpenAutoFocus={(e) => {
           e.preventDefault();
         }}
+        onPointerDownOutside={() => {
+          closeReasonRef.current = "clickOutside";
+        }}
         onCloseAutoFocus={(e) => {
+          if (closeReasonRef.current === "tab" || closeReasonRef.current === "clickOutside") {
+            e.preventDefault();
+            return;
+          }
           e.preventDefault();
           inputRef.current?.focus();
         }}
@@ -362,6 +374,7 @@ export function CascadingDimensionSelect({
                       focusedIndex === index && "bg-accent text-accent-foreground",
                     )}
                     onClick={() => {
+                      closeReasonRef.current = "select";
                       if (value === item.Code) {
                         onChange("");
                       } else {
@@ -370,7 +383,6 @@ export function CascadingDimensionSelect({
                       }
                       setIsOpen(false);
                       setSearchQuery("");
-                      inputRef.current?.focus();
                     }}
                     onMouseEnter={() => setFocusedIndex(index)}
                   >

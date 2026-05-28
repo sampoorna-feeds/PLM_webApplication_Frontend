@@ -722,6 +722,23 @@ export function PurchaseCreateDocumentFormContent({
     if (persistFormData) persistFormData(data);
   };
 
+  // Automatically persist form state on changes, but only if not hydrating
+  const persistRef = useRef(persistFormData);
+  useEffect(() => {
+    persistRef.current = persistFormData;
+  }, [persistFormData]);
+
+  useEffect(() => {
+    if (persistRef.current && !isHydratingDocument) {
+      persistRef.current({
+        ...formData,
+        lineItems,
+        createdOrderNo,
+        status: documentStatus,
+      });
+    }
+  }, [formData, lineItems, createdOrderNo, documentStatus, isHydratingDocument]);
+
   // Get logged-in user ID
   useEffect(() => {
     const credentials = getAuthCredentials();
@@ -803,9 +820,14 @@ export function PurchaseCreateDocumentFormContent({
 
         const mappedFormData = mapPurchaseHeaderToFormData(header);
         const mappedLineItems = lines.map(mapPurchaseLineToLineItem);
-
+        const isRestoringDraft = initialFormData && Object.keys(initialFormData).length > 0;
         hydratedHeaderRef.current = header;
-        setFormData((prev) => ({ ...prev, ...mappedFormData }));
+        setFormData((prev) => {
+          if (isRestoringDraft) {
+            return { ...mappedFormData, ...prev } as typeof prev;
+          }
+          return { ...prev, ...mappedFormData } as typeof prev;
+        });
         setLineItems(mappedLineItems);
         setPurchaseLines(lines);
 

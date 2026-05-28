@@ -350,6 +350,7 @@ export interface SalesCreateDocumentFormContentProps {
   onCancelEdit?: () => void;
   onSuccess: (orderNo: string) => void;
   initialFormData?: Record<string, unknown>;
+  persistFormData?: (data: Record<string, any>) => void;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -362,6 +363,7 @@ export function SalesCreateDocumentFormContent({
   onCancelEdit,
   onSuccess,
   initialFormData = {},
+  persistFormData,
 }: SalesCreateDocumentFormContentProps) {
   const config = getSalesDocumentConfig(documentType);
   const caps = getSalesDocumentCapabilities(documentType);
@@ -406,6 +408,18 @@ export function SalesCreateDocumentFormContent({
   const [isLoadingTrackingMap, setIsLoadingTrackingMap] = useState(false);
   const [isLoading, setIsLoading] = useState(!isCreateMode);
   const [loadError, setLoadError] = useState<string | null>(null);
+
+  // Persist form data on change
+  const persistRef = useRef(persistFormData);
+  useEffect(() => {
+    persistRef.current = persistFormData;
+  }, [persistFormData]);
+
+  useEffect(() => {
+    if (persistRef.current && !isLoading) {
+      persistRef.current(formData);
+    }
+  }, [formData, isLoading]);
 
   // ── Action state ──────────────────────────────────────────────────────────
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -610,7 +624,11 @@ export function SalesCreateDocumentFormContent({
       setLines(lineItems);
 
       if (header) {
-        const formState = mapSalesHeaderToFormData(header);
+        const dbFormState = mapSalesHeaderToFormData(header);
+        const formState = {
+          ...dbFormState,
+          ...(initialFormData as Partial<CreateFormState>),
+        };
         // Fetch salesperson name for display below field
         if (formState.salesPersonCode) {
           getSalesPersonByCode(formState.salesPersonCode)

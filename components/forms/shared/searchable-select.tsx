@@ -91,6 +91,7 @@ export function SearchableSelect<T extends SearchableItem>({
   const isLoadingMoreRef = useRef(false);
   const lastRequestId = useRef(0);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
+  const closeReasonRef = useRef<"select" | "escape" | "tab" | "clickOutside" | null>(null);
 
   // Load initial items when dropdown opens
   const loadInitialItems = useCallback(async () => {
@@ -239,11 +240,15 @@ export function SearchableSelect<T extends SearchableItem>({
   // Handle dropdown open/close events from Radix Popover
   const handleOpenChange = (open: boolean) => {
     setIsOpen(open);
+    if (open) {
+      closeReasonRef.current = null;
+    }
   };
 
   // Trigger loading when dropdown opens (handles both Radix and programmatic triggers)
   useEffect(() => {
     if (isOpen) {
+      closeReasonRef.current = null;
       setActiveIndex(-1);
       if (items.length === 0 && !isLoadingRef.current) {
         loadInitialItems();
@@ -338,12 +343,20 @@ export function SearchableSelect<T extends SearchableItem>({
     } else if (e.key === "Enter") {
       e.preventDefault();
       if (isOpen && activeIndex >= 0 && activeIndex < filteredItems.length) {
+        closeReasonRef.current = "select";
         const item = filteredItems[activeIndex];
         onChange(getItemValue(item), item);
         setIsOpen(false);
         setSearchQuery("");
         setIsFocused(false);
       }
+    } else if (e.key === "Escape") {
+      closeReasonRef.current = "escape";
+      setIsOpen(false);
+      setSearchQuery("");
+    } else if (e.key === "Tab") {
+      closeReasonRef.current = "tab";
+      setIsOpen(false);
     }
   };
 
@@ -427,7 +440,14 @@ export function SearchableSelect<T extends SearchableItem>({
         className="flex max-h-(--radix-popover-content-available-height,80vh) min-h-0 w-(--radix-popover-trigger-width) max-w-[calc(100vw-2rem)] min-w-[320px] flex-col overflow-hidden p-0 shadow-xl"
         align="start"
         collisionPadding={8}
+        onPointerDownOutside={() => {
+          closeReasonRef.current = "clickOutside";
+        }}
         onCloseAutoFocus={(e) => {
+          if (closeReasonRef.current === "tab" || closeReasonRef.current === "clickOutside") {
+            e.preventDefault();
+            return;
+          }
           e.preventDefault();
           inputRef.current?.focus();
         }}
@@ -492,6 +512,7 @@ export function SearchableSelect<T extends SearchableItem>({
                         e.preventDefault();
                         e.stopPropagation();
 
+                        closeReasonRef.current = "select";
                         onChange(itemValue, item);
                         setIsOpen(false);
                         setSearchQuery("");

@@ -60,6 +60,7 @@ export function SearchableSelect({
   const listRef = React.useRef<HTMLDivElement>(null);
   const sentinelRef = React.useRef<HTMLDivElement>(null);
   const searchTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+  const closeReasonRef = React.useRef<"select" | "escape" | "tab" | "clickOutside" | null>(null);
 
   // Get the selected options' labels
   const values = isMulti ? (value ? value.split("|") : []) : (value ? [value] : []);
@@ -182,6 +183,7 @@ export function SearchableSelect({
             : [...values, trimmedVal];
           onValueChange(newValues.join("|"));
         } else {
+          closeReasonRef.current = "select";
           onValueChange(trimmedVal);
           setOpen(false);
           setIsFocused(false);
@@ -198,6 +200,7 @@ export function SearchableSelect({
               : [...values, option.value];
             onValueChange(newValues.join("|"));
           } else {
+            closeReasonRef.current = "select";
             onValueChange(values.includes(option.value) ? "" : option.value);
             setOpen(false);
             setIsFocused(false);
@@ -212,11 +215,22 @@ export function SearchableSelect({
             : [...values, trimmedVal];
           onValueChange(newValues.join("|"));
         } else {
+          closeReasonRef.current = "select";
           onValueChange(trimmedVal);
           setOpen(false);
           setIsFocused(false);
         }
       }
+    } else if (e.key === "Escape") {
+      closeReasonRef.current = "escape";
+      setOpen(false);
+      setIsFocused(false);
+      setSearchQuery("");
+      if (onSearch) onSearch("");
+    } else if (e.key === "Tab") {
+      closeReasonRef.current = "tab";
+      setOpen(false);
+      setIsFocused(false);
     }
   };
 
@@ -237,7 +251,9 @@ export function SearchableSelect({
       open={open}
       onOpenChange={(val) => {
         setOpen(val);
-        if (!val) {
+        if (val) {
+          closeReasonRef.current = null;
+        } else {
           setIsFocused(false);
           setSearchQuery("");
           if (onSearch) onSearch("");
@@ -313,7 +329,14 @@ export function SearchableSelect({
         align="start"
         sideOffset={4}
         collisionPadding={8}
+        onPointerDownOutside={() => {
+          closeReasonRef.current = "clickOutside";
+        }}
         onCloseAutoFocus={(e) => {
+          if (closeReasonRef.current === "tab" || closeReasonRef.current === "clickOutside") {
+            e.preventDefault();
+            return;
+          }
           e.preventDefault();
           inputRef.current?.focus();
         }}
@@ -368,6 +391,7 @@ export function SearchableSelect({
                           : [...values, trimmedVal];
                         onValueChange(newValues.join("|"));
                       } else {
+                        closeReasonRef.current = "select";
                         onValueChange(value === trimmedVal ? "" : trimmedVal);
                         setOpen(false);
                       }
@@ -454,6 +478,7 @@ export function SearchableSelect({
                             : [...values, option.value];
                           onValueChange(newValues.join("|"));
                         } else {
+                          closeReasonRef.current = "select";
                           onValueChange(isSelected ? "" : option.value);
                           setTimeout(() => setOpen(false), 0);
                         }

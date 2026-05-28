@@ -81,6 +81,7 @@ export function AccountSelect({
 
   const [focusedIndex, setFocusedIndex] = useState(-1);
   const inputRef = useRef<HTMLInputElement>(null);
+  const closeReasonRef = useRef<"select" | "escape" | "tab" | "clickOutside" | null>(null);
 
   // Load initial items when dropdown opens
   const loadInitialItems = useCallback(async () => {
@@ -244,11 +245,15 @@ export function AccountSelect({
   // Handle dropdown open
   const handleOpenChange = (open: boolean) => {
     setIsOpen(open);
+    if (open) {
+      closeReasonRef.current = null;
+    }
   };
 
   // Load initial items when dropdown opens
   useEffect(() => {
     if (isOpen) {
+      closeReasonRef.current = null;
       setFocusedIndex(-1);
       // Always load items when opening, even if we have some, to ensure value is in list
       if (
@@ -400,6 +405,7 @@ export function AccountSelect({
     } else if (e.key === "Enter") {
       if (isOpen && focusedIndex >= 0) {
         e.preventDefault();
+        closeReasonRef.current = "select";
         const item = filteredItems[focusedIndex];
         if (item) {
           onChange(item.No);
@@ -408,9 +414,11 @@ export function AccountSelect({
         }
       }
     } else if (e.key === "Escape") {
+      closeReasonRef.current = "escape";
       setIsOpen(false);
       setSearchQuery("");
     } else if (e.key === "Tab") {
+      closeReasonRef.current = "tab";
       setIsOpen(false);
     }
   };
@@ -489,7 +497,14 @@ export function AccountSelect({
           // Prevent auto-focus from scrolling
           e.preventDefault();
         }}
+        onPointerDownOutside={() => {
+          closeReasonRef.current = "clickOutside";
+        }}
         onCloseAutoFocus={(e) => {
+          if (closeReasonRef.current === "tab" || closeReasonRef.current === "clickOutside") {
+            e.preventDefault();
+            return;
+          }
           // Prevent auto-focus from scrolling
           e.preventDefault();
           inputRef.current?.focus();
@@ -523,10 +538,10 @@ export function AccountSelect({
                         "bg-accent text-accent-foreground",
                     )}
                     onClick={() => {
+                      closeReasonRef.current = "select";
                       onChange(item.No);
                       setIsOpen(false);
                       setSearchQuery("");
-                      inputRef.current?.focus();
                     }}
                     onMouseEnter={() => setFocusedIndex(index)}
                   >

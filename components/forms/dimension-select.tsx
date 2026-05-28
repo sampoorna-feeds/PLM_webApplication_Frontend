@@ -71,6 +71,7 @@ export function DimensionSelect({
 
   const [focusedIndex, setFocusedIndex] = useState(-1);
   const inputRef = useRef<HTMLInputElement>(null);
+  const closeReasonRef = useRef<"select" | "escape" | "tab" | "clickOutside" | null>(null);
 
   // Check if this dimension supports search (LOB doesn't)
   const supportsSearch = dimensionType !== "LOB";
@@ -307,6 +308,7 @@ export function DimensionSelect({
   const handleOpenChange = (open: boolean) => {
     setIsOpen(open);
     if (open) {
+      closeReasonRef.current = null;
       setFocusedIndex(-1);
       if (items.length === 0) {
         loadInitialItems();
@@ -381,6 +383,7 @@ export function DimensionSelect({
     } else if (e.key === "Enter") {
       if (isOpen && focusedIndex >= 0) {
         e.preventDefault();
+        closeReasonRef.current = "select";
         const item = items[focusedIndex];
         if (item) {
           onChange(item.Code);
@@ -389,9 +392,11 @@ export function DimensionSelect({
         }
       }
     } else if (e.key === "Escape") {
+      closeReasonRef.current = "escape";
       setIsOpen(false);
       setSearchQuery("");
     } else if (e.key === "Tab") {
+      closeReasonRef.current = "tab";
       setIsOpen(false);
     }
   };
@@ -491,7 +496,14 @@ export function DimensionSelect({
           // Prevent auto-focus from scrolling
           e.preventDefault();
         }}
+        onPointerDownOutside={() => {
+          closeReasonRef.current = "clickOutside";
+        }}
         onCloseAutoFocus={(e) => {
+          if (closeReasonRef.current === "tab" || closeReasonRef.current === "clickOutside") {
+            e.preventDefault();
+            return;
+          }
           // Prevent auto-focus from scrolling
           e.preventDefault();
           inputRef.current?.focus();
@@ -523,6 +535,7 @@ export function DimensionSelect({
                       focusedIndex === index && "bg-accent text-accent-foreground",
                     )}
                     onClick={() => {
+                      closeReasonRef.current = "select";
                       if (value === item.Code) {
                         onChange("");
                       } else {
@@ -530,7 +543,6 @@ export function DimensionSelect({
                       }
                       setIsOpen(false);
                       setSearchQuery("");
-                      inputRef.current?.focus();
                     }}
                     onMouseEnter={() => setFocusedIndex(index)}
                   >

@@ -140,6 +140,7 @@ export function LocationSelect({
   const isLoadingMore = useRef(false);
   const isAllFetched = useRef(false);
   const pageRef = useRef(0);
+  const closeReasonRef = useRef<"select" | "escape" | "tab" | "clickOutside" | null>(null);
 
   // Debounce search
   useEffect(() => {
@@ -236,15 +237,17 @@ export function LocationSelect({
   const handleOpenChange = (newOpen: boolean) => {
     if (disabled) return;
     setOpen(newOpen);
-    if (!newOpen) {
+    if (newOpen) {
+      closeReasonRef.current = null;
+      setFocusedIndex(-1);
+    } else {
       setSearchQuery("");
       setColumnFilters({});
-    } else {
-      setFocusedIndex(-1);
     }
   };
 
   const handleSelect = (l: Location) => {
+    closeReasonRef.current = "select";
     if (value === l.Code) {
       onChange("", undefined);
     } else {
@@ -252,7 +255,6 @@ export function LocationSelect({
     }
     setOpen(false);
     setSearchQuery("");
-    inputRef.current?.focus();
   };
 
   const handleSort = (id: string) => {
@@ -306,9 +308,11 @@ export function LocationSelect({
         }
       }
     } else if (e.key === "Escape") {
+      closeReasonRef.current = "escape";
       setOpen(false);
       setSearchQuery("");
     } else if (e.key === "Tab") {
+      closeReasonRef.current = "tab";
       setOpen(false);
     }
   };
@@ -387,7 +391,14 @@ export function LocationSelect({
         className="flex max-h-[var(--radix-popover-content-available-height,80vh)] min-h-0 w-auto max-w-[95vw] min-w-[320px] flex-col overflow-hidden p-0"
         align="start"
         onOpenAutoFocus={(e) => e.preventDefault()}
+        onPointerDownOutside={() => {
+          closeReasonRef.current = "clickOutside";
+        }}
         onCloseAutoFocus={(e) => {
+          if (closeReasonRef.current === "tab" || closeReasonRef.current === "clickOutside") {
+            e.preventDefault();
+            return;
+          }
           e.preventDefault();
           inputRef.current?.focus();
         }}

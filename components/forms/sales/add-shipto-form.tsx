@@ -48,6 +48,9 @@ export function AddShipToForm({
   const [isLoading, setIsLoading] = useState(false);
   const [stateSearchQuery, setStateSearchQuery] = useState("");
   const [isStateOpen, setIsStateOpen] = useState(false);
+  const [stateActiveIndex, setStateActiveIndex] = useState(-1);
+  const activeItemRef = useRef<HTMLDivElement | null>(null);
+  const postCodeRef = useRef<HTMLInputElement>(null);
   const [showSuccess, setShowSuccess] = useState(false);
   const [countdown, setCountdown] = useState(5);
   const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -179,10 +182,36 @@ export function AddShipToForm({
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
+  // Auto-scroll the active state item into view
+  useEffect(() => {
+    if (stateActiveIndex >= 0 && activeItemRef.current) {
+      activeItemRef.current.scrollIntoView({ block: "nearest" });
+    }
+  }, [stateActiveIndex]);
+
   const handleStateChange = (value: string) => {
     setFormData((prev) => ({ ...prev, state: value, postCode: "" }));
     setIsStateOpen(false);
     setStateSearchQuery("");
+    setStateActiveIndex(-1);
+    setTimeout(() => {
+      postCodeRef.current?.focus();
+    }, 50);
+  };
+
+  const handleStateKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setStateActiveIndex((prev) => Math.min(prev + 1, filteredStates.length - 1));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setStateActiveIndex((prev) => Math.max(prev - 1, 0));
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      if (stateActiveIndex >= 0 && stateActiveIndex < filteredStates.length) {
+        handleStateChange(filteredStates[stateActiveIndex].Code);
+      }
+    }
   };
 
   // Filter states based on search query
@@ -410,7 +439,16 @@ export function AddShipToForm({
           {/* State Field */}
           <div className="space-y-2">
             <FieldTitle>State *</FieldTitle>
-            <Popover open={isStateOpen} onOpenChange={setIsStateOpen}>
+            <Popover 
+              open={isStateOpen} 
+              onOpenChange={(open) => {
+                setIsStateOpen(open);
+                if (!open) {
+                  setStateActiveIndex(-1);
+                  setStateSearchQuery("");
+                }
+              }}
+            >
               <PopoverTrigger asChild>
                 <Button
                   variant="outline"
@@ -431,7 +469,11 @@ export function AddShipToForm({
                   <Input
                     placeholder="Search state..."
                     value={stateSearchQuery}
-                    onChange={(e) => setStateSearchQuery(e.target.value)}
+                    onChange={(e) => {
+                      setStateSearchQuery(e.target.value);
+                      setStateActiveIndex(-1);
+                    }}
+                    onKeyDown={handleStateKeyDown}
                     className="h-8 text-sm"
                     autoFocus
                   />
@@ -442,33 +484,39 @@ export function AddShipToForm({
                       No states found
                     </div>
                   ) : (
-                    filteredStates.map((state) => (
-                      <div
-                        key={state.Code}
-                        className={cn(
-                          "hover:bg-muted/50 relative flex cursor-default items-center rounded-sm px-2 py-1.5 text-sm outline-none select-none",
-                          formData.state === state.Code && "bg-muted",
-                        )}
-                        onClick={() => handleStateChange(state.Code)}
-                      >
-                        <CheckIcon
+                    filteredStates.map((state, idx) => {
+                      const isFocused = stateActiveIndex === idx;
+                      return (
+                        <div
+                          key={state.Code}
+                          ref={isFocused ? activeItemRef : undefined}
+                          onMouseEnter={() => setStateActiveIndex(idx)}
+                          onClick={() => handleStateChange(state.Code)}
                           className={cn(
-                            "mr-2 h-4 w-4 shrink-0",
-                            formData.state === state.Code
-                              ? "opacity-100"
-                              : "opacity-0",
+                            "hover:bg-muted/50 relative flex cursor-default items-center rounded-sm px-2 py-1.5 text-sm outline-none select-none",
+                            formData.state === state.Code && "bg-muted",
+                            isFocused && "bg-accent text-accent-foreground"
                           )}
-                        />
-                        <div className="min-w-0 flex-1">
-                          <div className="text-foreground font-medium">
-                            {state.Description}
-                          </div>
-                          <div className="text-muted-foreground mt-0.5 text-xs">
-                            {state.Code}
+                        >
+                          <CheckIcon
+                            className={cn(
+                              "mr-2 h-4 w-4 shrink-0",
+                              formData.state === state.Code
+                                ? "opacity-100"
+                                : "opacity-0",
+                            )}
+                          />
+                          <div className="min-w-0 flex-1">
+                            <div className="text-foreground font-medium">
+                              {state.Description}
+                            </div>
+                            <div className="text-muted-foreground mt-0.5 text-xs">
+                              {state.Code}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))
+                      );
+                    })
                   )}
                 </div>
               </PopoverContent>
@@ -480,6 +528,7 @@ export function AddShipToForm({
             <div className="space-y-2">
               <FieldTitle>Post Code *</FieldTitle>
               <Input
+                ref={postCodeRef}
                 type="text"
                 inputMode="numeric"
                 value={formData.postCode}

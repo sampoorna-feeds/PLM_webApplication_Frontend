@@ -47,7 +47,6 @@ function formatValue(val: unknown): string {
 /** Human-readable labels for ProductionOrder fields */
 const FIELD_LABELS: Record<string, string> = {
   No: "Order No",
-  Status: "Status",
   Description: "Description",
   Description_2: "Description 2",
   Source_Type: "Source Type",
@@ -58,7 +57,6 @@ const FIELD_LABELS: Record<string, string> = {
   Due_Date: "Due Date",
   Blocked: "Blocked",
   Location_Code: "Location Code",
-  Hatching_Date: "Hatching Date",
   Breed_Code: "Breed Code",
   Hatchery_Entry: "Hatchery Entry",
   Hatchery_Name: "Hatchery Name",
@@ -67,20 +65,12 @@ const FIELD_LABELS: Record<string, string> = {
   Laying_EGG_Week: "Laying Egg Week",
   STD_Percent: "STD Percent",
   Opening_Female_Bird: "Opening Female Bird",
-  DOC_Placing_Date: "DOC Placing Date",
   Flock_Value: "Flock Value",
   Prod_Bom_No: "Prod BOM No",
   BOM_Version_No: "BOM Version No",
   Batch_Size: "Batch Size",
   Variant_Code: "Variant Code",
   SFPL_User_ID: "Assigned User ID",
-  Last_Date_Modified: "Last Date Modified",
-  Starting_Time: "Starting Time",
-  Starting_Date: "Starting Date",
-  Ending_Time: "Ending Time",
-  Ending_Date: "Ending Date",
-  Starting_Date_Time: "Starting Date/Time",
-  Ending_Date_Time: "Ending Date/Time",
   Inventory_Posting_Group: "Inventory Posting Group",
   Gen_Prod_Posting_Group: "Gen. Prod. Posting Group",
   Gen_Bus_Posting_Group: "Gen. Bus. Posting Group",
@@ -92,103 +82,64 @@ const FIELD_LABELS: Record<string, string> = {
   Finished_Date: "Finished Date",
 };
 
-/** Field grouping for display */
-const FIELD_GROUPS: { title: string; fields: string[] }[] = [
-  {
-    title: "General",
-    fields: [
-      "No",
-      "Status",
-      "Description",
-      "Description_2",
-      "Search_Description",
-      "Supervisor_Name",
-      "SFPL_User_ID",
-    ],
-  },
-  {
-    title: "Source & Production",
-    fields: [
-      "Source_Type",
-      "Source_No",
-      "Quantity",
-      "Prod_Bom_No",
-      "BOM_Version_No",
-      "Batch_Size",
-      "Variant_Code",
-      "Routing_No",
-    ],
-  },
-  {
-    title: "Dates",
-    fields: [
-      "Due_Date",
-      "Starting_Date",
-      "Starting_Time",
-      "Starting_Date_Time",
-      "Ending_Date",
-      "Ending_Time",
-      "Ending_Date_Time",
-      "Finished_Date",
-      "Last_Date_Modified",
-    ],
-  },
-  {
-    title: "Dimensions & Location",
-    fields: [
-      "Location_Code",
-      "Shortcut_Dimension_1_Code",
-      "Shortcut_Dimension_2_Code",
-      "Shortcut_Dimension_3_Code",
-      "Bin_Code",
-    ],
-  },
-  {
-    title: "Posting Groups",
-    fields: [
-      "Inventory_Posting_Group",
-      "Gen_Prod_Posting_Group",
-      "Gen_Bus_Posting_Group",
-    ],
-  },
-  {
-    title: "Hatchery",
-    fields: [
-      "Hatchery_Entry",
-      "Hatchery_Name",
-      "Hatchery_No",
-      "Hatching_Date",
-      "Breed_Code",
-      "Flock_No_Breeder",
-      "Laying_EGG_Week",
-      "STD_Percent",
-      "Opening_Female_Bird",
-      "DOC_Placing_Date",
-      "Flock_Value",
-    ],
-  },
-  {
-    title: "Other",
-    fields: ["Blocked"],
-  },
+/** All fields to display (flat, no sections) */
+const ALL_FIELDS: string[] = [
+  "No",
+  "Description",
+  "Description_2",
+  "Search_Description",
+  "Supervisor_Name",
+  "SFPL_User_ID",
+  "Source_Type",
+  "Source_No",
+  "Quantity",
+  "Prod_Bom_No",
+  "BOM_Version_No",
+  "Batch_Size",
+  "Variant_Code",
+  "Routing_No",
+  "Due_Date",
+  "Finished_Date",
+  "Location_Code",
+  "Shortcut_Dimension_1_Code",
+  "Shortcut_Dimension_2_Code",
+  "Shortcut_Dimension_3_Code",
+  "Bin_Code",
+  "Inventory_Posting_Group",
+  "Gen_Prod_Posting_Group",
+  "Gen_Bus_Posting_Group",
+  "Hatchery_Entry",
+  "Hatchery_Name",
+  "Hatchery_No",
+  "Breed_Code",
+  "Flock_No_Breeder",
+  "Laying_EGG_Week",
+  "STD_Percent",
+  "Opening_Female_Bird",
+  "Flock_Value",
+  "Blocked",
 ];
 
-/** Keys to skip (internal OData fields) */
+/** Keys to skip (internal OData fields and excluded display fields) */
 const SKIP_KEYS = new Set([
   "@odata.etag",
   "@odata.context",
   "Batch_Barcode@odata.mediaEditLink",
   "Batch_Barcode@odata.mediaReadLink",
+  "Status",
+  "Finished",
+  "Starting_Date_Time",
+  "Ending_Date_Time",
+  "Starting_Time",
+  "Starting_Date",
+  "Ending_Time",
+  "Ending_Date",
+  "Hatching_Date",
 ]);
 
 /** Date-type fields */
 const DATE_FIELDS = new Set([
   "Due_Date",
-  "Hatching_Date",
-  "DOC_Placing_Date",
-  "Last_Date_Modified",
-  "Starting_Date",
-  "Ending_Date",
   "Finished_Date",
 ]);
 
@@ -349,16 +300,30 @@ export function FinishedProductionOrderDetailForm({
 
   const orderRecord = order as unknown as Record<string, unknown>;
 
-  // Collect any extra fields not covered by FIELD_GROUPS
-  const coveredFields = new Set(FIELD_GROUPS.flatMap((g) => g.fields));
+  // Filter to fields that have non-empty values
+  const fieldsWithValues = ALL_FIELDS.filter((field) => {
+    const val = orderRecord[field];
+    return (
+      val !== null &&
+      val !== undefined &&
+      val !== "" &&
+      val !== "0001-01-01"
+    );
+  });
+
+  // Collect any extra fields not covered by ALL_FIELDS
+  const coveredFields = new Set(ALL_FIELDS);
   const extraFields = Object.keys(orderRecord).filter(
     (key) =>
       !coveredFields.has(key) &&
       !SKIP_KEYS.has(key) &&
       orderRecord[key] !== null &&
       orderRecord[key] !== undefined &&
-      orderRecord[key] !== "",
+      orderRecord[key] !== "" &&
+      orderRecord[key] !== "0001-01-01",
   );
+
+  const allDisplayFields = [...fieldsWithValues, ...extraFields];
 
   return (
     <div className="flex h-full flex-col">
@@ -377,52 +342,12 @@ export function FinishedProductionOrderDetailForm({
           </div>
         </div>
 
-        {/* Field groups */}
+        {/* All fields in a single block, 5 per row */}
         <div className="flex flex-col gap-6">
-          {FIELD_GROUPS.map((group) => {
-            // Only show group if at least one field has a non-empty value
-            const fieldsWithValues = group.fields.filter((field) => {
-              const val = orderRecord[field];
-              return (
-                val !== null &&
-                val !== undefined &&
-                val !== "" &&
-                val !== "0001-01-01"
-              );
-            });
-            if (fieldsWithValues.length === 0) return null;
-
-            return (
-              <div key={group.title} className="bg-muted/30 rounded-lg p-4">
-                <div className="mb-3 text-sm font-semibold">{group.title}</div>
-                <div className={`grid grid-cols-2 gap-3 text-sm sm:grid-cols-3 md:grid-cols-4${group.title === "Dates" ? " lg:grid-cols-5" : ""}`}>
-                  {fieldsWithValues.map((field) => {
-                    const rawVal = orderRecord[field];
-                    const displayVal = DATE_FIELDS.has(field)
-                      ? formatDate(rawVal as string)
-                      : formatValue(rawVal);
-                    return (
-                      <div key={field}>
-                        <span className="text-muted-foreground block text-xs">
-                          {FIELD_LABELS[field] || field.replace(/_/g, " ")}
-                        </span>
-                        <span className="font-medium break-words">
-                          {displayVal}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            );
-          })}
-
-          {/* Extra fields not in predefined groups */}
-          {extraFields.length > 0 && (
+          {allDisplayFields.length > 0 && (
             <div className="bg-muted/30 rounded-lg p-4">
-              <div className="mb-3 text-sm font-semibold">Additional Fields</div>
-              <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-3 md:grid-cols-4">
-                {extraFields.map((field) => {
+              <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+                {allDisplayFields.map((field) => {
                   const rawVal = orderRecord[field];
                   const displayVal = DATE_FIELDS.has(field)
                     ? formatDate(rawVal as string)
@@ -432,7 +357,9 @@ export function FinishedProductionOrderDetailForm({
                       <span className="text-muted-foreground block text-xs">
                         {FIELD_LABELS[field] || field.replace(/_/g, " ")}
                       </span>
-                      <span className="font-medium break-words">{displayVal}</span>
+                      <span className="font-medium break-words">
+                        {displayVal}
+                      </span>
                     </div>
                   );
                 })}

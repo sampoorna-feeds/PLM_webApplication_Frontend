@@ -383,31 +383,30 @@ export function useQCReceiptLines(
   const [lines, setLines] = useState<QCReceiptLine[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  useEffect(() => {
+  const fetchLines = useCallback(async () => {
     if (!receiptNo) {
       setLines([]);
       return;
     }
-
-    const fetchLines = async () => {
-      setIsLoading(true);
-      try {
-        const data = isPosted
-          ? await getPostedQCReceiptLines(receiptNo)
-          : await getQCReceiptLines(receiptNo);
-        setLines(data);
-      } catch (error) {
-        console.error("Error fetching QC lines:", error);
-        toastError(error, "Failed to load QC receipt lines.");
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchLines();
+    setIsLoading(true);
+    try {
+      const data = isPosted
+        ? await getPostedQCReceiptLines(receiptNo)
+        : await getQCReceiptLines(receiptNo);
+      setLines(data);
+    } catch (error) {
+      console.error("Error fetching QC lines:", error);
+      toastError(error, "Failed to load QC receipt lines.");
+    } finally {
+      setIsLoading(false);
+    }
   }, [receiptNo, isPosted]);
 
-  return { lines, setLines, isLoading };
+  useEffect(() => {
+    fetchLines();
+  }, [fetchLines]);
+
+  return { lines, setLines, isLoading, refetch: fetchLines };
 }
 
 export function useQCReceiptPosting() {

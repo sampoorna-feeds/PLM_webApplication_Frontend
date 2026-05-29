@@ -47,7 +47,7 @@ export function QCReceiptDetailForm({ tabId, context }: QCReceiptDetailFormProps
   );
   const [editedFields, setEditedFields] = useState<Partial<QCReceiptHeader>>({});
   
-  const { lines, setLines, isLoading: isLinesLoading } = useQCReceiptLines(
+  const { lines, setLines, isLoading: isLinesLoading, refetch: refetchLines } = useQCReceiptLines(
     receipt?.No || null,
     isPosted
   );
@@ -131,6 +131,9 @@ export function QCReceiptDetailForm({ tabId, context }: QCReceiptDetailFormProps
     // Skip if value hasn't changed AND it's not currently tracked in editedFields
     if (currentValue === value && !(field in editedFields)) return;
 
+    // Save current receipt state so we can revert on failure
+    const previousReceipt = { ...receipt };
+
     // Update local state first for immediate feedback
     setReceipt(prev => prev ? ({ ...prev, [field]: value }) : null);
     
@@ -143,8 +146,17 @@ export function QCReceiptDetailForm({ tabId, context }: QCReceiptDetailFormProps
         delete next[field];
         return next;
       });
-      // Refresh the entire detail to ensure consistency
+      // Refresh header + lines to pick up any server-side recalculations
       refetchDetail();
+      refetchLines();
+    } else {
+      // API failed — revert to the previous state
+      setReceipt(previousReceipt);
+      setEditedFields(prev => {
+        const next = { ...prev };
+        delete next[field];
+        return next;
+      });
     }
   };
 

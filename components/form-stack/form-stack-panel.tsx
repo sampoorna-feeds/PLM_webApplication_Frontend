@@ -46,7 +46,7 @@ export function FormStackPanel() {
       return "w-screen lg:w-[70vw]";
     }
     if (formType === "finished-production-order-detail") {
-      return "w-screen md:w-[60vw]";
+      return "w-screen lg:w-[80vw]";
     }
     if (
       formType === "purchase-document" ||

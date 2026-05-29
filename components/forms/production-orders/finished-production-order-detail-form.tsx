@@ -361,141 +361,148 @@ export function FinishedProductionOrderDetailForm({
   );
 
   return (
-    <div className="flex flex-col gap-6 px-6 py-4">
-      {/* Header row: Read-only badge + QR Code button */}
-      <div className="flex items-center justify-between gap-2">
-        <span className="bg-muted text-muted-foreground rounded-md px-2 py-0.5 text-xs font-medium">
-          Read Only
-        </span>
-        <div className="flex items-center gap-2">
-          {orderNo && <ProductionOrderQRDialog prodOrderNo={orderNo} />}
-          {orderNo && <ProductionOrderWorkOrderDialog prodOrderNo={orderNo} />}
-        </div>
-      </div>
-
-      {/* Field groups */}
-      {FIELD_GROUPS.map((group) => {
-        // Only show group if at least one field has a non-empty value
-        const fieldsWithValues = group.fields.filter((field) => {
-          const val = orderRecord[field];
-          return (
-            val !== null &&
-            val !== undefined &&
-            val !== "" &&
-            val !== "0001-01-01"
-          );
-        });
-        if (fieldsWithValues.length === 0) return null;
-
-        return (
-          <div key={group.title} className="bg-muted/30 rounded-lg p-4">
-            <div className="mb-3 text-sm font-semibold">{group.title}</div>
-            <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-3">
-              {fieldsWithValues.map((field) => {
-                const rawVal = orderRecord[field];
-                const displayVal = DATE_FIELDS.has(field)
-                  ? formatDate(rawVal as string)
-                  : formatValue(rawVal);
-                return (
-                  <div key={field}>
-                    <span className="text-muted-foreground block text-xs">
-                      {FIELD_LABELS[field] || field.replace(/_/g, " ")}
-                    </span>
-                    <span className="font-medium break-words">
-                      {displayVal}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
+    <div className="flex h-full flex-col">
+      <div className="flex-1 overflow-y-auto px-6 py-6 [overflow-anchor:none]">
+        {/* Header row: title + QR Code / Work Order buttons — matches released form */}
+        <div className="mb-6 flex items-center justify-between gap-2">
+          <h2 className="min-w-0 truncate text-lg font-semibold">
+            View Finished Order: {orderNo}
+          </h2>
+          <div className="flex shrink-0 items-center gap-2">
+            <span className="bg-muted text-muted-foreground rounded-md px-2 py-0.5 text-xs font-medium">
+              Read Only
+            </span>
+            {orderNo && <ProductionOrderQRDialog prodOrderNo={orderNo} />}
+            {orderNo && <ProductionOrderWorkOrderDialog prodOrderNo={orderNo} />}
           </div>
-        );
-      })}
+        </div>
 
-      {/* Extra fields not in predefined groups */}
-      {extraFields.length > 0 && (
-        <div className="bg-muted/30 rounded-lg p-4">
-          <div className="mb-3 text-sm font-semibold">Additional Fields</div>
-          <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-3">
-            {extraFields.map((field) => {
-              const rawVal = orderRecord[field];
-              const displayVal = DATE_FIELDS.has(field)
-                ? formatDate(rawVal as string)
-                : formatValue(rawVal);
+        {/* Field groups */}
+        <div className="flex flex-col gap-6">
+          {FIELD_GROUPS.map((group) => {
+            // Only show group if at least one field has a non-empty value
+            const fieldsWithValues = group.fields.filter((field) => {
+              const val = orderRecord[field];
               return (
-                <div key={field}>
-                  <span className="text-muted-foreground block text-xs">
-                    {FIELD_LABELS[field] || field.replace(/_/g, " ")}
-                  </span>
-                  <span className="font-medium break-words">{displayVal}</span>
-                </div>
+                val !== null &&
+                val !== undefined &&
+                val !== "" &&
+                val !== "0001-01-01"
               );
-            })}
-          </div>
-        </div>
-      )}
+            });
+            if (fieldsWithValues.length === 0) return null;
 
-      {/* Finished Production Order Lines */}
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h3 className="text-muted-foreground text-sm font-medium">
-            Finished Production Order Lines
-          </h3>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleRefreshLines}
-              disabled={isRefreshingLines || isLoadingLines}
-              title="Refresh order lines"
-            >
-              {isRefreshingLines ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <RefreshCw className="h-4 w-4" />
-              )}
-            </Button>
-            <Button
-              variant="default"
-              size="sm"
-              onClick={() => setIsComponentsSheetOpen(true)}
-              disabled={isLoadingComponents}
-            >
-              {isLoadingComponents ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <List className="mr-2 h-4 w-4" />
-              )}
-              View Components ({orderComponents.length})
-            </Button>
-          </div>
-        </div>
-        <ProductionOrderLinesTable
-          lines={orderLines}
-          isLoading={isLoadingLines}
-        />
-      </div>
+            return (
+              <div key={group.title} className="bg-muted/30 rounded-lg p-4">
+                <div className="mb-3 text-sm font-semibold">{group.title}</div>
+                <div className={`grid grid-cols-2 gap-3 text-sm sm:grid-cols-3 md:grid-cols-4${group.title === "Dates" ? " lg:grid-cols-5" : ""}`}>
+                  {fieldsWithValues.map((field) => {
+                    const rawVal = orderRecord[field];
+                    const displayVal = DATE_FIELDS.has(field)
+                      ? formatDate(rawVal as string)
+                      : formatValue(rawVal);
+                    return (
+                      <div key={field}>
+                        <span className="text-muted-foreground block text-xs">
+                          {FIELD_LABELS[field] || field.replace(/_/g, " ")}
+                        </span>
+                        <span className="font-medium break-words">
+                          {displayVal}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
 
-      {/* Components Sheet */}
-      <Sheet
-        open={isComponentsSheetOpen}
-        onOpenChange={setIsComponentsSheetOpen}
-      >
-        <SheetContent
-          side="right"
-          className="flex w-screen flex-col gap-0 p-0 md:w-[75vw] lg:w-[70vw]"
-        >
-          <SheetHeader className="bg-background sticky top-0 z-10 border-b px-6 py-4">
-            <SheetTitle>Production Order Components</SheetTitle>
-          </SheetHeader>
-          <div className="flex-1 overflow-hidden flex flex-col p-6 pt-4">
-            <ProductionOrderComponentsTable
-              components={orderComponents}
-              isLoading={isLoadingComponents}
+          {/* Extra fields not in predefined groups */}
+          {extraFields.length > 0 && (
+            <div className="bg-muted/30 rounded-lg p-4">
+              <div className="mb-3 text-sm font-semibold">Additional Fields</div>
+              <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-3 md:grid-cols-4">
+                {extraFields.map((field) => {
+                  const rawVal = orderRecord[field];
+                  const displayVal = DATE_FIELDS.has(field)
+                    ? formatDate(rawVal as string)
+                    : formatValue(rawVal);
+                  return (
+                    <div key={field}>
+                      <span className="text-muted-foreground block text-xs">
+                        {FIELD_LABELS[field] || field.replace(/_/g, " ")}
+                      </span>
+                      <span className="font-medium break-words">{displayVal}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Finished Production Order Lines */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-muted-foreground text-sm font-medium">
+                Finished Production Order Lines
+              </h3>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleRefreshLines}
+                  disabled={isRefreshingLines || isLoadingLines}
+                  title="Refresh order lines"
+                >
+                  {isRefreshingLines ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <RefreshCw className="h-4 w-4" />
+                  )}
+                </Button>
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={() => setIsComponentsSheetOpen(true)}
+                  disabled={isLoadingComponents}
+                >
+                  {isLoadingComponents ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <List className="mr-2 h-4 w-4" />
+                  )}
+                  View Components ({orderComponents.length})
+                </Button>
+              </div>
+            </div>
+            <ProductionOrderLinesTable
+              lines={orderLines}
+              isLoading={isLoadingLines}
             />
           </div>
-        </SheetContent>
-      </Sheet>
+        </div>
+
+        {/* Components Sheet */}
+        <Sheet
+          open={isComponentsSheetOpen}
+          onOpenChange={setIsComponentsSheetOpen}
+        >
+          <SheetContent
+            side="right"
+            className="flex w-screen flex-col gap-0 p-0 md:w-[75vw] lg:w-[70vw]"
+          >
+            <SheetHeader className="bg-background sticky top-0 z-10 border-b px-6 py-4">
+              <SheetTitle>Production Order Components</SheetTitle>
+            </SheetHeader>
+            <div className="flex-1 overflow-hidden flex flex-col p-6 pt-4">
+              <ProductionOrderComponentsTable
+                components={orderComponents}
+                isLoading={isLoadingComponents}
+              />
+            </div>
+          </SheetContent>
+        </Sheet>
+      </div>
     </div>
   );
 }

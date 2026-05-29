@@ -169,6 +169,7 @@ import {
 } from "@/lib/api/services/sales-return-orders.service";
 import { getVendorDetails } from "@/lib/api/services/vendor.service";
 import { getWebUser, type WebUser } from "@/lib/api/services/web-user.service";
+import { getInvoiceReportPdf } from "@/lib/api/services/sales-posted-invoices.service";
 import { isPostingDateValid } from "@/lib/utils/posting-date";
 
 // ── Config + utilities ────────────────────────────────────────────────────────
@@ -481,11 +482,14 @@ export function SalesCreateDocumentFormContent({
   const [postDetails, setPostDetails] = useState(postDetailsDefault);
   const [isPostResultOpen, setIsPostResultOpen] = useState(false);
   const [isConfirmPostOpen, setIsConfirmPostOpen] = useState(false);
-  const [postResultDocs, setPostResultDocs] = useState<{
-    Invoice?: string;
-    Shipment?: string;
-    CreditMemo?: string;
-  }>({});
+  interface PostResultInfo {
+    InvoiceDoc?: string;
+    ShipmentDoc?: string;
+    PostingDate?: string;
+    CustomerNo?: string;
+  }
+  const [postResultInfo, setPostResultInfo] = useState<PostResultInfo | null>(null);
+  const [isPdfLoading, setIsPdfLoading] = useState<"invoice" | "shipment" | null>(null);
 
   // Reset Post Details when dialog opens
   useEffect(() => {
@@ -1027,8 +1031,8 @@ export function SalesCreateDocumentFormContent({
       };
       await ops.patchHeader(initialOrderNo, patchPayload);
       const postResponse = await ops.post(initialOrderNo, "2", userId || "");
-      const docs = parsePostResult(postResponse);
-      setPostResultDocs(docs);
+      const info = parsePostResult(postResponse);
+      setPostResultInfo(info);
       setIsPostResultOpen(true);
       loadDocument();
     } catch (err) {
@@ -1122,8 +1126,8 @@ export function SalesCreateDocumentFormContent({
         postOption!,
         userId || "",
       );
-      const docs = parsePostResult(postResponse);
-      setPostResultDocs(docs);
+      const info = parsePostResult(postResponse);
+      setPostResultInfo(info);
       setIsPostDetailsOpen(false);
       setIsPostResultOpen(true);
       loadDocument();
@@ -1158,20 +1162,116 @@ export function SalesCreateDocumentFormContent({
     }
   };
 
-  const parsePostResult = (
-    response: unknown,
-  ): { Invoice?: string; Shipment?: string; CreditMemo?: string } => {
+  const parsePostResult = (response: unknown): PostResultInfo => {
     try {
       const value = (response as Record<string, unknown>)?.value;
       if (!value || typeof value !== "string") return {};
       const jsonStr = atob(value.replace(/\s/g, ""));
-      return JSON.parse(jsonStr) as {
-        Invoice?: string;
-        Shipment?: string;
-        CreditMemo?: string;
+      const parsed = JSON.parse(jsonStr) as Record<string, unknown>;
+      return {
+        InvoiceDoc: typeof parsed.InvoiceDoc === "string" ? parsed.InvoiceDoc : "",
+        ShipmentDoc: typeof parsed.ShipmentDoc === "string" ? parsed.ShipmentDoc : "",
+        PostingDate: typeof parsed["Posting Date"] === "string" 
+          ? parsed["Posting Date"] 
+          : (typeof parsed.PostingDate === "string" ? parsed.PostingDate : ""),
+        CustomerNo: typeof parsed.CustomerNo === "string" ? parsed.CustomerNo : "",
       };
     } catch {
       return {};
+    }
+  };
+
+  const handleViewInvoiceDoc = async (docNo: string, custNo: string, postingDate: string) => {
+    setIsPdfLoading("invoice");
+    try {
+      const todayDate = new Date().toISOString().split("T")[0];
+      const base64 = await getInvoiceReportPdf(
+        docNo,
+        custNo,
+        postingDate,
+        userId || "=JOBQUEUE",
+        todayDate
+      );
+      if (!base64) throw new Error("No PDF content returned");
+      const blob = base64ToPdfBlob(base64);
+      const url = window.URL.createObjectURL(blob);
+      window.open(url, "_blank", "noopener,noreferrer");
+    } catch (err) {
+      toastError(err, "Failed to load Invoice PDF.");
+    } finally {
+      setIsPdfLoading(null);
+    }
+  };
+
+  const handleDownloadInvoiceDoc = async (docNo: string, custNo: string, postingDate: string) => {
+    setIsPdfLoading("invoice");
+    try {
+      const todayDate = new Date().toISOString().split("T")[0];
+      const base64 = await getInvoiceReportPdf(
+        docNo,
+        custNo,
+        postingDate,
+        userId || "=JOBQUEUE",
+        todayDate
+      );
+      if (!base64) throw new Error("No PDF content returned");
+      const blob = base64ToPdfBlob(base64);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `Invoice_${docNo}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      toastError(err, "Failed to download Invoice PDF.");
+    } finally {
+      setIsPdfLoading(null);
+    }
+  };
+
+  const handleViewShipmentDoc = async (docNo: string, custNo: string, postingDate: string) => {
+    setIsPdfLoading("shipment");
+    try {
+      const base64 = await getDeliveryReportPdf(
+        docNo,
+        custNo,
+        postingDate
+      );
+      if (!base64) throw new Error("No PDF content returned");
+      const blob = base64ToPdfBlob(base64);
+      const url = window.URL.createObjectURL(blob);
+      window.open(url, "_blank", "noopener,noreferrer");
+    } catch (err) {
+      toastError(err, "Failed to load Shipment PDF.");
+    } finally {
+      setIsPdfLoading(null);
+    }
+  };
+
+  const handleDownloadShipmentDoc = async (docNo: string, custNo: string, postingDate: string) => {
+    setIsPdfLoading("shipment");
+    try {
+      const base64 = await getDeliveryReportPdf(
+        docNo,
+        custNo,
+        postingDate
+      );
+      if (!base64) throw new Error("No PDF content returned");
+      const blob = base64ToPdfBlob(base64);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `Shipment_${docNo}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      toastError(err, "Failed to download Shipment PDF.");
+    } finally {
+      setIsPdfLoading(null);
     }
   };
 
@@ -2880,92 +2980,109 @@ export function SalesCreateDocumentFormContent({
             <DialogTitle>Document Posted</DialogTitle>
           </DialogHeader>
           <div className="space-y-3 py-2">
-            {!postResultDocs.Invoice &&
-            !postResultDocs.Shipment &&
-            !postResultDocs.CreditMemo ? (
+            {!postResultInfo?.InvoiceDoc &&
+            !postResultInfo?.ShipmentDoc ? (
               <p className="text-muted-foreground py-2 text-center text-sm">
                 Document posted successfully, but no documents are available.
               </p>
             ) : (
               <>
-                {(postResultDocs.Invoice || postResultDocs.CreditMemo) && (
+                {postResultInfo.InvoiceDoc && (
                   <div className="flex items-center justify-between rounded-md border p-3">
-                    <span className="text-sm font-medium">
-                      {documentType === "credit-memo"
-                        ? "Credit Memo"
-                        : "Invoice"}
-                    </span>
+                    <div className="flex flex-col">
+                      <span className="text-sm font-medium">
+                        {documentType === "credit-memo"
+                          ? "Credit Memo"
+                          : "Invoice"}
+                      </span>
+                      <span className="text-xs text-muted-foreground font-mono">
+                        {postResultInfo.InvoiceDoc}
+                      </span>
+                    </div>
                     <div className="flex gap-2">
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => {
-                          const data =
-                            postResultDocs.CreditMemo || postResultDocs.Invoice;
-                          if (data) {
-                            const blob = base64ToPdfBlob(data);
-                            const url = window.URL.createObjectURL(blob);
-                            window.open(url, "_blank", "noopener,noreferrer");
-                          }
-                        }}
+                        disabled={isPdfLoading !== null}
+                        onClick={() =>
+                          handleViewInvoiceDoc(
+                            postResultInfo.InvoiceDoc!,
+                            postResultInfo.CustomerNo!,
+                            postResultInfo.PostingDate!
+                          )
+                        }
                       >
-                        Open
+                        {isPdfLoading === "invoice" ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          "Open"
+                        )}
                       </Button>
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => {
-                          const blob = base64ToPdfBlob(postResultDocs.Invoice!);
-                          const url = window.URL.createObjectURL(blob);
-                          const link = document.createElement("a");
-                          link.href = url;
-                          link.download = "Invoice.pdf";
-                          document.body.appendChild(link);
-                          link.click();
-                          document.body.removeChild(link);
-                          window.URL.revokeObjectURL(url);
-                        }}
+                        disabled={isPdfLoading !== null}
+                        onClick={() =>
+                          handleDownloadInvoiceDoc(
+                            postResultInfo.InvoiceDoc!,
+                            postResultInfo.CustomerNo!,
+                            postResultInfo.PostingDate!
+                          )
+                        }
                       >
-                        <Printer className="h-4 w-4" />
+                        {isPdfLoading === "invoice" ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Printer className="h-4 w-4" />
+                        )}
                       </Button>
                     </div>
                   </div>
                 )}
-                {postResultDocs.Shipment && (
+                {postResultInfo.ShipmentDoc && (
                   <div className="flex items-center justify-between rounded-md border p-3">
-                    <span className="text-sm font-medium">Shipment</span>
+                    <div className="flex flex-col">
+                      <span className="text-sm font-medium">Shipment</span>
+                      <span className="text-xs text-muted-foreground font-mono">
+                        {postResultInfo.ShipmentDoc}
+                      </span>
+                    </div>
                     <div className="flex gap-2">
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => {
-                          const blob = base64ToPdfBlob(
-                            postResultDocs.Shipment!,
-                          );
-                          const url = window.URL.createObjectURL(blob);
-                          window.open(url, "_blank", "noopener,noreferrer");
-                        }}
+                        disabled={isPdfLoading !== null}
+                        onClick={() =>
+                          handleViewShipmentDoc(
+                            postResultInfo.ShipmentDoc!,
+                            postResultInfo.CustomerNo!,
+                            postResultInfo.PostingDate!
+                          )
+                        }
                       >
-                        Open
+                        {isPdfLoading === "shipment" ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          "Open"
+                        )}
                       </Button>
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => {
-                          const blob = base64ToPdfBlob(
-                            postResultDocs.Shipment!,
-                          );
-                          const url = window.URL.createObjectURL(blob);
-                          const link = document.createElement("a");
-                          link.href = url;
-                          link.download = "Shipment.pdf";
-                          document.body.appendChild(link);
-                          link.click();
-                          document.body.removeChild(link);
-                          window.URL.revokeObjectURL(url);
-                        }}
+                        disabled={isPdfLoading !== null}
+                        onClick={() =>
+                          handleDownloadShipmentDoc(
+                            postResultInfo.ShipmentDoc!,
+                            postResultInfo.CustomerNo!,
+                            postResultInfo.PostingDate!
+                          )
+                        }
                       >
-                        <Printer className="h-4 w-4" />
+                        {isPdfLoading === "shipment" ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Printer className="h-4 w-4" />
+                        )}
                       </Button>
                     </div>
                   </div>

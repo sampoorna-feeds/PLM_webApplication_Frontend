@@ -274,7 +274,7 @@ function getBaseFilter(
   brokerOnly?: boolean,
   transporterOnly?: boolean,
 ): string {
-  let base = `(Responsibility_Center eq '' or Responsibility_Center eq 'FEED' or Responsibility_Center eq 'CATTLE' or Responsibility_Center eq 'SWINE') and Blocked eq ' '`;
+  let base = `Blocked eq ' '`;
   if (brokerOnly) {
     base += ` and Broker eq true`;
   }
@@ -515,7 +515,7 @@ export async function getVendorDetails(
  * Get initial brokers (Vendors with Broker eq true)
  */
 export async function getBrokers(): Promise<Broker[]> {
-  const brokerFilter = `(Responsibility_Center eq '' or Responsibility_Center eq 'FEED' or Responsibility_Center eq 'CATTLE' or Responsibility_Center eq 'SWINE') and Blocked eq ' ' and Broker eq true`;
+  const brokerFilter = `Blocked eq ' ' and Broker eq true`;
   const query = buildODataQuery({
     $select: "No,Name",
     $filter: brokerFilter,
@@ -534,7 +534,7 @@ export async function getBrokers(): Promise<Broker[]> {
 export async function searchBrokers(query: string): Promise<Broker[]> {
   if (query.length < 2) return [];
 
-  const brokerFilter = `(Responsibility_Center eq '' or Responsibility_Center eq 'FEED' or Responsibility_Center eq 'CATTLE' or Responsibility_Center eq 'SWINE') and Blocked eq ' ' and Broker eq true`;
+  const brokerFilter = `Blocked eq ' ' and Broker eq true`;
   const escapedQuery = escapeODataValue(query);
 
   const [resultsByNo, resultsByName] = await Promise.all([

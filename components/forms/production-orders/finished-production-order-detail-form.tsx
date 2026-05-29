@@ -135,6 +135,7 @@ const SKIP_KEYS = new Set([
   "Ending_Time",
   "Ending_Date",
   "Hatching_Date",
+  "Last_Date_Modified",
 ]);
 
 /** Date-type fields */

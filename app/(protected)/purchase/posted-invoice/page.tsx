@@ -44,8 +44,9 @@ function PostedPurchaseInvoiceContent() {
   const { openTab } = useFormStackContext();
 
   const handleRowClick = (doc: any) => {
+    const vendorName = doc.Buy_from_Vendor_Name || "";
     openTab("posted-purchase-invoice", {
-      title: `Posted Invoice: ${doc.No}`,
+      title: `Posted Invoice: ${doc.No}${vendorName ? ` - ${vendorName}` : ""}`,
       context: { doc, mode: "view" },
     });
   };

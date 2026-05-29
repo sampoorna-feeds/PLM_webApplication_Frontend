@@ -44,8 +44,9 @@ function PostedPurchaseReturnShipmentContent() {
   const { openTab } = useFormStackContext();
 
   const handleRowClick = (doc: any) => {
+    const vendorName = doc.Buy_from_Vendor_Name || "";
     openTab("posted-purchase-return-shipment", {
-      title: `Posted Return Shpt: ${doc.No}`,
+      title: `Posted Return Shpt: ${doc.No}${vendorName ? ` - ${vendorName}` : ""}`,
       context: { doc, mode: "view" },
     });
   };

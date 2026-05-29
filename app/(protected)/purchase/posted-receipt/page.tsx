@@ -44,8 +44,9 @@ function PostedPurchaseReceiptContent() {
   const { openTab } = useFormStackContext();
 
   const handleRowClick = (doc: any) => {
+    const vendorName = doc.Buy_from_Vendor_Name || "";
     openTab("posted-purchase-receipt", {
-      title: `Posted Receipt: ${doc.No}`,
+      title: `Posted Receipt: ${doc.No}${vendorName ? ` - ${vendorName}` : ""}`,
       context: { doc, mode: "view" },
     });
   };

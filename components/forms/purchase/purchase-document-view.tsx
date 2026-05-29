@@ -151,10 +151,11 @@ export function PurchaseDocumentView({
           pageSize={pageSize}
           currentPage={1}
           columnFilters={columnFilters}
-          onRowClick={(orderNo) => {
+          onRowClick={(orderNo, vendorName) => {
+            const titleSuffix = vendorName ? ` - ${vendorName}` : "";
             openTab(config.formType, {
-              title: `${config.detailTitlePrefix} ${orderNo}`,
-              context: { documentType, mode: "view", orderNo, refetch },
+              title: `${config.detailTitlePrefix} ${orderNo}${titleSuffix}`,
+              context: { documentType, mode: "view", orderNo, refetch, vendorName },
               autoCloseOnSuccess: false,
             });
           }}

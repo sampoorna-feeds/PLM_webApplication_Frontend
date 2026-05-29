@@ -21,7 +21,7 @@ interface PurchaseOrdersTableProps {
   pageSize: number;
   currentPage: number;
   columnFilters: Record<string, { value: string; valueTo?: string }>;
-  onRowClick?: (orderNo: string) => void;
+  onRowClick?: (orderNo: string, vendorName?: string) => void;
   onSort: (column: string) => void;
   onColumnFilter: (columnId: string, value: string, valueTo?: string) => void;
   onLoadMore?: () => void;
@@ -143,7 +143,7 @@ export function PurchaseOrdersTable({
                   order={order}
                   columns={columns}
                   serialNo={index + 1}
-                  onClick={onRowClick ? () => onRowClick(order.No) : undefined}
+                  onClick={onRowClick ? () => onRowClick(order.No, order.Buy_from_Vendor_Name) : undefined}
                 />
               ))}
             {!isLoading && (

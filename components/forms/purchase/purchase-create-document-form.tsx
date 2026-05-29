@@ -452,6 +452,8 @@ export interface PurchaseCreateDocumentFormContentProps {
   initialFormData?: Record<string, any>;
   /** Optional: persist form data (e.g. to FormStack tab). Omit for standalone page. */
   persistFormData?: (data: Record<string, any>) => void;
+  /** Optional: callback when document header is loaded or updated */
+  onHeaderLoaded?: (header: any) => void;
 }
 
 const formatAmount = (val: number | undefined): string => {
@@ -472,6 +474,7 @@ export function PurchaseCreateDocumentFormContent({
   onSuccess,
   initialFormData = {},
   persistFormData,
+  onHeaderLoaded,
 }: PurchaseCreateDocumentFormContentProps) {
   const config = PURCHASE_CREATE_DOCUMENT_CONFIG[documentType];
   const capabilities = getPurchaseDocumentCapabilities(documentType);
@@ -844,6 +847,8 @@ export function PurchaseCreateDocumentFormContent({
           createdOrderNo: hydratedDocumentNo,
           status: toStringValue(header.Status),
         });
+
+        onHeaderLoaded?.(header);
       })
       .catch((error) => {
         if (cancelled) return;
@@ -1262,6 +1267,8 @@ export function PurchaseCreateDocumentFormContent({
       createdOrderNo: docNo,
       status,
     });
+
+    onHeaderLoaded?.(header);
   };
 
   const handleCopyDocumentSuccess = (docNo?: string) => {
@@ -2550,31 +2557,36 @@ export function PurchaseCreateDocumentFormContent({
             <>
               {/* Left: status badge (view/edit) or contextual info (create) */}
               {documentStatus && createdOrderNo && !isCreateMode && (
-                <div className="mr-auto flex items-center gap-2">
-                  <span className="text-muted-foreground text-[10px] font-medium tracking-wider uppercase">
-                    Status:
+                <div className="mr-auto flex items-center gap-4">
+                  <span className="text-primary text-xs font-semibold">
+                    {config.displayTitle} {createdOrderNo}{formData.vendorName ? ` - ${formData.vendorName}` : ""}
                   </span>
-                  <Badge
-                    variant="outline"
-                    className={cn(
-                      "h-6 px-3 text-[10px] font-bold tracking-wider uppercase",
-                      documentStatus === "Released" &&
-                        "border-green-200 bg-green-500/10 text-green-600",
-                      documentStatus === "Pending Approval" &&
-                        "border-yellow-200 bg-yellow-500/10 text-yellow-600",
-                      documentStatus === "Open" &&
-                        "border-blue-200 bg-blue-500/10 text-blue-600",
-                    )}
-                  >
-                    {documentStatus}
-                  </Badge>
+                  <div className="flex items-center gap-2">
+                    <span className="text-muted-foreground text-[10px] font-medium tracking-wider uppercase">
+                      Status:
+                    </span>
+                    <Badge
+                      variant="outline"
+                      className={cn(
+                        "h-6 px-3 text-[10px] font-bold tracking-wider uppercase",
+                        documentStatus === "Released" &&
+                          "border-green-200 bg-green-500/10 text-green-600",
+                        documentStatus === "Pending Approval" &&
+                          "border-yellow-200 bg-yellow-500/10 text-yellow-600",
+                        documentStatus === "Open" &&
+                          "border-blue-200 bg-blue-500/10 text-blue-600",
+                      )}
+                    >
+                      {documentStatus}
+                    </Badge>
+                  </div>
                 </div>
               )}
               {isCreateMode && (
                 <div className="mr-auto">
                   {createdOrderNo ? (
                     <span className="text-primary text-xs font-medium">
-                      {config.displayTitle} {createdOrderNo} — Add line items to
+                      {config.displayTitle} {createdOrderNo}{formData.vendorName ? ` - ${formData.vendorName}` : ""} — Add line items to
                       complete
                     </span>
                   ) : (

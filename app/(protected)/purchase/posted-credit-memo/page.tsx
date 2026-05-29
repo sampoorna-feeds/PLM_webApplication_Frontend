@@ -44,8 +44,9 @@ function PostedPurchaseCreditMemoContent() {
   const { openTab } = useFormStackContext();
 
   const handleRowClick = (doc: any) => {
+    const vendorName = doc.Buy_from_Vendor_Name || "";
     openTab("posted-purchase-credit-memo", {
-      title: `Posted Cr. Memo: ${doc.No}`,
+      title: `Posted Cr. Memo: ${doc.No}${vendorName ? ` - ${vendorName}` : ""}`,
       context: { doc, mode: "view" },
     });
   };

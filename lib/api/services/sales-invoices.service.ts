@@ -517,7 +517,10 @@ export async function patchSalesOrderHeader(
 ): Promise<unknown> {
   const escapedNo = orderNo.replace(/'/g, "''");
   const endpoint = `/${HEADER_ENTITY}(Document_Type='${encodeURIComponent(DOCUMENT_TYPE)}',No='${encodeURIComponent(escapedNo)}')?company='${encodeURIComponent(COMPANY)}'`;
-  const payload = stripNullish(body);
+  const cleanBody = { ...body };
+  delete cleanBody.shortcutDimCode3;
+  delete cleanBody.ShortcutDimCode3;
+  const payload = stripEmptyValues(cleanBody);
   return apiPatch<unknown>(endpoint, payload);
 }
 
@@ -567,7 +570,10 @@ export async function updateSalesLine(
 ): Promise<unknown> {
   const escapedNo = documentNo.replace(/'/g, "''");
   const endpoint = `/${LINE_ENTITY}(Document_Type='${encodeURIComponent(DOCUMENT_TYPE)}',Document_No='${encodeURIComponent(escapedNo)}',Line_No=${lineNo})?company='${encodeURIComponent(COMPANY)}'`;
-  const payload = stripNullish(body);
+  const cleanBody = { ...body };
+  delete cleanBody.shortcutDimCode3;
+  delete cleanBody.ShortcutDimCode3;
+  const payload = stripEmptyValues(cleanBody);
   return apiPatch<unknown>(endpoint, payload);
 }
 

@@ -17,6 +17,7 @@ interface QCReceiptFilterBarProps {
   onResetColumns: () => void;
   onShowAllColumns: () => void;
   onRefresh: () => void;
+  showDateFilter?: boolean;
   onDateFilterChange: () => void;
   totalCount: number;
 }
@@ -31,6 +32,7 @@ export function QCReceiptFilterBar({
   onResetColumns,
   onShowAllColumns,
   onRefresh,
+  showDateFilter = true,
   onDateFilterChange,
   totalCount,
 }: QCReceiptFilterBarProps) {
@@ -80,10 +82,12 @@ export function QCReceiptFilterBar({
         Refresh
       </Button>
 
-      <Button variant="outline" size="sm" onClick={onDateFilterChange} className="gap-2">
-        <Calendar className="h-4 w-4" />
-        Date Filter
-      </Button>
+      {showDateFilter && (
+        <Button variant="outline" size="sm" onClick={onDateFilterChange} className="gap-2">
+          <Calendar className="h-4 w-4" />
+          Date Filter
+        </Button>
+      )}
 
       <Badge variant="outline" className="text-[10px] h-8 px-2 font-mono flex items-center">
         {totalCount} {totalCount === 1 ? "record" : "records"} found

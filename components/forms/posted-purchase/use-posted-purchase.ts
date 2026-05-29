@@ -28,7 +28,7 @@ export function usePostedPurchase(type: PostedPurchaseType, initialFilters?: { s
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const [hasMore, setHasMore] = useState(false);
-  const [sortColumn, setSortColumn] = useState<string | null>("No");
+  const [sortColumn, setSortColumn] = useState<string | null>("Posting_Date");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc" | null>("desc");
   const [searchQuery, setSearchQuery] = useState("");
   const [columnFilters, setColumnFilters] = useState<Record<string, { value: string; valueTo?: string }>>({});
@@ -59,10 +59,6 @@ export function usePostedPurchase(type: PostedPurchaseType, initialFilters?: { s
   const skipDateFilter = initialFilters?.skipDateFilter;
 
   const fetchDocuments = useCallback(async (reset = false) => {
-    if (!skipDateFilter && !dateFilter) {
-      setIsLoading(false);
-      return;
-    }
 
     if (userBranchCodes.length === 0) {
       setDocuments([]);
@@ -159,7 +155,7 @@ export function usePostedPurchase(type: PostedPurchaseType, initialFilters?: { s
 
       const filter = filterParts.length > 0 ? filterParts.join(" and ") : undefined;
       const baseParams: any = {
-        $orderby: sortColumn && sortDirection ? `${sortColumn} ${sortDirection}` : "No desc",
+        $orderby: sortColumn && sortDirection ? `${sortColumn} ${sortDirection}` : "Posting_Date desc",
         $filter: filter,
         $count: true,
       };

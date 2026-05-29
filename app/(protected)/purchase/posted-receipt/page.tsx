@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button";
 import { RefreshCcw, Search, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { PostedDocumentFilterForm, type DateRangeFilters } from "@/components/forms/posted-documents/posted-document-filter-form";
 import { PostedPurchaseColumnVisibility } from "@/components/forms/posted-purchase/column-visibility";
 import { POSTED_PURCHASE_COLUMNS } from "@/components/forms/posted-purchase/column-config";
 import { getPostedReportPdf } from "@/lib/api/services/posted-report.service";
@@ -28,8 +27,6 @@ function PostedPurchaseReceiptContent() {
     searchQuery,
     columnFilters,
     visibleColumns,
-    dateFilter,
-    setDateFilter,
     onSort,
     onSearch,
     onColumnFilter,
@@ -39,7 +36,7 @@ function PostedPurchaseReceiptContent() {
     loadMore,
     hasMore,
     isLoadingMore,
-  } = usePostedPurchase("receipt");
+  } = usePostedPurchase("receipt", { skipDateFilter: true });
 
   const { openTab } = useFormStackContext();
 
@@ -49,10 +46,6 @@ function PostedPurchaseReceiptContent() {
       title: `Posted Receipt: ${doc.No}${vendorName ? ` - ${vendorName}` : ""}`,
       context: { doc, mode: "view" },
     });
-  };
-
-  const handleApplyFilters = (filters: DateRangeFilters) => {
-    setDateFilter(filters);
   };
 
   const handlePrint = async (doc: any) => {
@@ -70,16 +63,6 @@ function PostedPurchaseReceiptContent() {
     }
   };
 
-  if (!dateFilter) {
-    return (
-      <PostedDocumentFilterForm
-        title="Posted Purchase Receipts"
-        description="Select a date range to view processed purchase receipts"
-        onApply={handleApplyFilters}
-      />
-    );
-  }
-
   return (
     <div className="flex flex-1 min-h-0 flex-col p-6 overflow-hidden">
       <div className="mb-6 flex shrink-0 items-center justify-between gap-2">
@@ -87,11 +70,6 @@ function PostedPurchaseReceiptContent() {
           <h1 className="text-2xl font-bold tracking-tight">Posted Purchase Receipt</h1>
           <div className="mt-1 flex items-center gap-2">
             <p className="text-sm text-muted-foreground">View processed purchase receipts</p>
-            {dateFilter && (
-              <Badge variant="secondary" className="text-[10px] h-5 px-1.5 font-mono">
-                {dateFilter.fromDate.split('-').reverse().join('/')} - {dateFilter.toDate.split('-').reverse().join('/')}
-              </Badge>
-            )}
             <Badge variant="outline" className="text-[10px] h-5 px-1.5 font-mono">
               {totalCount} {totalCount === 1 ? "record" : "records"} found
             </Badge>
@@ -99,15 +77,6 @@ function PostedPurchaseReceiptContent() {
         </div>
 
         <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setDateFilter(null)}
-            className="h-8 text-xs"
-          >
-            <RefreshCcw className="mr-1.5 h-3.5 w-3.5" />
-            Change Date Range
-          </Button>
           <Button variant="outline" size="sm" onClick={() => refetch(true)} disabled={isLoading}>
             <RefreshCcw className={`mr-2 h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
             Refresh

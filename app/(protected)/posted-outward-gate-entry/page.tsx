@@ -10,8 +10,6 @@ import { RefreshCcw, Search, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 
-import { PostedDocumentFilterForm, type DateRangeFilters } from "@/components/forms/posted-documents/posted-document-filter-form";
-
 function PostedOutwardGateEntryContent() {
   const {
     entries,
@@ -26,8 +24,6 @@ function PostedOutwardGateEntryContent() {
     sortDirection,
     searchQuery,
     columnFilters,
-    dateFilter,
-    setDateFilter,
     visibleColumns,
     onPageChange,
     onPageSizeChange,
@@ -40,7 +36,7 @@ function PostedOutwardGateEntryContent() {
     onClearFilters,
     refetch,
     loadMore,
-  } = usePostedGateEntries("outward");
+  } = usePostedGateEntries("outward", { skipDateFilter: true });
 
   const { openTab } = useFormStackContext();
 
@@ -51,20 +47,6 @@ function PostedOutwardGateEntryContent() {
     });
   };
 
-  const handleApplyFilters = (filters: DateRangeFilters) => {
-    setDateFilter(filters);
-  };
-
-  if (!dateFilter) {
-    return (
-      <PostedDocumentFilterForm
-        title="Posted Outward Gate Entries"
-        description="Select a date range to view processed outward gate entries"
-        onApply={handleApplyFilters}
-      />
-    );
-  }
-
   return (
     <div className="flex h-full flex-col p-6">
       <div className="mb-6 flex items-center justify-between gap-2">
@@ -72,11 +54,6 @@ function PostedOutwardGateEntryContent() {
           <h1 className="text-2xl font-bold tracking-tight">Posted Outward Gate Entry</h1>
           <div className="mt-1 flex items-center gap-2">
             <p className="text-sm text-muted-foreground">View processed outward gate entries</p>
-            {dateFilter && (
-              <Badge variant="secondary" className="text-[10px] h-5 px-1.5 font-mono">
-                {dateFilter.fromDate.split('-').reverse().join('/')} - {dateFilter.toDate.split('-').reverse().join('/')}
-              </Badge>
-            )}
             <Badge variant="outline" className="text-[10px] h-5 px-1.5 font-mono">
               {totalCount} {totalCount === 1 ? "record" : "records"} found
             </Badge>
@@ -84,15 +61,6 @@ function PostedOutwardGateEntryContent() {
         </div>
 
         <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setDateFilter(null)}
-            className="h-8 text-xs"
-          >
-            <RefreshCcw className="mr-1.5 h-3.5 w-3.5" />
-            Change Date Range
-          </Button>
           <Button variant="outline" size="sm" onClick={refetch} disabled={isLoading}>
             <RefreshCcw className={`mr-2 h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
             Refresh

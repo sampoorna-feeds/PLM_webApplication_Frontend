@@ -18,7 +18,7 @@ export function usePostedGateEntries(type: "inward" | "outward", initialFilters?
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const [hasMore, setHasMore] = useState(false);
-  const [sortColumn, setSortColumn] = useState<string | null>("No");
+  const [sortColumn, setSortColumn] = useState<string | null>("Posting_Date");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
   const [searchQuery, setSearchQuery] = useState("");
   const [columnFilters, setColumnFilters] = useState<Record<string, { value: string; valueTo?: string }>>({});
@@ -33,10 +33,6 @@ export function usePostedGateEntries(type: "inward" | "outward", initialFilters?
   const skipDateFilter = initialFilters?.skipDateFilter;
 
   const fetchEntries = useCallback(async (reset = false) => {
-    if (!skipDateFilter && !dateFilter) {
-      setIsLoading(false);
-      return;
-    }
 
     const requestId = ++lastRequestId.current;
 
@@ -118,7 +114,7 @@ export function usePostedGateEntries(type: "inward" | "outward", initialFilters?
       const params: any = {
         $top: pageSize,
         $skip: (pageRef.current - 1) * pageSize,
-        $orderby: sortColumn && sortDirection ? `${sortColumn} ${sortDirection}` : "No desc",
+        $orderby: sortColumn && sortDirection ? `${sortColumn} ${sortDirection}` : "Posting_Date desc",
         $filter: filter,
         $count: true,
       };

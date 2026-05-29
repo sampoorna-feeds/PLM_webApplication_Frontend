@@ -29,6 +29,7 @@ export default function PostedQCReceiptPage() {
             <div className="flex-1 mt-0 h-full">
               <QCReceiptView 
                 isPosted={true}
+                skipDateFilter={true}
               />
             </div>
           </div>

@@ -54,7 +54,7 @@ export function usePostedTransfers({ type, initialFilters }: UsePostedTransfersO
     fetchBranches();
   }, [userID]);
 
-  const [sortColumn, setSortColumn] = useState<string | null>("No");
+  const [sortColumn, setSortColumn] = useState<string | null>("Posting_Date");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
 
   const [searchQuery, setSearchQuery] = useState("");

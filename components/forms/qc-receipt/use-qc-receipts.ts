@@ -112,11 +112,6 @@ export function useQCReceipts(initialFilters?: {
   const fetchReceipts = useCallback(async (reset = false) => {
     if (userID && isAuthLoading) return;
 
-    if (!skipDateFilter && !dateFilter) {
-      setIsLoading(false);
-      return;
-    }
-
     const requestId = ++lastRequestId.current;
     if (reset) {
       pageRef.current = 1;

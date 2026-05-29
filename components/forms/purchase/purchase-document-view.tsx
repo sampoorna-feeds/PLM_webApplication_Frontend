@@ -21,6 +21,8 @@ interface PurchaseDocumentViewProps {
   statusFilter?: PurchaseDocumentStatusTab;
   onPlaceOrder?: () => void;
   registerRefetch?: (refetch: () => void) => void;
+  poType?: string;
+  onPoTypeChange?: (value: string) => void;
 }
 
 export function PurchaseDocumentView({
@@ -28,6 +30,8 @@ export function PurchaseDocumentView({
   statusFilter,
   onPlaceOrder,
   registerRefetch,
+  poType: externalPoType,
+  onPoTypeChange: externalOnPoTypeChange,
 }: PurchaseDocumentViewProps) {
   const { openTab } = useFormStackContext();
   const config = getPurchaseDocumentConfig(documentType);
@@ -76,7 +80,7 @@ export function PurchaseDocumentView({
     loadMore,
     hasMore,
     isLoadingMore,
-  } = usePurchaseDocuments({ documentType, statusFilter });
+  } = usePurchaseDocuments({ documentType, statusFilter, externalPoType, externalOnPoTypeChange });
 
   useEffect(() => {
     registerRefetch?.(refetch);

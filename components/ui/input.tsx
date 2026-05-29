@@ -2,13 +2,19 @@ import * as React from "react";
 
 import { cn } from "@/lib/utils";
 
-function Input({ className, type, ...props }: React.ComponentProps<"input">) {
+interface InputProps extends React.ComponentProps<"input"> {
+  preventAutoSelect?: boolean;
+}
+
+function Input({ className, type, preventAutoSelect, ...props }: InputProps) {
   const handleFocus = (e: React.FocusEvent<HTMLInputElement>) => {
     // Identify numerical fields by type, class, or content pattern
     const isNumerical =
-      type === "number" ||
-      className?.includes("tabular-nums") ||
-      (e.target.value && /^-?\d*\.?\d*$/.test(e.target.value));
+      !preventAutoSelect && (
+        type === "number" ||
+        className?.includes("tabular-nums") ||
+        (e.target.value && /^-?\d*\.?\d*$/.test(e.target.value))
+      );
 
     if (isNumerical && !props.readOnly && !props.disabled) {
       // Small timeout to ensure selection happens after browser's default focus behavior

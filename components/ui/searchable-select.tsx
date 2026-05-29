@@ -277,9 +277,11 @@ export function SearchableSelect({
             }}
             onFocus={(e) => {
               setIsFocused(true);
-              setSearchQuery(displayLabel || "");
-              if (!open && !disabled && !isLoading) setOpen(true);
-              setTimeout(() => e.target.select(), 0);
+              if (!open) {
+                setSearchQuery(displayLabel || "");
+                if (!disabled && !isLoading) setOpen(true);
+                setTimeout(() => e.target.select(), 0);
+              }
             }}
             onBlur={() => {
               if (!open) {

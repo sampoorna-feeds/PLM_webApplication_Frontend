@@ -278,6 +278,7 @@ export function DropdownSearchableSelect({
                 onKeyDown={handleInputKeyDown}
                 placeholder={searchPlaceholder}
                 className="h-7 text-[13px] bg-background pr-6 border-none focus-visible:ring-0"
+                preventAutoSelect
               />
               <button
                 type="button"

@@ -389,9 +389,11 @@ export function SearchableSelect<T extends SearchableItem>({
             }}
             onFocus={(e) => {
               setIsFocused(true);
-              setSearchQuery(displayValue);
-              if (!isOpen && !disabled) setIsOpen(true);
-              setTimeout(() => e.target.select(), 0);
+              if (!isOpen) {
+                setSearchQuery(displayValue);
+                if (!disabled) setIsOpen(true);
+                setTimeout(() => e.target.select(), 0);
+              }
             }}
             onBlur={() => {
               if (!isOpen) {

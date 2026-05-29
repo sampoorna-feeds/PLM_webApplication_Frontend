@@ -7,19 +7,28 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Loader2, RefreshCw } from "lucide-react";
+import { Loader2, RefreshCw, List } from "lucide-react";
 import { useFormStack } from "@/lib/form-stack/use-form-stack";
 import {
   getFinishedProductionOrderByNo,
   getFinishedProductionOrderLines,
+  getProductionOrderComponents,
   type ProductionOrder,
   type ProductionOrderLine,
+  type ProductionOrderComponent,
 } from "@/lib/api/services/production-orders.service";
 import { ProductionOrderQRDialog } from "./production-order-qr-dialog";
 import { ProductionOrderWorkOrderDialog } from "./production-order-work-order-dialog";
 import { ProductionOrderLinesTable } from "./production-order-lines-table";
+import { ProductionOrderComponentsTable } from "./production-order-components-table";
 import { Button } from "@/components/ui/button";
 import { formatDate } from "@/lib/utils/date";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 
 interface FinishedProductionOrderDetailFormProps {
   tabId: string;
@@ -198,6 +207,10 @@ export function FinishedProductionOrderDetailForm({
   const [isLoadingLines, setIsLoadingLines] = useState(false);
   const [isRefreshingLines, setIsRefreshingLines] = useState(false);
 
+  const [orderComponents, setOrderComponents] = useState<ProductionOrderComponent[]>([]);
+  const [isLoadingComponents, setIsLoadingComponents] = useState(false);
+  const [isComponentsSheetOpen, setIsComponentsSheetOpen] = useState(false);
+
   // Load order data on mount / when orderNo changes
   useEffect(() => {
     if (!orderNo) {
@@ -234,22 +247,49 @@ export function FinishedProductionOrderDetailForm({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orderNo]);
 
-  // Load order lines on mount
+  // Load order lines and components on mount
   useEffect(() => {
     if (!orderNo) return;
 
     let cancelled = false;
     setIsLoadingLines(true);
+    setIsLoadingComponents(true);
 
     getFinishedProductionOrderLines(orderNo)
-      .then((lines) => {
-        if (!cancelled) setOrderLines(lines);
+      .then(async (lines) => {
+        if (cancelled) return;
+        setOrderLines(lines);
+
+        const allComponents: ProductionOrderComponent[] = [];
+        for (const line of lines) {
+          if (line.Line_No) {
+            try {
+              const lineComponents = await getProductionOrderComponents(
+                orderNo,
+                line.Line_No,
+              );
+              allComponents.push(...lineComponents);
+            } catch (err) {
+              console.error("Failed to load components for line:", line.Line_No, err);
+            }
+          }
+        }
+
+        if (!cancelled) {
+          setOrderComponents(allComponents);
+        }
       })
       .catch(() => {
-        if (!cancelled) setOrderLines([]);
+        if (!cancelled) {
+          setOrderLines([]);
+          setOrderComponents([]);
+        }
       })
       .finally(() => {
-        if (!cancelled) setIsLoadingLines(false);
+        if (!cancelled) {
+          setIsLoadingLines(false);
+          setIsLoadingComponents(false);
+        }
       });
 
     return () => {
@@ -260,13 +300,31 @@ export function FinishedProductionOrderDetailForm({
   const handleRefreshLines = async () => {
     if (!orderNo) return;
     setIsRefreshingLines(true);
+    setIsLoadingComponents(true);
     try {
       const lines = await getFinishedProductionOrderLines(orderNo);
       setOrderLines(lines);
+
+      const allComponents: ProductionOrderComponent[] = [];
+      for (const line of lines) {
+        if (line.Line_No) {
+          try {
+            const lineComponents = await getProductionOrderComponents(
+              orderNo,
+              line.Line_No,
+            );
+            allComponents.push(...lineComponents);
+          } catch (err) {
+            console.error("Failed to load components for line:", line.Line_No, err);
+          }
+        }
+      }
+      setOrderComponents(allComponents);
     } catch {
       // silent
     } finally {
       setIsRefreshingLines(false);
+      setIsLoadingComponents(false);
     }
   };
 
@@ -383,25 +441,61 @@ export function FinishedProductionOrderDetailForm({
           <h3 className="text-muted-foreground text-sm font-medium">
             Finished Production Order Lines
           </h3>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleRefreshLines}
-            disabled={isRefreshingLines || isLoadingLines}
-            title="Refresh order lines"
-          >
-            {isRefreshingLines ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <RefreshCw className="h-4 w-4" />
-            )}
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleRefreshLines}
+              disabled={isRefreshingLines || isLoadingLines}
+              title="Refresh order lines"
+            >
+              {isRefreshingLines ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <RefreshCw className="h-4 w-4" />
+              )}
+            </Button>
+            <Button
+              variant="default"
+              size="sm"
+              onClick={() => setIsComponentsSheetOpen(true)}
+              disabled={isLoadingComponents}
+            >
+              {isLoadingComponents ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <List className="mr-2 h-4 w-4" />
+              )}
+              View Components ({orderComponents.length})
+            </Button>
+          </div>
         </div>
         <ProductionOrderLinesTable
           lines={orderLines}
           isLoading={isLoadingLines}
         />
       </div>
+
+      {/* Components Sheet */}
+      <Sheet
+        open={isComponentsSheetOpen}
+        onOpenChange={setIsComponentsSheetOpen}
+      >
+        <SheetContent
+          side="right"
+          className="flex w-screen flex-col gap-0 p-0 md:w-[75vw] lg:w-[70vw]"
+        >
+          <SheetHeader className="bg-background sticky top-0 z-10 border-b px-6 py-4">
+            <SheetTitle>Production Order Components</SheetTitle>
+          </SheetHeader>
+          <div className="flex-1 overflow-hidden flex flex-col p-6 pt-4">
+            <ProductionOrderComponentsTable
+              components={orderComponents}
+              isLoading={isLoadingComponents}
+            />
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }

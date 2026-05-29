@@ -64,7 +64,7 @@ export function PurchaseDocumentForm({
     });
   };
 
-  const handleSuccess = (savedOrderNo: string) => {
+  const handleSuccess = (savedOrderNo: string, isPosted?: boolean) => {
     const onOrderPlaced = context?.onOrderPlaced as (() => void) | undefined;
     const onUpdated =
       (context?.onUpdated as (() => void) | undefined) ||
@@ -72,7 +72,7 @@ export function PurchaseDocumentForm({
 
     markAsSaved();
 
-    if (mode === "view") {
+    if (isPosted || mode === "view") {
       onUpdated?.();
       closeTab();
       return;

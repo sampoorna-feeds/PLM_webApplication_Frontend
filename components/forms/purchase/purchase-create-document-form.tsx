@@ -73,6 +73,7 @@ import {
   FileText,
   Paperclip,
   LoaderCircleIcon,
+  Loader2,
   Copy,
   MessageSquare,
   Printer,
@@ -199,6 +200,8 @@ import {
 } from "@/lib/api/services/purchase-copy-document.service";
 import { getVendorDetails } from "@/lib/api/services/vendor.service";
 import { preloadItems } from "@/lib/api/services/item.service";
+import { getVoucherReportPdf } from "@/lib/api/services/voucher.service";
+import { getPostedReportPdf } from "@/lib/api/services/posted-report.service";
 
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -447,7 +450,7 @@ export interface PurchaseCreateDocumentFormContentProps {
   onRequestEdit?: () => void;
   onCancelEdit?: () => void;
   /** Called when order is successfully placed */
-  onSuccess: (orderNo: string) => void;
+  onSuccess: (orderNo: string, isPosted?: boolean) => void;
   /** Initial form data (for restore on page load/tab reopen) */
   initialFormData?: Record<string, any>;
   /** Optional: persist form data (e.g. to FormStack tab). Omit for standalone page. */
@@ -637,9 +640,11 @@ export function PurchaseCreateDocumentFormContent({
     [],
   );
   const [postResultDocs, setPostResultDocs] = useState<{
-    Voucher?: string;
-    Receipt?: string;
+    VoucherDOC?: string;
+    ReceiptDOC?: string;
+    postingDate?: string;
   }>({});
+  const [isPdfLoading, setIsPdfLoading] = useState<"voucher" | "receipt" | null>(null);
   const [isPostResultOpen, setIsPostResultOpen] = useState(false);
 
   // Reset Post Details when dialog opens
@@ -1469,11 +1474,105 @@ export function PurchaseCreateDocumentFormContent({
     [config],
   );
 
-  const base64ToPdfBlob = (b64: string) => {
-    const bin = atob(b64);
-    const bytes = new Uint8Array(bin.length);
-    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-    return new Blob([bytes], { type: "application/pdf" });
+  const base64ToPdfBlob = (base64Value: string) => {
+    const normalized = base64Value
+      .replace(/^data:application\/pdf;base64,/, "")
+      .replace(/\s/g, "");
+    const bytes = atob(normalized);
+    const arr = new Uint8Array(bytes.length);
+    for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i);
+    return new Blob([arr], { type: "application/pdf" });
+  };
+
+  const handleViewVoucherDoc = async (docNo: string, postingDate: string) => {
+    setIsPdfLoading("voucher");
+    try {
+      const base64 =
+        documentType === "return-order" || documentType === "credit-memo"
+          ? await getPostedReportPdf("PurchCreditMemo", docNo)
+          : await getVoucherReportPdf(docNo, postingDate);
+      if (!base64) throw new Error("No PDF content returned");
+      const blob = base64ToPdfBlob(base64);
+      const url = window.URL.createObjectURL(blob);
+      window.open(url, "_blank", "noopener,noreferrer");
+    } catch (err) {
+      toastError(err, `Failed to load ${documentType === "credit-memo" ? "Credit Memo" : "Voucher"} PDF.`);
+    } finally {
+      setIsPdfLoading(null);
+    }
+  };
+
+  const handleDownloadVoucherDoc = async (docNo: string, postingDate: string) => {
+    setIsPdfLoading("voucher");
+    try {
+      const base64 =
+        documentType === "return-order" || documentType === "credit-memo"
+          ? await getPostedReportPdf("PurchCreditMemo", docNo)
+          : await getVoucherReportPdf(docNo, postingDate);
+      if (!base64) throw new Error("No PDF content returned");
+      const blob = base64ToPdfBlob(base64);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      const docLabel =
+        documentType === "invoice"
+          ? "Posted_Invoice"
+          : documentType === "credit-memo"
+            ? "CreditMemo"
+            : "Voucher";
+      link.download = `${docLabel}_${docNo.replace(/\//g, "_")}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      toastError(err, `Failed to download ${documentType === "credit-memo" ? "Credit Memo" : "Voucher"} PDF.`);
+    } finally {
+      setIsPdfLoading(null);
+    }
+  };
+
+  const handleViewReceiptDoc = async (docNo: string) => {
+    setIsPdfLoading("receipt");
+    try {
+      const base64 =
+        documentType === "return-order"
+          ? await getPostedReportPdf("PurchReturnShipment", docNo)
+          : await getPostedReportPdf("PurchReceipt", docNo);
+      if (!base64) throw new Error("No PDF content returned");
+      const blob = base64ToPdfBlob(base64);
+      const url = window.URL.createObjectURL(blob);
+      window.open(url, "_blank", "noopener,noreferrer");
+    } catch (err) {
+      toastError(err, `Failed to load ${documentType === "return-order" ? "Return Shipment" : "Receipt"} PDF.`);
+    } finally {
+      setIsPdfLoading(null);
+    }
+  };
+
+  const handleDownloadReceiptDoc = async (docNo: string) => {
+    setIsPdfLoading("receipt");
+    try {
+      const base64 =
+        documentType === "return-order"
+          ? await getPostedReportPdf("PurchReturnShipment", docNo)
+          : await getPostedReportPdf("PurchReceipt", docNo);
+      if (!base64) throw new Error("No PDF content returned");
+      const blob = base64ToPdfBlob(base64);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      const docLabel = documentType === "return-order" ? "Return_Shipment" : "Receipt";
+      link.download = `${docLabel}_${docNo.replace(/\//g, "_")}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      toastError(err, `Failed to download ${documentType === "return-order" ? "Return Shipment" : "Receipt"} PDF.`);
+    } finally {
+      setIsPdfLoading(null);
+    }
   };
 
   const handlePrintPOReport = async () => {
@@ -1582,15 +1681,13 @@ export function PurchaseCreateDocumentFormContent({
         optMap[postOption],
         userId || "",
       );
-      // Parse the response: it returns a JSON where the `value` field is a base64-encoded string.
-      // Decoding the base64 yields a JSON string of shape { Voucher?: string; Receipt?: string }
       const docs = (() => {
         try {
           const responseObj = postResponse as Record<string, unknown>;
           let obj: Record<string, unknown> = {};
 
           if (typeof responseObj?.value === "string") {
-            const decodedStr = atob(responseObj.value);
+            const decodedStr = atob(responseObj.value.replace(/\s/g, ""));
             obj = JSON.parse(decodedStr);
           } else {
             // Fallback just in case the API changes or returns it directly
@@ -1598,24 +1695,66 @@ export function PurchaseCreateDocumentFormContent({
           }
 
           return {
-            Voucher: typeof obj?.Voucher === "string" ? obj.Voucher : undefined,
-            Receipt: typeof obj?.Receipt === "string" ? obj.Receipt : undefined,
+            VoucherDOC: typeof obj?.VoucherDOC === "string" ? obj.VoucherDOC : undefined,
+            ReceiptDOC: typeof obj?.ReceiptDOC === "string" ? obj.ReceiptDOC : undefined,
+            postingDate: typeof obj?.["Posting Date"] === "string"
+              ? obj["Posting Date"]
+              : typeof obj?.postingDate === "string"
+                ? obj.postingDate
+                : undefined,
           };
         } catch (err) {
-          console.error("Failed to parse PDF response:", err);
+          console.error("Failed to parse post response:", err);
           return {};
         }
       })();
-      setPostResultDocs(docs);
       toast.success(`${config.displayTitle} posted successfully.`);
       setIsPostDetailsOpen(false);
-      setIsPostResultOpen(true);
-      try {
-        await refreshHydratedDocument();
-      } catch {
-        // Document may no longer be accessible at this endpoint after posting
-        // (e.g. invoices/credit-memos move to posted state) — ignore silently
+
+      // Trigger automatic background PDF fetch and open
+      if (docs.VoucherDOC) {
+        const vDoc = docs.VoucherDOC;
+        const pDate = docs.postingDate || "";
+        const docType = documentType;
+        void (async () => {
+          try {
+            const base64 =
+              docType === "return-order" || docType === "credit-memo"
+                ? await getPostedReportPdf("PurchCreditMemo", vDoc)
+                : await getVoucherReportPdf(vDoc, pDate);
+            if (base64) {
+              const blob = base64ToPdfBlob(base64);
+              const url = window.URL.createObjectURL(blob);
+              window.open(url, "_blank", "noopener,noreferrer");
+            }
+          } catch (err) {
+            console.error("Failed to auto-load Voucher PDF:", err);
+          }
+        })();
       }
+
+      if (docs.ReceiptDOC) {
+        const rDoc = docs.ReceiptDOC;
+        const docType = documentType;
+        void (async () => {
+          try {
+            const base64 =
+              docType === "return-order"
+                ? await getPostedReportPdf("PurchReturnShipment", rDoc)
+                : await getPostedReportPdf("PurchReceipt", rDoc);
+            if (base64) {
+              const blob = base64ToPdfBlob(base64);
+              const url = window.URL.createObjectURL(blob);
+              window.open(url, "_blank", "noopener,noreferrer");
+            }
+          } catch (err) {
+            console.error("Failed to auto-load Receipt PDF:", err);
+          }
+        })();
+      }
+
+      // Immediately return to header list page and refresh the list once!
+      onSuccess(createdOrderNo, true);
       // onSuccess is called when the user closes the post-result dialog
     } catch (err) {
       setPlaceOrderError(getErrorMessage(err, "Post failed."));
@@ -3585,115 +3724,7 @@ export function PurchaseCreateDocumentFormContent({
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Post result dialog */}
-      <Dialog open={isPostResultOpen} onOpenChange={setIsPostResultOpen}>
-        <DialogContent className="sm:max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Document Posted</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3 py-2">
-            {!postResultDocs.Voucher && !postResultDocs.Receipt ? (
-              <p className="text-muted-foreground py-2 text-center text-sm">
-                Document posted successfully, but no documents are available.
-              </p>
-            ) : (
-              <>
-                {postResultDocs.Voucher && (
-                  <div className="flex items-center justify-between rounded-md border p-3">
-                    <span className="text-sm font-medium">
-                      {documentType === "invoice"
-                        ? "Posted Invoice"
-                        : documentType === "credit-memo" ||
-                            documentType === "return-order"
-                          ? "Posted Credit Memo"
-                          : "Voucher"}
-                    </span>
-                    <div className="flex gap-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => {
-                          const blob = base64ToPdfBlob(postResultDocs.Voucher!);
-                          const url = window.URL.createObjectURL(blob);
-                          window.open(url, "_blank", "noopener,noreferrer");
-                        }}
-                      >
-                        Open
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => {
-                          const blob = base64ToPdfBlob(postResultDocs.Voucher!);
-                          const url = window.URL.createObjectURL(blob);
-                          const link = document.createElement("a");
-                          link.href = url;
-                          link.download = `${documentType === "invoice" ? "Posted_Invoice" : "Voucher"}.pdf`;
-                          document.body.appendChild(link);
-                          link.click();
-                          document.body.removeChild(link);
-                          window.URL.revokeObjectURL(url);
-                        }}
-                      >
-                        <Printer className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                )}
-                {postResultDocs.Receipt && (
-                  <div className="flex items-center justify-between rounded-md border p-3">
-                    <span className="text-sm font-medium">
-                      {documentType === "return-order"
-                        ? "Return Shipment"
-                        : "Receipt"}
-                    </span>
-                    <div className="flex gap-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => {
-                          const blob = base64ToPdfBlob(postResultDocs.Receipt!);
-                          const url = window.URL.createObjectURL(blob);
-                          window.open(url, "_blank", "noopener,noreferrer");
-                        }}
-                      >
-                        Open
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => {
-                          const blob = base64ToPdfBlob(postResultDocs.Receipt!);
-                          const url = window.URL.createObjectURL(blob);
-                          const link = document.createElement("a");
-                          link.href = url;
-                          link.download = `${documentType === "return-order" ? "Return_Shipment" : "Receipt"}.pdf`;
-                          document.body.appendChild(link);
-                          link.click();
-                          document.body.removeChild(link);
-                          window.URL.revokeObjectURL(url);
-                        }}
-                      >
-                        <Printer className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                )}
-              </>
-            )}
-          </div>
-          <DialogFooter>
-            <Button
-              onClick={() => {
-                setIsPostResultOpen(false);
-                onSuccess(createdOrderNo);
-              }}
-            >
-              Close
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+
     </>
   );
 }
@@ -3706,7 +3737,7 @@ interface PurchaseCreateDocumentFormProps {
   orderNo?: string;
   formData?: Record<string, any>;
   context?: Record<string, any>;
-  onSuccess?: (orderNo: string) => void;
+  onSuccess?: (orderNo: string, isPosted?: boolean) => void;
   persistFormData?: (data: Record<string, any>) => void;
   onRequestEdit?: () => void;
   onCancelEdit?: () => void;

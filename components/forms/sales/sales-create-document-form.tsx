@@ -67,7 +67,7 @@ import type { ShipToAddress } from "@/lib/api/services/shipto.service";
 import { getAuthCredentials } from "@/lib/auth/storage";
 import { getErrorMessage, toastError } from "@/lib/errors";
 import { cn } from "@/lib/utils";
-import { Loader2, Plus, Printer } from "lucide-react";
+import { Loader2, Plus, Printer, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { ApplyCustomerEntriesDialog } from "./apply-customer-entries-dialog";
@@ -614,6 +614,7 @@ export function SalesCreateDocumentFormContent({
     const docNo = initialOrderNo;
     if (!docNo) return;
     setIsLoading(true);
+    setSelectedDeleteLineNos([]);
     setLoadError(null);
     try {
       const [header, lineItems] = await Promise.all([
@@ -884,6 +885,7 @@ export function SalesCreateDocumentFormContent({
         if (deletedCount > 0) {
           toast.success(`Deleted ${deletedCount} line(s)`);
         }
+        setSelectedDeleteLineNos([]);
         setIsDeleteDialogOpen(false);
         refreshLines();
         return;
@@ -910,6 +912,42 @@ export function SalesCreateDocumentFormContent({
     } finally {
       setIsDeleteLoading(false);
     }
+  };
+
+  const handleBulkDeleteLines = async () => {
+    if (!initialOrderNo || selectedDeleteLineNos.length === 0) return;
+
+    // Optimistically update the UI to remove the lines from state immediately
+    const linesToKeep = lines.filter((l) => !selectedDeleteLineNos.includes(l.Line_No!));
+    setLines(linesToKeep);
+    
+    const targets = [...selectedDeleteLineNos];
+    setSelectedDeleteLineNos([]);
+
+    toast.info(`Deleting ${targets.length} line item(s) in background...`);
+
+    // Execute deletions in the background (asynchronous promise loop)
+    void (async () => {
+      let deletedCount = 0;
+      let failedCount = 0;
+      for (const lineNo of targets) {
+        try {
+          await ops.deleteLine(initialOrderNo, lineNo);
+          deletedCount++;
+        } catch (err) {
+          console.error(`Failed to delete line ${lineNo}:`, err);
+          failedCount++;
+        }
+      }
+      if (deletedCount > 0) {
+        toast.success(`Successfully deleted ${deletedCount} line(s)`);
+      }
+      if (failedCount > 0) {
+        toast.error(`Failed to delete ${failedCount} line(s)`);
+      }
+      // Re-sync with server state in the background
+      await loadDocument();
+    })();
   };
 
   // ── Post (order only) ─────────────────────────────────────────────────────
@@ -2001,16 +2039,30 @@ export function SalesCreateDocumentFormContent({
                         variant="outline"
                         className="h-7 px-2.5 text-xs"
                         onClick={() => setIsGetPostedLineOpen(true)}
-                        disabled={!currentDocNo}
+                        disabled={!currentDocNo || !isOpen}
                       >
                         Get Posted Line
+                      </Button>
+                    )}
+                    {isOpen && selectedDeleteLineNos.length > 0 && (
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        className="h-7 px-2.5 text-xs"
+                        onClick={() => {
+                          setDeleteMode("lines");
+                          setIsDeleteDialogOpen(true);
+                        }}
+                      >
+                        <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+                        Delete ({selectedDeleteLineNos.length})
                       </Button>
                     )}
                     <Button
                       size="sm"
                       className="h-7 px-2.5 text-xs"
                       onClick={() => setIsAddLineDialogOpen(true)}
-                      disabled={!currentDocNo}
+                      disabled={!currentDocNo || !isOpen}
                     >
                       <Plus className="mr-1.5 h-3.5 w-3.5" />
                       Add Line
@@ -2024,8 +2076,10 @@ export function SalesCreateDocumentFormContent({
                   documentType={documentType}
                   itemTrackingMap={itemTrackingMap}
                   lineStockMap={lineStockMap}
-                  readOnly={isViewMode}
+                  readOnly={!isOpen}
                   editable={!!currentDocNo}
+                  selectedLineNos={selectedDeleteLineNos}
+                  onSelectionChange={setSelectedDeleteLineNos}
                   onRowClick={(line) => {
                     setSelectedLine(line);
                     setIsLineDialogOpen(true);
@@ -2198,7 +2252,7 @@ export function SalesCreateDocumentFormContent({
             <AlertDialogDescription>
               {deleteMode === "document"
                 ? `This will permanently delete this ${config.documentLabel} and all its lines. This cannot be undone.`
-                : "Select lines to delete and confirm."}
+                : `Are you sure you want to delete the selected line item(s)? This action cannot be undone.`}
             </AlertDialogDescription>
           </AlertDialogHeader>
 

@@ -11,6 +11,16 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { SuccessDialog } from "@/components/ui/success-dialog";
 import {
@@ -194,6 +204,7 @@ export function TransferOrderForm({
   const [isLineDialogOpen, setIsLineDialogOpen] = useState(false);
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
   const [selectedLineNos, setSelectedLineNos] = useState<number[]>([]);
+  const [isDeleteLinesConfirmOpen, setIsDeleteLinesConfirmOpen] = useState(false);
 
   // Dimension dropdowns state
   const [lobs, setLobs] = useState<DimensionValue[]>([]);
@@ -288,7 +299,10 @@ export function TransferOrderForm({
   // Load Order Data and Lines if orderNo exists
   const fetchOrderData = useCallback(
     async (no: string, showFullLoader: boolean = true) => {
-      if (showFullLoader) setIsLoading(true);
+      if (showFullLoader) {
+        setIsLoading(true);
+        setSelectedLineNos([]);
+      }
       setIsLoadingLines(true);
       try {
         const order = await getTransferOrderByNo(no);
@@ -676,26 +690,43 @@ export function TransferOrderForm({
 
   const handleBulkDeleteLines = async () => {
     if (!formState.No || selectedLineNos.length === 0) return;
-    if (!confirm(`Are you sure you want to delete ${selectedLineNos.length} selected lines?`)) return;
 
-    setIsSubmitting(true);
-    try {
+    // Optimistically update the UI to remove the lines from state immediately
+    const linesToKeep = lines.filter((l) => !selectedLineNos.includes(l.Line_No));
+    setLines(linesToKeep);
+
+    const targets = [...selectedLineNos];
+    setSelectedLineNos([]);
+
+    toast.info(`Deleting ${targets.length} line item(s) in background...`);
+
+    // Execute deletions in the background (asynchronous promise loop)
+    void (async () => {
       let deletedCount = 0;
-      for (const lineNo of selectedLineNos) {
-        await deleteTransferLine(formState.No, lineNo);
-        deletedCount++;
+      let failedCount = 0;
+      for (const lineNo of targets) {
+        try {
+          await deleteTransferLine(formState.No!, lineNo);
+          deletedCount++;
+        } catch (err) {
+          console.error(`Failed to delete line ${lineNo}:`, err);
+          failedCount++;
+        }
       }
-      toast.success(`${deletedCount} lines deleted`);
-      setSelectedLineNos([]);
-      const updatedLines = await getTransferOrderLines(formState.No);
-      setLines(updatedLines);
-    } catch (err: any) {
-      toastError(err, "Failed to delete some lines");
-      const updatedLines = await getTransferOrderLines(formState.No);
-      setLines(updatedLines);
-    } finally {
-      setIsSubmitting(false);
-    }
+      if (deletedCount > 0) {
+        toast.success(`Successfully deleted ${deletedCount} lines`);
+      }
+      if (failedCount > 0) {
+        toast.error(`Failed to delete ${failedCount} lines`);
+      }
+      // Re-sync with server state
+      try {
+        const updatedLines = await getTransferOrderLines(formState.No!);
+        setLines(updatedLines);
+      } catch (err) {
+        console.error("Failed to fetch transfer lines:", err);
+      }
+    })();
   };
 
   const handleFetchDistance = async () => {
@@ -1633,7 +1664,7 @@ export function TransferOrderForm({
                   <Button
                     variant="destructive"
                     size="sm"
-                    onClick={handleBulkDeleteLines}
+                    onClick={() => setIsDeleteLinesConfirmOpen(true)}
                     disabled={isSubmitting || formState.Status === "Released"}
                     className="h-9 px-3"
                   >
@@ -2272,6 +2303,26 @@ export function TransferOrderForm({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={isDeleteLinesConfirmOpen} onOpenChange={setIsDeleteLinesConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Line Items</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete the {selectedLineNos.length} selected line item(s)? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleBulkDeleteLines}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -975,3 +975,23 @@ export async function assignItemCharge(params: {
   };
   return apiPost<unknown>(endpoint, payload);
 }
+
+/**
+ * Get Pending MRN Report as base64 Excel string
+ */
+export async function getPendingMRNReport(params: {
+  branch: string;
+  userID: string;
+}): Promise<string> {
+  const endpoint = `/API_GetPendingMRNExcel?company='${encodeURIComponent(COMPANY)}'`;
+  const response = await apiRequest<{ value: string } | string>(endpoint, {
+    method: "POST",
+    headers: { "If-Match": "*" },
+    body: JSON.stringify({
+      branch: params.branch,
+      sfpluserID: params.userID,
+    }),
+  });
+  if (typeof response === "string") return response;
+  return response?.value || "";
+}

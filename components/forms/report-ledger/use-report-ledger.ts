@@ -406,7 +406,11 @@ export function useReportLedger() {
       return;
     }
 
-    if (filters.postingDateFrom > filters.postingDateTo) {
+    if (
+      filters.postingDateFrom &&
+      filters.postingDateTo &&
+      filters.postingDateFrom > filters.postingDateTo
+    ) {
       toastError(new Error("'Date From' cannot be after 'Date To'"));
       return;
     }

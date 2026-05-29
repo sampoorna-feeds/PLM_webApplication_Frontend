@@ -563,7 +563,7 @@ export async function getSourcesForDialog(opts: {
     selectCols = "No,Description";
     searchField2 = "Description";
   } else if (opts.sourceType === "Sales Header") {
-    endpointPath = "/SalesOrderEntity";
+    endpointPath = "/SalesOrder";
     selectCols = "No,Sell_to_Customer_Name,Document_Type";
     searchField2 = "Sell_to_Customer_Name";
   } else if (opts.sourceType === "BOM") {
@@ -582,6 +582,8 @@ export async function getSourcesForDialog(opts: {
   const baseFilterParts: string[] = [];
   if (opts.sourceType === "BOM Version") {
     baseFilterParts.push("Status eq 'Certified'");
+  } else if (opts.sourceType === "Item") {
+    baseFilterParts.push("Blocked eq false");
   }
   if (opts.filters) {
     Object.entries(opts.filters).forEach(([col, val]) => {

@@ -261,7 +261,7 @@ export function SearchableSelect({
             }}
             onFocus={(e) => {
               setIsFocused(true);
-              setSearchQuery(displayLabel || "");
+              setSearchQuery(isMulti ? "" : (displayLabel || ""));
               if (!open && !disabled && !isLoading) setOpen(true);
               setTimeout(() => e.target.select(), 0);
             }}
@@ -314,7 +314,6 @@ export function SearchableSelect({
         collisionPadding={8}
         onCloseAutoFocus={(e) => {
           e.preventDefault();
-          inputRef.current?.focus();
         }}
         onOpenAutoFocus={(e) => {
           e.preventDefault();

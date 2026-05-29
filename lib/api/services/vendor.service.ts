@@ -146,11 +146,15 @@ export async function getVendorsForDialog(opts: {
     : defaultCols;
   const sel = selectCols.join(",");
 
-  const baseFilterParts: string[] = [getBaseFilter(opts.brokerOnly, opts.transporterOnly)];
+  const baseFilterParts: string[] = [
+    getBaseFilter(opts.brokerOnly, opts.transporterOnly),
+  ];
   if (opts.filters) {
     Object.entries(opts.filters).forEach(([col, val]) => {
       if (!val) return;
-      baseFilterParts.push(`contains(tolower(${col}),'${escapeODataValue(val.trim().toLowerCase())}')`);
+      baseFilterParts.push(
+        `contains(tolower(${col}),'${escapeODataValue(val.trim().toLowerCase())}')`,
+      );
     });
   }
   const baseFilter = baseFilterParts.join(" and ");
@@ -160,7 +164,10 @@ export async function getVendorsForDialog(opts: {
     orderbyClause = `${opts.sortColumn} ${opts.sortDirection === "asc" ? "asc" : "desc"}`;
   }
 
-  const fetchPage = async (filter: string, pageSkip: number): Promise<{ value: Vendor[]; count: number }> => {
+  const fetchPage = async (
+    filter: string,
+    pageSkip: number,
+  ): Promise<{ value: Vendor[]; count: number }> => {
     const query = buildODataQuery({
       $select: sel,
       $filter: filter,
@@ -177,10 +184,14 @@ export async function getVendorsForDialog(opts: {
     };
   };
 
-  const fetchBatch = async (searchFilter?: string): Promise<{ value: Vendor[]; count: number }> => {
+  const fetchBatch = async (
+    searchFilter?: string,
+  ): Promise<{ value: Vendor[]; count: number }> => {
     let currentFilter = baseFilter;
     if (searchFilter) {
-      currentFilter = currentFilter ? `(${currentFilter}) and (${searchFilter})` : searchFilter;
+      currentFilter = currentFilter
+        ? `(${currentFilter}) and (${searchFilter})`
+        : searchFilter;
     }
 
     const query = buildODataQuery({
@@ -204,8 +215,8 @@ export async function getVendorsForDialog(opts: {
     try {
       return await fetchBatch();
     } catch (error) {
-       console.error("Error fetching vendors:", error);
-       return { value: [], count: 0 };
+      console.error("Error fetching vendors:", error);
+      return { value: [], count: 0 };
     }
   }
 
@@ -215,12 +226,18 @@ export async function getVendorsForDialog(opts: {
 
   try {
     const [resNo, resName] = await Promise.all([
-      fetchBatch(`(contains(No,'${s}') or contains(No,'${sLower}') or contains(No,'${sUpper}') or No eq '${sUpper}')`).catch(() => ({ value: [], count: 0 })),
-      fetchBatch(`(contains(Name,'${s}') or contains(Name,'${sLower}') or contains(Name,'${sUpper}'))`).catch(() => ({ value: [], count: 0 })),
+      fetchBatch(
+        `(contains(No,'${s}') or contains(No,'${sLower}') or contains(No,'${sUpper}') or No eq '${sUpper}')`,
+      ).catch(() => ({ value: [], count: 0 })),
+      fetchBatch(
+        `(contains(Name,'${s}') or contains(Name,'${sLower}') or contains(Name,'${sUpper}'))`,
+      ).catch(() => ({ value: [], count: 0 })),
     ]);
 
     const map: Record<string, Vendor> = {};
-    [...resNo.value, ...resName.value].forEach((v) => { map[v.No] = v; });
+    [...resNo.value, ...resName.value].forEach((v) => {
+      map[v.No] = v;
+    });
     let merged = Object.values(map);
 
     // Local Sort if needed
@@ -234,9 +251,9 @@ export async function getVendorsForDialog(opts: {
       });
     }
 
-    return { 
-      value: merged.slice(skip, skip + top), 
-      count: merged.length 
+    return {
+      value: merged.slice(skip, skip + top),
+      count: merged.length,
     };
   } catch (error) {
     console.error("Error searching vendors:", error);
@@ -253,7 +270,10 @@ const searchCache = new Map<string, Vendor[]>();
 /**
  * Builds the base filter for Vendors
  */
-function getBaseFilter(brokerOnly?: boolean, transporterOnly?: boolean): string {
+function getBaseFilter(
+  brokerOnly?: boolean,
+  transporterOnly?: boolean,
+): string {
   let base = `(Responsibility_Center eq '' or Responsibility_Center eq 'FEED' or Responsibility_Center eq 'CATTLE' or Responsibility_Center eq 'SWINE') and Blocked eq ' '`;
   if (brokerOnly) {
     base += ` and Broker eq true`;
@@ -276,9 +296,9 @@ function escapeODataValue(value: string): string {
  */
 export async function getVendors(): Promise<Vendor[]> {
   const query = buildODataQuery({
-    $select: "No,Name",
+    $select: "No,Name,P_A_N_No",
     $filter: getBaseFilter(),
-    $orderby: "No",
+    $orderby: "Name asc",
     $top: 20,
   });
 
@@ -289,7 +309,7 @@ export async function getVendors(): Promise<Vendor[]> {
 
 /**
  * Search vendors with query string
- * Makes 2 separate API calls (one for No, one for Name) and combines unique results
+ * Makes 3 separate API calls (No, Name, P_A_N_No) and combines unique results
  * Requires 2 characters minimum
  */
 export async function searchVendors(query: string): Promise<Vendor[]> {
@@ -306,15 +326,15 @@ export async function searchVendors(query: string): Promise<Vendor[]> {
   const baseFilter = getBaseFilter();
   const escapedQuery = escapeODataValue(query);
 
-  // Make 2 parallel API calls: one for No, one for Name
-  const [resultsByNo, resultsByName] = await Promise.all([
+  // Make 3 parallel API calls: one for No, one for Name, one for PAN number
+  const [resultsByNo, resultsByName, resultsByPAN] = await Promise.all([
     // Search by No field
     (async () => {
       const filterByNo = `(${baseFilter}) and contains(No,'${escapedQuery}')`;
       const odataQuery = buildODataQuery({
-        $select: "No,Name",
+        $select: "No,Name,P_A_N_No",
         $filter: filterByNo,
-        $orderby: "No",
+        $orderby: "Name asc",
         $top: 30,
       });
       const endpoint = `/VendorCard?company='${encodeURIComponent(COMPANY)}'&${odataQuery}`;
@@ -325,9 +345,22 @@ export async function searchVendors(query: string): Promise<Vendor[]> {
     (async () => {
       const filterByName = `(${baseFilter}) and contains(Name,'${escapedQuery}')`;
       const odataQuery = buildODataQuery({
-        $select: "No,Name",
+        $select: "No,Name,P_A_N_No",
         $filter: filterByName,
-        $orderby: "No",
+        $orderby: "Name asc",
+        $top: 30,
+      });
+      const endpoint = `/VendorCard?company='${encodeURIComponent(COMPANY)}'&${odataQuery}`;
+      const response = await apiGet<ODataResponse<Vendor>>(endpoint);
+      return response.value;
+    })(),
+    // Search by P_A_N_No field
+    (async () => {
+      const filterByPAN = `(${baseFilter}) and contains(P_A_N_No,'${escapedQuery}')`;
+      const odataQuery = buildODataQuery({
+        $select: "No,Name,P_A_N_No",
+        $filter: filterByPAN,
+        $orderby: "Name asc",
         $top: 30,
       });
       const endpoint = `/VendorCard?company='${encodeURIComponent(COMPANY)}'&${odataQuery}`;
@@ -337,7 +370,7 @@ export async function searchVendors(query: string): Promise<Vendor[]> {
   ]);
 
   // Combine results and deduplicate by No field
-  const combined = [...resultsByNo, ...resultsByName];
+  const combined = [...resultsByNo, ...resultsByName, ...resultsByPAN];
   const uniqueMap = new Map<string, Vendor>();
   combined.forEach((vendor) => {
     if (!uniqueMap.has(vendor.No)) {
@@ -345,7 +378,7 @@ export async function searchVendors(query: string): Promise<Vendor[]> {
     }
   });
   const uniqueResults = Array.from(uniqueMap.values()).sort((a, b) =>
-    a.No.localeCompare(b.No),
+    (a.Name || "").localeCompare(b.Name || ""),
   );
 
   // Cache results
@@ -366,11 +399,11 @@ export async function getVendorsPage(
   const baseFilter = getBaseFilter();
 
   if (!search || search.length < 2) {
-    // No search - return paginated results
+    // No search - return paginated results ordered by Name
     const query = buildODataQuery({
-      $select: "No,Name",
+      $select: "No,Name,P_A_N_No",
       $filter: baseFilter,
-      $orderby: "No",
+      $orderby: "Name asc",
       $top: 30,
       $skip: skip,
     });
@@ -379,54 +412,66 @@ export async function getVendorsPage(
     return response.value;
   }
 
-  // With search - use dual-call approach
+  // With search - triple-call approach across No, Name, and P_A_N_No.
+  // We deliberately omit $skip from sub-queries so that all matched records
+  // are fetched before merging. Pagination is applied client-side after
+  // deduplication and sorting so the combined list is consistent.
   const escapedQuery = escapeODataValue(search);
+  const PAGE_SIZE = 30;
 
-  // Make 2 parallel API calls: one for No, one for Name
-  const [resultsByNo, resultsByName] = await Promise.all([
+  const [resultsByNo, resultsByName, resultsByPAN] = await Promise.all([
     // Search by No field
     (async () => {
-      const filterByNo = `(${baseFilter}) and contains(No,'${escapedQuery}')`;
       const odataQuery = buildODataQuery({
-        $select: "No,Name",
-        $filter: filterByNo,
-        $orderby: "No",
-        $top: 30,
-        $skip: skip,
+        $select: "No,Name,P_A_N_No",
+        $filter: `(${baseFilter}) and contains(No,'${escapedQuery}')`,
+        $orderby: "Name asc",
+        $top: PAGE_SIZE * 3,
       });
-      const endpoint = `/VendorCard?company='${encodeURIComponent(COMPANY)}'&${odataQuery}`;
-      const response = await apiGet<ODataResponse<Vendor>>(endpoint);
+      const response = await apiGet<ODataResponse<Vendor>>(
+        `/VendorCard?company='${encodeURIComponent(COMPANY)}'&${odataQuery}`,
+      );
       return response.value;
     })(),
     // Search by Name field
     (async () => {
-      const filterByName = `(${baseFilter}) and contains(Name,'${escapedQuery}')`;
       const odataQuery = buildODataQuery({
-        $select: "No,Name",
-        $filter: filterByName,
-        $orderby: "No",
-        $top: 30,
-        $skip: skip,
+        $select: "No,Name,P_A_N_No",
+        $filter: `(${baseFilter}) and contains(Name,'${escapedQuery}')`,
+        $orderby: "Name asc",
+        $top: PAGE_SIZE * 3,
       });
-      const endpoint = `/VendorCard?company='${encodeURIComponent(COMPANY)}'&${odataQuery}`;
-      const response = await apiGet<ODataResponse<Vendor>>(endpoint);
+      const response = await apiGet<ODataResponse<Vendor>>(
+        `/VendorCard?company='${encodeURIComponent(COMPANY)}'&${odataQuery}`,
+      );
+      return response.value;
+    })(),
+    // Search by P_A_N_No field
+    (async () => {
+      const odataQuery = buildODataQuery({
+        $select: "No,Name,P_A_N_No",
+        $filter: `(${baseFilter}) and contains(P_A_N_No,'${escapedQuery}')`,
+        $orderby: "Name asc",
+        $top: PAGE_SIZE * 3,
+      });
+      const response = await apiGet<ODataResponse<Vendor>>(
+        `/VendorCard?company='${encodeURIComponent(COMPANY)}'&${odataQuery}`,
+      );
       return response.value;
     })(),
   ]);
 
-  // Combine results and deduplicate by No field
-  const combined = [...resultsByNo, ...resultsByName];
+  // Merge all 3 result sets, deduplicate by No, sort alphabetically by Name,
+  // then apply client-side pagination on the fully-merged sorted list.
   const uniqueMap = new Map<string, Vendor>();
-  combined.forEach((vendor) => {
-    if (!uniqueMap.has(vendor.No)) {
-      uniqueMap.set(vendor.No, vendor);
-    }
+  [...resultsByNo, ...resultsByName, ...resultsByPAN].forEach((vendor) => {
+    if (!uniqueMap.has(vendor.No)) uniqueMap.set(vendor.No, vendor);
   });
-  const uniqueResults = Array.from(uniqueMap.values()).sort((a, b) =>
-    a.No.localeCompare(b.No),
+  const sorted = Array.from(uniqueMap.values()).sort((a, b) =>
+    (a.Name || "").localeCompare(b.Name || ""),
   );
 
-  return uniqueResults;
+  return sorted.slice(skip, skip + PAGE_SIZE);
 }
 
 /**

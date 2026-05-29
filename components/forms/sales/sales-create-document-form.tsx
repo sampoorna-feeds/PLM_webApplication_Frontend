@@ -170,6 +170,7 @@ import {
 import { getVendorDetails } from "@/lib/api/services/vendor.service";
 import { getWebUser, type WebUser } from "@/lib/api/services/web-user.service";
 import { getInvoiceReportPdf } from "@/lib/api/services/sales-posted-invoices.service";
+import { getPostedReportPdf } from "@/lib/api/services/posted-report.service";
 import { isPostingDateValid } from "@/lib/utils/posting-date";
 
 // ── Config + utilities ────────────────────────────────────────────────────────
@@ -1184,20 +1185,26 @@ export function SalesCreateDocumentFormContent({
   const handleViewInvoiceDoc = async (docNo: string, custNo: string, postingDate: string) => {
     setIsPdfLoading("invoice");
     try {
-      const todayDate = new Date().toISOString().split("T")[0];
-      const base64 = await getInvoiceReportPdf(
-        docNo,
-        custNo,
-        postingDate,
-        userId || "=JOBQUEUE",
-        todayDate
-      );
+      const isCreditOrReturn = documentType === "credit-memo" || documentType === "return-order";
+      let base64 = "";
+      if (isCreditOrReturn) {
+        base64 = await getPostedReportPdf("SalesCreditMemo", docNo);
+      } else {
+        const todayDate = new Date().toISOString().split("T")[0];
+        base64 = await getInvoiceReportPdf(
+          docNo,
+          custNo,
+          postingDate,
+          userId || "=JOBQUEUE",
+          todayDate
+        );
+      }
       if (!base64) throw new Error("No PDF content returned");
       const blob = base64ToPdfBlob(base64);
       const url = window.URL.createObjectURL(blob);
       window.open(url, "_blank", "noopener,noreferrer");
     } catch (err) {
-      toastError(err, "Failed to load Invoice PDF.");
+      toastError(err, "Failed to load PDF.");
     } finally {
       setIsPdfLoading(null);
     }
@@ -1206,26 +1213,32 @@ export function SalesCreateDocumentFormContent({
   const handleDownloadInvoiceDoc = async (docNo: string, custNo: string, postingDate: string) => {
     setIsPdfLoading("invoice");
     try {
-      const todayDate = new Date().toISOString().split("T")[0];
-      const base64 = await getInvoiceReportPdf(
-        docNo,
-        custNo,
-        postingDate,
-        userId || "=JOBQUEUE",
-        todayDate
-      );
+      const isCreditOrReturn = documentType === "credit-memo" || documentType === "return-order";
+      let base64 = "";
+      if (isCreditOrReturn) {
+        base64 = await getPostedReportPdf("SalesCreditMemo", docNo);
+      } else {
+        const todayDate = new Date().toISOString().split("T")[0];
+        base64 = await getInvoiceReportPdf(
+          docNo,
+          custNo,
+          postingDate,
+          userId || "=JOBQUEUE",
+          todayDate
+        );
+      }
       if (!base64) throw new Error("No PDF content returned");
       const blob = base64ToPdfBlob(base64);
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = `Invoice_${docNo}.pdf`;
+      link.download = isCreditOrReturn ? `CreditMemo_${docNo}.pdf` : `Invoice_${docNo}.pdf`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
     } catch (err) {
-      toastError(err, "Failed to download Invoice PDF.");
+      toastError(err, "Failed to download PDF.");
     } finally {
       setIsPdfLoading(null);
     }

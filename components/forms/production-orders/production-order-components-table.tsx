@@ -1,6 +1,6 @@
 "use client";
 
-import { Loader2, Check, X } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import type { ProductionOrderComponent } from "@/lib/api/services/production-orders.service";
 import {
   Table,
@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/table";
 import { useItemTracking } from "./use-item-tracking";
 import { useAssignedTracking } from "./use-assigned-tracking";
-import { useAvailableStock } from "./use-available-stock";
+
 import { cn } from "@/lib/utils";
 
 /**
@@ -65,7 +65,7 @@ export function ProductionOrderComponentsTable({
     enabled: components.length > 0,
     refreshTrigger: trackingRefreshTrigger,
   });
-  const { stockMap, isLoading: isLoadingStock } = useAvailableStock(components);
+
 
   if (isLoading) {
     return (
@@ -91,18 +91,12 @@ export function ProductionOrderComponentsTable({
       <Table>
         <TableHeader className="bg-muted/50 sticky top-0 z-10 shadow-sm backdrop-blur">
           <TableRow>
-            <TableHead className="w-20">Comp. Line</TableHead>
-            <TableHead className="w-20">Prod. Line</TableHead>
             <TableHead className="w-30">Item No.</TableHead>
             <TableHead>Description</TableHead>
             <TableHead className="w-30">Location Code</TableHead>
-            <TableHead className="w-30 text-right">Available Stock</TableHead>
             <TableHead className="w-25 text-right">Quantity Per</TableHead>
             <TableHead className="w-30 text-right">Expected Qty</TableHead>
             <TableHead className="w-30 text-right">Remaining Qty</TableHead>
-            <TableHead className="w-30 text-center">
-              Substitution Available
-            </TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -112,8 +106,7 @@ export function ProductionOrderComponentsTable({
               : "";
             const hasTracking = trackingMap[itemKey] || false;
             const isAssigned = assignedMap[component.Line_No] || false;
-            const stockKey = `${component.Item_No?.trim()}-${component.Location_Code}`;
-            const availableStock = stockMap[stockKey];
+
 
             return (
               <TableRow
@@ -122,9 +115,9 @@ export function ProductionOrderComponentsTable({
                 className={cn(
                   "hover:bg-muted/50 cursor-pointer outline-none focus:bg-primary/10",
                   isAssigned
-                    ? "text-green-600 bg-green-50/50 hover:bg-green-100/70 focus:bg-green-100"
+                    ? "text-green-700 bg-green-50/50 hover:bg-green-100/70 focus:bg-green-100 dark:text-green-400 dark:bg-green-950/40 dark:hover:bg-green-900/50 dark:focus:bg-green-900/60"
                     : hasTracking
-                      ? "text-red-600 bg-red-50 hover:bg-red-100 focus:bg-red-100/80"
+                      ? "text-red-700 bg-red-50 hover:bg-red-100 focus:bg-red-100/80 dark:text-red-400 dark:bg-red-950/40 dark:hover:bg-red-900/50 dark:focus:bg-red-900/60"
                       : "",
                 )}
                 onClick={() => onRowClick?.(component, hasTracking)}
@@ -143,22 +136,11 @@ export function ProductionOrderComponentsTable({
                   }
                 }}
               >
-                <TableCell>{component.Line_No}</TableCell>
-                <TableCell>{component.Prod_Order_Line_No}</TableCell>
                 <TableCell className="font-medium">
                   {component.Item_No || "-"}
                 </TableCell>
                 <TableCell>{component.Description || "-"}</TableCell>
                 <TableCell>{component.Location_Code || "-"}</TableCell>
-                <TableCell className="text-right">
-                  {isLoadingStock ? (
-                    <Loader2 className="ml-auto h-3 w-3 animate-spin" />
-                  ) : availableStock != null ? (
-                    formatQuantity(availableStock)
-                  ) : (
-                    "-"
-                  )}
-                </TableCell>
                 <TableCell className="text-right">
                   {formatQuantity(component.Quantity_per)}
                 </TableCell>
@@ -167,13 +149,6 @@ export function ProductionOrderComponentsTable({
                 </TableCell>
                 <TableCell className="text-right">
                   {formatQuantity(component.Remaining_Quantity)}
-                </TableCell>
-                <TableCell className="text-center">
-                  {component.Substitution_Available ? (
-                    <Check className="mx-auto h-4 w-4 text-green-600" />
-                  ) : (
-                    <X className="text-muted-foreground mx-auto h-4 w-4" />
-                  )}
                 </TableCell>
               </TableRow>
             );

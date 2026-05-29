@@ -6,13 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { getItemAvailabilityReport } from "@/lib/api/services/report-ledger.service";
 import { getTransferItemsForDialog } from "@/lib/api/services/transfer-orders.service";
-import { SearchableSelect } from "@/components/ui/searchable-select";
-import { LocationSelect } from "@/components/forms/shared/location-select";
+import { SearchableSelect, type SearchableSelectOption } from "@/components/ui/searchable-select";
 import { Loader2, FileDown, AlertCircle } from "lucide-react";
 import { useAuth } from "@/lib/contexts/auth-context";
 import { toast } from "sonner";
 import { toastError } from "@/lib/errors";
-import { getAllLOCsFromUserSetup, getAllBranchesFromUserSetup } from "@/lib/api/services/dimension.service";
+import { getAllBranchesFromUserSetup } from "@/lib/api/services/dimension.service";
+import { getLocationsByBranches } from "@/lib/api/services/location.service";
 
 export function ItemAvailabilityForm() {
   const { userID } = useAuth();
@@ -21,10 +21,10 @@ export function ItemAvailabilityForm() {
   );
   const [itemNo, setItemNo] = useState<string>("");
   const [loc, setLoc] = useState<string>("");
-  const [options, setOptions] = useState<{ value: string; label: string }[]>([]);
+  const [itemOptions, setItemOptions] = useState<SearchableSelectOption[]>([]);
+  const [locationOptions, setLocationOptions] = useState<SearchableSelectOption[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [authorizedLOCs, setAuthorizedLOCs] = useState<string[]>([]);
   const [branches, setBranches] = useState<string>("");
   const [isSetupLoading, setIsSetupLoading] = useState(true);
 
@@ -40,7 +40,7 @@ export function ItemAvailabilityForm() {
         value: item.No,
         label: `${item.No} - ${item.Description || ""}`
       }));
-      setOptions(newOptions);
+      setItemOptions(newOptions);
       return newOptions;
     } catch (error) {
       console.error("Error fetching items:", error);
@@ -50,7 +50,7 @@ export function ItemAvailabilityForm() {
     }
   };
 
-  // Load items, branches, and authorized locations
+  // Load items, branches, and locations
   useEffect(() => {
     fetchItems("");
 
@@ -63,9 +63,14 @@ export function ItemAvailabilityForm() {
           const branchCodes = userBranches.map((b) => b.Code).filter(Boolean);
           setBranches(branchCodes.join("|"));
 
-          // Fetch authorized locations
-          const locs = await getAllLOCsFromUserSetup(userID.toString());
-          setAuthorizedLOCs(locs.map(l => l.Code).filter(Boolean) as string[]);
+          // Fetch locations for these branches
+          const locationsList = await getLocationsByBranches(branchCodes);
+          const locOptions = locationsList.map(loc => ({
+            value: loc.Code,
+            label: `${loc.Code} - ${loc.Name || ""}`,
+            description: loc.City ? `City: ${loc.City}` : undefined
+          }));
+          setLocationOptions(locOptions);
         } catch (error) {
           console.error("Error loading user setup:", error);
         } finally {
@@ -115,8 +120,8 @@ export function ItemAvailabilityForm() {
 
       const link = document.createElement("a");
       link.href = url;
-      const fileNameSuffix = itemNo ? `_${itemNo}` : "";
-      const locSuffix = loc ? `_${loc}` : "";
+      const fileNameSuffix = itemNo ? `_${itemNo.replace(/\|/g, "_")}` : "";
+      const locSuffix = loc ? `_${loc.replace(/\|/g, "_")}` : "";
       link.download = `Item_Availability${fileNameSuffix}${locSuffix}_AsOf_${endDate}.xlsx`;
       document.body.appendChild(link);
       link.click();
@@ -161,12 +166,14 @@ export function ItemAvailabilityForm() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
-                <label className="text-sm font-medium">Location (Optional)</label>
-                <LocationSelect
+                <label className="text-sm font-medium">Locations (Optional)</label>
+                <SearchableSelect
+                  placeholder="Select locations (or leave blank for all)"
                   value={loc}
-                  onChange={(v) => setLoc(v)}
-                  authorizedCodes={authorizedLOCs}
-                  placeholder="Select a location (or leave blank for all)"
+                  onValueChange={(v) => setLoc(v)}
+                  options={locationOptions}
+                  isLoading={isSetupLoading}
+                  isMulti={true}
                 />
               </div>
               <div className="space-y-2">
@@ -176,7 +183,7 @@ export function ItemAvailabilityForm() {
                   value={itemNo}
                   onValueChange={setItemNo}
                   onSearch={fetchItems}
-                  options={options}
+                  options={itemOptions}
                   isLoading={isSearching}
                 />
               </div>

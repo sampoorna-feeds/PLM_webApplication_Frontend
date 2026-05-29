@@ -140,12 +140,14 @@ export function ConsumeInventoryForm() {
         setFetchingOptions(true);
         try {
           const options = await getConsumptionPostingSetup(itemNo);
-          setConsumptionOptions(options);
+          // Filter out options with falsy/empty Posting_Group to prevent Radix Select crash
+          const filteredOptions = options.filter((opt) => opt.Posting_Group);
+          setConsumptionOptions(filteredOptions);
           // If only one option, auto-select it
-          if (options.length === 1) {
+          if (filteredOptions.length === 1) {
             setFormState((prev) => ({
               ...prev,
-              "Consumption Posting": options[0].Posting_Group,
+              "Consumption Posting": filteredOptions[0].Posting_Group,
             }));
           }
         } catch (error) {

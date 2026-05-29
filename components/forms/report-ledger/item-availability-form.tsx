@@ -12,7 +12,7 @@ import { useAuth } from "@/lib/contexts/auth-context";
 import { toast } from "sonner";
 import { toastError } from "@/lib/errors";
 import { getAllBranchesFromUserSetup } from "@/lib/api/services/dimension.service";
-import { getLocationsByBranches } from "@/lib/api/services/location.service";
+import { getLocationsByBranch } from "@/lib/api/services/location.service";
 
 export function ItemAvailabilityForm() {
   const { userID } = useAuth();
@@ -25,8 +25,13 @@ export function ItemAvailabilityForm() {
   const [locationOptions, setLocationOptions] = useState<SearchableSelectOption[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [branches, setBranches] = useState<string>("");
+
+  // Branch selection states
+  const [branchOptions, setBranchOptions] = useState<SearchableSelectOption[]>([]);
+  const [selectedBranch, setSelectedBranch] = useState<string>("");
+
   const [isSetupLoading, setIsSetupLoading] = useState(true);
+  const [isLocationsLoading, setIsLocationsLoading] = useState(false);
 
   const fetchItems = async (search: string) => {
     setIsSearching(true);
@@ -50,7 +55,7 @@ export function ItemAvailabilityForm() {
     }
   };
 
-  // Load items, branches, and locations
+  // Load items and branches
   useEffect(() => {
     fetchItems("");
 
@@ -60,17 +65,16 @@ export function ItemAvailabilityForm() {
         try {
           // Fetch branches
           const userBranches = await getAllBranchesFromUserSetup(userID.toString());
-          const branchCodes = userBranches.map((b) => b.Code).filter(Boolean);
-          setBranches(branchCodes.join("|"));
-
-          // Fetch locations for these branches
-          const locationsList = await getLocationsByBranches(branchCodes);
-          const locOptions = locationsList.map(loc => ({
-            value: loc.Code,
-            label: `${loc.Code} - ${loc.Name || ""}`,
-            description: loc.City ? `City: ${loc.City}` : undefined
+          const options = userBranches.map((b) => ({
+            value: b.Code,
+            label: b.Name ? `${b.Code} - ${b.Name}` : b.Code,
           }));
-          setLocationOptions(locOptions);
+          setBranchOptions(options);
+
+          // Pre-select first branch if available
+          if (options.length > 0) {
+            setSelectedBranch(options[0].value);
+          }
         } catch (error) {
           console.error("Error loading user setup:", error);
         } finally {
@@ -81,14 +85,43 @@ export function ItemAvailabilityForm() {
     loadUserSetup();
   }, [userID]);
 
+  // Load locations dynamically based on selected branch
+  useEffect(() => {
+    const loadLocations = async () => {
+      if (!selectedBranch) {
+        setLocationOptions([]);
+        setLoc("");
+        return;
+      }
+
+      setIsLocationsLoading(true);
+      try {
+        const locationsList = await getLocationsByBranch(selectedBranch);
+        const locOptions = locationsList.map((loc) => ({
+          value: loc.Code,
+          label: `${loc.Code} - ${loc.Name || ""}`,
+          description: loc.City ? `City: ${loc.City}` : undefined,
+        }));
+        setLocationOptions(locOptions);
+        setLoc(""); // Reset location selection when branch changes
+      } catch (error) {
+        console.error("Error loading locations for branch:", error);
+      } finally {
+        setIsLocationsLoading(false);
+      }
+    };
+
+    loadLocations();
+  }, [selectedBranch]);
+
   const handleFetchReport = async () => {
     if (!endDate) {
       toastError(new Error("Please select an end date"));
       return;
     }
 
-    if (!branches) {
-      toastError(new Error("No authorized branches found for your user account"));
+    if (!selectedBranch) {
+      toastError(new Error("Please select a branch"));
       return;
     }
 
@@ -98,7 +131,7 @@ export function ItemAvailabilityForm() {
         endDate,
         locationCode: loc || undefined,
         itemNo: itemNo || undefined,
-        branch: branches,
+        branch: selectedBranch,
         userID: userID?.toString() || "Suman",
       });
 
@@ -145,37 +178,54 @@ export function ItemAvailabilityForm() {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-        {isSetupLoading ? (
+        {isSetupLoading && branchOptions.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-10 space-y-2">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
             <span className="text-sm text-muted-foreground">Loading authorization setup...</span>
           </div>
         ) : (
           <>
-            {!branches && (
+            {branchOptions.length === 0 && !isSetupLoading && (
               <div className="flex items-center gap-3 p-3 rounded-lg border border-destructive/20 bg-destructive/10 text-destructive text-sm font-medium">
                 <AlertCircle className="h-5 w-5 shrink-0" />
                 <span>You do not have any branches assigned in Web User Setup. You will not be able to fetch reports.</span>
               </div>
             )}
 
-            <div className="space-y-2">
-              <label className="text-sm font-medium">As of Date <span className="text-destructive">*</span></label>
-              <DateInput value={endDate} onChange={setEndDate} />
-            </div>
-
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">As of Date <span className="text-destructive">*</span></label>
+                <DateInput value={endDate} onChange={setEndDate} />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Branch <span className="text-destructive">*</span></label>
+                <SearchableSelect
+                  placeholder="Select a branch"
+                  value={selectedBranch}
+                  onValueChange={(v) => setSelectedBranch(v)}
+                  options={branchOptions}
+                  isLoading={isSetupLoading}
+                />
+              </div>
+
               <div className="space-y-2">
                 <label className="text-sm font-medium">Locations (Optional)</label>
                 <SearchableSelect
-                  placeholder="Select locations (or leave blank for all)"
+                  placeholder={
+                    selectedBranch
+                      ? "Select locations (or leave blank for all)"
+                      : "Select a branch first"
+                  }
                   value={loc}
                   onValueChange={(v) => setLoc(v)}
                   options={locationOptions}
-                  isLoading={isSetupLoading}
+                  isLoading={isLocationsLoading}
+                  disabled={!selectedBranch || isLocationsLoading}
                   isMulti={true}
                 />
               </div>
+
               <div className="space-y-2">
                 <label className="text-sm font-medium">Item (Optional)</label>
                 <SearchableSelect
@@ -192,7 +242,7 @@ export function ItemAvailabilityForm() {
             <div className="flex justify-end pt-4 border-t">
               <Button
                 onClick={handleFetchReport}
-                disabled={isLoading || !branches}
+                disabled={isLoading || !selectedBranch}
                 className="w-full sm:w-auto bg-primary text-primary-foreground shadow hover:bg-primary/90"
               >
                 {isLoading ? (

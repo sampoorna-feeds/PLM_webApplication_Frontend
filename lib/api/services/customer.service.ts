@@ -220,7 +220,7 @@ export async function getCustomerByNo(
   if (!customerNo) return null;
 
   const query = buildODataQuery({
-    $select: "No,Name,Assessee_Code,Customer_Price_Group",
+    $select: "No,Name,Assessee_Code,Customer_Price_Group,Salesperson_Code",
     $filter: `No eq '${customerNo.replace(/'/g, "''")}'`,
   });
 

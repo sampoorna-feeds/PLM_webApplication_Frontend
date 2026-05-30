@@ -149,6 +149,7 @@ import {
   type SalesShipment
 } from "@/lib/api/services/sales-orders.service";
 import { getSalesPersonByCode } from "@/lib/api/services/sales-person.service";
+import { getCustomerByNo } from "@/lib/api/services/customer.service";
 import {
   addSalesReturnOrderLineItems,
   addSingleSalesReturnOrderLine,
@@ -646,6 +647,29 @@ export function SalesCreateDocumentFormContent({
               }
             })
             .catch(() => setFormData(formState));
+        } else if (formState.customerNo) {
+          // Fetch default salesperson from customer details if document header's salesperson is blank
+          getCustomerByNo(formState.customerNo)
+            .then(async (cust) => {
+              if (cust?.Salesperson_Code) {
+                const spCode = cust.Salesperson_Code;
+                let spName = "";
+                try {
+                  const sp = await getSalesPersonByCode(spCode);
+                  if (sp) spName = sp.Name;
+                } catch (err) {
+                  console.error("Failed to fetch salesperson name", err);
+                }
+                setFormData({
+                  ...formState,
+                  salesPersonCode: spCode,
+                  salesPersonName: spName,
+                });
+              } else {
+                setFormData(formState);
+              }
+            })
+            .catch(() => setFormData(formState));
         } else {
           setFormData(formState);
         }
@@ -735,8 +759,7 @@ export function SalesCreateDocumentFormContent({
     customerNo: string,
     customer?: SalesCustomer,
   ) => {
-    const nextSalesPersonCode =
-      customer?.Salesperson_Code || formData.salesPersonCode;
+    const nextSalesPersonCode = customer?.Salesperson_Code || "";
     const nextSalesPersonName =
       nextSalesPersonCode === formData.salesPersonCode
         ? formData.salesPersonName

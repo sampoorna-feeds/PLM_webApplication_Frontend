@@ -351,7 +351,7 @@ export interface SalesCreateDocumentFormContentProps {
   orderNo?: string;
   onRequestEdit?: () => void;
   onCancelEdit?: () => void;
-  onSuccess: (orderNo: string) => void;
+  onSuccess: (orderNo: string, isPosted?: boolean) => void;
   initialFormData?: Record<string, unknown>;
   persistFormData?: (data: Record<string, any>) => void;
 }
@@ -492,6 +492,11 @@ export function SalesCreateDocumentFormContent({
   }
   const [postResultInfo, setPostResultInfo] = useState<PostResultInfo | null>(null);
   const [isPdfLoading, setIsPdfLoading] = useState<"invoice" | "shipment" | null>(null);
+
+  const handleClosePostResult = () => {
+    setIsPostResultOpen(false);
+    onSuccess(initialOrderNo || "", true);
+  };
 
   // Reset Post Details when dialog opens
   useEffect(() => {
@@ -3010,7 +3015,16 @@ export function SalesCreateDocumentFormContent({
         </Dialog>
       )}
       {/* Post result dialog */}
-      <Dialog open={isPostResultOpen} onOpenChange={setIsPostResultOpen}>
+      <Dialog
+        open={isPostResultOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            handleClosePostResult();
+          } else {
+            setIsPostResultOpen(true);
+          }
+        }}
+      >
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
             <DialogTitle>Document Posted</DialogTitle>
@@ -3127,7 +3141,7 @@ export function SalesCreateDocumentFormContent({
             )}
           </div>
           <DialogFooter>
-            <Button onClick={() => setIsPostResultOpen(false)}>Close</Button>
+            <Button onClick={handleClosePostResult}>Close</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

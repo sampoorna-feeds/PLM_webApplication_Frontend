@@ -188,3 +188,30 @@ export async function getStockReport(params: {
   if (typeof response === "string") return response;
   return response?.value || "";
 }
+
+/**
+ * Get Item Availability Report as base64 string
+ */
+export async function getItemAvailabilityReport(params: {
+  endDate: string;
+  locationCode?: string;
+  itemNo?: string;
+  branch: string;
+  userID: string;
+}): Promise<string> {
+  const endpoint = `/API_ExportItemAvailabilityExcel?company='${encodeURIComponent(COMPANY)}'`;
+  const response = await apiRequest<{ value: string } | string>(endpoint, {
+    method: "POST",
+    headers: { "If-Match": "*" },
+    body: JSON.stringify({
+      pEndDate: params.endDate,
+      pLocationCode: params.locationCode || "",
+      pItemNo: params.itemNo || "",
+      branch: params.branch,
+      sFPLUserID: params.userID,
+    }),
+  });
+  if (typeof response === "string") return response;
+  return response?.value || "";
+}
+

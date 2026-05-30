@@ -340,7 +340,6 @@ export function SearchableSelect({
             return;
           }
           e.preventDefault();
-          inputRef.current?.focus();
         }}
         onOpenAutoFocus={(e) => {
           e.preventDefault();

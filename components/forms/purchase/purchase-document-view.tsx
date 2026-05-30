@@ -1,8 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Plus, Loader2 } from "lucide-react";
+import { Plus, Loader2, FileDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
+import { toastError } from "@/lib/errors";
+import { getAllBranchesFromUserSetup } from "@/lib/api/services/dimension.service";
+import { getPendingMRNReport } from "@/lib/api/services/purchase-orders.service";
 import { getAuthCredentials } from "@/lib/auth/storage";
 import { getWebUser, type WebUser } from "@/lib/api/services/web-user.service";
 import { useFormStackContext } from "@/lib/form-stack/form-stack-context";
@@ -37,6 +41,69 @@ export function PurchaseDocumentView({
   const config = getPurchaseDocumentConfig(documentType);
   const [webUserProfile, setWebUserProfile] = useState<WebUser | null>(null);
   const [isProfileLoading, setIsProfileLoading] = useState(true);
+  const [isPendingMrnLoading, setIsPendingMrnLoading] = useState(false);
+
+  const handleDownloadPendingMrnReport = async () => {
+    const creds = getAuthCredentials();
+    if (!creds?.userID) {
+      toast.error("User session not found.");
+      return;
+    }
+    
+    setIsPendingMrnLoading(true);
+    try {
+      // Fetch branches
+      const userBranches = await getAllBranchesFromUserSetup(creds.userID);
+      const branchCodes = userBranches.map((b) => b.Code).filter(Boolean);
+      
+      if (branchCodes.length === 0) {
+        toast.error("No authorized branches found for your user account.");
+        setIsPendingMrnLoading(false);
+        return;
+      }
+      
+      const branchesStr = branchCodes.join("|");
+      
+      // Fetch report
+      const base64 = await getPendingMRNReport({
+        branch: branchesStr,
+        userID: creds.userID,
+      });
+
+      if (!base64) {
+        toast.error("No data received for the selected parameters.");
+        setIsPendingMrnLoading(false);
+        return;
+      }
+
+      // Convert and download
+      const byteCharacters = atob(base64.replace(/\s/g, ""));
+      const byteNumbers = new Array(byteCharacters.length);
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      }
+      const byteArray = new Uint8Array(byteNumbers);
+      const blob = new Blob([byteArray], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      });
+      const url = URL.createObjectURL(blob);
+
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `Pending_MRN_Report_${new Date().toISOString().split("T")[0]}.xlsx`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      
+      toast.success("Pending MRN Report downloaded successfully.");
+    } catch (error: any) {
+      console.error("Error downloading Pending MRN Report:", error);
+      toastError(error, "Failed to download Pending MRN Report");
+    } finally {
+      setIsPendingMrnLoading(false);
+    }
+  };
 
   useEffect(() => {
     const creds = getAuthCredentials();
@@ -121,6 +188,22 @@ export function PurchaseDocumentView({
           config.supportsPoTypeFilter ? onPoTypeChange : undefined
         }
       >
+        {documentType === "order" && (
+          <Button
+            variant="outline"
+            onClick={handleDownloadPendingMrnReport}
+            disabled={isPendingMrnLoading || isProfileLoading}
+            size="sm"
+            className="gap-2"
+          >
+            {isPendingMrnLoading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <FileDown className="h-4 w-4" />
+            )}
+            Pending MRN Report
+          </Button>
+        )}
         {!isProfileLoading && (documentType !== "order" || webUserProfile?.Access_Purchase_Order === "Edit") && (
           <Button onClick={handleCreateDocument} size="sm">
             <Plus className="mr-2 h-4 w-4" />

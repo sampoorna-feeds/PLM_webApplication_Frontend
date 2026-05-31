@@ -177,6 +177,19 @@ export function buildSalesHeaderPatchPayload(
     compareDate("Order_Date", formData.orderDate || formData.postingDate);
   }
 
+  // Ensure LOB and Branch are sent if any location field is modified
+  if (
+    patch["location_Code"] !== undefined ||
+    patch["shortcut_Dimension_3_Code"] !== undefined
+  ) {
+    if (patch["shortcut_Dimension_1_Code"] === undefined) {
+      patch["shortcut_Dimension_1_Code"] = (formData.lob || "").trim();
+    }
+    if (patch["shortcut_Dimension_2_Code"] === undefined) {
+      patch["shortcut_Dimension_2_Code"] = (formData.branch || "").trim();
+    }
+  }
+
   return patch;
 }
 

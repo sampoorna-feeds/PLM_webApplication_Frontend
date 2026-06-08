@@ -88,7 +88,7 @@ export async function getOutwardGateEntriesWithCount(
     $select,
     $filter,
     $orderby = "No desc",
-    $top = 20,
+    $top = 200,
     $skip,
   } = params;
 
@@ -120,12 +120,14 @@ export async function searchOutwardGateEntries(
 ): Promise<PaginatedOutwardGateEntriesResponse> {
   const { searchTerm, $top, $skip, ...rest } = params;
   if (!searchTerm || searchTerm.trim() === "") {
-    return getOutwardGateEntriesWithCount(rest as GetOutwardGateEntriesParams);
+    return getOutwardGateEntriesWithCount(params);
   }
 
   const escaped = searchTerm.replace(/'/g, "''");
   // Fields to search: No, Transporter_Name, Vehicle_No, Description
   const fieldsToSearch = ["No", "Transporter_Name", "Vehicle_No", "Description"];
+
+  const limit = Math.max(($skip || 0) + ($top || 200), 200);
 
   const responses = await Promise.all(
     fieldsToSearch.map((field) => {
@@ -133,7 +135,7 @@ export async function searchOutwardGateEntries(
       const filter = rest.$filter
         ? `${rest.$filter} and ${filterPart}`
         : filterPart;
-      return getOutwardGateEntriesWithCount({ ...rest, $filter: filter });
+      return getOutwardGateEntriesWithCount({ ...rest, $filter: filter, $top: limit });
     }),
   );
 
@@ -236,7 +238,7 @@ async function getPaginatedSourceDocs(
   extraFilter?: string,
   locationFieldName: string = "Location_Code"
 ): Promise<PaginatedSourceDocsResponse> {
-  const { $top = 10, $skip = 0, searchTerm, branchCode, locationCode } = params;
+  const { $top = 200, $skip = 0, searchTerm, branchCode, locationCode } = params;
   const encodedCompany = encodeURIComponent(COMPANY);
 
   // Build base filter
@@ -316,9 +318,10 @@ async function getPaginatedSourceDocs(
       const filterPart = `(contains(${field},'${s}') or contains(${field},'${sLower}') or contains(${field},'${sUpper}'))`;
       const fullFilter = finalBaseFilter ? `(${finalBaseFilter}) and ${filterPart}` : filterPart;
       
+      const limit = Math.max($skip + $top, 200);
       const query = buildODataQuery({
         $filter: fullFilter,
-        $top: 500,
+        $top: limit,
         $count: true,
       });
       const endpoint = `/${entity}?company='${encodedCompany}'&${query}`;

@@ -133,17 +133,36 @@ export function ProductionOrderLineDialog({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="p-8 sm:max-w-150">
-          <DialogHeader>
-            <DialogTitle
-              className={cn("text-lg", hasTracking && "text-red-600")}
-            >
-              Edit Production Order Line
-              {hasTracking && (
-                <span className="ml-2 text-sm font-normal">(Has Tracking)</span>
-              )}
-            </DialogTitle>
-          </DialogHeader>
+        <DialogContent className="p-0 sm:max-w-150 overflow-hidden">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleSave();
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                const target = e.target as HTMLElement;
+                if (
+                  target.tagName === "INPUT" ||
+                  target.tagName === "SELECT" ||
+                  target.getAttribute("role") === "combobox"
+                ) {
+                  e.preventDefault();
+                }
+              }
+            }}
+            className="flex flex-col gap-4 p-8"
+          >
+            <DialogHeader>
+              <DialogTitle
+                className={cn("text-lg", hasTracking && "text-red-600")}
+              >
+                Edit Production Order Line
+                {hasTracking && (
+                  <span className="ml-2 text-sm font-normal">(Has Tracking)</span>
+                )}
+              </DialogTitle>
+            </DialogHeader>
 
           <div className="grid gap-5 py-5">
             {/* Read-only Item No */}
@@ -238,42 +257,44 @@ export function ProductionOrderLineDialog({
             </div>
           </div>
 
-          <DialogFooter className="flex items-center justify-between border-t pt-3 gap-2 shrink-0">
-            <div>
-              {hasTracking && onAssignTracking && (
+            <DialogFooter className="flex items-center justify-between border-t pt-3 gap-2 shrink-0">
+              <div>
+                {hasTracking && onAssignTracking && (
+                  <Button
+                    variant="outline"
+                    type="button"
+                    className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 h-8"
+                    onClick={() => {
+                      onAssignTracking();
+                      onOpenChange(false); // Close this dialog to open the tracking dialog
+                    }}
+                  >
+                    Item Tracking
+                  </Button>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
                 <Button
                   variant="outline"
                   type="button"
-                  className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 h-8"
-                  onClick={() => {
-                    onAssignTracking();
-                    onOpenChange(false); // Close this dialog to open the tracking dialog
-                  }}
+                  size="sm"
+                  className="h-8"
+                  onClick={() => onOpenChange(false)}
                 >
-                  Item Tracking
+                  Cancel
                 </Button>
-              )}
-            </div>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-8"
-                onClick={() => onOpenChange(false)}
-              >
-                Cancel
-              </Button>
-              <Button
-                size="sm"
-                className="h-8"
-                onClick={handleSave}
-                disabled={isSaving}
-              >
-                {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Save
-              </Button>
-            </div>
-          </DialogFooter>
+                <Button
+                  type="submit"
+                  size="sm"
+                  className="h-8"
+                  disabled={isSaving}
+                >
+                  {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Save
+                </Button>
+              </div>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
 

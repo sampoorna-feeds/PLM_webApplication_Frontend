@@ -114,7 +114,7 @@ export async function getTransferOrdersWithCount(
     $select = "No,Transfer_from_Code,Transfer_to_Code,In_Transit_Code,Status,Shipment_Date,Receipt_Date,Shortcut_Dimension_1_Code,Shortcut_Dimension_2_Code",
     $filter,
     $orderby = "No desc",
-    $top = 10,
+    $top = 200,
     $skip,
   } = params;
 
@@ -144,7 +144,7 @@ export async function searchTransferOrders(
 ): Promise<PaginatedTransferOrdersResponse> {
   const { searchTerm, $top, $skip, ...rest } = params;
   if (!searchTerm || searchTerm.trim() === "") {
-    return getTransferOrdersWithCount(rest as GetTransferOrdersParams);
+    return getTransferOrdersWithCount(params);
   }
 
   const s = searchTerm.replace(/'/g, "''");
@@ -159,6 +159,8 @@ export async function searchTransferOrders(
     "Shortcut_Dimension_2_Code",
   ];
 
+  const limit = Math.max(($skip || 0) + ($top || 200), 200);
+
   const responses = await Promise.all(
     fieldsToSearch.map((field) => {
       let filterPart = `(contains(${field},'${s}') or contains(${field},'${sLower}') or contains(${field},'${sUpper}'))`;
@@ -168,7 +170,7 @@ export async function searchTransferOrders(
       const filter = rest.$filter
         ? `(${rest.$filter}) and ${filterPart}`
         : filterPart;
-      return getTransferOrdersWithCount({ ...rest, $filter: filter }).catch(() => ({ orders: [], totalCount: 0 }));
+      return getTransferOrdersWithCount({ ...rest, $filter: filter, $top: limit }).catch(() => ({ orders: [], totalCount: 0 }));
     }),
   );
 
@@ -986,7 +988,7 @@ export async function getPostedTransferShipments(params: GetTransferOrdersParams
     $select = "No,Transfer_from_Code,Transfer_to_Code,Posting_Date,Vehicle_No,E_Way_Bill_No,Shortcut_Dimension_2_Code",
     $filter,
     $orderby = "No desc",
-    $top = 10,
+    $top = 200,
     $skip,
   } = params;
   const queryParams: Record<string, unknown> = { $select, $top, $count: true };
@@ -1071,7 +1073,7 @@ export async function getTransferReceipts(params: GetTransferOrdersParams = {}):
     $select = "No,Transfer_from_Code,Transfer_to_Code,Posting_Date,Vehicle_No,Shortcut_Dimension_2_Code",
     $filter,
     $orderby = "No desc",
-    $top = 10,
+    $top = 200,
     $skip,
   } = params;
   const queryParams: Record<string, unknown> = { $select, $top, $count: true };

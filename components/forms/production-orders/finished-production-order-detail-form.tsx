@@ -7,19 +7,28 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Loader2, RefreshCw } from "lucide-react";
+import { Loader2, RefreshCw, List } from "lucide-react";
 import { useFormStack } from "@/lib/form-stack/use-form-stack";
 import {
   getFinishedProductionOrderByNo,
   getFinishedProductionOrderLines,
+  getProductionOrderComponents,
   type ProductionOrder,
   type ProductionOrderLine,
+  type ProductionOrderComponent,
 } from "@/lib/api/services/production-orders.service";
 import { ProductionOrderQRDialog } from "./production-order-qr-dialog";
 import { ProductionOrderWorkOrderDialog } from "./production-order-work-order-dialog";
 import { ProductionOrderLinesTable } from "./production-order-lines-table";
+import { ProductionOrderComponentsTable } from "./production-order-components-table";
 import { Button } from "@/components/ui/button";
 import { formatDate } from "@/lib/utils/date";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 
 interface FinishedProductionOrderDetailFormProps {
   tabId: string;
@@ -38,7 +47,6 @@ function formatValue(val: unknown): string {
 /** Human-readable labels for ProductionOrder fields */
 const FIELD_LABELS: Record<string, string> = {
   No: "Order No",
-  Status: "Status",
   Description: "Description",
   Description_2: "Description 2",
   Source_Type: "Source Type",
@@ -49,7 +57,6 @@ const FIELD_LABELS: Record<string, string> = {
   Due_Date: "Due Date",
   Blocked: "Blocked",
   Location_Code: "Location Code",
-  Hatching_Date: "Hatching Date",
   Breed_Code: "Breed Code",
   Hatchery_Entry: "Hatchery Entry",
   Hatchery_Name: "Hatchery Name",
@@ -58,20 +65,12 @@ const FIELD_LABELS: Record<string, string> = {
   Laying_EGG_Week: "Laying Egg Week",
   STD_Percent: "STD Percent",
   Opening_Female_Bird: "Opening Female Bird",
-  DOC_Placing_Date: "DOC Placing Date",
   Flock_Value: "Flock Value",
   Prod_Bom_No: "Prod BOM No",
   BOM_Version_No: "BOM Version No",
   Batch_Size: "Batch Size",
   Variant_Code: "Variant Code",
   SFPL_User_ID: "Assigned User ID",
-  Last_Date_Modified: "Last Date Modified",
-  Starting_Time: "Starting Time",
-  Starting_Date: "Starting Date",
-  Ending_Time: "Ending Time",
-  Ending_Date: "Ending Date",
-  Starting_Date_Time: "Starting Date/Time",
-  Ending_Date_Time: "Ending Date/Time",
   Inventory_Posting_Group: "Inventory Posting Group",
   Gen_Prod_Posting_Group: "Gen. Prod. Posting Group",
   Gen_Bus_Posting_Group: "Gen. Bus. Posting Group",
@@ -83,103 +82,65 @@ const FIELD_LABELS: Record<string, string> = {
   Finished_Date: "Finished Date",
 };
 
-/** Field grouping for display */
-const FIELD_GROUPS: { title: string; fields: string[] }[] = [
-  {
-    title: "General",
-    fields: [
-      "No",
-      "Status",
-      "Description",
-      "Description_2",
-      "Search_Description",
-      "Supervisor_Name",
-      "SFPL_User_ID",
-    ],
-  },
-  {
-    title: "Source & Production",
-    fields: [
-      "Source_Type",
-      "Source_No",
-      "Quantity",
-      "Prod_Bom_No",
-      "BOM_Version_No",
-      "Batch_Size",
-      "Variant_Code",
-      "Routing_No",
-    ],
-  },
-  {
-    title: "Dates",
-    fields: [
-      "Due_Date",
-      "Starting_Date",
-      "Starting_Time",
-      "Starting_Date_Time",
-      "Ending_Date",
-      "Ending_Time",
-      "Ending_Date_Time",
-      "Finished_Date",
-      "Last_Date_Modified",
-    ],
-  },
-  {
-    title: "Dimensions & Location",
-    fields: [
-      "Location_Code",
-      "Shortcut_Dimension_1_Code",
-      "Shortcut_Dimension_2_Code",
-      "Shortcut_Dimension_3_Code",
-      "Bin_Code",
-    ],
-  },
-  {
-    title: "Posting Groups",
-    fields: [
-      "Inventory_Posting_Group",
-      "Gen_Prod_Posting_Group",
-      "Gen_Bus_Posting_Group",
-    ],
-  },
-  {
-    title: "Hatchery",
-    fields: [
-      "Hatchery_Entry",
-      "Hatchery_Name",
-      "Hatchery_No",
-      "Hatching_Date",
-      "Breed_Code",
-      "Flock_No_Breeder",
-      "Laying_EGG_Week",
-      "STD_Percent",
-      "Opening_Female_Bird",
-      "DOC_Placing_Date",
-      "Flock_Value",
-    ],
-  },
-  {
-    title: "Other",
-    fields: ["Blocked"],
-  },
+/** All fields to display (flat, no sections) */
+const ALL_FIELDS: string[] = [
+  "No",
+  "Description",
+  "Description_2",
+  "Search_Description",
+  "Supervisor_Name",
+  "SFPL_User_ID",
+  "Source_Type",
+  "Source_No",
+  "Quantity",
+  "Prod_Bom_No",
+  "BOM_Version_No",
+  "Batch_Size",
+  "Variant_Code",
+  "Routing_No",
+  "Due_Date",
+  "Finished_Date",
+  "Location_Code",
+  "Shortcut_Dimension_1_Code",
+  "Shortcut_Dimension_2_Code",
+  "Shortcut_Dimension_3_Code",
+  "Bin_Code",
+  "Inventory_Posting_Group",
+  "Gen_Prod_Posting_Group",
+  "Gen_Bus_Posting_Group",
+  "Hatchery_Entry",
+  "Hatchery_Name",
+  "Hatchery_No",
+  "Breed_Code",
+  "Flock_No_Breeder",
+  "Laying_EGG_Week",
+  "STD_Percent",
+  "Opening_Female_Bird",
+  "Flock_Value",
+  "Blocked",
 ];
 
-/** Keys to skip (internal OData fields) */
+/** Keys to skip (internal OData fields and excluded display fields) */
 const SKIP_KEYS = new Set([
   "@odata.etag",
   "@odata.context",
   "Batch_Barcode@odata.mediaEditLink",
   "Batch_Barcode@odata.mediaReadLink",
+  "Status",
+  "Finished",
+  "Starting_Date_Time",
+  "Ending_Date_Time",
+  "Starting_Time",
+  "Starting_Date",
+  "Ending_Time",
+  "Ending_Date",
+  "Hatching_Date",
+  "Last_Date_Modified",
 ]);
 
 /** Date-type fields */
 const DATE_FIELDS = new Set([
   "Due_Date",
-  "Hatching_Date",
-  "DOC_Placing_Date",
-  "Last_Date_Modified",
-  "Starting_Date",
-  "Ending_Date",
   "Finished_Date",
 ]);
 
@@ -197,6 +158,10 @@ export function FinishedProductionOrderDetailForm({
   const [orderLines, setOrderLines] = useState<ProductionOrderLine[]>([]);
   const [isLoadingLines, setIsLoadingLines] = useState(false);
   const [isRefreshingLines, setIsRefreshingLines] = useState(false);
+
+  const [orderComponents, setOrderComponents] = useState<ProductionOrderComponent[]>([]);
+  const [isLoadingComponents, setIsLoadingComponents] = useState(false);
+  const [isComponentsSheetOpen, setIsComponentsSheetOpen] = useState(false);
 
   // Load order data on mount / when orderNo changes
   useEffect(() => {
@@ -234,22 +199,49 @@ export function FinishedProductionOrderDetailForm({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orderNo]);
 
-  // Load order lines on mount
+  // Load order lines and components on mount
   useEffect(() => {
     if (!orderNo) return;
 
     let cancelled = false;
     setIsLoadingLines(true);
+    setIsLoadingComponents(true);
 
     getFinishedProductionOrderLines(orderNo)
-      .then((lines) => {
-        if (!cancelled) setOrderLines(lines);
+      .then(async (lines) => {
+        if (cancelled) return;
+        setOrderLines(lines);
+
+        const allComponents: ProductionOrderComponent[] = [];
+        for (const line of lines) {
+          if (line.Line_No) {
+            try {
+              const lineComponents = await getProductionOrderComponents(
+                orderNo,
+                line.Line_No,
+              );
+              allComponents.push(...lineComponents);
+            } catch (err) {
+              console.error("Failed to load components for line:", line.Line_No, err);
+            }
+          }
+        }
+
+        if (!cancelled) {
+          setOrderComponents(allComponents);
+        }
       })
       .catch(() => {
-        if (!cancelled) setOrderLines([]);
+        if (!cancelled) {
+          setOrderLines([]);
+          setOrderComponents([]);
+        }
       })
       .finally(() => {
-        if (!cancelled) setIsLoadingLines(false);
+        if (!cancelled) {
+          setIsLoadingLines(false);
+          setIsLoadingComponents(false);
+        }
       });
 
     return () => {
@@ -260,13 +252,31 @@ export function FinishedProductionOrderDetailForm({
   const handleRefreshLines = async () => {
     if (!orderNo) return;
     setIsRefreshingLines(true);
+    setIsLoadingComponents(true);
     try {
       const lines = await getFinishedProductionOrderLines(orderNo);
       setOrderLines(lines);
+
+      const allComponents: ProductionOrderComponent[] = [];
+      for (const line of lines) {
+        if (line.Line_No) {
+          try {
+            const lineComponents = await getProductionOrderComponents(
+              orderNo,
+              line.Line_No,
+            );
+            allComponents.push(...lineComponents);
+          } catch (err) {
+            console.error("Failed to load components for line:", line.Line_No, err);
+          }
+        }
+      }
+      setOrderComponents(allComponents);
     } catch {
       // silent
     } finally {
       setIsRefreshingLines(false);
+      setIsLoadingComponents(false);
     }
   };
 
@@ -291,116 +301,135 @@ export function FinishedProductionOrderDetailForm({
 
   const orderRecord = order as unknown as Record<string, unknown>;
 
-  // Collect any extra fields not covered by FIELD_GROUPS
-  const coveredFields = new Set(FIELD_GROUPS.flatMap((g) => g.fields));
+  // Filter to fields that have non-empty values
+  const fieldsWithValues = ALL_FIELDS.filter((field) => {
+    const val = orderRecord[field];
+    return (
+      val !== null &&
+      val !== undefined &&
+      val !== "" &&
+      val !== "0001-01-01"
+    );
+  });
+
+  // Collect any extra fields not covered by ALL_FIELDS
+  const coveredFields = new Set(ALL_FIELDS);
   const extraFields = Object.keys(orderRecord).filter(
     (key) =>
       !coveredFields.has(key) &&
       !SKIP_KEYS.has(key) &&
       orderRecord[key] !== null &&
       orderRecord[key] !== undefined &&
-      orderRecord[key] !== "",
+      orderRecord[key] !== "" &&
+      orderRecord[key] !== "0001-01-01",
   );
 
+  const allDisplayFields = [...fieldsWithValues, ...extraFields];
+
   return (
-    <div className="flex flex-col gap-6 px-6 py-4">
-      {/* Header row: Read-only badge + QR Code button */}
-      <div className="flex items-center justify-between gap-2">
-        <span className="bg-muted text-muted-foreground rounded-md px-2 py-0.5 text-xs font-medium">
-          Read Only
-        </span>
-        <div className="flex items-center gap-2">
-          {orderNo && <ProductionOrderQRDialog prodOrderNo={orderNo} />}
-          {orderNo && <ProductionOrderWorkOrderDialog prodOrderNo={orderNo} />}
+    <div className="flex h-full flex-col">
+      <div className="flex-1 overflow-y-auto px-6 py-6 [overflow-anchor:none]">
+        {/* Header row: title + QR Code / Work Order buttons — matches released form */}
+        <div className="mb-6 flex items-center justify-between gap-2">
+          <h2 className="min-w-0 truncate text-lg font-semibold">
+            View Finished Order: {orderNo}
+          </h2>
+          <div className="flex shrink-0 items-center gap-2">
+            <span className="bg-muted text-muted-foreground rounded-md px-2 py-0.5 text-xs font-medium">
+              Read Only
+            </span>
+            {orderNo && <ProductionOrderQRDialog prodOrderNo={orderNo} />}
+            {orderNo && <ProductionOrderWorkOrderDialog prodOrderNo={orderNo} />}
+          </div>
         </div>
-      </div>
 
-      {/* Field groups */}
-      {FIELD_GROUPS.map((group) => {
-        // Only show group if at least one field has a non-empty value
-        const fieldsWithValues = group.fields.filter((field) => {
-          const val = orderRecord[field];
-          return (
-            val !== null &&
-            val !== undefined &&
-            val !== "" &&
-            val !== "0001-01-01"
-          );
-        });
-        if (fieldsWithValues.length === 0) return null;
-
-        return (
-          <div key={group.title} className="bg-muted/30 rounded-lg p-4">
-            <div className="mb-3 text-sm font-semibold">{group.title}</div>
-            <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-3">
-              {fieldsWithValues.map((field) => {
-                const rawVal = orderRecord[field];
-                const displayVal = DATE_FIELDS.has(field)
-                  ? formatDate(rawVal as string)
-                  : formatValue(rawVal);
-                return (
-                  <div key={field}>
-                    <span className="text-muted-foreground block text-xs">
-                      {FIELD_LABELS[field] || field.replace(/_/g, " ")}
-                    </span>
-                    <span className="font-medium break-words">
-                      {displayVal}
-                    </span>
-                  </div>
-                );
-              })}
+        {/* All fields in a single block, 5 per row */}
+        <div className="flex flex-col gap-6">
+          {allDisplayFields.length > 0 && (
+            <div className="bg-muted/30 rounded-lg p-4">
+              <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+                {allDisplayFields.map((field) => {
+                  const rawVal = orderRecord[field];
+                  const displayVal = DATE_FIELDS.has(field)
+                    ? formatDate(rawVal as string)
+                    : formatValue(rawVal);
+                  return (
+                    <div key={field}>
+                      <span className="text-muted-foreground block text-xs">
+                        {FIELD_LABELS[field] || field.replace(/_/g, " ")}
+                      </span>
+                      <span className="font-medium break-words">
+                        {displayVal}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
-          </div>
-        );
-      })}
+          )}
 
-      {/* Extra fields not in predefined groups */}
-      {extraFields.length > 0 && (
-        <div className="bg-muted/30 rounded-lg p-4">
-          <div className="mb-3 text-sm font-semibold">Additional Fields</div>
-          <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-3">
-            {extraFields.map((field) => {
-              const rawVal = orderRecord[field];
-              const displayVal = DATE_FIELDS.has(field)
-                ? formatDate(rawVal as string)
-                : formatValue(rawVal);
-              return (
-                <div key={field}>
-                  <span className="text-muted-foreground block text-xs">
-                    {FIELD_LABELS[field] || field.replace(/_/g, " ")}
-                  </span>
-                  <span className="font-medium break-words">{displayVal}</span>
-                </div>
-              );
-            })}
+          {/* Finished Production Order Lines */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-muted-foreground text-sm font-medium">
+                Finished Production Order Lines
+              </h3>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleRefreshLines}
+                  disabled={isRefreshingLines || isLoadingLines}
+                  title="Refresh order lines"
+                >
+                  {isRefreshingLines ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <RefreshCw className="h-4 w-4" />
+                  )}
+                </Button>
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={() => setIsComponentsSheetOpen(true)}
+                  disabled={isLoadingComponents}
+                >
+                  {isLoadingComponents ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <List className="mr-2 h-4 w-4" />
+                  )}
+                  View Components ({orderComponents.length})
+                </Button>
+              </div>
+            </div>
+            <ProductionOrderLinesTable
+              lines={orderLines}
+              isLoading={isLoadingLines}
+            />
           </div>
         </div>
-      )}
 
-      {/* Finished Production Order Lines */}
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h3 className="text-muted-foreground text-sm font-medium">
-            Finished Production Order Lines
-          </h3>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleRefreshLines}
-            disabled={isRefreshingLines || isLoadingLines}
-            title="Refresh order lines"
+        {/* Components Sheet */}
+        <Sheet
+          open={isComponentsSheetOpen}
+          onOpenChange={setIsComponentsSheetOpen}
+        >
+          <SheetContent
+            side="right"
+            className="flex w-screen flex-col gap-0 p-0 md:w-[75vw] lg:w-[70vw]"
           >
-            {isRefreshingLines ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <RefreshCw className="h-4 w-4" />
-            )}
-          </Button>
-        </div>
-        <ProductionOrderLinesTable
-          lines={orderLines}
-          isLoading={isLoadingLines}
-        />
+            <SheetHeader className="bg-background sticky top-0 z-10 border-b px-6 py-4">
+              <SheetTitle>Production Order Components</SheetTitle>
+            </SheetHeader>
+            <div className="flex-1 overflow-hidden flex flex-col p-6 pt-4">
+              <ProductionOrderComponentsTable
+                components={orderComponents}
+                isLoading={isLoadingComponents}
+              />
+            </div>
+          </SheetContent>
+        </Sheet>
       </div>
     </div>
   );

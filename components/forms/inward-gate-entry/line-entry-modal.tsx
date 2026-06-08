@@ -68,102 +68,104 @@ export function LineEntryModal({ isOpen, onClose, onSave, initialData, mode, bra
     <>
       <Dialog open={isOpen} onOpenChange={onClose}>
         <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader>
-            <DialogTitle className="text-sm font-bold uppercase tracking-wider">
-              {mode === "add" ? "Add New Line Item" : "Edit Line Item"}
-            </DialogTitle>
-          </DialogHeader>
+          <form onSubmit={(e) => { e.preventDefault(); handleSave(); }} className="flex flex-col gap-4">
+            <DialogHeader>
+              <DialogTitle className="text-sm font-bold uppercase tracking-wider">
+                {mode === "add" ? "Add New Line Item" : "Edit Line Item"}
+              </DialogTitle>
+            </DialogHeader>
 
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label className="text-right text-[10px] font-bold uppercase tracking-wider">Challan No.</Label>
-              <Input
-                value={formData.Challan_No || ""}
-                onChange={(e) => setFormData({ ...formData, Challan_No: e.target.value })}
-                className="col-span-3 h-8 text-xs"
-                placeholder="Enter Challan Number"
-              />
-            </div>
-
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label className="text-right text-[10px] font-bold uppercase tracking-wider">Challan Date</Label>
-              <div className="col-span-3">
-                <DateInput
-                  value={formData.Challan_Date || ""}
-                  onChange={(v) => setFormData({ ...formData, Challan_Date: v })}
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label className="text-right text-[10px] font-bold uppercase tracking-wider">Source Type</Label>
-              <div className="col-span-3">
-                <Select
-                  value={formData.Source_Type || ""}
-                  onValueChange={(v) => setFormData({ ...formData, Source_Type: v, Source_No: "", Source_Name: "" })}
-                >
-                  <SelectTrigger className="h-8 text-xs">
-                    <SelectValue placeholder="Select Source Type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Purchase Order">Purchase Order</SelectItem>
-                    <SelectItem value="Sales Return Order">Sales Return Order</SelectItem>
-                    <SelectItem value="Transfer Receipt">Transfer Receipt</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label className="text-right text-[10px] font-bold uppercase tracking-wider">Source No.</Label>
-              <div 
-                className="relative col-span-3 cursor-pointer"
-                onClick={() => setIsLookupOpen(true)}
-              >
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label className="text-right text-[10px] font-bold uppercase tracking-wider">Challan No.</Label>
                 <Input
-                  value={formData.Source_No || ""}
-                  onChange={(e) => setFormData({ ...formData, Source_No: e.target.value })}
-                  className="h-8 pr-8 text-xs cursor-pointer"
-                  placeholder="Select Source Number"
-                  readOnly
+                  value={formData.Challan_No || ""}
+                  onChange={(e) => setFormData({ ...formData, Challan_No: e.target.value })}
+                  className="col-span-3 h-8 text-xs"
+                  placeholder="Enter Challan Number"
                 />
-                <div className="absolute top-0 right-0 flex h-8 w-8 items-center justify-center">
-                  <Search className="text-muted-foreground h-3.5 w-3.5" />
+              </div>
+
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label className="text-right text-[10px] font-bold uppercase tracking-wider">Challan Date</Label>
+                <div className="col-span-3">
+                  <DateInput
+                    value={formData.Challan_Date || ""}
+                    onChange={(v) => setFormData({ ...formData, Challan_Date: v })}
+                  />
                 </div>
               </div>
+
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label className="text-right text-[10px] font-bold uppercase tracking-wider">Source Type</Label>
+                <div className="col-span-3">
+                  <Select
+                    value={formData.Source_Type || ""}
+                    onValueChange={(v) => setFormData({ ...formData, Source_Type: v, Source_No: "", Source_Name: "" })}
+                  >
+                    <SelectTrigger className="h-8 text-xs">
+                      <SelectValue placeholder="Select Source Type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Purchase Order">Purchase Order</SelectItem>
+                      <SelectItem value="Sales Return Order">Sales Return Order</SelectItem>
+                      <SelectItem value="Transfer Receipt">Transfer Receipt</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label className="text-right text-[10px] font-bold uppercase tracking-wider">Source No.</Label>
+                <div 
+                  className="relative col-span-3 cursor-pointer"
+                  onClick={() => setIsLookupOpen(true)}
+                >
+                  <Input
+                    value={formData.Source_No || ""}
+                    onChange={(e) => setFormData({ ...formData, Source_No: e.target.value })}
+                    className="h-8 pr-8 text-xs cursor-pointer"
+                    placeholder="Select Source Number"
+                    readOnly
+                  />
+                  <div className="absolute top-0 right-0 flex h-8 w-8 items-center justify-center">
+                    <Search className="text-muted-foreground h-3.5 w-3.5" />
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label className="text-right text-[10px] font-bold uppercase tracking-wider">Source Name</Label>
+                <Input
+                  value={formData.Source_Name || ""}
+                  onChange={(e) => setFormData({ ...formData, Source_Name: e.target.value })}
+                  className="col-span-3 h-8 bg-muted/50 text-xs"
+                  placeholder="Enter Source Name"
+                  readOnly
+                />
+              </div>
+
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label className="text-right text-[10px] font-bold uppercase tracking-wider">Description</Label>
+                <Input
+                  value={formData.Description || ""}
+                  onChange={(e) => setFormData({ ...formData, Description: e.target.value })}
+                  className="col-span-3 h-8 text-xs"
+                  placeholder="Enter Description"
+                />
+              </div>
             </div>
 
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label className="text-right text-[10px] font-bold uppercase tracking-wider">Source Name</Label>
-              <Input
-                value={formData.Source_Name || ""}
-                onChange={(e) => setFormData({ ...formData, Source_Name: e.target.value })}
-                className="col-span-3 h-8 bg-muted/50 text-xs"
-                placeholder="Enter Source Name"
-                readOnly
-              />
-            </div>
-
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label className="text-right text-[10px] font-bold uppercase tracking-wider">Description</Label>
-              <Input
-                value={formData.Description || ""}
-                onChange={(e) => setFormData({ ...formData, Description: e.target.value })}
-                className="col-span-3 h-8 text-xs"
-                placeholder="Enter Description"
-              />
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button variant="ghost" size="sm" onClick={onClose} disabled={isSaving} className="h-8 text-[10px] font-bold uppercase tracking-wider">
-              Cancel
-            </Button>
-            <Button onClick={handleSave} disabled={isSaving} size="sm" className="h-8 text-[10px] font-bold uppercase tracking-wider">
-              {isSaving ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : <Save className="mr-2 h-3 w-3" />}
-              {mode === "add" ? "Add Line" : "Save Changes"}
-            </Button>
-          </DialogFooter>
+            <DialogFooter>
+              <Button type="button" variant="ghost" size="sm" onClick={onClose} disabled={isSaving} className="h-8 text-[10px] font-bold uppercase tracking-wider">
+                Cancel
+              </Button>
+              <Button type="submit" disabled={isSaving} size="sm" className="h-8 text-[10px] font-bold uppercase tracking-wider">
+                {isSaving ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : <Save className="mr-2 h-3 w-3" />}
+                {mode === "add" ? "Add Line" : "Save Changes"}
+              </Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
 

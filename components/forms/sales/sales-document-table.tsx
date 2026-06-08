@@ -63,7 +63,6 @@ export function SalesDocumentTable({
       { 
         threshold: 0.1, 
         rootMargin: "100px",
-        root: scrollContainerRef.current
       },
     );
 
@@ -160,13 +159,18 @@ export function SalesDocumentTable({
               <tr ref={sentinelRef}>
                 <td
                   colSpan={columns.length + (renderRowAction ? 2 : 1)}
-                  className="h-px p-0"
+                  className="p-0 border-0 bg-transparent"
                 >
-                  {isLoadingMore && (
-                    <div className="flex justify-center py-4">
-                      <Loader2 className="h-5 w-5 animate-spin text-primary" />
-                    </div>
-                  )}
+                  <div className="w-full flex items-center justify-center transition-all duration-200">
+                    {isLoadingMore ? (
+                      <div className="flex items-center gap-2 py-6 text-xs text-muted-foreground font-medium animate-pulse">
+                        <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                        <span>Loading more records...</span>
+                      </div>
+                    ) : (
+                      <div className="h-4 w-full" />
+                    )}
+                  </div>
                 </td>
               </tr>
             )}

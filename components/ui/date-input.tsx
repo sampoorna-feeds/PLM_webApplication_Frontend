@@ -216,7 +216,7 @@ export const DateInput = React.forwardRef<HTMLInputElement, DateInputProps>(
         className="text-muted-foreground hover:text-foreground absolute top-0 right-0 flex h-full items-center px-3"
         tabIndex={-1}
       >
-        <Calendar className="h-4 w-4" />
+        <Calendar className="h-3.5 w-3.5" />
       </button>
       {/* Hidden native date picker */}
       <input

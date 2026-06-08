@@ -302,11 +302,9 @@ export function SalesAddLineDialog({
 
   const handleTypeChange = useCallback((type: LineType) => {
     setUomOptions([]);
-    setForm((p) => ({
+    setForm(() => ({
       ...EMPTY_FORM,
       type,
-      gstGroupCode: p.gstGroupCode,
-      hsnSacCode: p.hsnSacCode,
     }));
   }, []);
 
@@ -472,8 +470,27 @@ export function SalesAddLineDialog({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent showCloseButton={false} className="sm:max-w-3xl max-h-[90vh] flex flex-col p-4">
-          <div className="space-y-2.5 overflow-y-auto flex-1 pr-1 -mr-1">
+        <DialogContent showCloseButton={false} className="sm:max-w-3xl max-h-[90vh] flex flex-col p-0 overflow-hidden">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleSubmit();
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                const target = e.target as HTMLElement;
+                if (
+                  target.tagName === "INPUT" ||
+                  target.tagName === "SELECT" ||
+                  target.getAttribute("role") === "combobox"
+                ) {
+                  e.preventDefault();
+                }
+              }
+            }}
+            className="flex flex-col flex-1 max-h-[90vh] p-4"
+          >
+            <div className="space-y-2.5 overflow-y-auto flex-1 pr-1 -mr-1">
             <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-12 px-1">
               <div className="space-y-1 sm:col-span-3">
                 <FieldTitle>Type</FieldTitle>
@@ -684,7 +701,7 @@ export function SalesAddLineDialog({
                     <FieldTitle>Amount</FieldTitle>
                       <Input
                         type="text"
-                        value={form.unitPrice !== "" ? amount.toFixed(2) : ""}
+                        value={form.unitPrice !== "" ? amount.toFixed(5) : ""}
                         disabled
                         readOnly
                         className={cn("bg-muted h-8 font-medium", fieldInputClass)}
@@ -827,36 +844,35 @@ export function SalesAddLineDialog({
             {validationError && (
               <p className="text-destructive text-xs mt-2">{validationError}</p>
             )}
-          </div>
-
-          <DialogFooter className="border-t pt-3 flex items-center justify-end gap-2 shrink-0">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="h-8 px-3"
-              onClick={() => onOpenChange(false)}
-              disabled={isSaving}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              className="h-8 px-3"
-              onClick={handleSubmit}
-              disabled={isSaving}
-            >
-              {isSaving ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Adding...
-                </>
-              ) : (
-                "Add Line"
-              )}
-            </Button>
-          </DialogFooter>
+            </div>
+            <DialogFooter className="border-t pt-3 flex items-center justify-end gap-2 shrink-0">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-8 px-3"
+                onClick={() => onOpenChange(false)}
+                disabled={isSaving}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                size="sm"
+                className="h-8 px-3"
+                disabled={isSaving}
+              >
+                {isSaving ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Adding...
+                  </>
+                ) : (
+                  "Add Line"
+                )}
+              </Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
 

@@ -121,7 +121,7 @@ export async function getSalesOrdersWithCount(
     $select = "No,Sell_to_Customer_No,Sell_to_Customer_Name,Posting_Date,Document_Date,External_Document_No,Status,Invoice_Type,Location_Code,Shortcut_Dimension_1_Code,Shortcut_Dimension_2_Code,Shortcut_Dimension_3_Code,Salesperson_Code,Ship_to_Code,Ship_to_Name",
     $filter,
     $orderby = "No desc",
-    $top = 10,
+    $top = 200,
     $skip,
   } = params;
 
@@ -160,11 +160,13 @@ export async function searchSalesOrders(
 ): Promise<PaginatedSalesOrdersResponse> {
   const { searchTerm, $top, $skip, ...rest } = params;
   if (!searchTerm || searchTerm.trim() === "") {
-    return getSalesOrdersWithCount(rest as GetSalesOrdersParams);
+    return getSalesOrdersWithCount(params);
   }
 
   const escaped = searchTerm.replace(/'/g, "''");
   const fieldsToSearch = ["No", "Sell_to_Customer_No", "Sell_to_Customer_Name"];
+
+  const limit = Math.max(($skip || 0) + ($top || 200), 200);
 
   // perform one request per field
   const responses = await Promise.all(
@@ -173,7 +175,7 @@ export async function searchSalesOrders(
       const filter = rest.$filter
         ? `${rest.$filter} and ${filterPart}`
         : filterPart;
-      return getSalesOrdersWithCount({ ...rest, $filter: filter });
+      return getSalesOrdersWithCount({ ...rest, $filter: filter, $top: limit });
     }),
   );
 
@@ -185,7 +187,8 @@ export async function searchSalesOrders(
   });
 
   const allOrders = Object.values(map);
-  const total = allOrders.length;
+  const hasMoreOnServer = responses.some((res) => res.totalCount > limit);
+  const totalCount = hasMoreOnServer ? Math.max(allOrders.length, limit + 1) : allOrders.length;
 
   // apply paging after merge
   let paged = allOrders;
@@ -195,7 +198,7 @@ export async function searchSalesOrders(
     paged = allOrders.slice(start, end);
   }
 
-  return { orders: paged, totalCount: total };
+  return { orders: paged, totalCount };
 }
 
 /**
@@ -511,7 +514,10 @@ export async function patchSalesOrderHeader(
 ): Promise<unknown> {
   const escapedNo = orderNo.replace(/'/g, "''");
   const endpoint = `/${HEADER_ENTITY}(Document_Type='${encodeURIComponent(DOCUMENT_TYPE)}',No='${encodeURIComponent(escapedNo)}')?company='${encodeURIComponent(COMPANY)}'`;
-  const payload = stripNullish(body);
+  const cleanBody = { ...body };
+  delete cleanBody.shortcutDimCode3;
+  delete cleanBody.ShortcutDimCode3;
+  const payload = stripEmptyValues(cleanBody);
   return apiPatch<unknown>(endpoint, payload);
 }
 
@@ -561,7 +567,10 @@ export async function updateSalesLine(
 ): Promise<unknown> {
   const escapedNo = documentNo.replace(/'/g, "''");
   const endpoint = `/${LINE_ENTITY}(Document_Type='${encodeURIComponent(DOCUMENT_TYPE)}',Document_No='${encodeURIComponent(escapedNo)}',Line_No=${lineNo})?company='${encodeURIComponent(COMPANY)}'`;
-  const payload = stripNullish(body);
+  const cleanBody = { ...body };
+  delete cleanBody.shortcutDimCode3;
+  delete cleanBody.ShortcutDimCode3;
+  const payload = stripEmptyValues(cleanBody);
   return apiPatch<unknown>(endpoint, payload);
 }
 

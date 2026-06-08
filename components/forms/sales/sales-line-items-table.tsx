@@ -23,6 +23,7 @@ import { Button } from "@/components/ui/button";
 import { Loader2, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Checkbox } from "@/components/ui/checkbox";
 import { SalesTaxInfoPopover } from "./sales-tax-info-popover";
 import { EditableQtyCell } from "../shared/editable-qty-cell";
 import { getSalesLineQuantityConfig } from "./sales-line-quantity-config";
@@ -56,6 +57,8 @@ interface SalesLineItemsTableProps {
     line: SalesLine,
     patch: Record<string, number>,
   ) => Promise<void>;
+  selectedLineNos?: number[];
+  onSelectionChange?: (nos: number[]) => void;
 }
 
 export function SalesLineItemsTable({
@@ -70,6 +73,8 @@ export function SalesLineItemsTable({
   readOnly = false,
   editable = false,
   onInlineUpdate,
+  selectedLineNos = [],
+  onSelectionChange,
 }: SalesLineItemsTableProps) {
   const [lineToDelete, setLineToDelete] = useState<SalesLine | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -166,6 +171,28 @@ export function SalesLineItemsTable({
         <Table>
           <TableHeader>
             <TableRow className="bg-primary/5 border-primary/20 border-b whitespace-nowrap">
+              {!readOnly && onSelectionChange && (
+                <TableHead className="w-12 px-4">
+                  <Checkbox
+                    checked={
+                      lines.length > 0 &&
+                      selectedLineNos.length === lines.length
+                    }
+                    onCheckedChange={(checked) => {
+                      if (checked) {
+                        onSelectionChange?.(
+                          lines
+                            .map((line) => line.Line_No)
+                            .filter((n): n is number => typeof n === "number"),
+                        );
+                      } else {
+                        onSelectionChange?.([]);
+                      }
+                    }}
+                    aria-label="Select all"
+                  />
+                </TableHead>
+              )}
               <TableHead className="text-primary w-12 text-center text-[10px] font-bold tracking-wider uppercase">
                 Tax
               </TableHead>
@@ -260,6 +287,23 @@ export function SalesLineItemsTable({
                     }
                   }}
                 >
+                  {!readOnly && onSelectionChange && (
+                    <TableCell className="w-12 px-4" onClick={(e) => e.stopPropagation()}>
+                      <Checkbox
+                        checked={selectedLineNos.includes(line.Line_No)}
+                        onCheckedChange={(checked) => {
+                          if (checked) {
+                            onSelectionChange?.([...selectedLineNos, line.Line_No]);
+                          } else {
+                            onSelectionChange?.(
+                              selectedLineNos.filter((no) => no !== line.Line_No),
+                            );
+                          }
+                        }}
+                        aria-label={`Select row ${line.Line_No}`}
+                      />
+                    </TableCell>
+                  )}
                   <TableCell
                     className="text-center"
                     onClick={(e) => e.stopPropagation()}

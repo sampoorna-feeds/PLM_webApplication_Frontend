@@ -98,7 +98,6 @@ export function buildSalesHeaderPatchPayload(
       shortcut_Dimension_1_Code: formData.lob || "",
       shortcut_Dimension_2_Code: formData.branch || "",
       shortcut_Dimension_3_Code: formData.locationCode || "",
-      shortcutDimCode3: formData.locationCode || "",
       responsibility_Center: formData.lob || "",
       applies_to_Doc_Type: formData.appliesToDocType || "",
       applies_to_Doc_No: formData.appliesToDocNo || "",
@@ -132,7 +131,6 @@ export function buildSalesHeaderPatchPayload(
       shortcut_Dimension_1_Code: formData.lob || "",
       shortcut_Dimension_2_Code: formData.branch || "",
       shortcut_Dimension_3_Code: formData.locationCode || "",
-      shortcutDimCode3: formData.locationCode || "",
       responsibility_Center: formData.lob || "",
     };
   }
@@ -146,11 +144,6 @@ export function buildSalesHeaderPatchPayload(
     if (finalVal !== orig.trim()) {
       const payloadField = bcField.charAt(0).toLowerCase() + bcField.slice(1);
       patch[payloadField] = finalVal;
-
-      // Sync ShortcutDimCode3 with Shortcut_Dimension_3_Code
-      if (bcField === "Shortcut_Dimension_3_Code") {
-        patch["shortcutDimCode3"] = finalVal;
-      }
     }
   };
 
@@ -182,6 +175,19 @@ export function buildSalesHeaderPatchPayload(
 
   if (supportsOrderDate) {
     compareDate("Order_Date", formData.orderDate || formData.postingDate);
+  }
+
+  // Ensure LOB and Branch are sent if any location field is modified
+  if (
+    patch["location_Code"] !== undefined ||
+    patch["shortcut_Dimension_3_Code"] !== undefined
+  ) {
+    if (patch["shortcut_Dimension_1_Code"] === undefined) {
+      patch["shortcut_Dimension_1_Code"] = (formData.lob || "").trim();
+    }
+    if (patch["shortcut_Dimension_2_Code"] === undefined) {
+      patch["shortcut_Dimension_2_Code"] = (formData.branch || "").trim();
+    }
   }
 
   return patch;
@@ -262,12 +268,8 @@ export function buildSalesPostPatchPayload(
     const origTransName = (original.Transporter_Name as string) || "";
 
     if (current.transporterCode) {
-      if (
-        current.transporterCode !== origTransCode ||
-        current.transporterName !== origTransName
-      ) {
+      if (current.transporterCode !== origTransCode) {
         patch.Transporter_Code = current.transporterCode;
-        patch.Transporter_Name = current.transporterName;
       }
     } else if (current.transporterName) {
       if (current.transporterName !== origTransName || origTransCode !== "") {

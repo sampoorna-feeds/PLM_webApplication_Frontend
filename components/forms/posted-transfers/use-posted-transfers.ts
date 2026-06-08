@@ -54,7 +54,7 @@ export function usePostedTransfers({ type, initialFilters }: UsePostedTransfersO
     fetchBranches();
   }, [userID]);
 
-  const [sortColumn, setSortColumn] = useState<string | null>("No");
+  const [sortColumn, setSortColumn] = useState<string | null>("Posting_Date");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -178,7 +178,10 @@ export function usePostedTransfers({ type, initialFilters }: UsePostedTransfersO
         setData(prev => [...prev, ...result.orders]);
       }
       setTotalCount(result.totalCount);
-      setHasMore(pageRef.current * pageSize < result.totalCount);
+      const hasMoreData = result.totalCount && result.totalCount > 0
+        ? pageRef.current * pageSize < result.totalCount
+        : ((result.orders?.length || 0) === pageSize);
+      setHasMore(hasMoreData);
       setCurrentPage(pageRef.current);
     } catch (error) {
       if (requestId !== lastRequestId.current) return;

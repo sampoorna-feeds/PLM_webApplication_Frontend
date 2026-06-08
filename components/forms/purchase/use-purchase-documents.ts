@@ -81,10 +81,12 @@ const DOCUMENT_API_HANDLERS: Record<PurchaseDocumentType, DocumentApiHandlers> =
 export interface UsePurchaseDocumentsOptions {
   documentType: PurchaseDocumentType;
   statusFilter?: PurchaseDocumentStatusTab;
+  externalPoType?: string;
+  externalOnPoTypeChange?: (value: string) => void;
 }
 
 export function usePurchaseDocuments(options: UsePurchaseDocumentsOptions) {
-  const { documentType, statusFilter } = options;
+  const { documentType, statusFilter, externalPoType, externalOnPoTypeChange } = options;
   const { userID } = useAuth();
 
   const columnConfig = useMemo(() => getColumnConfig(documentType), [documentType]);
@@ -107,7 +109,9 @@ export function usePurchaseDocuments(options: UsePurchaseDocumentsOptions) {
   const [additionalFilters, setAdditionalFilters] = useState<FilterCondition[]>(
     [],
   );
-  const [poType, setPoType] = useState<string>("Both");
+  const [internalPoType, setInternalPoType] = useState<string>("Both");
+  const poType = externalPoType ?? internalPoType;
+  const setPoType = externalOnPoTypeChange ?? setInternalPoType;
 
   const [visibleColumns, setVisibleColumns] = useState<string[]>(() =>
     typeof window !== "undefined"
@@ -217,7 +221,10 @@ export function usePurchaseDocuments(options: UsePurchaseDocumentsOptions) {
         setOrders((prev) => [...prev, ...result.orders]);
       }
       setTotalCount(result.totalCount);
-      setHasMore(pageRef.current * pageSize < result.totalCount);
+      const hasMoreData = result.totalCount && result.totalCount > 0
+        ? pageRef.current * pageSize < result.totalCount
+        : ((result.orders?.length || 0) === pageSize);
+      setHasMore(hasMoreData);
       setCurrentPage(pageRef.current);
     } catch (error) {
       if (requestId !== lastRequestId.current) return;
@@ -331,7 +338,7 @@ export function usePurchaseDocuments(options: UsePurchaseDocumentsOptions) {
     setSortColumn("No");
     setSortDirection("desc");
     setCurrentPage(1);
-  }, []);
+  }, [setPoType]);
 
   const handleAddAdditionalFilter = useCallback((filter: FilterCondition) => {
     setAdditionalFilters((previousFilters) => [...previousFilters, filter]);
@@ -363,7 +370,7 @@ export function usePurchaseDocuments(options: UsePurchaseDocumentsOptions) {
   const handlePoTypeChange = useCallback((value: string) => {
     setPoType(value);
     setCurrentPage(1);
-  }, []);
+  }, [setPoType]);
 
   return {
     orders,

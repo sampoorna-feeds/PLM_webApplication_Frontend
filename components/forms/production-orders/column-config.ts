@@ -61,24 +61,10 @@ export const DEFAULT_COLUMNS: ColumnConfig[] = [
     defaultVisible: true,
     filterType: "date",
   },
-  {
-    id: "Last_Date_Modified",
-    label: "Last Modified",
-    sortable: true,
-    defaultVisible: false,
-    filterType: "date",
-  },
 ];
 
 // Optional columns - can be toggled by user
 export const OPTIONAL_COLUMNS: ColumnConfig[] = [
-  {
-    id: "Status",
-    label: "Status",
-    sortable: true,
-    defaultVisible: false,
-    filterType: "enum",
-  },
   {
     id: "Source_Type",
     label: "Source Type",
@@ -115,13 +101,6 @@ export const OPTIONAL_COLUMNS: ColumnConfig[] = [
     filterType: "boolean",
   },
   {
-    id: "Hatching_Date",
-    label: "Hatching Date",
-    sortable: true,
-    defaultVisible: false,
-    filterType: "date",
-  },
-  {
     id: "Prod_Bom_No",
     label: "Prod BOM No",
     sortable: true,
@@ -141,20 +120,6 @@ export const OPTIONAL_COLUMNS: ColumnConfig[] = [
     sortable: true,
     defaultVisible: false,
     filterType: "text",
-  },
-  {
-    id: "Starting_Date",
-    label: "Starting Date",
-    sortable: true,
-    defaultVisible: false,
-    filterType: "date",
-  },
-  {
-    id: "Ending_Date",
-    label: "Ending Date",
-    sortable: true,
-    defaultVisible: false,
-    filterType: "date",
   },
   {
     id: "Shortcut_Dimension_1_Code",

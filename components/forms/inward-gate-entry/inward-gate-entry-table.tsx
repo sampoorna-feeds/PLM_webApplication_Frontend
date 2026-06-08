@@ -65,7 +65,6 @@ export function InwardGateEntryTable({
       { 
         threshold: 0.1, 
         rootMargin: "100px",
-        root: scrollContainerRef.current
       },
     );
 
@@ -144,18 +143,23 @@ export function InwardGateEntryTable({
                     key={entry.No || `row-${index}`}
                     entry={entry}
                     columns={columns}
-                    serialNo={startingSerialNo + index + 1}
+                    serialNo={index + 1}
                     onClick={onRowClick ? () => onRowClick(entry) : undefined}
                   />
                 ))}
                 {!isLoading && (
                   <tr ref={sentinelRef}>
-                    <td colSpan={columns.length + 1} className="h-px p-0">
-                      {isLoadingMore && (
-                        <div className="flex justify-center py-4">
-                          <Loader2 className="h-5 w-5 animate-spin text-primary" />
-                        </div>
-                      )}
+                    <td colSpan={columns.length + 1} className="p-0 border-0 bg-transparent">
+                      <div className="w-full flex items-center justify-center transition-all duration-200">
+                        {isLoadingMore ? (
+                          <div className="flex items-center gap-2 py-6 text-xs text-muted-foreground font-medium animate-pulse">
+                            <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                            <span>Loading more records...</span>
+                          </div>
+                        ) : (
+                          <div className="h-4 w-full" />
+                        )}
+                      </div>
                     </td>
                   </tr>
                 )}
@@ -296,7 +300,7 @@ function formatValue(value: any, columnId: string): string {
 
   if (typeof value === "number") {
     if (columnId.includes("Weight") || columnId.includes("Amount") || columnId.includes("Charges")) {
-      return value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      return value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 5 });
     }
     return value.toString();
   }

@@ -168,7 +168,7 @@ function formatCellValue(value: unknown): string {
   }
 
   if (typeof value === "number") {
-    return Number.isInteger(value) ? value.toString() : value.toFixed(2);
+    return Number.isInteger(value) ? value.toString() : parseFloat(value.toFixed(5)).toString();
   }
 
   return String(value);

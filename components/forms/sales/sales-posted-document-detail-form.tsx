@@ -103,7 +103,7 @@ function fmtDate(d?: string) {
 
 function fmtCurrency(n?: number) {
   if (n == null) return "";
-  return n.toLocaleString("en-IN", { minimumFractionDigits: 2 });
+  return n.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 5 });
 }
 
 function fmtBool(v?: boolean) {
@@ -432,14 +432,14 @@ function PostedLinesTable({
                   <TableCell className="font-medium">{String(l.No || "-")}</TableCell>
                   <TableCell>{String(l.Description || "-")}</TableCell>
                   <TableCell className="text-right">
-                    {l.Quantity != null ? Number(l.Quantity).toLocaleString() : "-"}
+                    {l.Quantity != null ? Number(l.Quantity).toLocaleString(undefined, { maximumFractionDigits: 5 }) : "-"}
                   </TableCell>
                   <TableCell>{String(l.Unit_of_Measure_Code || l.Unit_of_Measure || "-")}</TableCell>
                   {isInvoice && (
                     <>
                       <TableCell className="text-right">
                         {l.Unit_Price != null
-                          ? Number(l.Unit_Price).toLocaleString("en-IN", { minimumFractionDigits: 2 })
+                          ? Number(l.Unit_Price).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 5 })
                           : "-"}
                       </TableCell>
                       <TableCell className="text-right">
@@ -447,7 +447,7 @@ function PostedLinesTable({
                       </TableCell>
                       <TableCell className="text-right font-medium">
                         {l.Line_Amount != null
-                          ? Number(l.Line_Amount).toLocaleString("en-IN", { minimumFractionDigits: 2 })
+                          ? Number(l.Line_Amount).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 5 })
                           : "-"}
                       </TableCell>
                     </>

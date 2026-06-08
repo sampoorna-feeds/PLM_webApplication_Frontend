@@ -20,7 +20,7 @@ interface InventorySummaryTableProps {
 function fmtNum(val: number): string {
   return val.toLocaleString("en-IN", {
     minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
+    maximumFractionDigits: 5,
   });
 }
 

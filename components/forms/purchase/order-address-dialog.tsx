@@ -4,7 +4,7 @@
  * OrderAddressDialog — Create or Edit an order address for a vendor.
  */
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { toastError } from "@/lib/errors";
 import {
@@ -22,6 +22,10 @@ import {
   updateOrderAddress,
   type OrderAddress,
 } from "@/lib/api/services/order-address.service";
+import { getStates, type State } from "@/lib/api/services/state.service";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { ChevronDownIcon, CheckIcon, Search, X } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface OrderAddressDialogProps {
   open: boolean;
@@ -70,6 +74,81 @@ export function OrderAddressDialog({
   const isEdit = !!address;
   const [form, setForm] = useState<FormFields>(emptyForm);
   const [isSaving, setIsSaving] = useState(false);
+
+  // State selection states
+  const [states, setStates] = useState<State[]>([]);
+  const [stateSearchQuery, setStateSearchQuery] = useState("");
+  const [isStateOpen, setIsStateOpen] = useState(false);
+  const [stateActiveIndex, setStateActiveIndex] = useState(-1);
+  const activeItemRef = useRef<HTMLDivElement | null>(null);
+  const contactRef = useRef<HTMLInputElement>(null);
+
+  // Load states on mount (only once)
+  useEffect(() => {
+    let isMounted = true;
+    const loadStates = async () => {
+      try {
+        const statesList = await getStates();
+        if (isMounted) {
+          setStates(statesList);
+        }
+      } catch (error) {
+        console.error("Error loading states:", error);
+      }
+    };
+    loadStates();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  // Auto-scroll the active state item into view
+  useEffect(() => {
+    if (stateActiveIndex >= 0 && activeItemRef.current) {
+      activeItemRef.current.scrollIntoView({ block: "nearest" });
+    }
+  }, [stateActiveIndex]);
+
+  const handleStateChange = (value: string) => {
+    setForm((prev) => ({ ...prev, State: value }));
+    setIsStateOpen(false);
+    setStateSearchQuery("");
+    setStateActiveIndex(-1);
+    setTimeout(() => {
+      contactRef.current?.focus();
+    }, 50);
+  };
+
+  const filteredStates =
+    stateSearchQuery.length > 0
+      ? states.filter((state) => {
+          const codeMatch = state.Code?.toLowerCase().includes(
+            stateSearchQuery.toLowerCase(),
+          );
+          const nameMatch = state.Description?.toLowerCase().includes(
+            stateSearchQuery.toLowerCase(),
+          );
+          return codeMatch || nameMatch;
+        })
+      : states;
+
+  const selectedState = states.find((s) => s.Code === form.State);
+
+  const handleStateKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setStateActiveIndex((prev) => Math.min(prev + 1, filteredStates.length - 1));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setStateActiveIndex((prev) => Math.max(prev - 1, 0));
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      if (stateActiveIndex >= 0 && stateActiveIndex < filteredStates.length) {
+        handleStateChange(filteredStates[stateActiveIndex].Code);
+      }
+    }
+  };
 
   useEffect(() => {
     if (address) {
@@ -226,17 +305,94 @@ export function OrderAddressDialog({
             />
           </div>
           <div className={fieldClass}>
-            <Label className={labelClass}>State (GST)</Label>
-            <Input
-              value={form.State}
-              onChange={(e) => handleChange("State", e.target.value)}
-              className="h-8"
-              placeholder="State code (e.g. PB)"
-            />
+            <Label className={labelClass}>State (GST) *</Label>
+            <Popover 
+              open={isStateOpen} 
+              onOpenChange={(open) => {
+                setIsStateOpen(open);
+                if (!open) {
+                  setStateActiveIndex(-1);
+                  setStateSearchQuery("");
+                }
+              }}
+            >
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  className="h-8 w-full justify-between text-xs font-normal shadow-sm bg-background border-input"
+                >
+                  <span className="truncate">
+                    {selectedState ? `${selectedState.Description} (${selectedState.Code})` : "Select state"}
+                  </span>
+                  <ChevronDownIcon className="ml-2 h-3 w-3 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent
+                className="w-auto max-w-[300px] min-w-[200px] p-0 z-[100]"
+                align="start"
+              >
+                <div className="border-b p-2">
+                  <Input
+                    placeholder="Search state..."
+                    value={stateSearchQuery}
+                    onChange={(e) => {
+                      setStateSearchQuery(e.target.value);
+                      setStateActiveIndex(-1);
+                    }}
+                    onKeyDown={handleStateKeyDown}
+                    className="h-7 text-xs"
+                    autoFocus
+                  />
+                </div>
+                <div className="max-h-[150px] overflow-x-hidden overflow-y-auto">
+                  {filteredStates.length === 0 ? (
+                    <div className="text-muted-foreground p-3 text-center text-xs">
+                      No states found
+                    </div>
+                  ) : (
+                    filteredStates.map((state, idx) => {
+                      const isFocused = stateActiveIndex === idx;
+                      return (
+                        <div
+                          key={state.Code}
+                          ref={isFocused ? activeItemRef : undefined}
+                          onMouseEnter={() => setStateActiveIndex(idx)}
+                          onClick={() => handleStateChange(state.Code)}
+                          className={cn(
+                            "hover:bg-muted/50 relative flex cursor-default items-center rounded-sm px-2 py-1 text-xs outline-none select-none",
+                            form.State === state.Code && "bg-muted",
+                            isFocused && "bg-accent text-accent-foreground"
+                          )}
+                        >
+                          <CheckIcon
+                            className={cn(
+                              "mr-1.5 h-3 w-3 shrink-0",
+                              form.State === state.Code
+                                ? "opacity-100"
+                                : "opacity-0",
+                            )}
+                          />
+                          <div className="min-w-0 flex-1">
+                            <div className="text-foreground font-medium">
+                              {state.Description}
+                            </div>
+                            <div className="text-muted-foreground mt-0.5 text-[10px]">
+                              {state.Code}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </PopoverContent>
+            </Popover>
           </div>
           <div className={fieldClass}>
             <Label className={labelClass}>Contact</Label>
             <Input
+              ref={contactRef}
               value={form.Contact}
               onChange={(e) => handleChange("Contact", e.target.value)}
               className="h-8"

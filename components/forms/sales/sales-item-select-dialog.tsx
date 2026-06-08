@@ -88,6 +88,7 @@ export function SalesItemSelectDialog({
   const isAllFetched = useRef(false);
   const pageRef = useRef(0);
   const isKeyboardActionRef = useRef(false);
+  const closeReasonRef = useRef<"select" | "escape" | "tab" | "clickOutside" | null>(null);
 
   // Debounce search
   useEffect(() => {
@@ -204,15 +205,17 @@ export function SalesItemSelectDialog({
     if (disabled) return;
     setOpen(newOpen);
     isKeyboardActionRef.current = false;
-    if (!newOpen) {
-      setSearchQuery("");
+    if (newOpen) {
+      closeReasonRef.current = null;
       setActiveIndex(-1);
     } else {
+      setSearchQuery("");
       setActiveIndex(-1);
     }
   };
 
   const handleSelect = (item: Item) => {
+    closeReasonRef.current = "select";
     if (value === item.No) {
       selectedItemRef.current = undefined;
       onChange("", undefined);
@@ -245,8 +248,12 @@ export function SalesItemSelectDialog({
     } else if (e.key === "Escape") {
       if (open) {
         e.preventDefault();
+        closeReasonRef.current = "escape";
         setOpen(false);
       }
+    } else if (e.key === "Tab") {
+      closeReasonRef.current = "tab";
+      setOpen(false);
     }
   };
 
@@ -339,7 +346,14 @@ export function SalesItemSelectDialog({
         style={{ width: "min(620px, 92vw)", height: "400px" }}
         align="start"
         sideOffset={4}
+        onPointerDownOutside={() => {
+          closeReasonRef.current = "clickOutside";
+        }}
         onCloseAutoFocus={(e) => {
+          if (closeReasonRef.current === "tab" || closeReasonRef.current === "clickOutside") {
+            e.preventDefault();
+            return;
+          }
           e.preventDefault();
           inputRef.current?.focus();
         }}

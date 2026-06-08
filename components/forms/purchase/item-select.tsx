@@ -41,7 +41,7 @@ export function ItemSelect({
       className={className}
       hasError={hasError}
       keyExtractor={(item) => item.No}
-      displayValueExtractor={(item) => `${item.No} - ${item.Description}`}
+      displayValueExtractor={(item) => item.No}
       columns={[
         { id: "No", label: "Item No.", width: "150px" },
         { id: "Description", label: "Description" },

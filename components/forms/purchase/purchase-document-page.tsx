@@ -32,6 +32,7 @@ function PurchaseDocumentPageContent({
 }: PurchaseDocumentPageProps) {
   const refetchRef = useRef<(() => void) | null>(null);
   const [activeTab, setActiveTab] = useState<PurchaseTab>("all");
+  const [poType, setPoType] = useState<string>("Both");
   const config = getPurchaseDocumentConfig(documentType);
 
   return (
@@ -68,6 +69,8 @@ function PurchaseDocumentPageContent({
             <PurchaseDocumentView
               documentType={documentType}
               statusFilter={TAB_STATUS_MAP.open}
+              poType={poType}
+              onPoTypeChange={setPoType}
               onPlaceOrder={() => refetchRef.current?.()}
               registerRefetch={(refetch) => {
                 refetchRef.current = refetch;
@@ -82,6 +85,8 @@ function PurchaseDocumentPageContent({
             <PurchaseDocumentView
               documentType={documentType}
               statusFilter={TAB_STATUS_MAP.pending}
+              poType={poType}
+              onPoTypeChange={setPoType}
               onPlaceOrder={() => refetchRef.current?.()}
               registerRefetch={(refetch) => {
                 refetchRef.current = refetch;
@@ -96,6 +101,8 @@ function PurchaseDocumentPageContent({
             <PurchaseDocumentView
               documentType={documentType}
               statusFilter={TAB_STATUS_MAP.approved}
+              poType={poType}
+              onPoTypeChange={setPoType}
               onPlaceOrder={() => refetchRef.current?.()}
               registerRefetch={(refetch) => {
                 refetchRef.current = refetch;
@@ -110,6 +117,8 @@ function PurchaseDocumentPageContent({
             <PurchaseDocumentView
               documentType={documentType}
               statusFilter={TAB_STATUS_MAP.all}
+              poType={poType}
+              onPoTypeChange={setPoType}
               onPlaceOrder={() => refetchRef.current?.()}
               registerRefetch={(refetch) => {
                 refetchRef.current = refetch;

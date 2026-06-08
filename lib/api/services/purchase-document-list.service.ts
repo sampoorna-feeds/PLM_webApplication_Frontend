@@ -109,7 +109,7 @@ export async function getPurchaseDocumentListWithCount(
     $select = "No,Buy_from_Vendor_No,Buy_from_Vendor_Name,Order_Date,Posting_Date,Document_Date,Vendor_Order_No",
     $filter,
     $orderby = "No desc",
-    $top = 10,
+    $top = 200,
     $skip,
   } = params;
 
@@ -146,12 +146,14 @@ export async function searchPurchaseDocumentList(
   if (!searchTerm || searchTerm.trim() === "") {
     return getPurchaseDocumentListWithCount(
       documentType,
-      rest as GetPurchaseDocumentListParams,
+      params,
     );
   }
 
   const escaped = searchTerm.replace(/'/g, "''");
   const fieldsToSearch = ["No", "Buy_from_Vendor_No", "Buy_from_Vendor_Name"];
+
+  const limit = Math.max(($skip || 0) + ($top || 200), 200);
 
   // Merge unique records from per-field contains queries.
   const responses = await Promise.all(
@@ -164,6 +166,7 @@ export async function searchPurchaseDocumentList(
       return getPurchaseDocumentListWithCount(documentType, {
         ...rest,
         $filter: filter,
+        $top: limit,
       });
     }),
   );
@@ -176,7 +179,8 @@ export async function searchPurchaseDocumentList(
   });
 
   const allOrders = Object.values(map);
-  const total = allOrders.length;
+  const hasMoreOnServer = responses.some((res) => res.totalCount > limit);
+  const totalCount = hasMoreOnServer ? Math.max(allOrders.length, limit + 1) : allOrders.length;
 
   let paged = allOrders;
   if ($skip !== undefined || $top !== undefined) {
@@ -185,5 +189,5 @@ export async function searchPurchaseDocumentList(
     paged = allOrders.slice(start, end);
   }
 
-  return { orders: paged, totalCount: total };
+  return { orders: paged, totalCount };
 }

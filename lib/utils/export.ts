@@ -248,7 +248,7 @@ export function exportVouchersToExcel(
       let value = entry[col.key];
       // Format numeric values if necessary
       if (col.key === "Amount" && typeof value === "number") {
-        row[col.label] = parseFloat(value.toFixed(2));
+        row[col.label] = parseFloat(value.toFixed(5));
       } else {
         row[col.label] = value || "-";
       }

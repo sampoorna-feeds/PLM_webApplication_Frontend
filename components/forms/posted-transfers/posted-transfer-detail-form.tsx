@@ -25,10 +25,27 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ChevronDown, Loader2 } from "lucide-react";
+import { ChevronDown, Loader2, Undo2 } from "lucide-react";
 import { toast } from "sonner";
 import { toastError } from "@/lib/errors";
 import { formatDate } from "@/lib/utils/date";
+import { undoTransferShipment } from "@/lib/api/services/undo-actions.service";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { 
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 export interface PostedTransferDetailFormProps {
   tabId: string;
@@ -54,6 +71,20 @@ export function PostedTransferDetailForm({
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [undoingLine, setUndoingLine] = useState<number | null>(null);
+  const [confirmDialog, setConfirmDialog] = useState<{
+    isOpen: boolean;
+    title: string;
+    description: string;
+    onConfirm: () => void;
+    actionLabel?: string;
+    variant?: "default" | "destructive" | "outline" | "secondary" | "ghost" | "link";
+  }>({
+    isOpen: false,
+    title: "",
+    description: "",
+    onConfirm: () => {},
+  });
 
   const handleAction = async (actionName: string, fn: () => Promise<void>) => {
     try {
@@ -65,6 +96,34 @@ export function PostedTransferDetailForm({
     } finally {
       setActionLoading(null);
     }
+  };
+
+  const handleUndo = async (lineNo: number) => {
+    if (!activeNo) return;
+    
+    setConfirmDialog({
+      isOpen: true,
+      title: "Undo Shipment Line",
+      description: "Are you sure you want to undo this transfer shipment line item? This action cannot be reversed.",
+      actionLabel: "Undo",
+      variant: "destructive",
+      onConfirm: async () => {
+        setUndoingLine(lineNo);
+        try {
+          await undoTransferShipment(activeNo, lineNo);
+          toast.success("Shipment line item undone successfully.");
+          
+          // Refresh lines
+          const updatedLines = await getPostedTransferShipmentLines(activeNo);
+          setLines(updatedLines || []);
+        } catch (error: any) {
+          console.error("Undo error:", error);
+          toastError(error, "Failed to undo shipment line item.");
+        } finally {
+          setUndoingLine(null);
+        }
+      }
+    });
   };
 
   useEffect(() => {
@@ -266,6 +325,9 @@ export function PostedTransferDetailForm({
                   {type === "shipment" && (
                      <th className="px-4 py-3 text-right font-medium text-muted-foreground">Amount</th>
                   )}
+                  {type === "shipment" && (
+                     <th className="px-4 py-3 text-center font-medium text-muted-foreground">Actions</th>
+                  )}
                 </tr>
               </thead>
               <tbody>
@@ -283,13 +345,41 @@ export function PostedTransferDetailForm({
                     >
                       <td className="px-4 py-3 font-medium">{line.Item_No || "-"}</td>
                       <td className="px-4 py-3">{line.Description || "-"}</td>
-                      <td className="px-4 py-3 text-right font-medium">{line.Quantity?.toLocaleString() || 0}</td>
+                      <td className="px-4 py-3 text-right font-medium">{line.Quantity?.toLocaleString(undefined, { maximumFractionDigits: 5 }) || 0}</td>
                       <td className="px-4 py-3">{line.Unit_of_Measure || "-"}</td>
-                      <td className="px-4 py-3 text-right">{line.GSTBaseAmt?.toLocaleString(undefined, { minimumFractionDigits: 2 }) || "0.00"}</td>
+                      <td className="px-4 py-3 text-right">{line.GSTBaseAmt?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 5 }) || "0.00"}</td>
                       <td className="px-4 py-3 text-right">{line.GSTPer || 0}%</td>
-                      <td className="px-4 py-3 text-right font-medium">{line.TotalGSTAMt?.toLocaleString(undefined, { minimumFractionDigits: 2 }) || "0.00"}</td>
+                      <td className="px-4 py-3 text-right font-medium">{line.TotalGSTAMt?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 5 }) || "0.00"}</td>
                       {type === "shipment" && (
-                        <td className="px-4 py-3 text-right font-medium">{line.Amount != null ? line.Amount.toLocaleString(undefined, { minimumFractionDigits: 2 }) : "-"}</td>
+                        <td className="px-4 py-3 text-right font-medium">{line.Amount != null ? line.Amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 5 }) : "-"}</td>
+                      )}
+                      {type === "shipment" && (
+                        <td className="px-4 py-1 text-center">
+                          {line.Line_No && (
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-7 w-7 p-0 text-muted-foreground hover:text-red-600 hover:bg-red-50"
+                                    onClick={() => handleUndo(line.Line_No)}
+                                    disabled={undoingLine === line.Line_No}
+                                  >
+                                    {undoingLine === line.Line_No ? (
+                                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                    ) : (
+                                      <Undo2 className="h-3.5 w-3.5" />
+                                    )}
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>Undo Shipment</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          )}
+                        </td>
                       )}
                     </tr>
                   ))
@@ -299,6 +389,30 @@ export function PostedTransferDetailForm({
           </div>
         </div>
       </div>
+
+      <AlertDialog
+        open={confirmDialog.isOpen}
+        onOpenChange={(open) => setConfirmDialog((prev) => ({ ...prev, isOpen: open }))}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{confirmDialog.title}</AlertDialogTitle>
+            <AlertDialogDescription>{confirmDialog.description}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              variant={confirmDialog.variant}
+              onClick={() => {
+                confirmDialog.onConfirm();
+                setConfirmDialog((prev) => ({ ...prev, isOpen: false }));
+              }}
+            >
+              {confirmDialog.actionLabel || "Continue"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

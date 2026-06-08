@@ -402,7 +402,8 @@ export function ConsumeInventoryForm() {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-7">
+          <form onSubmit={(e) => { e.preventDefault(); handleSaveToERP(); }} className="space-y-5">
+            <div className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-7">
             <div className="space-y-1">
               <label className="text-muted-foreground ml-1 text-[11px] font-bold tracking-wider uppercase">
                 Posting Date
@@ -739,43 +740,45 @@ export function ConsumeInventoryForm() {
             </div>
           </div>
 
-          <div className="mt-5 flex justify-end items-center gap-3 border-t border-border/50 pt-4">
-            {submitting && (
-              <Badge
-                variant="secondary"
-                className="bg-primary/10 text-primary animate-pulse border-none"
-              >
-                {editingEntry ? "Updating..." : "Saving..."}
-              </Badge>
-            )}
-            {editingEntry && (
+            <div className="mt-5 flex justify-end items-center gap-3 border-t border-border/50 pt-4">
+              {submitting && (
+                <Badge
+                  variant="secondary"
+                  className="bg-primary/10 text-primary animate-pulse border-none"
+                >
+                  {editingEntry ? "Updating..." : "Saving..."}
+                </Badge>
+              )}
+              {editingEntry && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleCancelEdit}
+                  disabled={submitting}
+                  className="h-9 font-semibold border-border hover:bg-muted"
+                  size="sm"
+                >
+                  <X className="mr-2 h-4 w-4" />
+                  Cancel Edit
+                </Button>
+              )}
               <Button
-                variant="outline"
-                onClick={handleCancelEdit}
+                type="submit"
                 disabled={submitting}
-                className="h-9 font-semibold border-border hover:bg-muted"
+                className="font-bold bg-primary text-primary-foreground shadow-lg hover:shadow-primary/20 transition-all px-6 animate-shimmer"
                 size="sm"
               >
-                <X className="mr-2 h-4 w-4" />
-                Cancel Edit
+                {submitting ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : editingEntry ? (
+                  <Save className="mr-2 h-4 w-4" />
+                ) : (
+                  <Plus className="mr-2 h-4 w-4" />
+                )}
+                {editingEntry ? "Update" : "Save"}
               </Button>
-            )}
-            <Button
-              onClick={handleSaveToERP}
-              disabled={submitting}
-              className="font-bold bg-primary text-primary-foreground shadow-lg hover:shadow-primary/20 transition-all px-6 animate-shimmer"
-              size="sm"
-            >
-              {submitting ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : editingEntry ? (
-                <Save className="mr-2 h-4 w-4" />
-              ) : (
-                <Plus className="mr-2 h-4 w-4" />
-              )}
-              {editingEntry ? "Update" : "Save"}
-            </Button>
-          </div>
+            </div>
+          </form>
 
           <LedgerEntryModal
             isOpen={isApplyToModalOpen}

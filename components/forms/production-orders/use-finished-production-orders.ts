@@ -171,7 +171,10 @@ export function useFinishedProductionOrders() {
         setOrders((prev) => [...prev, ...result.orders]);
       }
       setTotalCount(result.totalCount);
-      setHasMore(currentPage * pageSize < result.totalCount);
+      const hasMoreData = result.totalCount && result.totalCount > 0
+        ? currentPage * pageSize < result.totalCount
+        : ((result.orders?.length || 0) === pageSize);
+      setHasMore(hasMoreData);
     } catch (error) {
       console.error("Error fetching finished production orders:", error);
       toastError(error, "Failed to load finished production orders. Please try again.");

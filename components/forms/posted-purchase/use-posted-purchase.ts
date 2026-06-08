@@ -28,7 +28,7 @@ export function usePostedPurchase(type: PostedPurchaseType, initialFilters?: { s
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const [hasMore, setHasMore] = useState(false);
-  const [sortColumn, setSortColumn] = useState<string | null>("No");
+  const [sortColumn, setSortColumn] = useState<string | null>("Posting_Date");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc" | null>("desc");
   const [searchQuery, setSearchQuery] = useState("");
   const [columnFilters, setColumnFilters] = useState<Record<string, { value: string; valueTo?: string }>>({});
@@ -59,10 +59,6 @@ export function usePostedPurchase(type: PostedPurchaseType, initialFilters?: { s
   const skipDateFilter = initialFilters?.skipDateFilter;
 
   const fetchDocuments = useCallback(async (reset = false) => {
-    if (!skipDateFilter && !dateFilter) {
-      setIsLoading(false);
-      return;
-    }
 
     if (userBranchCodes.length === 0) {
       setDocuments([]);
@@ -159,7 +155,7 @@ export function usePostedPurchase(type: PostedPurchaseType, initialFilters?: { s
 
       const filter = filterParts.length > 0 ? filterParts.join(" and ") : undefined;
       const baseParams: any = {
-        $orderby: sortColumn && sortDirection ? `${sortColumn} ${sortDirection}` : "No desc",
+        $orderby: sortColumn && sortDirection ? `${sortColumn} ${sortDirection}` : "Posting_Date desc",
         $filter: filter,
         $count: true,
       };
@@ -173,12 +169,13 @@ export function usePostedPurchase(type: PostedPurchaseType, initialFilters?: { s
         const vendorNoField = (type === "invoice" || type === "credit-memo") ? "Pay_to_Vendor_No" : "Buy_from_Vendor_No";
         const searchFields = ["No", vendorNoField, "Buy_from_Vendor_Name", "Location_Code"];
         
+        const limit = Math.max(pageRef.current * pageSize, 200);
         // Perform parallel requests for each searchable field to bypass OR operator limitation
         const responses = await Promise.all(
           searchFields.map(async (field) => {
             const fieldFilter = `contains(${field},'${escaped}')`;
             const combinedFilter = filter ? `(${filter}) and (${fieldFilter})` : fieldFilter;
-            const params = { ...baseParams, $filter: combinedFilter, $top: 100 }; // Fetch a decent pool
+            const params = { ...baseParams, $filter: combinedFilter, $top: limit };
             
             try {
               switch (type) {
@@ -217,9 +214,12 @@ export function usePostedPurchase(type: PostedPurchaseType, initialFilters?: { s
         const start = (pageRef.current - 1) * pageSize;
         const paged = merged.slice(start, start + pageSize);
         
+        const hasMoreOnServer = responses.some(resp => (resp?.["@odata.count"] ?? 0) > limit);
+        const searchTotalCount = hasMoreOnServer ? Math.max(merged.length, limit + 1) : merged.length;
+
         result = {
           value: paged,
-          "@odata.count": merged.length
+          "@odata.count": searchTotalCount
         };
       } else {
         const params = {
@@ -254,7 +254,11 @@ export function usePostedPurchase(type: PostedPurchaseType, initialFilters?: { s
         setDocuments((prev) => [...prev, ...(result.value || [])]);
       }
       setTotalCount(result["@odata.count"] ?? result.value?.length ?? 0);
-      setHasMore(pageRef.current * pageSize < (result["@odata.count"] ?? 0));
+      const count = result["@odata.count"];
+      const hasMoreData = count && count > 0
+        ? pageRef.current * pageSize < count
+        : ((result.value?.length || 0) === pageSize);
+      setHasMore(hasMoreData);
       setCurrentPage(pageRef.current);
     } catch (error) {
       if (requestId !== lastRequestId.current) return;

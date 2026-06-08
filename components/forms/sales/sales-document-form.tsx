@@ -58,22 +58,22 @@ export function SalesDocumentForm({
     });
   };
 
-  const handleSuccess = (savedOrderNo: string) => {
+  const handleSuccess = (savedOrderNo: string, isPosted?: boolean) => {
     const onOrderPlaced = context?.onOrderPlaced as (() => void) | undefined;
     const onUpdated =
-      (context?.onUpdated as (() => void) | undefined) ||
-      (context?.refetch as (() => void) | undefined);
+      (context?.onUpdated as ((reset?: boolean) => void) | undefined) ||
+      (context?.refetch as ((reset?: boolean) => void) | undefined);
 
     markAsSaved();
 
-    if (mode === "view") {
-      onUpdated?.();
+    if (isPosted || mode === "view") {
+      onUpdated?.(true);
       closeTab();
       return;
     }
 
     if (mode === "edit") {
-      onUpdated?.();
+      onUpdated?.(true);
     } else {
       onOrderPlaced?.();
     }
@@ -116,6 +116,7 @@ export function SalesDocumentForm({
         mode={mode}
         orderNo={orderNo || undefined}
         initialFormData={formData as Record<string, unknown> | undefined}
+        persistFormData={updateFormData}
       />
     </div>
   );

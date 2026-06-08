@@ -12,6 +12,7 @@ interface PaymentTermSelectProps {
   className?: string;
   hasError?: boolean;
   hideClearButton?: boolean;
+  showCodeOnly?: boolean;
 }
 
 export function PaymentTermSelect({
@@ -21,6 +22,7 @@ export function PaymentTermSelect({
   className,
   hasError,
   hideClearButton = true,
+  showCodeOnly = false,
 }: PaymentTermSelectProps) {
   const fetchData = useCallback(async (skip: number, search: string) => {
     return await purchaseDropdownsService.getPaymentTermsPage(skip, search, 30);
@@ -38,7 +40,9 @@ export function PaymentTermSelect({
       className={className}
       hasError={hasError}
       keyExtractor={(item) => item.Code}
-      displayValueExtractor={(item) => `${item.Code} - ${item.Description}`}
+      displayValueExtractor={(item) => 
+        showCodeOnly ? item.Code : `${item.Code} - ${item.Description}`
+      }
       columns={[
         { id: "Code", label: "Code", width: "150px" },
         { id: "Description", label: "Description" },

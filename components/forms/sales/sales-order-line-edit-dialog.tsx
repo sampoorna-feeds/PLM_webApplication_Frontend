@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { Loader2, Link2, Trash2, Search, X } from "lucide-react";
 import { toast } from "sonner";
 import { toastError } from "@/lib/errors";
@@ -109,6 +109,7 @@ export function SalesOrderLineEditDialog({
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const applToItemEntryRef = useRef<HTMLInputElement>(null);
   const [apiError, setApiError] = useState<ApiErrorState | null>(null);
   const [gstOptions, setGstOptions] = useState<SearchableSelectOption[]>([]);
   const [hsnOptions, setHsnOptions] = useState<SearchableSelectOption[]>([]);
@@ -372,7 +373,26 @@ export function SalesOrderLineEditDialog({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent showCloseButton={false} className="sm:max-w-lg max-h-[90vh] flex flex-col">
+        <DialogContent showCloseButton={false} className="sm:max-w-lg max-h-[90vh] flex flex-col p-0 overflow-hidden">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleSave();
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                const target = e.target as HTMLElement;
+                if (
+                  target.tagName === "INPUT" ||
+                  target.tagName === "SELECT" ||
+                  target.getAttribute("role") === "combobox"
+                ) {
+                  e.preventDefault();
+                }
+              }
+            }}
+            className="flex flex-col flex-1 max-h-[90vh] p-4"
+          >
           <DialogHeader className="border-b pb-3">
             <DialogTitle className={cn("text-base font-semibold", hasTracking ? "text-red-600" : "")}>
               Edit Sales Line
@@ -522,48 +542,33 @@ export function SalesOrderLineEditDialog({
                 <div className="space-y-1">
                   <Label className="text-xs font-medium">GST Group Code</Label>
                   <div className="max-w-[120px]">
-                    <ClearableField
+                    <DropdownSearchableSelect
                       value={gstGroupCode}
-                      onClear={() => {
-                        setGstGroupCode("");
+                      onValueChange={(val) => {
+                        setGstGroupCode(val);
                         setHsnSacCode("");
                       }}
+                      options={gstOptions}
+                      isLoading={loadingOptions.gst}
+                      placeholder="Select GST Group..."
+                      searchPlaceholder="Search GST Groups..."
                       disabled={isReleased}
-                    >
-                      <DropdownSearchableSelect
-                        value={gstGroupCode}
-                        onValueChange={(val) => {
-                          setGstGroupCode(val);
-                          setHsnSacCode("");
-                        }}
-                        options={gstOptions}
-                        isLoading={loadingOptions.gst}
-                        placeholder="Select GST Group..."
-                        searchPlaceholder="Search GST Groups..."
-                        disabled={isReleased}
-                      />
-                    </ClearableField>
+                    />
                   </div>
                 </div>
 
                 <div className="space-y-1">
                   <Label className="text-xs font-medium">HSN/SAC Code</Label>
                   <div className="max-w-[120px]">
-                    <ClearableField
+                    <DropdownSearchableSelect
                       value={hsnSacCode}
-                      onClear={() => setHsnSacCode("")}
+                      onValueChange={setHsnSacCode}
+                      options={hsnOptions}
+                      isLoading={loadingOptions.hsn}
+                      placeholder={gstGroupCode ? "Select HSN/SAC..." : "Select GST Group first"}
+                      searchPlaceholder="Search HSN/SAC Codes..."
                       disabled={!gstGroupCode || isReleased}
-                    >
-                      <DropdownSearchableSelect
-                        value={hsnSacCode}
-                        onValueChange={setHsnSacCode}
-                        options={hsnOptions}
-                        isLoading={loadingOptions.hsn}
-                        placeholder={gstGroupCode ? "Select HSN/SAC..." : "Select GST Group first"}
-                        searchPlaceholder="Search HSN/SAC Codes..."
-                        disabled={!gstGroupCode || isReleased}
-                      />
-                    </ClearableField>
+                    />
                   </div>
                 </div>
               </div>
@@ -574,6 +579,7 @@ export function SalesOrderLineEditDialog({
                   <div className="max-w-[280px]">
                     <div className="group relative">
                       <Input
+                        ref={applToItemEntryRef}
                         readOnly
                         value={(() => {
                           if (!applToItemEntry) return "";
@@ -679,10 +685,9 @@ export function SalesOrderLineEditDialog({
                 Cancel
               </Button>
               <Button
-                type="button"
+                type="submit"
                 size="sm"
                 className="h-8 px-3"
-                onClick={handleSave}
                 disabled={isSaving || isDeleting}
               >
                 {isSaving ? (
@@ -696,12 +701,16 @@ export function SalesOrderLineEditDialog({
               </Button>
             </div>
           </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
 
       <ApplyItemEntryModal
         isOpen={isApplyItemEntryOpen}
-        onClose={() => setIsApplyItemEntryOpen(false)}
+        onClose={() => {
+          setIsApplyItemEntryOpen(false);
+          setTimeout(() => applToItemEntryRef.current?.focus(), 50);
+        }}
         entries={ledgerEntries}
         onSelect={(entry) => setApplToItemEntry(String(entry.Entry_No))}
         title={`Select Applies-to Item Entry — ${line?.No ?? ""}`}

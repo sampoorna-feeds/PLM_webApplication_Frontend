@@ -66,9 +66,9 @@ function HeaderSearch() {
     .filter((category) => category.subItems.length > 0);
 
   return (
-    <div ref={containerRef} className="relative w-48 sm:w-64 mr-2">
+    <div ref={containerRef} className="relative w-48 sm:w-60 mr-1.5">
       <div className="relative">
-        <Search className="text-muted-foreground absolute top-2.5 left-3 h-4 w-4" />
+        <Search className="text-muted-foreground absolute top-2.5 left-2.5 h-3.5 w-3.5" />
         <Input
           type="text"
           placeholder="Search modules..."
@@ -78,21 +78,21 @@ function HeaderSearch() {
             setIsOpen(true);
           }}
           onFocus={() => setIsOpen(true)}
-          className="h-9 w-full pl-9 pr-3 text-xs rounded-lg border border-zinc-200 dark:border-zinc-800 bg-background/50 focus-visible:ring-emerald-500 focus-visible:ring-offset-0"
+          className="h-8 w-full pl-8 pr-2.5 text-xs rounded-[var(--radius)] bg-background/40"
         />
       </div>
 
       {isOpen && searchQuery !== "" && (
-        <div className="absolute right-0 top-full mt-1.5 w-72 md:w-80 max-h-[320px] overflow-y-auto rounded-xl border bg-popover p-2 text-popover-foreground shadow-lg z-50 animate-in fade-in-50 slide-in-from-top-1 duration-150">
+        <div className="absolute right-0 top-full mt-1.5 w-72 md:w-80 max-h-[320px] overflow-y-auto rounded-[var(--radius)] border bg-popover p-1.5 text-popover-foreground shadow-lg z-50 animate-in fade-in-50 slide-in-from-top-1 duration-150">
           {filteredModules.length === 0 ? (
             <div className="py-4 text-center text-xs text-muted-foreground">
               No results found
             </div>
           ) : (
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-1.5">
               {filteredModules.map((category) => (
                 <div key={category.id} className="flex flex-col">
-                  <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground/85">
+                  <div className="px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-muted-foreground/80">
                     {category.title}
                   </div>
                   <div className="flex flex-col gap-0.5">
@@ -104,9 +104,9 @@ function HeaderSearch() {
                           setIsOpen(false);
                           setSearchQuery("");
                         }}
-                        className="w-full flex items-center justify-between rounded-lg px-2 py-1.5 text-left text-xs hover:bg-zinc-100 dark:hover:bg-zinc-800/80 text-zinc-700 dark:text-zinc-300 transition-colors"
+                        className="w-full flex items-center justify-between rounded-[var(--radius)] px-2 py-1 text-left text-xs hover:bg-zinc-100 dark:hover:bg-zinc-800/60 text-zinc-700 dark:text-zinc-300 transition-colors"
                       >
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1.5">
                           <item.icon className="h-3.5 w-3.5 text-zinc-400" />
                           <span>{item.title}</span>
                         </div>
@@ -262,7 +262,7 @@ export default function ProtectedLayout({
   // Back button: show on all pages except the dashboard itself
   const showBackButton = pathname !== "/";
 
-  const backLabel = "Return to Dashboard";
+  const backLabel = "Dashboard";
   const backHref = "/";
 
   return (
@@ -270,21 +270,21 @@ export default function ProtectedLayout({
       <SidebarProvider defaultOpen={true}>
         <AppSidebar />
         <SidebarInset className="h-svh max-h-svh overflow-hidden">
-          <header className="flex h-16 shrink-0 items-center gap-4 border-b px-4">
+          <header className="flex h-12 shrink-0 items-center gap-3 border-b px-4 bg-background/80 backdrop-blur-md z-40">
             <SidebarTrigger />
             {breadcrumbs.length > 0 && (
               <Breadcrumb>
-                <BreadcrumbList>
+                <BreadcrumbList className="text-[11px]">
                   {breadcrumbs.map((crumb, index) => (
                     <React.Fragment key={index}>
                       {index > 0 && <BreadcrumbSeparator />}
                       <BreadcrumbItem>
                         {crumb.href ? (
-                          <BreadcrumbLink href={crumb.href}>
+                          <BreadcrumbLink href={crumb.href} className="text-muted-foreground hover:text-foreground">
                             {crumb.label}
                           </BreadcrumbLink>
                         ) : (
-                          <BreadcrumbPage>{crumb.label}</BreadcrumbPage>
+                          <BreadcrumbPage className="font-semibold text-foreground">{crumb.label}</BreadcrumbPage>
                         )}
                       </BreadcrumbItem>
                     </React.Fragment>
@@ -300,9 +300,9 @@ export default function ProtectedLayout({
                     variant="outline"
                     size="sm"
                     onClick={() => router.push(backHref)}
-                    className="gap-2"
+                    className="gap-1.5 h-8 text-xs px-2.5"
                   >
-                    <ArrowLeft className="h-4 w-4" />
+                    <ArrowLeft className="h-3.5 w-3.5" />
                     <span>{backLabel}</span>
                   </Button>
                 </>

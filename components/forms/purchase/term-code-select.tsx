@@ -12,6 +12,7 @@ interface TermCodeSelectProps {
   className?: string;
   hasError?: boolean;
   hideClearButton?: boolean;
+  showCodeOnly?: boolean;
 }
 
 export function TermCodeSelect({
@@ -21,6 +22,7 @@ export function TermCodeSelect({
   className,
   hasError,
   hideClearButton = true,
+  showCodeOnly = false,
 }: TermCodeSelectProps) {
   const fetchData = useCallback(async (skip: number, search: string) => {
     return await purchaseDropdownsService.getTermsAndConditionsPage(skip, search, 30);
@@ -38,7 +40,9 @@ export function TermCodeSelect({
       className={className}
       hasError={hasError}
       keyExtractor={(item) => item.Terms}
-      displayValueExtractor={(item) => `${item.Terms} - ${item.Conditions}`}
+      displayValueExtractor={(item) => 
+        showCodeOnly ? item.Terms : `${item.Terms} - ${item.Conditions}`
+      }
       columns={[
         { id: "Terms", label: "Terms", width: "150px" },
         { id: "Conditions", label: "Conditions" },

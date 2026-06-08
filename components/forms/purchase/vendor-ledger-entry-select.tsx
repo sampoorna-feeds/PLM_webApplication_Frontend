@@ -119,6 +119,9 @@ export function VendorLedgerEntrySelect({
 
   const sentinelRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const tableBodyRef = useRef<HTMLTableSectionElement>(null);
   const debouncedSearchRef = useRef(debouncedSearch);
   const sortColumnRef = useRef(sortColumn);
   const sortDirectionRef = useRef(sortDirection);
@@ -348,6 +351,7 @@ export function VendorLedgerEntrySelect({
   return (
     <>
       <Button
+        ref={triggerRef}
         type="button"
         variant="outline"
         role="combobox"
@@ -378,6 +382,10 @@ export function VendorLedgerEntrySelect({
         <DialogContent
           className="flex h-[88vh] flex-col gap-0 p-0"
           style={{ width: "min(1160px, 92vw)", maxWidth: "none" }}
+          onCloseAutoFocus={(e) => {
+            e.preventDefault();
+            triggerRef.current?.focus();
+          }}
         >
           {/* ── Header ────────────────────────────────────────────────── */}
           <DialogHeader className="shrink-0 border-b px-5 py-3.5">
@@ -419,11 +427,21 @@ export function VendorLedgerEntrySelect({
               <div className="relative flex-1">
                 <Search className="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
                 <Input
+                  ref={searchInputRef}
                   placeholder="Search by Document No. or External Document No. …"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="border-border/60 bg-background h-9 rounded-md pr-9 pl-9 text-sm shadow-none focus-visible:ring-1"
                   autoFocus
+                  onKeyDown={(e) => {
+                    if (e.key === "ArrowDown") {
+                      e.preventDefault();
+                      const firstRow = tableBodyRef.current?.querySelector(
+                        'tr[tabindex="0"]'
+                      ) as HTMLElement | null;
+                      firstRow?.focus();
+                    }
+                  }}
                 />
                 {searchQuery ? (
                   <button
@@ -475,7 +493,7 @@ export function VendorLedgerEntrySelect({
                   ))}
                 </tr>
               </thead>
-              <tbody>
+              <tbody ref={tableBodyRef}>
                 {loading ? (
                   <tr>
                     <td
@@ -524,13 +542,34 @@ export function VendorLedgerEntrySelect({
                       idx: number,
                       isSticky = false,
                     ) => {
-                      const isSelected = value === vendor.No;
+                      const isSelected = value === getEntryValue(vendor);
                       return (
                         <tr
                           key={vendor.Entry_No}
+                          tabIndex={0}
                           onClick={() => handleSelect(vendor)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              handleSelect(vendor);
+                            } else if (e.key === "ArrowDown") {
+                              e.preventDefault();
+                              const next = e.currentTarget.nextElementSibling as HTMLElement | null;
+                              if (next && next.tabIndex === 0) {
+                                next.focus();
+                              }
+                            } else if (e.key === "ArrowUp") {
+                              e.preventDefault();
+                              const prev = e.currentTarget.previousElementSibling as HTMLElement | null;
+                              if (prev && prev.tabIndex === 0) {
+                                prev.focus();
+                              } else {
+                                searchInputRef.current?.focus();
+                              }
+                            }
+                          }}
                           className={cn(
-                            "group cursor-pointer border-b transition-colors",
+                            "group cursor-pointer border-b transition-colors outline-none focus:bg-primary/[0.12] focus:ring-1 focus:ring-primary",
                             isSticky
                               ? "hover:brightness-95"
                               : cn(

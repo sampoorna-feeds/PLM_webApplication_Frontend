@@ -162,7 +162,7 @@ export function TransferOrderLineDialog({
   };
 
   const handleCalcAmount = (qty: number, price: number) => {
-    return Number((qty * price).toFixed(2));
+    return Number((qty * price).toFixed(5));
   };
 
   const handleChange = (field: string, value: any) => {
@@ -212,42 +212,62 @@ export function TransferOrderLineDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent showCloseButton={false} className="sm:max-w-3xl max-h-[90vh] flex flex-col">
-        <DialogHeader className="flex-row items-center justify-between border-b pb-3 space-y-0">
-          <DialogTitle>{isEdit ? "Edit Line Item" : "Add Line Item"}</DialogTitle>
-          <div className="flex items-center gap-2">
-            {isEdit && canAddBardana && (
+      <DialogContent showCloseButton={false} className="sm:max-w-3xl max-h-[90vh] flex flex-col p-0 overflow-hidden">
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleSubmit();
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              const target = e.target as HTMLElement;
+              if (
+                target.tagName === "INPUT" ||
+                target.tagName === "SELECT" ||
+                target.getAttribute("role") === "combobox"
+              ) {
+                e.preventDefault();
+              }
+            }
+          }}
+          className="flex flex-col h-full p-6"
+        >
+          <DialogHeader className="flex-row items-center justify-between border-b pb-3 space-y-0">
+            <DialogTitle>{isEdit ? "Edit Line Item" : "Add Line Item"}</DialogTitle>
+            <div className="flex items-center gap-2">
+              {isEdit && canAddBardana && (
+                <Button
+                  variant="ghost"
+                  type="button"
+                  size="sm"
+                  className="flex items-center gap-2 text-primary hover:bg-primary/5 h-8 px-2 mr-2"
+                  onClick={() => setIsBardanaOpen(true)}
+                >
+                  <Package className="h-4 w-4" />
+                  <span className="hidden sm:inline">Add Bardana</span>
+                </Button>
+              )}
               <Button
-                variant="ghost"
+                variant="outline"
                 type="button"
                 size="sm"
-                className="flex items-center gap-2 text-primary hover:bg-primary/5 h-8 px-2 mr-2"
-                onClick={() => setIsBardanaOpen(true)}
+                className="h-8 px-3"
+                onClick={() => onOpenChange(false)}
+                disabled={isSubmitting}
               >
-                <Package className="h-4 w-4" />
-                <span className="hidden sm:inline">Add Bardana</span>
+                Cancel
               </Button>
-            )}
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-8 px-3"
-              onClick={() => onOpenChange(false)}
-              disabled={isSubmitting}
-            >
-              Cancel
-            </Button>
-            <Button
-              size="sm"
-              className="h-8 px-3"
-              onClick={handleSubmit}
-              disabled={isSubmitting}
-            >
-              {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {isEdit ? "Update Line" : "Add Line"}
-            </Button>
-          </div>
-        </DialogHeader>
+              <Button
+                type="submit"
+                size="sm"
+                className="h-8 px-3"
+                disabled={isSubmitting}
+              >
+                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {isEdit ? "Update Line" : "Add Line"}
+              </Button>
+            </div>
+          </DialogHeader>
 
         <div className="space-y-4 overflow-y-auto flex-1 pr-1 -mr-1 mt-4">
           {formData.Description && (
@@ -414,10 +434,10 @@ export function TransferOrderLineDialog({
                           </TableCell>
                           <TableCell>{entry.Document_No}</TableCell>
                           <TableCell className="text-right">
-                            {entry.Quantity?.toLocaleString()}
+                            {entry.Quantity?.toLocaleString(undefined, { maximumFractionDigits: 5 })}
                           </TableCell>
                           <TableCell className="text-right font-medium text-green-600">
-                            {entry.Remaining_Quantity?.toLocaleString()}
+                            {entry.Remaining_Quantity?.toLocaleString(undefined, { maximumFractionDigits: 5 })}
                           </TableCell>
                           <TableCell className="text-xs">{entry.Lot_No || "-"}</TableCell>
                         </TableRow>
@@ -442,6 +462,7 @@ export function TransferOrderLineDialog({
         </Dialog>
 
 
+        </form>
       </DialogContent>
 
       {isBardanaOpen && (

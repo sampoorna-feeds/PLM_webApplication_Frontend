@@ -46,6 +46,7 @@ import { PaymentTermSelect } from "./payment-term-select";
 import { PaymentMethodSelect } from "./payment-method-select";
 import { InvoiceTypeSelect } from "./invoice-type-select";
 import { MandiNameSelect } from "./mandi-name-select";
+import { purchaseDropdownsService } from "@/lib/api/services/purchase-dropdowns.service";
 import { CreditorTypeSelect } from "./creditor-type-select";
 import {
   resolvePurchaseDocumentMode,
@@ -72,6 +73,7 @@ import {
   FileText,
   Paperclip,
   LoaderCircleIcon,
+  Loader2,
   Copy,
   MessageSquare,
   Printer,
@@ -198,6 +200,8 @@ import {
 } from "@/lib/api/services/purchase-copy-document.service";
 import { getVendorDetails } from "@/lib/api/services/vendor.service";
 import { preloadItems } from "@/lib/api/services/item.service";
+import { getVoucherReportPdf } from "@/lib/api/services/voucher.service";
+import { getPostedReportPdf } from "@/lib/api/services/posted-report.service";
 
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -446,18 +450,20 @@ export interface PurchaseCreateDocumentFormContentProps {
   onRequestEdit?: () => void;
   onCancelEdit?: () => void;
   /** Called when order is successfully placed */
-  onSuccess: (orderNo: string) => void;
+  onSuccess: (orderNo: string, isPosted?: boolean) => void;
   /** Initial form data (for restore on page load/tab reopen) */
   initialFormData?: Record<string, any>;
   /** Optional: persist form data (e.g. to FormStack tab). Omit for standalone page. */
   persistFormData?: (data: Record<string, any>) => void;
+  /** Optional: callback when document header is loaded or updated */
+  onHeaderLoaded?: (header: any) => void;
 }
 
 const formatAmount = (val: number | undefined): string => {
   if (val == null) return "0.00";
   return val.toLocaleString("en-IN", {
     minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
+    maximumFractionDigits: 5,
   });
 };
 
@@ -471,6 +477,7 @@ export function PurchaseCreateDocumentFormContent({
   onSuccess,
   initialFormData = {},
   persistFormData,
+  onHeaderLoaded,
 }: PurchaseCreateDocumentFormContentProps) {
   const config = PURCHASE_CREATE_DOCUMENT_CONFIG[documentType];
   const capabilities = getPurchaseDocumentCapabilities(documentType);
@@ -525,6 +532,9 @@ export function PurchaseCreateDocumentFormContent({
 
   const [userId, setUserId] = useState<string | undefined>(undefined);
   const [branchName, setBranchName] = useState<string>("");
+  const [termCodeDescription, setTermCodeDescription] = useState<string>("");
+  const [paymentTermDescription, setPaymentTermDescription] = useState<string>("");
+  const [mandiNameDescription, setMandiNameDescription] = useState<string>("");
 
   useEffect(() => {
     if (!formData.branch || !userId) {
@@ -537,6 +547,39 @@ export function PurchaseCreateDocumentFormContent({
       setBranchName(name && name !== formData.branch ? name : "");
     });
   }, [formData.branch, userId]);
+
+  useEffect(() => {
+    if (!formData.termCode) {
+      setTermCodeDescription("");
+      return;
+    }
+    purchaseDropdownsService.getTermsAndConditionsPage(0, formData.termCode, 10).then((items) => {
+      const found = items.find((item) => item.Terms === formData.termCode);
+      setTermCodeDescription(found ? found.Conditions : "");
+    });
+  }, [formData.termCode]);
+
+  useEffect(() => {
+    if (!formData.paymentTermCode) {
+      setPaymentTermDescription("");
+      return;
+    }
+    purchaseDropdownsService.getPaymentTermsPage(0, formData.paymentTermCode, 10).then((items) => {
+      const found = items.find((item) => item.Code === formData.paymentTermCode);
+      setPaymentTermDescription(found ? found.Description : "");
+    });
+  }, [formData.paymentTermCode]);
+
+  useEffect(() => {
+    if (!formData.mandiName) {
+      setMandiNameDescription("");
+      return;
+    }
+    purchaseDropdownsService.getMandiMastersPage(0, formData.mandiName, 10).then((items) => {
+      const found = items.find((item) => item.Code === formData.mandiName);
+      setMandiNameDescription(found ? found.Description : "");
+    });
+  }, [formData.mandiName]);
   const [lineItems, setLineItems] = useState<LineItem[]>(
     Array.isArray(initialFormData?.lineItems) ? initialFormData.lineItems : [],
   );
@@ -597,9 +640,11 @@ export function PurchaseCreateDocumentFormContent({
     [],
   );
   const [postResultDocs, setPostResultDocs] = useState<{
-    Voucher?: string;
-    Receipt?: string;
+    VoucherDOC?: string;
+    ReceiptDOC?: string;
+    postingDate?: string;
   }>({});
+  const [isPdfLoading, setIsPdfLoading] = useState<"voucher" | "receipt" | null>(null);
   const [isPostResultOpen, setIsPostResultOpen] = useState(false);
 
   // Reset Post Details when dialog opens
@@ -685,6 +730,23 @@ export function PurchaseCreateDocumentFormContent({
     if (persistFormData) persistFormData(data);
   };
 
+  // Automatically persist form state on changes, but only if not hydrating
+  const persistRef = useRef(persistFormData);
+  useEffect(() => {
+    persistRef.current = persistFormData;
+  }, [persistFormData]);
+
+  useEffect(() => {
+    if (persistRef.current && !isHydratingDocument) {
+      persistRef.current({
+        ...formData,
+        lineItems,
+        createdOrderNo,
+        status: documentStatus,
+      });
+    }
+  }, [formData, lineItems, createdOrderNo, documentStatus, isHydratingDocument]);
+
   // Get logged-in user ID
   useEffect(() => {
     const credentials = getAuthCredentials();
@@ -766,9 +828,14 @@ export function PurchaseCreateDocumentFormContent({
 
         const mappedFormData = mapPurchaseHeaderToFormData(header);
         const mappedLineItems = lines.map(mapPurchaseLineToLineItem);
-
+        const isRestoringDraft = initialFormData && Object.keys(initialFormData).length > 0;
         hydratedHeaderRef.current = header;
-        setFormData((prev) => ({ ...prev, ...mappedFormData }));
+        setFormData((prev) => {
+          if (isRestoringDraft) {
+            return { ...mappedFormData, ...prev } as typeof prev;
+          }
+          return { ...prev, ...mappedFormData } as typeof prev;
+        });
         setLineItems(mappedLineItems);
         setPurchaseLines(lines);
 
@@ -785,6 +852,8 @@ export function PurchaseCreateDocumentFormContent({
           createdOrderNo: hydratedDocumentNo,
           status: toStringValue(header.Status),
         });
+
+        onHeaderLoaded?.(header);
       })
       .catch((error) => {
         if (cancelled) return;
@@ -1203,6 +1272,8 @@ export function PurchaseCreateDocumentFormContent({
       createdOrderNo: docNo,
       status,
     });
+
+    onHeaderLoaded?.(header);
   };
 
   const handleCopyDocumentSuccess = (docNo?: string) => {
@@ -1403,11 +1474,105 @@ export function PurchaseCreateDocumentFormContent({
     [config],
   );
 
-  const base64ToPdfBlob = (b64: string) => {
-    const bin = atob(b64);
-    const bytes = new Uint8Array(bin.length);
-    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-    return new Blob([bytes], { type: "application/pdf" });
+  const base64ToPdfBlob = (base64Value: string) => {
+    const normalized = base64Value
+      .replace(/^data:application\/pdf;base64,/, "")
+      .replace(/\s/g, "");
+    const bytes = atob(normalized);
+    const arr = new Uint8Array(bytes.length);
+    for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i);
+    return new Blob([arr], { type: "application/pdf" });
+  };
+
+  const handleViewVoucherDoc = async (docNo: string, postingDate: string) => {
+    setIsPdfLoading("voucher");
+    try {
+      const base64 =
+        documentType === "return-order" || documentType === "credit-memo"
+          ? await getPostedReportPdf("PurchCreditMemo", docNo)
+          : await getVoucherReportPdf(docNo, postingDate);
+      if (!base64) throw new Error("No PDF content returned");
+      const blob = base64ToPdfBlob(base64);
+      const url = window.URL.createObjectURL(blob);
+      window.open(url, "_blank", "noopener,noreferrer");
+    } catch (err) {
+      toastError(err, `Failed to load ${documentType === "credit-memo" ? "Credit Memo" : "Voucher"} PDF.`);
+    } finally {
+      setIsPdfLoading(null);
+    }
+  };
+
+  const handleDownloadVoucherDoc = async (docNo: string, postingDate: string) => {
+    setIsPdfLoading("voucher");
+    try {
+      const base64 =
+        documentType === "return-order" || documentType === "credit-memo"
+          ? await getPostedReportPdf("PurchCreditMemo", docNo)
+          : await getVoucherReportPdf(docNo, postingDate);
+      if (!base64) throw new Error("No PDF content returned");
+      const blob = base64ToPdfBlob(base64);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      const docLabel =
+        documentType === "invoice"
+          ? "Posted_Invoice"
+          : documentType === "credit-memo"
+            ? "CreditMemo"
+            : "Voucher";
+      link.download = `${docLabel}_${docNo.replace(/\//g, "_")}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      toastError(err, `Failed to download ${documentType === "credit-memo" ? "Credit Memo" : "Voucher"} PDF.`);
+    } finally {
+      setIsPdfLoading(null);
+    }
+  };
+
+  const handleViewReceiptDoc = async (docNo: string) => {
+    setIsPdfLoading("receipt");
+    try {
+      const base64 =
+        documentType === "return-order"
+          ? await getPostedReportPdf("PurchReturnShipment", docNo)
+          : await getPostedReportPdf("PurchReceipt", docNo);
+      if (!base64) throw new Error("No PDF content returned");
+      const blob = base64ToPdfBlob(base64);
+      const url = window.URL.createObjectURL(blob);
+      window.open(url, "_blank", "noopener,noreferrer");
+    } catch (err) {
+      toastError(err, `Failed to load ${documentType === "return-order" ? "Return Shipment" : "Receipt"} PDF.`);
+    } finally {
+      setIsPdfLoading(null);
+    }
+  };
+
+  const handleDownloadReceiptDoc = async (docNo: string) => {
+    setIsPdfLoading("receipt");
+    try {
+      const base64 =
+        documentType === "return-order"
+          ? await getPostedReportPdf("PurchReturnShipment", docNo)
+          : await getPostedReportPdf("PurchReceipt", docNo);
+      if (!base64) throw new Error("No PDF content returned");
+      const blob = base64ToPdfBlob(base64);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      const docLabel = documentType === "return-order" ? "Return_Shipment" : "Receipt";
+      link.download = `${docLabel}_${docNo.replace(/\//g, "_")}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      toastError(err, `Failed to download ${documentType === "return-order" ? "Return Shipment" : "Receipt"} PDF.`);
+    } finally {
+      setIsPdfLoading(null);
+    }
   };
 
   const handlePrintPOReport = async () => {
@@ -1516,15 +1681,13 @@ export function PurchaseCreateDocumentFormContent({
         optMap[postOption],
         userId || "",
       );
-      // Parse the response: it returns a JSON where the `value` field is a base64-encoded string.
-      // Decoding the base64 yields a JSON string of shape { Voucher?: string; Receipt?: string }
       const docs = (() => {
         try {
           const responseObj = postResponse as Record<string, unknown>;
           let obj: Record<string, unknown> = {};
 
           if (typeof responseObj?.value === "string") {
-            const decodedStr = atob(responseObj.value);
+            const decodedStr = atob(responseObj.value.replace(/\s/g, ""));
             obj = JSON.parse(decodedStr);
           } else {
             // Fallback just in case the API changes or returns it directly
@@ -1532,24 +1695,66 @@ export function PurchaseCreateDocumentFormContent({
           }
 
           return {
-            Voucher: typeof obj?.Voucher === "string" ? obj.Voucher : undefined,
-            Receipt: typeof obj?.Receipt === "string" ? obj.Receipt : undefined,
+            VoucherDOC: typeof obj?.VoucherDOC === "string" ? obj.VoucherDOC : undefined,
+            ReceiptDOC: typeof obj?.ReceiptDOC === "string" ? obj.ReceiptDOC : undefined,
+            postingDate: typeof obj?.["Posting Date"] === "string"
+              ? obj["Posting Date"]
+              : typeof obj?.postingDate === "string"
+                ? obj.postingDate
+                : undefined,
           };
         } catch (err) {
-          console.error("Failed to parse PDF response:", err);
+          console.error("Failed to parse post response:", err);
           return {};
         }
       })();
-      setPostResultDocs(docs);
       toast.success(`${config.displayTitle} posted successfully.`);
       setIsPostDetailsOpen(false);
-      setIsPostResultOpen(true);
-      try {
-        await refreshHydratedDocument();
-      } catch {
-        // Document may no longer be accessible at this endpoint after posting
-        // (e.g. invoices/credit-memos move to posted state) — ignore silently
+
+      // Trigger automatic background PDF fetch and open
+      if (docs.VoucherDOC) {
+        const vDoc = docs.VoucherDOC;
+        const pDate = docs.postingDate || "";
+        const docType = documentType;
+        void (async () => {
+          try {
+            const base64 =
+              docType === "return-order" || docType === "credit-memo"
+                ? await getPostedReportPdf("PurchCreditMemo", vDoc)
+                : await getVoucherReportPdf(vDoc, pDate);
+            if (base64) {
+              const blob = base64ToPdfBlob(base64);
+              const url = window.URL.createObjectURL(blob);
+              window.open(url, "_blank", "noopener,noreferrer");
+            }
+          } catch (err) {
+            console.error("Failed to auto-load Voucher PDF:", err);
+          }
+        })();
       }
+
+      if (docs.ReceiptDOC) {
+        const rDoc = docs.ReceiptDOC;
+        const docType = documentType;
+        void (async () => {
+          try {
+            const base64 =
+              docType === "return-order"
+                ? await getPostedReportPdf("PurchReturnShipment", rDoc)
+                : await getPostedReportPdf("PurchReceipt", rDoc);
+            if (base64) {
+              const blob = base64ToPdfBlob(base64);
+              const url = window.URL.createObjectURL(blob);
+              window.open(url, "_blank", "noopener,noreferrer");
+            }
+          } catch (err) {
+            console.error("Failed to auto-load Receipt PDF:", err);
+          }
+        })();
+      }
+
+      // Immediately return to header list page and refresh the list once!
+      onSuccess(createdOrderNo, true);
       // onSuccess is called when the user closes the post-result dialog
     } catch (err) {
       setPlaceOrderError(getErrorMessage(err, "Post failed."));
@@ -1731,54 +1936,38 @@ export function PurchaseCreateDocumentFormContent({
                     {/* Dimensions */}
                     <div className={fieldClass}>
                       <label className={labelClass}>LOB</label>
-                      <ClearableField
-                        readOnly={areFieldsReadOnly}
+                      <CascadingDimensionSelect
+                        dimensionType="LOB"
                         value={formData.lob}
-                        onClear={() => {
-                          handleInputChange("lob", "");
-                          handleInputChange("branch", "");
-                          handleInputChange("locationCode", "");
+                        onChange={(value) => {
+                          handleInputChange("lob", value);
+                          if (value !== formData.lob) {
+                            handleInputChange("branch", "");
+                            handleInputChange("locationCode", "");
+                          }
                         }}
-                      >
-                        <CascadingDimensionSelect
-                          dimensionType="LOB"
-                          value={formData.lob}
-                          onChange={(value) => {
-                            handleInputChange("lob", value);
-                            if (value !== formData.lob) {
-                              handleInputChange("branch", "");
-                              handleInputChange("locationCode", "");
-                            }
-                          }}
-                          placeholder="Select LOB"
-                          userId={userId}
-                          compactWhenSingle
-                        />
-                      </ClearableField>
+                        placeholder="Select LOB"
+                        userId={userId}
+                        compactWhenSingle
+                        disabled={areFieldsReadOnly}
+                      />
                     </div>
                     <div className={fieldClass}>
                       <label className={labelClass}>Branch</label>
-                      <ClearableField
-                        readOnly={areFieldsReadOnly}
+                      <CascadingDimensionSelect
+                        dimensionType="BRANCH"
                         value={formData.branch}
-                        onClear={() => {
-                          handleInputChange("branch", "");
+                        onChange={(value) => {
+                          handleInputChange("branch", value);
                           handleInputChange("locationCode", "");
                         }}
-                      >
-                        <CascadingDimensionSelect
-                          dimensionType="BRANCH"
-                          value={formData.branch}
-                          onChange={(value) => {
-                            handleInputChange("branch", value);
-                            handleInputChange("locationCode", "");
-                          }}
-                          placeholder="Select Branch"
-                          lobValue={formData.lob}
-                          userId={userId}
-                          compactWhenSingle
-                        />
-                      </ClearableField>
+                        placeholder="Select Branch"
+                        lobValue={formData.lob}
+                        userId={userId}
+                        compactWhenSingle
+                        disabled={areFieldsReadOnly}
+                        showCodeOnly
+                      />
                       {branchName && (
                         <p className="text-muted-foreground/90 mt-0.5 pl-1 text-[11px] leading-tight font-medium italic">
                           {branchName}
@@ -1828,6 +2017,7 @@ export function PurchaseCreateDocumentFormContent({
                           value={formData.vendorNo}
                           onChange={handleVendorChange}
                           placeholder="Select Vendor"
+                          showCodeOnly={true}
                         />
                       </ClearableField>
                       {formData.vendorName && (
@@ -1956,6 +2146,7 @@ export function PurchaseCreateDocumentFormContent({
                               brokerName: broker?.Name || "",
                             }))
                           }
+                          showCodeOnly={true}
                         />
                       </ClearableField>
                       <p className="text-primary mt-0.5 truncate pl-1 text-[11px] leading-tight font-semibold italic">
@@ -2025,6 +2216,7 @@ export function PurchaseCreateDocumentFormContent({
                             }));
                           }}
                           placeholder="Select Purchaser"
+                          showCodeOnly={true}
                         />
                       </ClearableField>
                       <p className="text-primary mt-0.5 truncate pl-1 text-[11px] leading-tight font-semibold italic">
@@ -2253,8 +2445,14 @@ export function PurchaseCreateDocumentFormContent({
                             handleInputChange("termCode", value)
                           }
                           disabled={areFieldsReadOnly}
+                          showCodeOnly={true}
                         />
                       </ClearableField>
+                      {termCodeDescription && (
+                        <p className="text-muted-foreground/90 mt-0.5 pl-1 text-[11px] leading-tight font-medium italic break-words whitespace-normal">
+                          {termCodeDescription}
+                        </p>
+                      )}
                     </div>
                     <div className={fieldClass}>
                       <label className={labelClass}>Payment Term</label>
@@ -2269,8 +2467,14 @@ export function PurchaseCreateDocumentFormContent({
                             handleInputChange("paymentTermCode", value)
                           }
                           disabled={areFieldsReadOnly}
+                          showCodeOnly={true}
                         />
                       </ClearableField>
+                      {paymentTermDescription && (
+                        <p className="text-muted-foreground/90 mt-0.5 pl-1 text-[11px] leading-tight font-medium italic break-words whitespace-normal">
+                          {paymentTermDescription}
+                        </p>
+                      )}
                     </div>
                     <div className={fieldClass}>
                       <label className={labelClass}>Payment Method Code</label>
@@ -2303,8 +2507,14 @@ export function PurchaseCreateDocumentFormContent({
                             handleInputChange("mandiName", value)
                           }
                           disabled={areFieldsReadOnly}
+                          showCodeOnly={true}
                         />
                       </ClearableField>
+                      {mandiNameDescription && (
+                        <p className="text-muted-foreground/90 mt-0.5 pl-1 text-[11px] leading-tight font-medium italic break-words whitespace-normal">
+                          {mandiNameDescription}
+                        </p>
+                      )}
                     </div>
                   </div>
                 </section>
@@ -2486,31 +2696,36 @@ export function PurchaseCreateDocumentFormContent({
             <>
               {/* Left: status badge (view/edit) or contextual info (create) */}
               {documentStatus && createdOrderNo && !isCreateMode && (
-                <div className="mr-auto flex items-center gap-2">
-                  <span className="text-muted-foreground text-[10px] font-medium tracking-wider uppercase">
-                    Status:
+                <div className="mr-auto flex items-center gap-4">
+                  <span className="text-primary text-xs font-semibold">
+                    {config.displayTitle} {createdOrderNo}{formData.vendorName ? ` - ${formData.vendorName}` : ""}
                   </span>
-                  <Badge
-                    variant="outline"
-                    className={cn(
-                      "h-6 px-3 text-[10px] font-bold tracking-wider uppercase",
-                      documentStatus === "Released" &&
-                        "border-green-200 bg-green-500/10 text-green-600",
-                      documentStatus === "Pending Approval" &&
-                        "border-yellow-200 bg-yellow-500/10 text-yellow-600",
-                      documentStatus === "Open" &&
-                        "border-blue-200 bg-blue-500/10 text-blue-600",
-                    )}
-                  >
-                    {documentStatus}
-                  </Badge>
+                  <div className="flex items-center gap-2">
+                    <span className="text-muted-foreground text-[10px] font-medium tracking-wider uppercase">
+                      Status:
+                    </span>
+                    <Badge
+                      variant="outline"
+                      className={cn(
+                        "h-6 px-3 text-[10px] font-bold tracking-wider uppercase",
+                        documentStatus === "Released" &&
+                          "border-green-200 bg-green-500/10 text-green-600",
+                        documentStatus === "Pending Approval" &&
+                          "border-yellow-200 bg-yellow-500/10 text-yellow-600",
+                        documentStatus === "Open" &&
+                          "border-blue-200 bg-blue-500/10 text-blue-600",
+                      )}
+                    >
+                      {documentStatus}
+                    </Badge>
+                  </div>
                 </div>
               )}
               {isCreateMode && (
                 <div className="mr-auto">
                   {createdOrderNo ? (
                     <span className="text-primary text-xs font-medium">
-                      {config.displayTitle} {createdOrderNo} — Add line items to
+                      {config.displayTitle} {createdOrderNo}{formData.vendorName ? ` - ${formData.vendorName}` : ""} — Add line items to
                       complete
                     </span>
                   ) : (
@@ -3509,115 +3724,7 @@ export function PurchaseCreateDocumentFormContent({
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Post result dialog */}
-      <Dialog open={isPostResultOpen} onOpenChange={setIsPostResultOpen}>
-        <DialogContent className="sm:max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Document Posted</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3 py-2">
-            {!postResultDocs.Voucher && !postResultDocs.Receipt ? (
-              <p className="text-muted-foreground py-2 text-center text-sm">
-                Document posted successfully, but no documents are available.
-              </p>
-            ) : (
-              <>
-                {postResultDocs.Voucher && (
-                  <div className="flex items-center justify-between rounded-md border p-3">
-                    <span className="text-sm font-medium">
-                      {documentType === "invoice"
-                        ? "Posted Invoice"
-                        : documentType === "credit-memo" ||
-                            documentType === "return-order"
-                          ? "Posted Credit Memo"
-                          : "Voucher"}
-                    </span>
-                    <div className="flex gap-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => {
-                          const blob = base64ToPdfBlob(postResultDocs.Voucher!);
-                          const url = window.URL.createObjectURL(blob);
-                          window.open(url, "_blank", "noopener,noreferrer");
-                        }}
-                      >
-                        Open
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => {
-                          const blob = base64ToPdfBlob(postResultDocs.Voucher!);
-                          const url = window.URL.createObjectURL(blob);
-                          const link = document.createElement("a");
-                          link.href = url;
-                          link.download = `${documentType === "invoice" ? "Posted_Invoice" : "Voucher"}.pdf`;
-                          document.body.appendChild(link);
-                          link.click();
-                          document.body.removeChild(link);
-                          window.URL.revokeObjectURL(url);
-                        }}
-                      >
-                        <Printer className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                )}
-                {postResultDocs.Receipt && (
-                  <div className="flex items-center justify-between rounded-md border p-3">
-                    <span className="text-sm font-medium">
-                      {documentType === "return-order"
-                        ? "Return Shipment"
-                        : "Receipt"}
-                    </span>
-                    <div className="flex gap-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => {
-                          const blob = base64ToPdfBlob(postResultDocs.Receipt!);
-                          const url = window.URL.createObjectURL(blob);
-                          window.open(url, "_blank", "noopener,noreferrer");
-                        }}
-                      >
-                        Open
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => {
-                          const blob = base64ToPdfBlob(postResultDocs.Receipt!);
-                          const url = window.URL.createObjectURL(blob);
-                          const link = document.createElement("a");
-                          link.href = url;
-                          link.download = `${documentType === "return-order" ? "Return_Shipment" : "Receipt"}.pdf`;
-                          document.body.appendChild(link);
-                          link.click();
-                          document.body.removeChild(link);
-                          window.URL.revokeObjectURL(url);
-                        }}
-                      >
-                        <Printer className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                )}
-              </>
-            )}
-          </div>
-          <DialogFooter>
-            <Button
-              onClick={() => {
-                setIsPostResultOpen(false);
-                onSuccess(createdOrderNo);
-              }}
-            >
-              Close
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+
     </>
   );
 }
@@ -3630,7 +3737,7 @@ interface PurchaseCreateDocumentFormProps {
   orderNo?: string;
   formData?: Record<string, any>;
   context?: Record<string, any>;
-  onSuccess?: (orderNo: string) => void;
+  onSuccess?: (orderNo: string, isPosted?: boolean) => void;
   persistFormData?: (data: Record<string, any>) => void;
   onRequestEdit?: () => void;
   onCancelEdit?: () => void;

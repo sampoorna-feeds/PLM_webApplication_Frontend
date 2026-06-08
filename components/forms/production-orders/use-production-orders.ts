@@ -193,10 +193,17 @@ export function useProductionOrders() {
 
       // If there's a search query, make 2 parallel API calls
       if (searchQuery.trim()) {
+        const limit = Math.max(pageRef.current * pageSize, 200);
+        const searchParams = {
+          $select: baseParams.$select,
+          $orderby: baseParams.$orderby,
+          $top: limit,
+        };
+
         const [resultByNo, resultByDesc] = await Promise.all([
           getProductionOrdersWithCount(
             {
-              ...baseParams,
+              ...searchParams,
               $filter: buildFilterString("No"),
             },
             lobCodes,
@@ -204,7 +211,7 @@ export function useProductionOrders() {
           ),
           getProductionOrdersWithCount(
             {
-              ...baseParams,
+              ...searchParams,
               $filter: buildFilterString("Search_Description"),
             },
             lobCodes,
@@ -223,10 +230,16 @@ export function useProductionOrders() {
           }
         }
 
-        // Limit to pageSize and estimate total count
+        // Apply pagination client-side on merged results
+        const start = (pageRef.current - 1) * pageSize;
+        const paged = mergedOrders.slice(start, start + pageSize);
+
+        const hasMoreOnServer = resultByNo.totalCount > limit || resultByDesc.totalCount > limit;
+        const searchTotalCount = hasMoreOnServer ? Math.max(mergedOrders.length, limit + 1) : mergedOrders.length;
+
         result = {
-          orders: mergedOrders.slice(0, pageSize),
-          totalCount: Math.max(resultByNo.totalCount, resultByDesc.totalCount),
+          orders: paged,
+          totalCount: searchTotalCount,
         };
       } else {
         result = await getProductionOrdersWithCount(
@@ -247,7 +260,10 @@ export function useProductionOrders() {
         setOrders((prev) => [...prev, ...result.orders]);
       }
       setTotalCount(result.totalCount);
-      setHasMore(pageRef.current * pageSize < result.totalCount);
+      const hasMoreData = result.totalCount && result.totalCount > 0
+        ? pageRef.current * pageSize < result.totalCount
+        : ((result.orders?.length || 0) === pageSize);
+      setHasMore(hasMoreData);
       setCurrentPage(pageRef.current);
     } catch (error) {
       if (requestId !== lastRequestId.current) return;

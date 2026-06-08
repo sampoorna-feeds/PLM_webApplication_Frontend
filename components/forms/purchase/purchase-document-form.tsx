@@ -10,7 +10,7 @@ import {
 } from "./purchase-document-config";
 import { useFormStack } from "@/lib/form-stack/use-form-stack";
 import { useFormStackContext } from "@/lib/form-stack/form-stack-context";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import {
   resolvePurchaseDocumentMode,
   resolvePurchaseDocumentType,
@@ -34,6 +34,9 @@ export function PurchaseDocumentForm({
     documentType ?? resolvePurchaseDocumentType(context) ?? "order";
   const mode = resolvePurchaseDocumentMode(context) as PurchaseDocumentFormMode;
   const orderNo = typeof context?.orderNo === "string" ? context.orderNo : "";
+  const [vendorName, setVendorName] = useState(
+    typeof context?.vendorName === "string" ? context.vendorName : ""
+  );
   const config = getPurchaseDocumentConfig(resolvedDocumentType);
 
   const { markAsSaved, closeTab, updateFormData } = useFormStack(tabId);
@@ -48,18 +51,20 @@ export function PurchaseDocumentForm({
 
   const handleCancelEdit = () => {
     if (!orderNo) return;
+    const titleSuffix = vendorName ? ` - ${vendorName}` : "";
     updateTab(tabId, {
-      title: `${config.detailTitlePrefix} ${orderNo}`,
+      title: `${config.detailTitlePrefix} ${orderNo}${titleSuffix}`,
       context: {
         ...context,
         documentType: resolvedDocumentType,
         mode: "view",
         orderNo,
+        vendorName,
       },
     });
   };
 
-  const handleSuccess = (savedOrderNo: string) => {
+  const handleSuccess = (savedOrderNo: string, isPosted?: boolean) => {
     const onOrderPlaced = context?.onOrderPlaced as (() => void) | undefined;
     const onUpdated =
       (context?.onUpdated as (() => void) | undefined) ||
@@ -67,7 +72,7 @@ export function PurchaseDocumentForm({
 
     markAsSaved();
 
-    if (mode === "view") {
+    if (isPosted || mode === "view") {
       onUpdated?.();
       closeTab();
       return;
@@ -79,22 +84,25 @@ export function PurchaseDocumentForm({
       onOrderPlaced?.();
     }
 
+    const titleSuffix = vendorName ? ` - ${vendorName}` : "";
     updateTab(tabId, {
-      title: `${config.detailTitlePrefix} ${savedOrderNo}`,
+      title: `${config.detailTitlePrefix} ${savedOrderNo}${titleSuffix}`,
       context: {
         ...context,
         documentType: resolvedDocumentType,
         mode: "view",
         orderNo: savedOrderNo,
         refetch: onUpdated,
+        vendorName,
       },
     });
   };
 
   const handleRequestEdit = () => {
     if (!orderNo) return;
+    const titleSuffix = vendorName ? ` - ${vendorName}` : "";
     updateTab(tabId, {
-      title: `Edit ${config.detailTitlePrefix} ${orderNo}`,
+      title: `Edit ${config.detailTitlePrefix} ${orderNo}${titleSuffix}`,
       context: {
         ...context,
         documentType: resolvedDocumentType,
@@ -103,6 +111,20 @@ export function PurchaseDocumentForm({
         onUpdated:
           (context?.onUpdated as (() => void) | undefined) ||
           (context?.refetch as (() => void) | undefined),
+        vendorName,
+      },
+    });
+  };
+
+  const handleHeaderLoaded = (header: any) => {
+    const vName = header.Buy_from_Vendor_Name || "";
+    setVendorName(vName);
+    const titleSuffix = vName ? ` - ${vName}` : "";
+    updateTab(tabId, {
+      title: `${mode === "edit" ? "Edit " : ""}${config.detailTitlePrefix} ${orderNo}${titleSuffix}`,
+      context: {
+        ...context,
+        vendorName: vName,
       },
     });
   };
@@ -114,6 +136,7 @@ export function PurchaseDocumentForm({
         onSuccess={handleSuccess}
         onRequestEdit={handleRequestEdit}
         onCancelEdit={handleCancelEdit}
+        onHeaderLoaded={handleHeaderLoaded}
         mode={mode}
         orderNo={orderNo || undefined}
         initialFormData={formData as Record<string, unknown> | undefined}

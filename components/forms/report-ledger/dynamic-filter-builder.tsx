@@ -8,10 +8,12 @@ import { Input } from "@/components/ui/input";
 import { DateInput } from "@/components/ui/date-input";
 import { formatDate } from "@/lib/utils/date";
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -89,24 +91,24 @@ export function DynamicFilterBuilder({
 
     return (
       <Select value={operator} onValueChange={(v: any) => setOperator(v)}>
-        <SelectTrigger>
+        <SelectTrigger className="h-8 text-xs">
           <SelectValue placeholder="Operator" />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="eq">Equals</SelectItem>
-          <SelectItem value="ne">Not Equals</SelectItem>
+          <SelectItem value="eq" className="text-xs">Equals</SelectItem>
+          <SelectItem value="ne" className="text-xs">Not Equals</SelectItem>
           {(type === "number" || type === "date") && (
             <>
-              <SelectItem value="gt">Greater Than</SelectItem>
-              <SelectItem value="ge">Greater or Equal</SelectItem>
-              <SelectItem value="lt">Less Than</SelectItem>
-              <SelectItem value="le">Less or Equal</SelectItem>
+              <SelectItem value="gt" className="text-xs">Greater Than</SelectItem>
+              <SelectItem value="ge" className="text-xs">Greater or Equal</SelectItem>
+              <SelectItem value="lt" className="text-xs">Less Than</SelectItem>
+              <SelectItem value="le" className="text-xs">Less or Equal</SelectItem>
             </>
           )}
           {type === "text" && (
             <>
-              <SelectItem value="startswith">Starts With</SelectItem>
-              <SelectItem value="endswith">Ends With</SelectItem>
+              <SelectItem value="startswith" className="text-xs">Starts With</SelectItem>
+              <SelectItem value="endswith" className="text-xs">Ends With</SelectItem>
             </>
           )}
         </SelectContent>
@@ -119,12 +121,12 @@ export function DynamicFilterBuilder({
     if (selectedCol.filterType === "boolean") {
       return (
         <Select value={value} onValueChange={setValue}>
-          <SelectTrigger>
+          <SelectTrigger className="h-8 text-xs">
             <SelectValue placeholder="Select Yes/No" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="true">Yes</SelectItem>
-            <SelectItem value="false">No</SelectItem>
+            <SelectItem value="true" className="text-xs">Yes</SelectItem>
+            <SelectItem value="false" className="text-xs">No</SelectItem>
           </SelectContent>
         </Select>
       );
@@ -134,7 +136,7 @@ export function DynamicFilterBuilder({
         <DateInput
           value={value}
           onChange={setValue}
-          className="h-9"
+          className="h-8 text-xs"
         />
       );
     }
@@ -144,28 +146,32 @@ export function DynamicFilterBuilder({
         placeholder="Value"
         value={value}
         onChange={(e) => setValue(e.target.value)}
+        className="h-8 text-xs"
       />
     );
   };
 
   return (
     <div className="flex items-center gap-2">
-      <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger asChild>
-          <Button variant="outline" size="sm" className="gap-2 border-dashed">
-            <Plus className="h-4 w-4" />
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogTrigger asChild>
+          <Button variant="outline" size="sm" className="h-7 px-2.5 text-xs gap-1.5 border-dashed hover:bg-accent hover:text-accent-foreground">
+            <Plus className="h-3.5 w-3.5" />
             Add Filter
           </Button>
-        </PopoverTrigger>
-        <PopoverContent className="w-80 p-4" align="start">
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>Field</Label>
+        </DialogTrigger>
+        <DialogContent className="max-w-[280px] sm:max-w-[320px] p-3.5 gap-3" showCloseButton={true}>
+          <DialogHeader className="gap-0.5">
+            <DialogTitle className="text-sm font-semibold">Add Filter</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <Label className="text-[10px] font-semibold text-muted-foreground/80 uppercase tracking-wider">Field</Label>
               {/* Show selected field badge */}
               {selectedCol && (
-                <div className="bg-accent flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium">
+                <div className="bg-primary/5 text-primary border border-primary/10 flex items-center gap-1.5 rounded px-2 py-1 text-xs font-medium">
                   <Check className="text-primary h-3.5 w-3.5" />
-                  {selectedCol.label}
+                  <span className="truncate max-w-[180px]">{selectedCol.label}</span>
                   <button
                     type="button"
                     onClick={() => setSelectedField("")}
@@ -179,9 +185,9 @@ export function DynamicFilterBuilder({
                 placeholder="Search fields..."
                 value={fieldSearch}
                 onChange={(e) => setFieldSearch(e.target.value)}
-                className="h-8 text-sm"
+                className="h-7 text-xs px-2"
               />
-              <div className="max-h-48 overflow-y-auto rounded border">
+              <div className="max-h-32 overflow-y-auto rounded border border-border/60 bg-muted/20">
                 {filteredColumns.length === 0 ? (
                   <div className="text-muted-foreground p-2 text-center text-xs">
                     No fields match
@@ -193,15 +199,12 @@ export function DynamicFilterBuilder({
                       type="button"
                       onClick={() => {
                         setSelectedField(col.id);
-                        const colDef = AVAILABLE_COLUMNS.find(
-                          (c) => c.id === col.id,
-                        );
                         setOperator("eq");
                         setValue("");
                         setFieldSearch("");
                       }}
-                      className={`hover:bg-accent w-full px-3 py-1.5 text-left text-sm transition-colors ${
-                        selectedField === col.id ? "bg-accent font-medium" : ""
+                      className={`hover:bg-accent/80 hover:text-accent-foreground w-full px-2 py-1 text-left text-xs transition-colors ${
+                        selectedField === col.id ? "bg-accent font-medium text-accent-foreground" : ""
                       }`}
                     >
                       {col.label}
@@ -212,16 +215,16 @@ export function DynamicFilterBuilder({
             </div>
             {selectedField && (
               <>
-                <div className="space-y-2">
-                  <Label>Operator</Label>
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] font-semibold text-muted-foreground/80 uppercase tracking-wider">Operator</Label>
                   {renderOperatorSelect()}
                 </div>
-                <div className="space-y-2">
-                  <Label>Value</Label>
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] font-semibold text-muted-foreground/80 uppercase tracking-wider">Value</Label>
                   {renderValueInput()}
                 </div>
                 <Button
-                  className="w-full"
+                  className="w-full h-8 text-xs font-semibold shadow-sm"
                   onClick={handleAdd}
                   disabled={!value.trim()}
                 >
@@ -230,29 +233,29 @@ export function DynamicFilterBuilder({
               </>
             )}
           </div>
-        </PopoverContent>
-      </Popover>
+        </DialogContent>
+      </Dialog>
 
       {filters.length > 0 && (
-        <div className="ml-2 flex flex-wrap items-center gap-2">
+        <div className="ml-2 flex flex-wrap items-center gap-1.5">
           {filters.map((f, i) => {
             const colLabel =
               AVAILABLE_COLUMNS.find((c) => c.id === f.field)?.label || f.field;
             return (
               <div
                 key={i}
-                className="bg-muted/50 flex items-center gap-1 rounded-full border py-1 pr-1 pl-3 text-xs"
+                className="bg-muted/40 hover:bg-muted/60 flex items-center gap-1.5 rounded border border-border/50 py-0.5 pr-0.5 pl-2 text-[11px] text-muted-foreground transition-all duration-200"
               >
-                <span className="font-medium">{colLabel}</span>
-                <span className="text-muted-foreground">{f.operator}</span>
-                <span className="font-semibold">
+                <span className="font-medium text-foreground">{colLabel}</span>
+                <span className="text-[10px] text-muted-foreground/80 font-mono lowercase">{f.operator}</span>
+                <span className="font-semibold text-primary bg-primary/5 px-1 py-0.5 rounded text-[10px] border border-primary/10">
                   {f.type === "date" ? formatDate(f.value) : f.value}
                 </span>
                 <button
                   onClick={() => onRemoveFilter(i)}
-                  className="hover:bg-muted ml-1 rounded-full p-0.5"
+                  className="hover:bg-destructive hover:text-destructive-foreground ml-0.5 rounded p-0.5 transition-colors"
                 >
-                  <X className="h-3 w-3" />
+                  <X className="h-2.5 w-2.5" />
                 </button>
               </div>
             );

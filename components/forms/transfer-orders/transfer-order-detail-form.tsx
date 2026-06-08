@@ -182,13 +182,13 @@ export function TransferOrderDetailForm({
                       <td className="px-4 py-3 font-medium">{line.Item_No || "-"}</td>
                       <td className="px-4 py-3">{line.Description || "-"}</td>
                       <td className="px-4 py-3">{line.Appl_to_Item_Entry || "-"}</td>
-                      <td className="px-4 py-3 text-right font-medium">{line.Quantity?.toLocaleString() || 0}</td>
-                      <td className="px-4 py-3 text-right">{line.Transfer_Price != null ? line.Transfer_Price.toLocaleString(undefined, { minimumFractionDigits: 2 }) : "-"}</td>
-                      <td className="px-4 py-3 text-right font-medium">{line.Amount != null ? line.Amount.toLocaleString(undefined, { minimumFractionDigits: 2 }) : "-"}</td>
-                      <td className="px-4 py-3 text-right">{line.Qty_to_Ship?.toLocaleString() || 0}</td>
-                      <td className="px-4 py-3 text-right">{line.Quantity_Shipped?.toLocaleString() || 0}</td>
-                      <td className="px-4 py-3 text-right">{line.Qty_to_Receive?.toLocaleString() || 0}</td>
-                      <td className="px-4 py-3 text-right">{line.Quantity_Received?.toLocaleString() || 0}</td>
+                      <td className="px-4 py-3 text-right font-medium">{line.Quantity?.toLocaleString(undefined, { maximumFractionDigits: 5 }) || 0}</td>
+                      <td className="px-4 py-3 text-right">{line.Transfer_Price != null ? line.Transfer_Price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 5 }) : "-"}</td>
+                      <td className="px-4 py-3 text-right font-medium">{line.Amount != null ? line.Amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 5 }) : "-"}</td>
+                      <td className="px-4 py-3 text-right">{line.Qty_to_Ship?.toLocaleString(undefined, { maximumFractionDigits: 5 }) || 0}</td>
+                      <td className="px-4 py-3 text-right">{line.Quantity_Shipped?.toLocaleString(undefined, { maximumFractionDigits: 5 }) || 0}</td>
+                      <td className="px-4 py-3 text-right">{line.Qty_to_Receive?.toLocaleString(undefined, { maximumFractionDigits: 5 }) || 0}</td>
+                      <td className="px-4 py-3 text-right">{line.Quantity_Received?.toLocaleString(undefined, { maximumFractionDigits: 5 }) || 0}</td>
                       <td className="px-4 py-3">{line.GST_Group_Code || "-"}</td>
                       <td className="px-4 py-3">{line.HSN_SAC_Code || "-"}</td>
                       <td className="px-4 py-3">{line.GST_Credit || "-"}</td>

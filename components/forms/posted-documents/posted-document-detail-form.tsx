@@ -240,6 +240,12 @@ export function PostedDocumentDetailForm({
 
   const canUndo = formType === "posted-purchase-receipt" || formType === "posted-purchase-return-shipment";
 
+  const isPurchase =
+    formType === "posted-purchase-receipt" ||
+    formType === "posted-purchase-invoice" ||
+    formType === "posted-purchase-return-shipment" ||
+    formType === "posted-purchase-credit-memo";
+
   const getApiDocType = (): PostedReportDocumentType | null => {
     switch (formType) {
       case "posted-purchase-receipt": return "PurchReceipt";
@@ -430,6 +436,7 @@ export function PostedDocumentDetailForm({
           </Badge>
           <span className="text-muted-foreground text-[10px] font-medium tracking-wider uppercase">
             — {doc.No || doc.Gate_Entry_No}
+            {isPurchase && doc.Buy_from_Vendor_Name && ` - ${doc.Buy_from_Vendor_Name}`}
           </span>
         </div>
 
@@ -712,7 +719,7 @@ export function PostedDocumentDetailForm({
                           </TableCell>
                           <TableCell className="text-right font-mono text-xs font-bold">
                             {line.Quantity
-                              ? Number(line.Quantity).toLocaleString()
+                              ? Number(line.Quantity).toLocaleString(undefined, { maximumFractionDigits: 5 })
                               : "-"}
                           </TableCell>
                           <TableCell className="text-[10px] font-medium">
@@ -720,7 +727,7 @@ export function PostedDocumentDetailForm({
                           </TableCell>
                           <TableCell className="px-3 py-2 text-right font-mono text-xs">
                             {line.Direct_Unit_Cost
-                              ? Number(line.Direct_Unit_Cost).toLocaleString()
+                              ? Number(line.Direct_Unit_Cost).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 5 })
                               : "-"}
                           </TableCell>
 
@@ -729,7 +736,7 @@ export function PostedDocumentDetailForm({
                               {line.Line_Discount_Percent
                                 ? Number(
                                     line.Line_Discount_Percent,
-                                  ).toLocaleString()
+                                  ).toLocaleString(undefined, { maximumFractionDigits: 5 })
                                 : "0"}
                             </TableCell>
                           )}
@@ -739,21 +746,21 @@ export function PostedDocumentDetailForm({
                             <>
                               <TableCell className="px-3 py-2 text-right font-mono text-xs font-bold">
                                 {line.Line_Amount
-                                  ? Number(line.Line_Amount).toLocaleString()
+                                  ? Number(line.Line_Amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 5 })
                                   : "-"}
                               </TableCell>
                               <TableCell className="text-right font-mono text-xs text-orange-600">
                                 {line.Line_Discount_Amount
                                   ? Number(
                                       line.Line_Discount_Amount,
-                                    ).toLocaleString()
+                                    ).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 5 })
                                   : "0"}
                               </TableCell>
                             </>
                           ) : (
                             <TableCell className="px-3 py-2 text-right font-mono text-xs">
                               {line.Quantity_Invoiced
-                                ? Number(line.Quantity_Invoiced).toLocaleString()
+                                ? Number(line.Quantity_Invoiced).toLocaleString(undefined, { maximumFractionDigits: 5 })
                                 : "-"}
                             </TableCell>
                           )}

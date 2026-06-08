@@ -67,7 +67,7 @@ import type { ShipToAddress } from "@/lib/api/services/shipto.service";
 import { getAuthCredentials } from "@/lib/auth/storage";
 import { getErrorMessage, toastError } from "@/lib/errors";
 import { cn } from "@/lib/utils";
-import { Loader2, Plus, Printer } from "lucide-react";
+import { Loader2, Plus, Printer, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { ApplyCustomerEntriesDialog } from "./apply-customer-entries-dialog";
@@ -149,6 +149,7 @@ import {
   type SalesShipment
 } from "@/lib/api/services/sales-orders.service";
 import { getSalesPersonByCode } from "@/lib/api/services/sales-person.service";
+import { getCustomerByNo } from "@/lib/api/services/customer.service";
 import {
   addSalesReturnOrderLineItems,
   addSingleSalesReturnOrderLine,
@@ -169,6 +170,8 @@ import {
 } from "@/lib/api/services/sales-return-orders.service";
 import { getVendorDetails } from "@/lib/api/services/vendor.service";
 import { getWebUser, type WebUser } from "@/lib/api/services/web-user.service";
+import { getInvoiceReportPdf } from "@/lib/api/services/sales-posted-invoices.service";
+import { getPostedReportPdf } from "@/lib/api/services/posted-report.service";
 import { isPostingDateValid } from "@/lib/utils/posting-date";
 
 // ── Config + utilities ────────────────────────────────────────────────────────
@@ -336,7 +339,7 @@ function formatAmount(val: number | undefined): string {
   if (val == null) return "-";
   return val.toLocaleString("en-IN", {
     minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
+    maximumFractionDigits: 5,
   });
 }
 
@@ -348,8 +351,9 @@ export interface SalesCreateDocumentFormContentProps {
   orderNo?: string;
   onRequestEdit?: () => void;
   onCancelEdit?: () => void;
-  onSuccess: (orderNo: string) => void;
+  onSuccess: (orderNo: string, isPosted?: boolean) => void;
   initialFormData?: Record<string, unknown>;
+  persistFormData?: (data: Record<string, any>) => void;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -362,6 +366,7 @@ export function SalesCreateDocumentFormContent({
   onCancelEdit,
   onSuccess,
   initialFormData = {},
+  persistFormData,
 }: SalesCreateDocumentFormContentProps) {
   const config = getSalesDocumentConfig(documentType);
   const caps = getSalesDocumentCapabilities(documentType);
@@ -406,6 +411,18 @@ export function SalesCreateDocumentFormContent({
   const [isLoadingTrackingMap, setIsLoadingTrackingMap] = useState(false);
   const [isLoading, setIsLoading] = useState(!isCreateMode);
   const [loadError, setLoadError] = useState<string | null>(null);
+
+  // Persist form data on change
+  const persistRef = useRef(persistFormData);
+  useEffect(() => {
+    persistRef.current = persistFormData;
+  }, [persistFormData]);
+
+  useEffect(() => {
+    if (persistRef.current && !isLoading) {
+      persistRef.current(formData);
+    }
+  }, [formData, isLoading]);
 
   // ── Action state ──────────────────────────────────────────────────────────
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -467,11 +484,19 @@ export function SalesCreateDocumentFormContent({
   const [postDetails, setPostDetails] = useState(postDetailsDefault);
   const [isPostResultOpen, setIsPostResultOpen] = useState(false);
   const [isConfirmPostOpen, setIsConfirmPostOpen] = useState(false);
-  const [postResultDocs, setPostResultDocs] = useState<{
-    Invoice?: string;
-    Shipment?: string;
-    CreditMemo?: string;
-  }>({});
+  interface PostResultInfo {
+    InvoiceDoc?: string;
+    ShipmentDoc?: string;
+    PostingDate?: string;
+    CustomerNo?: string;
+  }
+  const [postResultInfo, setPostResultInfo] = useState<PostResultInfo | null>(null);
+  const [isPdfLoading, setIsPdfLoading] = useState<"invoice" | "shipment" | null>(null);
+
+  const handleClosePostResult = () => {
+    setIsPostResultOpen(false);
+    onSuccess(initialOrderNo || "", true);
+  };
 
   // Reset Post Details when dialog opens
   useEffect(() => {
@@ -600,6 +625,7 @@ export function SalesCreateDocumentFormContent({
     const docNo = initialOrderNo;
     if (!docNo) return;
     setIsLoading(true);
+    setSelectedDeleteLineNos([]);
     setLoadError(null);
     try {
       const [header, lineItems] = await Promise.all([
@@ -610,13 +636,40 @@ export function SalesCreateDocumentFormContent({
       setLines(lineItems);
 
       if (header) {
-        const formState = mapSalesHeaderToFormData(header);
+        const dbFormState = mapSalesHeaderToFormData(header);
+        const formState = {
+          ...dbFormState,
+          ...(initialFormData as Partial<CreateFormState>),
+        };
         // Fetch salesperson name for display below field
         if (formState.salesPersonCode) {
           getSalesPersonByCode(formState.salesPersonCode)
             .then((sp) => {
               if (sp) {
                 setFormData({ ...formState, salesPersonName: sp.Name });
+              } else {
+                setFormData(formState);
+              }
+            })
+            .catch(() => setFormData(formState));
+        } else if (formState.customerNo) {
+          // Fetch default salesperson from customer details if document header's salesperson is blank
+          getCustomerByNo(formState.customerNo)
+            .then(async (cust) => {
+              if (cust?.Salesperson_Code) {
+                const spCode = cust.Salesperson_Code;
+                let spName = "";
+                try {
+                  const sp = await getSalesPersonByCode(spCode);
+                  if (sp) spName = sp.Name;
+                } catch (err) {
+                  console.error("Failed to fetch salesperson name", err);
+                }
+                setFormData({
+                  ...formState,
+                  salesPersonCode: spCode,
+                  salesPersonName: spName,
+                });
               } else {
                 setFormData(formState);
               }
@@ -711,8 +764,7 @@ export function SalesCreateDocumentFormContent({
     customerNo: string,
     customer?: SalesCustomer,
   ) => {
-    const nextSalesPersonCode =
-      customer?.Salesperson_Code || formData.salesPersonCode;
+    const nextSalesPersonCode = customer?.Salesperson_Code || "";
     const nextSalesPersonName =
       nextSalesPersonCode === formData.salesPersonCode
         ? formData.salesPersonName
@@ -866,6 +918,7 @@ export function SalesCreateDocumentFormContent({
         if (deletedCount > 0) {
           toast.success(`Deleted ${deletedCount} line(s)`);
         }
+        setSelectedDeleteLineNos([]);
         setIsDeleteDialogOpen(false);
         refreshLines();
         return;
@@ -892,6 +945,42 @@ export function SalesCreateDocumentFormContent({
     } finally {
       setIsDeleteLoading(false);
     }
+  };
+
+  const handleBulkDeleteLines = async () => {
+    if (!initialOrderNo || selectedDeleteLineNos.length === 0) return;
+
+    // Optimistically update the UI to remove the lines from state immediately
+    const linesToKeep = lines.filter((l) => !selectedDeleteLineNos.includes(l.Line_No!));
+    setLines(linesToKeep);
+    
+    const targets = [...selectedDeleteLineNos];
+    setSelectedDeleteLineNos([]);
+
+    toast.info(`Deleting ${targets.length} line item(s) in background...`);
+
+    // Execute deletions in the background (asynchronous promise loop)
+    void (async () => {
+      let deletedCount = 0;
+      let failedCount = 0;
+      for (const lineNo of targets) {
+        try {
+          await ops.deleteLine(initialOrderNo, lineNo);
+          deletedCount++;
+        } catch (err) {
+          console.error(`Failed to delete line ${lineNo}:`, err);
+          failedCount++;
+        }
+      }
+      if (deletedCount > 0) {
+        toast.success(`Successfully deleted ${deletedCount} line(s)`);
+      }
+      if (failedCount > 0) {
+        toast.error(`Failed to delete ${failedCount} line(s)`);
+      }
+      // Re-sync with server state in the background
+      await loadDocument();
+    })();
   };
 
   // ── Post (order only) ─────────────────────────────────────────────────────
@@ -971,8 +1060,8 @@ export function SalesCreateDocumentFormContent({
       };
       await ops.patchHeader(initialOrderNo, patchPayload);
       const postResponse = await ops.post(initialOrderNo, "2", userId || "");
-      const docs = parsePostResult(postResponse);
-      setPostResultDocs(docs);
+      const info = parsePostResult(postResponse);
+      setPostResultInfo(info);
       setIsPostResultOpen(true);
       loadDocument();
     } catch (err) {
@@ -1066,8 +1155,8 @@ export function SalesCreateDocumentFormContent({
         postOption!,
         userId || "",
       );
-      const docs = parsePostResult(postResponse);
-      setPostResultDocs(docs);
+      const info = parsePostResult(postResponse);
+      setPostResultInfo(info);
       setIsPostDetailsOpen(false);
       setIsPostResultOpen(true);
       loadDocument();
@@ -1102,20 +1191,128 @@ export function SalesCreateDocumentFormContent({
     }
   };
 
-  const parsePostResult = (
-    response: unknown,
-  ): { Invoice?: string; Shipment?: string; CreditMemo?: string } => {
+  const parsePostResult = (response: unknown): PostResultInfo => {
     try {
       const value = (response as Record<string, unknown>)?.value;
       if (!value || typeof value !== "string") return {};
       const jsonStr = atob(value.replace(/\s/g, ""));
-      return JSON.parse(jsonStr) as {
-        Invoice?: string;
-        Shipment?: string;
-        CreditMemo?: string;
+      const parsed = JSON.parse(jsonStr) as Record<string, unknown>;
+      return {
+        InvoiceDoc: typeof parsed.InvoiceDoc === "string" ? parsed.InvoiceDoc : "",
+        ShipmentDoc: typeof parsed.ShipmentDoc === "string" ? parsed.ShipmentDoc : "",
+        PostingDate: typeof parsed["Posting Date"] === "string" 
+          ? parsed["Posting Date"] 
+          : (typeof parsed.PostingDate === "string" ? parsed.PostingDate : ""),
+        CustomerNo: typeof parsed.CustomerNo === "string" ? parsed.CustomerNo : "",
       };
     } catch {
       return {};
+    }
+  };
+
+  const handleViewInvoiceDoc = async (docNo: string, custNo: string, postingDate: string) => {
+    setIsPdfLoading("invoice");
+    try {
+      const isCreditOrReturn = documentType === "credit-memo" || documentType === "return-order";
+      let base64 = "";
+      if (isCreditOrReturn) {
+        base64 = await getPostedReportPdf("SalesCreditMemo", docNo);
+      } else {
+        const todayDate = new Date().toISOString().split("T")[0];
+        base64 = await getInvoiceReportPdf(
+          docNo,
+          custNo,
+          postingDate,
+          userId || "=JOBQUEUE",
+          todayDate
+        );
+      }
+      if (!base64) throw new Error("No PDF content returned");
+      const blob = base64ToPdfBlob(base64);
+      const url = window.URL.createObjectURL(blob);
+      window.open(url, "_blank", "noopener,noreferrer");
+    } catch (err) {
+      toastError(err, "Failed to load PDF.");
+    } finally {
+      setIsPdfLoading(null);
+    }
+  };
+
+  const handleDownloadInvoiceDoc = async (docNo: string, custNo: string, postingDate: string) => {
+    setIsPdfLoading("invoice");
+    try {
+      const isCreditOrReturn = documentType === "credit-memo" || documentType === "return-order";
+      let base64 = "";
+      if (isCreditOrReturn) {
+        base64 = await getPostedReportPdf("SalesCreditMemo", docNo);
+      } else {
+        const todayDate = new Date().toISOString().split("T")[0];
+        base64 = await getInvoiceReportPdf(
+          docNo,
+          custNo,
+          postingDate,
+          userId || "=JOBQUEUE",
+          todayDate
+        );
+      }
+      if (!base64) throw new Error("No PDF content returned");
+      const blob = base64ToPdfBlob(base64);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = isCreditOrReturn ? `CreditMemo_${docNo}.pdf` : `Invoice_${docNo}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      toastError(err, "Failed to download PDF.");
+    } finally {
+      setIsPdfLoading(null);
+    }
+  };
+
+  const handleViewShipmentDoc = async (docNo: string, custNo: string, postingDate: string) => {
+    setIsPdfLoading("shipment");
+    try {
+      const base64 = await getDeliveryReportPdf(
+        docNo,
+        custNo,
+        postingDate
+      );
+      if (!base64) throw new Error("No PDF content returned");
+      const blob = base64ToPdfBlob(base64);
+      const url = window.URL.createObjectURL(blob);
+      window.open(url, "_blank", "noopener,noreferrer");
+    } catch (err) {
+      toastError(err, "Failed to load Shipment PDF.");
+    } finally {
+      setIsPdfLoading(null);
+    }
+  };
+
+  const handleDownloadShipmentDoc = async (docNo: string, custNo: string, postingDate: string) => {
+    setIsPdfLoading("shipment");
+    try {
+      const base64 = await getDeliveryReportPdf(
+        docNo,
+        custNo,
+        postingDate
+      );
+      if (!base64) throw new Error("No PDF content returned");
+      const blob = base64ToPdfBlob(base64);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `Shipment_${docNo}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      toastError(err, "Failed to download Shipment PDF.");
+    } finally {
+      setIsPdfLoading(null);
     }
   };
 
@@ -1200,8 +1397,8 @@ export function SalesCreateDocumentFormContent({
     isViewMode || (isReleased && documentType !== "order");
 
   // ── Render helpers ─────────────────────────────────────────────────────────
-  const fieldClass = "min-w-0 space-y-1.5";
-  const labelClass = "text-muted-foreground block text-xs font-medium";
+  const fieldClass = "min-w-0 space-y-1";
+  const labelClass = "text-[10px] font-bold uppercase tracking-wider text-muted-foreground/85 block";
 
   const renderHeaderFields = () => (
     <Accordion
@@ -1211,8 +1408,8 @@ export function SalesCreateDocumentFormContent({
     >
       {/* ── General ── */}
       <AccordionItem value="general" className="border-none">
-        <AccordionTrigger className="py-0 hover:no-underline [&>svg]:size-4">
-          <h3 className="px-2 py-1 text-left text-xs font-bold tracking-wider uppercase">
+        <AccordionTrigger className="py-0 hover:no-underline [&>svg]:size-3.5">
+          <h3 className="px-2 py-1 text-left text-[10px] font-bold tracking-wider uppercase text-muted-foreground/90">
             General
           </h3>
         </AccordionTrigger>
@@ -1222,8 +1419,8 @@ export function SalesCreateDocumentFormContent({
             areFieldsReadOnly && "pointer-events-none",
           )}
         >
-          <Separator className="mb-3" />
-          <div className="grid grid-cols-2 gap-x-4 gap-y-4 sm:grid-cols-3 lg:grid-cols-6">
+          <Separator className="mb-2.5" />
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
             <div className={fieldClass}>
               <label className={labelClass}>LOB</label>
               <CascadingDimensionSelect
@@ -1294,7 +1491,7 @@ export function SalesCreateDocumentFormContent({
                       )
                     }
                   >
-                    <SelectTrigger className="h-9">
+                    <SelectTrigger className="h-8">
                       <SelectValue placeholder="None" />
                     </SelectTrigger>
                     <SelectContent>
@@ -1485,8 +1682,8 @@ export function SalesCreateDocumentFormContent({
       {/* ── Application Detail ── */}
       {caps.supportsAppliesToFields && (
         <AccordionItem value="application-detail" className="border-none">
-          <AccordionTrigger className="py-0 hover:no-underline [&>svg]:size-4">
-            <h3 className="px-2 py-1 text-left text-xs font-bold tracking-wider uppercase">
+          <AccordionTrigger className="py-0 hover:no-underline [&>svg]:size-3.5">
+            <h3 className="px-2 py-1 text-left text-[10px] font-bold tracking-wider uppercase text-muted-foreground/90">
               Application Detail
             </h3>
           </AccordionTrigger>
@@ -1496,8 +1693,8 @@ export function SalesCreateDocumentFormContent({
             areFieldsReadOnly && "pointer-events-none",
           )}
           >
-            <Separator className="mb-3" />
-            <div className="grid grid-cols-2 gap-x-4 gap-y-4 sm:grid-cols-3 lg:grid-cols-6">
+            <Separator className="mb-2.5" />
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
               <div className={fieldClass}>
                 <label className={labelClass}>Applies to Doc Type</label>
                 <ClearableField
@@ -1515,7 +1712,7 @@ export function SalesCreateDocumentFormContent({
                       )
                     }
                   >
-                    <SelectTrigger className="h-9">
+                    <SelectTrigger className="h-8">
                       <SelectValue placeholder="Select" />
                     </SelectTrigger>
                     <SelectContent>
@@ -1983,16 +2180,30 @@ export function SalesCreateDocumentFormContent({
                         variant="outline"
                         className="h-7 px-2.5 text-xs"
                         onClick={() => setIsGetPostedLineOpen(true)}
-                        disabled={!currentDocNo}
+                        disabled={!currentDocNo || !isOpen}
                       >
                         Get Posted Line
+                      </Button>
+                    )}
+                    {isOpen && selectedDeleteLineNos.length > 0 && (
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        className="h-7 px-2.5 text-xs"
+                        onClick={() => {
+                          setDeleteMode("lines");
+                          setIsDeleteDialogOpen(true);
+                        }}
+                      >
+                        <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+                        Delete ({selectedDeleteLineNos.length})
                       </Button>
                     )}
                     <Button
                       size="sm"
                       className="h-7 px-2.5 text-xs"
                       onClick={() => setIsAddLineDialogOpen(true)}
-                      disabled={!currentDocNo}
+                      disabled={!currentDocNo || !isOpen}
                     >
                       <Plus className="mr-1.5 h-3.5 w-3.5" />
                       Add Line
@@ -2006,8 +2217,10 @@ export function SalesCreateDocumentFormContent({
                   documentType={documentType}
                   itemTrackingMap={itemTrackingMap}
                   lineStockMap={lineStockMap}
-                  readOnly={isViewMode}
+                  readOnly={!isOpen}
                   editable={!!currentDocNo}
+                  selectedLineNos={selectedDeleteLineNos}
+                  onSelectionChange={setSelectedDeleteLineNos}
                   onRowClick={(line) => {
                     setSelectedLine(line);
                     setIsLineDialogOpen(true);
@@ -2180,7 +2393,7 @@ export function SalesCreateDocumentFormContent({
             <AlertDialogDescription>
               {deleteMode === "document"
                 ? `This will permanently delete this ${config.documentLabel} and all its lines. This cannot be undone.`
-                : "Select lines to delete and confirm."}
+                : `Are you sure you want to delete the selected line item(s)? This action cannot be undone.`}
             </AlertDialogDescription>
           </AlertDialogHeader>
 
@@ -2643,7 +2856,7 @@ export function SalesCreateDocumentFormContent({
                   <div className="space-y-1">
                     <Label className="text-muted-foreground">Net Weight</Label>
                     <Input
-                      value={netWeight.toFixed(2)}
+                      value={netWeight.toFixed(5)}
                       disabled
                       className="bg-muted h-9"
                     />
@@ -2802,98 +3015,124 @@ export function SalesCreateDocumentFormContent({
         </Dialog>
       )}
       {/* Post result dialog */}
-      <Dialog open={isPostResultOpen} onOpenChange={setIsPostResultOpen}>
+      <Dialog
+        open={isPostResultOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            handleClosePostResult();
+          } else {
+            setIsPostResultOpen(true);
+          }
+        }}
+      >
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
             <DialogTitle>Document Posted</DialogTitle>
           </DialogHeader>
           <div className="space-y-3 py-2">
-            {!postResultDocs.Invoice &&
-            !postResultDocs.Shipment &&
-            !postResultDocs.CreditMemo ? (
+            {!postResultInfo?.InvoiceDoc &&
+            !postResultInfo?.ShipmentDoc ? (
               <p className="text-muted-foreground py-2 text-center text-sm">
                 Document posted successfully, but no documents are available.
               </p>
             ) : (
               <>
-                {(postResultDocs.Invoice || postResultDocs.CreditMemo) && (
+                {postResultInfo.InvoiceDoc && (
                   <div className="flex items-center justify-between rounded-md border p-3">
-                    <span className="text-sm font-medium">
-                      {documentType === "credit-memo"
-                        ? "Credit Memo"
-                        : "Invoice"}
-                    </span>
+                    <div className="flex flex-col">
+                      <span className="text-sm font-medium">
+                        {documentType === "credit-memo"
+                          ? "Credit Memo"
+                          : "Invoice"}
+                      </span>
+                      <span className="text-xs text-muted-foreground font-mono">
+                        {postResultInfo.InvoiceDoc}
+                      </span>
+                    </div>
                     <div className="flex gap-2">
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => {
-                          const data =
-                            postResultDocs.CreditMemo || postResultDocs.Invoice;
-                          if (data) {
-                            const blob = base64ToPdfBlob(data);
-                            const url = window.URL.createObjectURL(blob);
-                            window.open(url, "_blank", "noopener,noreferrer");
-                          }
-                        }}
+                        disabled={isPdfLoading !== null}
+                        onClick={() =>
+                          handleViewInvoiceDoc(
+                            postResultInfo.InvoiceDoc!,
+                            postResultInfo.CustomerNo!,
+                            postResultInfo.PostingDate!
+                          )
+                        }
                       >
-                        Open
+                        {isPdfLoading === "invoice" ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          "Open"
+                        )}
                       </Button>
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => {
-                          const blob = base64ToPdfBlob(postResultDocs.Invoice!);
-                          const url = window.URL.createObjectURL(blob);
-                          const link = document.createElement("a");
-                          link.href = url;
-                          link.download = "Invoice.pdf";
-                          document.body.appendChild(link);
-                          link.click();
-                          document.body.removeChild(link);
-                          window.URL.revokeObjectURL(url);
-                        }}
+                        disabled={isPdfLoading !== null}
+                        onClick={() =>
+                          handleDownloadInvoiceDoc(
+                            postResultInfo.InvoiceDoc!,
+                            postResultInfo.CustomerNo!,
+                            postResultInfo.PostingDate!
+                          )
+                        }
                       >
-                        <Printer className="h-4 w-4" />
+                        {isPdfLoading === "invoice" ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Printer className="h-4 w-4" />
+                        )}
                       </Button>
                     </div>
                   </div>
                 )}
-                {postResultDocs.Shipment && (
+                {postResultInfo.ShipmentDoc && (
                   <div className="flex items-center justify-between rounded-md border p-3">
-                    <span className="text-sm font-medium">Shipment</span>
+                    <div className="flex flex-col">
+                      <span className="text-sm font-medium">Shipment</span>
+                      <span className="text-xs text-muted-foreground font-mono">
+                        {postResultInfo.ShipmentDoc}
+                      </span>
+                    </div>
                     <div className="flex gap-2">
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => {
-                          const blob = base64ToPdfBlob(
-                            postResultDocs.Shipment!,
-                          );
-                          const url = window.URL.createObjectURL(blob);
-                          window.open(url, "_blank", "noopener,noreferrer");
-                        }}
+                        disabled={isPdfLoading !== null}
+                        onClick={() =>
+                          handleViewShipmentDoc(
+                            postResultInfo.ShipmentDoc!,
+                            postResultInfo.CustomerNo!,
+                            postResultInfo.PostingDate!
+                          )
+                        }
                       >
-                        Open
+                        {isPdfLoading === "shipment" ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          "Open"
+                        )}
                       </Button>
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => {
-                          const blob = base64ToPdfBlob(
-                            postResultDocs.Shipment!,
-                          );
-                          const url = window.URL.createObjectURL(blob);
-                          const link = document.createElement("a");
-                          link.href = url;
-                          link.download = "Shipment.pdf";
-                          document.body.appendChild(link);
-                          link.click();
-                          document.body.removeChild(link);
-                          window.URL.revokeObjectURL(url);
-                        }}
+                        disabled={isPdfLoading !== null}
+                        onClick={() =>
+                          handleDownloadShipmentDoc(
+                            postResultInfo.ShipmentDoc!,
+                            postResultInfo.CustomerNo!,
+                            postResultInfo.PostingDate!
+                          )
+                        }
                       >
-                        <Printer className="h-4 w-4" />
+                        {isPdfLoading === "shipment" ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Printer className="h-4 w-4" />
+                        )}
                       </Button>
                     </div>
                   </div>
@@ -2902,7 +3141,7 @@ export function SalesCreateDocumentFormContent({
             )}
           </div>
           <DialogFooter>
-            <Button onClick={() => setIsPostResultOpen(false)}>Close</Button>
+            <Button onClick={handleClosePostResult}>Close</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

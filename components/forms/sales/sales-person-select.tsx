@@ -60,6 +60,7 @@ export function SalesPersonSelect({
   const listRef = useRef<HTMLDivElement | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const isKeyboardActionRef = useRef(false);
+  const closeReasonRef = useRef<"select" | "escape" | "tab" | "clickOutside" | null>(null);
 
   // Load initial items when dropdown opens
   const loadInitialItems = useCallback(async () => {
@@ -164,8 +165,12 @@ export function SalesPersonSelect({
     setIsOpen(open);
     isKeyboardActionRef.current = false;
     if (open) {
+      closeReasonRef.current = null;
       setActiveIndex(-1);
       setSearchQuery(displayValue);
+      if (items.length === 0) {
+        loadInitialItems();
+      }
     } else {
       setActiveIndex(-1);
     }
@@ -238,6 +243,7 @@ export function SalesPersonSelect({
     } else if (e.key === "Enter") {
       if (isOpen) {
         e.preventDefault();
+        closeReasonRef.current = "select";
         if (activeIndex >= 0 && activeIndex < filteredItems.length) {
           const item = filteredItems[activeIndex];
           onChange(item.Code, item);
@@ -248,9 +254,11 @@ export function SalesPersonSelect({
         }
       }
     } else if (e.key === "Escape") {
+      closeReasonRef.current = "escape";
       setIsOpen(false);
       setSearchQuery("");
     } else if (e.key === "Tab") {
+      closeReasonRef.current = "tab";
       setIsOpen(false);
     }
   };
@@ -276,13 +284,20 @@ export function SalesPersonSelect({
               const query = e.target.value;
               setSearchQuery(query);
               setActiveIndex(-1);
-              performSearch(query, displayValue);
+              if (query === "") {
+                loadInitialItems();
+              } else {
+                performSearch(query, displayValue);
+              }
               if (!isOpen) setIsOpen(true);
             }}
             onFocus={(e) => {
               if (!isOpen) {
                 setSearchQuery(displayValue);
                 setIsOpen(true);
+                if (items.length === 0) {
+                  loadInitialItems();
+                }
               }
               e.target.select();
             }}
@@ -311,7 +326,14 @@ export function SalesPersonSelect({
         align="start"
         collisionPadding={8}
         onOpenAutoFocus={(e) => e.preventDefault()}
+        onPointerDownOutside={() => {
+          closeReasonRef.current = "clickOutside";
+        }}
         onCloseAutoFocus={(e) => {
+          if (closeReasonRef.current === "tab" || closeReasonRef.current === "clickOutside") {
+            e.preventDefault();
+            return;
+          }
           e.preventDefault();
           inputRef.current?.focus();
         }}
@@ -350,6 +372,7 @@ export function SalesPersonSelect({
                         isFocused && !isSelected && "bg-accent text-accent-foreground",
                       )}
                       onClick={() => {
+                        closeReasonRef.current = "select";
                         onChange(item.Code, item);
                         setIsOpen(false);
                         setActiveIndex(-1);

@@ -6,7 +6,6 @@ import { QCReceiptFilterBar } from "./qc-receipt-filter-bar";
 import { QCReceiptActiveFilters } from "./active-filters";
 import { useQCReceipts } from "./use-qc-receipts";
 import type { QCReceiptHeader } from "@/lib/api/services/qc-receipt.service";
-import { QCFilterForm, type QCDateFilters } from "./qc-filter-form";
 import { Button } from "@/components/ui/button";
 
 interface QCReceiptViewProps {
@@ -54,19 +53,6 @@ export function QCReceiptView({ statusFilter, isPosted, skipDateFilter }: QCRece
     });
   };
 
-  const handleApplyFilters = (filters: QCDateFilters) => {
-    setDateFilter(filters);
-  };
-
-  if (!dateFilter && !skipDateFilter) {
-    return (
-      <QCFilterForm
-        title={isPosted ? "Posted QC Receipts" : "QC Receipts"}
-        description="Select a date range to view quality control receipts"
-        onApply={handleApplyFilters}
-      />
-    );
-  }
 
   return (
     <div className="flex h-full flex-col gap-2 [overflow-anchor:none]">
@@ -81,6 +67,7 @@ export function QCReceiptView({ statusFilter, isPosted, skipDateFilter }: QCRece
         onResetColumns={onResetColumns}
         onShowAllColumns={onShowAllColumns}
         onRefresh={refetch}
+        showDateFilter={!skipDateFilter}
         onDateFilterChange={() => setDateFilter(null)}
         totalCount={totalCount}
       />

@@ -47,6 +47,9 @@ export const DEFAULT_COLUMNS: ColumnConfig[] = [
       { value: "Transfer", label: "Transfer" },
       { value: "Consumption", label: "Consumption" },
       { value: "Output", label: "Output" },
+      { value: " ", label: "' '" },
+      { value: "Assembly Consumption", label: "Assembly Consumption" },
+      { value: "Assembly Output", label: "Assembly Output" },
     ] as const,
   },
   {
@@ -285,7 +288,7 @@ export const OPTIONAL_COLUMNS: ColumnConfig[] = [
     defaultVisible: false,
     filterType: "text",
     filterOptions: [
-      { value: "blank", label: "[Blank]" },
+      { value: " ", label: "' '" },
       { value: "Sales Shipment", label: "Sales Shipment" },
       { value: "Sales Invoice", label: "Sales Invoice" },
       { value: "Sales Return Receipt", label: "Sales Return Receipt" },
@@ -297,9 +300,11 @@ export const OPTIONAL_COLUMNS: ColumnConfig[] = [
       { value: "Transfer Shipment", label: "Transfer Shipment" },
       { value: "Transfer Receipt", label: "Transfer Receipt" },
       { value: "Service Shipment", label: "Service Shipment" },
-      { value: "Service Invoice", label: "Service Invoice" },
       { value: "Service Credit Memo", label: "Service Credit Memo" },
       { value: "Posted Assembly", label: "Posted Assembly" },
+      { value: "Inventory Receipt", label: "Inventory Receipt" },
+      { value: "Inventory Shipment", label: "Inventory Shipment" },
+      { value: "Direct Transfer", label: "Direct Transfer" },
     ] as const,
   },
   {

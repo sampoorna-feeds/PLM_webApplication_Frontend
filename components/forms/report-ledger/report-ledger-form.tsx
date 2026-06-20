@@ -36,6 +36,9 @@ export function ReportLedgerForm() {
     onColumnToggle,
     onResetColumns,
     onShowAllColumns,
+    columnFilters,
+    onColumnFilter,
+    onClearColumnFilters,
   } = useReportLedger();
 
   return (
@@ -80,6 +83,9 @@ export function ReportLedgerForm() {
             sortColumn={sortColumn}
             sortDirection={sortDirection}
             onSort={onSort}
+            columnFilters={columnFilters}
+            onFilter={onColumnFilter}
+            onClearColumnFilters={onClearColumnFilters}
           />
         </div>
       </div>

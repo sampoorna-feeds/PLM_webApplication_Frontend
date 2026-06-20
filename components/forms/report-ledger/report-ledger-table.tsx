@@ -142,15 +142,19 @@ export function ReportLedgerTable({
             return true;
           }
           case "text": {
-            const textFilter = filter.value.trim().toLowerCase();
-            // Support comma-separated values
-            const values = textFilter
+            const values = filter.value
               .split(",")
               .map((v) => v.trim())
               .filter(Boolean);
             if (values.length === 0) return true;
-            const cellStr = String(cellValue).toLowerCase();
-            return values.some((v) => cellStr.includes(v));
+            const cellStr = cellValue ? String(cellValue).toLowerCase().trim() : "";
+            return values.some((v) => {
+              const lowerFilter = v.toLowerCase();
+              if (lowerFilter === "blank") {
+                return cellStr === "" || cellStr === "blank";
+              }
+              return cellStr.includes(lowerFilter);
+            });
           }
           default: {
             return String(cellValue)
@@ -166,6 +170,12 @@ export function ReportLedgerTable({
   const textColumnOptions = useMemo(() => {
     const options: Record<string, { value: string; label: string }[]> = {};
     columns.forEach((col) => {
+      // Skip columns that already have predefined filterOptions
+      const config = ALL_COLUMNS.find((c) => c.id === col.id);
+      if (config?.filterOptions && config.filterOptions.length > 0) {
+        return;
+      }
+
       if (
         col.filterType === "text" ||
         col.filterType === "enum" ||

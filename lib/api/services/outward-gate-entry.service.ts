@@ -298,7 +298,7 @@ async function getPaginatedSourceDocs(
       $skip,
       $filter: finalBaseFilter || undefined,
       $count: true,
-      $orderby: "No desc",
+      $orderby: "Posting_Date desc",
     });
     const endpoint = `/${entity}?company='${encodedCompany}'&${query}`;
     const response = await apiGet<ODataResponse<any>>(endpoint);
@@ -343,6 +343,11 @@ async function getPaginatedSourceDocs(
 
   const allResults = Array.from(mergedMap.values());
   allResults.sort((a, b) => {
+    const dateA = a.Posting_Date || a.Document_Date || a.Order_Date || a["Document Date"] || "";
+    const dateB = b.Posting_Date || b.Document_Date || b.Order_Date || b["Document Date"] || "";
+    if (dateA !== dateB) {
+      return dateB.localeCompare(dateA);
+    }
     const noA = a.No || a["No."] || "";
     const noB = b.No || b["No."] || "";
     return noB.localeCompare(noA);
@@ -357,7 +362,7 @@ async function getPaginatedSourceDocs(
 }
 
 export async function getPostedPurchaseReturnShipments(params?: GetSourceDocsParams): Promise<PaginatedSourceDocsResponse> {
-  return getPaginatedSourceDocs("PostedPurchaseRetrunShipment", ["No", "Buy_from_Vendor_No", "Buy_from_Vendor_Name"], params);
+  return getPaginatedSourceDocs("PostedReturnShipmentH", ["No", "Buy_from_Vendor_No", "Buy_from_Vendor_Name"], params);
 }
 
 export async function getTransferShipments(params?: GetSourceDocsParams): Promise<PaginatedSourceDocsResponse> {

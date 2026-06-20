@@ -3,7 +3,7 @@
  * Handles fetching vendor ledger entries from ERP OData V4 API
  */
 
-import { apiGet, apiPost } from "../client";
+import { apiGet, apiPost, apiPatch } from "../client";
 import { buildODataQuery } from "../endpoints";
 import type { ODataResponse } from "../types";
 import type { FilterCondition } from "@/components/forms/report-ledger/types";
@@ -609,4 +609,15 @@ export async function applyVendorLedgerEntry(pONo: string, vendLedEntry: number)
     vendLedEntry,
     currentRec: false,
   });
+}
+
+/**
+ * Update a vendor ledger entry's fields (e.g. On Hold status)
+ */
+export async function patchVendorLedgerEntry(
+  entryNo: number,
+  data: Partial<VendorLedgerEntry>
+): Promise<unknown> {
+  const endpoint = `/VendorLedgerEntry(${entryNo})?company='${encodeURIComponent(COMPANY)}'`;
+  return apiPatch<unknown>(endpoint, data);
 }

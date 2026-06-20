@@ -92,6 +92,13 @@ export const OUTSTANDING_DEFAULT_COLUMNS: ColumnConfig[] = [
     filterType: "date",
   },
   {
+    id: "On_Hold",
+    label: "On Hold",
+    sortable: true,
+    defaultVisible: true,
+    filterType: "text",
+  },
+  {
     id: "Document_Type",
     label: "Doc Type",
     sortable: true,
@@ -383,13 +390,7 @@ export const OPTIONAL_COLUMNS: ColumnConfig[] = [
     defaultVisible: false,
     filterType: "text",
   },
-  {
-    id: "On_Hold",
-    label: "On Hold",
-    sortable: true,
-    defaultVisible: false,
-    filterType: "text",
-  },
+
 
   // ── Entity & Tracking ──
   {
@@ -582,7 +583,25 @@ export function loadVisibleColumns(isOutstanding: boolean = false): string[] {
     const key = isOutstanding ? STORAGE_KEY_OUTSTANDING : STORAGE_KEY_LEDGER;
     const stored = localStorage.getItem(key);
     if (stored) {
-      return JSON.parse(stored);
+      const parsed = JSON.parse(stored);
+      if (isOutstanding && Array.isArray(parsed)) {
+        const postingDateIndex = parsed.indexOf("Posting_Date");
+        const onHoldIndex = parsed.indexOf("On_Hold");
+        if (postingDateIndex !== -1) {
+          if (onHoldIndex === -1 || onHoldIndex !== postingDateIndex + 1) {
+            if (onHoldIndex !== -1) {
+              parsed.splice(onHoldIndex, 1);
+            }
+            const newPostingDateIndex = parsed.indexOf("Posting_Date");
+            parsed.splice(newPostingDateIndex + 1, 0, "On_Hold");
+            localStorage.setItem(key, JSON.stringify(parsed));
+          }
+        } else if (onHoldIndex === -1) {
+          parsed.unshift("On_Hold");
+          localStorage.setItem(key, JSON.stringify(parsed));
+        }
+      }
+      return parsed;
     }
   } catch (error) {
     console.error("Error loading visible columns:", error);
@@ -628,10 +647,26 @@ export function saveColumnWidths(widths: Record<string, number>): void {
 export function loadColumnOrder(): string[] {
   try {
     const stored = localStorage.getItem(ORDER_KEY);
-    return stored ? JSON.parse(stored) : [];
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      if (Array.isArray(parsed)) {
+        const postingDateIndex = parsed.indexOf("Posting_Date");
+        const onHoldIndex = parsed.indexOf("On_Hold");
+        if (postingDateIndex !== -1 && (onHoldIndex === -1 || onHoldIndex !== postingDateIndex + 1)) {
+          if (onHoldIndex !== -1) {
+            parsed.splice(onHoldIndex, 1);
+          }
+          const newPostingDateIndex = parsed.indexOf("Posting_Date");
+          parsed.splice(newPostingDateIndex + 1, 0, "On_Hold");
+          localStorage.setItem(ORDER_KEY, JSON.stringify(parsed));
+        }
+      }
+      return parsed;
+    }
   } catch (error) {
     return [];
   }
+  return [];
 }
 
 export function saveColumnOrder(order: string[]): void {

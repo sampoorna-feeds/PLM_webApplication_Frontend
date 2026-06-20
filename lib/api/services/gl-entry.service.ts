@@ -3,7 +3,7 @@
  * Handles fetching general ledger entries from ERP OData V4 API
  */
 
-import { apiGet } from "../client";
+import { apiGet, apiPost } from "../client";
 import { buildODataQuery } from "../endpoints";
 import type { ODataResponse } from "../types";
 import type { FilterCondition } from "@/components/forms/report-ledger/types";
@@ -425,4 +425,22 @@ export async function getGLEntriesRaw(
   const query = buildODataQuery(params);
   const endpoint = `/GLEntry?company='${encodeURIComponent(COMPANY)}'&${query}`;
   return await apiGet<ODataResponse<GLEntry>>(endpoint);
+}
+
+export interface DayBookReportParams {
+  reportN: "CashBook" | "DayBook";
+  gLAccount?: string;
+  fromDate: string;
+  toDate: string;
+  branch: string;
+  reportExt: "Excel" | "Pdf";
+}
+
+/**
+ * Generate Day Book or Cash Book report in base64 format
+ */
+export async function generateDayBookReport(params: DayBookReportParams): Promise<string> {
+  const endpoint = `/API_DayBook?company='${encodeURIComponent(COMPANY)}'`;
+  const response = await apiPost<{ value: string }>(endpoint, params);
+  return response?.value || "";
 }

@@ -1,11 +1,19 @@
 "use client";
 
+import { useState } from "react";
 import { AccountSelect } from "@/components/forms/account-select";
 import { Button } from "@/components/ui/button";
-import { Loader2, RefreshCcw } from "lucide-react";
+import { Loader2, RefreshCcw, ChevronDown, FileText } from "lucide-react";
 import { GLEntryFilterBar } from "./gl-entry-filter-bar";
 import { GLEntryTable } from "./gl-entry-table";
 import { useGLEntry } from "./use-gl-entry";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { GLEntryReportDialog } from "./gl-entry-report-dialog";
 
 export function GLEntryView() {
   const {
@@ -38,6 +46,14 @@ export function GLEntryView() {
     currentFilterString,
   } = useGLEntry();
 
+  const [reportDialogOpen, setReportDialogOpen] = useState(false);
+  const [selectedReportType, setSelectedReportType] = useState<"CashBook" | "DayBook">("DayBook");
+
+  const handleOpenReport = (type: "CashBook" | "DayBook") => {
+    setSelectedReportType(type);
+    setReportDialogOpen(true);
+  };
+
   return (
     <div className="flex h-full w-full flex-col gap-2 p-4 overflow-hidden">
       {/* Page Header */}
@@ -50,6 +66,29 @@ export function GLEntryView() {
         </div>
 
         <div className="flex items-center gap-3 bg-muted/50 p-1 rounded-lg border shadow-sm">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 px-3 text-xs gap-1.5"
+                disabled={isLoading}
+              >
+                <FileText className="h-3.5 w-3.5 text-primary" />
+                Reports
+                <ChevronDown className="h-3 w-3 opacity-60" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuItem onClick={() => handleOpenReport("DayBook")}>
+                Day Book Report
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleOpenReport("CashBook")}>
+                Cash Book Report
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
           <Button
             variant="ghost"
             size="sm"
@@ -125,6 +164,14 @@ export function GLEntryView() {
           toDate={filters.toDate}
         />
       </div>
+
+      <GLEntryReportDialog
+        open={reportDialogOpen}
+        onOpenChange={setReportDialogOpen}
+        reportType={selectedReportType}
+        onReportTypeChange={setSelectedReportType}
+        filters={filters}
+      />
     </div>
   );
 }

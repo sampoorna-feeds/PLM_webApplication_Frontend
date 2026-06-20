@@ -265,10 +265,20 @@ export async function uploadAttachment(
 /**
  * Post vouchers
  * @param userID - User ID (default: 'temp')
+ * @param documentNo - Optional document number to post a specific voucher
+ * @param lineNo - Optional line number to post a specific voucher line
  */
-export async function postVouchers(userID: string = "temp"): Promise<unknown> {
+export async function postVouchers(
+  userID: string = "temp",
+  documentNo?: string,
+  lineNo?: number,
+): Promise<unknown> {
   const endpoint = `/API_PostVouchers?company='${encodeURIComponent(COMPANY)}'`;
-  const response = await apiPost<unknown>(endpoint, { userID });
+  const response = await apiPost<unknown>(endpoint, {
+    userID,
+    ...(documentNo !== undefined && { documentNo }),
+    ...(lineNo !== undefined && { lineNo }),
+  });
   return response;
 }
 

@@ -47,7 +47,6 @@ export const DEFAULT_COLUMNS: ColumnConfig[] = [
       { value: "Transfer", label: "Transfer" },
       { value: "Consumption", label: "Consumption" },
       { value: "Output", label: "Output" },
-      { value: " ", label: "' '" },
       { value: "Assembly Consumption", label: "Assembly Consumption" },
       { value: "Assembly Output", label: "Assembly Output" },
     ] as const,
@@ -288,7 +287,6 @@ export const OPTIONAL_COLUMNS: ColumnConfig[] = [
     defaultVisible: false,
     filterType: "text",
     filterOptions: [
-      { value: " ", label: "' '" },
       { value: "Sales Shipment", label: "Sales Shipment" },
       { value: "Sales Invoice", label: "Sales Invoice" },
       { value: "Sales Return Receipt", label: "Sales Return Receipt" },

@@ -95,7 +95,9 @@ export function DynamicFilterBuilder({
           <SelectValue placeholder="Operator" />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="eq" className="text-xs">Equals</SelectItem>
+          <SelectItem value="eq" className="text-xs">
+            {type === "text" ? "Contains" : "Equals"}
+          </SelectItem>
           <SelectItem value="ne" className="text-xs">Not Equals</SelectItem>
           {(type === "number" || type === "date") && (
             <>

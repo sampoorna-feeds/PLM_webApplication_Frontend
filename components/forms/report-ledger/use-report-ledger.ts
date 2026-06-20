@@ -47,6 +47,9 @@ export function useReportLedger() {
   const [filters, setFilters] = useState<ReportLedgerFilters>(EMPTY_FILTERS);
   const [appliedFilters, setAppliedFilters] =
     useState<ReportLedgerFilters>(EMPTY_FILTERS);
+  const [columnFilters, setColumnFilters] = useState<
+    Record<string, { value: string; valueTo?: string }>
+  >({});
 
   // All available location codes (for "select all" logic)
   const [allLocationCodes, setAllLocationCodes] = useState<string[]>([]);
@@ -216,7 +219,16 @@ export function useReportLedger() {
         const formattedValue = isString ? `'${filter.value}'` : filter.value;
 
         switch (filter.operator) {
-          case "eq":
+          case "eq": {
+            const colConfig = ALL_COLUMNS.find((c) => c.id === filter.field);
+            const hasOptions = colConfig?.filterOptions && colConfig.filterOptions.length > 0;
+            if (filter.type === "text" && !hasOptions) {
+              filterParts.push(`contains(${filter.field}, '${filter.value}')`);
+            } else {
+              filterParts.push(`${filter.field} eq ${formattedValue}`);
+            }
+            break;
+          }
           case "ne":
           case "gt":
           case "ge":
@@ -236,8 +248,84 @@ export function useReportLedger() {
       });
     }
 
+    // Column filters
+    Object.entries(columnFilters).forEach(([col, filter]) => {
+      const column = ALL_COLUMNS.find((c) => c.id === col);
+      if (!column) return;
+
+      if (column.filterType === "date") {
+        if (filter.value) {
+          filterParts.push(`${col} ge ${filter.value}`);
+        }
+        if (filter.valueTo) {
+          filterParts.push(`${col} le ${filter.valueTo}`);
+        }
+      } else if (column.filterType === "number") {
+        if (filter.valueTo) {
+          if (filter.value) filterParts.push(`${col} ge ${filter.value}`);
+          filterParts.push(`${col} le ${filter.valueTo}`);
+        } else if (filter.value) {
+          const [operator, numValue] = filter.value.includes(":")
+            ? filter.value.split(":")
+            : ["eq", filter.value];
+          switch (operator) {
+            case "gt":
+              filterParts.push(`${col} gt ${numValue}`);
+              break;
+            case "lt":
+              filterParts.push(`${col} lt ${numValue}`);
+              break;
+            case "ge":
+              filterParts.push(`${col} ge ${numValue}`);
+              break;
+            case "le":
+              filterParts.push(`${col} le ${numValue}`);
+              break;
+            default:
+              filterParts.push(`${col} eq ${numValue}`);
+          }
+        }
+      } else if (column.filterType === "boolean") {
+        if (filter.value === "true") {
+          filterParts.push(`${col} eq true`);
+        } else if (filter.value === "false") {
+          filterParts.push(`${col} eq false`);
+        }
+      } else {
+        // String/text/enum filter
+        if (filter.value !== undefined && filter.value !== null) {
+          const escaped = filter.value.replace(/'/g, "''");
+          if (escaped.includes(",")) {
+            const vals = escaped
+              .split(",")
+              .map((v) => (v === " " ? " " : v.trim()))
+              .filter((v) => v !== "");
+            if (vals.length > 0) {
+              const orParts = vals.map((v) => {
+                if (column.filterOptions && column.filterOptions.length > 0) {
+                  return `${col} eq '${v}'`;
+                } else {
+                  return `contains(${col},'${v}')`;
+                }
+              });
+              filterParts.push(`(${orParts.join(" or ")})`);
+            }
+          } else {
+            const val = escaped === " " ? " " : escaped.trim();
+            if (val !== "") {
+              if (column.filterOptions && column.filterOptions.length > 0) {
+                filterParts.push(`${col} eq '${val}'`);
+              } else {
+                filterParts.push(`contains(${col},'${val}')`);
+              }
+            }
+          }
+        }
+      }
+    });
+
     return filterParts.join(" and ");
-  }, [appliedFilters]);
+  }, [appliedFilters, columnFilters]);
 
   const buildHumanReadableFilters = useCallback((): string[] => {
     const lines: string[] = [];
@@ -426,12 +514,32 @@ export function useReportLedger() {
     };
     setFilters(resetFilters);
     setAppliedFilters(EMPTY_FILTERS);
+    setColumnFilters({});
     setEntries([]);
     setTotalCount(0);
     setItemSearchQuery("");
     setItemPage(1);
     setItemOptions([]);
     setHasMoreItems(false);
+  }, []);
+
+  const handleColumnFilter = useCallback(
+    (columnId: string, value: string, valueTo?: string) => {
+      setColumnFilters((prev) => {
+        const next = { ...prev };
+        if (!value && !valueTo) {
+          delete next[columnId];
+        } else {
+          next[columnId] = { value, valueTo };
+        }
+        return next;
+      });
+    },
+    [],
+  );
+
+  const handleClearColumnFilters = useCallback(() => {
+    setColumnFilters({});
   }, []);
 
   const handleSort = useCallback((column: string) => {
@@ -514,5 +622,8 @@ export function useReportLedger() {
     refetch: () => fetchEntries(false),
     sortColumn,
     sortDirection,
+    columnFilters,
+    onColumnFilter: handleColumnFilter,
+    onClearColumnFilters: handleClearColumnFilters,
   };
 }

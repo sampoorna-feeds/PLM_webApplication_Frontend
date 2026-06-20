@@ -3,11 +3,11 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ReportLedgerForm } from "@/components/forms/report-ledger/report-ledger-form";
 import { InventorySummaryForm } from "@/components/forms/report-ledger/inventory-summary-form";
-import { ItemAvailabilityForm } from "@/components/forms/report-ledger/item-availability-form";
+import { ReportsForm } from "@/components/forms/report-ledger/reports-form";
 import useLocalState from "@/hooks/use-local-state";
 
 export default function ReportLedgerPage() {
-  const [activeTab, setActiveTab] = useLocalState<"ledger" | "summary" | "availability">(
+  const [activeTab, setActiveTab] = useLocalState<"ledger" | "summary" | "reports">(
     "report-ledger-active-tab",
     "ledger",
   );
@@ -17,7 +17,7 @@ export default function ReportLedgerPage() {
       <div className="flex min-w-0 flex-1 flex-col">
         <Tabs
           value={activeTab}
-          onValueChange={(t) => setActiveTab(t as "ledger" | "summary" | "availability")}
+          onValueChange={(t) => setActiveTab(t as "ledger" | "summary" | "reports")}
           className="flex h-full w-full flex-1 flex-col"
         >
           <div className="flex shrink-0 flex-col px-4 pt-4">
@@ -33,7 +33,7 @@ export default function ReportLedgerPage() {
               <TabsList className="grid w-[360px] grid-cols-3">
                 <TabsTrigger value="ledger">Ledger</TabsTrigger>
                 <TabsTrigger value="summary">Summary</TabsTrigger>
-                <TabsTrigger value="availability">Availability</TabsTrigger>
+                <TabsTrigger value="reports">Reports</TabsTrigger>
               </TabsList>
             </div>
           </div>
@@ -46,8 +46,8 @@ export default function ReportLedgerPage() {
             <InventorySummaryForm />
           </TabsContent>
 
-          <TabsContent value="availability" className="flex-1 overflow-hidden px-4">
-            <ItemAvailabilityForm />
+          <TabsContent value="reports" className="flex-1 overflow-hidden px-4">
+            <ReportsForm />
           </TabsContent>
         </Tabs>
       </div>

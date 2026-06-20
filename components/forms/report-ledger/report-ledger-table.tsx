@@ -24,6 +24,9 @@ interface ReportLedgerTableProps {
   sortColumn: string | null;
   sortDirection: SortDirection;
   onSort: (column: string) => void;
+  columnFilters: Record<string, { value: string; valueTo?: string }>;
+  onFilter: (columnId: string, value: string, valueTo?: string) => void;
+  onClearColumnFilters: () => void;
 }
 
 export function ReportLedgerTable({
@@ -36,6 +39,9 @@ export function ReportLedgerTable({
   sortColumn,
   sortDirection,
   onSort,
+  columnFilters,
+  onFilter,
+  onClearColumnFilters,
 }: ReportLedgerTableProps) {
   const observerTarget = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -68,10 +74,6 @@ export function ReportLedgerTable({
     observer.observe(element);
     return () => observer.unobserve(element);
   }, [handleObserver]);
-  // Column filters state (for columns that are NOT synced with top-level filters)
-  const [columnFilters, setColumnFilters] = useState<
-    Record<string, { value: string; valueTo?: string }>
-  >({});
 
   // Get visible column configs in order
   const columns = ALL_COLUMNS.filter((col) => visibleColumns.includes(col.id));
@@ -84,122 +86,11 @@ export function ReportLedgerTable({
     (f) => f.value.trim() !== "" || (f.valueTo && f.valueTo.trim() !== ""),
   ).length;
 
-  // Client-side filtering
-  const filteredEntries = useMemo(() => {
-    if (activeFilterCount === 0) return entries;
-
-    return entries.filter((entry) => {
-      return Object.entries(columnFilters).every(([columnId, filter]) => {
-        if (!filter.value.trim() && (!filter.valueTo || !filter.valueTo.trim()))
-          return true;
-
-        const cellValue = entry[columnId];
-        const column = ALL_COLUMNS.find((c) => c.id === columnId);
-
-        if (cellValue === null || cellValue === undefined) return false;
-
-        switch (column?.filterType) {
-          case "boolean": {
-            if (filter.value === "true") return cellValue === true;
-            if (filter.value === "false") return cellValue === false;
-            return true;
-          }
-          case "number": {
-            const val = filter.value;
-            if (val.startsWith("eq:")) {
-              const num = parseFloat(val.slice(3));
-              return !isNaN(num) && Number(cellValue) === num;
-            }
-            if (val.startsWith("gt:")) {
-              const num = parseFloat(val.slice(3));
-              return !isNaN(num) && Number(cellValue) > num;
-            }
-            if (val.startsWith("lt:")) {
-              const num = parseFloat(val.slice(3));
-              return !isNaN(num) && Number(cellValue) < num;
-            }
-            // Range filter
-            if (val && filter.valueTo) {
-              const min = parseFloat(val);
-              const max = parseFloat(filter.valueTo);
-              const num = Number(cellValue);
-              return num >= min && num <= max;
-            }
-            // Plain text match fallback
-            return String(cellValue).includes(val);
-          }
-          case "date": {
-            const dateVal = String(cellValue);
-            if (filter.value && filter.valueTo) {
-              return dateVal >= filter.value && dateVal <= filter.valueTo;
-            }
-            if (filter.value) {
-              return dateVal >= filter.value;
-            }
-            if (filter.valueTo) {
-              return dateVal <= filter.valueTo;
-            }
-            return true;
-          }
-          case "text": {
-            const textFilter = filter.value.trim().toLowerCase();
-            // Support comma-separated values
-            const values = textFilter
-              .split(",")
-              .map((v) => v.trim())
-              .filter(Boolean);
-            if (values.length === 0) return true;
-            const cellStr = String(cellValue).toLowerCase();
-            return values.some((v) => cellStr.includes(v));
-          }
-          default: {
-            return String(cellValue)
-              .toLowerCase()
-              .includes(filter.value.trim().toLowerCase());
-          }
-        }
-      });
-    });
-  }, [entries, columnFilters, activeFilterCount]);
-
-  // Precompute unique values for text columns for the checkbox filters
-  const textColumnOptions = useMemo(() => {
-    const options: Record<string, { value: string; label: string }[]> = {};
-    columns.forEach((col) => {
-      if (
-        col.filterType === "text" ||
-        col.filterType === "enum" ||
-        col.filterType === "date"
-      ) {
-        const uniqueValues = new Set<string>();
-        entries.forEach((entry) => {
-          const val = entry[col.id];
-          if (val && typeof val === "string") {
-            uniqueValues.add(val.trim());
-          }
-        });
-        options[col.id] = Array.from(uniqueValues)
-          .filter(Boolean)
-          .sort()
-          .map((v) => ({ value: v, label: v }));
-      }
-    });
-    return options;
-  }, [entries, columns]);
-
-  const handleColumnFilter = (
-    columnId: string,
-    value: string,
-    valueTo?: string,
-  ) => {
-    setColumnFilters((prev) => ({
-      ...prev,
-      [columnId]: { value, valueTo },
-    }));
-  };
+  // Client-side filtering is removed - entries are filtered at the API level
+  const filteredEntries = entries;
 
   const clearAllColumnFilters = () => {
-    setColumnFilters({});
+    onClearColumnFilters();
   };
 
   return (
@@ -234,11 +125,7 @@ export function ReportLedgerTable({
               {columns.map((column) => (
                 <SortableTableHead
                   key={column.id}
-                  column={{
-                    ...column,
-                    filterOptions:
-                      textColumnOptions[column.id] || column.filterOptions,
-                  }}
+                  column={column}
                   isActive={sortColumn === column.id}
                   sortDirection={
                     sortColumn === column.id ? sortDirection : null
@@ -246,7 +133,7 @@ export function ReportLedgerTable({
                   filterValue={columnFilters[column.id]?.value || ""}
                   filterValueTo={columnFilters[column.id]?.valueTo || ""}
                   onSort={onSort}
-                  onFilter={handleColumnFilter}
+                  onFilter={onFilter}
                 />
               ))}
             </tr>

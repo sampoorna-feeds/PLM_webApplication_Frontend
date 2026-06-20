@@ -26,6 +26,7 @@ import {
   getEmployeesPage,
   getAssignments,
   getAssignmentsPage,
+  getDimensionValueName,
   type DimensionValue,
 } from "@/lib/api/services/dimension.service";
 
@@ -76,6 +77,45 @@ export function DimensionSelect({
   // Check if this dimension supports search (LOB doesn't)
   const supportsSearch = dimensionType !== "LOB";
 
+  // Helper to update items list while preserving the selected option (so friendly name and select state are not lost)
+  const setItemsPreservingSelected = useCallback(
+    (newItems: DimensionValue[]) => {
+      setItems((prev) => {
+        const selectedInPrev = prev.find((item) => item.Code === value);
+        if (
+          selectedInPrev &&
+          !newItems.some((item) => item.Code === selectedInPrev.Code)
+        ) {
+          return [selectedInPrev, ...newItems];
+        }
+        return newItems;
+      });
+    },
+    [value],
+  );
+
+  // Fetch selected item name on mount or value change if it is not already in the items list
+  useEffect(() => {
+    if (!value) return;
+
+    const fetchSelectedName = async () => {
+      try {
+        const name = await getDimensionValueName(dimensionType, value);
+        if (name) {
+          const newItem: DimensionValue = { Code: value, Name: name };
+          setItems((prev) => {
+            if (prev.some((item) => item.Code === value)) return prev;
+            return [newItem, ...prev];
+          });
+        }
+      } catch (error) {
+        console.error("Error fetching selected dimension name:", error);
+      }
+    };
+
+    fetchSelectedName();
+  }, [value, dimensionType]);
+
   // Load initial items when dropdown opens
   const loadInitialItems = useCallback(async () => {
     setIsLoading(true);
@@ -100,7 +140,7 @@ export function DimensionSelect({
         default:
           result = [];
       }
-      setItems(result);
+      setItemsPreservingSelected(result);
       setSkip(result.length);
       setHasMore(result.length >= INITIAL_LOAD_COUNT);
     } catch (error) {
@@ -109,9 +149,9 @@ export function DimensionSelect({
     } finally {
       setIsLoading(false);
     }
-  }, [dimensionType]);
+  }, [dimensionType, setItemsPreservingSelected]);
 
-  // Search with debounce (only for BRANCH and LOC)
+  // Search with debounce
   const performSearch = useCallback(
     async (query: string) => {
       if (!supportsSearch) {
@@ -126,6 +166,13 @@ export function DimensionSelect({
       // Clear debounce timer
       if (debounceTimerRef.current) {
         clearTimeout(debounceTimerRef.current);
+      }
+
+      // If query is empty, reload initial items
+      if (query.trim() === "") {
+        setSearchQuery("");
+        loadInitialItems();
+        return;
       }
 
       // If query is too short (less than 3 chars), don't make any API call
@@ -157,7 +204,7 @@ export function DimensionSelect({
             case "ASSIGNMENT":
               result = await getAssignments(query);
               break;
-            default:
+            default: 
               result = [];
           }
 
@@ -166,7 +213,7 @@ export function DimensionSelect({
             return;
           }
 
-          setItems(result);
+          setItemsPreservingSelected(result);
           setSkip(result.length);
           setHasMore(result.length >= PAGE_SIZE);
         } catch (error) {
@@ -187,7 +234,7 @@ export function DimensionSelect({
         }
       }, DEBOUNCE_MS);
     },
-    [dimensionType, supportsSearch],
+    [dimensionType, supportsSearch, loadInitialItems, setItemsPreservingSelected],
   );
 
   // Reload items when dimensionType changes
@@ -310,9 +357,7 @@ export function DimensionSelect({
     if (open) {
       closeReasonRef.current = null;
       setFocusedIndex(-1);
-      if (items.length === 0) {
-        loadInitialItems();
-      }
+      loadInitialItems();
     }
     if (!open) {
       setSearchQuery("");
@@ -363,6 +408,20 @@ export function DimensionSelect({
       : selectedItem.Code
     : value || "";
 
+  // Filter items based on search query (client-side for short queries or when search result is already fetched)
+  const filteredItems = 
+    searchQuery.length > 0 && searchQuery.length < MIN_SEARCH_LENGTH
+      ? items.filter((item) => {
+          const codeMatch = item.Code?.toLowerCase().includes(
+            searchQuery.toLowerCase(),
+          );
+          const nameMatch = item.Name?.toLowerCase().includes(
+            searchQuery.toLowerCase(),
+          );
+          return codeMatch || nameMatch;
+        })
+      : items;
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (disabled) return;
 
@@ -372,7 +431,7 @@ export function DimensionSelect({
         setIsOpen(true);
       } else {
         setFocusedIndex((prev) => 
-          prev < items.length - 1 ? prev + 1 : prev
+          prev < filteredItems.length - 1 ? prev + 1 : prev
         );
       }
     } else if (e.key === "ArrowUp") {
@@ -384,7 +443,7 @@ export function DimensionSelect({
       if (isOpen && focusedIndex >= 0) {
         e.preventDefault();
         closeReasonRef.current = "select";
-        const item = items[focusedIndex];
+        const item = filteredItems[focusedIndex];
         if (item) {
           onChange(item.Code);
           setIsOpen(false);
@@ -414,9 +473,9 @@ export function DimensionSelect({
 
   // Calculate max width needed for dropdown based on items
   const calculateDropdownWidth = () => {
-    if (items.length === 0) return "280px";
-    const codeLengths = items.map((item) => item.Code?.length || 0);
-    const nameLengths = items.map((item) => item.Name?.length || 0);
+    if (filteredItems.length === 0) return "280px";
+    const codeLengths = filteredItems.map((item) => item.Code?.length || 0);
+    const nameLengths = filteredItems.map((item) => item.Name?.length || 0);
     const maxCodeLength = codeLengths.length > 0 ? Math.max(...codeLengths) : 0;
     const maxNameLength = nameLengths.length > 0 ? Math.max(...nameLengths) : 0;
     // Estimate: code (8ch) + padding + name (max 40ch) + check icon + padding
@@ -518,7 +577,7 @@ export function DimensionSelect({
               <div className="flex items-center justify-center p-4">
                 <Loader2 className="h-4 w-4 animate-spin" />
               </div>
-            ) : items.length === 0 ? (
+            ) : filteredItems.length === 0 ? (
               <div className="text-muted-foreground p-4 text-center text-sm">
                 {supportsSearch && searchQuery.length < MIN_SEARCH_LENGTH && searchQuery.length > 0
                   ? `Type at least ${MIN_SEARCH_LENGTH} characters to search`
@@ -526,9 +585,10 @@ export function DimensionSelect({
               </div>
             ) : (
               <>
-                {items.map((item, index) => (
+                {filteredItems.map((item, index) => (
                   <div
                     key={item.Code}
+                    onMouseDown={(e) => e.preventDefault()}
                     className={cn(
                       "relative flex cursor-default items-start rounded-sm px-2 py-2 text-sm outline-none select-none",
                       value === item.Code && "bg-muted",
@@ -571,7 +631,7 @@ export function DimensionSelect({
                     </div>
                   </div>
                 ))}
-                {isLoading && items.length > 0 && (
+                {isLoading && filteredItems.length > 0 && (
                   <div className="flex items-center justify-center p-2">
                     <Loader2 className="h-4 w-4 animate-spin" />
                   </div>

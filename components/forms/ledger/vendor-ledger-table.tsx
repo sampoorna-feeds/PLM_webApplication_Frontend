@@ -6,7 +6,8 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { TableCell } from "@/components/ui/table";
-import type { VendorLedgerEntry } from "@/lib/api/services/vendor-ledger.service";
+import { patchVendorLedgerEntry, type VendorLedgerEntry } from "@/lib/api/services/vendor-ledger.service";
+import { Checkbox } from "@/components/ui/checkbox";
 import { getVoucherReportPdf } from "@/lib/api/services/voucher.service";
 import { viewPdfFromBase64 } from "@/lib/pdf-utils";
 import { toast } from "sonner";
@@ -16,6 +17,8 @@ import { ArrowUpDown, ChevronDown, ChevronUp, Loader2, MoreHorizontal, Printer }
 import { useCallback, useEffect, useRef, useMemo, useState } from "react";
 import { 
   ALL_COLUMNS, 
+  LEDGER_DEFAULT_COLUMNS,
+  OUTSTANDING_DEFAULT_COLUMNS,
   type ColumnConfig
 } from "./vendor-ledger-column-config";
 import { ColumnFilter } from "@/components/forms/report-ledger/column-filter";
@@ -46,6 +49,7 @@ interface VendorLedgerTableProps {
   fromDate?: string;
   toDate?: string;
   isOutstanding?: boolean;
+  refetch?: () => void;
 }
 
 const balanceColumnIds = [
@@ -88,9 +92,35 @@ export function VendorLedgerTable({
   fromDate,
   toDate,
   isOutstanding = false,
+  refetch,
 }: VendorLedgerTableProps) {
   const observerTarget = useRef<HTMLDivElement>(null);
   const [printingDoc, setPrintingDoc] = useState<string | null>(null);
+  const [updatingEntryNos, setUpdatingEntryNos] = useState<Record<number, boolean>>({});
+
+  const handleToggleOnHold = async (entry: VendorLedgerEntry) => {
+    const entryNo = entry.Entry_No;
+    if (!entryNo) return;
+
+    const currentValue = String(entry.On_Hold || "").toLowerCase().trim();
+    const nextValue = currentValue === "yes" ? "" : "yes";
+
+    setUpdatingEntryNos((prev) => ({ ...prev, [entryNo]: true }));
+    try {
+      await patchVendorLedgerEntry(entryNo, { On_Hold: nextValue });
+      toast.success(`Entry ${entry.Document_No || entryNo} updated successfully.`);
+      if (refetch) {
+        refetch();
+      } else {
+        entry.On_Hold = nextValue;
+      }
+    } catch (error: any) {
+      console.error("Error patching vendor ledger entry:", error);
+      toast.error(error.message || "Failed to update On Hold status.");
+    } finally {
+      setUpdatingEntryNos((prev) => ({ ...prev, [entryNo]: false }));
+    }
+  };
 
   const handlePrintVoucher = async (docNo: string, postingDate: string) => {
     if (!docNo) return;
@@ -113,14 +143,24 @@ export function VendorLedgerTable({
 
   const activeColumns = useMemo(() => {
     let base = ALL_COLUMNS.filter((col) => visibleColumns.includes(col.id));
-    if (columnOrder.length > 0) {
-      const currentOrder = columnOrder.filter(id => visibleColumns.includes(id));
-      const newVisible = visibleColumns.filter(id => !currentOrder.includes(id));
-      const finalOrder = [...currentOrder, ...newVisible];
-      base = [...base].sort((a, b) => finalOrder.indexOf(a.id) - finalOrder.indexOf(b.id));
-    }
+    
+    const defaultOrder = isOutstanding 
+      ? OUTSTANDING_DEFAULT_COLUMNS.map(c => c.id) 
+      : LEDGER_DEFAULT_COLUMNS.map(c => c.id);
+
+    const orderedAllColumnIds = [
+      ...defaultOrder,
+      ...ALL_COLUMNS.filter((col) => !defaultOrder.includes(col.id)).map((col) => col.id)
+    ];
+
+    const currentOrder = columnOrder.length > 0 ? columnOrder : orderedAllColumnIds;
+    const activeOrder = currentOrder.filter((id) => visibleColumns.includes(id));
+    const newVisible = visibleColumns.filter((id) => !activeOrder.includes(id));
+    const finalOrder = [...activeOrder, ...newVisible];
+    
+    base = [...base].sort((a, b) => finalOrder.indexOf(a.id) - finalOrder.indexOf(b.id));
     return base;
-  }, [visibleColumns, columnOrder]);
+  }, [visibleColumns, columnOrder, isOutstanding]);
 
   const handleResize = useCallback((columnId: string, width: number) => {
     setColumnWidths(prev => ({ ...prev, [columnId]: width }));
@@ -321,6 +361,25 @@ export function VendorLedgerTable({
       minWidth: columnWidths[col.id] ? `${columnWidths[col.id]}px` : undefined,
       maxWidth: columnWidths[col.id] ? `${columnWidths[col.id]}px` : undefined,
     };
+
+    if (col.id === "On_Hold") {
+      const isChecked = String(value || "").toLowerCase().trim() === "yes";
+      const isUpdating = updatingEntryNos[entry.Entry_No];
+      
+      return (
+        <TableCell key={col.id} style={cellStyle} className="text-center px-4 py-3 whitespace-normal">
+          {isUpdating ? (
+            <Loader2 className="h-4 w-4 animate-spin mx-auto text-primary" />
+          ) : (
+            <Checkbox
+              checked={isChecked}
+              onCheckedChange={() => handleToggleOnHold(entry)}
+              className="mx-auto cursor-pointer"
+            />
+          )}
+        </TableCell>
+      );
+    }
 
     if (value === null || value === undefined || value === "") {
       return (

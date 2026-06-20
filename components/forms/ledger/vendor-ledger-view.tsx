@@ -148,6 +148,7 @@ export function VendorLedgerView() {
           fromDate={currentState.filters.fromDate}
           toDate={currentState.filters.toDate}
           isOutstanding={activeTab === "outstanding"}
+          refetch={currentState.refetch}
         />
       </div>
     </div>

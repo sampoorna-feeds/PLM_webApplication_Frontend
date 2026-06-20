@@ -14,10 +14,11 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
-import { Search, Loader2, X } from "lucide-react";
+import { Search, Loader2, X, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { InwardGateEntryColumnFilter } from "./column-filter";
+import { cn } from "@/lib/utils";
 import type { ColumnConfig } from "./column-config";
 import {
   getPurchaseOrders,
@@ -52,14 +53,15 @@ export function SourceLookupModal({
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [columnFilters, setColumnFilters] = useState<Record<string, { value: string; valueTo?: string }>>({});
   
+  // Sorting state
+  const [sortColumn, setSortColumn] = useState<string | null>("No");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc" | null>("desc");
+
   // Pagination state
-  const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 100;
   const [totalCount, setTotalCount] = useState(0);
-  const [hasMore, setHasMore] = useState(true);
 
-  const observer = useRef<IntersectionObserver | null>(null);
-  const fetchGenRef = useRef(0);
+  const observerRef = useRef<IntersectionObserver | null>(null);
 
   const getColumns = (): ColumnConfig[] => {
     const baseCols: ColumnConfig[] = [
@@ -96,14 +98,19 @@ export function SourceLookupModal({
   const columns = getColumns();
 
   // Disconnect observer on unmount to prevent memory leak
-  useEffect(() => () => { observer.current?.disconnect(); }, []);
+  useEffect(() => {
+    return () => {
+      if (observerRef.current) {
+        observerRef.current.disconnect();
+      }
+    };
+  }, []);
 
   const isLoadingRef = useRef(false);
   const isLoadingMoreRef = useRef(false);
   const isAllFetchedRef = useRef(false);
   const pageRef = useRef(1);
   const lastRequestId = useRef(0);
-  const sentinelRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   // Debounce search
@@ -138,6 +145,7 @@ export function SourceLookupModal({
         branchCode: branchCode || undefined,
         locationCode: locationCode || undefined,
         filters: columnFilters,
+        $orderby: sortColumn && sortDirection ? `${sortColumn} ${sortDirection}` : undefined,
       };
 
       let result;
@@ -154,11 +162,15 @@ export function SourceLookupModal({
       if (result) {
         if (isNewSearch) {
           setData(result.data);
+          isAllFetchedRef.current = result.data.length >= result.totalCount;
         } else {
-          setData(prev => [...prev, ...result.data]);
+          setData(prev => {
+            const next = [...prev, ...result.data];
+            isAllFetchedRef.current = next.length >= result.totalCount;
+            return next;
+          });
         }
         setTotalCount(result.totalCount);
-        isAllFetchedRef.current = result.data.length < pageSize;
         pageRef.current = page;
       }
     } catch (error) {
@@ -174,34 +186,61 @@ export function SourceLookupModal({
         }
       }
     }
-  }, [sourceType, debouncedSearch, branchCode, locationCode, columnFilters]);
+  }, [sourceType, debouncedSearch, branchCode, locationCode, columnFilters, sortColumn, sortDirection]);
 
-  // Reset and fetch page 1 when search params or open state changes
+  // Reset and fetch page 1 when search params, sorting or open state changes
   useEffect(() => {
     if (isOpen) {
       fetchData(1, true);
     }
   }, [isOpen, fetchData]);
 
-  // Infinite scroll via IntersectionObserver
-  useEffect(() => {
-    if (!isOpen) return;
-    const el = sentinelRef.current;
-    if (!el) return;
+  const handleSort = (columnId: string) => {
+    if (sortColumn === columnId) {
+      setSortDirection(prev => prev === "asc" ? "desc" : "asc");
+    } else {
+      setSortColumn(columnId);
+      setSortDirection("asc");
+    }
+  };
 
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting && !isLoadingRef.current && !isLoadingMoreRef.current && !isAllFetchedRef.current) {
-          fetchData(pageRef.current + 1, false);
-        }
-      },
-      { 
-        threshold: 0.1,
-        root: scrollContainerRef.current
-      },
+  const renderSortIcon = (columnId: string) => {
+    if (sortColumn !== columnId) {
+      return <ArrowUpDown className="h-3.5 w-3.5 opacity-40 shrink-0" />;
+    }
+    return sortDirection === "asc" ? (
+      <ArrowUp className="h-3.5 w-3.5 text-foreground shrink-0" />
+    ) : (
+      <ArrowDown className="h-3.5 w-3.5 text-foreground shrink-0" />
     );
-    observer.observe(el);
-    return () => observer.disconnect();
+  };
+
+  // Callback ref for infinite scroll sentinel
+  const sentinelRef = useCallback((node: HTMLTableRowElement | null) => {
+    if (observerRef.current) {
+      observerRef.current.disconnect();
+      observerRef.current = null;
+    }
+
+    if (node && isOpen) {
+      observerRef.current = new IntersectionObserver(
+        (entries) => {
+          if (
+            entries[0].isIntersecting &&
+            !isLoadingRef.current &&
+            !isLoadingMoreRef.current &&
+            !isAllFetchedRef.current
+          ) {
+            fetchData(pageRef.current + 1, false);
+          }
+        },
+        {
+          threshold: 0.1,
+          root: scrollContainerRef.current,
+        }
+      );
+      observerRef.current.observe(node);
+    }
   }, [isOpen, fetchData]);
 
   const activeFiltersCount = Object.keys(columnFilters).length + (searchQuery ? 1 : 0);
@@ -242,113 +281,123 @@ export function SourceLookupModal({
           )}
         </div>
 
-        <div className="flex-1 overflow-auto" ref={scrollContainerRef}>
-          <Table>
-            <TableHeader className="bg-muted/50 sticky top-0 z-10">
-              <TableRow>
-                {columns.map((col) => (
-                  <TableHead key={col.id} className="whitespace-nowrap px-1 py-1.5 h-9 text-xs">
-                    <div className="flex items-center gap-1.5">
+        <Table containerClassName="flex-1 overflow-auto" containerRef={scrollContainerRef}>
+          <TableHeader className="bg-muted sticky top-0 z-10 shadow-xs">
+            <TableRow className="hover:bg-transparent">
+              {columns.map((col) => (
+                <TableHead key={col.id} className="whitespace-nowrap px-1 py-1.5 h-9 text-xs">
+                  <div className="flex items-center gap-1.5">
+                    <span 
+                      className={cn(
+                        "font-bold select-none",
+                        col.sortable && "cursor-pointer hover:text-foreground/80 flex items-center gap-1"
+                      )}
+                      onClick={() => col.sortable && handleSort(col.id)}
+                    >
                       {col.label}
-                      <InwardGateEntryColumnFilter
-                        column={col}
-                        value={columnFilters[col.id]?.value ?? ""}
-                        valueTo={columnFilters[col.id]?.valueTo}
-                        onChange={(value, valueTo) => {
-                          setColumnFilters(prev => {
-                            const next = { ...prev };
-                            if (!value && !valueTo) {
-                              delete next[col.id];
-                            } else {
-                              next[col.id] = { value, valueTo };
-                            }
-                            return next;
-                          });
-                        }}
-                      />
-                    </div>
-                  </TableHead>
-                ))}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading && data.length === 0 ? (
-                Array.from({ length: 10 }).map((_, i) => (
-                  <TableRow key={i}>
-                    {Array.from({ length: columns.length }).map((_, j) => (
-                      <TableCell key={j}>
-                        <Skeleton className="h-4 w-full" />
-                      </TableCell>
-                    ))}
-                  </TableRow>
-                ))
-              ) : data.length === 0 && !isLoading ? (
-                <TableRow>
-                  <TableCell
-                    colSpan={columns.length}
-                    className="text-muted-foreground py-10 text-center"
-                  >
-                    No data found
-                  </TableCell>
+                      {col.sortable && renderSortIcon(col.id)}
+                    </span>
+                    <InwardGateEntryColumnFilter
+                      column={col}
+                      value={columnFilters[col.id]?.value ?? ""}
+                      valueTo={columnFilters[col.id]?.valueTo}
+                      onChange={(value, valueTo) => {
+                        setColumnFilters(prev => {
+                          const next = { ...prev };
+                          if (!value && !valueTo) {
+                            delete next[col.id];
+                          } else {
+                            next[col.id] = { value, valueTo };
+                          }
+                          return next;
+                        });
+                      }}
+                    />
+                  </div>
+                </TableHead>
+              ))}
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {isLoading && data.length === 0 ? (
+              Array.from({ length: 10 }).map((_, i) => (
+                <TableRow key={i}>
+                  {Array.from({ length: columns.length }).map((_, j) => (
+                    <TableCell key={j}>
+                      <Skeleton className="h-4 w-full" />
+                    </TableCell>
+                  ))}
                 </TableRow>
-              ) : (
-                <>
-                  {data.map((item, index) => {
-                    const no = item.No || item["No."];
-                    const name =
-                      item.Buy_from_Vendor_Name ||
-                      item.Sell_to_Customer_Name ||
-                      item.Transfer_from_Name ||
-                      "";
-                    const date =
-                      item.Order_Date ||
-                      item.Posting_Date ||
-                      item["Document Date"] ||
-                      "";
-                    const status = item.Status || "";
-                    const location = item.Location_Code || item.Transfer_to_Code || "";
+              ))
+            ) : data.length === 0 && !isLoading ? (
+              <TableRow>
+                <TableCell
+                  colSpan={columns.length}
+                  className="text-muted-foreground py-10 text-center"
+                >
+                  No data found
+                </TableCell>
+              </TableRow>
+            ) : (
+              <>
+                {data.map((item, index) => {
+                  const no = item.No || item["No."];
+                  const name =
+                    item.Buy_from_Vendor_Name ||
+                    item.Sell_to_Customer_Name ||
+                    item.Transfer_from_Name ||
+                    "";
+                  const date =
+                    item.Order_Date ||
+                    item.Posting_Date ||
+                    item["Document Date"] ||
+                    "";
+                  const status = item.Status || "";
+                  const location = item.Location_Code || item.Transfer_to_Code || "";
 
-                    return (
-                      <TableRow
-                        key={item.id || no || `source-${index}`}
-                        className="hover:bg-muted cursor-pointer"
-                        onClick={() => onSelect(no, item)}
-                      >
-                        <TableCell className="px-1 py-1.5 text-xs font-medium">{no}</TableCell>
-                        {sourceType === "Transfer Receipt" ? (
-                          <>
-                            <TableCell className="px-1 py-1.5 text-xs">{item.Transfer_from_Code}</TableCell>
-                            <TableCell className="px-1 py-1.5 text-xs">{item.Transfer_from_Name}</TableCell>
-                            <TableCell className="px-1 py-1.5 text-xs">{item.Transfer_to_Code}</TableCell>
-                            <TableCell className="px-1 py-1.5 text-xs">{item.Transfer_to_Name}</TableCell>
-                          </>
-                        ) : (
-                          <TableCell className="px-1 py-1.5 text-xs">{name}</TableCell>
-                        )}
-                        {sourceType !== "Transfer Receipt" && <TableCell className="px-1 py-1.5 text-xs">{location}</TableCell>}
-                        <TableCell className="px-1 py-1.5 text-xs">
-                          {date ? formatDate(date) : "-"}
-                        </TableCell>
-                        <TableCell className="px-1 py-1.5 text-xs">{status}</TableCell>
-                      </TableRow>
-                    );
-                  })}
-                  {isLoadingMore && (
-                    <TableRow>
-                      <TableCell
-                        colSpan={columns.length}
-                        className="py-4 text-center"
-                      >
-                        <Loader2 className="mx-auto h-6 w-6 animate-spin" />
+                  return (
+                    <TableRow
+                      key={item.id || no || `source-${index}`}
+                      className="hover:bg-muted cursor-pointer"
+                      onClick={() => onSelect(no, item)}
+                    >
+                      <TableCell className="px-1 py-1.5 text-xs font-medium">{no}</TableCell>
+                      {sourceType === "Transfer Receipt" ? (
+                        <>
+                          <TableCell className="px-1 py-1.5 text-xs">{item.Transfer_from_Code}</TableCell>
+                          <TableCell className="px-1 py-1.5 text-xs">{item.Transfer_from_Name}</TableCell>
+                          <TableCell className="px-1 py-1.5 text-xs">{item.Transfer_to_Code}</TableCell>
+                          <TableCell className="px-1 py-1.5 text-xs">{item.Transfer_to_Name}</TableCell>
+                        </>
+                      ) : (
+                        <TableCell className="px-1 py-1.5 text-xs">{name}</TableCell>
+                      )}
+                      {sourceType !== "Transfer Receipt" && <TableCell className="px-1 py-1.5 text-xs">{location}</TableCell>}
+                      <TableCell className="px-1 py-1.5 text-xs">
+                        {date ? formatDate(date) : "-"}
                       </TableCell>
+                      <TableCell className="px-1 py-1.5 text-xs">{status}</TableCell>
                     </TableRow>
-                  )}
-                </>
-              )}
-            </TableBody>
-          </Table>
-          <div ref={sentinelRef} className="h-4" />
-        </div>
+                  );
+                })}
+                {isLoadingMore && (
+                  <TableRow>
+                    <TableCell
+                      colSpan={columns.length}
+                      className="py-4 text-center border-b-0"
+                    >
+                      <Loader2 className="mx-auto h-6 w-6 animate-spin" />
+                    </TableCell>
+                  </TableRow>
+                )}
+                {/* Sentinel Row for IntersectionObserver */}
+                <TableRow ref={sentinelRef} className="hover:bg-transparent border-0 h-4">
+                  <TableCell colSpan={columns.length} className="p-0 border-0 h-4" />
+                </TableRow>
+              </>
+            )}
+          </TableBody>
+        </Table>
         <div className="text-muted-foreground border-t px-4 py-2 text-[10px] font-bold tracking-wider uppercase">
           Showing {data.length} of {totalCount} records
         </div>

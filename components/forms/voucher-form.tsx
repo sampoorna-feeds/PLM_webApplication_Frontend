@@ -7,7 +7,8 @@
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { z } from "zod";
-import { Pencil, Plus, Trash2, Upload, Info, Loader2, X, FileSpreadsheet } from "lucide-react";
+import { Pencil, Plus, Trash2, Upload, Info, Loader2, X, FileSpreadsheet, Paperclip } from "lucide-react";
+import { VoucherAttachmentDialog } from "./voucher-attachment-dialog";
 
 import {
   voucherSchema,
@@ -74,6 +75,7 @@ import {
   updateVoucher,
   getDefaultDimensions,
   getTaxComponentsInJson,
+  getVoucherReportPdf,
   type TDSSection,
   type TCSSection,
   type CreateVoucherPayload,
@@ -282,7 +284,7 @@ export function VoucherForm() {
   };
 
   // useHorizontalScroll(formTableRef);
-  useHorizontalScroll(vouchersTableRef);
+  // useHorizontalScroll(vouchersTableRef);
 
   const [accountType, setAccountType] = useState<
     VoucherFormData["accountType"] | undefined
@@ -312,11 +314,18 @@ export function VoucherForm() {
   >([]);
   const [isLoadingVouchers, setIsLoadingVouchers] = useState(false);
   const [isPosting, setIsPosting] = useState(false);
+  const [postingLines, setPostingLines] = useState<Record<number, boolean>>({});
   const [isDeletingVoucher, setIsDeletingVoucher] = useState(false);
+  const [downloadConfirmOpen, setDownloadConfirmOpen] = useState(false);
+  const [vouchersToDownload, setVouchersToDownload] = useState<
+    { documentNo: string; postingDate: string }[]
+  >([]);
   const [voucherToDelete, setVoucherToDelete] =
     useState<VoucherEntryResponse | null>(null);
   const [showDeleteVoucherWarning, setShowDeleteVoucherWarning] =
     useState(false);
+  const [isAttachmentDialogOpen, setIsAttachmentDialogOpen] = useState(false);
+  const [attachmentVoucherNo, setAttachmentVoucherNo] = useState<string | null>(null);
   // Edit voucher state
   const [voucherToEdit, setVoucherToEdit] =
     useState<VoucherEntryResponse | null>(null);
@@ -1223,6 +1232,79 @@ export function VoucherForm() {
     toast.success("Vouchers exported to Excel");
   };
 
+  const downloadPdf = (base64Data: string, filename: string) => {
+    try {
+      const linkSource = `data:application/pdf;base64,${base64Data}`;
+      const downloadLink = document.createElement("a");
+      downloadLink.href = linkSource;
+      downloadLink.download = filename;
+      downloadLink.click();
+    } catch (err) {
+      console.error("Error triggering file download:", err);
+      toast.error("Failed to download PDF file");
+    }
+  };
+
+  const handlePostSingleVoucher = async (
+    documentNo: string,
+    lineNo: number,
+    postingDate: string,
+  ) => {
+    setPostingLines((prev) => ({ ...prev, [lineNo]: true }));
+    try {
+      if (!userID) {
+        setErrorDialogData({
+          title: "Post Voucher Error",
+          message: "User ID not available. Please login again.",
+          errors: [],
+          type: "post",
+        });
+        setErrorDialogOpen(true);
+        return;
+      }
+      await postVouchers(userID, documentNo, lineNo);
+      toast.success(`Voucher ${documentNo} (Line No. ${lineNo}) posted successfully`);
+      
+      // Clear any previous failed voucher highlights if this one succeeded
+      setFailedVoucherLineNos((prev) => {
+        const next = new Set(prev);
+        next.delete(lineNo);
+        return next;
+      });
+
+      // Set vouchers to download and open confirmation dialog
+      setVouchersToDownload([{ documentNo, postingDate }]);
+      setDownloadConfirmOpen(true);
+
+      // Refresh vouchers from ERP to reflect posted status
+      await fetchVouchersFromERP();
+    } catch (error) {
+      console.error("Error posting voucher:", error);
+      const errorDetail = extractErrorDetails(error);
+
+      // Extract Line_No from error message and highlight the voucher
+      const errLineNo = extractLineNoFromError(errorDetail.message) ?? lineNo;
+      setFailedVoucherLineNos(new Set([errLineNo]));
+
+      errorDetail.entryLabel = `Voucher ${documentNo} (Line No. ${lineNo})`;
+
+      setErrorDialogData({
+        title: "Post Voucher Failed",
+        message:
+          "Failed to post voucher. Please review the error details below.",
+        errors: [errorDetail],
+        type: "post",
+      });
+      setErrorDialogOpen(true);
+    } finally {
+      setPostingLines((prev) => {
+        const next = { ...prev };
+        delete next[lineNo];
+        return next;
+      });
+    }
+  };
+
   const handlePostVouchers = async () => {
     setIsPosting(true);
     try {
@@ -1238,6 +1320,19 @@ export function VoucherForm() {
       }
       await postVouchers(userID);
       toast.success("Vouchers posted successfully");
+
+      // Try to download PDF reports for all posted vouchers
+      for (const voucher of fetchedVouchers) {
+        try {
+          const pdfBase64 = await getVoucherReportPdf(voucher.Document_No, voucher.Posting_Date);
+          if (pdfBase64) {
+            downloadPdf(pdfBase64, `${voucher.Document_No}.pdf`);
+          }
+        } catch (pdfErr) {
+          console.error(`Error downloading PDF for ${voucher.Document_No}:`, pdfErr);
+        }
+      }
+
       // Clear any previous failed voucher highlights
       setFailedVoucherLineNos(new Set());
       // Refresh vouchers from ERP to reflect posted status
@@ -2459,19 +2554,6 @@ export function VoucherForm() {
               <FileSpreadsheet className="mr-2 h-4 w-4" />
               Export to Excel
             </Button>
-            <Button
-              type="button"
-              size="sm"
-              onClick={handlePostVouchers}
-              disabled={isPosting || fetchedVouchers.length === 0}
-              title={
-                fetchedVouchers.length === 0
-                  ? "No vouchers to post"
-                  : "Post all vouchers"
-              }
-            >
-              {isPosting ? "Posting..." : "Post"}
-            </Button>
           </div>
         </div>
         {isLoadingVouchers ? (
@@ -2485,14 +2567,23 @@ export function VoucherForm() {
         ) : (
           <div
             ref={vouchersTableRef}
-            className="bg-background flex-1 min-h-0 cursor-grab overflow-auto rounded-md border"
+            className="bg-background flex-1 min-h-0 overflow-auto rounded-md border"
           >
             <Table className={tableClass}>
               <TableHeader>
                 <TableRow className="sticky top-0 z-30 bg-muted">
                   <TableHead
                     className={cn(
-                      "text-foreground/80 bg-muted sticky left-0 top-0 z-40 px-1 py-1 text-xs font-semibold",
+                      "text-foreground/80 bg-muted sticky left-0 top-0 z-40 px-1 py-1 text-xs font-semibold text-center",
+                      "w-36",
+                    )}
+                    style={{ borderRight: "2px solid hsl(var(--border))" }}
+                  >
+                    Post / Attachment
+                  </TableHead>
+                  <TableHead
+                    className={cn(
+                      "text-foreground/80 bg-muted sticky left-36 top-0 z-40 px-1 py-1 text-xs font-semibold",
                       "w-25",
                     )}
                     style={{ borderRight: "2px solid hsl(var(--border))" }}
@@ -2501,7 +2592,7 @@ export function VoucherForm() {
                   </TableHead>
                   <TableHead
                     className={cn(
-                      "text-foreground/80 bg-muted sticky left-25 top-0 z-40 px-1 py-1 text-xs font-semibold",
+                      "text-foreground/80 bg-muted sticky left-[244px] top-0 z-40 px-1 py-1 text-xs font-semibold",
                       "w-22.5",
                     )}
                     style={{ borderRight: "2px solid hsl(var(--border))" }}
@@ -2510,7 +2601,7 @@ export function VoucherForm() {
                   </TableHead>
                   <TableHead
                     className={cn(
-                      "text-foreground/80 bg-muted sticky left-47.5 top-0 z-40 px-1 py-1 text-xs font-semibold",
+                      "text-foreground/80 bg-muted sticky left-[334px] top-0 z-40 px-1 py-1 text-xs font-semibold",
                       "w-25",
                     )}
                     style={{ borderRight: "2px solid hsl(var(--border))" }}
@@ -2701,7 +2792,47 @@ export function VoucherForm() {
                         >
                           <TableCell
                             className={cn(
-                              "bg-background sticky left-0 z-20 px-1 py-0.5 text-xs font-medium",
+                              "bg-background sticky left-0 z-20 px-1 py-0.5 text-xs font-medium text-center",
+                              failedVoucherLineNos.has(voucher.Line_No) &&
+                                "bg-destructive/10",
+                            )}
+                            style={{
+                              borderRight: "2px solid hsl(var(--border))",
+                            }}
+                          >
+                            <div className="flex items-center justify-center gap-1.5">
+                              <Button
+                                type="button"
+                                size="xs"
+                                variant="default"
+                                className="h-6 px-2 text-[11px]"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handlePostSingleVoucher(voucher.Document_No, voucher.Line_No, voucher.Posting_Date);
+                                }}
+                                disabled={postingLines[voucher.Line_No] || isPosting}
+                              >
+                                {postingLines[voucher.Line_No] ? "Posting..." : "Post"}
+                              </Button>
+                              <Button
+                                type="button"
+                                size="xs"
+                                variant="outline"
+                                className="h-6 px-1.5 text-[11px] flex items-center gap-1"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setAttachmentVoucherNo(voucher.Document_No);
+                                  setIsAttachmentDialogOpen(true);
+                                }}
+                              >
+                                <Paperclip className="h-3 w-3" />
+                                
+                              </Button>
+                            </div>
+                          </TableCell>
+                          <TableCell
+                            className={cn(
+                              "bg-background sticky left-36 z-20 px-1 py-0.5 text-xs font-medium",
                               failedVoucherLineNos.has(voucher.Line_No) &&
                                 "bg-destructive/10",
                             )}
@@ -2713,7 +2844,9 @@ export function VoucherForm() {
                           </TableCell>
                           <TableCell
                             className={cn(
-                              "bg-background sticky left-25 z-20 px-1 py-0.5 text-xs",
+                              "bg-background sticky left-[244px] z-20 px-1 py-0.5 text-xs",
+                              failedVoucherLineNos.has(voucher.Line_No) &&
+                                "bg-destructive/10",
                             )}
                             style={{
                               borderRight: "2px solid hsl(var(--border))",
@@ -2723,7 +2856,9 @@ export function VoucherForm() {
                           </TableCell>
                           <TableCell
                             className={cn(
-                              "bg-background sticky left-48 z-20 px-1 py-0.5 text-xs",
+                              "bg-background sticky left-[334px] z-20 px-1 py-0.5 text-xs",
+                              failedVoucherLineNos.has(voucher.Line_No) &&
+                                "bg-destructive/10",
                             )}
                             style={{
                               borderRight: "2px solid hsl(var(--border))",
@@ -3094,6 +3229,57 @@ export function VoucherForm() {
         </DialogContent>
       </Dialog>
 
+      {/* Download PDF Confirmation Dialog */}
+      <Dialog open={downloadConfirmOpen} onOpenChange={(open) => {
+        setDownloadConfirmOpen(open);
+        if (!open) {
+          window.location.reload();
+        }
+      }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Download PDF Report</DialogTitle>
+            <DialogDescription className="pt-2">
+              The voucher has been posted successfully. Would you like to download the PDF report?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setDownloadConfirmOpen(false);
+                window.location.reload();
+              }}
+            >
+              No, Skip
+            </Button>
+            <Button
+              type="button"
+              onClick={async () => {
+                setDownloadConfirmOpen(false);
+                for (const v of vouchersToDownload) {
+                  try {
+                    const pdfBase64 = await getVoucherReportPdf(v.documentNo, v.postingDate);
+                    if (pdfBase64) {
+                      downloadPdf(pdfBase64, `${v.documentNo}.pdf`);
+                    } else {
+                      toast.error(`Failed to retrieve PDF report for ${v.documentNo}`);
+                    }
+                  } catch (err) {
+                    console.error(`Error downloading PDF for ${v.documentNo}:`, err);
+                    toast.error(`Error downloading PDF report for ${v.documentNo}`);
+                  }
+                }
+                window.location.reload();
+              }}
+            >
+              Yes, Download
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Error Dialog */}
       <ErrorDialog
         open={errorDialogOpen}
@@ -3182,6 +3368,15 @@ export function VoucherForm() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Voucher Attachment Dialog */}
+      {attachmentVoucherNo && (
+        <VoucherAttachmentDialog
+          isOpen={isAttachmentDialogOpen}
+          onOpenChange={setIsAttachmentDialogOpen}
+          voucherNo={attachmentVoucherNo}
+        />
+      )}
 
       {/* Removed delete all dialog */}
     </div>

@@ -52,7 +52,13 @@ export function ColumnFilter({
   useEffect(() => {
     setLocalValue(value);
     setLocalValueTo(valueTo || "");
-  }, [value, valueTo]);
+
+    if (column.filterType === "number" && value.includes(":")) {
+      const [op, val] = value.split(":");
+      setNumberOperator(op as any);
+      setLocalValue(val);
+    }
+  }, [value, valueTo, column.filterType]);
 
   const handleApply = () => {
     if (
@@ -122,10 +128,36 @@ export function ColumnFilter({
               value={localValue}
               onChange={(e) => setLocalValue(e.target.value)}
               className="h-8 text-sm"
+              onKeyDown={(e) => e.key === "Enter" && handleApply()}
             />
             <p className="text-muted-foreground text-xs">
               Separate multiple values with commas
             </p>
+          </div>
+        );
+
+      case "date":
+        return (
+          <div className="space-y-3">
+            <Label className="text-xs font-medium">Filter {column.label}</Label>
+            <div className="space-y-2">
+              <div>
+                <Label className="text-muted-foreground text-[10px] uppercase font-bold tracking-wider">From</Label>
+                <DateInput
+                  value={localValue}
+                  onChange={(val) => setLocalValue(val)}
+                  className="h-8 text-sm"
+                />
+              </div>
+              <div>
+                <Label className="text-muted-foreground text-[10px] uppercase font-bold tracking-wider">To</Label>
+                <DateInput
+                  value={localValueTo}
+                  onChange={(val) => setLocalValueTo(val)}
+                  className="h-8 text-sm"
+                />
+              </div>
+            </div>
           </div>
         );
 

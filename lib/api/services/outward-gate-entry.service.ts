@@ -224,6 +224,7 @@ export interface GetSourceDocsParams {
   branchCode?: string;
   locationCode?: string;
   filters?: Record<string, { value: string; valueTo?: string }>;
+  $orderby?: string;
 }
 
 export interface PaginatedSourceDocsResponse {
@@ -238,7 +239,7 @@ async function getPaginatedSourceDocs(
   extraFilter?: string,
   locationFieldName: string = "Location_Code"
 ): Promise<PaginatedSourceDocsResponse> {
-  const { $top = 200, $skip = 0, searchTerm, branchCode, locationCode } = params;
+  const { $top = 200, $skip = 0, searchTerm, branchCode, locationCode, $orderby } = params;
   const encodedCompany = encodeURIComponent(COMPANY);
 
   // Build base filter
@@ -298,7 +299,7 @@ async function getPaginatedSourceDocs(
       $skip,
       $filter: finalBaseFilter || undefined,
       $count: true,
-      $orderby: "Posting_Date desc",
+      $orderby: $orderby || "Posting_Date desc",
     });
     const endpoint = `/${entity}?company='${encodedCompany}'&${query}`;
     const response = await apiGet<ODataResponse<any>>(endpoint);
@@ -342,16 +343,48 @@ async function getPaginatedSourceDocs(
   });
 
   const allResults = Array.from(mergedMap.values());
-  allResults.sort((a, b) => {
-    const dateA = a.Posting_Date || a.Document_Date || a.Order_Date || a["Document Date"] || "";
-    const dateB = b.Posting_Date || b.Document_Date || b.Order_Date || b["Document Date"] || "";
-    if (dateA !== dateB) {
-      return dateB.localeCompare(dateA);
-    }
-    const noA = a.No || a["No."] || "";
-    const noB = b.No || b["No."] || "";
-    return noB.localeCompare(noA);
-  });
+  if ($orderby) {
+    const [field, direction] = $orderby.trim().split(/\s+/);
+    const isDesc = direction?.toLowerCase() === "desc";
+    allResults.sort((a, b) => {
+      let valA = a[field];
+      let valB = b[field];
+
+      if (field === "Posting_Date") {
+        valA = valA || a.Document_Date || a.Order_Date || a["Document Date"] || "";
+        valB = valB || b.Document_Date || b.Order_Date || b["Document Date"] || "";
+      } else if (field === "Buy_from_Vendor_Name" || field === "Sell_to_Customer_Name") {
+        valA = valA || a.Buy_from_Vendor_Name || a.Sell_to_Customer_Name || a.Transfer_from_Name || "";
+        valB = valB || b.Buy_from_Vendor_Name || b.Sell_to_Customer_Name || b.Transfer_from_Name || "";
+      } else if (field === "Location_Code") {
+        valA = valA || a.Location_Code || a.Transfer_to_Code || "";
+        valB = valB || b.Location_Code || b.Transfer_to_Code || "";
+      }
+
+      if (valA === undefined || valA === null) valA = "";
+      if (valB === undefined || valB === null) valB = "";
+
+      if (typeof valA === "number" && typeof valB === "number") {
+        return isDesc ? valB - valA : valA - valB;
+      }
+
+      const strA = String(valA);
+      const strB = String(valB);
+
+      return isDesc ? strB.localeCompare(strA) : strA.localeCompare(strB);
+    });
+  } else {
+    allResults.sort((a, b) => {
+      const dateA = a.Posting_Date || a.Document_Date || a.Order_Date || a["Document Date"] || "";
+      const dateB = b.Posting_Date || b.Document_Date || b.Order_Date || b["Document Date"] || "";
+      if (dateA !== dateB) {
+        return dateB.localeCompare(dateA);
+      }
+      const noA = a.No || a["No."] || "";
+      const noB = b.No || b["No."] || "";
+      return noB.localeCompare(noA);
+    });
+  }
 
   const pagedData = allResults.slice($skip, $skip + $top);
 

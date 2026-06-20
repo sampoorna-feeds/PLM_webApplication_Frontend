@@ -215,3 +215,29 @@ export async function getItemAvailabilityReport(params: {
   return response?.value || "";
 }
 
+/**
+ * Get Inventory Ageing Report as base64 string
+ */
+export async function getInventoryAgeingReport(params: {
+  asondate: string;
+  itemNo?: string;
+  period: number;
+  columnLength: string;
+  locationFilter?: string;
+}): Promise<string> {
+  const endpoint = `/API_InventoryAgeing?company='${encodeURIComponent(COMPANY)}'`;
+  const response = await apiRequest<{ value: string } | string>(endpoint, {
+    method: "POST",
+    headers: { "If-Match": "*" },
+    body: JSON.stringify({
+      asondate: params.asondate,
+      itemNo: params.itemNo || "",
+      period: params.period,
+      columnLength: params.columnLength,
+      locationFilter: params.locationFilter || "",
+    }),
+  });
+  if (typeof response === "string") return response;
+  return response?.value || "";
+}
+

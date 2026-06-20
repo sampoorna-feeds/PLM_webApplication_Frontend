@@ -284,7 +284,7 @@ export function VoucherForm() {
   };
 
   // useHorizontalScroll(formTableRef);
-  useHorizontalScroll(vouchersTableRef);
+  // useHorizontalScroll(vouchersTableRef);
 
   const [accountType, setAccountType] = useState<
     VoucherFormData["accountType"] | undefined
@@ -2567,7 +2567,7 @@ export function VoucherForm() {
         ) : (
           <div
             ref={vouchersTableRef}
-            className="bg-background flex-1 min-h-0 cursor-grab overflow-auto rounded-md border"
+            className="bg-background flex-1 min-h-0 overflow-auto rounded-md border"
           >
             <Table className={tableClass}>
               <TableHeader>

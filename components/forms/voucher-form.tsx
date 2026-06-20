@@ -7,7 +7,8 @@
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { z } from "zod";
-import { Pencil, Plus, Trash2, Upload, Info, Loader2, X, FileSpreadsheet } from "lucide-react";
+import { Pencil, Plus, Trash2, Upload, Info, Loader2, X, FileSpreadsheet, Paperclip } from "lucide-react";
+import { VoucherAttachmentDialog } from "./voucher-attachment-dialog";
 
 import {
   voucherSchema,
@@ -323,6 +324,8 @@ export function VoucherForm() {
     useState<VoucherEntryResponse | null>(null);
   const [showDeleteVoucherWarning, setShowDeleteVoucherWarning] =
     useState(false);
+  const [isAttachmentDialogOpen, setIsAttachmentDialogOpen] = useState(false);
+  const [attachmentVoucherNo, setAttachmentVoucherNo] = useState<string | null>(null);
   // Edit voucher state
   const [voucherToEdit, setVoucherToEdit] =
     useState<VoucherEntryResponse | null>(null);
@@ -2572,15 +2575,15 @@ export function VoucherForm() {
                   <TableHead
                     className={cn(
                       "text-foreground/80 bg-muted sticky left-0 top-0 z-40 px-1 py-1 text-xs font-semibold text-center",
-                      "w-18",
+                      "w-36",
                     )}
                     style={{ borderRight: "2px solid hsl(var(--border))" }}
                   >
-                    Post
+                    Post / Attachment
                   </TableHead>
                   <TableHead
                     className={cn(
-                      "text-foreground/80 bg-muted sticky left-18 top-0 z-40 px-1 py-1 text-xs font-semibold",
+                      "text-foreground/80 bg-muted sticky left-36 top-0 z-40 px-1 py-1 text-xs font-semibold",
                       "w-25",
                     )}
                     style={{ borderRight: "2px solid hsl(var(--border))" }}
@@ -2589,7 +2592,7 @@ export function VoucherForm() {
                   </TableHead>
                   <TableHead
                     className={cn(
-                      "text-foreground/80 bg-muted sticky left-43 top-0 z-40 px-1 py-1 text-xs font-semibold",
+                      "text-foreground/80 bg-muted sticky left-[244px] top-0 z-40 px-1 py-1 text-xs font-semibold",
                       "w-22.5",
                     )}
                     style={{ borderRight: "2px solid hsl(var(--border))" }}
@@ -2598,7 +2601,7 @@ export function VoucherForm() {
                   </TableHead>
                   <TableHead
                     className={cn(
-                      "text-foreground/80 bg-muted sticky left-65.5 top-0 z-40 px-1 py-1 text-xs font-semibold",
+                      "text-foreground/80 bg-muted sticky left-[334px] top-0 z-40 px-1 py-1 text-xs font-semibold",
                       "w-25",
                     )}
                     style={{ borderRight: "2px solid hsl(var(--border))" }}
@@ -2797,23 +2800,39 @@ export function VoucherForm() {
                               borderRight: "2px solid hsl(var(--border))",
                             }}
                           >
-                            <Button
-                              type="button"
-                              size="xs"
-                              variant="default"
-                              className="h-6 px-2 text-[11px]"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handlePostSingleVoucher(voucher.Document_No, voucher.Line_No, voucher.Posting_Date);
-                              }}
-                              disabled={postingLines[voucher.Line_No] || isPosting}
-                            >
-                              {postingLines[voucher.Line_No] ? "Posting..." : "Post"}
-                            </Button>
+                            <div className="flex items-center justify-center gap-1.5">
+                              <Button
+                                type="button"
+                                size="xs"
+                                variant="default"
+                                className="h-6 px-2 text-[11px]"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handlePostSingleVoucher(voucher.Document_No, voucher.Line_No, voucher.Posting_Date);
+                                }}
+                                disabled={postingLines[voucher.Line_No] || isPosting}
+                              >
+                                {postingLines[voucher.Line_No] ? "Posting..." : "Post"}
+                              </Button>
+                              <Button
+                                type="button"
+                                size="xs"
+                                variant="outline"
+                                className="h-6 px-1.5 text-[11px] flex items-center gap-1"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setAttachmentVoucherNo(voucher.Document_No);
+                                  setIsAttachmentDialogOpen(true);
+                                }}
+                              >
+                                <Paperclip className="h-3 w-3" />
+                                
+                              </Button>
+                            </div>
                           </TableCell>
                           <TableCell
                             className={cn(
-                              "bg-background sticky left-18 z-20 px-1 py-0.5 text-xs font-medium",
+                              "bg-background sticky left-36 z-20 px-1 py-0.5 text-xs font-medium",
                               failedVoucherLineNos.has(voucher.Line_No) &&
                                 "bg-destructive/10",
                             )}
@@ -2825,7 +2844,7 @@ export function VoucherForm() {
                           </TableCell>
                           <TableCell
                             className={cn(
-                              "bg-background sticky left-43 z-20 px-1 py-0.5 text-xs",
+                              "bg-background sticky left-[244px] z-20 px-1 py-0.5 text-xs",
                               failedVoucherLineNos.has(voucher.Line_No) &&
                                 "bg-destructive/10",
                             )}
@@ -2837,7 +2856,7 @@ export function VoucherForm() {
                           </TableCell>
                           <TableCell
                             className={cn(
-                              "bg-background sticky left-65.5 z-20 px-1 py-0.5 text-xs",
+                              "bg-background sticky left-[334px] z-20 px-1 py-0.5 text-xs",
                               failedVoucherLineNos.has(voucher.Line_No) &&
                                 "bg-destructive/10",
                             )}
@@ -3349,6 +3368,15 @@ export function VoucherForm() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Voucher Attachment Dialog */}
+      {attachmentVoucherNo && (
+        <VoucherAttachmentDialog
+          isOpen={isAttachmentDialogOpen}
+          onOpenChange={setIsAttachmentDialogOpen}
+          voucherNo={attachmentVoucherNo}
+        />
+      )}
 
       {/* Removed delete all dialog */}
     </div>

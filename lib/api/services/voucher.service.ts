@@ -3,7 +3,7 @@
  * Handles voucher creation, TDS/TCS section fetching, and attachment uploads
  */
 
-import { apiGet, apiPost, apiDelete, apiPatch } from "../client";
+import { apiGet, apiPost, apiDelete, apiPatch, apiRequest } from "../client";
 import type { ODataResponse } from "../types";
 
 const COMPANY =
@@ -411,5 +411,107 @@ export async function getVoucherReportPdf(
     postingdate: postingDate,
   });
   return response?.value || "";
+}
+
+export interface VoucherAttachment {
+  Table_ID: number;
+  No: string;
+  Document_Type: string;
+  Line_No: number;
+  ID: number;
+  Name: string;
+  File_Extension: string;
+  File_Type: string;
+  User?: string;
+  Attached_Date?: string;
+}
+
+/**
+ * Fetch the list of currently added attachments for a voucher document.
+ */
+export async function getVoucherAttachments(
+  documentNo: string,
+): Promise<VoucherAttachment[]> {
+  const escapedNo = documentNo.replace(/'/g, "''");
+  const filter = `Table_ID eq 81 and Document_Type eq 'Invoice' and No eq '${escapedNo}'`;
+  const select = `No,Name,File_Extension,ID,Document_Type,Table_ID`;
+  const query = `?company='${encodeURIComponent(COMPANY)}'&$filter=${encodeURIComponent(filter)}&$select=${encodeURIComponent(select)}`;
+  const endpoint = `/Attachment${query}`;
+
+  try {
+    const response = await apiGet<ODataResponse<VoucherAttachment>>(endpoint);
+    return response.value || [];
+  } catch (error) {
+    console.error("Error fetching voucher attachments:", error);
+    throw error;
+  }
+}
+
+/**
+ * Upload an attachment to an existing voucher.
+ */
+export async function uploadVoucherAttachment(
+  documentNo: string,
+  fileName: string,
+  fileBase64: string,
+): Promise<void> {
+  const endpoint = `/API_InitiateUploadFileGJ?company='${encodeURIComponent(COMPANY)}'`;
+  try {
+    await apiPost(endpoint, {
+      recNo: documentNo.toUpperCase(),
+      fileName: fileName.toUpperCase(),
+      fileEncodedTextDialog: fileBase64,
+    });
+  } catch (error) {
+    console.error("Error uploading voucher attachment:", error);
+    throw error;
+  }
+}
+
+/**
+ * Fetch a specific voucher attachment's base64 content.
+ */
+export async function downloadVoucherAttachment(
+  recID: number,
+  recNo: string,
+  fileExtension: string,
+): Promise<string> {
+  const endpoint = `/API_InitiateDownloadFilePurchase?company='${encodeURIComponent(COMPANY)}'`;
+  try {
+    const response = await apiRequest<{ value: string }>(endpoint, {
+      method: "POST",
+      body: JSON.stringify({
+        recID,
+        recNo,
+        fileExtension,
+      }),
+      headers: {
+        "Content-Type": "application/json",
+        "If-Match": "*",
+      },
+    });
+    return response.value || "";
+  } catch (error) {
+    console.error("Error downloading voucher attachment:", error);
+    throw error;
+  }
+}
+
+/**
+ * Delete a specific voucher attachment.
+ */
+export async function deleteVoucherAttachment(
+  id: number,
+  no: string,
+): Promise<void> {
+  const escapedNo = no.replace(/'/g, "''");
+  const endpoint = `/company('${encodeURIComponent(COMPANY)}')/Attachment(ID=${id},Table_ID=81,No='${escapedNo}',Document_Type='Invoice',Line_No=0)`;
+
+  try {
+    await apiDelete(endpoint);
+  } catch (error) {
+    console.error("Error deleting voucher attachment:", error);
+    throw error;
+  }
 }
 

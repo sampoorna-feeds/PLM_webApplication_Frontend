@@ -150,6 +150,11 @@ export function ReportsForm() {
       return;
     }
 
+    if (reportType === "ageing" && !loc) {
+      toastError(new Error("Please select a location"));
+      return;
+    }
+
     setIsLoading(true);
     try {
       let base64 = "";
@@ -297,14 +302,14 @@ export function ReportsForm() {
 
                 <div className="space-y-2">
                   <label className="text-sm font-medium">
-                    Location {reportType === "availability" ? "(Optional)" : "(Optional)"}
+                    Location {reportType === "availability" ? "(Optional)" : <span className="text-destructive">*</span>}
                   </label>
                   <SearchableSelect
                     placeholder={
                       selectedBranch
                         ? reportType === "availability"
                           ? "Select locations (or leave blank for all)"
-                          : "Select location (or leave blank for all)"
+                          : "Select location"
                         : "Select a branch first"
                     }
                     value={loc}

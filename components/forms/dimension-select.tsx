@@ -41,6 +41,7 @@ interface DimensionSelectProps {
   className?: string;
   hasError?: boolean;
   errorClass?: string;
+  modal?: boolean;
 }
 
 const DEBOUNCE_MS = 300;
@@ -57,6 +58,7 @@ export function DimensionSelect({
   className,
   hasError = false,
   errorClass = "",
+  modal = false,
 }: DimensionSelectProps) {
   const [items, setItems] = useState<DimensionValue[]>([]);
   const [isOpen, setIsOpen] = useState(false);
@@ -488,7 +490,7 @@ export function DimensionSelect({
   };
 
   return (
-    <Popover open={isOpen} onOpenChange={handleOpenChange}>
+    <Popover open={isOpen} onOpenChange={handleOpenChange} modal={modal}>
       <PopoverAnchor asChild>
         <div className="relative w-full">
           <Input

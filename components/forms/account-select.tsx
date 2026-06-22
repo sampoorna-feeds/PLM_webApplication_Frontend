@@ -49,6 +49,7 @@ interface AccountSelectProps {
   hasError?: boolean;
   errorClass?: string;
   excludeValue?: string; // Account number to exclude from the list (e.g., Account No. when selecting Bal. Acc No.)
+  modal?: boolean;
 }
 
 const DEBOUNCE_MS = 300;
@@ -66,6 +67,7 @@ export function AccountSelect({
   hasError = false,
   errorClass = "",
   excludeValue,
+  modal = false,
 }: AccountSelectProps) {
   const [items, setItems] = useState<AccountItem[]>([]);
   const [isOpen, setIsOpen] = useState(false);
@@ -133,6 +135,13 @@ export function AccountSelect({
       // Clear debounce timer
       if (debounceTimerRef.current) {
         clearTimeout(debounceTimerRef.current);
+      }
+
+      // If query is empty, reload initial items
+      if (query.trim() === "") {
+        setSearchQuery("");
+        loadInitialItems();
+        return;
       }
 
       // If query is too short (less than 3 chars), don't make any API call
@@ -255,19 +264,13 @@ export function AccountSelect({
     if (isOpen) {
       closeReasonRef.current = null;
       setFocusedIndex(-1);
-      // Always load items when opening, even if we have some, to ensure value is in list
-      if (
-        items.length === 0 ||
-        (value && !items.find((item) => item.No === value))
-      ) {
-        loadInitialItems();
-      }
+      loadInitialItems();
     } else {
       setSearchQuery("");
       setSkip(0);
       setHasMore(true);
     }
-  }, [isOpen, loadInitialItems, value]);
+  }, [isOpen, loadInitialItems]);
 
   // Handle scroll for pagination
   useEffect(() => {
@@ -451,7 +454,7 @@ export function AccountSelect({
   };
 
   return (
-    <Popover open={isOpen} onOpenChange={handleOpenChange}>
+    <Popover open={isOpen} onOpenChange={handleOpenChange} modal={modal}>
       <PopoverAnchor asChild>
         <div className="relative w-full">
           <Input
@@ -472,6 +475,7 @@ export function AccountSelect({
             onKeyDown={handleKeyDown}
             placeholder={placeholder}
             disabled={disabled || !accountType}
+            autoComplete="off"
             className={cn(
               "h-9 w-full pr-10 text-sm font-normal shadow-sm",
               !value && !isOpen && "text-muted-foreground",

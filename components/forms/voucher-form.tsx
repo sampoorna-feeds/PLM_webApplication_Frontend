@@ -87,6 +87,7 @@ import { getCustomerByNo } from "@/lib/api/services/customer.service";
 import { useAuth } from "@/lib/contexts/auth-context";
 import type { ApiError } from "@/lib/api/client";
 import { exportVouchersToExcel } from "@/lib/utils/export";
+import { base64ToPdfBlob } from "@/lib/pdf-utils";
 
 // Removed VoucherEntry type as staging area is being removed
 
@@ -744,7 +745,12 @@ export function VoucherForm() {
 // Removed beforeunload effect as staging area is being removed
 
   const resetForm = useCallback(() => {
-    setFormData(defaultFormState);
+    const today = new Date().toISOString().split("T")[0];
+    setFormData({
+      ...defaultFormState,
+      postingDate: today,
+      documentDate: today,
+    });
     setAccountType(undefined as VoucherFormData["accountType"] | undefined);
     setHasUnsavedChanges(false);
     setIsEditingVoucher(false);
@@ -1242,6 +1248,53 @@ export function VoucherForm() {
     } catch (err) {
       console.error("Error triggering file download:", err);
       toast.error("Failed to download PDF file");
+    }
+  };
+
+  const viewPdf = async (documentNo: string, postingDate: string) => {
+    const newTab = window.open("", "_blank");
+    if (newTab) {
+      newTab.document.title = `Loading PDF - ${documentNo}...`;
+      newTab.document.body.innerHTML = `
+        <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; font-family: sans-serif; color: #4b5563; background-color: #f9fafb;">
+          <div style="border: 4px solid #e5e7eb; border-top: 4px solid #3b82f6; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite;"></div>
+          <p style="margin-top: 16px; font-size: 16px; font-weight: 500;">Generating and loading PDF report for ${documentNo}...</p>
+          <style>
+            @keyframes spin {
+              0% { transform: rotate(0deg); }
+              100% { transform: rotate(360deg); }
+            }
+          </style>
+        </div>
+      `;
+    }
+
+    try {
+      const pdfBase64 = await getVoucherReportPdf(documentNo, postingDate);
+      if (pdfBase64) {
+        const blob = base64ToPdfBlob(pdfBase64);
+        const url = window.URL.createObjectURL(blob);
+        if (newTab) {
+          newTab.location.href = url;
+          setTimeout(() => window.URL.revokeObjectURL(url), 60000);
+        } else {
+          // Fallback if tab didn't open
+          const link = document.createElement("a");
+          link.href = url;
+          link.download = `${documentNo}.pdf`;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          setTimeout(() => window.URL.revokeObjectURL(url), 60000);
+        }
+      } else {
+        newTab?.close();
+        toast.error(`Failed to retrieve PDF report for ${documentNo}`);
+      }
+    } catch (err) {
+      newTab?.close();
+      console.error(`Error viewing PDF:`, err);
+      toast.error(`Error viewing PDF report for ${documentNo}`);
     }
   };
 
@@ -3196,7 +3249,12 @@ export function VoucherForm() {
       {/* Removed entry-related dialogs */}
 
       {/* Success Dialog */}
-      <Dialog open={successDialogOpen} onOpenChange={setSuccessDialogOpen}>
+      <Dialog open={successDialogOpen} onOpenChange={(open) => {
+        setSuccessDialogOpen(open);
+        if (!open) {
+          window.location.reload();
+        }
+      }}>
         <DialogContent>
           <DialogHeader>
             <div className="flex items-center gap-2">
@@ -3224,7 +3282,10 @@ export function VoucherForm() {
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button onClick={() => setSuccessDialogOpen(false)}>OK</Button>
+            <Button onClick={() => {
+              setSuccessDialogOpen(false);
+              window.location.reload();
+            }}>OK</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -3238,9 +3299,9 @@ export function VoucherForm() {
       }}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Download PDF Report</DialogTitle>
+            <DialogTitle>Voucher Posted Successfully</DialogTitle>
             <DialogDescription className="pt-2">
-              The voucher has been posted successfully. Would you like to download the PDF report?
+              The voucher has been posted successfully. Would you like to view or download the PDF report?
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2">
@@ -3253,6 +3314,19 @@ export function VoucherForm() {
               }}
             >
               No, Skip
+            </Button>
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={async () => {
+                setDownloadConfirmOpen(false);
+                for (const v of vouchersToDownload) {
+                  await viewPdf(v.documentNo, v.postingDate);
+                }
+                window.location.reload();
+              }}
+            >
+              View Report
             </Button>
             <Button
               type="button"
@@ -3274,7 +3348,7 @@ export function VoucherForm() {
                 window.location.reload();
               }}
             >
-              Yes, Download
+              Download PDF
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -46,6 +46,7 @@ interface CascadingDimensionSelectProps {
   userId?: string;
   /** When true, only show the code in the selected display value instead of 'Code - Name' */
   showCodeOnly?: boolean;
+  modal?: boolean;
 }
 
 const DEBOUNCE_MS = 300;
@@ -66,6 +67,7 @@ export function CascadingDimensionSelect({
   branchValue,
   userId,
   showCodeOnly = false,
+  modal = false,
 }: CascadingDimensionSelectProps) {
   const [items, setItems] = useState<DimensionValue[]>([]);
   const [isOpen, setIsOpen] = useState(false);
@@ -262,7 +264,7 @@ export function CascadingDimensionSelect({
   }
 
   return (
-    <Popover open={isOpen} onOpenChange={handleOpenChange}>
+    <Popover open={isOpen} onOpenChange={handleOpenChange} modal={modal}>
       <PopoverAnchor asChild>
         <div className="relative w-full">
           <Input

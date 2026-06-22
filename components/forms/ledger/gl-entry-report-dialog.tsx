@@ -12,8 +12,9 @@ import {
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { DateInput } from "@/components/ui/date-input";
-import { DimensionSelect } from "@/components/forms/dimension-select";
+import { CascadingDimensionSelect } from "@/components/forms/cascading-dimension-select";
 import { AccountSelect } from "@/components/forms/account-select";
+import { useAuth } from "@/lib/contexts/auth-context";
 import {
   Select,
   SelectContent,
@@ -45,6 +46,7 @@ export function GLEntryReportDialog({
   onReportTypeChange,
   filters,
 }: GLEntryReportDialogProps) {
+  const { userID } = useAuth();
   const [fromDate, setFromDate] = useState<string>("");
   const [toDate, setToDate] = useState<string>("");
   const [branch, setBranch] = useState<string>("");
@@ -100,7 +102,7 @@ export function GLEntryReportDialog({
         toDate,
         branch,
         reportExt,
-        ...(glAccount ? { gLAccount: glAccount } : {}),
+        gLAccount: reportType === "DayBook" ? "" : (glAccount || ""),
       };
 
       const base64Data = await generateDayBookReport(payload);
@@ -110,7 +112,7 @@ export function GLEntryReportDialog({
       }
 
       const formattedReportName = reportType === "CashBook" ? "Cash_Book" : "Day_Book";
-      const accountSuffix = glAccount ? `_${glAccount}` : "";
+      const accountSuffix = (reportType !== "DayBook" && glAccount) ? `_${glAccount}` : "";
       const fileName = `${formattedReportName}_${branch}${accountSuffix}_${fromDate}_to_${toDate}`;
 
       if (reportExt === "Excel") {
@@ -131,7 +133,15 @@ export function GLEntryReportDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[480px] p-0 overflow-hidden rounded-xl border shadow-2xl bg-background">
+      <DialogContent 
+        className="sm:max-w-[480px] p-0 overflow-hidden rounded-xl border shadow-2xl bg-background"
+        onPointerDownOutside={(e) => {
+          const target = e.target as HTMLElement;
+          if (target && (target.closest('[data-slot="popover-content"]') || target.closest('[data-radix-popper-content-wrapper]'))) {
+            e.preventDefault();
+          }
+        }}
+      >
         
         {/* Visual Top Bar / Header Accent */}
         <div className="h-1.5 bg-gradient-to-r from-primary/80 via-primary to-primary/60 w-full" />
@@ -228,15 +238,17 @@ export function GLEntryReportDialog({
                 <Building2 className="h-3.5 w-3.5" />
                 Branch Code <span className="text-destructive">*</span>
               </Label>
-              <DimensionSelect
+              <CascadingDimensionSelect
                 dimensionType="BRANCH"
                 value={branch}
                 onChange={(val) => {
                   setBranch(val);
                   setErrors((prev) => ({ ...prev, branch: "" }));
                 }}
+                userId={userID?.toString()}
                 placeholder="Search branch code..."
                 className={errors.branch ? "border-destructive focus-visible:ring-destructive" : ""}
+                modal={true}
               />
               {errors.branch && (
                 <span className="text-[10px] text-destructive font-medium block">
@@ -246,27 +258,30 @@ export function GLEntryReportDialog({
             </div>
 
             {/* G/L Account Select */}
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold flex items-center gap-1.5 text-muted-foreground">
-                <BookOpen className="h-3.5 w-3.5" />
-                G/L Account {reportType === "CashBook" ? <span className="text-destructive">*</span> : <span className="text-muted-foreground font-normal">(Optional)</span>}
-              </Label>
-              <AccountSelect
-                accountType="G/L Account"
-                value={glAccount}
-                onChange={(val) => {
-                  setGlAccount(val);
-                  setErrors((prev) => ({ ...prev, glAccount: "" }));
-                }}
-                placeholder="Search G/L account..."
-                className={errors.glAccount ? "border-destructive focus-visible:ring-destructive" : ""}
-              />
-              {errors.glAccount && (
-                <span className="text-[10px] text-destructive font-medium block">
-                  {errors.glAccount}
-                </span>
-              )}
-            </div>
+            {reportType !== "DayBook" && (
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold flex items-center gap-1.5 text-muted-foreground">
+                  <BookOpen className="h-3.5 w-3.5" />
+                  G/L Account {reportType === "CashBook" ? <span className="text-destructive">*</span> : <span className="text-muted-foreground font-normal">(Optional)</span>}
+                </Label>
+                <AccountSelect
+                  accountType="G/L Account"
+                  value={glAccount}
+                  onChange={(val) => {
+                    setGlAccount(val);
+                    setErrors((prev) => ({ ...prev, glAccount: "" }));
+                  }}
+                  placeholder="Search G/L account..."
+                  className={errors.glAccount ? "border-destructive focus-visible:ring-destructive" : ""}
+                  modal={true}
+                />
+                {errors.glAccount && (
+                  <span className="text-[10px] text-destructive font-medium block">
+                    {errors.glAccount}
+                  </span>
+                )}
+              </div>
+            )}
 
             {/* Export Format Select */}
             <div className="space-y-1.5">
